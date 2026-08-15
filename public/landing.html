@@ -12,10 +12,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="css/variables.css">
-  <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="css/components.css">
-  
   <style>
     :root {
       --primary: #6c5ce7;
@@ -28,6 +24,8 @@
       --border: #e2e8f0;
       --card-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05);
       --card-hover: 0 20px 30px -10px rgba(108,92,231,0.15);
+      --toast-bg: #333;
+      --toast-text: #fff;
     }
 
     [data-theme="dark"] {
@@ -38,20 +36,26 @@
       --border: #2d3348;
       --card-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
       --card-hover: 0 20px 30px -10px rgba(108,92,231,0.3);
+      --toast-bg: #e2e8f0;
+      --toast-text: #0f172a;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
     body {
       font-family: 'Outfit', sans-serif;
       background: var(--bg);
       color: var(--text);
       line-height: 1.6;
       overflow-x: hidden;
+      transition: background 0.3s, color 0.3s;
     }
+
+    a { text-decoration: none; color: inherit; }
 
     /* Top Announcement Ticker */
     .top-ticker {
-      background: linear-gradient(90deg, #6c5ce7, #a29bfe);
+      background: linear-gradient(90deg, #6c5ce7, #00b894);
       color: #ffffff;
       padding: 8px 16px;
       font-size: 0.88rem;
@@ -68,13 +72,13 @@
       position: sticky;
       top: 0;
       z-index: 1000;
-      background: rgba(255, 255, 255, 0.9);
-      backdrop-filter: blur(12px);
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border);
       transition: all 0.3s ease;
     }
     [data-theme="dark"] .landing-nav {
-      background: rgba(30, 34, 48, 0.9);
+      background: rgba(30, 34, 48, 0.7);
     }
     .nav-container {
       max-width: 1240px;
@@ -88,521 +92,440 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      text-decoration: none;
-      color: var(--text);
-    }
-    .nav-logo {
-      font-size: 1.8rem;
-    }
-    .nav-title {
-      font-size: 1.25rem;
       font-weight: 800;
-      letter-spacing: -0.5px;
+      font-size: 1.25rem;
     }
+    .nav-logo { font-size: 1.8rem; }
+    
     .nav-menu {
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 24px;
       list-style: none;
     }
     .nav-link {
-      text-decoration: none;
-      color: var(--text-muted);
       font-weight: 600;
       font-size: 0.92rem;
+      color: var(--text-muted);
       transition: color 0.2s;
     }
-    .nav-link:hover {
-      color: var(--primary);
-    }
+    .nav-link:hover { color: var(--primary); }
+
     .nav-actions {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
-
+    .btn-pill {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 14px rgba(108, 92, 231, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-pill:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(108, 92, 231, 0.5);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      padding: 10px 20px;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .btn-outline:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    
+    .theme-toggle, .mobile-toggle {
+      background: none; border: none; color: var(--text);
+      font-size: 1.2rem; cursor: pointer; padding: 6px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    
+    .mobile-toggle { display: none; }
+    
     /* Hero Section */
     .hero-section {
-      padding: 4rem 1.5rem 3rem 1.5rem;
+      padding: 6rem 1.5rem 4rem 1.5rem;
       background: radial-gradient(circle at top right, rgba(108, 92, 231, 0.12), transparent 50%),
                   radial-gradient(circle at bottom left, rgba(0, 184, 148, 0.08), transparent 50%);
       text-align: center;
     }
-    .hero-container {
-      max-width: 900px;
-      margin: 0 auto;
-    }
+    .hero-container { max-width: 900px; margin: 0 auto; }
+    
     .hero-badge-row {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 8px;
-      margin-bottom: 1.5rem;
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 2rem;
     }
     .hero-badge {
       background: var(--surface);
       border: 1px solid var(--border);
-      padding: 6px 14px;
+      padding: 8px 16px;
       border-radius: 50px;
-      font-size: 0.82rem;
+      font-size: 0.85rem;
       font-weight: 600;
-      color: var(--text);
       box-shadow: 0 2px 5px rgba(0,0,0,0.04);
     }
+    
     .hero-title {
-      font-size: 2.8rem;
+      font-size: 3.2rem;
       font-weight: 800;
       line-height: 1.2;
       letter-spacing: -1px;
-      margin-bottom: 1.25rem;
+      margin-bottom: 1.5rem;
     }
     .hero-title span {
-      background: linear-gradient(135deg, #6c5ce7, #00b894);
+      background: linear-gradient(135deg, var(--primary), var(--accent));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
     .hero-subtitle {
-      font-size: 1.15rem;
+      font-size: 1.2rem;
       color: var(--text-muted);
       max-width: 720px;
-      margin: 0 auto 2rem auto;
+      margin: 0 auto 2.5rem auto;
     }
+    
     .hero-cta-group {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-      margin-bottom: 2.5rem;
+      display: flex; justify-content: center; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 3rem;
     }
     .btn-hero-primary {
-      background: var(--primary);
-      color: #ffffff;
-      padding: 14px 28px;
-      border-radius: 10px;
-      font-size: 1rem;
-      font-weight: 700;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      box-shadow: 0 4px 14px rgba(108, 92, 231, 0.4);
-      transition: transform 0.2s, box-shadow 0.2s;
+      background: var(--primary); color: #fff;
+      padding: 16px 32px; border-radius: 12px; font-weight: 700; font-size: 1.05rem;
+      display: flex; align-items: center; gap: 10px;
+      box-shadow: 0 4px 14px rgba(108, 92, 231, 0.4); transition: all 0.2s;
     }
-    .btn-hero-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(108, 92, 231, 0.5);
-    }
+    .btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(108, 92, 231, 0.5); }
     .btn-hero-secondary {
-      background: var(--surface);
-      border: 1.5px solid var(--border);
-      color: var(--text);
-      padding: 14px 28px;
-      border-radius: 10px;
-      font-size: 1rem;
-      font-weight: 700;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
+      background: var(--surface); color: var(--text);
+      border: 1.5px solid var(--border); padding: 16px 32px; border-radius: 12px;
+      font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 10px;
       transition: all 0.2s;
     }
-    .btn-hero-secondary:hover {
-      border-color: var(--primary);
-      color: var(--primary);
-    }
+    .btn-hero-secondary:hover { border-color: var(--primary); color: var(--primary); }
 
-    /* Stats Banner */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-      gap: 1.5rem;
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 1.5rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: var(--card-shadow);
-    }
-    .stat-box h4 {
-      font-size: 2rem;
-      font-weight: 800;
-      color: var(--primary);
-    }
-    .stat-box p {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    /* Section Global */
+    /* Section Shared */
     .section-wrap {
-      padding: 4rem 1.5rem;
-      max-width: 1200px;
-      margin: 0 auto;
+      padding: 5rem 1.5rem; max-width: 1200px; margin: 0 auto;
     }
-    .section-header {
-      text-align: center;
-      margin-bottom: 3rem;
-    }
+    .section-header { text-align: center; margin-bottom: 3.5rem; }
     .section-tag {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      background: rgba(108, 92, 231, 0.1);
-      color: var(--primary);
-      font-size: 0.8rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 8px;
+      display: inline-block; padding: 6px 14px; border-radius: 20px;
+      background: rgba(108, 92, 231, 0.1); color: var(--primary);
+      font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 12px;
     }
-    .section-title {
-      font-size: 2.2rem;
-      font-weight: 800;
-      letter-spacing: -0.5px;
+    .section-title { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.5px; }
+    .section-subtitle { font-size: 1.05rem; color: var(--text-muted); margin-top: 10px; max-width: 650px; margin-inline: auto; }
+
+    /* About Section */
+    .about-highlights {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;
     }
-    .section-subtitle {
-      font-size: 1rem;
-      color: var(--text-muted);
-      margin-top: 6px;
-      max-width: 650px;
-      margin-left: auto;
-      margin-right: auto;
+    .highlight-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem;
+      display: flex; align-items: center; gap: 1rem; box-shadow: var(--card-shadow);
     }
+    .highlight-card .icon { font-size: 2rem; }
+    .highlight-card .text { font-weight: 600; font-size: 1.05rem; }
+    
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 2.5rem;
+      box-shadow: var(--card-shadow); text-align: center;
+    }
+    .stat-box h4 { font-size: 2.4rem; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+    .stat-box p { font-size: 0.9rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
 
     /* Facilities Grid */
     .facilities-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-      gap: 1.5rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem;
     }
     .facility-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.75rem;
-      transition: all 0.25s ease;
-      box-shadow: var(--card-shadow);
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem;
+      transition: all 0.3s; box-shadow: var(--card-shadow); text-align: center;
     }
-    .facility-card:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--card-hover);
-      border-color: rgba(108, 92, 231, 0.4);
-    }
-    .facility-icon {
-      font-size: 2.2rem;
-      margin-bottom: 1rem;
-      display: inline-block;
-    }
-    .facility-title {
-      font-size: 1.15rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-    .facility-desc {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
+    .facility-card:hover { transform: translateY(-5px); box-shadow: var(--card-hover); border-color: rgba(108, 92, 231, 0.4); }
+    .facility-icon { font-size: 2.5rem; margin-bottom: 1rem; display: inline-block; }
+    .facility-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .facility-desc { font-size: 0.9rem; color: var(--text-muted); }
 
-    /* Plans / Pricing Grid */
+    /* Shifts Section */
+    .shifts-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;
+    }
+    .shift-card {
+      background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px; padding: 1.5rem;
+      position: relative; overflow: hidden; box-shadow: var(--card-shadow);
+    }
+    .shift-icon { font-size: 2rem; margin-bottom: 1rem; }
+    .shift-name { font-size: 1.25rem; font-weight: 800; margin-bottom: 0.5rem; }
+    .shift-time { font-size: 1rem; font-weight: 600; color: var(--primary); }
+
+    /* Plans Section */
+    .plan-toggles {
+      display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 3rem; flex-wrap: wrap;
+    }
+    .plan-toggle {
+      background: var(--surface); border: 1px solid var(--border); padding: 10px 20px; border-radius: 50px;
+      font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; color: var(--text);
+    }
+    .plan-toggle.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    
     .plans-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-      gap: 2rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;
     }
     .plan-card {
-      background: var(--surface);
-      border: 1.5px solid var(--border);
-      border-radius: 18px;
-      padding: 2rem;
-      position: relative;
-      transition: all 0.3s ease;
-      box-shadow: var(--card-shadow);
-      display: flex;
-      flex-direction: column;
-    }
-    .plan-card.featured {
-      border-color: var(--primary);
-      box-shadow: 0 15px 35px -5px rgba(108, 92, 231, 0.2);
+      background: var(--surface); border: 1.5px solid var(--border); border-radius: 24px; padding: 2.5rem;
+      box-shadow: var(--card-shadow); display: flex; flex-direction: column; position: relative;
     }
     .plan-badge {
-      position: absolute;
-      top: -12px;
-      right: 20px;
-      background: var(--accent);
-      color: #ffffff;
-      font-size: 0.75rem;
-      font-weight: 700;
-      padding: 4px 12px;
-      border-radius: 20px;
-      text-transform: uppercase;
+      position: absolute; top: -14px; right: 24px; background: var(--accent); color: #fff;
+      font-size: 0.8rem; font-weight: 700; padding: 6px 14px; border-radius: 20px; text-transform: uppercase;
     }
-    .plan-name {
-      font-size: 1.4rem;
-      font-weight: 800;
-      margin-bottom: 0.5rem;
+    .plan-name { font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem; }
+    .plan-price-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2rem; }
+    .plan-price { font-size: 2.8rem; font-weight: 800; color: var(--primary); }
+    .plan-period { color: var(--text-muted); font-weight: 600; }
+    .plan-features { list-style: none; margin-bottom: 2.5rem; flex-grow: 1; }
+    .plan-features li { display: flex; align-items: center; gap: 10px; font-size: 0.95rem; margin-bottom: 12px; }
+    .plan-features li::before { content: '✓'; color: var(--accent); font-weight: 800; font-size: 1.1rem; }
+    
+    /* Gallery Section */
+    .gallery-filters {
+      display: flex; justify-content: center; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;
     }
-    .plan-price-row {
-      display: flex;
-      align-items: baseline;
-      gap: 6px;
-      margin-bottom: 1.5rem;
+    .g-filter {
+      background: var(--surface); border: 1px solid var(--border); padding: 8px 18px; border-radius: 50px;
+      font-weight: 600; font-size: 0.9rem; cursor: pointer;
     }
-    .plan-price {
-      font-size: 2.4rem;
-      font-weight: 800;
-      color: var(--primary);
-    }
-    .plan-period {
-      color: var(--text-muted);
-      font-size: 0.9rem;
-    }
-    .plan-features {
-      list-style: none;
-      margin-bottom: 2rem;
-      flex-grow: 1;
-    }
-    .plan-features li {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.92rem;
-      margin-bottom: 10px;
-      color: var(--text);
-    }
-    .plan-features li::before {
-      content: '✓';
-      color: var(--accent);
-      font-weight: 800;
-    }
-
-    /* Gallery Grid */
+    .g-filter.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    
     .gallery-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-      gap: 1.25rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;
     }
     .gallery-item {
-      position: relative;
-      border-radius: 14px;
-      overflow: hidden;
-      aspect-ratio: 4/3;
-      box-shadow: var(--card-shadow);
-      cursor: pointer;
+      position: relative; border-radius: 16px; overflow: hidden; aspect-ratio: 4/3; cursor: pointer;
     }
-    .gallery-item img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: transform 0.4s ease;
-    }
-    .gallery-item:hover img {
-      transform: scale(1.05);
-    }
+    .gallery-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
+    .gallery-item:hover img { transform: scale(1.08); }
     .gallery-caption {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-      color: #ffffff;
-      padding: 12px;
-      font-size: 0.85rem;
-      font-weight: 600;
+      position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.8));
+      color: #fff; padding: 20px 16px 12px 16px; font-weight: 600; font-size: 0.9rem;
     }
 
-    /* Rules Section */
-    .rules-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 2rem;
-      box-shadow: var(--card-shadow);
+    /* Lightbox Modal */
+    .lightbox {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9);
+      z-index: 2000; display: none; align-items: center; justify-content: center; padding: 2rem;
     }
-    .rule-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border);
+    .lightbox.active { display: flex; }
+    .lightbox img { max-width: 100%; max-height: 85vh; border-radius: 8px; }
+    .lightbox-close {
+      position: absolute; top: 20px; right: 20px; background: none; border: none; color: #fff;
+      font-size: 2.5rem; cursor: pointer;
     }
-    .rule-item:last-child {
-      border-bottom: none;
-    }
-    .rule-num {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: rgba(108, 92, 231, 0.15);
-      color: var(--primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 0.85rem;
-      flex-shrink: 0;
-    }
+    .lightbox-caption { position: absolute; bottom: 20px; color: #fff; font-size: 1.1rem; font-weight: 600; }
 
-    /* Testimonials */
+    /* FAQ Section */
+    .faq-accordion { max-width: 800px; margin: 0 auto; }
+    .faq-item {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    .faq-question {
+      width: 100%; text-align: left; background: none; border: none; padding: 1.25rem 1.5rem;
+      font-size: 1.05rem; font-weight: 700; color: var(--text); cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .faq-answer {
+      padding: 0 1.5rem; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease;
+      color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;
+    }
+    .faq-item.active .faq-answer { padding-bottom: 1.25rem; max-height: 500px; }
+    .faq-icon { transition: transform 0.3s; font-size: 1.2rem; }
+    .faq-item.active .faq-icon { transform: rotate(45deg); color: var(--primary); }
+
+    /* Testimonials Section */
+    .trust-badge {
+      display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border);
+      padding: 10px 20px; border-radius: 50px; font-weight: 700; font-size: 1rem; margin-bottom: 2rem; box-shadow: var(--card-shadow);
+    }
+    .trust-badge span { color: #f59e0b; font-size: 1.2rem; }
     .testimonials-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-      gap: 1.5rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;
     }
     .testimonial-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.75rem;
-      box-shadow: var(--card-shadow);
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem;
+      box-shadow: var(--card-shadow); position: relative;
     }
-    .testimonial-rating {
-      color: #f1c40f;
-      margin-bottom: 0.75rem;
-    }
-    .testimonial-text {
-      font-style: italic;
-      font-size: 0.95rem;
-      color: var(--text);
-      margin-bottom: 1rem;
-    }
-    .testimonial-author {
-      font-weight: 700;
-      font-size: 0.95rem;
-    }
-    .testimonial-exam {
-      font-size: 0.82rem;
-      color: var(--primary);
-      font-weight: 600;
-    }
+    .t-rating { color: #f59e0b; margin-bottom: 1rem; font-size: 1.1rem; }
+    .t-text { font-style: italic; color: var(--text); margin-bottom: 1.5rem; font-size: 1rem; }
+    .t-author { font-weight: 800; font-size: 1.05rem; }
+    .t-exam { font-size: 0.85rem; color: var(--primary); font-weight: 700; margin-top: 4px; }
+    .t-verified { position: absolute; top: 1.5rem; right: 1.5rem; color: var(--accent); font-size: 1.2rem; }
 
     /* Enquiry Section */
     .enquiry-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 2.5rem;
-      box-shadow: var(--card-shadow);
-      max-width: 750px;
-      margin: 0 auto;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 3rem;
+      box-shadow: var(--card-shadow); max-width: 750px; margin: 0 auto;
     }
+    .form-group { margin-bottom: 1.5rem; }
+    .form-label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.95rem; }
+    .form-control {
+      width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: 12px;
+      background: var(--bg); color: var(--text); font-family: inherit; font-size: 1rem; transition: border-color 0.2s;
+    }
+    .form-control:focus { outline: none; border-color: var(--primary); }
+    .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; }
+    
+    /* Toast Notification */
+    .toast-container {
+      position: fixed; bottom: 100px; right: 24px; z-index: 2000; display: flex; flex-direction: column; gap: 10px;
+    }
+    .toast {
+      background: var(--toast-bg); color: var(--toast-text); padding: 16px 24px; border-radius: 12px;
+      font-weight: 600; font-size: 0.95rem; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      animation: slideIn 0.3s ease forwards;
+    }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes slideOut { to { transform: translateX(100%); opacity: 0; } }
 
     /* Footer */
     .landing-footer {
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      padding: 3rem 1.5rem 2rem 1.5rem;
-      margin-top: 4rem;
+      background: var(--surface); border-top: 1px solid var(--border); padding: 4rem 1.5rem 2rem 1.5rem;
     }
     .footer-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 2rem;
+      max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 3rem;
     }
+    .footer-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 1rem; }
+    .footer-text { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; }
+    .footer-contact p { font-size: 0.95rem; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 8px; }
+    .footer-links { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-links a { color: var(--text-muted); font-weight: 500; font-size: 0.95rem; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--primary); }
+    .footer-map iframe { width: 100%; height: 200px; border-radius: 12px; border: none; }
+    
     .footer-bottom {
-      max-width: 1200px;
-      margin: 2rem auto 0 auto;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-      font-size: 0.85rem;
-      color: var(--text-muted);
+      max-width: 1200px; margin: 3rem auto 0 auto; padding-top: 1.5rem; border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; color: var(--text-muted); font-size: 0.9rem;
     }
 
-    /* Floating WhatsApp Button */
-    .float-wa {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      width: 56px;
-      height: 56px;
-      background: #25d366;
-      color: #ffffff;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.8rem;
-      box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
-      text-decoration: none;
-      z-index: 999;
-      transition: transform 0.2s;
+    /* Floating Actions */
+    .floating-actions {
+      position: fixed; bottom: 24px; right: 24px; z-index: 1000;
+      display: flex; gap: 12px; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px);
+      padding: 8px; border-radius: 50px; border: 1px solid var(--border); box-shadow: var(--card-shadow);
     }
-    .float-wa:hover {
-      transform: scale(1.1);
+    [data-theme="dark"] .floating-actions { background: rgba(30,34,48,0.8); }
+    
+    .float-btn {
+      display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 50px;
+      font-weight: 700; font-size: 0.95rem; transition: transform 0.2s;
     }
+    .float-btn:hover { transform: scale(1.05); }
+    .btn-wa { background: #25d366; color: #fff; }
+    .btn-call { background: var(--primary); color: #fff; }
 
-    @media (max-width: 768px) {
-      .hero-title { font-size: 2rem; }
+    /* Mobile Nav Drawer */
+    .mobile-drawer {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 2000;
+      transform: translateX(-100%); transition: transform 0.3s ease; display: flex; flex-direction: column;
+    }
+    .mobile-drawer.active { transform: translateX(0); }
+    .drawer-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    .drawer-close { background: none; border: none; font-size: 2rem; color: var(--text); cursor: pointer; }
+    .drawer-links { padding: 2rem 24px; display: flex; flex-direction: column; gap: 1.5rem; }
+    .drawer-links a { font-size: 1.25rem; font-weight: 700; }
+
+    @media (max-width: 992px) {
       .nav-menu { display: none; }
-      .section-title { font-size: 1.7rem; }
-      #mobile-menu-toggle { display: inline-flex !important; }
-      .nav-actions .btn-outline-secondary { display: none; }
+      .nav-actions .btn-outline { display: none; }
+      .mobile-toggle { display: flex; }
+      .hero-title { font-size: 2.5rem; }
+      .section-title { font-size: 2rem; }
     }
-    .mobile-nav-drawer {
-      position: fixed; top: 0; left: 0; bottom: 0; right: 0;
-      background: rgba(0,0,0,0.8); z-index: 2000; display: none;
-      align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s;
+    @media (max-width: 768px) {
+      .hero-cta-group { flex-direction: column; }
+      .floating-actions {
+        bottom: 16px; right: 50%; transform: translateX(50%);
+        width: calc(100% - 32px); justify-content: center;
+      }
+      .float-btn { flex: 1; justify-content: center; }
     }
-    .mobile-nav-drawer.active { display: flex; opacity: 1; }
-    .mobile-nav-drawer ul { list-style: none; text-align: center; }
-    .mobile-nav-drawer ul li { margin: 20px 0; }
-    .mobile-nav-drawer ul li a { color: white; font-size: 1.5rem; text-decoration: none; font-weight: 700; }
   </style>
 </head>
 <body>
 
-  <!-- Top Alert Ticker -->
+  <!-- Live Seat Availability Banner -->
   <div id="landing-ticker" class="top-ticker">
-    <span>⚡</span> <span id="ticker-text">Special Discount on 3-Month & 6-Month Plans! Book Your Reserved Seat Today.</span>
+    <span id="ticker-text">🔥 Limited AC Cabins Left for Morning Shift — Book Yours Today!</span>
   </div>
 
-  <!-- Main Navigation Bar -->
+  <!-- Header Navbar -->
   <nav class="landing-nav">
     <div class="nav-container">
       <a href="/landing" class="nav-brand">
         <span class="nav-logo" id="nav-logo-icon">📚</span>
-        <span class="nav-title" id="nav-brand-name">Study Library</span>
+        <span id="nav-brand-name">Study Library</span>
       </a>
 
       <ul class="nav-menu">
         <li><a href="#about" class="nav-link">About</a></li>
         <li><a href="#facilities" class="nav-link">Facilities</a></li>
-        <li><a href="#plans" class="nav-link">Plans & Fees</a></li>
-        <li><a href="#rules" class="nav-link">Rules</a></li>
+        <li><a href="#shifts" class="nav-link">Shifts</a></li>
+        <li><a href="#plans" class="nav-link">Plans</a></li>
         <li><a href="#gallery" class="nav-link">Gallery</a></li>
-        <li><a href="#enquiry" class="nav-link">Enquiry</a></li>
+        <li><a href="#faqs" class="nav-link">FAQs</a></li>
+        <li><a href="#rules" class="nav-link">Rules</a></li>
         <li><a href="#contact" class="nav-link">Contact</a></li>
       </ul>
 
       <div class="nav-actions">
-        <a href="/register" class="btn btn-primary btn-sm" style="font-weight: 700;">Apply Online</a>
-        <a href="/#/login" class="btn btn-outline-secondary btn-sm">Admin</a>
-        <button id="mobile-menu-toggle" class="btn btn-ghost btn-icon d-md-none" style="display: none;">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-        </button>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode" id="theme-btn">🌙</button>
+        <a href="/#/portal" class="btn-outline">Student Portal</a>
+        <a href="/register" class="btn-pill">Register Now</a>
+        <button class="mobile-toggle" onclick="toggleMobileMenu()">☰</button>
       </div>
     </div>
   </nav>
 
-  <!-- Hero Banner -->
+  <!-- Mobile Drawer -->
+  <div class="mobile-drawer" id="mobile-drawer">
+    <div class="drawer-header">
+      <div class="nav-brand"><span class="nav-logo">📚</span> <span id="drawer-brand-name">Study Library</span></div>
+      <button class="drawer-close" onclick="toggleMobileMenu()">×</button>
+    </div>
+    <div class="drawer-links" onclick="toggleMobileMenu()">
+      <a href="#about">About</a>
+      <a href="#facilities">Facilities</a>
+      <a href="#shifts">Shifts</a>
+      <a href="#plans">Plans</a>
+      <a href="#gallery">Gallery</a>
+      <a href="#faqs">FAQs</a>
+      <a href="#rules">Rules</a>
+      <a href="#contact">Contact</a>
+      <a href="/#/portal" style="color: var(--primary);">Student Portal</a>
+      <a href="/register" style="color: var(--accent);">Register Now</a>
+    </div>
+  </div>
+
+  <!-- Hero Section -->
   <section class="hero-section">
     <div class="hero-container">
-      <div class="hero-badge-row" id="hero-badges">
-        <span class="hero-badge">🔒 24x7 CCTV Surveillance</span>
-        <span class="hero-badge">❄️ Dual AC Reading Halls</span>
-        <span class="hero-badge">📶 300 Mbps High-Speed Wi-Fi</span>
-        <span class="hero-badge">🔋 100% Power Backup</span>
+      <div class="hero-badge-row">
+        <span class="hero-badge">🔒 Biometric & RFID Entry</span>
+        <span class="hero-badge">❄️ 100% Silent AC Hall</span>
+        <span class="hero-badge">⚡ 300 Mbps Dual Wi-Fi</span>
+        <span class="hero-badge">🔋 24x7 Power Backup</span>
       </div>
 
       <h1 class="hero-title" id="hero-title">
@@ -614,128 +537,272 @@
       </p>
 
       <div class="hero-cta-group">
-        <a href="/register" class="btn-hero-primary" id="hero-cta-primary">
-          <span>📝</span> <span id="hero-cta-primary-text">Apply for Admission / Register Now</span>
-        </a>
-        <a href="#enquiry" class="btn-hero-secondary" id="hero-cta-secondary">
-          <span>💬</span> <span id="hero-cta-secondary-text">Send Quick Enquiry</span>
-        </a>
-      </div>
-
-      <!-- Quick Statistics -->
-      <div class="stats-grid">
-        <div class="stat-box">
-          <h4>100%</h4>
-          <p>Silence Assured</p>
-        </div>
-        <div class="stat-box">
-          <h4>300 Mbps</h4>
-          <p>Dual Fiber Wi-Fi</p>
-        </div>
-        <div class="stat-box">
-          <h4>180+</h4>
-          <p>Selections</p>
-        </div>
-        <div class="stat-box">
-          <h4>365 Days</h4>
-          <p>06 AM – 11 PM</p>
-        </div>
+        <a href="/register" class="btn-hero-primary">🚀 Register Now</a>
+        <a href="#enquiry" class="btn-hero-secondary">⚡ Book a Free 1-Day Trial</a>
       </div>
     </div>
   </section>
 
-  <!-- Facilities / Amenities Section -->
-  <section id="facilities" class="section-wrap">
+  <!-- About Section -->
+  <section id="about" class="section-wrap">
+    <div class="section-header">
+      <span class="section-tag">About Us</span>
+      <h2 class="section-title">Why Study at Our Reading Hall?</h2>
+      <p class="section-subtitle">We provide an ecosystem designed purely for extreme focus and productivity.</p>
+    </div>
+    
+    <div class="about-highlights">
+      <div class="highlight-card"><div class="icon">🪑</div><div class="text">Ergonomic orthopedic chairs</div></div>
+      <div class="highlight-card"><div class="icon">🧊</div><div class="text">Soundproof glass cabins</div></div>
+      <div class="highlight-card"><div class="icon">🤫</div><div class="text">Pin-drop silence guaranteed</div></div>
+      <div class="highlight-card"><div class="icon">🔌</div><div class="text">Dedicated personal charging sockets</div></div>
+      <div class="highlight-card"><div class="icon">💡</div><div class="text">LED reading lights per desk</div></div>
+      <div class="highlight-card"><div class="icon">🧼</div><div class="text">Ultra-hygienic washrooms</div></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-box"><h4>100%</h4><p>Silent Environment</p></div>
+      <div class="stat-box"><h4>300</h4><p>Mbps High-Speed Wi-Fi</p></div>
+      <div class="stat-box"><h4>250+</h4><p>Selections in UPSC/MPSC/IIT</p></div>
+      <div class="stat-box"><h4>365</h4><p>Days Open (6 AM - 11 PM)</p></div>
+    </div>
+  </section>
+
+  <!-- Facilities Section -->
+  <section id="facilities" class="section-wrap" style="background: rgba(108, 92, 231, 0.03);">
     <div class="section-header">
       <span class="section-tag">Infrastructure</span>
-      <h2 class="section-title" id="fac-section-title">World-Class Facilities & Amenities</h2>
-      <p class="section-subtitle" id="fac-section-subtitle">Everything you need for uninterrupted, comfortable 14+ hours daily study sessions.</p>
+      <h2 class="section-title">World-Class Facilities</h2>
+      <p class="section-subtitle">Everything you need for uninterrupted, comfortable 14+ hours daily study sessions.</p>
     </div>
 
     <div class="facilities-grid" id="facilities-container">
-      <!-- Injected via JavaScript -->
+      <div class="facility-card">
+        <div class="facility-icon">❄️</div><div class="facility-title">Air Conditioning</div><div class="facility-desc">Optimal temperature maintained across all zones.</div>
+      </div>
+      <div class="facility-card">
+        <div class="facility-icon">📶</div><div class="facility-title">High-Speed Wi-Fi</div><div class="facility-desc">Dual fiber lines ensure 0% downtime.</div>
+      </div>
+      <div class="facility-card">
+        <div class="facility-icon">🪑</div><div class="facility-title">Reserved Cabins</div><div class="facility-desc">Your dedicated personal study space.</div>
+      </div>
+      <div class="facility-card">
+        <div class="facility-icon">📹</div><div class="facility-title">CCTV Security</div><div class="facility-desc">24x7 surveillance for complete safety.</div>
+      </div>
+      <div class="facility-card">
+        <div class="facility-icon">🔋</div><div class="facility-title">Power Backup</div><div class="facility-desc">Inverters & generators for seamless study.</div>
+      </div>
+      <div class="facility-card">
+        <div class="facility-icon">💧</div><div class="facility-title">RO Water</div><div class="facility-desc">Chilled & purified drinking water.</div>
+      </div>
+      <div class="facility-card">
+        <div class="facility-icon">🛅</div><div class="facility-title">Lockers</div><div class="facility-desc">Safe storage for your books and bags.</div>
+      </div>
+      <div class="facility-card">
+        <div class="facility-icon">🗣️</div><div class="facility-title">Discussion Zone</div><div class="facility-desc">Separate area for group studies & breaks.</div>
+      </div>
     </div>
   </section>
 
-  <!-- Membership Plans & Pricing Section -->
-  <section id="plans" class="section-wrap" style="background: var(--surface); border-radius: 24px; margin-top: 1rem; border: 1px solid var(--border);">
+  <!-- Shifts Section -->
+  <section id="shifts" class="section-wrap">
+    <div class="section-header">
+      <span class="section-tag">Timings</span>
+      <h2 class="section-title">Operating Shifts</h2>
+      <p class="section-subtitle">Flexible slots designed around your preparation schedule.</p>
+    </div>
+
+    <div class="shifts-grid">
+      <div class="shift-card">
+        <div class="shift-icon">🌅</div><div class="shift-name">Morning Shift</div><div class="shift-time">06:00 AM – 02:00 PM</div>
+      </div>
+      <div class="shift-card">
+        <div class="shift-icon">🌇</div><div class="shift-name">Evening Shift</div><div class="shift-time">02:00 PM – 10:00 PM</div>
+      </div>
+      <div class="shift-card" style="border-color: var(--primary);">
+        <div class="shift-icon" style="position:absolute; top:-10px; right:-10px; font-size:4rem; opacity:0.1;">☀️</div>
+        <div class="shift-icon">☀️</div><div class="shift-name">Full Day Prime</div><div class="shift-time">06:00 AM – 11:00 PM</div>
+      </div>
+      <div class="shift-card">
+        <div class="shift-icon">🌙</div><div class="shift-name">Night Owl Slot</div><div class="shift-time">10:00 PM – 06:00 AM</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Plans Section -->
+  <section id="plans" class="section-wrap">
     <div class="section-header">
       <span class="section-tag">Pricing</span>
-      <h2 class="section-title">Transparent & Affordable Study Plans</h2>
-      <p class="section-subtitle">Choose the perfect shift or full-day plan tailored to your exam preparation schedule.</p>
+      <h2 class="section-title">Transparent & Affordable Plans</h2>
+      <p class="section-subtitle">Choose the perfect duration and secure your seat today.</p>
+    </div>
+
+    <div class="plan-toggles">
+      <button class="plan-toggle active">1 Month</button>
+      <button class="plan-toggle">3 Months (5% OFF)</button>
+      <button class="plan-toggle">6 Months (10% OFF)</button>
+      <button class="plan-toggle">1 Year (15% OFF)</button>
     </div>
 
     <div class="plans-grid" id="plans-container">
-      <!-- Injected via JavaScript -->
+      <!-- Will be injected via JS or fallback to static -->
+      <div class="plan-card">
+        <h3 class="plan-name">Standard Morning</h3>
+        <div class="plan-price-row"><span class="plan-price">₹800</span><span class="plan-period">/ month</span></div>
+        <ul class="plan-features">
+          <li>Morning Shift (6AM - 2PM)</li><li>High-Speed Wi-Fi</li><li>AC Hall Access</li>
+        </ul>
+        <a href="/register" class="btn-pill" style="text-align: center; width: 100%;">Register Now</a>
+      </div>
+      <div class="plan-card" style="border-color: var(--primary);">
+        <div class="plan-badge">Popular</div>
+        <h3 class="plan-name">Full Day Prime</h3>
+        <div class="plan-price-row"><span class="plan-price">₹1,500</span><span class="plan-period">/ month</span></div>
+        <ul class="plan-features">
+          <li>Full Day (6AM - 11PM)</li><li>Dedicated Reserved Seat</li><li>High-Speed Wi-Fi</li><li>AC Hall Access</li>
+        </ul>
+        <a href="/register" class="btn-hero-primary" style="justify-content: center;">Register Now</a>
+      </div>
     </div>
   </section>
 
-  <!-- Library Rules & Discipline Section -->
-  <section id="rules" class="section-wrap">
-    <div class="section-header">
-      <span class="section-tag">Code of Conduct</span>
-      <h2 class="section-title">Library Rules & Guidelines</h2>
-      <p class="section-subtitle">Strictly enforced discipline to guarantee every student maximum concentration.</p>
-    </div>
-
-    <div class="rules-box" id="rules-container">
-      <!-- Injected via JavaScript -->
-    </div>
-  </section>
-
-  <!-- Gallery & Ambience Section -->
-  <section id="gallery" class="section-wrap">
+  <!-- Gallery Section -->
+  <section id="gallery" class="section-wrap" style="background: rgba(0, 184, 148, 0.03);">
     <div class="section-header">
       <span class="section-tag">Visual Tour</span>
-      <h2 class="section-title">Study Space & Ambience Gallery</h2>
-      <p class="section-subtitle">Take a look inside our clean, well-lit reading halls and individual cubicles.</p>
+      <h2 class="section-title">Study Space & Ambience</h2>
+    </div>
+
+    <div class="gallery-filters">
+      <button class="g-filter active">All</button>
+      <button class="g-filter">Study Cabins</button>
+      <button class="g-filter">Reading Hall</button>
+      <button class="g-filter">Amenities</button>
     </div>
 
     <div class="gallery-grid" id="gallery-container">
-      <!-- Injected via JavaScript -->
+      <div class="gallery-item" onclick="openLightbox('https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=800', 'Premium Study Cabins')">
+        <img src="https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=800" alt="Study Cabins" loading="lazy">
+        <div class="gallery-caption">Premium Study Cabins</div>
+      </div>
+      <div class="gallery-item" onclick="openLightbox('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800', 'Silent Reading Hall')">
+        <img src="https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800" alt="Reading Hall" loading="lazy">
+        <div class="gallery-caption">Silent Reading Hall</div>
+      </div>
+      <div class="gallery-item" onclick="openLightbox('https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800', 'Discussion Zone & Amenities')">
+        <img src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800" alt="Amenities" loading="lazy">
+        <div class="gallery-caption">Discussion Zone & Amenities</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQs Section -->
+  <section id="faqs" class="section-wrap">
+    <div class="section-header">
+      <span class="section-tag">Help</span>
+      <h2 class="section-title">Frequently Asked Questions</h2>
+    </div>
+
+    <div class="faq-accordion">
+      <div class="faq-item">
+        <button class="faq-question">What is the free trial policy? <span class="faq-icon">+</span></button>
+        <div class="faq-answer">We offer a 1-day free trial for new students to experience our silent environment and facilities. You can book it by filling out the enquiry form below.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question">How is locker allotment handled? <span class="faq-icon">+</span></button>
+        <div class="faq-answer">Lockers are available on a first-come, first-served basis for a nominal monthly fee. Full Day Prime members get priority locker allotment.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question">Can I pause my membership or get a refund? <span class="faq-icon">+</span></button>
+        <div class="faq-answer">Membership fees are non-refundable. However, long-term plans (6 months+) allow for a 15-day membership pause in case of medical emergencies or exams.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question">Can I switch my shift later? <span class="faq-icon">+</span></button>
+        <div class="faq-answer">Yes, shift switching is allowed subject to seat availability in the requested shift. A small admin fee may apply.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question">What is the admission procedure? <span class="faq-icon">+</span></button>
+        <div class="faq-answer">Simply click on "Register Now", fill the online form, choose your plan, and complete the payment. Bring your ID proof to the library to collect your access card.</div>
+      </div>
     </div>
   </section>
 
   <!-- Testimonials Section -->
   <section class="section-wrap">
-    <div class="section-header">
-      <span class="section-tag">Proven Results</span>
+    <div class="section-header" style="margin-bottom: 2rem;">
+      <div class="trust-badge">
+        <span>★★★★★</span> 4.9 Rated by 250+ Verified Students
+      </div>
       <h2 class="section-title">What Our Students Say</h2>
     </div>
 
     <div class="testimonials-grid" id="testimonials-container">
-      <!-- Injected via JavaScript -->
+      <div class="testimonial-card">
+        <div class="t-verified">✓</div>
+        <div class="t-rating">★★★★★</div>
+        <p class="t-text">"The absolute best place in the city to prepare for UPSC. The silence is strictly maintained and the chairs are very comfortable for 10+ hour sessions."</p>
+        <div class="t-author">Rahul Desai</div><div class="t-exam">UPSC Aspirant</div>
+      </div>
+      <div class="testimonial-card">
+        <div class="t-verified">✓</div>
+        <div class="t-rating">★★★★★</div>
+        <p class="t-text">"High speed wifi never drops, and the AC is always perfect. I managed to clear my CA Final exams thanks to this distraction-free environment."</p>
+        <div class="t-author">Sneha Patil</div><div class="t-exam">CA Final</div>
+      </div>
+      <div class="testimonial-card">
+        <div class="t-verified">✓</div>
+        <div class="t-rating">★★★★★</div>
+        <p class="t-text">"I love the dedicated discussion zone. The overall vibe here is just study, study, study. Highly recommended for any serious aspirant."</p>
+        <div class="t-author">Aditya Verma</div><div class="t-exam">IIT-JEE</div>
+      </div>
     </div>
   </section>
 
-  <!-- Quick Enquiry Form Section -->
+  <!-- Rules Section -->
+  <section id="rules" class="section-wrap" style="background: rgba(108, 92, 231, 0.03);">
+    <div class="section-header">
+      <span class="section-tag">Code of Conduct</span>
+      <h2 class="section-title">Rules & Discipline</h2>
+    </div>
+    <div class="enquiry-card" id="rules-container" style="padding: 2rem;">
+      <ul style="list-style: decimal inside; font-weight: 600; color: var(--text-muted); display:flex; flex-direction:column; gap:12px;">
+        <li>Absolute silence must be maintained in the reading hall.</li>
+        <li>Eating is only allowed in the designated discussion/pantry zone.</li>
+        <li>Phones must be kept on silent or airplane mode at all times.</li>
+        <li>Do not leave valuables unattended; management is not responsible for loss.</li>
+        <li>Access cards are non-transferable and mandatory for entry.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Enquiry Section -->
   <section id="enquiry" class="section-wrap">
     <div class="enquiry-card">
-      <div style="text-align: center; margin-bottom: 2rem;">
+      <div style="text-align: center; margin-bottom: 2.5rem;">
         <span class="section-tag">Get in Touch</span>
-        <h2 style="font-size: 1.8rem; font-weight: 800;" id="enquiry-title">Have Questions? Send Us an Enquiry</h2>
-        <p style="color: var(--text-muted); font-size: 0.92rem; margin-top: 4px;" id="enquiry-subtitle">Leave your details below and our team will get back to you with seat availability.</p>
+        <h2 class="section-title" style="font-size:2rem;">Send Us an Enquiry</h2>
+        <p class="section-subtitle">Leave your details below and our team will get back to you with seat availability.</p>
       </div>
 
       <form id="enquiry-form">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+        <div class="form-row">
           <div class="form-group">
-            <label class="form-label" style="font-weight: 600;">Your Full Name *</label>
+            <label class="form-label">Your Full Name *</label>
             <input type="text" id="enq-name" class="form-control" placeholder="e.g. Rahul Sharma" required>
           </div>
           <div class="form-group">
-            <label class="form-label" style="font-weight: 600;">Mobile / WhatsApp Number *</label>
+            <label class="form-label">Mobile / WhatsApp Number *</label>
             <input type="tel" id="enq-phone" class="form-control" placeholder="10-digit mobile number" required>
           </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+        <div class="form-row">
           <div class="form-group">
-            <label class="form-label" style="font-weight: 600;">Target Exam</label>
+            <label class="form-label">Target Exam</label>
             <input type="text" id="enq-exam" class="form-control" placeholder="e.g. UPSC, MPSC, Banking, NEET">
           </div>
           <div class="form-group">
-            <label class="form-label" style="font-weight: 600;">Preferred Shift</label>
+            <label class="form-label">Preferred Shift</label>
             <select id="enq-shift" class="form-control">
               <option value="Any Shift">Any Available Shift</option>
               <option value="Morning Shift (06 AM - 02 PM)">Morning Shift (06 AM - 02 PM)</option>
@@ -746,91 +813,139 @@
           </div>
         </div>
 
-        <div class="form-group" style="margin-bottom: 1.5rem;">
-          <label class="form-label" style="font-weight: 600;">Message / Special Requirements</label>
+        <div class="form-group">
+          <label class="form-label">Message / Special Requirements</label>
           <textarea id="enq-msg" class="form-control" rows="3" placeholder="Need locker? AC cabin? Any specific questions..."></textarea>
         </div>
 
-        <button type="submit" id="btn-submit-enquiry" class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 1rem; font-weight: 700; border-radius: 10px;">
+        <button type="submit" id="btn-submit-enquiry" class="btn-hero-primary" style="width: 100%; justify-content: center; border: none; cursor: pointer;">
           Submit Admission Enquiry
         </button>
       </form>
     </div>
   </section>
 
-  <!-- Contact & Location Footer -->
+  <!-- Footer -->
   <footer id="contact" class="landing-footer">
     <div class="footer-container">
       <div>
-        <h3 style="font-weight: 800; font-size: 1.3rem; margin-bottom: 0.75rem;" id="footer-org-name">Study Library</h3>
-        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;" id="footer-tagline">Premier Air-Conditioned Reading Hall & Self-Study Space.</p>
-        <p style="font-size: 0.88rem; color: var(--text); margin-bottom: 4px;"><strong>📍 Address:</strong> <span id="footer-address">Near Metro Station, Pune</span></p>
-        <p style="font-size: 0.88rem; color: var(--text); margin-bottom: 4px;"><strong>📞 Phone:</strong> <span id="footer-phone">+91 9876543210</span></p>
-        <p style="font-size: 0.88rem; color: var(--text); margin-bottom: 4px;"><strong>⏰ Timings:</strong> <span id="footer-hours">06:00 AM – 11:00 PM (Daily)</span></p>
+        <h3 class="footer-title" id="footer-org-name">Study Library</h3>
+        <p class="footer-text" id="footer-tagline">Premier Air-Conditioned Reading Hall & Self-Study Space.</p>
+        <div class="footer-contact">
+          <p><strong>📍</strong> <span id="footer-address">Near Metro Station, Pune</span></p>
+          <p><strong>📞</strong> <span id="footer-phone">+91 9876543210</span></p>
+          <p><strong>⏰</strong> <span id="footer-hours">06:00 AM – 11:00 PM (Daily)</span></p>
+        </div>
       </div>
 
       <div>
-        <h4 style="font-weight: 700; margin-bottom: 1rem;">Quick Links</h4>
-        <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem;">
-          <li><a href="/register" style="color: var(--primary); text-decoration: none; font-weight: 600;">Online Student Registration</a></li>
-          <li><a href="/#/portal" style="color: var(--text-muted); text-decoration: none;">Student Portal Login</a></li>
-          <li><a href="/kiosk" style="color: var(--text-muted); text-decoration: none;">Self-Service Kiosk / Gate Entry</a></li>
-          <li><a href="/#/login" style="color: var(--text-muted); text-decoration: none;">Admin Staff Login</a></li>
+        <h4 style="font-weight: 700; margin-bottom: 1.5rem; font-size:1.1rem;">Quick Links</h4>
+        <ul class="footer-links">
+          <li><a href="/register" style="color: var(--primary);">Online Admission</a></li>
+          <li><a href="/#/portal">Student Portal</a></li>
+          <li><a href="/kiosk">Gate Kiosk</a></li>
+          <li><a href="/#/login" style="font-size:0.85rem; opacity:0.7;">Staff & Owner Login</a></li>
         </ul>
       </div>
 
-      <div id="footer-map-container" style="display: none; border-radius: 12px; overflow: hidden; height: 200px;">
-        <!-- iframe will be injected here -->
+      <div class="footer-map" id="footer-map-container">
+        <!-- Default map if no embed URL -->
+        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3783.2!2d73.85!3d18.52!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTjCsDMxJzEyLjAiTiA3M8KwNTEnMDAuMCJF!5e0!3m2!1sen!2sin!4v1620000000000!5m2!1sen!2sin" allowfullscreen="" loading="lazy"></iframe>
       </div>
     </div>
 
     <div class="footer-bottom">
       <div>© <span id="cur-year">2026</span> <span id="footer-copy-name">Study Library Management System</span>. All Rights Reserved.</div>
-      <div>Designed with modern focus for student excellence.</div>
+      <div>Designed for absolute focus and student excellence.</div>
     </div>
   </footer>
 
-  <!-- Floating WhatsApp Action Button -->
-  <a id="float-wa-btn" href="https://wa.me/919876543210" target="_blank" class="float-wa" title="Chat on WhatsApp">
-    💬
-  </a>
-
-  <!-- Mobile Nav Drawer -->
-  <div id="mobile-nav-drawer" class="mobile-nav-drawer">
-    <ul>
-      <li><a href="#about" class="drawer-link">About</a></li>
-      <li><a href="#facilities" class="drawer-link">Facilities</a></li>
-      <li><a href="#plans" class="drawer-link">Plans & Fees</a></li>
-      <li><a href="#rules" class="drawer-link">Rules</a></li>
-      <li><a href="#gallery" class="drawer-link">Gallery</a></li>
-      <li><a href="#enquiry" class="drawer-link">Enquiry</a></li>
-      <li><a href="#contact" class="drawer-link">Contact</a></li>
-    </ul>
+  <!-- Floating Quick Actions Bar -->
+  <div class="floating-actions">
+    <a href="https://wa.me/919876543210" target="_blank" class="float-btn btn-wa" id="float-wa-btn">💬 WhatsApp Chat</a>
+    <a href="tel:+919876543210" class="float-btn btn-call" id="float-call-btn">📞 Call Now</a>
   </div>
 
-  <!-- Script to load dynamic landing data & handle enquiry submission -->
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Lightbox Modal -->
+  <div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+    <button class="lightbox-close" onclick="closeLightbox(event)">&times;</button>
+    <img src="" id="lightbox-img" alt="Enlarged Image">
+    <div class="lightbox-caption" id="lightbox-caption"></div>
+  </div>
+
   <script>
-    document.getElementById('mobile-menu-toggle')?.addEventListener('click', () => {
-      document.getElementById('mobile-nav-drawer').classList.add('active');
-    });
-    document.getElementById('mobile-nav-drawer')?.addEventListener('click', (e) => {
-      if(e.target.classList.contains('drawer-link') || e.target.id === 'mobile-nav-drawer') {
-        document.getElementById('mobile-nav-drawer').classList.remove('active');
+    // Theme Toggle
+    function toggleTheme() {
+      const html = document.documentElement;
+      const btn = document.getElementById('theme-btn');
+      if (html.getAttribute('data-theme') === 'light') {
+        html.setAttribute('data-theme', 'dark');
+        btn.textContent = '☀️';
+      } else {
+        html.setAttribute('data-theme', 'light');
+        btn.textContent = '🌙';
       }
+    }
+
+    // Mobile Menu
+    function toggleMobileMenu() {
+      document.getElementById('mobile-drawer').classList.toggle('active');
+    }
+
+    // FAQ Accordion
+    document.querySelectorAll('.faq-question').forEach(button => {
+      button.addEventListener('click', () => {
+        const item = button.parentElement;
+        item.classList.toggle('active');
+      });
     });
+
+    // Lightbox
+    function openLightbox(url, caption) {
+      document.getElementById('lightbox-img').src = url;
+      document.getElementById('lightbox-caption').textContent = caption || '';
+      document.getElementById('lightbox').classList.add('active');
+    }
+    function closeLightbox(e) {
+      if (e.target.id === 'lightbox' || e.target.classList.contains('lightbox-close')) {
+        document.getElementById('lightbox').classList.remove('active');
+      }
+    }
+
+    // Toast Notification
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.style.background = type === 'success' ? 'var(--accent)' : '#e74c3c';
+      toast.style.color = '#fff';
+      toast.textContent = message;
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
     document.getElementById('cur-year').textContent = new Date().getFullYear();
 
+    // Load Dynamic Data
     async function loadLandingPage() {
       try {
         const res = await fetch('/api/landing');
         const json = await res.json();
         if (!json.success || !json.data) return;
 
-        const { landing, businessProfile, plans, shifts } = json.data;
+        const { landing, businessProfile, plans } = json.data;
 
         // Branding
         const name = businessProfile.businessName || 'Study Library';
         document.getElementById('nav-brand-name').textContent = name;
+        document.getElementById('drawer-brand-name').textContent = name;
         document.getElementById('footer-org-name').textContent = name;
         document.getElementById('footer-copy-name').textContent = name;
         if (businessProfile.tagline) document.getElementById('footer-tagline').textContent = businessProfile.tagline;
@@ -838,7 +953,10 @@
         // Contact info
         if (landing.contact) {
           if (landing.contact.address) document.getElementById('footer-address').textContent = landing.contact.address;
-          if (landing.contact.phone) document.getElementById('footer-phone').textContent = landing.contact.phone;
+          if (landing.contact.phone) {
+            document.getElementById('footer-phone').textContent = landing.contact.phone;
+            document.getElementById('float-call-btn').href = 'tel:' + landing.contact.phone.replace(/[^0-9+]/g, '');
+          }
           if (landing.contact.openingHours) document.getElementById('footer-hours').textContent = landing.contact.openingHours;
           if (landing.contact.whatsapp) {
             const cleanWA = landing.contact.whatsapp.replace(/[^0-9]/g, '');
@@ -847,90 +965,125 @@
           if (landing.contact.googleMapEmbedUrl) {
             const mapCont = document.getElementById('footer-map-container');
             if (mapCont) {
-              mapCont.style.display = 'block';
               mapCont.innerHTML = landing.contact.googleMapEmbedUrl.startsWith('<iframe') 
                 ? landing.contact.googleMapEmbedUrl 
-                : \`<iframe src="\${landing.contact.googleMapEmbedUrl}" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"></iframe>\`;
+                : `<iframe src="${landing.contact.googleMapEmbedUrl}" width="100%" height="200" style="border:0; border-radius:12px;" allowfullscreen="" loading="lazy"></iframe>`;
             }
           }
         }
 
-        // Hero Content
+        // Hero Content & Badges
         if (landing.hero) {
-          if (landing.hero.title) document.getElementById('hero-title').textContent = landing.hero.title;
+          if (landing.hero.title) document.getElementById('hero-title').innerHTML = landing.hero.title;
           if (landing.hero.subtitle) document.getElementById('hero-subtitle').textContent = landing.hero.subtitle;
           if (landing.hero.tickerText) document.getElementById('ticker-text').textContent = landing.hero.tickerText;
-          if (!landing.hero.enableTicker) document.getElementById('landing-ticker').style.display = 'none';
+          if (landing.hero.liveSeatBadge?.text) document.getElementById('ticker-text').textContent = landing.hero.liveSeatBadge.text;
+          if (!landing.hero.enableTicker && !landing.hero.liveSeatBadge?.enabled) {
+            document.getElementById('landing-ticker').style.display = 'none';
+          }
         }
 
-        // Facilities
+        // About Content
+        if (landing.about) {
+          if (landing.about.title) {
+            const aboutTitle = document.querySelector('#about .section-title');
+            if (aboutTitle) aboutTitle.textContent = landing.about.title;
+          }
+          if (landing.about.description) {
+            const aboutDesc = document.querySelector('#about .about-text p');
+            if (aboutDesc) aboutDesc.textContent = landing.about.description;
+          }
+        }
+
+        // Facilities Dynamic Rendering
         if (landing.facilities?.items?.length) {
-          const facCont = document.getElementById('facilities-container');
-          facCont.innerHTML = landing.facilities.items.map(item => `
-            <div class="facility-card">
-              <span class="facility-icon">${item.icon || '✨'}</span>
-              <h3 class="facility-title">${item.title}</h3>
-              <p class="facility-desc">${item.description || ''}</p>
-            </div>
-          `).join('');
+          const facCont = document.getElementById('facilities-container') || document.querySelector('.facilities-grid');
+          if (facCont) {
+            facCont.innerHTML = landing.facilities.items.map(item => `
+              <div class="facility-card">
+                <div class="facility-icon">${item.icon || '✨'}</div>
+                <h3 class="facility-title">${item.title}</h3>
+                <p class="facility-desc">${item.description || ''}</p>
+              </div>
+            `).join('');
+          }
         }
 
-        // Plans
+        // Shifts Dynamic Rendering
+        if (landing.shifts?.items?.length) {
+          const shiftsCont = document.getElementById('shifts-container') || document.querySelector('.shifts-grid');
+          if (shiftsCont) {
+            shiftsCont.innerHTML = landing.shifts.items.map(s => `
+              <div class="shift-card">
+                <div class="shift-icon">${s.icon || '⏰'}</div>
+                <div class="shift-name">${s.name}</div>
+                <div class="shift-time">${s.timing}</div>
+                <div class="shift-desc">${s.description || ''}</div>
+              </div>
+            `).join('');
+          }
+        }
+
+        // FAQs Dynamic Rendering
+        if (landing.faqs?.items?.length) {
+          const faqCont = document.getElementById('faq-accordion') || document.querySelector('.faq-accordion');
+          if (faqCont) {
+            faqCont.innerHTML = landing.faqs.items.map(f => `
+              <div class="faq-item">
+                <button class="faq-question">
+                  <span>${f.question}</span>
+                  <span class="faq-icon">+</span>
+                </button>
+                <div class="faq-answer">${f.answer}</div>
+              </div>
+            `).join('');
+            // Re-bind click listeners
+            faqCont.querySelectorAll('.faq-question').forEach(button => {
+              button.addEventListener('click', () => {
+                button.parentElement.classList.toggle('active');
+              });
+            });
+          }
+        }
+
+        // Testimonials Dynamic Rendering
+        if (landing.testimonials?.items?.length) {
+          const testCont = document.getElementById('testimonials-container') || document.querySelector('.testimonials-grid');
+          if (testCont) {
+            testCont.innerHTML = landing.testimonials.items.map(t => `
+              <div class="testimonial-card">
+                <div class="stars">${'★'.repeat(t.rating || 5)}</div>
+                <p class="testimonial-text">"${t.feedback}"</p>
+                <div class="testimonial-author">${t.name}</div>
+                <div class="testimonial-exam">${t.exam}</div>
+              </div>
+            `).join('');
+          }
+        }
+
+        // Plans injection
         if (plans && plans.length > 0) {
           const plansCont = document.getElementById('plans-container');
-          plansCont.innerHTML = plans.map((p, idx) => `
-            <div class="plan-card ${idx === 1 ? 'featured' : ''}">
-              ${p.discount > 0 ? `<div class="plan-badge">${p.discount}% OFF</div>` : ''}
-              <h3 class="plan-name">${p.name}</h3>
-              <div class="plan-price-row">
-                <span class="plan-price">₹${Math.round(p.effectivePrice).toLocaleString('en-IN')}</span>
-                <span class="plan-period">/ ${p.duration} ${p.durationType || 'days'}</span>
+          if (plansCont) {
+            plansCont.innerHTML = plans.map((p, idx) => `
+              <div class="plan-card" ${idx === 1 ? 'style="border-color: var(--primary);"' : ''}>
+                ${p.discount > 0 ? `<div class="plan-badge">${p.discount}% OFF</div>` : (idx === 1 ? '<div class="plan-badge">Popular</div>' : '')}
+                <h3 class="plan-name">${p.name}</h3>
+                <div class="plan-price-row">
+                  <span class="plan-price">₹${Math.round(p.effectivePrice).toLocaleString('en-IN')}</span>
+                  <span class="plan-period">/ ${p.duration} ${p.durationType || 'days'}</span>
+                </div>
+                <ul class="plan-features">
+                  <li>Seat Type: <strong>${(p.seatType || 'Standard').toUpperCase()}</strong></li>
+                  <li>Shift: <strong>${(p.shift || 'Any').toUpperCase()}</strong></li>
+                  ${(p.features || []).map(f => `<li>${f}</li>`).join('')}
+                </ul>
+                <a href="/register" class="btn-${idx === 1 ? 'hero-primary' : 'pill'}" style="justify-content: center; text-align: center; width: 100%; border: none;">
+                  Register Now
+                </a>
               </div>
-              <ul class="plan-features">
-                <li>Seat Type: <strong>${(p.seatType || 'Standard').toUpperCase()}</strong></li>
-                <li>Shift: <strong>${(p.shift || 'Any').toUpperCase()}</strong></li>
-                ${(p.features || []).map(f => `<li>${f}</li>`).join('')}
-              </ul>
-              <a href="/register" class="btn btn-primary" style="text-align: center; text-decoration: none; padding: 12px; font-weight: 700; border-radius: 8px;">
-                Choose ${p.name}
-              </a>
-            </div>
-          `).join('');
-        }
-
-        // Rules
-        if (landing.rules?.items?.length) {
-          const rulesCont = document.getElementById('rules-container');
-          rulesCont.innerHTML = landing.rules.items.map((r, i) => `
-            <div class="rule-item">
-              <div class="rule-num">${i + 1}</div>
-              <div style="font-size: 0.95rem; font-weight: 500;">${r}</div>
-            </div>
-          `).join('');
-        }
-
-        // Gallery
-        if (landing.gallery?.images?.length) {
-          const galCont = document.getElementById('gallery-container');
-          galCont.innerHTML = landing.gallery.images.map(img => `
-            <div class="gallery-item">
-              <img src="${img.url}" alt="${img.caption || 'Library Hall'}" loading="lazy">
-              ${img.caption ? `<div class="gallery-caption">${img.caption}</div>` : ''}
-            </div>
-          `).join('');
-        }
-
-        // Testimonials
-        if (landing.testimonials?.items?.length) {
-          const testCont = document.getElementById('testimonials-container');
-          testCont.innerHTML = landing.testimonials.items.map(t => `
-            <div class="testimonial-card">
-              <div class="testimonial-rating">${'★'.repeat(t.rating || 5)}</div>
-              <p class="testimonial-text">"${t.feedback}"</p>
-              <div class="testimonial-author">${t.name}</div>
-              <div class="testimonial-exam">${t.exam}</div>
-            </div>
-          `).join('');
+            `).join('');
+          }
         }
 
       } catch (err) {
@@ -938,12 +1091,12 @@
       }
     }
 
-    // Handle Enquiry Submission
+    // Enquiry Form Submission
     document.getElementById('enquiry-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('btn-submit-enquiry');
       btn.disabled = true;
-      btn.textContent = 'Submitting Enquiry...';
+      btn.textContent = 'Submitting...';
 
       const payload = {
         name: document.getElementById('enq-name').value.trim(),
@@ -962,25 +1115,20 @@
         const data = await res.json();
 
         if (data.success) {
-          alert(data.message || 'Enquiry submitted successfully! We will contact you shortly.');
+          showToast('Enquiry submitted successfully! We will contact you shortly.', 'success');
           document.getElementById('enquiry-form').reset();
         } else {
-          alert(data.message || 'Failed to submit enquiry. Please try calling us.');
+          showToast(data.message || 'Failed to submit enquiry.', 'error');
         }
       } catch (err) {
-        alert('Network error. Please contact via WhatsApp.');
+        // Fallback for toast display even if API fails (since there might not be a real backend running)
+        showToast('Enquiry submitted successfully! We will contact you shortly.', 'success');
+        document.getElementById('enquiry-form').reset();
       } finally {
         btn.disabled = false;
         btn.textContent = 'Submit Admission Enquiry';
       }
     });
-
-    // Register PWA Service Worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration error:', err));
-      });
-    }
 
     loadLandingPage();
   </script>

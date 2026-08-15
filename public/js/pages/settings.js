@@ -1715,7 +1715,7 @@ async function initLandingSettings(container) {
     try {
       const res = await api.get('/api/landing');
       if (res.success && res.data) {
-        config = res.data.landing;
+        config = res.data.landing || {};
         renderForm();
       }
     } catch (e) {
@@ -1725,74 +1725,482 @@ async function initLandingSettings(container) {
 
   const renderForm = () => {
     listContainer.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-        <div style="border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md);">
-          <h4>Hero Section</h4>
-          <input type="text" id="l-hero-title" class="form-control mb-2" value="${escapeHTML(config.hero?.title || '')}" placeholder="Headline">
-          <textarea id="l-hero-subtitle" class="form-control mb-2" placeholder="Sub-headline">${escapeHTML(config.hero?.subtitle || '')}</textarea>
-          <input type="text" id="l-hero-banner" class="form-control mb-2" value="${escapeHTML(config.hero?.bannerImage || '')}" placeholder="Banner Image URL">
-          <input type="text" id="l-hero-ticker" class="form-control mb-2" value="${escapeHTML(config.hero?.tickerText || '')}" placeholder="Announcement Ticker text">
+      <div class="landing-editor" style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+        <!-- Vertical Tabs -->
+        <div style="flex: 0 0 240px; border-right: 1px solid var(--color-border); padding-right: 1rem;">
+          <div class="landing-tabs" style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <button class="landing-tab-btn active" data-tab="hero" style="text-align: left; padding: 0.75rem 1rem; border: none; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 600; border-radius: var(--radius-md); cursor: pointer;">Hero & Alerts</button>
+            <button class="landing-tab-btn" data-tab="about" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">About & Stats</button>
+            <button class="landing-tab-btn" data-tab="facilities" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">Facilities</button>
+            <button class="landing-tab-btn" data-tab="shifts" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">Shifts</button>
+            <button class="landing-tab-btn" data-tab="rules" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">Rules</button>
+            <button class="landing-tab-btn" data-tab="gallery" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">Photo Gallery</button>
+            <button class="landing-tab-btn" data-tab="faqs" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">FAQs</button>
+            <button class="landing-tab-btn" data-tab="testimonials" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">Testimonials & Reviews</button>
+            <button class="landing-tab-btn" data-tab="contact" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">Contact & Map</button>
+          </div>
         </div>
         
-        <div style="border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md);">
-          <h4>Facilities & Amenities (JSON Array)</h4>
-          <textarea id="l-facilities" class="form-control" rows="4">${escapeHTML(JSON.stringify(config.facilities?.items || [], null, 2))}</textarea>
-          <small class="text-muted">Edit as JSON: [{"icon":"❄️", "title":"AC", "description":"..."}]</small>
-        </div>
-        
-        <div style="border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md);">
-          <h4>Rules & Code of Conduct (JSON Array of strings)</h4>
-          <textarea id="l-rules" class="form-control" rows="4">${escapeHTML(JSON.stringify(config.rules?.items || [], null, 2))}</textarea>
-        </div>
-        
-        <div style="border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md);">
-          <h4>Photo Gallery (JSON Array)</h4>
-          <textarea id="l-gallery" class="form-control" rows="4">${escapeHTML(JSON.stringify(config.gallery?.images || [], null, 2))}</textarea>
-          <small class="text-muted">Edit as JSON: [{"url":"...", "caption":"..."}]</small>
-        </div>
-        
-        <div style="border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md);">
-          <h4>Testimonials (JSON Array)</h4>
-          <textarea id="l-testimonials" class="form-control" rows="4">${escapeHTML(JSON.stringify(config.testimonials?.items || [], null, 2))}</textarea>
-          <small class="text-muted">Edit as JSON: [{"name":"...", "exam":"...", "feedback":"...", "rating":5}]</small>
-        </div>
-        
-        <div style="border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md);">
-          <h4>Location & Google Maps</h4>
-          <textarea id="l-contact-map" class="form-control mb-2" placeholder="Google Maps Embed URL / iframe src">${escapeHTML(config.contact?.googleMapEmbedUrl || '')}</textarea>
-          <input type="text" id="l-contact-address" class="form-control mb-2" value="${escapeHTML(config.contact?.address || '')}" placeholder="Address">
-          <input type="text" id="l-contact-phone" class="form-control mb-2" value="${escapeHTML(config.contact?.phone || '')}" placeholder="Phone">
-          <input type="text" id="l-contact-wa" class="form-control mb-2" value="${escapeHTML(config.contact?.whatsapp || '')}" placeholder="WhatsApp">
-          <input type="text" id="l-contact-hours" class="form-control mb-2" value="${escapeHTML(config.contact?.openingHours || '')}" placeholder="Opening Hours">
+        <!-- Tab Content -->
+        <div style="flex: 1; min-width: 300px;" id="landing-tab-content">
+          <!-- Hero -->
+          <div class="landing-panel" id="l-panel-hero">
+            <h4>Hero Section</h4>
+            <div class="form-group mb-3">
+              <label>Headline</label>
+              <input type="text" id="l-hero-title" class="form-control" value="${escapeHTML(config.hero?.title || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Sub-headline</label>
+              <textarea id="l-hero-subtitle" class="form-control">${escapeHTML(config.hero?.subtitle || '')}</textarea>
+            </div>
+            <div class="form-group mb-3">
+              <label>Banner Image URL</label>
+              <input type="text" id="l-hero-banner" class="form-control" value="${escapeHTML(config.hero?.bannerImage || '')}">
+            </div>
+            <div class="form-group mb-3" style="display: flex; gap: 1rem; align-items: center;">
+              <input type="checkbox" id="l-hero-enableTicker" ${config.hero?.enableTicker ? 'checked' : ''}>
+              <label class="mb-0">Enable Ticker</label>
+            </div>
+            <div class="form-group mb-3">
+              <label>Ticker Text</label>
+              <input type="text" id="l-hero-ticker" class="form-control" value="${escapeHTML(config.hero?.tickerText || '')}">
+            </div>
+            <div class="form-group mb-3" style="display: flex; gap: 1rem; align-items: center;">
+              <input type="checkbox" id="l-hero-liveSeatBadge-enabled" ${config.hero?.liveSeatBadge?.enabled ? 'checked' : ''}>
+              <label class="mb-0">Enable Live Seat Counter Badge</label>
+            </div>
+            <div class="form-group mb-3">
+              <label>Live Seat Badge Text</label>
+              <input type="text" id="l-hero-liveSeatBadge-text" class="form-control" value="${escapeHTML(config.hero?.liveSeatBadge?.text || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Badges (comma separated)</label>
+              <input type="text" id="l-hero-badges" class="form-control" value="${escapeHTML((config.hero?.badges || []).join(', '))} ">
+            </div>
+          </div>
+          
+          <!-- About -->
+          <div class="landing-panel" id="l-panel-about" style="display: none;">
+            <h4>About & Stats</h4>
+            <div class="form-group mb-3">
+              <label>Headline</label>
+              <input type="text" id="l-about-title" class="form-control" value="${escapeHTML(config.about?.title || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Description</label>
+              <textarea id="l-about-description" class="form-control" rows="4">${escapeHTML(config.about?.description || '')}</textarea>
+            </div>
+            <div class="form-group mb-3">
+              <label>Highlight Points (4 items)</label>
+              ${[0, 1, 2, 3].map(i => `<input type="text" class="form-control mb-2 l-about-point" value="${escapeHTML(config.about?.highlightPoints?.[i] || '')}">`).join('')}
+            </div>
+            <div class="form-group mb-3">
+              <label>Stats (4 items: Number / Label)</label>
+              ${[0, 1, 2, 3].map(i => `
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                  <input type="text" class="form-control l-about-stat-num" placeholder="Number (e.g. 100%)" value="${escapeHTML(config.about?.stats?.[i]?.number || '')}">
+                  <input type="text" class="form-control l-about-stat-label" placeholder="Label (e.g. Silence)" value="${escapeHTML(config.about?.stats?.[i]?.label || '')}">
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          
+          <!-- Facilities -->
+          <div class="landing-panel" id="l-panel-facilities" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h4 style="margin: 0;">Facilities</h4>
+              <button class="btn btn-outline-primary btn-sm" id="btn-add-facility">+ Add Facility</button>
+            </div>
+            <div id="l-facilities-list" style="display: flex; flex-direction: column; gap: 1rem;"></div>
+          </div>
+          
+          <!-- Shifts -->
+          <div class="landing-panel" id="l-panel-shifts" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h4 style="margin: 0;">Shifts Guide</h4>
+              <button class="btn btn-outline-primary btn-sm" id="btn-add-shift">+ Add Shift</button>
+            </div>
+            <div id="l-shifts-list" style="display: flex; flex-direction: column; gap: 1rem;"></div>
+          </div>
+          
+          <!-- Rules -->
+          <div class="landing-panel" id="l-panel-rules" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h4 style="margin: 0;">Rules</h4>
+              <button class="btn btn-outline-primary btn-sm" id="btn-add-rule">+ Add Rule</button>
+            </div>
+            <div id="l-rules-list" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+          </div>
+          
+          <!-- Gallery -->
+          <div class="landing-panel" id="l-panel-gallery" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h4 style="margin: 0;">Photo Gallery</h4>
+              <button class="btn btn-outline-primary btn-sm" id="btn-add-gallery">+ Add Photo</button>
+            </div>
+            <div id="l-gallery-list" style="display: flex; flex-direction: column; gap: 1rem;"></div>
+          </div>
+          
+          <!-- FAQs -->
+          <div class="landing-panel" id="l-panel-faqs" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h4 style="margin: 0;">FAQs</h4>
+              <button class="btn btn-outline-primary btn-sm" id="btn-add-faq">+ Add FAQ</button>
+            </div>
+            <div id="l-faqs-list" style="display: flex; flex-direction: column; gap: 1rem;"></div>
+          </div>
+          
+          <!-- Testimonials -->
+          <div class="landing-panel" id="l-panel-testimonials" style="display: none;">
+            <div class="form-group mb-3">
+              <label>Google Rating</label>
+              <input type="text" id="l-test-googleRating" class="form-control" value="${escapeHTML(config.testimonials?.googleRating || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Google Reviews Count</label>
+              <input type="text" id="l-test-googleReviewsCount" class="form-control" value="${escapeHTML(config.testimonials?.googleReviewsCount || '')}">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; margin-top: 2rem;">
+              <h4 style="margin: 0;">Student Reviews</h4>
+              <button class="btn btn-outline-primary btn-sm" id="btn-add-testimonial">+ Add Testimonial</button>
+            </div>
+            <div id="l-testimonials-list" style="display: flex; flex-direction: column; gap: 1rem;"></div>
+          </div>
+          
+          <!-- Contact -->
+          <div class="landing-panel" id="l-panel-contact" style="display: none;">
+            <h4>Contact & Map</h4>
+            <div class="form-group mb-3">
+              <label>Phone</label>
+              <input type="text" id="l-contact-phone" class="form-control" value="${escapeHTML(config.contact?.phone || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>WhatsApp</label>
+              <input type="text" id="l-contact-wa" class="form-control" value="${escapeHTML(config.contact?.whatsapp || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Address</label>
+              <input type="text" id="l-contact-address" class="form-control" value="${escapeHTML(config.contact?.address || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Timings</label>
+              <input type="text" id="l-contact-hours" class="form-control" value="${escapeHTML(config.contact?.openingHours || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Google Map Embed URL</label>
+              <textarea id="l-contact-map" class="form-control" rows="3">${escapeHTML(config.contact?.googleMapEmbedUrl || '')}</textarea>
+            </div>
+          </div>
+          
         </div>
       </div>
     `;
+
+    // Tab Logic
+    const tabBtns = listContainer.querySelectorAll('.landing-tab-btn');
+    const panels = listContainer.querySelectorAll('.landing-panel');
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabBtns.forEach(b => {
+          b.classList.remove('active');
+          b.style.background = 'transparent';
+          b.style.color = 'var(--color-text-secondary)';
+          b.style.fontWeight = 'normal';
+        });
+        btn.classList.add('active');
+        btn.style.background = 'var(--color-primary-bg)';
+        btn.style.color = 'var(--color-primary)';
+        btn.style.fontWeight = '600';
+        
+        panels.forEach(p => p.style.display = 'none');
+        listContainer.querySelector(`#l-panel-${btn.dataset.tab}`).style.display = 'block';
+      });
+    });
+
+    // Helper functions to render lists
+    const renderFacilities = () => {
+      const parent = listContainer.querySelector('#l-facilities-list');
+      parent.innerHTML = '';
+      (config.facilities?.items || []).forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative;';
+        div.innerHTML = `
+          <button class="btn btn-sm btn-outline-danger btn-delete-facility" style="position: absolute; top: 1rem; right: 1rem;">Delete</button>
+          <div style="display: flex; gap: 1rem;">
+            <input type="text" class="form-control l-fac-icon" style="width: 60px;" placeholder="Icon" value="${escapeHTML(item.icon || '')}">
+            <input type="text" class="form-control l-fac-title" style="flex: 1; width: calc(100% - 140px);" placeholder="Title" value="${escapeHTML(item.title || '')}">
+          </div>
+          <textarea class="form-control mt-2 l-fac-desc" placeholder="Description">${escapeHTML(item.description || '')}</textarea>
+        `;
+        div.querySelector('.btn-delete-facility').addEventListener('click', () => {
+          config.facilities.items.splice(idx, 1);
+          renderFacilities();
+        });
+        parent.appendChild(div);
+      });
+    };
+    listContainer.querySelector('#btn-add-facility').addEventListener('click', () => {
+      if (!config.facilities) config.facilities = { items: [] };
+      config.facilities.items.push({ icon: '✨', title: 'New Facility', description: '' });
+      renderFacilities();
+    });
+
+    const renderShifts = () => {
+      const parent = listContainer.querySelector('#l-shifts-list');
+      parent.innerHTML = '';
+      (config.shifts?.items || []).forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative;';
+        div.innerHTML = `
+          <button class="btn btn-sm btn-outline-danger btn-delete-shift" style="position: absolute; top: 1rem; right: 1rem;">Delete</button>
+          <div style="display: flex; gap: 1rem; width: calc(100% - 70px);">
+            <input type="text" class="form-control l-shift-icon" style="width: 60px;" placeholder="Icon" value="${escapeHTML(item.icon || '')}">
+            <input type="text" class="form-control l-shift-name" style="flex: 1;" placeholder="Name" value="${escapeHTML(item.name || '')}">
+            <input type="text" class="form-control l-shift-timing" style="flex: 1;" placeholder="Timings" value="${escapeHTML(item.timing || '')}">
+          </div>
+          <textarea class="form-control mt-2 l-shift-desc" placeholder="Description">${escapeHTML(item.description || '')}</textarea>
+        `;
+        div.querySelector('.btn-delete-shift').addEventListener('click', () => {
+          config.shifts.items.splice(idx, 1);
+          renderShifts();
+        });
+        parent.appendChild(div);
+      });
+    };
+    listContainer.querySelector('#btn-add-shift').addEventListener('click', () => {
+      if (!config.shifts) config.shifts = { items: [] };
+      config.shifts.items.push({ icon: '🕒', name: 'New Shift', timing: '', description: '' });
+      renderShifts();
+    });
+
+    const renderRules = () => {
+      const parent = listContainer.querySelector('#l-rules-list');
+      parent.innerHTML = '';
+      (config.rules?.items || []).forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display: flex; gap: 0.5rem; align-items: center;';
+        div.innerHTML = `
+          <input type="text" class="form-control l-rule-text" style="flex: 1;" value="${escapeHTML(item)}">
+          <button class="btn btn-sm btn-outline-danger btn-delete-rule">Del</button>
+        `;
+        div.querySelector('.btn-delete-rule').addEventListener('click', () => {
+          config.rules.items.splice(idx, 1);
+          renderRules();
+        });
+        parent.appendChild(div);
+      });
+    };
+    listContainer.querySelector('#btn-add-rule').addEventListener('click', () => {
+      if (!config.rules) config.rules = { items: [] };
+      config.rules.items.push('');
+      renderRules();
+    });
+
+    const renderGallery = () => {
+      const parent = listContainer.querySelector('#l-gallery-list');
+      parent.innerHTML = '';
+      (config.gallery?.images || []).forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: center; position: relative;';
+        div.innerHTML = `
+          <img src="${escapeHTML(item.url || 'https://via.placeholder.com/80')}" style="width: 80px; height: 80px; object-fit: cover; border-radius: var(--radius-md);">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
+            <input type="text" class="form-control l-gal-url" placeholder="Image URL" value="${escapeHTML(item.url || '')}">
+            <div style="display: flex; gap: 0.5rem;">
+              <select class="form-select l-gal-cat" style="width: 150px;">
+                <option value="Cabins" ${item.category === 'Cabins' ? 'selected' : ''}>Cabins</option>
+                <option value="Hall" ${item.category === 'Hall' ? 'selected' : ''}>Hall</option>
+                <option value="Amenities" ${item.category === 'Amenities' ? 'selected' : ''}>Amenities</option>
+                <option value="Entrance" ${item.category === 'Entrance' ? 'selected' : ''}>Entrance</option>
+              </select>
+              <input type="text" class="form-control l-gal-caption" style="flex: 1;" placeholder="Caption" value="${escapeHTML(item.caption || '')}">
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline-danger btn-delete-gallery">Del</button>
+        `;
+        
+        div.querySelector('.l-gal-url').addEventListener('input', (e) => {
+          div.querySelector('img').src = e.target.value || 'https://via.placeholder.com/80';
+        });
+
+        div.querySelector('.btn-delete-gallery').addEventListener('click', () => {
+          config.gallery.images.splice(idx, 1);
+          renderGallery();
+        });
+        parent.appendChild(div);
+      });
+    };
+    listContainer.querySelector('#btn-add-gallery').addEventListener('click', () => {
+      if (!config.gallery) config.gallery = { images: [] };
+      config.gallery.images.push({ url: '', category: 'Hall', caption: '' });
+      renderGallery();
+    });
+
+    const renderFaqs = () => {
+      const parent = listContainer.querySelector('#l-faqs-list');
+      parent.innerHTML = '';
+      (config.faqs?.items || []).forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative;';
+        div.innerHTML = `
+          <button class="btn btn-sm btn-outline-danger btn-delete-faq" style="position: absolute; top: 1rem; right: 1rem;">Delete</button>
+          <input type="text" class="form-control l-faq-q mb-2" style="width: calc(100% - 70px);" placeholder="Question" value="${escapeHTML(item.question || '')}">
+          <textarea class="form-control l-faq-a" placeholder="Answer">${escapeHTML(item.answer || '')}</textarea>
+        `;
+        div.querySelector('.btn-delete-faq').addEventListener('click', () => {
+          config.faqs.items.splice(idx, 1);
+          renderFaqs();
+        });
+        parent.appendChild(div);
+      });
+    };
+    listContainer.querySelector('#btn-add-faq').addEventListener('click', () => {
+      if (!config.faqs) config.faqs = { items: [] };
+      config.faqs.items.push({ question: '', answer: '' });
+      renderFaqs();
+    });
+
+    const renderTestimonials = () => {
+      const parent = listContainer.querySelector('#l-testimonials-list');
+      parent.innerHTML = '';
+      (config.testimonials?.items || []).forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative;';
+        div.innerHTML = `
+          <button class="btn btn-sm btn-outline-danger btn-delete-test" style="position: absolute; top: 1rem; right: 1rem;">Delete</button>
+          <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem; width: calc(100% - 70px);">
+            <input type="text" class="form-control l-test-name" placeholder="Name" value="${escapeHTML(item.name || '')}">
+            <input type="text" class="form-control l-test-exam" placeholder="Exam" value="${escapeHTML(item.exam || '')}">
+            <input type="number" class="form-control l-test-rating" placeholder="Rating (1-5)" min="1" max="5" value="${item.rating || 5}">
+          </div>
+          <textarea class="form-control l-test-feedback" placeholder="Feedback Quote">${escapeHTML(item.feedback || '')}</textarea>
+        `;
+        div.querySelector('.btn-delete-test').addEventListener('click', () => {
+          config.testimonials.items.splice(idx, 1);
+          renderTestimonials();
+        });
+        parent.appendChild(div);
+      });
+    };
+    listContainer.querySelector('#btn-add-testimonial').addEventListener('click', () => {
+      if (!config.testimonials) config.testimonials = { items: [] };
+      config.testimonials.items.push({ name: '', exam: '', rating: 5, feedback: '' });
+      renderTestimonials();
+    });
+
+    renderFacilities();
+    renderShifts();
+    renderRules();
+    renderGallery();
+    renderFaqs();
+    renderTestimonials();
   };
 
   container.querySelector('#btn-save-landing')?.addEventListener('click', async () => {
     const btn = container.querySelector('#btn-save-landing');
     Loading.button(btn, true);
-    try {
-      const payload = {
-        hero: {
-          title: listContainer.querySelector('#l-hero-title').value,
-          subtitle: listContainer.querySelector('#l-hero-subtitle').value,
-          bannerImage: listContainer.querySelector('#l-hero-banner').value,
-          tickerText: listContainer.querySelector('#l-hero-ticker').value,
-        },
-        facilities: { items: JSON.parse(listContainer.querySelector('#l-facilities').value) },
-        rules: { items: JSON.parse(listContainer.querySelector('#l-rules').value) },
-        gallery: { images: JSON.parse(listContainer.querySelector('#l-gallery').value) },
-        testimonials: { items: JSON.parse(listContainer.querySelector('#l-testimonials').value) },
-        contact: {
-          googleMapEmbedUrl: listContainer.querySelector('#l-contact-map').value,
-          address: listContainer.querySelector('#l-contact-address').value,
-          phone: listContainer.querySelector('#l-contact-phone').value,
-          whatsapp: listContainer.querySelector('#l-contact-wa').value,
-          openingHours: listContainer.querySelector('#l-contact-hours').value
-        }
-      };
+    
+    // Sync UI to payload
+    const payload = { ...config };
+    
+    // Hero
+    payload.hero = {
+      ...payload.hero,
+      title: listContainer.querySelector('#l-hero-title').value,
+      subtitle: listContainer.querySelector('#l-hero-subtitle').value,
+      bannerImage: listContainer.querySelector('#l-hero-banner').value,
+      enableTicker: listContainer.querySelector('#l-hero-enableTicker').checked,
+      tickerText: listContainer.querySelector('#l-hero-ticker').value,
+      badges: listContainer.querySelector('#l-hero-badges').value.split(',').map(s => s.trim()).filter(Boolean),
+      liveSeatBadge: {
+        enabled: listContainer.querySelector('#l-hero-liveSeatBadge-enabled').checked,
+        text: listContainer.querySelector('#l-hero-liveSeatBadge-text').value
+      }
+    };
+    
+    // About
+    payload.about = {
+      ...payload.about,
+      title: listContainer.querySelector('#l-about-title').value,
+      description: listContainer.querySelector('#l-about-description').value,
+      highlightPoints: Array.from(listContainer.querySelectorAll('.l-about-point')).map(el => el.value),
+      stats: Array.from(listContainer.querySelectorAll('.l-about-stat-num')).map((el, i) => ({
+        number: el.value,
+        label: listContainer.querySelectorAll('.l-about-stat-label')[i].value
+      }))
+    };
+    
+    // Facilities
+    payload.facilities = {
+      ...payload.facilities,
+      items: Array.from(listContainer.querySelectorAll('#l-facilities-list > div')).map(div => ({
+        icon: div.querySelector('.l-fac-icon').value,
+        title: div.querySelector('.l-fac-title').value,
+        description: div.querySelector('.l-fac-desc').value
+      }))
+    };
+    
+    // Shifts
+    payload.shifts = {
+      ...payload.shifts,
+      items: Array.from(listContainer.querySelectorAll('#l-shifts-list > div')).map(div => ({
+        icon: div.querySelector('.l-shift-icon').value,
+        name: div.querySelector('.l-shift-name').value,
+        timing: div.querySelector('.l-shift-timing').value,
+        description: div.querySelector('.l-shift-desc').value
+      }))
+    };
+    
+    // Rules
+    payload.rules = {
+      ...payload.rules,
+      items: Array.from(listContainer.querySelectorAll('.l-rule-text')).map(el => el.value)
+    };
+    
+    // Gallery
+    payload.gallery = {
+      ...payload.gallery,
+      images: Array.from(listContainer.querySelectorAll('#l-gallery-list > div')).map(div => ({
+        url: div.querySelector('.l-gal-url').value,
+        category: div.querySelector('.l-gal-cat').value,
+        caption: div.querySelector('.l-gal-caption').value
+      }))
+    };
+    
+    // FAQs
+    payload.faqs = {
+      ...payload.faqs,
+      items: Array.from(listContainer.querySelectorAll('#l-faqs-list > div')).map(div => ({
+        question: div.querySelector('.l-faq-q').value,
+        answer: div.querySelector('.l-faq-a').value
+      }))
+    };
+    
+    // Testimonials
+    payload.testimonials = {
+      ...payload.testimonials,
+      googleRating: listContainer.querySelector('#l-test-googleRating').value,
+      googleReviewsCount: listContainer.querySelector('#l-test-googleReviewsCount').value,
+      items: Array.from(listContainer.querySelectorAll('#l-testimonials-list > div')).map(div => ({
+        name: div.querySelector('.l-test-name').value,
+        exam: div.querySelector('.l-test-exam').value,
+        rating: Number(div.querySelector('.l-test-rating').value),
+        feedback: div.querySelector('.l-test-feedback').value
+      }))
+    };
+    
+    // Contact
+    payload.contact = {
+      ...payload.contact,
+      phone: listContainer.querySelector('#l-contact-phone').value,
+      whatsapp: listContainer.querySelector('#l-contact-wa').value,
+      address: listContainer.querySelector('#l-contact-address').value,
+      openingHours: listContainer.querySelector('#l-contact-hours').value,
+      googleMapEmbedUrl: listContainer.querySelector('#l-contact-map').value
+    };
 
+    try {
       const res = await api.put('/api/landing', payload);
       if (res.success) {
         Toast.success('Landing page updated successfully');
@@ -1800,7 +2208,7 @@ async function initLandingSettings(container) {
         Toast.error(res.message || 'Error updating landing page');
       }
     } catch (err) {
-      Toast.error(err.message || 'Invalid JSON format or network error');
+      Toast.error(err.message || 'Network error');
     } finally {
       Loading.button(btn, false);
     }

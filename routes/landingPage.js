@@ -159,13 +159,15 @@ router.put('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) 
     let config = await LandingPage.getPageConfig();
     
     // Deep update fields
-    const { hero, about, facilities, rules, gallery, testimonials, contact, enquiry, theme } = req.body;
+    const { hero, about, facilities, shifts, rules, gallery, faqs, testimonials, contact, enquiry, theme } = req.body;
 
     if (hero) config.hero = { ...config.hero.toObject(), ...hero };
     if (about) config.about = { ...config.about.toObject(), ...about };
     if (facilities) config.facilities = { ...config.facilities.toObject(), ...facilities };
+    if (shifts) config.shifts = { ...config.shifts.toObject(), ...shifts };
     if (rules) config.rules = { ...config.rules.toObject(), ...rules };
     if (gallery) config.gallery = { ...config.gallery.toObject(), ...gallery };
+    if (faqs) config.faqs = { ...config.faqs.toObject(), ...faqs };
     if (testimonials) config.testimonials = { ...config.testimonials.toObject(), ...testimonials };
     if (contact) config.contact = { ...config.contact.toObject(), ...contact };
     if (enquiry) config.enquiry = { ...config.enquiry.toObject(), ...enquiry };

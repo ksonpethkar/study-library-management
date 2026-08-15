@@ -12,18 +12,24 @@ const landingPageSchema = new mongoose.Schema({
     ctaSecondaryLink: { type: String, default: '#enquiry-section' },
     badges: [{ type: String }],
     enableTicker: { type: Boolean, default: true },
-    tickerText: { type: String, default: '⚡ Limited Seats Available for Morning & Full Day Shifts! Reserve Yours Today.' }
+    tickerText: { type: String, default: '⚡ Limited Seats Available for Morning & Full Day Shifts! Reserve Yours Today.' },
+    liveSeatBadge: {
+      enabled: { type: Boolean, default: true },
+      text: { type: String, default: 'Only 12 Seats Left' }
+    }
   },
 
   // About Section
   about: {
     enabled: { type: Boolean, default: true },
     title: { type: String, default: 'About Our Study Library' },
+    subtitle: { type: String, default: 'Why Choose Our Reading Hall?' },
     description: { type: String, default: 'Designed specifically for UPSC, MPSC, Banking, SSC, NEET/JEE, CA, and other exam aspirants. We provide ergonomic seating, high-speed Wi-Fi, pin-drop silence, and premium amenities to supercharge your study focus.' },
     highlightPoints: [{ type: String }],
-    image: { type: String, default: '' },
-    experienceYears: { type: Number, default: 5 },
-    totalSelections: { type: Number, default: 120 }
+    stats: [{
+      number: { type: String },
+      label: { type: String }
+    }]
   },
 
   // Facilities / Amenities Section
@@ -35,6 +41,19 @@ const landingPageSchema = new mongoose.Schema({
       icon: { type: String, default: '❄️' },
       title: { type: String, required: true },
       description: { type: String, default: '' }
+    }]
+  },
+
+  // Shifts Guide Section
+  shifts: {
+    enabled: { type: Boolean, default: true },
+    title: { type: String, default: 'Flexible Study Shifts' },
+    subtitle: { type: String, default: 'Choose a timing that fits your schedule.' },
+    items: [{
+      name: { type: String, required: true },
+      timing: { type: String, default: '' },
+      description: { type: String, default: '' },
+      icon: { type: String, default: '🕒' }
     }]
   },
 
@@ -54,7 +73,18 @@ const landingPageSchema = new mongoose.Schema({
     images: [{
       url: { type: String, required: true },
       caption: { type: String, default: '' },
-      category: { type: String, enum: ['hall', 'amenity', 'toppers', 'event'], default: 'hall' }
+      category: { type: String, default: 'Hall' }
+    }]
+  },
+
+  // FAQs Section
+  faqs: {
+    enabled: { type: Boolean, default: true },
+    title: { type: String, default: 'Frequently Asked Questions' },
+    subtitle: { type: String, default: 'Find answers to common queries.' },
+    items: [{
+      question: { type: String, required: true },
+      answer: { type: String, required: true }
     }]
   },
 
@@ -62,6 +92,8 @@ const landingPageSchema = new mongoose.Schema({
   testimonials: {
     enabled: { type: Boolean, default: true },
     title: { type: String, default: 'What Our Students Say' },
+    googleRating: { type: String, default: '4.9' },
+    googleReviewsCount: { type: String, default: '250+ Reviews' },
     items: [{
       name: { type: String, required: true },
       exam: { type: String, default: 'UPSC Aspirant' },
@@ -92,6 +124,7 @@ const landingPageSchema = new mongoose.Schema({
 
   // Theme & Branding Configuration
   theme: {
+    preset: { type: String, default: 'default' },
     primaryColor: { type: String, default: '#6c5ce7' },
     accentColor: { type: String, default: '#00b894' },
     fontFamily: { type: String, default: 'Outfit, sans-serif' }
@@ -118,11 +151,16 @@ landingPageSchema.statics.getDefaults = function() {
       ctaSecondaryLink: '#enquiry',
       badges: ['🔒 24x7 CCTV Surveillance', '❄️ Dual AC Reading Halls', '📶 300 Mbps High-Speed Wi-Fi', '🔋 100% Power Backup'],
       enableTicker: true,
-      tickerText: '⚡ Special Discount on 3-Month & 6-Month Membership Plans! Book Your Reserved Seat Today.'
+      tickerText: '⚡ Special Discount on 3-Month & 6-Month Membership Plans! Book Your Reserved Seat Today.',
+      liveSeatBadge: {
+        enabled: true,
+        text: 'Only 12 Seats Left'
+      }
     },
     about: {
       enabled: true,
-      title: 'Why Choose Our Reading Hall?',
+      title: 'About Our Study Library',
+      subtitle: 'Why Choose Our Reading Hall?',
       description: 'We understand the discipline, intense focus, and peace required for cracking India’s toughest competitive examinations. Our study space is engineered to eliminate all distractions so you can study 12 to 16 hours every day with maximum productivity.',
       highlightPoints: [
         'Ergonomic cushioned chairs with personal reading lamps & charging sockets on every seat',
@@ -130,8 +168,12 @@ landingPageSchema.statics.getDefaults = function() {
         'Strict pin-drop silence policy enforced with round-the-clock hall supervision',
         'Separate dining and discussion area with hot water kettle, microwave & RO water'
       ],
-      experienceYears: 6,
-      totalSelections: 180
+      stats: [
+        { number: '100%', label: 'Silence' },
+        { number: '300 Mbps', label: 'Wi-Fi Speed' },
+        { number: '180+', label: 'Selections' },
+        { number: '365 Days', label: 'Open' }
+      ]
     },
     facilities: {
       enabled: true,
@@ -141,11 +183,17 @@ landingPageSchema.statics.getDefaults = function() {
         { icon: '❄️', title: 'Central Air Conditioning', description: 'Dual inverter ACs maintaining optimal 23°C temperature all year round.' },
         { icon: '📶', title: 'Ultra High-Speed Wi-Fi', description: 'Dual fiber broadband connections (300 Mbps) with zero downtime.' },
         { icon: '💺', title: 'Ergonomic Seating', description: 'Orthopedic lumbar-support chairs with spacious individual wooden desks.' },
-        { icon: '🔋', title: '100% Power Backup', description: 'Heavy-duty silent online UPS + generator backup ensures no blackout pauses.' },
-        { icon: '💧', title: 'RO Purified Water + Dispenser', description: 'Chilled, Normal & Hot mineral water available 24 hours a day.' },
-        { icon: '🔒', title: 'Personal Lockers & Book Storage', description: 'Secure lockable storage lockers for keeping heavy reference books & laptops.' },
-        { icon: '📹', title: 'CCTV & Biometric Access', description: 'Full perimeter surveillance with biometric gate entry for student safety.' },
-        { icon: '☕', title: 'Tea & Refreshment Zone', description: 'Separate hygienic dining space to eat meals and take refreshing breaks.' }
+        { icon: '🔋', title: '100% Power Backup', description: 'Heavy-duty silent online UPS + generator backup ensures no blackout pauses.' }
+      ]
+    },
+    shifts: {
+      enabled: true,
+      title: 'Flexible Study Shifts',
+      subtitle: 'Choose a timing that fits your schedule.',
+      items: [
+        { name: 'Morning Shift', timing: '06:00 AM to 02:00 PM', description: 'Start your day early.', icon: '🌅' },
+        { name: 'Evening Shift', timing: '02:00 PM to 10:00 PM', description: 'Perfect for late risers.', icon: '🌇' },
+        { name: 'Full Day Shift', timing: '06:00 AM to 10:00 PM', description: 'For dedicated aspirants.', icon: '☀️' }
       ]
     },
     rules: {
@@ -166,19 +214,27 @@ landingPageSchema.statics.getDefaults = function() {
       title: 'Our Study Space & Ambience',
       subtitle: 'Take a virtual tour of our modern reading rooms and student facilities.',
       images: [
-        { url: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=800&auto=format&fit=crop&q=80', caption: 'Quiet Individual Study Cubicles', category: 'hall' },
-        { url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800&auto=format&fit=crop&q=80', caption: 'Reference Book Section & Clean Hall', category: 'hall' },
-        { url: 'https://images.unsplash.com/photo-1568667256549-094345857637?w=800&auto=format&fit=crop&q=80', caption: 'Well-Lit Ergonomic Desks', category: 'hall' },
-        { url: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=800&auto=format&fit=crop&q=80', caption: 'Spacious & Air-Conditioned Reading Floor', category: 'hall' }
+        { url: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=800&auto=format&fit=crop&q=80', caption: 'Quiet Individual Study Cubicles', category: 'Cabins' },
+        { url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800&auto=format&fit=crop&q=80', caption: 'Reference Book Section & Clean Hall', category: 'Hall' }
+      ]
+    },
+    faqs: {
+      enabled: true,
+      title: 'Frequently Asked Questions',
+      subtitle: 'Find answers to common queries.',
+      items: [
+        { question: 'What are the library timings?', answer: 'We are open from 06:00 AM to 11:00 PM daily.' },
+        { question: 'Is Wi-Fi provided?', answer: 'Yes, we provide 300 Mbps high-speed Wi-Fi.' }
       ]
     },
     testimonials: {
       enabled: true,
       title: 'Proven Track Record of Success',
+      googleRating: '4.9',
+      googleReviewsCount: '250+ Reviews',
       items: [
         { name: 'Aditya Deshmukh', exam: 'Cleared MPSC Rajyaseva', feedback: 'Studied here for 1.5 years. The strict silence and comfortable seating helped me maintain 14 hours of daily study stamina without back pain!', rating: 5 },
-        { name: 'Priya Kulkarni', exam: 'Cleared IBPS PO Exam', feedback: 'High-speed Wi-Fi and the peaceful vibe made all the difference for my mock tests and online preparation. Highly recommended for serious aspirants.', rating: 5 },
-        { name: 'Rohit Verma', exam: 'UPSC CSE Aspirant', feedback: 'Best study hall in the city. The staff is polite, power backup is rock-solid, and the locker facility makes life so easy!', rating: 5 }
+        { name: 'Priya Kulkarni', exam: 'Cleared IBPS PO Exam', feedback: 'High-speed Wi-Fi and the peaceful vibe made all the difference for my mock tests and online preparation. Highly recommended for serious aspirants.', rating: 5 }
       ]
     },
     contact: {
@@ -195,6 +251,12 @@ landingPageSchema.statics.getDefaults = function() {
       title: 'Have Questions? Send Us a Quick Enquiry',
       subtitle: 'Leave your contact number and query below. Our manager will assist you with seat availability and fee details.',
       successMessage: 'Enquiry submitted successfully! We will call or WhatsApp you within a few minutes.'
+    },
+    theme: {
+      preset: 'default',
+      primaryColor: '#6c5ce7',
+      accentColor: '#00b894',
+      fontFamily: 'Outfit, sans-serif'
     }
   };
 };
