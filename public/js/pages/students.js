@@ -498,7 +498,11 @@ export async function render() {
 
           <div class="col-md-6">
             <label class="form-label" style="font-weight: 500;">Date of Birth</label>
-            <input type="date" class="form-control" name="dateOfBirth" value="${student && student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : ''}">
+            <input type="date" class="form-control" name="dateOfBirth" value="${(() => {
+              if (!student || !student.dateOfBirth) return '';
+              const d = new Date(student.dateOfBirth);
+              return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+            })()}">
           </div>
           <div class="col-md-6">
             <label class="form-label" style="font-weight: 500;">Status</label>

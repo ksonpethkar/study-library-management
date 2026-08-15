@@ -130,9 +130,10 @@ router.post('/', validate([
   try {
     const { seatNumber, zone, floor, type, status, monthlyRate, amenities, branch } = req.body;
     
-    const existing = await Seat.findOne({ seatNumber: seatNumber.trim() });
+    const branchId = branch && branch !== 'none' && branch !== 'all' ? branch : null;
+    const existing = await Seat.findOne({ seatNumber: seatNumber.trim(), branch: branchId });
     if (existing) {
-      return res.status(400).json({ success: false, message: `Seat number '${seatNumber}' already exists` });
+      return res.status(400).json({ success: false, message: `Seat number '${seatNumber}' already exists for this branch` });
     }
 
     const seat = await Seat.create({

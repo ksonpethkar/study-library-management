@@ -205,16 +205,19 @@ export async function render() {
         expiringContainer.innerHTML = `
           <div class="d-flex flex-column divide-y">
             ${expiringList.slice(0, 5).map(s => {
-              const daysLeft = s.daysUntilExpiry ?? Math.ceil((new Date(s.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+              const expDateObj = s.expiryDate ? new Date(s.expiryDate) : null;
+              const isValidExp = expDateObj && !isNaN(expDateObj.getTime());
+              const daysLeft = s.daysUntilExpiry ?? (isValidExp ? Math.ceil((expDateObj - new Date()) / (1000 * 60 * 60 * 24)) : 0);
+              const expDateStr = isValidExp ? expDateObj.toLocaleDateString('en-IN') : 'N/A';
               const phone = (s.phone || '').replace(/[^0-9]/g, '');
-              const waText = encodeURIComponent(`Hi ${s.name}, friendly reminder from Study Library: Your desk membership expires on ${new Date(s.expiryDate).toLocaleDateString('en-IN')}. Please renew to retain your seat!`);
+              const waText = encodeURIComponent(`Hi ${s.name}, friendly reminder from Study Library: Your desk membership expires on ${expDateStr}. Please renew to retain your seat!`);
               const waLink = phone ? `https://api.whatsapp.com/send?phone=${phone.length === 10 ? '91' + phone : phone}&text=${waText}` : '#';
 
               return `
                 <div class="p-3 d-flex justify-content-between align-items-center" style="border-bottom: 1px solid var(--color-divider);">
                   <div>
                     <div style="font-weight: 600; font-size: 14px;">${escapeHTML(s.name)}</div>
-                    <div class="text-xs text-muted">Seat: ${escapeHTML(s.seatNumber || 'N/A')} | Exp: ${new Date(s.expiryDate).toLocaleDateString('en-IN')}</div>
+                    <div class="text-xs text-muted">Seat: ${escapeHTML(s.seatNumber || 'N/A')} | Exp: ${expDateStr}</div>
                   </div>
                   <div class="d-flex align-items-center gap-2">
                     <span class="badge ${daysLeft <= 2 ? 'badge-danger' : 'badge-warning'}" style="font-size: 11px;">

@@ -465,6 +465,8 @@ async function loadSeats(container) {
     console.error('Error loading seats:', error);
     Toast.error('Failed to load seats');
     grid.innerHTML = `<div class="empty-state">Failed to load seats</div>`;
+  } finally {
+    Loading.hide(grid);
   }
 }
 

@@ -4,7 +4,6 @@ const seatSchema = new mongoose.Schema({
   seatNumber: {
     type: String,
     required: true,
-    unique: true,
     trim: true
   },
   zone: {
@@ -38,7 +37,8 @@ const seatSchema = new mongoose.Schema({
   },
   branch: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Branch'
+    ref: 'Branch',
+    default: null
   },
   isActive: {
     type: Boolean,
@@ -48,7 +48,8 @@ const seatSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Performance Database Indexes
+// Performance & Multi-Branch Database Indexes
+seatSchema.index({ branch: 1, seatNumber: 1 }, { unique: true });
 seatSchema.index({ branch: 1, zone: 1, status: 1 });
 seatSchema.index({ currentStudent: 1 });
 seatSchema.index({ status: 1 });
