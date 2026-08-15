@@ -287,36 +287,26 @@
     </div>
   </div>
 
-  <!-- Login Page -->
+  <!-- Admin & Staff Login Page -->
   <div id="login-page" class="login-page" style="display:none">
     <div class="login-card">
       <div class="login-header">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
-        <h2 id="login-heading">Welcome to StudyLib</h2>
-        <p class="text-muted" id="login-subheading">Choose your portal to continue</p>
-
-        <!-- Role Toggle Tabs -->
-        <div style="display: flex; background: var(--color-bg-secondary); padding: 4px; border-radius: 8px; margin-top: 1rem; border: 1px solid var(--color-border);">
-          <button type="button" id="tab-login-admin" class="btn btn-sm" style="flex: 1; font-weight: 700; border-radius: 6px; background: var(--color-surface); color: var(--color-primary); box-shadow: var(--shadow-sm);">
-            💼 Admin / Staff
-          </button>
-          <button type="button" id="tab-login-student" class="btn btn-sm" style="flex: 1; font-weight: 600; border-radius: 6px; background: transparent; color: var(--color-text-secondary);">
-            🎓 Student Portal
-          </button>
-        </div>
+        <h2 id="login-heading">Admin & Staff Portal</h2>
+        <p class="text-muted" id="login-subheading">Sign in with your staff credentials to manage library</p>
       </div>
       
       <!-- Admin Login Form -->
       <form id="login-form">
         <div class="form-floating">
-          <input type="email" id="login-email" class="form-input" placeholder=" " required>
-          <label for="login-email">Admin Email Address</label>
+          <input type="email" id="login-email" class="form-input" placeholder=" " required autocomplete="username">
+          <label for="login-email">Staff Email Address</label>
         </div>
         
         <div class="form-floating">
-          <input type="password" id="login-password" class="form-input" placeholder=" " style="padding-right: 48px;" required>
+          <input type="password" id="login-password" class="form-input" placeholder=" " style="padding-right: 48px;" required autocomplete="current-password">
           <label for="login-password">Password</label>
-          <button type="button" class="btn btn-icon btn-ghost" style="position:absolute; right:10px; top:12px;" id="toggle-pwd-btn">
+          <button type="button" class="btn btn-icon btn-ghost" style="position:absolute; right:10px; top:12px;" id="toggle-pwd-btn" title="Toggle password visibility">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
           </button>
         </div>
@@ -326,38 +316,22 @@
             <input type="checkbox" class="form-checkbox" id="login-remember">
             <span class="text-sm">Remember me</span>
           </label>
-          <a href="#" class="text-sm">Forgot password?</a>
+          <a href="#" onclick="alert('Please contact the library owner or system administrator to reset staff credentials.'); return false;" class="text-sm">Forgot password?</a>
         </div>
         
-        <button type="submit" class="btn btn-primary btn-lg w-full justify-center" id="login-submit-btn">
-          Sign In as Admin
+        <button type="submit" class="btn btn-primary btn-lg w-full justify-center" id="login-submit-btn" style="font-weight: 700;">
+          🔒 Sign In as Admin / Staff
         </button>
       </form>
 
-      <!-- Student Login Form -->
-      <form id="student-login-form" style="display: none;">
-        <div class="form-floating mb-3">
-          <input type="text" id="student-login-id" class="form-input" placeholder=" " required>
-          <label for="student-login-id">Student ID or Mobile Number</label>
-          <small class="text-muted" style="display:block; font-size:0.75rem; margin-top:4px;">e.g. STU-2026-001 or 9876543210</small>
+      <div class="text-center mt-4 pt-3" style="border-top: 1px solid var(--color-divider); display: flex; flex-direction: column; gap: 10px;">
+        <div style="background: var(--color-bg-secondary); padding: 10px; border-radius: 8px; border: 1px solid var(--color-border);">
+          <span style="font-size: 0.85rem; color: var(--color-text-secondary);">🎓 Are you a student?</span><br>
+          <a href="/student-login" style="color: var(--color-primary); font-weight: 700; font-size: 0.92rem; text-decoration: none;">
+            Click here for Student Portal Login &rarr;
+          </a>
         </div>
-        
-        <div class="form-floating mb-4">
-          <input type="password" id="student-login-pwd" class="form-input" placeholder=" " style="padding-right: 48px;">
-          <label for="student-login-pwd">Password / PIN</label>
-          <button type="button" class="btn btn-icon btn-ghost" style="position:absolute; right:10px; top:12px;" id="toggle-student-pwd-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-          </button>
-        </div>
-        
-        <button type="submit" class="btn btn-primary btn-lg w-full justify-center" id="student-login-submit-btn" style="background: linear-gradient(135deg, #6c5ce7, #00b894);">
-          🎓 Enter Student Portal
-        </button>
-      </form>
-
-      <div class="text-center mt-4 pt-3" style="border-top: 1px solid var(--color-divider); display: flex; flex-direction: column; gap: 8px;">
-        <a href="/register" style="color: var(--color-primary); font-weight: 600; font-size: 0.9rem; text-decoration: none;">📝 New Student? Register for Admission Online &rarr;</a>
-        <a href="/landing" style="color: var(--color-text-secondary); font-size: 0.85rem; text-decoration: none;">🌐 View Public Library Landing Page &rarr;</a>
+        <a href="/landing" style="color: var(--color-text-muted); font-size: 0.82rem; text-decoration: none;">🌐 View Public Library Landing Page</a>
       </div>
     </div>
   </div>

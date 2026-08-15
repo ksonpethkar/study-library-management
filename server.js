@@ -89,6 +89,11 @@ app.get('/register', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'register.html'));
 });
 
+// Dedicated Student Portal Login Route
+app.get(['/student-login', '/portal-login'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'student-login.html'));
+});
+
 // Self-Service Kiosk / Gate Scanner Route
 app.get('/kiosk', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'kiosk.html'));

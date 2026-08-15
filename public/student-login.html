@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Student Self-Service Portal — Study Library</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <style>
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top right, rgba(108, 92, 231, 0.15), transparent 45%),
+                  radial-gradient(circle at bottom left, rgba(0, 184, 148, 0.12), transparent 45%),
+                  var(--color-bg-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      font-family: var(--font-family);
+    }
+    .portal-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+      position: relative;
+    }
+    .portal-header {
+      background: linear-gradient(135deg, #6c5ce7, #00b894);
+      color: #ffffff;
+      padding: 2.25rem 2rem 1.75rem 2rem;
+      text-align: center;
+      position: relative;
+    }
+    .portal-body {
+      padding: 2rem 2rem 1.75rem 2rem;
+    }
+    .theme-toggle-pill {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(255, 255, 255, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: #fff;
+      font-size: 1.1rem;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(8px);
+      transition: transform 0.2s;
+    }
+    .theme-toggle-pill:hover {
+      transform: scale(1.1);
+    }
+    .quick-helper-box {
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      margin-top: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--color-text-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toast-popup {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      color: #fff;
+      z-index: 9999;
+      box-shadow: var(--shadow-lg);
+      animation: slideIn 0.3s ease forwards;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Portal Card -->
+  <div class="portal-card">
+    <div class="portal-header">
+      <button type="button" class="theme-toggle-pill" onclick="toggleStudentTheme()" title="Toggle Dark/Light Mode" id="portal-theme-btn">
+        🌙
+      </button>
+      <div style="font-size: 2.75rem; margin-bottom: 0.25rem;">🎓</div>
+      <h1 id="lib-name" style="margin: 0; font-size: 1.65rem; font-weight: 800; letter-spacing: -0.5px;">Student Portal</h1>
+      <p style="margin: 4px 0 0 0; opacity: 0.92; font-size: 0.88rem;">Study Library & Reading Hall Self-Service</p>
+    </div>
+
+    <div class="portal-body">
+      <form id="student-login-form">
+        
+        <div class="form-group mb-3">
+          <label class="form-label" for="student-identifier" style="font-weight: 600; font-size: 0.88rem;">
+            Student ID or Mobile Number
+          </label>
+          <input type="text" id="student-identifier" class="form-control form-control-lg" 
+                 placeholder="e.g. STU-2026-001 or 9876543210" required autocomplete="username" autofocus>
+          <small class="text-muted" style="display:block; font-size:0.75rem; margin-top:4px;">
+            Enter the 10-digit phone used during admission or your Student ID.
+          </small>
+        </div>
+
+        <div class="form-group mb-4">
+          <label class="form-label" for="student-password" style="font-weight: 600; font-size: 0.88rem;">
+            Password / PIN
+          </label>
+          <div style="position: relative;">
+            <input type="password" id="student-password" class="form-control form-control-lg" 
+                   placeholder="Enter your password or PIN" style="padding-right: 48px;" autocomplete="current-password">
+            <button type="button" class="btn btn-icon btn-ghost" id="toggle-pwd-btn" 
+                    style="position: absolute; right: 8px; top: 8px; color: var(--color-text-muted);" title="Show/Hide Password">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-login-submit" class="btn btn-primary btn-lg w-full justify-center" 
+                style="background: linear-gradient(135deg, #6c5ce7, #00b894); border: none; font-weight: 800; font-size: 1rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(108, 92, 231, 0.35);">
+          🎓 Enter Student Portal
+        </button>
+
+      </form>
+
+      <!-- Quick Self-Service Links -->
+      <div class="quick-helper-box">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span>🆕 New to our library?</span>
+          <a href="/register" style="color: var(--color-primary); font-weight: 700; text-decoration: none;">
+            Apply Online ➔
+          </a>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--color-divider); padding-top: 6px;">
+          <span>❓ Forgot Student ID / PIN?</span>
+          <a href="#" onclick="requestCredentialsRecovery(event)" style="color: var(--color-success); font-weight: 600; text-decoration: none;">
+            Get on WhatsApp 💬
+          </a>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 1.5rem; font-size: 0.82rem; color: var(--color-text-muted);">
+        Staff or Library Owner? <a href="/#/" style="color: var(--color-primary); font-weight: 600; text-decoration: none;">Admin Staff Login</a>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: 1.5rem; text-align: center; font-size: 0.85rem;">
+    <a href="/landing" style="color: var(--color-text-secondary); text-decoration: none;">← Back to Public Website</a>
+  </div>
+
+  <script>
+    // Theme Management
+    window.toggleStudentTheme = function() {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('sl_theme', next);
+      const btn = document.getElementById('portal-theme-btn');
+      if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
+    };
+
+    const savedTheme = localStorage.getItem('sl_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    const themeBtn = document.getElementById('portal-theme-btn');
+    if (themeBtn) themeBtn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+    // Password Visibility Toggle
+    document.getElementById('toggle-pwd-btn')?.addEventListener('click', () => {
+      const pwd = document.getElementById('student-password');
+      if (pwd) pwd.type = pwd.type === 'password' ? 'text' : 'password';
+    });
+
+    // Toast Function
+    function showToast(msg, isSuccess = true) {
+      const toast = document.createElement('div');
+      toast.className = 'toast-popup';
+      toast.style.background = isSuccess ? '#10b981' : '#ef4444';
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Credentials Recovery Helper
+    window.requestCredentialsRecovery = function(e) {
+      e.preventDefault();
+      const id = document.getElementById('student-identifier').value.trim();
+      const promptPhone = id || prompt('Please enter your 10-digit Registered Mobile Number:');
+      if (promptPhone) {
+        const cleanPhone = promptPhone.replace(/[^0-9]/g, '');
+        window.open(`https://wa.me/?text=Hello%20Admin,%20I%20forgot%20my%20Student%20ID%20and%20PIN.%20My%20registered%20mobile%20number%20is%20${cleanPhone}.%20Please%20send%20my%20login%20details.`, '_blank');
+      }
+    };
+
+    // Student Login Submit Handler
+    document.getElementById('student-login-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const identifier = document.getElementById('student-identifier').value.trim();
+      const password = document.getElementById('student-password').value.trim();
+      const btn = document.getElementById('btn-login-submit');
+
+      if (!identifier) {
+        showToast('Please enter your Student ID or Mobile number', false);
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Verifying Credentials...';
+
+      try {
+        const res = await fetch('/api/auth/student-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, password })
+        });
+        const data = await res.json();
+
+        if (data.success && data.data?.token) {
+          localStorage.setItem('sl_token', data.data.token);
+          showToast(`Welcome back, ${data.data.student?.name || 'Student'}!`, true);
+          setTimeout(() => {
+            window.location.href = '/#/portal';
+          }, 800);
+        } else {
+          showToast(data.message || 'Login failed. Please check your credentials.', false);
+          btn.disabled = false;
+          btn.textContent = '🎓 Enter Student Portal';
+        }
+      } catch (err) {
+        showToast('Network error. Please try again.', false);
+        btn.disabled = false;
+        btn.textContent = '🎓 Enter Student Portal';
+      }
+    });
+
+    // Fetch Library Branding Name
+    fetch('/api/landing')
+      .then(res => res.json())
+      .then(data => {
+        if (data.data?.businessProfile?.businessName) {
+          document.getElementById('lib-name').textContent = data.data.businessProfile.businessName;
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

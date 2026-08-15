@@ -98,63 +98,23 @@ export function initSetupWizard() {
  * Initialize the login page
  */
 export function initLoginPage() {
-  const tabAdmin = document.getElementById('tab-login-admin');
-  const tabStudent = document.getElementById('tab-login-student');
-
-  function switchTab(role) {
-    const loginForm = document.getElementById('login-form');
-    const studentForm = document.getElementById('student-login-form');
-    const heading = document.getElementById('login-heading');
-    const subheading = document.getElementById('login-subheading');
-    
-    if (role === 'student') {
-      if (tabStudent) {
-        tabStudent.style.background = 'var(--color-surface)';
-        tabStudent.style.color = 'var(--color-primary)';
-        tabStudent.style.boxShadow = 'var(--shadow-sm)';
-      }
-      if (tabAdmin) {
-        tabAdmin.style.background = 'transparent';
-        tabAdmin.style.color = 'var(--color-text-secondary)';
-        tabAdmin.style.boxShadow = 'none';
-      }
-      if (loginForm) loginForm.style.display = 'none';
-      if (studentForm) studentForm.style.display = 'block';
-      if (heading) heading.textContent = 'Student Portal Login';
-      if (subheading) subheading.textContent = 'Enter your Student ID or Registered Mobile number';
-    } else {
-      if (tabAdmin) {
-        tabAdmin.style.background = 'var(--color-surface)';
-        tabAdmin.style.color = 'var(--color-primary)';
-        tabAdmin.style.boxShadow = 'var(--shadow-sm)';
-      }
-      if (tabStudent) {
-        tabStudent.style.background = 'transparent';
-        tabStudent.style.color = 'var(--color-text-secondary)';
-        tabStudent.style.boxShadow = 'none';
-      }
-      if (loginForm) loginForm.style.display = 'block';
-      if (studentForm) studentForm.style.display = 'none';
-      if (heading) heading.textContent = 'Welcome to StudyLib';
-      if (subheading) subheading.textContent = 'Choose your portal to continue';
+  // If URL has #/portal or is student portal route, redirect unauthenticated users to /student-login
+  if (window.location.hash.includes('portal') || window.location.search.includes('portal')) {
+    const token = localStorage.getItem('sl_token');
+    if (!token) {
+      window.location.href = '/student-login';
+      return;
     }
   }
 
-  // Tab switching click handlers
-  tabAdmin?.addEventListener('click', (e) => {
-    e.preventDefault();
-    switchTab('admin');
-  });
-  tabStudent?.addEventListener('click', (e) => {
-    e.preventDefault();
-    switchTab('student');
-  });
-
-  // If URL has #/portal or ?portal, default to student tab
-  if (window.location.hash.includes('portal') || window.location.search.includes('portal')) {
-    switchTab('student');
-  } else {
-    switchTab('admin');
+  // Password toggle
+  const pwdToggle = document.getElementById('toggle-pwd-btn');
+  if (pwdToggle && !pwdToggle.dataset.bound) {
+    pwdToggle.dataset.bound = 'true';
+    pwdToggle.addEventListener('click', () => {
+      const pwdInput = document.getElementById('login-password');
+      if (pwdInput) pwdInput.type = pwdInput.type === 'password' ? 'text' : 'password';
+    });
   }
 
   // Admin Login Submit
@@ -187,56 +147,6 @@ export function initLoginPage() {
       }
     });
   }
-
-  // Student Login Submit
-  const studentForm = document.getElementById('student-login-form');
-  if (studentForm && !studentForm.dataset.bound) {
-    studentForm.dataset.bound = 'true';
-    studentForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const identifier = document.getElementById('student-login-id')?.value?.trim();
-      const password = document.getElementById('student-login-pwd')?.value?.trim();
-
-      if (!identifier) {
-        Toast.warning('Please enter your Student ID or Phone number');
-        return;
-      }
-
-      const btn = document.getElementById('student-login-submit-btn');
-      Loading.button(btn, true);
-
-      try {
-        const res = await api.post('/api/auth/student-login', { identifier, password });
-        if (!res.success) throw new Error(res.message);
-
-        localStorage.setItem('sl_token', res.data.token);
-        Toast.success(`Welcome back, ${res.data.student?.name || 'Student'}!`);
-        window.location.hash = '#/portal';
-        const App = await getApp();
-        App.init();
-      } catch (err) {
-        Toast.error(err.message || 'Student login failed. Please check your Student ID.');
-      } finally {
-        Loading.button(btn, false);
-      }
-    });
-  }
-
-  // Toggle admin password visibility
-  document.getElementById('toggle-pwd-btn')?.addEventListener('click', () => {
-    const pwdInput = document.getElementById('login-password');
-    if (pwdInput) {
-      pwdInput.type = pwdInput.type === 'password' ? 'text' : 'password';
-    }
-  });
-
-  // Toggle student password visibility
-  document.getElementById('toggle-student-pwd-btn')?.addEventListener('click', () => {
-    const pwdInput = document.getElementById('student-login-pwd');
-    if (pwdInput) {
-      pwdInput.type = pwdInput.type === 'password' ? 'text' : 'password';
-    }
-  });
 }
 
 /**
