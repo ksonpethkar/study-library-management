@@ -1,0 +1,366 @@
+const express = require('express');
+const router = express.Router();
+const { body, validationResult } = require('express-validator');
+const Seat = require('../models/Seat');
+const Student = require('../models/Student');
+const { protect } = require('../middleware/auth');
+
+function validate(validations) {
+  return async (req, res, next) => {
+    for (const validation of validations) { await validation.run(req); }
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array(), message: errors.array()[0]?.msg || 'Validation failed' });
+    }
+    next();
+  };
+}
+
+// All routes are protected
+router.use(protect);
+
+// GET / - List seats with branch, zone, status, floor, type filters
+router.get('/', async (req, res) => {
+  try {
+    const { zone, status, floor, type, branch, search } = req.query;
+    let filter = {};
+    if (zone) filter.zone = zone;
+    if (status) filter.status = status;
+    if (floor) filter.floor = floor;
+    if (type) filter.type = type;
+    if (branch && branch !== 'all') {
+      if (branch === 'unassigned') {
+        filter.branch = null;
+      } else {
+        filter.branch = branch;
+      }
+    }
+    if (search) {
+      filter.seatNumber = { $regex: search, $options: 'i' };
+    }
+
+    const seats = await Seat.find(filter)
+      .populate('currentStudent', 'name studentId phone email photo')
+      .populate('branch', 'name code city')
+      .sort('seatNumber');
+    
+    res.json({ success: true, data: seats, message: 'Seats retrieved successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /zones - Get unique zones with seat counts (optional branch filter)
+router.get('/zones', async (req, res) => {
+  try {
+    const { branch } = req.query;
+    let match = {};
+    if (branch && branch !== 'all') {
+      if (branch === 'unassigned') match.branch = null;
+      else match.branch = new (require('mongoose').Types.ObjectId)(branch);
+    }
+
+    const zoneCounts = await Seat.aggregate([
+      { $match: match },
+      { $group: { _id: '$zone', count: { $sum: 1 }, available: { $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] } } } },
+      { $sort: { _id: 1 } }
+    ]);
+
+    res.json({ success: true, data: zoneCounts, message: 'Zones retrieved successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /stats - Seat statistics with optional branch filter
+router.get('/stats', async (req, res) => {
+  try {
+    const { branch } = req.query;
+    let match = {};
+    if (branch && branch !== 'all') {
+      if (branch === 'unassigned') match.branch = null;
+      else match.branch = new (require('mongoose').Types.ObjectId)(branch);
+    }
+
+    const stats = await Seat.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          available: { $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] } },
+          occupied: { $sum: { $cond: [{ $eq: ['$status', 'occupied'] }, 1, 0] } },
+          reserved: { $sum: { $cond: [{ $eq: ['$status', 'reserved'] }, 1, 0] } },
+          maintenance: { $sum: { $cond: [{ $eq: ['$status', 'maintenance'] }, 1, 0] } }
+        }
+      }
+    ]);
+    
+    if (stats.length === 0) {
+      return res.json({ success: true, data: { total: 0, available: 0, occupied: 0, reserved: 0, maintenance: 0 } });
+    }
+    
+    const { _id, ...result } = stats[0];
+    res.json({ success: true, data: result, message: 'Seat statistics retrieved successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /:id - Single seat
+router.get('/:id', async (req, res) => {
+  try {
+    const seat = await Seat.findById(req.params.id)
+      .populate('currentStudent', 'name studentId email phone photo')
+      .populate('branch', 'name code');
+    if (!seat) {
+      return res.status(404).json({ success: false, message: 'Seat not found' });
+    }
+    res.json({ success: true, data: seat, message: 'Seat retrieved successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST / - Create single custom seat
+router.post('/', validate([
+  body('seatNumber').notEmpty().withMessage('Seat number is required'),
+  body('zone').notEmpty().withMessage('Zone is required')
+]), async (req, res) => {
+  try {
+    const { seatNumber, zone, floor, type, status, monthlyRate, amenities, branch } = req.body;
+    
+    const existing = await Seat.findOne({ seatNumber: seatNumber.trim() });
+    if (existing) {
+      return res.status(400).json({ success: false, message: `Seat number '${seatNumber}' already exists` });
+    }
+
+    const seat = await Seat.create({
+      seatNumber: seatNumber.trim(),
+      zone: zone.trim(),
+      floor: floor ? floor.trim() : '',
+      type: type || 'regular',
+      status: status || 'available',
+      monthlyRate: monthlyRate ? parseFloat(monthlyRate) : 0,
+      amenities: Array.isArray(amenities) ? amenities : (amenities ? amenities.split(',').map(a => a.trim()).filter(Boolean) : []),
+      branch: branch || null
+    });
+    
+    res.status(201).json({ success: true, data: seat, message: `Seat ${seat.seatNumber} created successfully` });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// POST /bulk - Bulk create seats with Branch support
+router.post('/bulk', validate([
+  body('zone').notEmpty().withMessage('Zone is required'),
+  body('count').isInt({ min: 1, max: 500 }).withMessage('Count must be between 1 and 500'),
+  body('startNumber').isInt({ min: 1 }).withMessage('Start number must be at least 1')
+]), async (req, res) => {
+  try {
+    const { zone, floor, type, count, startNumber, prefix = '', branch, monthlyRate, amenities } = req.body;
+    const seatsToCreate = [];
+    const parsedMonthlyRate = monthlyRate ? parseFloat(monthlyRate) : 0;
+    const parsedAmenities = Array.isArray(amenities) ? amenities : (amenities ? amenities.split(',').map(a => a.trim()).filter(Boolean) : []);
+    
+    for (let i = 0; i < parseInt(count, 10); i++) {
+      const num = parseInt(startNumber, 10) + i;
+      const formattedNum = num < 10 ? `0${num}` : `${num}`;
+      const seatNumber = `${prefix}${formattedNum}`;
+      
+      seatsToCreate.push({
+        seatNumber,
+        zone: zone.trim(),
+        floor: floor ? floor.trim() : '',
+        type: type || 'regular',
+        branch: branch || null,
+        monthlyRate: parsedMonthlyRate,
+        amenities: parsedAmenities,
+        status: 'available'
+      });
+    }
+
+    // Attempt insertMany with ordered: false to skip existing seatNumbers
+    try {
+      const created = await Seat.insertMany(seatsToCreate, { ordered: false });
+      res.status(201).json({ success: true, data: created, message: `${created.length} seats created successfully` });
+    } catch (insertError) {
+      if (insertError.code === 11000) {
+        const insertedCount = insertError.insertedDocs ? insertError.insertedDocs.length : 0;
+        res.status(207).json({ 
+          success: true, 
+          data: insertError.insertedDocs, 
+          message: `Created ${insertedCount} seats (skipped existing duplicates)`
+        });
+      } else {
+        throw insertError;
+      }
+    }
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// POST /bulk-delete - Delete multiple seats
+router.post('/bulk-delete', async (req, res) => {
+  try {
+    const { seatIds } = req.body;
+    if (!Array.isArray(seatIds) || seatIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'No seat IDs provided' });
+    }
+
+    // Do not delete occupied seats
+    const occupied = await Seat.find({ _id: { $in: seatIds }, status: 'occupied' });
+    if (occupied.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Cannot delete ${occupied.length} occupied seat(s). Please release students first.` 
+      });
+    }
+
+    const result = await Seat.deleteMany({ _id: { $in: seatIds } });
+    res.json({ success: true, message: `Successfully deleted ${result.deletedCount} seats` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /bulk-update - Bulk update zone, floor, type, branch, or status
+router.post('/bulk-update', async (req, res) => {
+  try {
+    const { seatIds, updates } = req.body;
+    if (!Array.isArray(seatIds) || seatIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'No seat IDs provided' });
+    }
+
+    const updateObj = {};
+    if (updates.zone) updateObj.zone = updates.zone.trim();
+    if (updates.floor !== undefined) updateObj.floor = updates.floor.trim();
+    if (updates.type) updateObj.type = updates.type;
+    if (updates.branch !== undefined) updateObj.branch = updates.branch || null;
+    if (updates.status) updateObj.status = updates.status;
+    if (updates.monthlyRate !== undefined) updateObj.monthlyRate = parseFloat(updates.monthlyRate) || 0;
+
+    const result = await Seat.updateMany({ _id: { $in: seatIds } }, { $set: updateObj });
+    res.json({ success: true, message: `Updated ${result.modifiedCount} seats successfully` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /:id - Full update of single seat
+router.put('/:id', validate([
+  body('seatNumber').optional().notEmpty().withMessage('Seat number cannot be empty'),
+  body('zone').optional().notEmpty().withMessage('Zone cannot be empty')
+]), async (req, res) => {
+  try {
+    const updateData = { ...req.body };
+    if (updateData.monthlyRate !== undefined) {
+      updateData.monthlyRate = parseFloat(updateData.monthlyRate) || 0;
+    }
+    if (updateData.amenities && typeof updateData.amenities === 'string') {
+      updateData.amenities = updateData.amenities.split(',').map(a => a.trim()).filter(Boolean);
+    }
+    if (updateData.branch === '' || updateData.branch === 'none') {
+      updateData.branch = null;
+    }
+
+    const seat = await Seat.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true
+    }).populate('currentStudent', 'name studentId').populate('branch', 'name code');
+
+    if (!seat) {
+      return res.status(404).json({ success: false, message: 'Seat not found' });
+    }
+    res.json({ success: true, data: seat, message: 'Seat details modified successfully' });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: 'Seat number already exists in system' });
+    }
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE /:id - Delete seat
+router.delete('/:id', async (req, res) => {
+  try {
+    const seat = await Seat.findById(req.params.id);
+    if (!seat) {
+      return res.status(404).json({ success: false, message: 'Seat not found' });
+    }
+    
+    if (seat.status === 'occupied' || seat.currentStudent) {
+      return res.status(400).json({ success: false, message: 'Cannot delete an occupied seat. Please release the student first.' });
+    }
+    
+    await seat.deleteOne();
+    res.json({ success: true, data: {}, message: `Seat ${seat.seatNumber} deleted successfully` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /:id/assign - Assign student to seat with bidirectional synchronization
+router.post('/:id/assign', validate([
+  body('studentId').notEmpty().withMessage('Student ID is required')
+]), async (req, res) => {
+  try {
+    const { studentId } = req.body;
+    const seat = await Seat.findById(req.params.id);
+    
+    if (!seat) {
+      return res.status(404).json({ success: false, message: 'Seat not found' });
+    }
+
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    // If student was already assigned to another seat, unassign that seat
+    if (student.seat && student.seat.toString() !== seat._id.toString()) {
+      await Seat.findByIdAndUpdate(student.seat, { currentStudent: null, status: 'available' });
+    }
+
+    // Update seat
+    seat.currentStudent = student._id;
+    seat.status = 'occupied';
+    await seat.save();
+
+    // Update student
+    student.seat = seat._id;
+    await student.save();
+    
+    const populated = await Seat.findById(seat._id).populate('currentStudent', 'name studentId phone');
+    res.json({ success: true, data: populated, message: `Student ${student.name} assigned to Seat ${seat.seatNumber} successfully` });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+// POST /:id/release - Release seat and unassign student
+router.post('/:id/release', async (req, res) => {
+  try {
+    const seat = await Seat.findById(req.params.id);
+    
+    if (!seat) {
+      return res.status(404).json({ success: false, message: 'Seat not found' });
+    }
+    
+    if (seat.currentStudent) {
+      await Student.findByIdAndUpdate(seat.currentStudent, { seat: null });
+    }
+
+    seat.currentStudent = null;
+    seat.status = 'available';
+    await seat.save();
+    
+    res.json({ success: true, data: seat, message: `Seat ${seat.seatNumber} released and marked available` });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+module.exports = router;

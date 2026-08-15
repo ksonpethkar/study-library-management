@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Study Library Management System">
+  <meta name="theme-color" content="#6c5ce7">
+  <title>Study Library — Management System</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Dancing+Script:wght@600&family=Great+Vibes&family=Pacifico&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" media="print" href="css/print.css">
+
+  <script>
+    (function() {
+      const t = localStorage.getItem('sl_theme') || 
+        (window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Full-screen loading spinner shown on initial load -->
+  <div id="app-loading">
+    <div class="loading-spinner"></div>
+    <div class="text-muted mt-4 font-medium">Loading Workspace...</div>
+  </div>
+
+  <div id="app" class="app-container" style="display:none">
+    
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header" id="sidebar-brand">
+        <div id="sidebar-logo" class="sidebar-logo">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+        </div>
+        <span id="sidebar-org-name">StudyLib</span>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <a href="#/dashboard" class="nav-item active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span data-i18n="nav.dashboard">Dashboard</span>
+        </a>
+        <a href="#/students" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span data-i18n="nav.students">Students</span>
+        </a>
+        <a href="#/seats" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M5 16V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12"></path></svg>
+          <span data-i18n="nav.seats">Centers & Seats</span>
+        </a>
+        <a href="#/lockers" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span data-i18n="nav.lockers">Lockers</span>
+        </a>
+        <a href="#/plans" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+          <span data-i18n="nav.plans">Plans</span>
+        </a>
+        <a href="#/payments" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+          <span data-i18n="nav.payments">Payments</span>
+        </a>
+        <a href="#/attendance" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg>
+          <span data-i18n="nav.attendance">Attendance</span>
+        </a>
+        <a href="#/shifts" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <span data-i18n="nav.shifts">Shifts</span>
+        </a>
+        <a href="#/reports" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>
+          <span data-i18n="nav.reports">Reports</span>
+        </a>
+        <a href="#/expenses" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          <span data-i18n="nav.expenses">Expenses (P&L)</span>
+        </a>
+        <a href="#/operations" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span data-i18n="nav.operations">Operations</span>
+        </a>
+        <a href="#/settings" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span data-i18n="nav.settings">Settings</span>
+        </a>
+        <a href="#/profile" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <span data-i18n="nav.profile">My Profile</span>
+        </a>
+      </nav>
+      
+      <div class="sidebar-footer-area">
+        <button class="nav-item sidebar-logout-btn" id="sidebar-logout-btn" title="Logout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          <span>Logout</span>
+        </button>
+        <div class="sidebar-collapse-row" id="sidebar-collapse-btn">
+          <svg class="collapse-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span class="version-text ml-auto">v1.0.0</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header id="main-header" class="main-header">
+        <button class="mobile-menu-btn" id="mobile-menu-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        
+        <div class="search-bar" id="global-search-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <span>Search...</span>
+          <div class="search-shortcut">Ctrl+K</div>
+        </div>
+        
+        <div class="header-actions">
+          <div class="dropdown" id="lang-dropdown">
+            <button class="action-btn" id="lang-toggle-btn" title="Change Language" style="font-size: 1.1rem;">
+              🌐
+            </button>
+            <div class="dropdown-menu" style="min-width: 140px; right: 0;">
+              <button class="dropdown-item lang-option" data-lang="en" style="cursor: pointer;">🇬🇧 English</button>
+              <button class="dropdown-item lang-option" data-lang="hi" style="cursor: pointer;">🇮🇳 हिन्दी</button>
+              <button class="dropdown-item lang-option" data-lang="mr" style="cursor: pointer;">🚩 मराठी</button>
+              <button class="dropdown-item lang-option" data-lang="ta" style="cursor: pointer;">🏛️ தமிழ்</button>
+            </div>
+          </div>
+
+          <button class="action-btn" id="notif-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            <span class="notif-badge" id="notif-badge"></span>
+          </button>
+          <button class="action-btn" id="theme-toggle-btn">
+            <!-- Sun icon, toggled via JS -->
+            <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          </button>
+          
+          <div class="dropdown" id="profile-dropdown">
+            <div class="avatar avatar-sm" style="cursor:pointer;" id="user-avatar">AD</div>
+            <div class="dropdown-menu">
+              <a href="#/profile" class="dropdown-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                Profile
+              </a>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item text-danger" id="logout-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div id="page-content" class="page-content">
+        <!-- Content will be rendered here by JS router -->
+      </div>
+    </main>
+
+    <nav id="mobile-nav" class="mobile-nav">
+      <a href="#/dashboard" class="mobile-nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        <span>Home</span>
+      </a>
+      <a href="#/students" class="mobile-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        <span>Students</span>
+      </a>
+      <a href="#/seats" class="mobile-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12"></path><path d="M5 16v4"></path><path d="M19 16v4"></path><path d="M3 16h18"></path><path d="M9 16v-5h6v5"></path></svg>
+        <span>Seats</span>
+      </a>
+      <a href="#/payments" class="mobile-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+        <span>Payments</span>
+      </a>
+      <a href="#/settings" class="mobile-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <span>Settings</span>
+      </a>
+    </nav>
+  </div>
+
+  <dialog id="modal-container" class="modal">
+    <!-- Modal content injected via JS -->
+  </dialog>
+
+  <div id="toast-container" class="toast-container">
+    <!-- Toasts injected via JS -->
+  </div>
+
+  <div id="search-palette" class="search-palette" style="display:none">
+    <div class="search-palette-content">
+      <div style="position: relative;">
+        <svg class="search-palette-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" class="search-palette-input" id="search-palette-input" placeholder="Search students, payments, plans..." autocomplete="off">
+      </div>
+      <div class="search-results" id="search-results">
+        <!-- Results injected here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Setup Wizard -->
+  <div id="setup-wizard" class="setup-wizard" style="display:none">
+    <div class="wizard-card">
+      <div class="wizard-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+        <h2>Welcome to StudyLib</h2>
+        <p>Let's set up your library management system.</p>
+      </div>
+      
+      <div class="wizard-steps">
+        <div class="wizard-step active">1</div>
+        <div class="wizard-step">2</div>
+        <div class="wizard-step">3</div>
+      </div>
+      
+      <div id="wizard-step-1" class="wizard-step-content fade-in">
+        <div class="form-floating">
+          <input type="text" id="setup-business-name" class="form-input" placeholder=" ">
+          <label for="setup-business-name">Business Name</label>
+        </div>
+        <div class="form-floating">
+          <input type="tel" id="setup-business-phone" class="form-input" placeholder=" ">
+          <label for="setup-business-phone">Business Phone</label>
+        </div>
+        <div class="form-floating">
+          <input type="email" id="setup-business-email" class="form-input" placeholder=" ">
+          <label for="setup-business-email">Business Email</label>
+        </div>
+        <div class="flex-between mt-6">
+          <div></div>
+          <button class="btn btn-primary btn-lg" id="btn-wizard-next-1">Next Step <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+        </div>
+      </div>
+      
+      <div id="wizard-step-2" class="wizard-step-content fade-in" style="display:none">
+        <div class="form-floating">
+          <input type="text" id="setup-admin-name" class="form-input" placeholder=" ">
+          <label for="setup-admin-name">Admin Name</label>
+        </div>
+        <div class="form-floating">
+          <input type="email" id="setup-admin-email" class="form-input" placeholder=" ">
+          <label for="setup-admin-email">Admin Email</label>
+        </div>
+        <div class="form-row">
+          <div class="form-floating">
+            <input type="password" id="setup-admin-pwd" class="form-input" placeholder=" ">
+            <label for="setup-admin-pwd">Password</label>
+          </div>
+          <div class="form-floating">
+            <input type="password" id="setup-admin-pwd-confirm" class="form-input" placeholder=" ">
+            <label for="setup-admin-pwd-confirm">Confirm</label>
+          </div>
+        </div>
+        <div class="flex-between mt-6">
+          <button class="btn btn-secondary btn-lg" id="btn-wizard-back-2"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg> Back</button>
+          <button class="btn btn-primary btn-lg" id="btn-wizard-next-2">Complete Setup <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
+        </div>
+      </div>
+      
+      <div id="wizard-step-3" class="wizard-step-content fade-in text-center" style="display:none">
+        <div class="empty-state-icon mx-auto text-success" style="width:100px; height:100px; background:var(--color-success-bg);">
+          <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="width:50px; height:50px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        </div>
+        <h3 class="mt-4">Setup Complete!</h3>
+        <p>Your library management system is ready to use.</p>
+        <button class="btn btn-primary btn-lg mt-4 w-full justify-center" id="btn-wizard-finish">Go to Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Page -->
+  <div id="login-page" class="login-page" style="display:none">
+    <div class="login-card">
+      <div class="login-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+        <h2 id="login-heading">Welcome to StudyLib</h2>
+        <p class="text-muted" id="login-subheading">Choose your portal to continue</p>
+
+        <!-- Role Toggle Tabs -->
+        <div style="display: flex; background: var(--color-bg-secondary); padding: 4px; border-radius: 8px; margin-top: 1rem; border: 1px solid var(--color-border);">
+          <button type="button" id="tab-login-admin" class="btn btn-sm" style="flex: 1; font-weight: 700; border-radius: 6px; background: var(--color-surface); color: var(--color-primary); box-shadow: var(--shadow-sm);">
+            💼 Admin / Staff
+          </button>
+          <button type="button" id="tab-login-student" class="btn btn-sm" style="flex: 1; font-weight: 600; border-radius: 6px; background: transparent; color: var(--color-text-secondary);">
+            🎓 Student Portal
+          </button>
+        </div>
+      </div>
+      
+      <!-- Admin Login Form -->
+      <form id="login-form">
+        <div class="form-floating">
+          <input type="email" id="login-email" class="form-input" placeholder=" " required>
+          <label for="login-email">Admin Email Address</label>
+        </div>
+        
+        <div class="form-floating">
+          <input type="password" id="login-password" class="form-input" placeholder=" " required>
+          <label for="login-password">Password</label>
+          <button type="button" class="btn btn-icon btn-ghost" style="position:absolute; right:10px; top:12px;" id="toggle-pwd-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
+        </div>
+        
+        <div class="flex-between mb-4">
+          <label class="form-check m-0">
+            <input type="checkbox" class="form-checkbox" id="login-remember">
+            <span class="text-sm">Remember me</span>
+          </label>
+          <a href="#" class="text-sm">Forgot password?</a>
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-lg w-full justify-center" id="login-submit-btn">
+          Sign In as Admin
+        </button>
+      </form>
+
+      <!-- Student Login Form -->
+      <form id="student-login-form" style="display: none;">
+        <div class="form-floating mb-3">
+          <input type="text" id="student-login-id" class="form-input" placeholder=" " required>
+          <label for="student-login-id">Student ID or Mobile Number</label>
+          <small class="text-muted" style="display:block; font-size:0.75rem; margin-top:4px;">e.g. STU-2026-001 or 9876543210</small>
+        </div>
+        
+        <div class="form-floating mb-4">
+          <input type="password" id="student-login-pwd" class="form-input" placeholder=" ">
+          <label for="student-login-pwd">Password / PIN (Optional)</label>
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-lg w-full justify-center" id="student-login-submit-btn" style="background: linear-gradient(135deg, #6c5ce7, #00b894);">
+          🎓 Enter Student Portal
+        </button>
+      </form>
+
+      <div class="text-center mt-4 pt-3" style="border-top: 1px solid var(--color-divider); display: flex; flex-direction: column; gap: 8px;">
+        <a href="/register" style="color: var(--color-primary); font-weight: 600; font-size: 0.9rem; text-decoration: none;">📝 New Student? Register for Admission Online &rarr;</a>
+        <a href="/landing" style="color: var(--color-text-secondary); font-size: 0.85rem; text-decoration: none;">🌐 View Public Library Landing Page &rarr;</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

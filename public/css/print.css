@@ -1,0 +1,148 @@
+@media print {
+  /* Hide non-printable elements */
+  #sidebar, 
+  #main-header, 
+  #mobile-nav, 
+  #search-palette,
+  .toast-container,
+  .modal-backdrop,
+  .btn:not(.print-visible),
+  .pagination,
+  .tabs,
+  .form-group:not(.print-visible) {
+    display: none !important;
+  }
+
+  /* Reset layout for printing */
+  body {
+    background: #fff;
+    color: #000;
+    font-size: 12pt;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+  }
+
+  .app-container {
+    display: block !important;
+  }
+
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .page-content {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Table styling for print */
+  .data-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-bottom: 20px !important;
+  }
+  
+  .data-table th, 
+  .data-table td {
+    border: 1px solid #ddd !important;
+    padding: 8px !important;
+    color: #000 !important;
+  }
+  
+  .data-table th {
+    background-color: #f5f5f5 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .table-actions {
+    display: none !important;
+  }
+
+  /* Badges */
+  .badge {
+    border: 1px solid #999;
+    background: transparent !important;
+    color: #000 !important;
+  }
+
+  /* Avoid page breaks inside important elements */
+  tr, .card, .stat-card {
+    page-break-inside: avoid;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+
+  /* Specific Print Layouts */
+  
+  /* Thermal Printer Receipt (80mm width) */
+  .receipt-thermal-80,
+  .print-receipt {
+    width: 78mm !important;
+    max-width: 78mm !important;
+    margin: 0 auto !important;
+    font-family: 'Courier New', monospace !important;
+    font-size: 9pt !important;
+    padding: 2mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Thermal Printer Receipt (58mm width) */
+  .receipt-thermal-58 {
+    width: 56mm !important;
+    max-width: 56mm !important;
+    margin: 0 auto !important;
+    font-family: 'Courier New', monospace !important;
+    font-size: 8pt !important;
+    padding: 1mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .receipt-thermal-80 table,
+  .receipt-thermal-58 table {
+    width: 100% !important;
+    font-size: 8pt !important;
+    border: none !important;
+  }
+
+  .receipt-thermal-80 th, .receipt-thermal-80 td,
+  .receipt-thermal-58 th, .receipt-thermal-58 td {
+    border: none !important;
+    border-bottom: 1px dashed #000 !important;
+    padding: 3px 0 !important;
+  }
+  
+  .print-receipt .text-center { text-align: center; }
+  .print-receipt .divider { border-top: 1px dashed #000; margin: 10px 0; }
+  
+  /* ID Card layout */
+  .print-id-card {
+    width: 85.6mm !important;
+    height: 53.98mm !important;
+    border: 1px solid #000;
+    margin: 0 auto;
+    page-break-inside: avoid;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

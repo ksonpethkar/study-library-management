@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Library Attendance Kiosk — Quick Check-in / Check-out</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
+    body {
+      background: radial-gradient(circle at top right, #1e1b4b 0%, #0f172a 100%);
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+    .kiosk-header {
+      width: 100%;
+      max-width: 1000px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .kiosk-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .kiosk-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    }
+    .kiosk-clock {
+      text-align: right;
+    }
+    .clock-time {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #38bdf8;
+    }
+    .clock-date {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .kiosk-main {
+      width: 100%;
+      max-width: 900px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      margin: 32px 0;
+    }
+    @media (max-width: 800px) {
+      .kiosk-main { grid-template-columns: 1fr; }
+    }
+    .kiosk-card {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 32px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .kiosk-scanner-box {
+      width: 100%;
+      height: 220px;
+      border: 2px dashed #6366f1;
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: rgba(99, 102, 241, 0.05);
+      position: relative;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+    .scan-laser {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: #38bdf8;
+      box-shadow: 0 0 12px #38bdf8;
+      animation: scanAnim 2s ease-in-out infinite alternate;
+    }
+    @keyframes scanAnim {
+      0% { top: 10%; }
+      100% { top: 90%; }
+    }
+    .keypad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      width: 100%;
+      margin-top: 16px;
+    }
+    .keypad-btn {
+      padding: 16px;
+      font-size: 20px;
+      font-weight: 600;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .keypad-btn:hover {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: #6366f1;
+      transform: translateY(-2px);
+    }
+    .keypad-btn:active {
+      transform: scale(0.95);
+    }
+    .student-id-display {
+      width: 100%;
+      padding: 14px;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-align: center;
+      background: rgba(15, 23, 42, 0.8);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      color: #38bdf8;
+      margin-bottom: 12px;
+    }
+    .result-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(20px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 24px;
+    }
+    .result-card {
+      background: #1e293b;
+      border: 2px solid #22c55e;
+      border-radius: 28px;
+      padding: 40px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(34, 197, 94, 0.25);
+      animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .result-card.checkout {
+      border-color: #f59e0b;
+      box-shadow: 0 25px 60px rgba(245, 158, 11, 0.25);
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.85); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .result-avatar {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: #334155;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      border: 4px solid #22c55e;
+      overflow: hidden;
+    }
+    .result-card.checkout .result-avatar { border-color: #f59e0b; }
+    .kiosk-footer {
+      font-size: 13px;
+      color: #64748b;
+      display: flex;
+      gap: 20px;
+    }
+    .kiosk-footer a { color: #818cf8; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="kiosk-header">
+    <div class="kiosk-brand">
+      <div class="kiosk-logo">📚</div>
+      <div>
+        <h2 id="kiosk-lib-name" style="font-size: 18px; font-weight: 700;">Study Library</h2>
+        <p style="font-size: 12px; color: #94a3b8;">Smart Gate Attendance Kiosk</p>
+      </div>
+    </div>
+    <div class="kiosk-clock">
+      <div class="clock-time" id="clock-time">00:00:00</div>
+      <div class="clock-date" id="clock-date">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Main Scanner & Keypad -->
+  <div class="kiosk-main">
+    <!-- QR Scanner Side -->
+    <div class="kiosk-card">
+      <h3 style="font-size: 20px; margin-bottom: 6px;">📷 Scan ID Card or QR</h3>
+      <p style="font-size: 13px; color: #94a3b8;">Hold your Student ID barcode or mobile QR code in front of scanner</p>
+
+      <div class="kiosk-scanner-box">
+        <div class="scan-laser"></div>
+        <div style="font-size: 48px;">🔳</div>
+        <span style="font-size: 13px; color: #818cf8; font-weight: 500;">Ready to Scan</span>
+      </div>
+
+      <input type="text" id="barcode-input" placeholder="Or focus here for USB barcode scanner..." 
+             style="width: 100%; padding: 12px; border-radius: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; text-align: center;" autofocus autocomplete="off">
+    </div>
+
+    <!-- Manual Student ID Keypad Side -->
+    <div class="kiosk-card">
+      <h3 style="font-size: 20px; margin-bottom: 6px;">⌨️ Enter Student ID</h3>
+      <p style="font-size: 13px; color: #94a3b8;">Type your 10-digit Phone or Student ID number</p>
+
+      <div style="width: 100%; margin-top: 16px;">
+        <input type="text" id="keypad-display" class="student-id-display" placeholder="STU-XXXX or Phone" readonly>
+        
+        <div class="keypad-grid">
+          <button class="keypad-btn" onclick="typeKey('1')">1</button>
+          <button class="keypad-btn" onclick="typeKey('2')">2</button>
+          <button class="keypad-btn" onclick="typeKey('3')">3</button>
+          <button class="keypad-btn" onclick="typeKey('4')">4</button>
+          <button class="keypad-btn" onclick="typeKey('5')">5</button>
+          <button class="keypad-btn" onclick="typeKey('6')">6</button>
+          <button class="keypad-btn" onclick="typeKey('7')">7</button>
+          <button class="keypad-btn" onclick="typeKey('8')">8</button>
+          <button class="keypad-btn" onclick="typeKey('9')">9</button>
+          <button class="keypad-btn" style="color: #ef4444;" onclick="clearKeypad()">C</button>
+          <button class="keypad-btn" onclick="typeKey('0')">0</button>
+          <button class="keypad-btn" style="color: #22c55e; background: rgba(34, 197, 94, 0.2);" onclick="submitKeypad()">➔</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Popup Overlay -->
+  <div id="result-overlay" class="result-overlay">
+    <div id="result-card" class="result-card">
+      <div id="result-avatar" class="result-avatar">👤</div>
+      <div id="result-badge" style="display: inline-block; padding: 4px 14px; border-radius: 99px; font-weight: 700; font-size: 13px; margin-bottom: 12px; background: #22c55e; color: #fff;">CHECKED IN</div>
+      <h2 id="result-name" style="font-size: 24px; font-weight: 700; margin-bottom: 4px;">Student Name</h2>
+      <p id="result-id" style="font-size: 14px; color: #94a3b8; margin-bottom: 16px;">STU-2026-001</p>
+
+      <div style="background: rgba(15, 23, 42, 0.5); padding: 16px; border-radius: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; text-align: left;">
+        <div>
+          <div style="font-size: 11px; color: #94a3b8;">SEAT</div>
+          <div id="result-seat" style="font-size: 16px; font-weight: 700; color: #38bdf8;">Desk A-12</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: #94a3b8;">TIME</div>
+          <div id="result-time" style="font-size: 16px; font-weight: 700; color: #f8fafc;">09:15 AM</div>
+        </div>
+        <div style="grid-column: span 2;">
+          <div style="font-size: 11px; color: #94a3b8;">SESSION / STUDY HOURS</div>
+          <div id="result-duration" style="font-size: 15px; font-weight: 600; color: #a78bfa;">Started Just Now</div>
+        </div>
+      </div>
+
+      <div style="font-size: 12px; color: #64748b;">Auto-closing in <span id="countdown">4</span>s...</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="kiosk-footer">
+    <span>🔒 Powered by Study Library Management System</span>
+    <a href="/#/">Admin Portal</a>
+    <a href="/register">New Admission</a>
+  </div>
+
+  <script>
+    // Live Clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock-time').textContent = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      document.getElementById('clock-date').textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Keypad Logic
+    let keypadVal = '';
+    function typeKey(num) {
+      if (keypadVal.length < 15) {
+        keypadVal += num;
+        document.getElementById('keypad-display').value = keypadVal;
+      }
+    }
+    function clearKeypad() {
+      keypadVal = '';
+      document.getElementById('keypad-display').value = '';
+    }
+    function submitKeypad() {
+      if (!keypadVal) return;
+      processPunch(keypadVal);
+      clearKeypad();
+    }
+
+    // Barcode scanner input handling
+    const barcodeInput = document.getElementById('barcode-input');
+    barcodeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const val = barcodeInput.value.trim();
+        if (val) {
+          processPunch(val);
+          barcodeInput.value = '';
+        }
+      }
+    });
+
+    // Sound effects using Web Audio API
+    function playChime(isCheckin) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(isCheckin ? 587.33 : 440, ctx.currentTime); // D5 or A4
+        osc.frequency.setValueAtTime(isCheckin ? 880 : 349.23, ctx.currentTime + 0.15); // A5 or F4
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.4);
+      } catch (err) {}
+    }
+
+    // Process attendance punch
+    async function processPunch(identifier) {
+      try {
+        const res = await fetch('/api/attendance/rfid-punch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rfidCardNumber: identifier })
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+          alert(data.message || 'Student not found or inactive');
+          return;
+        }
+
+        const isCheckIn = data.action === 'check-in';
+        playChime(isCheckIn);
+
+        // Show confirmation popup
+        const overlay = document.getElementById('result-overlay');
+        const card = document.getElementById('result-card');
+        const badge = document.getElementById('result-badge');
+
+        if (isCheckIn) {
+          card.classList.remove('checkout');
+          badge.style.background = '#22c55e';
+          badge.textContent = 'CHECKED IN';
+        } else {
+          card.classList.add('checkout');
+          badge.style.background = '#f59e0b';
+          badge.textContent = 'CHECKED OUT';
+        }
+
+        document.getElementById('result-name').textContent = data.student?.name || 'Student';
+        document.getElementById('result-id').textContent = data.student?.studentId || '';
+        document.getElementById('result-seat').textContent = data.student?.seat?.seatNumber || 'N/A';
+        document.getElementById('result-time').textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('result-duration').textContent = data.durationMinutes ? `${Math.floor(data.durationMinutes / 60)}h ${data.durationMinutes % 60}m logged today` : 'Session Started';
+
+        overlay.style.display = 'flex';
+
+        // 4-second auto close
+        let count = 4;
+        document.getElementById('countdown').textContent = count;
+        const timer = setInterval(() => {
+          count--;
+          document.getElementById('countdown').textContent = count;
+          if (count <= 0) {
+            clearInterval(timer);
+            overlay.style.display = 'none';
+            barcodeInput.focus();
+          }
+        }, 1000);
+      } catch (err) {
+        alert('Network error. Please try again.');
+      }
+    }
+  </script>
+</body>
+</html>

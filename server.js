@@ -1,0 +1,159 @@
+// Force Google DNS — fixes networks that block SRV record lookups for MongoDB Atlas
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']);
+
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const path = require('path');
+const connectDB = require('./config/db');
+const { generalLimiter } = require('./middleware/rateLimiter');
+
+const app = express();
+
+// Security Middleware — configured to allow inline scripts, Google Fonts, and our own assets
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:", "https:"],
+      connectSrc: ["'self'"],
+    }
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Body parser
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Apply rate limiting
+app.use(generalLimiter);
+
+// Static folder
+app.use(express.static(path.join(__dirname, 'public')));
+
+// API Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/students', require('./routes/students'));
+app.use('/api/seats', require('./routes/seats'));
+app.use('/api/plans', require('./routes/plans'));
+app.use('/api/payments', require('./routes/payments'));
+app.use('/api/attendance', require('./routes/attendance'));
+app.use('/api/branches', require('./routes/branches'));
+app.use('/api/shifts', require('./routes/shifts'));
+app.use('/api/reports', require('./routes/reports'));
+app.use('/api/settings', require('./routes/settings'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/search', require('./routes/search'));
+app.use('/api/student-portal', require('./routes/studentPortal'));
+app.use('/api/operations', require('./routes/operations'));
+app.use('/api/expenses', require('./routes/expenses'));
+app.use('/api/custom-fields', require('./routes/customFields'));
+app.use('/api/waiting-list', require('./routes/waitingList'));
+app.use('/api/lockers', require('./routes/lockers'));
+app.use('/api/messages', require('./routes/messages'));
+app.use('/api/backup', require('./routes/backup'));
+app.use('/api/landing', require('./routes/landingPage'));
+
+// Health check endpoint for uptime monitoring & Render.com
+app.get('/api/health', (req, res) => {
+  const mongoose = require('mongoose');
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  res.json({
+    status: 'healthy',
+    uptime: Math.round(process.uptime()),
+    timestamp: new Date().toISOString(),
+    database: dbStatus,
+    version: '1.0.0'
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Server Error'
+  });
+});
+
+// Public Landing Page & Registration Routes
+app.get('/landing', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+});
+
+app.get('/register', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'register.html'));
+});
+
+// Self-Service Kiosk / Gate Scanner Route
+app.get('/kiosk', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'kiosk.html'));
+});
+
+// SPA fallback — only for non-API routes
+app.get('/{*path}', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ success: false, message: 'API route not found' });
+  }
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Start server
+const PORT = process.env.PORT || 5000;
+
+const startServer = async () => {
+  // Start Express first (so frontend is always accessible)
+  app.listen(PORT, () => {
+    console.log(`\n  ✅ Server running on http://localhost:${PORT}`);
+    console.log(`  📂 Mode: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`  🌐 Open in browser: http://localhost:${PORT}\n`);
+  });
+
+  // Then connect to MongoDB (non-blocking)
+  try {
+    await connectDB();
+    console.log('  🗄️  MongoDB connected');
+
+    // Initialize system settings, default branch & shifts
+    const SystemSetting = require('./models/SystemSetting');
+    await SystemSetting.initDefaults();
+    const Branch = require('./models/Branch');
+    await Branch.seedDefaults();
+    const Shift = require('./models/Shift');
+    if (typeof Shift.seedDefaults === 'function') {
+      await Shift.seedDefaults();
+    }
+    
+    // Initialize default form templates
+    const FormTemplate = require('./models/FormTemplate');
+    if (typeof FormTemplate.seedDefaults === 'function') {
+      await FormTemplate.seedDefaults();
+    }
+    
+    // Initialize Automated Expiry & Notification Cron Jobs
+    const { initCronJobs } = require('./utils/cronJobs');
+    initCronJobs();
+
+    console.log('  ⚙️  System settings, Branch & Shifts initialized');
+    console.log('  ✨ Ready!\n');
+  } catch (error) {
+    console.error('\n  ⚠️  MongoDB connection failed:', error.message);
+    console.error('  💡 The frontend will still load, but API calls will fail.');
+    console.error('  💡 Set MONGODB_URI in .env to a valid MongoDB connection string.');
+    console.error('  💡 Get a free MongoDB Atlas cluster at: https://cloud.mongodb.com\n');
+  }
+};
+
+startServer();

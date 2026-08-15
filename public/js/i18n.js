@@ -1,0 +1,310 @@
+const translations = {
+  en: {
+    'app.name': 'Study Library',
+    'nav.dashboard': 'Dashboard',
+    'nav.students': 'Students',
+    'nav.seats': 'Seats',
+    'nav.lockers': 'Lockers',
+    'nav.plans': 'Plans',
+    'nav.payments': 'Payments',
+    'nav.attendance': 'Attendance',
+    'nav.shifts': 'Shifts',
+    'nav.branches': 'Branches',
+    'nav.reports': 'Reports',
+    'nav.expenses': 'Expenses (P&L)',
+    'nav.operations': 'Operations',
+    'nav.settings': 'Settings',
+    'nav.profile': 'My Profile',
+    'nav.portal': 'Student Portal',
+    
+    'auth.login': 'Login',
+    'auth.logout': 'Logout',
+    'auth.email': 'Email Address',
+    'auth.password': 'Password',
+    'auth.name': 'Full Name',
+    'auth.phone': 'Phone Number',
+    
+    'common.save': 'Save',
+    'common.cancel': 'Cancel',
+    'common.delete': 'Delete',
+    'common.edit': 'Edit',
+    'common.add': 'Add New',
+    'common.search': 'Search...',
+    'common.filter': 'Filter',
+    'common.export': 'Export',
+    'common.loading': 'Loading...',
+    'common.noData': 'No data found',
+    'common.confirm': 'Are you sure?',
+    'common.success': 'Success',
+    'common.error': 'Error',
+    'common.print': 'Print',
+    'common.status': 'Status',
+    'common.action': 'Action',
+    'common.active': 'Active',
+    'common.expired': 'Expired',
+    'common.pending': 'Pending',
+    'common.occupied': 'Occupied',
+    'common.available': 'Available',
+
+    'dashboard.totalStudents': 'Total Students',
+    'dashboard.occupiedSeats': 'Seats Occupied',
+    'dashboard.monthlyRevenue': 'Monthly Revenue',
+    'dashboard.pendingDues': 'Pending Dues',
+    'dashboard.expiringSoon': 'Expiring Soon',
+    'dashboard.todayCollections': 'Today Collections',
+    'dashboard.quickActions': 'Quick Actions',
+
+    'lockers.title': 'Locker Management',
+    'lockers.bulkGenerate': 'Bulk Generate',
+    'lockers.addLocker': 'Add Locker',
+    'lockers.total': 'Total Lockers',
+    'lockers.available': 'Available',
+    'lockers.occupied': 'Occupied',
+    'lockers.depositHeld': 'Deposit Held',
+
+    'students.admission': 'New Admission',
+    'students.idCard': 'ID Card',
+    'students.renew': 'Renew',
+    'students.whatsapp': 'WhatsApp'
+  },
+  hi: {
+    'app.name': 'स्टडी लाइब्रेरी',
+    'nav.dashboard': 'डैशबोर्ड',
+    'nav.students': 'विद्यार्थी',
+    'nav.seats': 'सीटें व डेस्क',
+    'nav.lockers': 'लॉकर प्रबंधन',
+    'nav.plans': 'सदस्यता प्लान',
+    'nav.payments': 'शुल्क भुगतान',
+    'nav.attendance': 'दैनिक उपस्थिति',
+    'nav.shifts': 'समय स्लॉट / शिफ्ट',
+    'nav.branches': 'शाखाएं',
+    'nav.reports': 'रिपोर्ट्स व विश्लेषण',
+    'nav.expenses': 'खर्च व लाभ (P&L)',
+    'nav.operations': 'संचालन व नोटिस',
+    'nav.settings': 'सिस्टम सेटिंग्स',
+    'nav.profile': 'मेरी प्रोफाइल',
+    'nav.portal': 'विद्यार्थी पोर्टल',
+    
+    'auth.login': 'लॉग इन करें',
+    'auth.logout': 'लॉग आउट',
+    'auth.email': 'ईमेल पता',
+    'auth.password': 'पासवर्ड',
+    'auth.name': 'पूरा नाम',
+    'auth.phone': 'फ़ोन नंबर',
+    
+    'common.save': 'सहेजें',
+    'common.cancel': 'रद्द करें',
+    'common.delete': 'हटाएं',
+    'common.edit': 'संपादित करें',
+    'common.add': 'नया जोड़ें',
+    'common.search': 'खोजें...',
+    'common.filter': 'फ़िल्टर',
+    'common.export': 'निर्यात (Export)',
+    'common.loading': 'लोड हो रहा है...',
+    'common.noData': 'कोई डेटा नहीं मिला',
+    'common.confirm': 'क्या आप निश्चित हैं?',
+    'common.success': 'सफल',
+    'common.error': 'त्रुटि',
+    'common.print': 'प्रिंट करें',
+    'common.status': 'स्थिति',
+    'common.action': 'कार्रवाई',
+    'common.active': 'सक्रिय',
+    'common.expired': 'समाप्त',
+    'common.pending': 'लंबित',
+    'common.occupied': 'आवंटित',
+    'common.available': 'उपलब्ध',
+
+    'dashboard.totalStudents': 'कुल विद्यार्थी',
+    'dashboard.occupiedSeats': 'आवंटित सीटें',
+    'dashboard.monthlyRevenue': 'मासिक आय',
+    'dashboard.pendingDues': 'बकाया शुल्क',
+    'dashboard.expiringSoon': 'जल्द समाप्त होने वाले',
+    'dashboard.todayCollections': 'आज की वसूली',
+    'dashboard.quickActions': 'त्वरित कार्रवाई',
+
+    'lockers.title': 'लॉकर व्यवस्थापन',
+    'lockers.bulkGenerate': 'थोक बनाएं',
+    'lockers.addLocker': 'लॉकर जोड़ें',
+    'lockers.total': 'कुल लॉकर',
+    'lockers.available': 'उपलब्ध',
+    'lockers.occupied': 'आवंटित',
+    'lockers.depositHeld': 'जमा अमानत राशि',
+
+    'students.admission': 'नया प्रवेश',
+    'students.idCard': 'पहचान पत्र (ID Card)',
+    'students.renew': 'नवीनीकरण',
+    'students.whatsapp': 'व्हाट्सएप भेजें'
+  },
+  mr: {
+    'app.name': 'स्टडी लायब्ररी',
+    'nav.dashboard': 'डॅशबोर्ड',
+    'nav.students': 'विद्यार्थी',
+    'nav.seats': 'जागा व डेस्क',
+    'nav.lockers': 'लॉकर व्यवस्थापन',
+    'nav.plans': 'सदस्यता योजना',
+    'nav.payments': 'फी जमा / पावती',
+    'nav.attendance': 'दैनंदिन हजेरी',
+    'nav.shifts': 'वेळ व शिफ्ट',
+    'nav.branches': 'शाखा व्यवस्थापन',
+    'nav.reports': 'अहवाल व आकडेवारी',
+    'nav.expenses': 'खर्च व नफा (P&L)',
+    'nav.operations': 'सूचना व तक्रार',
+    'nav.settings': 'प्रणाली सेटिंग्ज',
+    'nav.profile': 'माझे प्रोफाइल',
+    'nav.portal': 'विद्यार्थी पोर्टल',
+    
+    'auth.login': 'लॉगिन करा',
+    'auth.logout': 'बाहेर पडा',
+    'auth.email': 'ईमेल पत्ता',
+    'auth.password': 'पासवर्ड',
+    'auth.name': 'पूर्ण नाव',
+    'auth.phone': 'मोबाईल नंबर',
+    
+    'common.save': 'जतन करा',
+    'common.cancel': 'रद्द करा',
+    'common.delete': 'हटवा',
+    'common.edit': 'बदला',
+    'common.add': 'नवीन जोडा',
+    'common.search': 'शोधा...',
+    'common.filter': 'फिल्टर',
+    'common.export': 'डाउनलोड',
+    'common.loading': 'लोड होत आहे...',
+    'common.noData': 'माहिती उपलब्ध नाही',
+    'common.confirm': 'तुम्हाला खात्री आहे का?',
+    'common.success': 'यशस्वी',
+    'common.error': 'त्रुटी',
+    'common.print': 'प्रिंट काढा',
+    'common.status': 'स्थिती',
+    'common.action': 'कृती',
+    'common.active': 'सक्रिय',
+    'common.expired': 'मुदत संपलेले',
+    'common.pending': 'प्रलंबित',
+    'common.occupied': 'भरलेले',
+    'common.available': 'उपलब्ध',
+
+    'dashboard.totalStudents': 'एकूण विद्यार्थी',
+    'dashboard.occupiedSeats': 'भरलेल्या जागा',
+    'dashboard.monthlyRevenue': 'मासिक उत्पन्न',
+    'dashboard.pendingDues': 'बाकी फी',
+    'dashboard.expiringSoon': 'मुदत संपणारे विद्यार्थी',
+    'dashboard.todayCollections': 'आजची फी जमा',
+    'dashboard.quickActions': 'जलद कृती',
+
+    'lockers.title': 'लॉकर व्यवस्थापन',
+    'lockers.bulkGenerate': 'एकत्रित तयार करा',
+    'lockers.addLocker': 'लॉकर जोडा',
+    'lockers.total': 'एकूण लॉकर',
+    'lockers.available': 'उपलब्ध',
+    'lockers.occupied': 'वापरात',
+    'lockers.depositHeld': 'ठेव रक्कम जमा',
+
+    'students.admission': 'नवीन प्रवेश',
+    'students.idCard': 'ओळखपत्र',
+    'students.renew': 'नूतनीकरण',
+    'students.whatsapp': 'व्हॉट्सअॅप'
+  },
+  ta: {
+    'app.name': 'படிப்பு நூலகம்',
+    'nav.dashboard': 'முகப்பு பலகை',
+    'nav.students': 'மாணவர்கள்',
+    'nav.seats': 'இருக்கைகள்',
+    'nav.lockers': 'லாக்கர்கள்',
+    'nav.plans': 'திட்டங்கள்',
+    'nav.payments': 'கட்டணங்கள்',
+    'nav.attendance': 'வருகை பதிவு',
+    'nav.shifts': 'ஷிப்ட்கள்',
+    'nav.branches': 'கிளைகள்',
+    'nav.reports': 'அறிக்கைகள்',
+    'nav.expenses': 'செலவுகள் (P&L)',
+    'nav.operations': 'செயல்பாடுகள்',
+    'nav.settings': 'அமைப்புகள்',
+    'nav.profile': 'சுயவிவரம்',
+    'nav.portal': 'மாணவர் போர்டல்',
+    
+    'auth.login': 'உள்நுழைக',
+    'auth.logout': 'வெளியேறு',
+    'auth.email': 'மின்னஞ்சல்',
+    'auth.password': 'கடவுச்சொல்',
+    'auth.name': 'முழு பெயர்',
+    'auth.phone': 'தொலைபேசி எண்',
+    
+    'common.save': 'சேமி',
+    'common.cancel': 'ரத்து செய்',
+    'common.delete': 'நீக்கு',
+    'common.edit': 'திருத்து',
+    'common.add': 'புதியது சேர்',
+    'common.search': 'தேடு...',
+    'common.filter': 'வடிகட்டவும்',
+    'common.export': 'ஏற்றுமதி',
+    'common.loading': 'ஏற்றுகிறது...',
+    'common.noData': 'தரவு இல்லை',
+    'common.confirm': 'உறுதியா?',
+    'common.success': 'வெற்றி',
+    'common.error': 'பிழை',
+    'common.print': 'அச்சிடுக',
+    'common.status': 'நிலை',
+    'common.action': 'செயல்',
+    'common.active': 'செயலில்',
+    'common.expired': 'முடிந்தது',
+    'common.pending': 'நிலுவையில்',
+    'common.occupied': 'நிரம்பியது',
+    'common.available': 'இருக்கிறது',
+
+    'dashboard.totalStudents': 'மொத்த மாணவர்கள்',
+    'dashboard.occupiedSeats': 'நிரம்பிய இடங்கள்',
+    'dashboard.monthlyRevenue': 'மாத வருமானம்',
+    'dashboard.pendingDues': 'நிலுவைக் கட்டணம்',
+    'dashboard.expiringSoon': 'காலாவதியாகும் உறுப்பினர்கள்',
+    'dashboard.todayCollections': 'இன்றைய வசூல்',
+    'dashboard.quickActions': 'விரைவு செயல்கள்',
+
+    'lockers.title': 'லாக்கர் மேலாண்மை',
+    'lockers.bulkGenerate': 'மொத்தமாக உருவாக்கு',
+    'lockers.addLocker': 'லாக்கர் சேர்',
+    'lockers.total': 'மொத்த லாக்கர்கள்',
+    'lockers.available': 'கிடைக்கிறது',
+    'lockers.occupied': 'பயன்பாட்டில்',
+    'lockers.depositHeld': 'முன்பணம்',
+
+    'students.admission': 'புதிய சேர்க்கை',
+    'students.idCard': 'அடையாள அட்டை',
+    'students.renew': 'புதுப்பித்தல்',
+    'students.whatsapp': 'வாட்ஸ்அப்'
+  }
+};
+
+let currentLang = (typeof localStorage !== 'undefined' ? localStorage.getItem('sl_lang') : null) || 'en';
+
+export function t(key, defaultVal = '', params = {}) {
+  let str = translations[currentLang]?.[key] || translations['en']?.[key] || defaultVal || key;
+  Object.entries(params).forEach(([k, v]) => {
+    str = str.replace(`{${k}}`, v);
+  });
+  return str;
+}
+
+export function setLanguage(lang) {
+  if (translations[lang]) {
+    currentLang = lang;
+    if (typeof localStorage !== 'undefined') localStorage.setItem('sl_lang', lang);
+    if (typeof document !== 'undefined') {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const k = el.getAttribute('data-i18n');
+        if (k) el.textContent = t(k);
+      });
+    }
+  }
+}
+
+export function getLanguage() {
+  return currentLang;
+}
+
+export function getAvailableLanguages() {
+  return [
+    { code: 'en', label: 'English' },
+    { code: 'hi', label: 'हिंदी (Hindi)' },
+    { code: 'mr', label: 'मराठी (Marathi)' },
+    { code: 'ta', label: 'தமிழ் (Tamil)' }
+  ];
+}

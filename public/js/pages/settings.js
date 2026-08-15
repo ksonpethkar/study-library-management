@@ -1,0 +1,1578 @@
+import api from '../api.js';
+import { Toast, Modal, Confirm, Loading, escapeHTML } from '../ui.js';
+import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
+import { t } from '../i18n.js';
+
+export async function render() {
+  const container = document.createElement('div');
+  container.className = 'page-container';
+
+  // Initial skeleton / loading state
+  container.innerHTML = `
+    <!-- Standard Module Header -->
+    <div class="module-header">
+      <div class="module-title-area">
+        <h2>⚙️ System & Business Settings</h2>
+        <p>Configure library branding, payment fines, admission rules, and automated alerts.</p>
+      </div>
+    </div>
+    <div class="card" style="padding: 2.5rem; text-align: center;">
+      <div class="loading-spinner" style="margin: 0 auto 1rem auto;"></div>
+      <p style="color: var(--color-text-secondary); margin: 0;">Loading system configuration...</p>
+    </div>
+  `;
+
+  try {
+    const res = await api.get('/api/settings');
+    const data = res?.data || {};
+    const businessProfile = data.businessProfile || {};
+    const systemSettings = data.systemSettings || {};
+
+    const gen = systemSettings.general || {};
+    const pay = systemSettings.payment || {};
+    const adm = systemSettings.admission || {};
+    const notif = systemSettings.notification || {};
+
+    renderSettingsUI(container, businessProfile, { gen, pay, adm, notif });
+  } catch (error) {
+    console.error('Failed to load settings:', error);
+    container.innerHTML = `
+      <div class="page-header mb-4">
+        <h2 style="margin: 0; font-size: 1.6rem; font-weight: 700; color: var(--color-text-primary);">System & Business Settings</h2>
+      </div>
+      <div class="card" style="padding: 2rem; border-color: var(--color-danger); text-align: center;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚠️</div>
+        <h3 style="color: var(--color-danger); margin-bottom: 0.5rem;">Failed to load settings</h3>
+        <p style="color: var(--color-text-secondary); margin-bottom: 1.5rem;">${escapeHTML(error.message || 'Could not connect to the settings service.')}</p>
+        <button id="btn-retry-settings" class="btn btn-primary">Retry</button>
+      </div>
+    `;
+    container.querySelector('#btn-retry-settings')?.addEventListener('click', () => render());
+  }
+
+  return container;
+}
+
+function renderSettingsUI(container, profile, settings) {
+  const { gen, pay, adm, notif } = settings;
+
+  // Selected reminder days
+  let selectedReminderDays = Array.isArray(notif['payment.paymentReminder'] || notif.paymentReminder)
+    ? (notif['payment.paymentReminder'] || notif.paymentReminder)
+    : [7, 3, 1];
+
+  container.innerHTML = `
+    <!-- Header -->
+    <div class="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h2 style="margin: 0; font-size: 1.6rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-primary);"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          System & Business Settings
+        </h2>
+        <p class="text-muted small mb-0" style="margin-top: 4px; color: var(--color-text-secondary); font-size: 0.9rem;">
+          Manage library profile, late fine formulas, auto-admission toggles, reminders, and currency.
+        </p>
+      </div>
+      <div style="display: flex; gap: 0.75rem;">
+        <button id="btn-save-all-settings" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          Save All Changes
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="settings-tabs-wrapper" style="border-bottom: 1px solid var(--color-border); margin-bottom: 1.5rem; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+      <div class="settings-tab-list" style="display: flex; gap: 0.5rem; min-width: max-content;">
+        <button class="settings-tab-btn active" data-tab="branding" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 600; background: none; border: none; border-bottom: 3px solid var(--color-primary); color: var(--color-primary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>🏢</span> Library Branding & Info
+        </button>
+        <button class="settings-tab-btn" data-tab="policies" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>💰</span> Fee & Late Fine Policies
+        </button>
+        <button class="settings-tab-btn" data-tab="admission" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>🎓</span> Admission & ID Formatting
+        </button>
+        <button class="settings-tab-btn" data-tab="notifications" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>🔔</span> Notification Preferences
+        </button>
+        <button class="settings-tab-btn" data-tab="general" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>🌍</span> General System Config
+        </button>
+        <button class="settings-tab-btn" data-tab="backup" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>💾</span> Backup & Data Restore
+        </button>
+        <button class="settings-tab-btn" data-tab="formbuilder" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>📝</span> Dynamic Form Builder
+        </button>
+        <button class="settings-tab-btn" data-tab="modules" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>🧩</span> Module Settings
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB PANELS CONTAINER -->
+    <div id="settings-tab-content">
+      
+      <!-- ========================================== -->
+      <!-- SECTION A: LIBRARY BRANDING & INFO -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-branding" style="display: block;">
+        <form id="form-branding">
+          <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+            <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🏢 Library Branding & Contact Details</h3>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">This branding appears on student ID cards, invoices, receipts, and portal header.</p>
+              </div>
+              <button type="submit" id="btn-save-branding" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Branding</button>
+            </div>
+            
+            <div class="card-body" style="padding: 1.5rem;">
+              
+              <!-- Basic Info -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+                <div class="form-group">
+                  <label class="form-label" for="setting-businessName" style="font-weight: 600;">Business / Library Name *</label>
+                  <input type="text" id="setting-businessName" class="form-control" required value="${escapeHTML(profile.businessName || 'Study Library')}" placeholder="e.g. Gyan Sagar Study Space">
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label" for="setting-tagline" style="font-weight: 600;">Tagline / Slogan</label>
+                  <input type="text" id="setting-tagline" class="form-control" value="${escapeHTML(profile.tagline || '')}" placeholder="e.g. Silence, Focus & Success">
+                </div>
+              </div>
+
+              <!-- Media Previews: Logo & UPI QR -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem; background: var(--color-bg-primary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                <!-- Logo -->
+                <div>
+                  <label class="form-label" style="font-weight: 600;">Library Emblem / Logo</label>
+                  <div id="mount-setting-logo"></div>
+                </div>
+
+                <!-- UPI QR Code -->
+                <div>
+                  <label class="form-label" style="font-weight: 600;">UPI Payment QR Code</label>
+                  <div id="mount-setting-qr"></div>
+                </div>
+              </div>
+
+              <!-- Contact & Address -->
+              <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--color-text-primary); margin: 1.5rem 0 1rem 0; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem;">
+                📍 Contact & Physical Location
+              </h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                <div class="form-group">
+                  <label class="form-label" for="setting-phone" style="font-weight: 500;">Phone / WhatsApp Support</label>
+                  <input type="text" id="setting-phone" class="form-control" value="${escapeHTML(profile.phone || '')}" placeholder="+91 98765 43210">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="setting-email" style="font-weight: 500;">Official Email Address</label>
+                  <input type="email" id="setting-email" class="form-control" value="${escapeHTML(profile.email || '')}" placeholder="support@studylib.com">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="setting-website" style="font-weight: 500;">Website URL</label>
+                  <input type="url" id="setting-website" class="form-control" value="${escapeHTML(profile.website || '')}" placeholder="https://www.studylibrary.com">
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label" for="setting-address" style="font-weight: 500;">Full Street Address</label>
+                <input type="text" id="setting-address" class="form-control" value="${escapeHTML(profile.address || '')}" placeholder="Plot 42, Knowledge Park III, Near Metro Station">
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <div class="form-group">
+                  <label class="form-label" for="setting-city" style="font-weight: 500;">City</label>
+                  <input type="text" id="setting-city" class="form-control" value="${escapeHTML(profile.city || '')}" placeholder="e.g. Pune / Delhi">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="setting-state" style="font-weight: 500;">State</label>
+                  <input type="text" id="setting-state" class="form-control" value="${escapeHTML(profile.state || '')}" placeholder="e.g. Maharashtra">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="setting-pincode" style="font-weight: 500;">Pincode</label>
+                  <input type="text" id="setting-pincode" class="form-control" value="${escapeHTML(profile.pincode || '')}" placeholder="e.g. 411001">
+                </div>
+              </div>
+
+              <!-- Legal & Registration -->
+              <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--color-text-primary); margin: 1.5rem 0 1rem 0; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem;">
+                ⚖️ Legal, Tax & Social
+              </h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                <div class="form-group">
+                  <label class="form-label" for="setting-gstNumber" style="font-weight: 500;">GSTIN / Tax Number</label>
+                  <input type="text" id="setting-gstNumber" class="form-control" value="${escapeHTML(profile.gstNumber || '')}" placeholder="e.g. 27AAAAA0000A1Z5">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="setting-registrationNumber" style="font-weight: 500;">Registration / Shop Act No.</label>
+                  <input type="text" id="setting-registrationNumber" class="form-control" value="${escapeHTML(profile.registrationNumber || '')}" placeholder="e.g. REG/2026/982">
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div class="form-group">
+                  <label class="form-label" for="setting-social-whatsapp" style="font-weight: 500;">WhatsApp Group / Link</label>
+                  <input type="text" id="setting-social-whatsapp" class="form-control" value="${escapeHTML(profile.socialLinks?.whatsapp || '')}" placeholder="https://wa.me/...">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="setting-social-instagram" style="font-weight: 500;">Instagram Handle</label>
+                  <input type="text" id="setting-social-instagram" class="form-control" value="${escapeHTML(profile.socialLinks?.instagram || '')}" placeholder="@studylibrary">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="setting-social-facebook" style="font-weight: 500;">Facebook Page</label>
+                  <input type="text" id="setting-social-facebook" class="form-control" value="${escapeHTML(profile.socialLinks?.facebook || '')}" placeholder="facebook.com/...">
+                </div>
+              </div>
+
+            </div>
+
+            <div class="card-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; background: var(--color-surface-hover);">
+              <button type="submit" id="btn-save-branding-bottom" class="btn btn-primary" style="font-weight: 600;">Save Branding Changes</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION B: FEE & LATE FINE POLICIES -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-policies" style="display: none;">
+        <form id="form-policies">
+          <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+            <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">💰 Fee Due Dates, Late Fines & Auto-Suspension</h3>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Configure grace periods, calculation models, fine rates, and automatic student deactivations.</p>
+              </div>
+              <button type="submit" id="btn-save-policies" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Policies</button>
+            </div>
+
+            <div class="card-body" style="padding: 1.5rem;">
+              
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                
+                <!-- Grace Period -->
+                <div class="form-group">
+                  <label class="form-label" for="setting-gracePeriod" style="font-weight: 600;">Grace Period (Days)</label>
+                  <div style="position: relative;">
+                    <input type="number" id="setting-gracePeriod" class="form-control" min="0" max="90" value="${pay['payment.gracePeriod'] ?? pay.gracePeriod ?? 5}" required>
+                  </div>
+                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                    Days after due date before late fees start calculating. Set 0 for immediate fines.
+                  </small>
+                </div>
+
+                <!-- Late Fee Calculation Type -->
+                <div class="form-group">
+                  <label class="form-label" style="font-weight: 600;">Late Fee Calculation Mode</label>
+                  <div style="display: flex; gap: 0.75rem; margin-top: 6px;">
+                    <label style="flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); cursor: pointer;">
+                      <input type="radio" name="lateFeeType" value="flat" ${(pay['payment.lateFeeType'] || pay.lateFeeType || 'flat') === 'flat' ? 'checked' : ''} style="cursor: pointer;">
+                      <div>
+                        <div style="font-weight: 600; font-size: 0.9rem;">Flat Rate</div>
+                        <div style="font-size: 0.75rem; color: var(--color-text-secondary);">One-time fixed fine</div>
+                      </div>
+                    </label>
+                    <label style="flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); cursor: pointer;">
+                      <input type="radio" name="lateFeeType" value="daily" ${(pay['payment.lateFeeType'] || pay.lateFeeType) === 'daily' || (pay['payment.lateFeeType'] || pay.lateFeeType) === 'per_day' ? 'checked' : ''} style="cursor: pointer;">
+                      <div>
+                        <div style="font-weight: 600; font-size: 0.9rem;">Per-Day Rate</div>
+                        <div style="font-size: 0.75rem; color: var(--color-text-secondary);">Accrues each overdue day</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                
+                <!-- Late Fee Amount -->
+                <div class="form-group">
+                  <label class="form-label" for="setting-lateFeeAmount" style="font-weight: 600;">Late Fee Amount (₹)</label>
+                  <div style="position: relative;">
+                    <input type="number" id="setting-lateFeeAmount" class="form-control" min="0" step="1" value="${pay['payment.lateFeeAmount'] ?? pay.lateFeeAmount ?? 50}" required>
+                  </div>
+                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                    Amount in currency charged either as flat penalty or daily rate.
+                  </small>
+                </div>
+
+                <!-- Auto-Suspension Threshold -->
+                <div class="form-group">
+                  <label class="form-label" for="setting-autoSuspendDays" style="font-weight: 600;">Auto-Suspension Threshold (Days Overdue)</label>
+                  <div style="position: relative;">
+                    <input type="number" id="setting-autoSuspendDays" class="form-control" min="1" max="180" value="${pay['payment.autoSuspendDays'] ?? pay.autoSuspendDays ?? 15}" required>
+                  </div>
+                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                    After these days of overdue payment, the student's seat access is auto-suspended.
+                  </small>
+                </div>
+
+              </div>
+
+              <!-- Interactive Policy Live Simulation Box -->
+              <div id="policy-simulation-card" style="background: var(--color-primary-bg); border: 1px solid var(--color-primary-light); border-radius: var(--radius-md); padding: 1.25rem; margin-top: 1rem;">
+                <div style="font-weight: 700; color: var(--color-primary); font-size: 0.95rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                  <span>📋</span> Live Policy Rule Summary
+                </div>
+                <div id="policy-simulation-text" style="color: var(--color-text-primary); font-size: 0.9rem; line-height: 1.6;">
+                  <!-- Dynamically computed -->
+                </div>
+              </div>
+
+            </div>
+
+            <div class="card-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; background: var(--color-surface-hover);">
+              <button type="submit" id="btn-save-policies-bottom" class="btn btn-primary" style="font-weight: 600;">Save Policy Changes</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION C: ADMISSION & ID FORMATTING -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-admission" style="display: none;">
+        <form id="form-admission">
+          <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+            <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🎓 Admission Approval & Student ID Generation</h3>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Set identifier schemas for new students and auto-activation rules.</p>
+              </div>
+              <button type="submit" id="btn-save-admission" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Admission Rules</button>
+            </div>
+
+            <div class="card-body" style="padding: 1.5rem;">
+              
+              <!-- Auto-Approve Switch Card -->
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem; background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
+                <div>
+                  <div style="font-weight: 600; font-size: 1rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                    <span>⚡</span> Auto-Approve New Student Admissions
+                    <span id="badge-auto-approve" class="badge ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'badge-success' : 'badge-secondary'}" style="margin-left: 0.5rem; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; background: ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'var(--color-success-bg)' : 'var(--color-bg-secondary)'}; color: ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'var(--color-success)' : 'var(--color-text-secondary)'}; border: 1px solid currentColor;">
+                      ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'Enabled' : 'Manual Review'}
+                    </span>
+                  </div>
+                  <p style="color: var(--color-text-secondary); font-size: 0.85rem; margin: 4px 0 0 0;">
+                    When enabled, self-registering students are automatically granted active status without waiting for manual admin approval.
+                  </p>
+                </div>
+                <div>
+                  <input type="checkbox" id="setting-autoApprove" class="form-toggle" ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'checked' : ''} style="transform: scale(1.2);">
+                </div>
+              </div>
+
+              <!-- ID Formatting Configuration -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                
+                <div class="form-group">
+                  <label class="form-label" for="setting-idPrefix" style="font-weight: 600;">Student ID Prefix</label>
+                  <input type="text" id="setting-idPrefix" class="form-control" value="${escapeHTML(adm['admission.idPrefix'] || adm.idPrefix || 'STU')}" placeholder="e.g. STU, LIB, RR" maxlength="8" required>
+                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                    Short alphabetic code placed at start of unique student ID.
+                  </small>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="setting-idFormat" style="font-weight: 600;">Identifier Pattern</label>
+                  <select id="setting-idFormat" class="form-select">
+                    <option value="prefix-year-serial" ${(adm['admission.idFormat'] || adm.idFormat || 'prefix-year-serial') === 'prefix-year-serial' ? 'selected' : ''}>Prefix-Year-Serial (e.g. STU-2026-001)</option>
+                    <option value="prefix-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'prefix-serial' ? 'selected' : ''}>Prefix-Serial (e.g. STU-0001)</option>
+                    <option value="year-prefix-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'year-prefix-serial' ? 'selected' : ''}>Year-Prefix-Serial (e.g. 26-STU-001)</option>
+                  </select>
+                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                    Format applied when allocating serial roll numbers.
+                  </small>
+                </div>
+
+              </div>
+
+              <!-- Live ID Badge Preview -->
+              <div style="background: var(--color-surface); border: 2px dashed var(--color-border); border-radius: var(--radius-md); padding: 1.5rem; text-align: center;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                  Sample Generated Student Roll Number
+                </div>
+                <div id="sample-id-preview" style="font-size: 1.6rem; font-weight: 700; font-family: monospace; color: var(--color-primary); display: inline-block; padding: 0.4rem 1.25rem; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-light);">
+                  STU-2026-001
+                </div>
+              </div>
+
+            </div>
+
+            <div class="card-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; background: var(--color-surface-hover);">
+              <button type="submit" id="btn-save-admission-bottom" class="btn btn-primary" style="font-weight: 600;">Save Admission Rules</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION D: NOTIFICATION PREFERENCES -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-notifications" style="display: none;">
+        <form id="form-notifications">
+          <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+            <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🔔 Automated Alerts & Communication Channels</h3>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Manage fee reminder intervals, membership expiry notices, and notification delivery options.</p>
+              </div>
+              <button type="submit" id="btn-save-notifications" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Alerts</button>
+            </div>
+
+            <div class="card-body" style="padding: 1.5rem;">
+              
+              <!-- Payment Reminder Schedule Pills -->
+              <div class="form-group" style="margin-bottom: 2rem;">
+                <label class="form-label" style="font-weight: 600;">
+                  Payment Reminder Schedule (Days Before Due Date)
+                </label>
+                <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 0.75rem;">
+                  Click to toggle reminder days. Students receive reminder notifications before their monthly fee is due.
+                </div>
+                
+                <div id="reminder-days-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                  ${[15, 7, 5, 3, 2, 1, 0].map(d => {
+                    const isSelected = selectedReminderDays.includes(d);
+                    return `
+                      <button type="button" class="reminder-day-chip ${isSelected ? 'active' : ''}" data-day="${d}" style="padding: 0.5rem 1rem; border-radius: var(--radius-md); font-weight: 600; font-size: 0.9rem; cursor: pointer; border: 1px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}; background: ${isSelected ? 'var(--color-primary)' : 'var(--color-bg-primary)'}; color: ${isSelected ? '#fff' : 'var(--color-text-primary)'}; transition: all 0.15s ease;">
+                        ${d === 0 ? 'Due Day (0d)' : `${d} Days Before`}
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- Expiry Alert -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="form-group">
+                  <label class="form-label" for="setting-expiryReminder" style="font-weight: 600;">
+                    Plan Expiry Reminder (Days Before)
+                  </label>
+                  <input type="number" id="setting-expiryReminder" class="form-control" min="1" max="30" value="${notif['notification.expiryReminder'] ?? notif.expiryReminder ?? 7}" required>
+                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                    Send student an alert to renew their seat booking before their plan finishes.
+                  </small>
+                </div>
+              </div>
+
+              <!-- Delivery Channels Toggles -->
+              <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--color-text-primary); margin: 1.5rem 0 1rem 0; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem;">
+                📡 Active Dispatch Channels
+              </h4>
+
+              <div style="display: flex; flex-direction: column; gap: 1rem;">
+                
+                <!-- Email -->
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="font-size: 1.5rem;">✉️</div>
+                    <div>
+                      <div style="font-weight: 600; color: var(--color-text-primary);">Email Notifications</div>
+                      <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Send payment receipts and welcome onboard emails to students.</div>
+                    </div>
+                  </div>
+                  <input type="checkbox" id="setting-enableEmail" class="form-toggle" ${(notif['notification.enableEmail'] ?? notif.enableEmail) !== false ? 'checked' : ''}>
+                </div>
+
+                <!-- In-App -->
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="font-size: 1.5rem;">📱</div>
+                    <div>
+                      <div style="font-weight: 600; color: var(--color-text-primary);">In-App Realtime Alerts</div>
+                      <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Bell icon notifications on student & manager dashboard.</div>
+                    </div>
+                  </div>
+                  <input type="checkbox" id="setting-enableInApp" class="form-toggle" ${(notif['notification.enableInApp'] ?? notif.enableInApp) !== false ? 'checked' : ''}>
+                </div>
+
+                <!-- WhatsApp -->
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="font-size: 1.5rem;">💬</div>
+                    <div>
+                      <div style="font-weight: 600; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                        WhatsApp Cloud Integration
+                        <span class="badge badge-primary" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;">Meta Cloud API</span>
+                      </div>
+                      <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Direct WhatsApp messaging for invoices and urgent reminders.</div>
+                    </div>
+                  </div>
+                  <input type="checkbox" id="setting-enableWhatsapp" class="form-toggle" ${(notif['notification.enableWhatsapp'] ?? notif.enableWhatsapp) ? 'checked' : ''}>
+                </div>
+
+              </div>
+
+            </div>
+
+            <div class="card-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; background: var(--color-surface-hover);">
+              <button type="submit" id="btn-save-notifications-bottom" class="btn btn-primary" style="font-weight: 600;">Save Alert Preferences</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION E: GENERAL SYSTEM CONFIG -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-general" style="display: none;">
+        <form id="form-general">
+          <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+            <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🌍 Regional, Currency & Backup Configuration</h3>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">System locale, timezone calculations, database backups, and inactivity timers.</p>
+              </div>
+              <button type="submit" id="btn-save-general" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Configuration</button>
+            </div>
+
+            <div class="card-body" style="padding: 1.5rem;">
+              
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                
+                <!-- Currency Symbol -->
+                <div class="form-group">
+                  <label class="form-label" for="setting-currencySymbol" style="font-weight: 600;">Currency Symbol</label>
+                  <input type="text" id="setting-currencySymbol" class="form-control" value="${escapeHTML(gen['general.currencySymbol'] || gen.currencySymbol || '₹')}" required>
+                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">e.g. ₹, $, €, £</small>
+                </div>
+
+                <!-- Currency Code -->
+                <div class="form-group">
+                  <label class="form-label" for="setting-currency" style="font-weight: 600;">Currency ISO Code</label>
+                  <select id="setting-currency" class="form-select">
+                    <option value="INR" ${(gen['general.currency'] || gen.currency || 'INR') === 'INR' ? 'selected' : ''}>INR — Indian Rupee</option>
+                    <option value="USD" ${(gen['general.currency'] || gen.currency) === 'USD' ? 'selected' : ''}>USD — US Dollar</option>
+                    <option value="EUR" ${(gen['general.currency'] || gen.currency) === 'EUR' ? 'selected' : ''}>EUR — Euro</option>
+                    <option value="GBP" ${(gen['general.currency'] || gen.currency) === 'GBP' ? 'selected' : ''}>GBP — British Pound</option>
+                    <option value="AED" ${(gen['general.currency'] || gen.currency) === 'AED' ? 'selected' : ''}>AED — UAE Dirham</option>
+                  </select>
+                </div>
+
+                <!-- Date Format -->
+                <div class="form-group">
+                  <label class="form-label" for="setting-dateFormat" style="font-weight: 600;">Date Display Format</label>
+                  <select id="setting-dateFormat" class="form-select">
+                    <option value="DD/MM/YYYY" ${(gen['general.dateFormat'] || gen.dateFormat || 'DD/MM/YYYY') === 'DD/MM/YYYY' ? 'selected' : ''}>DD/MM/YYYY (e.g. 14/08/2026)</option>
+                    <option value="YYYY-MM-DD" ${(gen['general.dateFormat'] || gen.dateFormat) === 'YYYY-MM-DD' ? 'selected' : ''}>YYYY-MM-DD (e.g. 2026-08-14)</option>
+                    <option value="MM/DD/YYYY" ${(gen['general.dateFormat'] || gen.dateFormat) === 'MM/DD/YYYY' ? 'selected' : ''}>MM/DD/YYYY (e.g. 08/14/2026)</option>
+                  </select>
+                </div>
+
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                
+                <!-- Timezone -->
+                <div class="form-group">
+                  <label class="form-label" for="setting-timezone" style="font-weight: 600;">Timezone</label>
+                  <select id="setting-timezone" class="form-select">
+                    <option value="Asia/Kolkata" ${(gen['general.timezone'] || gen.timezone || 'Asia/Kolkata') === 'Asia/Kolkata' ? 'selected' : ''}>Asia/Kolkata (IST +5:30)</option>
+                    <option value="UTC" ${(gen['general.timezone'] || gen.timezone) === 'UTC' ? 'selected' : ''}>UTC (Coordinated Universal Time)</option>
+                    <option value="America/New_York" ${(gen['general.timezone'] || gen.timezone) === 'America/New_York' ? 'selected' : ''}>America/New_York (EST -5:00)</option>
+                    <option value="Europe/London" ${(gen['general.timezone'] || gen.timezone) === 'Europe/London' ? 'selected' : ''}>Europe/London (GMT/BST)</option>
+                    <option value="Asia/Dubai" ${(gen['general.timezone'] || gen.timezone) === 'Asia/Dubai' ? 'selected' : ''}>Asia/Dubai (GST +4:00)</option>
+                    <option value="Asia/Singapore" ${(gen['general.timezone'] || gen.timezone) === 'Asia/Singapore' ? 'selected' : ''}>Asia/Singapore (SGT +8:00)</option>
+                  </select>
+                </div>
+
+                <!-- Inactivity Timeout -->
+                <div class="form-group">
+                  <label class="form-label" for="setting-inactivityTimeout" style="font-weight: 600;">Session Inactivity Timeout (Minutes)</label>
+                  <input type="number" id="setting-inactivityTimeout" class="form-control" min="5" max="480" value="${gen['general.inactivityTimeout'] ?? gen.inactivityTimeout ?? 30}">
+                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">Auto-lock workstation after idle time.</small>
+                </div>
+
+              </div>
+
+              <!-- Automated Backups Toggle -->
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem; background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md); gap: 1rem; flex-wrap: wrap;">
+                <div>
+                  <div style="font-weight: 600; font-size: 1rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                    <span>💾</span> Automated Daily Database Backups
+                  </div>
+                  <p style="color: var(--color-text-secondary); font-size: 0.85rem; margin: 4px 0 0 0;">
+                    Generates automated night snapshots of student registrations, seat assignments, and payment logs.
+                  </p>
+                </div>
+                <div>
+                  <input type="checkbox" id="setting-autoBackup" class="form-toggle" ${(gen['general.autoBackup'] ?? gen.autoBackup) !== false ? 'checked' : ''} style="transform: scale(1.2);">
+                </div>
+              </div>
+
+            </div>
+
+            <div class="card-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; background: var(--color-surface-hover);">
+              <button type="submit" id="btn-save-general-bottom" class="btn btn-primary" style="font-weight: 600;">Save General Settings</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION F: BACKUP & DATA RESTORE -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-backup" style="display: none;">
+        <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover);">
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">💾 1-Click Database Backup & Disaster Recovery</h3>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Download an offline copy of your entire library database or restore from a previous JSON backup.</p>
+          </div>
+
+          <div class="card-body" style="padding: 1.5rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+              
+              <!-- Download Backup Card -->
+              <div style="padding: 1.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="font-size: 2rem; margin-bottom: 0.5rem;">📥</div>
+                  <h4 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; font-weight: 600; color: var(--color-text-primary);">Download Full System Backup</h4>
+                  <p style="font-size: 0.85rem; color: var(--color-text-secondary); line-height: 1.5; margin-bottom: 1.25rem;">
+                    Generates a timestamped JSON snapshot containing all students, seat assignments, plans, payment receipts, attendance logs, shifts, branches, and system settings.
+                  </p>
+                </div>
+                <button id="btn-download-db-backup" class="btn btn-primary" style="font-weight: 600; width: 100%;">
+                  ⬇️ Download JSON Backup
+                </button>
+              </div>
+
+              <!-- Restore Backup Card -->
+              <div style="padding: 1.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="font-size: 2rem; margin-bottom: 0.5rem;">📤</div>
+                  <h4 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; font-weight: 600; color: var(--color-text-primary);">Restore Database from JSON</h4>
+                  <p style="font-size: 0.85rem; color: var(--color-text-secondary); line-height: 1.5; margin-bottom: 1.25rem;">
+                    Select a valid <code style="background: rgba(255,255,255,0.08); padding: 2px 4px; border-radius: 4px;">.json</code> backup file to import and merge records back into MongoDB.
+                  </p>
+                  <input type="file" id="db-restore-file-input" accept=".json" style="display: none;">
+                </div>
+                <button id="btn-trigger-restore-file" class="btn btn-outline-danger" style="font-weight: 600; width: 100%;">
+                  ⚠️ Select JSON Backup to Restore
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION G: REGISTRATION FORM BUILDER -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-formbuilder" style="display: none;">
+        <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">📝 Dynamic Admission Form Builder</h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Add, configure, or remove custom input fields from student admission forms without writing code.</p>
+            </div>
+            <button id="btn-add-custom-field" class="btn btn-primary btn-sm" style="font-weight: 600;">
+              + Add Custom Field
+            </button>
+          </div>
+
+          <div class="card-body" style="padding: 1.5rem;">
+            <div id="custom-fields-list-container">
+              <div class="text-center p-4 text-muted">Loading custom fields...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION H: MODULE SETTINGS                 -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-modules" style="display: none;">
+        <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🧩 Module Configuration</h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Enable, disable, rename, and reorder sidebar modules.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <button id="btn-reset-modules" class="btn btn-outline-danger btn-sm" style="font-weight: 600;">Reset Defaults</button>
+              <button id="btn-save-modules" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Modules</button>
+            </div>
+          </div>
+          <div class="card-body" style="padding: 1.5rem;">
+            <div id="module-settings-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <div class="text-center p-4 text-muted">Loading module configuration...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  `;
+
+  // Setup tab navigation switching
+  const tabBtns = container.querySelectorAll('.settings-tab-btn');
+  const panels = {
+    branding: container.querySelector('#panel-branding'),
+    policies: container.querySelector('#panel-policies'),
+    admission: container.querySelector('#panel-admission'),
+    notifications: container.querySelector('#panel-notifications'),
+    general: container.querySelector('#panel-general'),
+    backup: container.querySelector('#panel-backup'),
+    formbuilder: container.querySelector('#panel-formbuilder'),
+    modules: container.querySelector('#panel-modules')
+  };
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.tab;
+      tabBtns.forEach(b => {
+        const isCurrent = b === btn;
+        b.classList.toggle('active', isCurrent);
+        b.style.borderBottomColor = isCurrent ? 'var(--color-primary)' : 'transparent';
+        b.style.color = isCurrent ? 'var(--color-primary)' : 'var(--color-text-secondary)';
+        b.style.fontWeight = isCurrent ? '600' : '500';
+      });
+
+      Object.entries(panels).forEach(([key, panel]) => {
+        if (panel) panel.style.display = key === target ? 'block' : 'none';
+      });
+    });
+  });
+
+  // Backup Download Event
+  container.querySelector('#btn-download-db-backup')?.addEventListener('click', async () => {
+    const btn = container.querySelector('#btn-download-db-backup');
+    Loading.button(btn, true);
+    try {
+      const token = localStorage.getItem('sl_token');
+      const response = await fetch('/api/settings/backup', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Backup failed to generate');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `studylib_backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      Toast.success('Database backup downloaded successfully!');
+    } catch (err) {
+      Toast.error(err.message || 'Error downloading database backup');
+    } finally {
+      Loading.button(btn, false);
+    }
+  });
+
+  // Restore Database Events
+  const fileInput = container.querySelector('#db-restore-file-input');
+  container.querySelector('#btn-trigger-restore-file')?.addEventListener('click', () => {
+    fileInput?.click();
+  });
+
+  fileInput?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        if (!parsed.data) throw new Error('Invalid StudyLib backup format');
+
+        Confirm.show({
+          title: '⚠️ Confirm Database Restore',
+          message: `Are you sure you want to restore records from backup dated ${parsed.exportedAt || 'earlier'}? Existing records will be updated.`,
+          danger: true,
+          onConfirm: async () => {
+            const btn = container.querySelector('#btn-trigger-restore-file');
+            Loading.button(btn, true);
+            try {
+              const res = await api.post('/api/settings/restore', { data: parsed.data });
+              if (res.success) {
+                Toast.success('Database restored successfully!');
+                setTimeout(() => location.reload(), 1200);
+              } else {
+                Toast.error(res.message);
+              }
+            } catch (err) {
+              Toast.error(err.message || 'Restore failed');
+            } finally {
+              Loading.button(btn, false);
+            }
+          }
+        });
+      } catch (err) {
+        Toast.error('Failed to parse JSON file: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // Setup dynamic ID preview
+  const prefixInput = container.querySelector('#setting-idPrefix');
+  const formatSelect = container.querySelector('#setting-idFormat');
+  const sampleIdPreview = container.querySelector('#sample-id-preview');
+
+  function updateIdPreview() {
+    const p = (prefixInput?.value?.trim() || 'STU').toUpperCase();
+    const fmt = formatSelect?.value || 'prefix-year-serial';
+    const year = new Date().getFullYear();
+    const shortYear = String(year).slice(-2);
+
+    if (fmt === 'prefix-year-serial') {
+      sampleIdPreview.textContent = `${p}-${year}-001`;
+    } else if (fmt === 'prefix-serial') {
+      sampleIdPreview.textContent = `${p}-0001`;
+    } else if (fmt === 'year-prefix-serial') {
+      sampleIdPreview.textContent = `${shortYear}-${p}-001`;
+    }
+  }
+
+  prefixInput?.addEventListener('input', updateIdPreview);
+  formatSelect?.addEventListener('change', updateIdPreview);
+  updateIdPreview();
+
+  // Setup auto-approve badge text sync
+  const autoApproveToggle = container.querySelector('#setting-autoApprove');
+  const autoApproveBadge = container.querySelector('#badge-auto-approve');
+  autoApproveToggle?.addEventListener('change', () => {
+    if (autoApproveToggle.checked) {
+      autoApproveBadge.textContent = 'Enabled';
+      autoApproveBadge.style.color = 'var(--color-success)';
+      autoApproveBadge.style.background = 'var(--color-success-bg)';
+    } else {
+      autoApproveBadge.textContent = 'Manual Review';
+      autoApproveBadge.style.color = 'var(--color-text-secondary)';
+      autoApproveBadge.style.background = 'var(--color-bg-secondary)';
+    }
+  });
+
+  // Setup policy live simulation calculation
+  const graceInput = container.querySelector('#setting-gracePeriod');
+  const fineInput = container.querySelector('#setting-lateFeeAmount');
+  const suspendInput = container.querySelector('#setting-autoSuspendDays');
+  const simText = container.querySelector('#policy-simulation-text');
+
+  function updatePolicySim() {
+    const grace = parseInt(graceInput?.value, 10) || 0;
+    const fine = parseFloat(fineInput?.value) || 0;
+    const suspend = parseInt(suspendInput?.value, 10) || 15;
+    const mode = container.querySelector('input[name="lateFeeType"]:checked')?.value || 'flat';
+
+    const modeDesc = mode === 'flat' ? `a one-time flat late fee of ₹${fine}` : `a daily late fee of ₹${fine} per day`;
+    
+    simText.innerHTML = `
+      <strong>Example:</strong> For a fee due on 1st of the month:
+      <ul style="margin: 6px 0 0 1.25rem; padding: 0;">
+        <li><strong>Grace Window (Days 1 to ${grace}):</strong> Student can pay normal fee with ₹0 penalty.</li>
+        <li><strong>Overdue Period (After Day ${grace}):</strong> System applies ${modeDesc}.</li>
+        <li><strong>Auto-Suspension (Day ${suspend}):</strong> If payment remains unpaid, student account and biometric/seat access are automatically locked.</li>
+      </ul>
+    `;
+  }
+
+  graceInput?.addEventListener('input', updatePolicySim);
+  fineInput?.addEventListener('input', updatePolicySim);
+  suspendInput?.addEventListener('input', updatePolicySim);
+  container.querySelectorAll('input[name="lateFeeType"]').forEach(r => r.addEventListener('change', updatePolicySim));
+  updatePolicySim();
+
+  // Mount Smart Media Pickers for Logo and UPI QR Code
+  const logoMount = container.querySelector('#mount-setting-logo');
+  if (logoMount) {
+    logoMount.appendChild(MediaFieldPicker.create({
+      label: 'Library Emblem / Insignia (1:1 / Transparent)',
+      preset: 'stamp_logo',
+      name: 'logo',
+      value: profile.logo || ''
+    }));
+  }
+
+  const qrMount = container.querySelector('#mount-setting-qr');
+  if (qrMount) {
+    qrMount.appendChild(MediaFieldPicker.create({
+      label: 'UPI QR Code / Payment Slip QR',
+      preset: 'qr_code',
+      name: 'upiQrCode',
+      value: profile.upiQrCode || ''
+    }));
+  }
+
+  // Setup reminder days pill toggles
+  const reminderContainer = container.querySelector('#reminder-days-container');
+  reminderContainer?.querySelectorAll('.reminder-day-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const day = parseInt(btn.dataset.day, 10);
+      if (selectedReminderDays.includes(day)) {
+        selectedReminderDays = selectedReminderDays.filter(d => d !== day);
+        btn.classList.remove('active');
+        btn.style.background = 'var(--color-bg-primary)';
+        btn.style.color = 'var(--color-text-primary)';
+        btn.style.borderColor = 'var(--color-border)';
+      } else {
+        selectedReminderDays.push(day);
+        selectedReminderDays.sort((a, b) => b - a);
+        btn.classList.add('active');
+        btn.style.background = 'var(--color-primary)';
+        btn.style.color = '#fff';
+        btn.style.borderColor = 'var(--color-primary)';
+      }
+    });
+  });
+
+  // ==========================================
+  // SECTION SAVE HANDLERS
+  // ==========================================
+
+  // 1. Save Branding Handler
+  async function saveBranding(btn) {
+    Loading.button(btn, true);
+    try {
+      const payload = {
+        businessName: container.querySelector('#setting-businessName')?.value?.trim(),
+        tagline: container.querySelector('#setting-tagline')?.value?.trim(),
+        logo: container.querySelector('input[name="logo"]')?.value?.trim() || '',
+        upiQrCode: container.querySelector('input[name="upiQrCode"]')?.value?.trim() || '',
+        phone: container.querySelector('#setting-phone')?.value?.trim(),
+        email: container.querySelector('#setting-email')?.value?.trim(),
+        website: container.querySelector('#setting-website')?.value?.trim(),
+        address: container.querySelector('#setting-address')?.value?.trim(),
+        city: container.querySelector('#setting-city')?.value?.trim(),
+        state: container.querySelector('#setting-state')?.value?.trim(),
+        pincode: container.querySelector('#setting-pincode')?.value?.trim(),
+        gstNumber: container.querySelector('#setting-gstNumber')?.value?.trim(),
+        registrationNumber: container.querySelector('#setting-registrationNumber')?.value?.trim(),
+        socialLinks: {
+          whatsapp: container.querySelector('#setting-social-whatsapp')?.value?.trim(),
+          instagram: container.querySelector('#setting-social-instagram')?.value?.trim(),
+          facebook: container.querySelector('#setting-social-facebook')?.value?.trim()
+        }
+      };
+
+      const res = await api.put('/api/settings/business-profile', payload);
+      Toast.success(res?.message || 'Library branding and profile updated successfully');
+    } catch (err) {
+      Toast.error(err.message || 'Failed to update branding');
+    } finally {
+      Loading.button(btn, false);
+    }
+  }
+
+  container.querySelector('#form-branding')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveBranding(container.querySelector('#btn-save-branding'));
+  });
+
+  // 2. Save Policies Handler
+  async function savePolicies(btn) {
+    Loading.button(btn, true);
+    try {
+      const payload = {
+        gracePeriod: parseInt(container.querySelector('#setting-gracePeriod')?.value, 10) || 0,
+        lateFeeType: container.querySelector('input[name="lateFeeType"]:checked')?.value || 'flat',
+        lateFeeAmount: parseFloat(container.querySelector('#setting-lateFeeAmount')?.value) || 0,
+        autoSuspendDays: parseInt(container.querySelector('#setting-autoSuspendDays')?.value, 10) || 15
+      };
+
+      const res = await api.put('/api/settings/system-settings', payload);
+      Toast.success(res?.message || 'Fee & late fine policies updated successfully');
+    } catch (err) {
+      Toast.error(err.message || 'Failed to update policies');
+    } finally {
+      Loading.button(btn, false);
+    }
+  }
+
+  container.querySelector('#form-policies')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    savePolicies(container.querySelector('#btn-save-policies'));
+  });
+
+  // 3. Save Admission Handler
+  async function saveAdmission(btn) {
+    Loading.button(btn, true);
+    try {
+      const payload = {
+        autoApprove: !!container.querySelector('#setting-autoApprove')?.checked,
+        idPrefix: container.querySelector('#setting-idPrefix')?.value?.trim() || 'STU',
+        idFormat: container.querySelector('#setting-idFormat')?.value || 'prefix-year-serial'
+      };
+
+      const res = await api.put('/api/settings/system-settings', payload);
+      Toast.success(res?.message || 'Admission & ID rules updated successfully');
+    } catch (err) {
+      Toast.error(err.message || 'Failed to update admission rules');
+    } finally {
+      Loading.button(btn, false);
+    }
+  }
+
+  container.querySelector('#form-admission')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveAdmission(container.querySelector('#btn-save-admission'));
+  });
+
+  // 4. Save Notifications Handler
+  async function saveNotifications(btn) {
+    Loading.button(btn, true);
+    try {
+      const payload = {
+        paymentReminder: selectedReminderDays,
+        expiryReminder: parseInt(container.querySelector('#setting-expiryReminder')?.value, 10) || 7,
+        enableEmail: !!container.querySelector('#setting-enableEmail')?.checked,
+        enableInApp: !!container.querySelector('#setting-enableInApp')?.checked,
+        enableWhatsapp: !!container.querySelector('#setting-enableWhatsapp')?.checked
+      };
+
+      const res = await api.put('/api/settings/system-settings', payload);
+      Toast.success(res?.message || 'Notification preferences updated successfully');
+    } catch (err) {
+      Toast.error(err.message || 'Failed to update notifications');
+    } finally {
+      Loading.button(btn, false);
+    }
+  }
+
+  container.querySelector('#form-notifications')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveNotifications(container.querySelector('#btn-save-notifications'));
+  });
+
+  // 5. Save General Handler
+  async function saveGeneral(btn) {
+    Loading.button(btn, true);
+    try {
+      const payload = {
+        currencySymbol: container.querySelector('#setting-currencySymbol')?.value?.trim() || '₹',
+        currency: container.querySelector('#setting-currency')?.value || 'INR',
+        dateFormat: container.querySelector('#setting-dateFormat')?.value || 'DD/MM/YYYY',
+        timezone: container.querySelector('#setting-timezone')?.value || 'Asia/Kolkata',
+        inactivityTimeout: parseInt(container.querySelector('#setting-inactivityTimeout')?.value, 10) || 30,
+        autoBackup: !!container.querySelector('#setting-autoBackup')?.checked
+      };
+
+      const res = await api.put('/api/settings/system-settings', payload);
+      Toast.success(res?.message || 'General configuration saved successfully');
+    } catch (err) {
+      Toast.error(err.message || 'Failed to update general configuration');
+    } finally {
+      Loading.button(btn, false);
+    }
+  }
+
+  container.querySelector('#form-general')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveGeneral(container.querySelector('#btn-save-general'));
+  });
+
+  // Save All Changes (Header Button)
+  container.querySelector('#btn-save-all-settings')?.addEventListener('click', async () => {
+    const saveAllBtn = container.querySelector('#btn-save-all-settings');
+    Loading.button(saveAllBtn, true);
+
+    try {
+      // 1. Business profile
+      const bpPayload = {
+        businessName: container.querySelector('#setting-businessName')?.value?.trim(),
+        tagline: container.querySelector('#setting-tagline')?.value?.trim(),
+        logo: container.querySelector('#setting-logo')?.value?.trim(),
+        upiQrCode: container.querySelector('#setting-upiQrCode')?.value?.trim(),
+        phone: container.querySelector('#setting-phone')?.value?.trim(),
+        email: container.querySelector('#setting-email')?.value?.trim(),
+        website: container.querySelector('#setting-website')?.value?.trim(),
+        address: container.querySelector('#setting-address')?.value?.trim(),
+        city: container.querySelector('#setting-city')?.value?.trim(),
+        state: container.querySelector('#setting-state')?.value?.trim(),
+        pincode: container.querySelector('#setting-pincode')?.value?.trim(),
+        gstNumber: container.querySelector('#setting-gstNumber')?.value?.trim(),
+        registrationNumber: container.querySelector('#setting-registrationNumber')?.value?.trim(),
+        socialLinks: {
+          whatsapp: container.querySelector('#setting-social-whatsapp')?.value?.trim(),
+          instagram: container.querySelector('#setting-social-instagram')?.value?.trim(),
+          facebook: container.querySelector('#setting-social-facebook')?.value?.trim()
+        }
+      };
+
+      // 2. All operational system settings combined
+      const sysPayload = {
+        gracePeriod: parseInt(container.querySelector('#setting-gracePeriod')?.value, 10) || 0,
+        lateFeeType: container.querySelector('input[name="lateFeeType"]:checked')?.value || 'flat',
+        lateFeeAmount: parseFloat(container.querySelector('#setting-lateFeeAmount')?.value) || 0,
+        autoSuspendDays: parseInt(container.querySelector('#setting-autoSuspendDays')?.value, 10) || 15,
+        autoApprove: !!container.querySelector('#setting-autoApprove')?.checked,
+        idPrefix: container.querySelector('#setting-idPrefix')?.value?.trim() || 'STU',
+        idFormat: container.querySelector('#setting-idFormat')?.value || 'prefix-year-serial',
+        paymentReminder: selectedReminderDays,
+        expiryReminder: parseInt(container.querySelector('#setting-expiryReminder')?.value, 10) || 7,
+        enableEmail: !!container.querySelector('#setting-enableEmail')?.checked,
+        enableInApp: !!container.querySelector('#setting-enableInApp')?.checked,
+        enableWhatsapp: !!container.querySelector('#setting-enableWhatsapp')?.checked,
+        currencySymbol: container.querySelector('#setting-currencySymbol')?.value?.trim() || '₹',
+        currency: container.querySelector('#setting-currency')?.value || 'INR',
+        dateFormat: container.querySelector('#setting-dateFormat')?.value || 'DD/MM/YYYY',
+        timezone: container.querySelector('#setting-timezone')?.value || 'Asia/Kolkata',
+        inactivityTimeout: parseInt(container.querySelector('#setting-inactivityTimeout')?.value, 10) || 30,
+        autoBackup: !!container.querySelector('#setting-autoBackup')?.checked
+      };
+
+      await Promise.all([
+        api.put('/api/settings/business-profile', bpPayload),
+        api.put('/api/settings/system-settings', sysPayload)
+      ]);
+
+      Toast.success('All system & business settings saved successfully!');
+    } catch (err) {
+      Toast.error(err.message || 'Failed to save all settings');
+    } finally {
+      Loading.button(saveAllBtn, false);
+    }
+  });
+
+  // ==========================================
+  // Comprehensive Dynamic Form Builder Logic
+  // ==========================================
+  let customFields = [];
+
+  const INPUT_TYPE_LABELS = {
+    text: '🔤 Text Single Line',
+    textarea: '📝 Text Multi Line (Textarea)',
+    number: '🔢 Number',
+    phone: '📞 Phone / WhatsApp (10-Digit)',
+    email: '✉️ Email Address',
+    date: '📅 Date Picker',
+    time: '⏰ Time Picker',
+    select: '🔽 Single Select Dropdown',
+    multiselect: '☑️ Multi-Select Checkboxes',
+    radio: '🔘 Radio Buttons (Single Choice)',
+    checkbox: '🔲 Single Checkbox (Yes/No)',
+    file: '📎 Document / File Upload',
+    photo_upload: '📷 Student Photo Upload',
+    signature_pad: '✍️ Digital Signature Pad',
+    exam_badge: '🏷️ Exam Multi-Badge Pills',
+    blood_group: '🩸 Blood Group Selector',
+    url: '🌐 Website / Profile URL',
+    color: '🎨 Color Picker'
+  };
+
+  async function loadCustomFields() {
+    const listContainer = container.querySelector('#custom-fields-list-container');
+    if (!listContainer) return;
+
+    try {
+      const res = await api.get('/api/custom-fields/all');
+      customFields = res.data || [];
+
+      if (customFields.length === 0) {
+        listContainer.innerHTML = `
+          <div style="padding: 2.5rem; text-align: center; border: 2px dashed var(--color-border); border-radius: var(--radius-md);" class="text-muted">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📝</div>
+            <h4 style="margin: 0; font-weight: 600;">No admission form questions loaded</h4>
+            <p style="font-size: 0.85rem; margin-top: 4px;">Click the button below to initialize all standard admission questions.</p>
+            <button id="btn-reset-cf-init" class="btn btn-outline btn-sm mt-3">🔄 Reset to Standard Admission Fields</button>
+          </div>
+        `;
+        listContainer.querySelector('#btn-reset-cf-init')?.addEventListener('click', resetDefaultFields);
+        return;
+      }
+
+      listContainer.innerHTML = `
+        <div class="flex-between mb-3">
+          <div class="text-sm text-muted">
+            Total Admission Questions: <strong>${customFields.length}</strong> (Active: <strong>${customFields.filter(f => f.isActive).length}</strong>)
+          </div>
+          <div class="d-flex gap-2">
+            <button id="btn-reset-cf" class="btn btn-sm btn-outline text-muted" title="Restore all 18 standard admission questions">
+              🔄 Reset Standard Questions
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table data-table mb-0" style="width: 100%; font-size: 0.9rem;">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th>Field Question / Label</th>
+                <th>Input Type Category</th>
+                <th>Form Section</th>
+                <th>Mandatory?</th>
+                <th>Visibility Status</th>
+                <th class="text-center" style="width: 120px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${customFields.map((f, idx) => `
+                <tr style="${!f.isActive ? 'opacity: 0.6; background: var(--color-bg-secondary);' : ''}">
+                  <td class="text-muted small">${idx + 1}</td>
+                  <td>
+                    <div style="font-weight: 600; color: var(--color-text-primary);">${escapeHTML(f.label)}</div>
+                    <span class="text-muted small" style="font-size: 0.75rem; font-family: monospace;">code: ${escapeHTML(f.fieldName)}</span>
+                  </td>
+                  <td>
+                    <span class="badge" style="background: rgba(108, 92, 231, 0.12); color: var(--color-primary); font-size: 0.75rem; font-weight: 500;">
+                      ${INPUT_TYPE_LABELS[f.type] || escapeHTML(f.type)}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge" style="background: var(--color-bg-secondary); color: var(--color-text-secondary); text-transform: capitalize; font-size: 0.75rem;">
+                      ${escapeHTML(f.sectionLabel || f.section)}
+                    </span>
+                  </td>
+                  <td>
+                    ${f.required ? '<span class="badge badge-danger" style="font-size: 0.7rem;">Required</span>' : '<span class="badge badge-ghost" style="font-size: 0.7rem;">Optional</span>'}
+                  </td>
+                  <td>
+                    <button class="btn btn-sm btn-toggle-active" data-id="${f._id}" style="padding: 2px 8px; font-size: 0.75rem; border-radius: 99px; background: ${f.isActive ? 'rgba(0, 184, 148, 0.15)' : 'rgba(214, 48, 49, 0.15)'}; color: ${f.isActive ? 'var(--color-success)' : 'var(--color-danger)'}; border: none; cursor: pointer;">
+                      ${f.isActive ? '🟢 Active (Shown)' : '⚪ Inactive (Hidden)'}
+                    </button>
+                  </td>
+                  <td class="text-center">
+                    <div class="d-flex justify-content-center gap-1">
+                      <button class="btn btn-sm btn-ghost btn-edit-field" data-id="${f._id}" title="Edit Question" style="padding: 4px 8px;">✏️</button>
+                      ${f.isDeletable !== false ? `
+                        <button class="btn btn-sm btn-ghost text-danger btn-delete-field" data-id="${f._id}" title="Delete Question" style="padding: 4px 8px;">🗑️</button>
+                      ` : `
+                        <span class="text-muted small" title="Core system field (toggle inactive instead)" style="padding: 4px 8px; opacity: 0.5;">🔒</span>
+                      `}
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      listContainer.querySelector('#btn-reset-cf')?.addEventListener('click', resetDefaultFields);
+
+      // Toggle active/inactive
+      listContainer.querySelectorAll('.btn-toggle-active').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          try {
+            const res = await api.put(`/api/custom-fields/${btn.dataset.id}/toggle`, {});
+            Toast.success(res?.message || 'Field visibility updated');
+            loadCustomFields();
+          } catch (err) {
+            Toast.error('Failed to update visibility');
+          }
+        });
+      });
+
+      // Edit field
+      listContainer.querySelectorAll('.btn-edit-field').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const field = customFields.find(f => f._id === btn.dataset.id);
+          if (field) showFieldModal(field);
+        });
+      });
+
+      // Delete field
+      listContainer.querySelectorAll('.btn-delete-field').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const ok = await Confirm.show({
+            title: 'Delete Admission Form Question',
+            message: 'Are you sure you want to remove this question from the registration form?',
+            danger: true
+          });
+          if (ok) {
+            try {
+              await api.delete(`/api/custom-fields/${btn.dataset.id}`);
+              Toast.success('Field deleted');
+              loadCustomFields();
+            } catch (err) {
+              Toast.error(err.message || 'Failed to delete field');
+            }
+          }
+        });
+      });
+
+    } catch (err) {
+      listContainer.innerHTML = `<div class="p-3 text-center text-danger">Failed to load custom fields: ${err.message || ''}</div>`;
+    }
+  }
+
+  async function resetDefaultFields() {
+    const ok = await Confirm.show({
+      title: 'Reset Standard Admission Questions',
+      message: 'This will restore all 18 standard admission questions (Name, Phone, DOB, Gender, Exams, Photo, Signature, KYC, Blood Group, Address, etc.) to default settings. Proceed?',
+      danger: false
+    });
+    if (ok) {
+      try {
+        const res = await api.post('/api/custom-fields/reset-defaults', {});
+        Toast.success(res?.message || 'Standard admission questions restored');
+        loadCustomFields();
+      } catch (err) {
+        Toast.error(err.message || 'Failed to reset questions');
+      }
+    }
+  }
+
+  function showFieldModal(field = null) {
+    const isEdit = !!field;
+    const modalContent = document.createElement('div');
+    modalContent.innerHTML = `
+      <form id="custom-field-form" class="p-1">
+        <div class="form-group mb-3">
+          <label class="form-label" style="font-weight: 600;">Question / Field Label *</label>
+          <input type="text" id="cf-label" class="form-control" placeholder="e.g. Father's Occupation, College Name, Target Exam" value="${escapeHTML(field?.label || '')}" required>
+        </div>
+
+        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <div>
+            <label class="form-label" style="font-weight: 600;">Input Type Category *</label>
+            <select id="cf-type" class="form-select">
+              <option value="text" ${field?.type === 'text' ? 'selected' : ''}>🔤 Text Single Line</option>
+              <option value="textarea" ${field?.type === 'textarea' ? 'selected' : ''}>📝 Text Multi Line (Textarea)</option>
+              <option value="number" ${field?.type === 'number' ? 'selected' : ''}>🔢 Number</option>
+              <option value="phone" ${field?.type === 'phone' ? 'selected' : ''}>📞 Phone / WhatsApp (10-Digit)</option>
+              <option value="email" ${field?.type === 'email' ? 'selected' : ''}>✉️ Email Address</option>
+              <option value="date" ${field?.type === 'date' ? 'selected' : ''}>📅 Date Picker</option>
+              <option value="time" ${field?.type === 'time' ? 'selected' : ''}>⏰ Time Picker</option>
+              <option value="select" ${field?.type === 'select' ? 'selected' : ''}>🔽 Single Select Dropdown</option>
+              <option value="multiselect" ${field?.type === 'multiselect' ? 'selected' : ''}>☑️ Multi-Select Checkboxes</option>
+              <option value="radio" ${field?.type === 'radio' ? 'selected' : ''}>🔘 Radio Buttons (Single Choice)</option>
+              <option value="checkbox" ${field?.type === 'checkbox' ? 'selected' : ''}>🔲 Single Checkbox (Yes/No)</option>
+              <option value="file" ${field?.type === 'file' ? 'selected' : ''}>📎 Document / File Upload</option>
+              <option value="photo_upload" ${field?.type === 'photo_upload' ? 'selected' : ''}>📷 Student Photo Upload</option>
+              <option value="signature_pad" ${field?.type === 'signature_pad' ? 'selected' : ''}>✍️ Digital Signature Pad</option>
+              <option value="exam_badge" ${field?.type === 'exam_badge' ? 'selected' : ''}>🏷️ Exam Multi-Badge Pills</option>
+              <option value="blood_group" ${field?.type === 'blood_group' ? 'selected' : ''}>🩸 Blood Group Selector</option>
+              <option value="url" ${field?.type === 'url' ? 'selected' : ''}>🌐 Website / URL Link</option>
+              <option value="color" ${field?.type === 'color' ? 'selected' : ''}>🎨 Color Picker</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="font-weight: 600;">Form Section</label>
+            <select id="cf-section" class="form-select">
+              <option value="personal" ${field?.section === 'personal' ? 'selected' : ''}>👤 Personal Information</option>
+              <option value="academic" ${field?.section === 'academic' ? 'selected' : ''}>🎓 Academic & Exam Details</option>
+              <option value="contact" ${field?.section === 'contact' ? 'selected' : ''}>📍 Contact & Address</option>
+              <option value="kyc" ${field?.section === 'kyc' ? 'selected' : ''}>📑 KYC & Verification</option>
+              <option value="other" ${field?.section === 'other' ? 'selected' : ''}>📌 Additional Information</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group mb-3" id="cf-options-group">
+          <label class="form-label" style="font-weight: 600;">Dropdown / Checkbox Options (Comma-separated)</label>
+          <input type="text" id="cf-options" class="form-control" placeholder="e.g. UPSC, MPSC, Banking, SSC, CA, NEET" value="${escapeHTML(field?.options ? field.options.join(', ') : '')}">
+          <small class="text-muted">Used when input type is Dropdown, Radio, Multi-Select, or Exam Badges.</small>
+        </div>
+
+        <div class="form-group mb-3">
+          <label class="form-label" style="font-weight: 600;">Placeholder / Help Text</label>
+          <input type="text" id="cf-placeholder" class="form-control" placeholder="Optional helper text shown inside input box" value="${escapeHTML(field?.placeholder || '')}">
+        </div>
+
+        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+          <div>
+            <label class="form-label" style="font-weight: 600;">Custom Section Header Label</label>
+            <input type="text" id="cf-section-label" class="form-control" placeholder="e.g. Hostel Details" value="${escapeHTML(field?.sectionLabel || '')}">
+          </div>
+          <div>
+            <label class="form-label" style="font-weight: 600;">Display Order #</label>
+            <input type="number" id="cf-order" class="form-control" value="${field?.order || 1}" min="1">
+          </div>
+        </div>
+
+        <div class="form-group mb-3 d-flex gap-4">
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" id="cf-required" class="form-checkbox" ${field?.required ? 'checked' : ''}>
+            <span style="font-weight: 600;">Mandatory (Required)?</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" id="cf-active" class="form-checkbox" ${field ? field.isActive : true ? 'checked' : ''}>
+            <span style="font-weight: 600;">Active on Registration Form?</span>
+          </label>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-cf">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-cf">${isEdit ? 'Update Question' : 'Add Question'}</button>
+        </div>
+      </form>
+    `;
+
+    const modal = new Modal({
+      title: isEdit ? '✏️ Edit Admission Form Question' : '➕ Add Custom Form Question',
+      content: modalContent,
+      size: 'md'
+    });
+    modal.show();
+
+    modalContent.querySelector('#btn-cancel-cf').onclick = () => modal.close();
+
+    modalContent.querySelector('#custom-field-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const label = modalContent.querySelector('#cf-label').value.trim();
+      const type = modalContent.querySelector('#cf-type').value;
+      const section = modalContent.querySelector('#cf-section').value;
+      const sectionLabel = modalContent.querySelector('#cf-section-label').value.trim();
+      const options = modalContent.querySelector('#cf-options').value;
+      const placeholder = modalContent.querySelector('#cf-placeholder').value.trim();
+      const order = parseInt(modalContent.querySelector('#cf-order').value, 10) || 1;
+      const required = modalContent.querySelector('#cf-required').checked;
+      const isActive = modalContent.querySelector('#cf-active').checked;
+
+      if (!label) {
+        Toast.error('Please enter a field label');
+        return;
+      }
+
+      try {
+        const payload = {
+          label, type, section, sectionLabel, options, placeholder, order, required, isActive
+        };
+
+        if (isEdit) {
+          await api.put(`/api/custom-fields/${field._id}`, payload);
+          Toast.success('Question updated successfully');
+        } else {
+          await api.post('/api/custom-fields', payload);
+          Toast.success('Form question created successfully');
+        }
+        modal.close();
+        loadCustomFields();
+      } catch (err) {
+        Toast.error(err.message || 'Failed to save question');
+      }
+    };
+  }
+
+  container.querySelector('#btn-add-custom-field')?.addEventListener('click', () => {
+    showFieldModal();
+  });
+
+  // Load custom fields initially
+  loadCustomFields();
+
+  initModuleSettings(container);
+}
+
+async function initModuleSettings(container) {
+  const listContainer = container.querySelector('#module-settings-list');
+  if (!listContainer) return;
+
+  const renderList = (items) => {
+    listContainer.innerHTML = items.map((item, index) => `
+      <div class="module-item" data-key="${item.key}" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); margin-bottom: 0.5rem; transition: transform 0.2s;">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div class="drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary);">☰</div>
+          <div style="font-weight: 600; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+            <span>${item.label}</span>
+            ${item.isSystem ? '<span class="badge badge-secondary" style="font-size: 0.7rem;">System</span>' : ''}
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <input type="text" class="form-control form-control-sm module-label-input" value="${escapeHTML(item.label)}" style="width: 150px;" placeholder="Rename...">
+          <label style="display: flex; align-items: center; cursor: pointer; gap: 0.5rem; margin: 0;">
+            <input type="checkbox" class="form-toggle module-enable-toggle" ${item.isEnabled ? 'checked' : ''} ${item.isSystem ? 'disabled' : ''}>
+          </label>
+        </div>
+      </div>
+    `).join('');
+
+    // Setup drag and drop for .module-item inside listContainer
+    let draggedItem = null;
+    const moduleItems = listContainer.querySelectorAll('.module-item');
+    moduleItems.forEach(item => {
+      item.draggable = true;
+      item.addEventListener('dragstart', (e) => {
+        draggedItem = item;
+        setTimeout(() => item.style.opacity = '0.5', 0);
+      });
+      item.addEventListener('dragend', () => {
+        draggedItem.style.opacity = '1';
+        draggedItem = null;
+      });
+      item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(listContainer, e.clientY);
+        if (afterElement == null) {
+          listContainer.appendChild(draggedItem);
+        } else {
+          listContainer.insertBefore(draggedItem, afterElement);
+        }
+      });
+    });
+  };
+
+  function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.module-item:not(.dragging)')];
+    return draggableElements.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
+
+  const loadSettings = async () => {
+    try {
+      const res = await api.get('/api/settings/sidebar/all');
+      if (res.success && res.data) {
+        renderList(res.data);
+      }
+    } catch (e) {
+      listContainer.innerHTML = '<div class="text-danger">Failed to load module settings</div>';
+    }
+  };
+
+  container.querySelector('#btn-save-modules')?.addEventListener('click', async () => {
+    const items = [];
+    listContainer.querySelectorAll('.module-item').forEach((itemEl, index) => {
+      items.push({
+        key: itemEl.dataset.key,
+        label: itemEl.querySelector('.module-label-input').value.trim(),
+        isEnabled: itemEl.querySelector('.module-enable-toggle').checked,
+        order: index + 1
+      });
+    });
+
+    const btn = container.querySelector('#btn-save-modules');
+    Loading.button(btn, true);
+    try {
+      const res = await api.put('/api/settings/sidebar', { items });
+      if (res.success) {
+        Toast.success('Module settings saved. Please refresh the page to see sidebar changes.');
+        renderList(res.data);
+      } else {
+        Toast.error(res.message);
+      }
+    } catch (err) {
+      Toast.error(err.message || 'Failed to save module settings');
+    } finally {
+      Loading.button(btn, false);
+    }
+  });
+
+  container.querySelector('#btn-reset-modules')?.addEventListener('click', () => {
+    Confirm.show({
+      title: 'Reset Modules',
+      message: 'Are you sure you want to reset sidebar modules to defaults?',
+      danger: true,
+      onConfirm: async () => {
+        try {
+          const res = await api.put('/api/settings/sidebar/reset');
+          if (res.success) {
+            Toast.success('Modules reset. Please refresh.');
+            renderList(res.data);
+          }
+        } catch (err) {
+          Toast.error('Failed to reset modules');
+        }
+      }
+    });
+  });
+
+  loadSettings();
+}
