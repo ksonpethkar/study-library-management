@@ -881,14 +881,18 @@
     function toggleTheme() {
       const html = document.documentElement;
       const btn = document.getElementById('theme-btn');
-      if (html.getAttribute('data-theme') === 'light') {
-        html.setAttribute('data-theme', 'dark');
-        btn.textContent = '☀️';
-      } else {
-        html.setAttribute('data-theme', 'light');
-        btn.textContent = '🌙';
-      }
+      const isLight = html.getAttribute('data-theme') === 'light';
+      const nextTheme = isLight ? 'dark' : 'light';
+      html.setAttribute('data-theme', nextTheme);
+      localStorage.setItem('sl_theme', nextTheme);
+      if (btn) btn.textContent = nextTheme === 'dark' ? '☀️' : '🌙';
     }
+
+    // Initialize saved theme
+    const savedLandingTheme = localStorage.getItem('sl_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedLandingTheme);
+    const landingThemeBtn = document.getElementById('theme-btn');
+    if (landingThemeBtn) landingThemeBtn.textContent = savedLandingTheme === 'dark' ? '☀️' : '🌙';
 
     // Mobile Menu
     function toggleMobileMenu() {
