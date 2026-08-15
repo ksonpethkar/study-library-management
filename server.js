@@ -79,15 +79,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Server Error'
-  });
-});
-
 // Public Landing Page & Registration Routes
 app.get('/landing', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'landing.html'));
@@ -103,11 +94,20 @@ app.get('/kiosk', (req, res) => {
 });
 
 // SPA fallback — only for non-API routes
-app.get('/{*path}', (req, res) => {
+app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ success: false, message: 'API route not found' });
   }
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Server Error'
+  });
 });
 
 // Start server
