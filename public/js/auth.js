@@ -210,7 +210,7 @@ export function initLoginPage() {
 /**
  * Initialize app-level event listeners (sidebar, header, theme, logout, etc.)
  */
-export function initAppEvents() {
+export async function initAppEvents() {
   // Sidebar collapse toggle
   document.getElementById('sidebar-collapse-btn')?.addEventListener('click', () => {
     document.getElementById('sidebar')?.classList.toggle('collapsed');
