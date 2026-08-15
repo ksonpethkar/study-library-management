@@ -77,7 +77,6 @@ const paymentSchema = new mongoose.Schema({
 paymentSchema.index({ student: 1, paymentDate: -1 });
 paymentSchema.index({ branch: 1, paymentDate: -1 });
 paymentSchema.index({ status: 1, paymentDate: -1 });
-paymentSchema.index({ receiptNumber: 1 }, { unique: true });
 
 paymentSchema.pre('save', async function() {
     if (this.isNew && !this.receiptNumber) {
