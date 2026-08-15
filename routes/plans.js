@@ -33,10 +33,10 @@ function validate(validations) {
 // GET / — List active plans (Public for registration & landing page)
 router.get('/', async (req, res) => {
   try {
-    await Plan.seedDefaults();
     const plans = await Plan.find({ isActive: true })
       .sort('displayOrder')
-      .populate('enrolledCount');
+      .populate('enrolledCount')
+      .lean();
     res.json({ success: true, data: plans, message: 'Active plans retrieved successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

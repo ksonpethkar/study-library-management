@@ -58,8 +58,6 @@ class Application {
         const target = e.target.closest('.btn, .nav-item, .seat-card, .tab-item, .hub-tab-btn, .action-btn, .lang-option');
         if (!target) return;
 
-        AudioFeedback.play('click');
-
         const rect = target.getBoundingClientRect();
         const circle = document.createElement('span');
         const diameter = Math.max(rect.width, rect.height);

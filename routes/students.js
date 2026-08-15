@@ -65,7 +65,8 @@ router.get('/', async (req, res) => {
       .populate('seat', 'seatNumber zone')
       .sort(req.query.sort || '-createdAt')
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     const total = await Student.countDocuments(query);
 
@@ -92,7 +93,8 @@ router.get('/:id', async (req, res) => {
   try {
     const student = await Student.findById(req.params.id)
       .populate('plan', 'name price')
-      .populate('seat', 'seatNumber zone');
+      .populate('seat', 'seatNumber zone')
+      .lean();
       
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student not found' });

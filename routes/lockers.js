@@ -21,7 +21,8 @@ router.get('/', protect, async (req, res) => {
     const lockers = await Locker.find(query)
       .populate('assignedStudent', 'name phone studentId dateOfBirth photo')
       .populate('branch', 'name')
-      .sort({ lockerNumber: 1 });
+      .sort({ lockerNumber: 1 })
+      .lean();
 
     const total = lockers.length;
     const available = lockers.filter(l => l.status === 'available').length;

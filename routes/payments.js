@@ -45,7 +45,8 @@ router.get('/', async (req, res) => {
             .populate('plan', 'name')
             .sort({ paymentDate: -1 })
             .skip(skip)
-            .limit(parseInt(limit));
+            .limit(parseInt(limit))
+            .lean();
             
         const total = await Payment.countDocuments(query);
         
@@ -88,7 +89,8 @@ router.get('/student/:studentId', async (req, res) => {
     try {
         const payments = await Payment.find({ student: req.params.studentId })
             .populate('plan', 'name')
-            .sort({ paymentDate: -1 });
+            .sort({ paymentDate: -1 })
+            .lean();
             
         res.json({ success: true, data: payments, message: 'Student payment history fetched' });
     } catch (error) {
@@ -101,7 +103,8 @@ router.get('/pending-installments', async (req, res) => {
         const payments = await Payment.find({ balanceDue: { $gt: 0 } })
             .populate('student', 'name studentId phone')
             .populate('plan', 'name')
-            .sort({ dueDate: 1 });
+            .sort({ dueDate: 1 })
+            .lean();
             
         res.json({ success: true, data: payments, message: 'Pending installments fetched' });
     } catch (error) {

@@ -508,10 +508,14 @@ export async function render(container) {
     loadData();
   });
 
+  let expenseSearchTimeout;
   page.querySelector('#expense-search-input').addEventListener('input', (e) => {
+    clearTimeout(expenseSearchTimeout);
     state.search = e.target.value;
     state.page = 1;
-    loadData();
+    expenseSearchTimeout = setTimeout(() => {
+      loadData();
+    }, 300);
   });
 
   page.querySelector('#btn-add-expense').addEventListener('click', () => {

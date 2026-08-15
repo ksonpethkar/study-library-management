@@ -42,7 +42,8 @@ router.get('/', async (req, res) => {
     const seats = await Seat.find(filter)
       .populate('currentStudent', 'name studentId phone email photo')
       .populate('branch', 'name code city')
-      .sort('seatNumber');
+      .sort('seatNumber')
+      .lean();
     
     res.json({ success: true, data: seats, message: 'Seats retrieved successfully' });
   } catch (error) {
@@ -112,7 +113,8 @@ router.get('/:id', async (req, res) => {
   try {
     const seat = await Seat.findById(req.params.id)
       .populate('currentStudent', 'name studentId email phone photo')
-      .populate('branch', 'name code');
+      .populate('branch', 'name code')
+      .lean();
     if (!seat) {
       return res.status(404).json({ success: false, message: 'Seat not found' });
     }
