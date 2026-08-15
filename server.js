@@ -93,12 +93,12 @@ app.get('/kiosk', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'kiosk.html'));
 });
 
-// SPA fallback — only for non-API routes
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ success: false, message: 'API route not found' });
+// SPA fallback — only for non-API GET requests
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api')) {
+    return res.sendFile(path.join(__dirname, 'public', 'index.html'));
   }
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  next();
 });
 
 // Global error handler
