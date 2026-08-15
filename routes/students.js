@@ -110,7 +110,22 @@ router.post('/', validate([
 ]), roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     req.body.createdBy = req.user._id;
+    
+    // Extract customFields before creating student
+    const customFieldsData = req.body.customFields;
+    delete req.body.customFields;
+    
     const student = new Student(req.body);
+    
+    // Properly set customFields Map including explicit false values
+    if (customFieldsData && typeof customFieldsData === 'object') {
+      for (const [key, value] of Object.entries(customFieldsData)) {
+        if (value !== undefined) {
+          student.customFields.set(key, value);
+        }
+      }
+    }
+    
     await student.save();
     res.status(201).json({ success: true, data: student, message: 'Student created successfully' });
   } catch (error) {
@@ -124,10 +139,25 @@ router.put('/:id', validate([
   body('phone').optional().notEmpty().withMessage('Phone cannot be empty').trim()
 ]), roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const student = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const student = await Student.findById(req.params.id);
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
+
+    const customFieldsData = req.body.customFields;
+    delete req.body.customFields;
+
+    Object.assign(student, req.body);
+
+    if (customFieldsData && typeof customFieldsData === 'object') {
+      for (const [key, value] of Object.entries(customFieldsData)) {
+        if (value !== undefined) {
+          student.customFields.set(key, value);
+        }
+      }
+    }
+
+    await student.save();
     res.json({ success: true, data: student, message: 'Student updated successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

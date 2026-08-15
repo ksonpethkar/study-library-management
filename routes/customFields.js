@@ -74,14 +74,17 @@ router.use(roleCheck('owner', 'branch_manager'));
 // POST /api/custom-fields - Create a new form field
 router.post('/', async (req, res) => {
   try {
-    const { label, type, placeholder, options, required, section, sectionLabel, helpText, defaultValue } = req.body;
+    const { 
+      fieldName, label, type, placeholder, options, required, section, sectionLabel, helpText, defaultValue,
+      colSpan, validation, conditional, sectionIcon, sectionDescription
+    } = req.body;
 
     if (!label) {
       return res.status(400).json({ success: false, message: 'Field label is required' });
     }
 
     // Generate unique slug
-    let slug = (req.body.fieldName || label).toLowerCase().replace(/[^a-z0-9]/g, '_');
+    let slug = (fieldName || label).toLowerCase().replace(/[^a-z0-9]/g, '_');
     const existing = await CustomField.findOne({ fieldName: slug });
     if (existing) {
       slug = `${slug}_${Date.now().toString().slice(-4)}`;
@@ -97,10 +100,15 @@ router.post('/', async (req, res) => {
       options: Array.isArray(options) ? options : (options ? options.split(',').map(s => s.trim()).filter(Boolean) : []),
       required: Boolean(required),
       order: count + 1,
-      section: section || 'other',
-      sectionLabel: sectionLabel || (section ? section.charAt(0).toUpperCase() + section.slice(1) : 'Additional Information'),
+      section: section || 'general',
+      sectionLabel: sectionLabel || (section ? section.charAt(0).toUpperCase() + section.slice(1) : 'General'),
       helpText: helpText || '',
       defaultValue: defaultValue || null,
+      colSpan: colSpan || 12,
+      validation: validation || {},
+      conditional: conditional || {},
+      sectionIcon: sectionIcon || '',
+      sectionDescription: sectionDescription || '',
       isActive: true,
       isSystemField: false,
       isDeletable: true
@@ -117,14 +125,17 @@ router.post('/', async (req, res) => {
 // PUT /api/custom-fields/:id - Update form field
 router.put('/:id', async (req, res) => {
   try {
-    const { label, type, placeholder, options, required, section, sectionLabel, helpText, isActive, order, defaultValue } = req.body;
+    const { 
+      label, type, placeholder, options, required, section, sectionLabel, helpText, isActive, order, defaultValue,
+      colSpan, validation, conditional, sectionIcon, sectionDescription
+    } = req.body;
 
     const updateData = {};
     if (label !== undefined) updateData.label = label;
     if (type !== undefined) updateData.type = type;
     if (placeholder !== undefined) updateData.placeholder = placeholder;
     if (options !== undefined) {
-      updateData.options = Array.isArray(options) ? options : options.split(',').map(s => s.trim()).filter(Boolean);
+      updateData.options = Array.isArray(options) ? options : (options ? options.split(',').map(s => s.trim()).filter(Boolean) : []);
     }
     if (required !== undefined) updateData.required = Boolean(required);
     if (section !== undefined) updateData.section = section;
@@ -133,6 +144,11 @@ router.put('/:id', async (req, res) => {
     if (isActive !== undefined) updateData.isActive = Boolean(isActive);
     if (order !== undefined) updateData.order = parseInt(order, 10);
     if (defaultValue !== undefined) updateData.defaultValue = defaultValue;
+    if (colSpan !== undefined) updateData.colSpan = colSpan;
+    if (validation !== undefined) updateData.validation = validation;
+    if (conditional !== undefined) updateData.conditional = conditional;
+    if (sectionIcon !== undefined) updateData.sectionIcon = sectionIcon;
+    if (sectionDescription !== undefined) updateData.sectionDescription = sectionDescription;
 
     const field = await CustomField.findByIdAndUpdate(req.params.id, updateData, { new: true });
     if (!field) {
@@ -193,9 +209,13 @@ router.put('/reorder/bulk', async (req, res) => {
   try {
     const { orderedIds } = req.body;
     if (Array.isArray(orderedIds)) {
-      for (let i = 0; i < orderedIds.length; i++) {
-        await CustomField.findByIdAndUpdate(orderedIds[i], { order: i + 1 });
-      }
+      const bulkOps = orderedIds.map((id, index) => ({
+        updateOne: {
+          filter: { _id: id },
+          update: { order: index + 1 }
+        }
+      }));
+      await CustomField.bulkWrite(bulkOps);
     }
     res.json({ success: true, message: 'Fields reordered successfully' });
   } catch (err) {
@@ -265,10 +285,10 @@ router.post('/sections', async (req, res) => {
 router.delete('/sections/:sectionKey', async (req, res) => {
   try {
     const { sectionKey } = req.params;
-    if (sectionKey === 'other') {
+    if (sectionKey === 'general') {
       return res.status(400).json({ success: false, message: 'Cannot delete the default section' });
     }
-    await CustomField.updateMany({ section: sectionKey }, { section: 'other', sectionLabel: 'Additional Information' });
+    await CustomField.updateMany({ section: sectionKey }, { section: 'general', sectionLabel: 'General' });
     res.json({ success: true, message: 'Section deleted, fields moved to Additional Information' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

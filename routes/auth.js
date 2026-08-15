@@ -6,6 +6,10 @@ const SystemSetting = require('../models/SystemSetting');
 const { protect } = require('../middleware/auth');
 const { validateSetup, validateRegistration, validateLogin, validatePasswordChange } = require('../middleware/validate');
 const { authLimiter } = require('../middleware/rateLimiter');
+const CustomField = require('../models/CustomField');
+const { Referral } = require('../models/Operations');
+const emailService = require('../utils/emailService');
+const whatsappService = require('../utils/whatsappService');
 
 // @route   POST /api/auth/setup
 // @desc    First-time setup (create owner account + business profile)
@@ -203,7 +207,9 @@ router.post('/public-register', authLimiter, async (req, res) => {
       notes,
       signature,
       photo,
-      customFields
+      customFields,
+      referralCode,
+      requestLocker
     } = req.body;
 
     if (!name || !phone) {
@@ -231,6 +237,38 @@ router.post('/public-register', authLimiter, async (req, res) => {
     const year = new Date().getFullYear();
     const studentId = generateStudentId(prefix, year, studentCount + 1);
 
+    // Validate custom fields
+    const activeFields = await CustomField.getActiveFields();
+    const missingFields = [];
+    for (const field of activeFields) {
+      if (field.required && !field.isSystemField) {
+        if (!customFields || customFields[field.fieldName] === undefined || customFields[field.fieldName] === null || customFields[field.fieldName] === '') {
+          missingFields.push(field.label);
+        }
+      }
+    }
+    if (missingFields.length > 0) {
+      return res.status(400).json({ success: false, message: `Missing required custom fields: ${missingFields.join(', ')}` });
+    }
+
+    // Support referral code validation
+    let referringStudent = null;
+    let referralDiscount = 0;
+    if (referralCode) {
+      referringStudent = await Student.findOne({ 
+        $or: [{ studentId: referralCode }, { phone: referralCode }] 
+      });
+      if (referringStudent) {
+        referralDiscount = 500; // default discount
+      }
+    }
+
+    // Flag locker interest
+    let finalNotes = notes || '';
+    if (requestLocker) {
+      finalNotes += (finalNotes ? '\n' : '') + '[Locker Requested]';
+    }
+
     // Create Student Document
     const newStudent = new Student({
       studentId,
@@ -241,12 +279,23 @@ router.post('/public-register', authLimiter, async (req, res) => {
       dateOfBirth: dob ? new Date(dob) : null,
       targetExams: Array.isArray(targetExams) ? targetExams : (targetExams ? [targetExams] : []),
       plan: plan || null,
-      notes: notes || '',
+      notes: finalNotes,
       photo: photo || '',
       signature: signature || '',
       customFields: customFields || {},
       status: 'active'
     });
+
+    if (referringStudent) {
+      newStudent.customFields = newStudent.customFields || {};
+      if (newStudent.customFields instanceof Map) {
+         newStudent.customFields.set('referredBy', referringStudent.studentId);
+         newStudent.customFields.set('referralDiscount', referralDiscount);
+      } else {
+         newStudent.customFields.referredBy = referringStudent.studentId;
+         newStudent.customFields.referralDiscount = referralDiscount;
+      }
+    }
 
     await newStudent.save();
 
@@ -273,17 +322,52 @@ router.post('/public-register', authLimiter, async (req, res) => {
       link: '#/students'
     });
 
+    if (referringStudent) {
+      await Referral.create({
+        referrerStudent: referringStudent._id,
+        referrerName: referringStudent.name,
+        referrerPhone: referringStudent.phone,
+        refereeName: name,
+        refereePhone: phone,
+        refereeEmail: email || '',
+        status: 'converted',
+        convertedStudent: newStudent._id
+      });
+    }
+
     const business = await BusinessProfile.getProfile();
+
+    // Trigger automated Welcome WhatsApp & Email notifications
+    try {
+      const welcomeBaseMsg = whatsappService.getAdmissionMessage ? whatsappService.getAdmissionMessage(newStudent, business.businessName) : 'Welcome to the library!';
+      const passwordMsg = password ? `\n\nLogin Password: ${password}` : '';
+      const fullMessage = welcomeBaseMsg + passwordMsg;
+
+      if (email && emailService.sendMail) {
+        await emailService.sendMail({
+          to: email,
+          subject: `Welcome to ${business.businessName}`,
+          html: `<p>${fullMessage.replace(/\n/g, '<br>')}</p>`
+        });
+      }
+      
+      if (whatsappService.sendWelcomeMessage) {
+         await whatsappService.sendWelcomeMessage(newStudent, password);
+      }
+    } catch (notifyErr) {
+      console.error('Notification Error:', notifyErr);
+    }
 
     res.status(201).json({
       success: true,
-      message: `Welcome to ${business.businessName}! Admission registered successfully.`,
+      message: 'Admission submitted successfully',
       data: {
-        studentId,
         student: newStudent,
-        businessName: business.businessName,
-        phone: business.phone,
-        address: business.address
+        admissionSlip: true,
+        studentId: newStudent.studentId,
+        name: newStudent.name,
+        email: newStudent.email,
+        phone: newStudent.phone
       }
     });
 

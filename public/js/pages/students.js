@@ -396,54 +396,66 @@ export async function render() {
       const filteredFields = customFields.filter(f => !systemFields.includes(f.fieldName));
       
       if (filteredFields.length > 0) {
-        customFieldsHtml = `
-          <div class="col-12 mt-2">
-            <h5 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; border-bottom: 1px solid var(--color-divider); padding-bottom: 4px;">📝 Additional Information</h5>
-          </div>
-        ` + filteredFields.map(f => {
-          const val = student?.customFields?.[f.fieldName] || '';
-          if (f.type === 'textarea') {
-            return `
-              <div class="col-12">
-                <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)} ${f.required ? '*' : ''}</label>
-                <textarea class="form-control custom-field-input" data-field="${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''} placeholder="${escapeHTML(f.placeholder || '')}">${escapeHTML(val)}</textarea>
-              </div>
-            `;
-          } else if (f.type === 'select') {
-            return `
-              <div class="col-md-6">
-                <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)} ${f.required ? '*' : ''}</label>
-                <select class="form-select form-control custom-field-input" data-field="${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
-                  <option value="">-- Select --</option>
-                  ${(f.options || []).map(opt => `<option value="${escapeHTML(opt)}" ${val === opt ? 'selected' : ''}>${escapeHTML(opt)}</option>`).join('')}
-                </select>
-              </div>
-            `;
-          } else if (f.type === 'photo_upload' || f.type === 'file') {
-            return `
-              <div class="col-md-6">
-                <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)} ${f.required ? '*' : ''}</label>
-                <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}" data-label="${escapeHTML(f.label)}" data-preset="${f.type === 'photo_upload' ? 'passport' : 'document'}"></div>
-              </div>
-            `;
-          } else if (f.type === 'checkbox') {
-            return `
-              <div class="col-md-6 d-flex align-items-center mt-2">
-                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500;">
-                  <input type="checkbox" class="form-checkbox custom-field-input" data-field="${escapeHTML(f.fieldName)}" ${val ? 'checked' : ''}>
-                  <span>${escapeHTML(f.label)}</span>
-                </label>
-              </div>
-            `;
-          } else {
-            return `
-              <div class="col-md-6">
-                <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)} ${f.required ? '*' : ''}</label>
-                <input type="${escapeHTML(f.type || 'text')}" class="form-control custom-field-input" data-field="${escapeHTML(f.fieldName)}" value="${escapeHTML(val)}" ${f.required ? 'required' : ''} placeholder="${escapeHTML(f.placeholder || '')}">
-              </div>
-            `;
-          }
-        }).join('');
+        // Group by section
+        const sections = {};
+        filteredFields.forEach(f => {
+          const sec = f.sectionLabel || 'Additional Information';
+          if (!sections[sec]) sections[sec] = [];
+          sections[sec].push(f);
+        });
+        
+        for (const [secName, fields] of Object.entries(sections)) {
+          customFieldsHtml += `
+            <div class="col-12 mt-2">
+              <h5 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; border-bottom: 1px solid var(--color-divider); padding-bottom: 4px;">📝 ${escapeHTML(secName)}</h5>
+            </div>
+          `;
+          
+          customFieldsHtml += fields.map(f => {
+            const val = student?.customFields?.[f.fieldName] !== undefined ? student.customFields[f.fieldName] : '';
+            if (f.type === 'textarea') {
+              return `
+                <div class="col-12">
+                  <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)} ${f.required ? '*' : ''}</label>
+                  <textarea class="form-control custom-field-input" data-field="${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''} placeholder="${escapeHTML(f.placeholder || '')}">${escapeHTML(val)}</textarea>
+                </div>
+              `;
+            } else if (f.type === 'select') {
+              return `
+                <div class="col-md-6">
+                  <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)} ${f.required ? '*' : ''}</label>
+                  <select class="form-select form-control custom-field-input" data-field="${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
+                    <option value="">-- Select --</option>
+                    ${(f.options || []).map(opt => `<option value="${escapeHTML(opt)}" ${val === opt ? 'selected' : ''}>${escapeHTML(opt)}</option>`).join('')}
+                  </select>
+                </div>
+              `;
+            } else if (f.type === 'photo_upload' || f.type === 'file') {
+              return `
+                <div class="col-md-6">
+                  <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)} ${f.required ? '*' : ''}</label>
+                  <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}" data-label="${escapeHTML(f.label)}" data-preset="${f.type === 'photo_upload' ? 'passport' : 'document'}"></div>
+                </div>
+              `;
+            } else if (f.type === 'checkbox') {
+              return `
+                <div class="col-md-6 d-flex align-items-center mt-2">
+                  <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500;">
+                    <input type="checkbox" class="form-checkbox custom-field-input" data-field="${escapeHTML(f.fieldName)}" ${(val === true || val === 'true') ? 'checked' : ''}>
+                    <span>${escapeHTML(f.label)}</span>
+                  </label>
+                </div>
+              `;
+            } else {
+              return `
+                <div class="col-md-6">
+                  <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)} ${f.required ? '*' : ''}</label>
+                  <input type="${escapeHTML(f.type || 'text')}" class="form-control custom-field-input" data-field="${escapeHTML(f.fieldName)}" value="${escapeHTML(val)}" ${f.required ? 'required' : ''} placeholder="${escapeHTML(f.placeholder || '')}">
+                </div>
+              `;
+            }
+          }).join('');
+        }
       }
     }
 

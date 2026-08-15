@@ -6,12 +6,13 @@
   <title>Online Admission Portal — Study Library</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Dancing+Script:wght@600&family=Great+Vibes&family=Pacifico&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="css/variables.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/layout.css">
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <style>
     body {
       min-height: 100vh;
@@ -26,7 +27,7 @@
     }
     .admission-container {
       width: 100%;
-      max-width: 720px;
+      max-width: 800px;
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-xl);
@@ -41,6 +42,82 @@
       text-align: center;
       position: relative;
     }
+    
+    /* Stepper */
+    .stepper {
+      display: flex;
+      justify-content: space-between;
+      padding: 1.5rem 2rem;
+      background: var(--color-bg-secondary);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .step {
+      text-align: center;
+      flex: 1;
+      position: relative;
+      opacity: 0.5;
+      transition: all 0.3s;
+    }
+    .step.active {
+      opacity: 1;
+      font-weight: bold;
+    }
+    .step.completed {
+      opacity: 1;
+      color: var(--color-success);
+    }
+    .step-number {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--color-border);
+      color: var(--color-text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 0.5rem;
+      font-weight: 700;
+      z-index: 2;
+      position: relative;
+    }
+    .step.active .step-number {
+      background: var(--color-primary);
+      color: white;
+    }
+    .step.completed .step-number {
+      background: var(--color-success);
+      color: white;
+    }
+    .step::after {
+      content: '';
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      width: 100%;
+      height: 2px;
+      background: var(--color-border);
+      z-index: 1;
+    }
+    .step:last-child::after {
+      display: none;
+    }
+    .step.completed::after {
+      background: var(--color-success);
+    }
+
+    .wizard-step-content {
+      display: none;
+      padding: 2rem;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    .wizard-step-content.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
     .exam-pill {
       cursor: pointer;
       user-select: none;
@@ -71,6 +148,48 @@
       border-bottom: 1px solid var(--color-divider);
       padding-bottom: 0.5rem;
     }
+
+    /* Calculator Card */
+    .calculator-card {
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .calc-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+    .calc-total {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--color-primary);
+      border-top: 1px dashed var(--color-border);
+      padding-top: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .btn-nav {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 2rem;
+    }
+
+    .qr-badge {
+      display: inline-block;
+      padding: 10px;
+      background: white;
+      border-radius: 10px;
+      margin: 1rem 0;
+    }
+    
+    .dynamic-field-wrapper {
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
   </style>
 </head>
 <body>
@@ -82,15 +201,37 @@
       <p id="lib-tagline" style="margin: 6px 0 0 0; opacity: 0.9; font-size: 0.95rem;">Premier Air-Conditioned Reading Hall & Self-Study Space</p>
     </div>
 
-    <div style="padding: 2rem;">
-      <div id="registration-form-wrap">
-        <form id="public-reg-form">
-          
-          <!-- Section 1: Basic Information -->
-          <div class="form-section-title">
-            <span>👤</span> Personal & Contact Details
-          </div>
+    <div id="registration-form-wrap">
+      
+      <!-- Stepper -->
+      <div class="stepper">
+        <div class="step active" id="stepper-1">
+          <div class="step-number">1</div>
+          <div style="font-size: 0.75rem;">Personal</div>
+        </div>
+        <div class="step" id="stepper-2">
+          <div class="step-number">2</div>
+          <div style="font-size: 0.75rem;">Goals</div>
+        </div>
+        <div class="step" id="stepper-3">
+          <div class="step-number">3</div>
+          <div style="font-size: 0.75rem;">Plan</div>
+        </div>
+        <div class="step" id="stepper-4">
+          <div class="step-number">4</div>
+          <div style="font-size: 0.75rem;">Details</div>
+        </div>
+        <div class="step" id="stepper-5">
+          <div class="step-number">5</div>
+          <div style="font-size: 0.75rem;">Sign</div>
+        </div>
+      </div>
 
+      <form id="public-reg-form">
+        
+        <!-- Step 1: Personal Info & Live Photo -->
+        <div class="wizard-step-content active" id="step-1">
+          <div class="form-section-title"><span>👤</span> Personal & Contact Details</div>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
             <div class="form-group">
               <label class="form-label" style="font-weight: 600;">Full Name *</label>
@@ -108,8 +249,8 @@
               <input type="email" id="reg-email" class="form-control" placeholder="rahul@example.com">
             </div>
             <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Account Password (for Student Portal)</label>
-              <input type="password" id="reg-password" class="form-control" placeholder="Choose 6+ character password">
+              <label class="form-label" style="font-weight: 600;">Account Password</label>
+              <input type="password" id="reg-password" class="form-control" placeholder="Choose 6+ character password" required>
             </div>
           </div>
 
@@ -128,16 +269,20 @@
             </div>
           </div>
 
-          <!-- Student Passport Photo -->
           <div class="mb-4">
             <label class="form-label" style="font-weight: 600;">Student Passport Photo (Live Selfie Camera / File Upload)</label>
             <div id="public-photo-mount"></div>
           </div>
 
-          <!-- Section 2: Preparation & Study Requirements -->
-          <div class="form-section-title">
-            <span>🎯</span> Target Exams / Goals
+          <div class="btn-nav">
+            <div></div>
+            <button type="button" class="btn btn-primary btn-next" data-step="1">Continue to Next Step ➡️</button>
           </div>
+        </div>
+
+        <!-- Step 2: Study Goals -->
+        <div class="wizard-step-content" id="step-2">
+          <div class="form-section-title"><span>🎯</span> Target Exams / Goals</div>
           <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem;" id="exam-pills-container">
             <span class="exam-pill" data-exam="UPSC / Civil Services">UPSC Civil Services</span>
             <span class="exam-pill" data-exam="State PSC / MPSC">State PSC / MPSC</span>
@@ -150,34 +295,75 @@
             <span class="exam-pill" data-exam="Law / CLAT / Judiciary">Judiciary / CLAT</span>
             <span class="exam-pill" data-exam="Defense / NDA / CDS">Defense / CDS</span>
           </div>
-
-          <div class="form-section-title">
-            <span>🪑</span> Preferred Membership Plan
+          <div class="btn-nav">
+            <button type="button" class="btn btn-secondary btn-prev" data-step="2">⬅️ Back</button>
+            <button type="button" class="btn btn-primary btn-next" data-step="2">Continue to Next Step ➡️</button>
           </div>
+        </div>
+
+        <!-- Step 3: Plan & Fee Calculator -->
+        <div class="wizard-step-content" id="step-3">
+          <div class="form-section-title"><span>⏰</span> Preferred Membership Plan</div>
           <div class="form-group mb-4">
-            <select id="reg-plan" class="form-select">
+            <select id="reg-plan" class="form-select" required>
               <option value="">-- Choose Study Shift & Plan --</option>
             </select>
           </div>
 
-          <!-- Section 3: Dynamic Custom Fields Container -->
-          <div id="dynamic-fields-section" style="display: none;">
-            <div class="form-section-title">
-              <span>📝</span> Additional Information
+          <div class="form-group mb-4">
+            <label class="form-label" style="font-weight: 600;">Referral Code (Optional)</label>
+            <div style="display: flex; gap: 10px;">
+              <input type="text" id="reg-referral" class="form-control" placeholder="Enter code">
+              <button type="button" class="btn btn-secondary" id="btn-apply-code">⚡ Apply Code</button>
             </div>
-            <div id="custom-fields-inject" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <small id="referral-msg" style="color: var(--color-success); font-weight: 600; display: none; margin-top: 5px;"></small>
+          </div>
+
+          <!-- Live Calculator Card -->
+          <div class="calculator-card">
+            <div style="font-weight: 700; margin-bottom: 1rem;">Fee Summary</div>
+            <div class="calc-row">
+              <span>Plan Price</span>
+              <span id="calc-plan-price">₹0</span>
+            </div>
+            <div class="calc-row">
+              <span>Duration</span>
+              <span id="calc-duration">-</span>
+            </div>
+            <div class="calc-row" style="color: var(--color-success);">
+              <span>Discount</span>
+              <span id="calc-discount">-₹0</span>
+            </div>
+            <div class="calc-row calc-total">
+              <span>Total Payable</span>
+              <span id="calc-total">₹0</span>
             </div>
           </div>
 
-          <!-- Section 4: Smart Digital Signature Studio -->
-          <div class="form-section-title">
-            <span>✍️</span> Digital Signature (Draw, Upload Photo, or Type)
+          <div class="btn-nav">
+            <button type="button" class="btn btn-secondary btn-prev" data-step="3">⬅️ Back</button>
+            <button type="button" class="btn btn-primary btn-next" data-step="3">Continue to Next Step ➡️</button>
           </div>
+        </div>
+
+        <!-- Step 4: Additional Information -->
+        <div class="wizard-step-content" id="step-4">
+          <div id="custom-fields-inject">
+            <!-- Custom fields will be grouped and injected here -->
+          </div>
+          <div class="btn-nav">
+            <button type="button" class="btn btn-secondary btn-prev" data-step="4">⬅️ Back</button>
+            <button type="button" class="btn btn-primary btn-next" data-step="4">Continue to Next Step ➡️</button>
+          </div>
+        </div>
+
+        <!-- Step 5: Signature -->
+        <div class="wizard-step-content" id="step-5">
+          <div class="form-section-title"><span>✍️</span> Digital Signature & Confirmation</div>
           <div class="mb-4">
             <div id="public-signature-studio-mount"></div>
           </div>
 
-          <!-- Section 5: Terms & Declaration -->
           <div class="form-group mb-4" style="background: var(--color-bg-secondary); padding: 12px 16px; border-radius: var(--radius-md);">
             <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.85rem; color: var(--color-text-secondary);">
               <input type="checkbox" id="reg-terms" required style="margin-top: 3px;">
@@ -185,47 +371,112 @@
             </label>
           </div>
 
-          <button type="submit" id="btn-submit-reg" class="btn btn-primary w-full" style="font-size: 1.05rem; font-weight: 700; padding: 0.85rem;">
-            🚀 Submit Online Admission
-          </button>
-        </form>
+          <div class="btn-nav">
+            <button type="button" class="btn btn-secondary btn-prev" data-step="5">⬅️ Back</button>
+            <button type="submit" id="btn-submit-reg" class="btn btn-primary" style="font-size: 1.05rem; font-weight: 700; padding: 0.85rem;">🚀 Confirm & Submit</button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- Success Confirmation State -->
+    <div id="registration-success-wrap" style="display: none; text-align: center; padding: 1.5rem 2rem 2.5rem 2rem;">
+      <div style="font-size: 4rem; margin-bottom: 0.5rem;">🎉</div>
+      <h2 style="font-weight: 800; color: var(--color-success); margin-bottom: 0.5rem;">Admission Confirmed!</h2>
+      <p style="color: var(--color-text-secondary); max-width: 500px; margin: 0 auto 1.5rem auto;">
+        Your registration has been successfully submitted to the study library administration.
+      </p>
+
+      <div style="background: var(--color-bg-secondary); border: 2px dashed var(--color-primary); border-radius: var(--radius-lg); padding: 1.5rem; max-width: 420px; margin: 0 auto 1.75rem auto;">
+        <div class="text-muted small">Your Allocated Student ID</div>
+        <div id="success-student-id" style="font-size: 1.8rem; font-weight: 800; font-family: monospace; color: var(--color-primary); margin: 6px 0;">
+          STU-2026-001
+        </div>
+        <div id="success-student-name" style="font-weight: 600; color: var(--color-text-primary);">Rahul Sharma</div>
+        
+        <div id="qr-code-mount" class="qr-badge"></div>
+        <div id="success-plan-summary" style="font-size: 0.9rem; margin-top: 10px; font-weight: 500;"></div>
       </div>
 
-      <!-- Success Confirmation State -->
-      <div id="registration-success-wrap" style="display: none; text-align: center; padding: 1.5rem 0;">
-        <div style="font-size: 4rem; margin-bottom: 0.5rem;">🎉</div>
-        <h2 style="font-weight: 800; color: var(--color-success); margin-bottom: 0.5rem;">Admission Confirmed!</h2>
-        <p style="color: var(--color-text-secondary); max-width: 500px; margin: 0 auto 1.5rem auto;">
-          Your registration has been successfully submitted to the study library administration.
-        </p>
-
-        <div style="background: var(--color-bg-secondary); border: 2px dashed var(--color-primary); border-radius: var(--radius-lg); padding: 1.5rem; max-width: 420px; margin: 0 auto 1.75rem auto;">
-          <div class="text-muted small">Your Generated Student ID</div>
-          <div id="success-student-id" style="font-size: 1.8rem; font-weight: 800; font-family: monospace; color: var(--color-primary); margin: 6px 0;">
-            STU-2026-001
-          </div>
-          <div id="success-student-name" style="font-weight: 600; color: var(--color-text-primary);">Rahul Sharma</div>
-        </div>
-
-        <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-          <a id="btn-success-whatsapp" href="#" target="_blank" class="btn btn-success" style="background: #25D366; border-color: #25D366; font-weight: 700;">
-            📲 Contact Front Desk (WhatsApp)
-          </a>
-          <a href="/" class="btn btn-secondary">
-            🔐 Go to Student Login
-          </a>
-        </div>
+      <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+        <button id="btn-print-slip" class="btn btn-secondary">📄 Download / Print Slip</button>
+        <a id="btn-success-whatsapp" href="#" target="_blank" class="btn btn-success" style="background: #25D366; border-color: #25D366; font-weight: 700;">
+          📲 Send to my WhatsApp
+        </a>
+        <a href="/#/portal" class="btn btn-primary">
+          🎓 Login to Student Portal
+        </a>
       </div>
     </div>
   </div>
 
   <div style="text-align: center; color: var(--color-text-secondary); font-size: 0.85rem;">
-    Already a student? <a href="/" style="color: var(--color-primary); font-weight: 600;">Sign in to Member Portal</a>
+    Already a student? <a href="/#/portal" style="color: var(--color-primary); font-weight: 600;">Sign in to Member Portal</a>
   </div>
 
   <script type="module">
     import { SignatureStudio } from './js/signatureStudio.js';
     import { MediaFieldPicker } from './js/mediaStudio.js';
+
+    let currentStep = 1;
+    const totalSteps = 5;
+    let selectedPlanData = null;
+    let discountAmount = 0;
+    
+    // Plans mapped by ID
+    const plansMap = {};
+
+    function updateStepper() {
+      for (let i = 1; i <= totalSteps; i++) {
+        const stepDiv = document.getElementById(`step-${i}`);
+        const stepperDiv = document.getElementById(`stepper-${i}`);
+        
+        if (i === currentStep) {
+          stepDiv.classList.add('active');
+          stepperDiv.classList.add('active');
+          stepperDiv.classList.remove('completed');
+        } else {
+          stepDiv.classList.remove('active');
+          stepperDiv.classList.remove('active');
+          if (i < currentStep) {
+            stepperDiv.classList.add('completed');
+          } else {
+            stepperDiv.classList.remove('completed');
+          }
+        }
+      }
+    }
+
+    document.querySelectorAll('.btn-next').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const step = parseInt(e.target.dataset.step);
+        // Basic validation for the step
+        const stepContent = document.getElementById(`step-${step}`);
+        const inputs = stepContent.querySelectorAll('input[required], select[required]');
+        let valid = true;
+        inputs.forEach(inp => {
+          if (!inp.checkValidity()) {
+            inp.reportValidity();
+            valid = false;
+          }
+        });
+        
+        if (valid && step < totalSteps) {
+          currentStep++;
+          updateStepper();
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-prev').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (currentStep > 1) {
+          currentStep--;
+          updateStepper();
+        }
+      });
+    });
 
     // Exam pills toggle
     const selectedExams = new Set();
@@ -275,7 +526,84 @@
       }
     });
 
-    // Load Business Profile, Plans, Shifts & Custom Fields
+    // Calculator Logic
+    const planSelect = document.getElementById('reg-plan');
+    planSelect.addEventListener('change', () => {
+      const planId = planSelect.value;
+      selectedPlanData = plansMap[planId] || null;
+      updateCalculator();
+    });
+
+    document.getElementById('btn-apply-code').addEventListener('click', async () => {
+      const code = document.getElementById('reg-referral').value.trim();
+      if (!code) return;
+      // Mock validation
+      if (code.toUpperCase() === 'WELCOME10') {
+        discountAmount = 100;
+        document.getElementById('referral-msg').style.display = 'block';
+        document.getElementById('referral-msg').textContent = 'Code applied: ₹100 Off!';
+      } else {
+        discountAmount = 0;
+        document.getElementById('referral-msg').style.display = 'block';
+        document.getElementById('referral-msg').style.color = 'var(--color-danger)';
+        document.getElementById('referral-msg').textContent = 'Invalid code.';
+      }
+      updateCalculator();
+    });
+
+    function updateCalculator() {
+      if (!selectedPlanData) {
+        document.getElementById('calc-plan-price').textContent = '₹0';
+        document.getElementById('calc-duration').textContent = '-';
+        document.getElementById('calc-total').textContent = '₹0';
+        return;
+      }
+      const price = Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0);
+      document.getElementById('calc-plan-price').textContent = `₹${price}`;
+      document.getElementById('calc-duration').textContent = `${selectedPlanData.duration} ${selectedPlanData.durationType}`;
+      document.getElementById('calc-discount').textContent = `-₹${discountAmount}`;
+      document.getElementById('calc-total').textContent = `₹${Math.max(0, price - discountAmount)}`;
+    }
+
+    // Dynamic Conditional Logic Engine
+    function evaluateLogic() {
+      const form = document.getElementById('public-reg-form');
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+      
+      document.querySelectorAll('.custom-field-input, .custom-field-radio, .form-checkbox').forEach(el => {
+        if(el.type === 'checkbox') data[el.dataset.name] = el.checked;
+        else if (el.value) data[el.dataset.name] = el.value;
+      });
+
+      document.querySelectorAll('.dynamic-field-wrapper').forEach(wrapper => {
+        const dependsOn = wrapper.dataset.dependsOn;
+        const showWhen = wrapper.dataset.showWhen;
+        if (dependsOn && showWhen) {
+          const val = data[`cf_${dependsOn}`] || data[dependsOn];
+          const isMatch = (val === showWhen) || (val === true && showWhen === 'true');
+          
+          if (isMatch) {
+            wrapper.style.display = 'block';
+            wrapper.style.opacity = '1';
+          } else {
+            wrapper.style.display = 'none';
+            wrapper.style.opacity = '0';
+            // reset child inputs
+            wrapper.querySelectorAll('input, select, textarea').forEach(inp => {
+              if (inp.type === 'checkbox' || inp.type === 'radio') inp.checked = false;
+              else inp.value = '';
+            });
+          }
+        }
+      });
+    }
+
+    document.getElementById('public-reg-form').addEventListener('change', evaluateLogic);
+    document.getElementById('public-reg-form').addEventListener('input', evaluateLogic);
+
+
+    // Load Init Data
     async function loadInitData() {
       try {
         const [landingRes, plansRes, shiftsRes, fieldsRes] = await Promise.all([
@@ -296,12 +624,12 @@
 
         // Plans dropdown
         const plans = Array.isArray(plansRes?.data) ? plansRes.data : (landingRes?.data?.plans || []);
-        const planSelect = document.getElementById('reg-plan');
-        if (planSelect && plans && plans.length > 0) {
-          planSelect.innerHTML = '<option value="">-- Choose Study Shift & Plan --</option>';
+        if (plans && plans.length > 0) {
           plans.forEach(p => {
+            const planId = p._id || p.id;
+            plansMap[planId] = p;
             const opt = document.createElement('option');
-            opt.value = p._id || p.id;
+            opt.value = planId;
             const price = Math.round(p.effectivePrice || p.price || 0);
             const duration = `${p.duration || 30} ${p.durationType || 'days'}`;
             const shiftStr = p.shift ? p.shift.toUpperCase() : 'ANY SHIFT';
@@ -310,64 +638,86 @@
           });
         }
 
-        // Custom Fields injection
+        // Custom Fields injection (Grouped by section)
         if (fieldsRes?.data && fieldsRes.data.length > 0) {
-          const section = document.getElementById('dynamic-fields-section');
           const container = document.getElementById('custom-fields-inject');
-          section.style.display = 'block';
-
+          
+          const sections = {};
           fieldsRes.data.forEach(f => {
-            // Avoid duplicating standard fields if already present in base HTML
             if (['name', 'phone', 'email', 'gender', 'dateOfBirth'].includes(f.fieldName)) return;
-
-            const fg = document.createElement('div');
-            fg.className = 'form-group';
-            let inputHtml = '';
-
-            if (f.type === 'select' || f.type === 'blood_group') {
-              const opts = f.options && f.options.length > 0 ? f.options : (f.type === 'blood_group' ? ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] : []);
-              inputHtml = `
-                <select class="form-select custom-field-input" data-name="${f.fieldName}" ${f.required ? 'required' : ''}>
-                  <option value="">-- Select ${f.label} --</option>
-                  ${opts.map(o => `<option value="${o}">${o}</option>`).join('')}
-                </select>
-              `;
-            } else if (f.type === 'textarea') {
-              inputHtml = `<textarea class="form-control custom-field-input" data-name="${f.fieldName}" rows="2" placeholder="${f.placeholder || ''}" ${f.required ? 'required' : ''}></textarea>`;
-            } else if (f.type === 'radio') {
-              inputHtml = `
-                <div class="d-flex gap-3 mt-1">
-                  ${(f.options || []).map(o => `
-                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.9rem;">
-                      <input type="radio" name="cf_${f.fieldName}" value="${o}" class="custom-field-radio" data-name="${f.fieldName}">
-                      <span>${o}</span>
-                    </label>
-                  `).join('')}
-                </div>
-              `;
-            } else if (f.type === 'checkbox') {
-              inputHtml = `
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 4px;">
-                  <input type="checkbox" class="form-checkbox custom-field-input" data-name="${f.fieldName}">
-                  <span style="font-size: 0.9rem;">${f.placeholder || f.label}</span>
-                </label>
-              `;
-            } else if (f.type === 'file' || f.type === 'photo_upload') {
-              inputHtml = `
-                <input type="file" accept="image/*,.pdf" class="form-control custom-field-file" data-name="${f.fieldName}" ${f.required ? 'required' : ''}>
-                <small class="text-muted">Max file size: 5MB (Image or PDF)</small>
-              `;
-            } else {
-              inputHtml = `<input type="${f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : 'text'}" class="form-control custom-field-input" data-name="${f.fieldName}" placeholder="${f.placeholder || ''}" ${f.required ? 'required' : ''}>`;
-            }
-
-            fg.innerHTML = `
-              <label class="form-label" style="font-weight: 600;">${f.label} ${f.required ? '*' : ''}</label>
-              ${inputHtml}
-              ${f.helpText ? `<small class="text-muted" style="display:block; font-size: 0.75rem; margin-top: 2px;">${f.helpText}</small>` : ''}
-            `;
-            container.appendChild(fg);
+            const sec = f.sectionLabel || 'General Documents & Info';
+            if (!sections[sec]) sections[sec] = [];
+            sections[sec].push(f);
           });
+
+          for (const [secName, fields] of Object.entries(sections)) {
+            const secTitle = document.createElement('div');
+            secTitle.className = 'form-section-title';
+            secTitle.innerHTML = `<span>📋</span> ${secName}`;
+            container.appendChild(secTitle);
+            
+            const grid = document.createElement('div');
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(280px, 1fr))';
+            grid.style.gap = '1rem';
+            grid.style.marginBottom = '1.5rem';
+
+            fields.forEach(f => {
+              const fg = document.createElement('div');
+              fg.className = 'form-group dynamic-field-wrapper';
+              if (f.dependsOn && f.showWhen) {
+                fg.dataset.dependsOn = f.dependsOn;
+                fg.dataset.showWhen = f.showWhen;
+                fg.style.display = 'none';
+              }
+
+              let inputHtml = '';
+              if (f.type === 'select' || f.type === 'blood_group') {
+                const opts = f.options && f.options.length > 0 ? f.options : (f.type === 'blood_group' ? ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] : []);
+                inputHtml = `
+                  <select class="form-select custom-field-input" data-name="${f.fieldName}" name="cf_${f.fieldName}" ${f.required ? 'required' : ''}>
+                    <option value="">-- Select ${f.label} --</option>
+                    ${opts.map(o => `<option value="${o}">${o}</option>`).join('')}
+                  </select>
+                `;
+              } else if (f.type === 'textarea') {
+                inputHtml = `<textarea class="form-control custom-field-input" data-name="${f.fieldName}" name="cf_${f.fieldName}" rows="2" placeholder="${f.placeholder || ''}" ${f.required ? 'required' : ''}></textarea>`;
+              } else if (f.type === 'radio') {
+                inputHtml = `
+                  <div class="d-flex gap-3 mt-1">
+                    ${(f.options || []).map(o => `
+                      <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.9rem;">
+                        <input type="radio" name="cf_${f.fieldName}" value="${o}" class="custom-field-radio" data-name="${f.fieldName}" ${f.required ? 'required' : ''}>
+                        <span>${o}</span>
+                      </label>
+                    `).join('')}
+                  </div>
+                `;
+              } else if (f.type === 'checkbox') {
+                inputHtml = `
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 4px;">
+                    <input type="checkbox" class="form-checkbox custom-field-input" data-name="${f.fieldName}" name="cf_${f.fieldName}" ${f.required ? 'required' : ''}>
+                    <span style="font-size: 0.9rem;">${f.placeholder || f.label}</span>
+                  </label>
+                `;
+              } else if (f.type === 'file' || f.type === 'photo_upload') {
+                inputHtml = `
+                  <input type="file" accept="image/*,.pdf" class="form-control custom-field-file" data-name="${f.fieldName}" name="cf_${f.fieldName}" ${f.required ? 'required' : ''}>
+                  <small class="text-muted">Max file size: 5MB (Image or PDF)</small>
+                `;
+              } else {
+                inputHtml = `<input type="${f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : 'text'}" class="form-control custom-field-input" data-name="${f.fieldName}" name="cf_${f.fieldName}" placeholder="${f.placeholder || ''}" ${f.required ? 'required' : ''}>`;
+              }
+
+              fg.innerHTML = `
+                <label class="form-label" style="font-weight: 600;">${f.label} ${f.required ? '*' : ''}</label>
+                ${inputHtml}
+                ${f.helpText ? `<small class="text-muted" style="display:block; font-size: 0.75rem; margin-top: 2px;">${f.helpText}</small>` : ''}
+              `;
+              grid.appendChild(fg);
+            });
+            container.appendChild(grid);
+          }
         }
 
       } catch (err) {
@@ -383,10 +733,16 @@
       btn.textContent = 'Submitting Admission...';
 
       const customFields = {};
-      document.querySelectorAll('.custom-field-input').forEach(input => {
+      document.querySelectorAll('.custom-field-input, .custom-field-radio').forEach(input => {
         const name = input.dataset.name;
-        if (name && input.value) {
-          customFields[name] = input.value;
+        if (name) {
+          if (input.type === 'checkbox') {
+             customFields[name] = input.checked;
+          } else if (input.type === 'radio') {
+             if (input.checked) customFields[name] = input.value;
+          } else if (input.value) {
+             customFields[name] = input.value;
+          }
         }
       });
 
@@ -415,7 +771,7 @@
         if (!response.ok || !result.success) {
           alert(result.message || 'Registration failed. Please verify the entered information.');
           btn.disabled = false;
-          btn.textContent = '🚀 Submit Online Admission';
+          btn.textContent = '🚀 Confirm & Submit';
           return;
         }
 
@@ -424,15 +780,31 @@
         document.getElementById('registration-success-wrap').style.display = 'block';
         document.getElementById('success-student-id').textContent = result.data?.studentId || 'CONFIRMED';
         document.getElementById('success-student-name').textContent = payload.name;
+        
+        if (selectedPlanData) {
+           document.getElementById('success-plan-summary').textContent = `Plan: ${selectedPlanData.name} | Shift: ${selectedPlanData.shift ? selectedPlanData.shift.toUpperCase() : 'ANY'}`;
+        }
+
+        // Generate QR
+        try {
+          const qr = qrcode(0, 'M');
+          qr.addData(result.data?.studentId || payload.name);
+          qr.make();
+          document.getElementById('qr-code-mount').innerHTML = qr.createImgTag(4);
+        } catch(e) {}
 
         const phone = result.data?.phone || '';
         const waMsg = encodeURIComponent(`Hello! I have registered online for admission. My Student ID is ${result.data?.studentId || ''} (${payload.name}).`);
         document.getElementById('btn-success-whatsapp').href = `https://wa.me/${phone}?text=${waMsg}`;
+        
+        document.getElementById('btn-print-slip').addEventListener('click', () => {
+          window.print();
+        });
 
       } catch (error) {
         alert('Network error. Please check your internet connection.');
         btn.disabled = false;
-        btn.textContent = '🚀 Submit Online Admission';
+        btn.textContent = '🚀 Confirm & Submit';
       }
     });
 
