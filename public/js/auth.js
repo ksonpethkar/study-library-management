@@ -98,45 +98,70 @@ export function initSetupWizard() {
  * Initialize the login page
  */
 export function initLoginPage() {
-  const loginForm = document.getElementById('login-form');
-  const studentForm = document.getElementById('student-login-form');
   const tabAdmin = document.getElementById('tab-login-admin');
   const tabStudent = document.getElementById('tab-login-student');
 
-  // Tab switching
-  tabAdmin?.addEventListener('click', () => {
-    tabAdmin.style.background = 'var(--color-surface)';
-    tabAdmin.style.color = 'var(--color-primary)';
-    tabAdmin.style.boxShadow = 'var(--shadow-sm)';
-    tabStudent.style.background = 'transparent';
-    tabStudent.style.color = 'var(--color-text-secondary)';
-    tabStudent.style.boxShadow = 'none';
-    if (loginForm) loginForm.style.display = 'block';
-    if (studentForm) studentForm.style.display = 'none';
+  function switchTab(role) {
+    const loginForm = document.getElementById('login-form');
+    const studentForm = document.getElementById('student-login-form');
+    const heading = document.getElementById('login-heading');
+    const subheading = document.getElementById('login-subheading');
+    
+    if (role === 'student') {
+      if (tabStudent) {
+        tabStudent.style.background = 'var(--color-surface)';
+        tabStudent.style.color = 'var(--color-primary)';
+        tabStudent.style.boxShadow = 'var(--shadow-sm)';
+      }
+      if (tabAdmin) {
+        tabAdmin.style.background = 'transparent';
+        tabAdmin.style.color = 'var(--color-text-secondary)';
+        tabAdmin.style.boxShadow = 'none';
+      }
+      if (loginForm) loginForm.style.display = 'none';
+      if (studentForm) studentForm.style.display = 'block';
+      if (heading) heading.textContent = 'Student Portal Login';
+      if (subheading) subheading.textContent = 'Enter your Student ID or Registered Mobile number';
+    } else {
+      if (tabAdmin) {
+        tabAdmin.style.background = 'var(--color-surface)';
+        tabAdmin.style.color = 'var(--color-primary)';
+        tabAdmin.style.boxShadow = 'var(--shadow-sm)';
+      }
+      if (tabStudent) {
+        tabStudent.style.background = 'transparent';
+        tabStudent.style.color = 'var(--color-text-secondary)';
+        tabStudent.style.boxShadow = 'none';
+      }
+      if (loginForm) loginForm.style.display = 'block';
+      if (studentForm) studentForm.style.display = 'none';
+      if (heading) heading.textContent = 'Welcome to StudyLib';
+      if (subheading) subheading.textContent = 'Choose your portal to continue';
+    }
+  }
+
+  // Tab switching click handlers
+  tabAdmin?.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchTab('admin');
+  });
+  tabStudent?.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchTab('student');
   });
 
-  tabStudent?.addEventListener('click', () => {
-    tabStudent.style.background = 'var(--color-surface)';
-    tabStudent.style.color = 'var(--color-primary)';
-    tabStudent.style.boxShadow = 'var(--shadow-sm)';
-    tabAdmin.style.background = 'transparent';
-    tabAdmin.style.color = 'var(--color-text-secondary)';
-    tabAdmin.style.boxShadow = 'none';
-    if (loginForm) loginForm.style.display = 'none';
-    if (studentForm) studentForm.style.display = 'block';
-  });
-
-  // If URL has #/portal, default to student tab
-  if (window.location.hash.includes('portal')) {
-    tabStudent?.click();
+  // If URL has #/portal or ?portal, default to student tab
+  if (window.location.hash.includes('portal') || window.location.search.includes('portal')) {
+    switchTab('student');
+  } else {
+    switchTab('admin');
   }
 
   // Admin Login Submit
-  if (loginForm) {
-    const newForm = loginForm.cloneNode(true);
-    loginForm.parentNode.replaceChild(newForm, loginForm);
-
-    newForm.addEventListener('submit', async (e) => {
+  const loginForm = document.getElementById('login-form');
+  if (loginForm && !loginForm.dataset.bound) {
+    loginForm.dataset.bound = 'true';
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('login-email')?.value?.trim();
       const password = document.getElementById('login-password')?.value;
@@ -164,11 +189,10 @@ export function initLoginPage() {
   }
 
   // Student Login Submit
-  if (studentForm) {
-    const newStudentForm = studentForm.cloneNode(true);
-    studentForm.parentNode.replaceChild(newStudentForm, studentForm);
-
-    newStudentForm.addEventListener('submit', async (e) => {
+  const studentForm = document.getElementById('student-login-form');
+  if (studentForm && !studentForm.dataset.bound) {
+    studentForm.dataset.bound = 'true';
+    studentForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const identifier = document.getElementById('student-login-id')?.value?.trim();
       const password = document.getElementById('student-login-pwd')?.value?.trim();
@@ -198,9 +222,17 @@ export function initLoginPage() {
     });
   }
 
-  // Toggle password visibility
+  // Toggle admin password visibility
   document.getElementById('toggle-pwd-btn')?.addEventListener('click', () => {
     const pwdInput = document.getElementById('login-password');
+    if (pwdInput) {
+      pwdInput.type = pwdInput.type === 'password' ? 'text' : 'password';
+    }
+  });
+
+  // Toggle student password visibility
+  document.getElementById('toggle-student-pwd-btn')?.addEventListener('click', () => {
+    const pwdInput = document.getElementById('student-login-pwd');
     if (pwdInput) {
       pwdInput.type = pwdInput.type === 'password' ? 'text' : 'password';
     }

@@ -343,8 +343,11 @@
         </div>
         
         <div class="form-floating mb-4">
-          <input type="password" id="student-login-pwd" class="form-input" placeholder=" ">
-          <label for="student-login-pwd">Password / PIN (Optional)</label>
+          <input type="password" id="student-login-pwd" class="form-input" placeholder=" " style="padding-right: 48px;">
+          <label for="student-login-pwd">Password / PIN</label>
+          <button type="button" class="btn btn-icon btn-ghost" style="position:absolute; right:10px; top:12px;" id="toggle-student-pwd-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
         </div>
         
         <button type="submit" class="btn btn-primary btn-lg w-full justify-center" id="student-login-submit-btn" style="background: linear-gradient(135deg, #6c5ce7, #00b894);">
