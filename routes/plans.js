@@ -4,6 +4,15 @@ const Plan = require('../models/Plan');
 const { protect } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
 
+const roleCheck = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Not authorized for this role' });
+    }
+    next();
+  };
+};
+
 function validate(validations) {
   return async (req, res, next) => {
     for (const validation of validations) {
@@ -66,7 +75,7 @@ const createValidations = [
   body('price').isNumeric().withMessage('Price is required and must be a number')
 ];
 
-router.post('/', validate(createValidations), async (req, res) => {
+router.post('/', roleCheck('owner', 'branch_manager'), validate(createValidations), async (req, res) => {
   try {
     if (typeof req.body.features === 'string') {
       req.body.features = req.body.features.split(',').map(f => f.trim()).filter(f => f);
@@ -78,7 +87,7 @@ router.post('/', validate(createValidations), async (req, res) => {
   }
 });
 
-router.put('/reorder', async (req, res) => {
+router.put('/reorder', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { orders } = req.body;
     if (!Array.isArray(orders)) {
@@ -102,7 +111,7 @@ router.put('/reorder', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     if (typeof req.body.features === 'string') {
       req.body.features = req.body.features.split(',').map(f => f.trim()).filter(f => f);
@@ -121,7 +130,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const plan = await Plan.findByIdAndUpdate(
       req.params.id,

@@ -867,7 +867,7 @@ export async function render() {
       panel.querySelectorAll('.btn-transfer-seat').forEach(btn => {
         btn.addEventListener('click', async () => {
           const sRes = await api.get('/api/seats?status=available');
-          const availSeats = sRes.data?.seats || [];
+          const availSeats = Array.isArray(sRes.data) ? sRes.data : (sRes.data?.seats || sRes.seats || []);
           if (availSeats.length === 0) {
             Toast.warning('No available seats to allocate.');
             return;

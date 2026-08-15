@@ -8,6 +8,15 @@ const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 
+const roleCheck = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Not authorized for this role' });
+    }
+    next();
+  };
+};
+
 // Protect all branch routes
 router.use(protect);
 
@@ -152,7 +161,7 @@ router.post('/', validate([
   body('city').notEmpty().withMessage('City is required').trim(),
   body('phone').notEmpty().withMessage('Phone number is required').trim(),
   body('totalSeats').optional().isInt({ min: 0 }).withMessage('Total seats must be a non-negative number')
-]), async (req, res) => {
+]), roleCheck('owner'), async (req, res) => {
   try {
     const {
       name,
@@ -217,7 +226,7 @@ router.put('/:id', validate([
   body('city').optional().notEmpty().withMessage('City cannot be empty').trim(),
   body('phone').optional().notEmpty().withMessage('Phone number cannot be empty').trim(),
   body('totalSeats').optional().isInt({ min: 0 }).withMessage('Total seats must be a non-negative number')
-]), async (req, res) => {
+]), roleCheck('owner'), async (req, res) => {
   try {
     const branch = await Branch.findById(req.params.id);
     if (!branch) {
@@ -254,7 +263,7 @@ router.put('/:id', validate([
 });
 
 // DELETE /:id — Deactivate branch
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', roleCheck('owner'), async (req, res) => {
   try {
     const branch = await Branch.findById(req.params.id);
     if (!branch) {

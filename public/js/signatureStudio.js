@@ -262,6 +262,7 @@ export class SignatureStudio {
     this.canvas.addEventListener('touchstart', startDraw, { passive: false });
     this.canvas.addEventListener('touchmove', draw, { passive: false });
     window.addEventListener('touchend', stopDraw);
+    window.addEventListener('touchcancel', stopDraw);
 
     // Ink Color buttons
     wrap.querySelectorAll('.sig-color-btn').forEach(btn => {

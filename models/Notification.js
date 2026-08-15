@@ -13,7 +13,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['expiry', 'payment', 'admission', 'system', 'seat'],
+    enum: ['expiry', 'payment', 'admission', 'system', 'seat', 'student', 'general'],
     default: 'system'
   },
   link: {

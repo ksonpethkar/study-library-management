@@ -108,6 +108,12 @@ function renderSettingsUI(container, profile, settings) {
         <button class="settings-tab-btn" data-tab="modules" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
           <span>🧩</span> Module Settings
         </button>
+        <button class="settings-tab-btn" data-tab="audittrail" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>📋</span> Activity Audit Trail
+        </button>
+        <button class="settings-tab-btn" data-tab="landing" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>🌐</span> Public Landing Page & SEO
+        </button>
       </div>
     </div>
 
@@ -708,6 +714,57 @@ function renderSettingsUI(container, profile, settings) {
         </div>
       </div>
 
+      <!-- ========================================== -->
+      <!-- SECTION I: ACTIVITY AUDIT TRAIL            -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-audittrail" style="display: none;">
+        <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover);">
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">📋 Activity Audit Trail</h3>
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Review all administrative actions taken in the system.</p>
+          </div>
+          <div class="card-body" style="padding: 1.5rem;">
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+              <select id="audit-filter-module" class="form-select" style="max-width: 150px;"><option value="">All Modules</option><option value="settings">Settings</option><option value="students">Students</option></select>
+              <input type="text" id="audit-filter-action" class="form-control" placeholder="Action..." style="max-width: 150px;">
+              <input type="date" id="audit-filter-start" class="form-control" style="max-width: 150px;">
+              <input type="date" id="audit-filter-end" class="form-control" style="max-width: 150px;">
+              <button id="btn-filter-audit" class="btn btn-primary">Filter</button>
+            </div>
+            <table class="table" style="width: 100%; border-collapse: collapse;">
+              <thead><tr style="border-bottom: 2px solid var(--color-border);"><th style="padding: 0.5rem;">Date</th><th>User</th><th>Action</th><th>Module</th><th>Details</th><th>IP</th></tr></thead>
+              <tbody id="audit-log-tbody"></tbody>
+            </table>
+            <div id="audit-pagination" style="margin-top: 1rem; text-align: center;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION J: PUBLIC LANDING PAGE & SEO       -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-landing" style="display: none;">
+        <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🌐 Public Landing Page & SEO</h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Manage your public-facing website, hero banners, facilities, testimonials, and maps.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <a href="/landing" target="_blank" class="btn btn-outline btn-sm" style="font-weight: 600; display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
+                <span>👁️</span> View Public Landing Page
+              </a>
+              <button id="btn-save-landing" class="btn btn-primary btn-sm" style="font-weight: 600;">💾 Save Landing Page</button>
+            </div>
+          </div>
+          <div class="card-body" style="padding: 1.5rem;">
+            <div id="landing-settings-container">
+              <div class="text-center p-4 text-muted">Loading landing page configuration...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   `;
 
@@ -721,7 +778,9 @@ function renderSettingsUI(container, profile, settings) {
     general: container.querySelector('#panel-general'),
     backup: container.querySelector('#panel-backup'),
     formbuilder: container.querySelector('#panel-formbuilder'),
-    modules: container.querySelector('#panel-modules')
+    modules: container.querySelector('#panel-modules'),
+    audittrail: container.querySelector('#panel-audittrail'),
+    landing: container.querySelector('#panel-landing')
   };
 
   tabBtns.forEach(btn => {
@@ -738,7 +797,75 @@ function renderSettingsUI(container, profile, settings) {
       Object.entries(panels).forEach(([key, panel]) => {
         if (panel) panel.style.display = key === target ? 'block' : 'none';
       });
+
+      if (target === 'audittrail') {
+        loadAuditLogs();
+      }
     });
+  });
+
+  // Audit Logs Logic
+  let currentAuditPage = 1;
+  const loadAuditLogs = async () => {
+    try {
+      const mod = container.querySelector('#audit-filter-module').value;
+      const act = container.querySelector('#audit-filter-action').value;
+      const start = container.querySelector('#audit-filter-start').value;
+      const end = container.querySelector('#audit-filter-end').value;
+      
+      const res = await api.get('/api/audit-logs', { 
+        module: mod, 
+        action: act, 
+        startDate: start, 
+        endDate: end, 
+        page: currentAuditPage 
+      });
+      
+      const tbody = container.querySelector('#audit-log-tbody');
+      const pag = container.querySelector('#audit-pagination');
+      
+      if (!res.success || !res.data || res.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No logs found.</td></tr>';
+        pag.innerHTML = '';
+        return;
+      }
+      
+      tbody.innerHTML = res.data.map(log => `
+        <tr>
+          <td>${new Date(log.createdAt).toLocaleString()}</td>
+          <td>${escapeHTML(log.userName)} (${escapeHTML(log.userRole)})</td>
+          <td><span class="badge badge-secondary">${escapeHTML(log.action)}</span></td>
+          <td><span class="badge badge-info">${escapeHTML(log.module)}</span></td>
+          <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHTML(log.details)}">${escapeHTML(log.details)}</td>
+          <td>${escapeHTML(log.ipAddress || '')}</td>
+        </tr>
+      `).join('');
+      
+      // Pagination
+      let pagHtml = '';
+      if (res.pagination.pages > 1) {
+        if (currentAuditPage > 1) pagHtml += `<button class="btn btn-sm btn-outline" data-page="${currentAuditPage - 1}">Prev</button>`;
+        pagHtml += `<span style="padding: 0.25rem 0.5rem;">Page ${res.pagination.page} of ${res.pagination.pages}</span>`;
+        if (currentAuditPage < res.pagination.pages) pagHtml += `<button class="btn btn-sm btn-outline" data-page="${currentAuditPage + 1}">Next</button>`;
+      }
+      pag.innerHTML = pagHtml;
+      
+      pag.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentAuditPage = parseInt(btn.dataset.page);
+          loadAuditLogs();
+        });
+      });
+      
+    } catch (err) {
+      console.error(err);
+      container.querySelector('#audit-log-tbody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Failed to load logs.</td></tr>';
+    }
+  };
+
+  container.querySelector('#btn-filter-audit')?.addEventListener('click', () => {
+    currentAuditPage = 1;
+    loadAuditLogs();
   });
 
   // Backup Download Event
@@ -1080,8 +1207,8 @@ function renderSettingsUI(container, profile, settings) {
       const bpPayload = {
         businessName: container.querySelector('#setting-businessName')?.value?.trim(),
         tagline: container.querySelector('#setting-tagline')?.value?.trim(),
-        logo: container.querySelector('#setting-logo')?.value?.trim(),
-        upiQrCode: container.querySelector('#setting-upiQrCode')?.value?.trim(),
+        logo: container.querySelector('input[name="logo"]')?.value?.trim() || container.querySelector('#setting-logo')?.value?.trim() || '',
+        upiQrCode: container.querySelector('input[name="upiQrCode"]')?.value?.trim() || container.querySelector('#setting-upiQrCode')?.value?.trim() || '',
         phone: container.querySelector('#setting-phone')?.value?.trim(),
         email: container.querySelector('#setting-email')?.value?.trim(),
         website: container.querySelector('#setting-website')?.value?.trim(),
@@ -1453,6 +1580,7 @@ function renderSettingsUI(container, profile, settings) {
   loadCustomFields();
 
   initModuleSettings(container);
+  initLandingSettings(container);
 }
 
 async function initModuleSettings(container) {
@@ -1572,6 +1700,110 @@ async function initModuleSettings(container) {
         }
       }
     });
+  });
+
+  loadSettings();
+}
+
+async function initLandingSettings(container) {
+  const listContainer = container.querySelector('#landing-settings-container');
+  if (!listContainer) return;
+  
+  let config = {};
+  
+  const loadSettings = async () => {
+    try {
+      const res = await api.get('/api/landing');
+      if (res.success && res.data) {
+        config = res.data.landing;
+        renderForm();
+      }
+    } catch (e) {
+      listContainer.innerHTML = '<div class="text-danger">Failed to load landing settings</div>';
+    }
+  };
+
+  const renderForm = () => {
+    listContainer.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <div style="border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md);">
+          <h4>Hero Section</h4>
+          <input type="text" id="l-hero-title" class="form-control mb-2" value="${escapeHTML(config.hero?.title || '')}" placeholder="Headline">
+          <textarea id="l-hero-subtitle" class="form-control mb-2" placeholder="Sub-headline">${escapeHTML(config.hero?.subtitle || '')}</textarea>
+          <input type="text" id="l-hero-banner" class="form-control mb-2" value="${escapeHTML(config.hero?.bannerImage || '')}" placeholder="Banner Image URL">
+          <input type="text" id="l-hero-ticker" class="form-control mb-2" value="${escapeHTML(config.hero?.tickerText || '')}" placeholder="Announcement Ticker text">
+        </div>
+        
+        <div style="border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md);">
+          <h4>Facilities & Amenities (JSON Array)</h4>
+          <textarea id="l-facilities" class="form-control" rows="4">${escapeHTML(JSON.stringify(config.facilities?.items || [], null, 2))}</textarea>
+          <small class="text-muted">Edit as JSON: [{"icon":"❄️", "title":"AC", "description":"..."}]</small>
+        </div>
+        
+        <div style="border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md);">
+          <h4>Rules & Code of Conduct (JSON Array of strings)</h4>
+          <textarea id="l-rules" class="form-control" rows="4">${escapeHTML(JSON.stringify(config.rules?.items || [], null, 2))}</textarea>
+        </div>
+        
+        <div style="border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md);">
+          <h4>Photo Gallery (JSON Array)</h4>
+          <textarea id="l-gallery" class="form-control" rows="4">${escapeHTML(JSON.stringify(config.gallery?.images || [], null, 2))}</textarea>
+          <small class="text-muted">Edit as JSON: [{"url":"...", "caption":"..."}]</small>
+        </div>
+        
+        <div style="border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md);">
+          <h4>Testimonials (JSON Array)</h4>
+          <textarea id="l-testimonials" class="form-control" rows="4">${escapeHTML(JSON.stringify(config.testimonials?.items || [], null, 2))}</textarea>
+          <small class="text-muted">Edit as JSON: [{"name":"...", "exam":"...", "feedback":"...", "rating":5}]</small>
+        </div>
+        
+        <div style="border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md);">
+          <h4>Location & Google Maps</h4>
+          <textarea id="l-contact-map" class="form-control mb-2" placeholder="Google Maps Embed URL / iframe src">${escapeHTML(config.contact?.googleMapEmbedUrl || '')}</textarea>
+          <input type="text" id="l-contact-address" class="form-control mb-2" value="${escapeHTML(config.contact?.address || '')}" placeholder="Address">
+          <input type="text" id="l-contact-phone" class="form-control mb-2" value="${escapeHTML(config.contact?.phone || '')}" placeholder="Phone">
+          <input type="text" id="l-contact-wa" class="form-control mb-2" value="${escapeHTML(config.contact?.whatsapp || '')}" placeholder="WhatsApp">
+          <input type="text" id="l-contact-hours" class="form-control mb-2" value="${escapeHTML(config.contact?.openingHours || '')}" placeholder="Opening Hours">
+        </div>
+      </div>
+    `;
+  };
+
+  container.querySelector('#btn-save-landing')?.addEventListener('click', async () => {
+    const btn = container.querySelector('#btn-save-landing');
+    Loading.button(btn, true);
+    try {
+      const payload = {
+        hero: {
+          title: listContainer.querySelector('#l-hero-title').value,
+          subtitle: listContainer.querySelector('#l-hero-subtitle').value,
+          bannerImage: listContainer.querySelector('#l-hero-banner').value,
+          tickerText: listContainer.querySelector('#l-hero-ticker').value,
+        },
+        facilities: { items: JSON.parse(listContainer.querySelector('#l-facilities').value) },
+        rules: { items: JSON.parse(listContainer.querySelector('#l-rules').value) },
+        gallery: { images: JSON.parse(listContainer.querySelector('#l-gallery').value) },
+        testimonials: { items: JSON.parse(listContainer.querySelector('#l-testimonials').value) },
+        contact: {
+          googleMapEmbedUrl: listContainer.querySelector('#l-contact-map').value,
+          address: listContainer.querySelector('#l-contact-address').value,
+          phone: listContainer.querySelector('#l-contact-phone').value,
+          whatsapp: listContainer.querySelector('#l-contact-wa').value,
+          openingHours: listContainer.querySelector('#l-contact-hours').value
+        }
+      };
+
+      const res = await api.put('/api/landing', payload);
+      if (res.success) {
+        Toast.success('Landing page updated successfully');
+      } else {
+        Toast.error(res.message || 'Error updating landing page');
+      }
+    } catch (err) {
+      Toast.error(err.message || 'Invalid JSON format or network error');
+    } finally {
+      Loading.button(btn, false);
+    }
   });
 
   loadSettings();

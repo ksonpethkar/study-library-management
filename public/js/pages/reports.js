@@ -440,7 +440,7 @@ export async function render(container) {
     if (btnQuickAttendanceCsv) btnQuickAttendanceCsv.onclick = () => downloadReport('attendance', 'csv');
 
     // Print summary
-    const btnPrintSummary = container.querySelector('#btnPrintSummary');
+    const btnPrintSummary = container.querySelector('#btnPrintReport') || container.querySelector('#btnPrintSummary');
     if (btnPrintSummary) {
       btnPrintSummary.addEventListener('click', () => {
         window.print();

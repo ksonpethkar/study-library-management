@@ -315,62 +315,7 @@ function renderPortalUI(container, data) {
     });
   });
 
-  // Attach 1-Click Renewal Modal
-  container.querySelector('#btn-portal-renew')?.addEventListener('click', () => {
-    const renewContent = document.createElement('div');
-    renewContent.innerHTML = `
-      <div class="text-center p-3">
-        <h4 style="margin: 0 0 0.5rem 0; font-weight: 700; color: var(--color-text-primary);">Renew Plan: ${escapeHTML(planName)}</h4>
-        <p style="color: var(--color-text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">
-          Pay via UPI to renew your membership desk access immediately.
-        </p>
 
-        <div style="
-          width: 200px; height: 200px; margin: 0 auto 1.25rem auto; background: #ffffff; padding: 12px;
-          border-radius: 12px; border: 2px solid var(--color-primary); box-shadow: var(--shadow-md); display: flex; align-items: center; justify-content: center;
-        ">
-          ${business.upiQrCode ? `<img src="${business.upiQrCode}" style="max-width: 100%; max-height: 100%;">` : `
-            <div style="text-align: center; color: #1a1a2e;">
-              <div style="font-size: 3rem;">📱</div>
-              <strong style="font-size: 0.85rem;">Scan UPI QR</strong>
-            </div>
-          `}
-        </div>
-
-        <div style="font-size: 1.1rem; font-weight: 800; color: var(--color-success); margin-bottom: 1.5rem;">
-          Payable Amount: ₹${planPrice}
-        </div>
-
-        <div class="d-flex justify-content-center gap-3">
-          <button id="btn-confirm-renewal-req" class="btn btn-primary" style="font-weight: 700;">
-            ✓ I Have Paid — Submit Renewal Request
-          </button>
-          <button class="btn btn-secondary modal-close-btn" onclick="Modal.close()">Cancel</button>
-        </div>
-      </div>
-    `;
-
-    const rModal = new Modal({ title: '⚡ Instant Plan Renewal', content: renewContent, size: 'md' });
-    rModal.show();
-
-    renewContent.querySelector('#btn-confirm-renewal-req')?.addEventListener('click', async () => {
-      const b = renewContent.querySelector('#btn-confirm-renewal-req');
-      Loading.button(b, true);
-      try {
-        const res = await api.post('/api/student-portal/renew', {});
-        if (res.success) {
-          Toast.success(res.message);
-          rModal.close();
-        } else {
-          Toast.error(res.message);
-        }
-      } catch (e) {
-        Toast.error(e.message || 'Error submitting renewal request');
-      } finally {
-        Loading.button(b, false);
-      }
-    });
-  });
 
   // Attach Leave Request Modal
   container.querySelector('#btn-portal-leave')?.addEventListener('click', async () => {

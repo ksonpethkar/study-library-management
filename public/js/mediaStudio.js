@@ -91,6 +91,11 @@ export class MediaStudio {
         </div>
 
         <!-- MAIN WORKSPACE -->
+        <style>
+          @media (max-width: 767px) {
+            .ms-workspace-grid { grid-template-columns: 1fr !important; }
+          }
+        </style>
         <div class="ms-workspace-grid" style="display: grid; grid-template-columns: 1fr 280px; gap: 16px;">
           
           <!-- LEFT: Interactive Canvas Viewport -->
@@ -467,7 +472,9 @@ export class MediaStudio {
     const onMouseDown = (e) => {
       e.preventDefault();
       const rect = viewport.getBoundingClientRect();
-      this.dragStart = { x: e.clientX, y: e.clientY };
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      this.dragStart = { x: clientX, y: clientY };
       this.cropStart = { ...this.crop };
 
       if (e.target.classList.contains('ms-handle')) {
@@ -478,12 +485,16 @@ export class MediaStudio {
 
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('mouseup', onMouseUp);
+      window.addEventListener('touchmove', onMouseMove, { passive: false });
+      window.addEventListener('touchend', onMouseUp);
     };
 
     const onMouseMove = (e) => {
       const rect = viewport.getBoundingClientRect();
-      const dx = (e.clientX - this.dragStart.x) / rect.width;
-      const dy = (e.clientY - this.dragStart.y) / rect.height;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const dx = (clientX - this.dragStart.x) / rect.width;
+      const dy = (clientY - this.dragStart.y) / rect.height;
 
       if (this.isDraggingCrop) {
         this.crop.x = Math.max(0, Math.min(1 - this.crop.w, this.cropStart.x + dx));
@@ -500,9 +511,12 @@ export class MediaStudio {
       this.activeHandle = null;
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onMouseMove);
+      window.removeEventListener('touchend', onMouseUp);
     };
 
     cropBox?.addEventListener('mousedown', onMouseDown);
+    cropBox?.addEventListener('touchstart', onMouseDown, { passive: false });
   }
 
   handleResize(handle, dx, dy, viewW, viewH) {

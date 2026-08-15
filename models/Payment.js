@@ -46,6 +46,21 @@ const paymentSchema = new mongoose.Schema({
         enum: ['paid', 'pending', 'partial', 'refunded'],
         default: 'paid'
     },
+    balanceDue: {
+        type: Number,
+        default: 0
+    },
+    dueDate: Date,
+    installments: [{
+        amount: Number,
+        date: { type: Date, default: Date.now },
+        method: String,
+        transactionId: String,
+        collectedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        }
+    }],
     transactionId: String,
     notes: String,
     collectedBy: {

@@ -42,14 +42,13 @@ const formTemplateSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Ensure only one template is active
-formTemplateSchema.pre('save', async function(next) {
+formTemplateSchema.pre('save', async function() {
   if (this.isActive && this.isModified('isActive')) {
     await this.constructor.updateMany(
       { _id: { $ne: this._id } },
       { isActive: false }
     );
   }
-  next();
 });
 
 // Get active template or default

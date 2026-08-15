@@ -1,5 +1,5 @@
 import api from './api.js';
-import { Toast, Loading } from './ui.js';
+import { Toast, Modal, Loading, escapeHTML } from './ui.js';
 
 // We import App lazily to avoid circular dependency at module load time
 let _App = null;

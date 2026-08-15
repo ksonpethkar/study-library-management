@@ -221,9 +221,9 @@ export async function render(container) {
 
   function renderSummaryCards(data) {
     const revEl = page.querySelector('#kpi-revenue');
-    const expEl = page.querySelector('#kpi-expenses');
-    const profitEl = page.querySelector('#kpi-profit');
-    const marginEl = page.querySelector('#kpi-margin-sub');
+    const expEl = page.querySelector('#kpi-expense') || page.querySelector('#kpi-expenses');
+    const profitEl = page.querySelector('#kpi-net-profit') || page.querySelector('#kpi-profit');
+    const marginEl = page.querySelector('#kpi-margin-percent') || page.querySelector('#kpi-margin-sub');
     const expSubEl = page.querySelector('#kpi-expenses-sub');
 
     if (revEl) revEl.textContent = formatCurrency(data.totalRevenue);

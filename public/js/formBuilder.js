@@ -70,7 +70,7 @@ export class FormBuilder {
 
   static async loadData() {
     try {
-      Loading.show();
+      if (typeof Loading !== 'undefined' && Loading.show) Loading.show();
       // Fetch sections, fields, templates
       // Mocking endpoints or using real ones if they exist
       const [sectionsRes, fieldsRes, templatesRes] = await Promise.all([
@@ -96,7 +96,7 @@ export class FormBuilder {
       console.error('Error loading form builder data:', e);
       Toast.error('Failed to load form configuration');
     } finally {
-      Loading.hide();
+      if (typeof Loading !== 'undefined' && Loading.hide) Loading.hide();
     }
   }
 
@@ -479,6 +479,7 @@ export class FormBuilder {
     Confirm.show({
       title: 'Delete Field',
       message: 'Are you sure you want to delete this field? This action cannot be undone.',
+      className: 'btn-danger',
       onConfirm: () => {
         this.fields = this.fields.filter(f => (f._id || f.id) !== fieldId);
         this.renderSections();

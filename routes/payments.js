@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const { protect } = require('../middleware/auth');
+const { roleCheck } = require('../middleware/roleCheck');
 const Payment = require('../models/Payment');
 const Student = require('../models/Student');
 const Plan = require('../models/Plan');
@@ -83,7 +84,7 @@ router.get('/dues', async (req, res) => {
     }
 });
 
-router.get('/student/{*studentId}', async (req, res) => {
+router.get('/student/:studentId', async (req, res) => {
     try {
         const payments = await Payment.find({ student: req.params.studentId })
             .populate('plan', 'name')
@@ -95,7 +96,20 @@ router.get('/student/{*studentId}', async (req, res) => {
     }
 });
 
-router.get('/{*id}/receipt', async (req, res) => {
+router.get('/pending-installments', async (req, res) => {
+    try {
+        const payments = await Payment.find({ balanceDue: { $gt: 0 } })
+            .populate('student', 'name studentId phone')
+            .populate('plan', 'name')
+            .sort({ dueDate: 1 });
+            
+        res.json({ success: true, data: payments, message: 'Pending installments fetched' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+router.get('/:id/receipt', async (req, res) => {
     try {
         const payment = await Payment.findById(req.params.id)
             .populate('student', 'name studentId phone email address')
@@ -130,6 +144,8 @@ router.get('/{*id}/receipt', async (req, res) => {
                 method: payment.paymentMethod,
                 transactionId: payment.transactionId
             },
+            balanceDue: payment.balanceDue,
+            installments: payment.installments,
             notes: payment.notes,
             collectedBy: payment.collectedBy ? payment.collectedBy.name : 'System'
         };
@@ -140,7 +156,38 @@ router.get('/{*id}/receipt', async (req, res) => {
     }
 });
 
-router.get('/{*id}', async (req, res) => {
+router.post('/:id/pay-balance', roleCheck('admin', 'owner', 'staff'), async (req, res) => {
+    try {
+        const { amount, method, transactionId } = req.body;
+        const payment = await Payment.findById(req.params.id);
+        
+        if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
+        if (payment.balanceDue <= 0) return res.status(400).json({ success: false, message: 'No balance due on this payment' });
+        
+        const payAmount = parseFloat(amount);
+        if (payAmount <= 0) return res.status(400).json({ success: false, message: 'Invalid payment amount' });
+        if (payAmount > payment.balanceDue) return res.status(400).json({ success: false, message: 'Amount exceeds balance due' });
+        
+        payment.installments.push({
+            amount: payAmount,
+            method: method || 'cash',
+            transactionId: transactionId,
+            collectedBy: req.user._id
+        });
+        
+        payment.balanceDue -= payAmount;
+        if (payment.balanceDue <= 0) {
+            payment.status = 'paid';
+        }
+        
+        await payment.save();
+        res.json({ success: true, data: payment, message: 'Installment paid successfully' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+router.get('/:id', async (req, res) => {
     try {
         const payment = await Payment.findById(req.params.id)
             .populate('student', 'name studentId phone email address')
@@ -188,7 +235,7 @@ router.post('/', validate([
     }
 });
 
-router.put('/{*id}', async (req, res) => {
+router.put('/:id', async (req, res) => {
     try {
         const payment = await Payment.findById(req.params.id);
         if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
@@ -202,7 +249,7 @@ router.put('/{*id}', async (req, res) => {
     }
 });
 
-router.delete('/{*id}', async (req, res) => {
+router.delete('/:id', async (req, res) => {
     try {
         const payment = await Payment.findByIdAndDelete(req.params.id);
         if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });

@@ -80,6 +80,7 @@ export async function render(container) {
                         <option value="partial">🟠 Partial</option>
                         <option value="refunded">🔴 Refunded</option>
                     </select>
+                    <button id="btnPendingInstallments" class="btn btn-sm btn-outline-warning" style="font-weight: 600;">⏳ Pending Balances</button>
                 </div>
             </div>
             <div class="card-body p-0">
@@ -143,6 +144,12 @@ export async function render(container) {
         
         const statusSelect = container.querySelector('#filterStatus');
         if (statusSelect) statusSelect.addEventListener('change', loadPayments);
+        
+        const btnPending = container.querySelector('#btnPendingInstallments');
+        if (btnPending) btnPending.addEventListener('click', () => {
+            if (statusSelect) statusSelect.value = 'partial';
+            loadPayments();
+        });
     }, 0);
 
     async function loadStats() {
@@ -195,6 +202,7 @@ export async function render(container) {
                     </td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary btn-view" data-id="${p._id}" style="padding: 3px 8px; font-size: 0.8rem;">View Receipt</button>
+                        ${p.status === 'partial' && p.balanceDue > 0 ? `<button class="btn btn-sm btn-warning btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px;">💰 Pay Balance</button>` : ''}
                     </td>
                 </tr>
             `).join('');
@@ -203,6 +211,12 @@ export async function render(container) {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
                     showReceiptModal(btn.dataset.id);
+                });
+            });
+            tbody.querySelectorAll('.btn-pay-balance').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showPayBalanceModal(btn.dataset.id, btn.dataset.balance);
                 });
             });
         } catch (e) {
@@ -415,6 +429,71 @@ export async function render(container) {
         });
     }
 
+    async function showPayBalanceModal(paymentId, balanceDue) {
+        const content = document.createElement('div');
+        content.innerHTML = `
+            <form id="payBalanceForm">
+                <div class="row" style="row-gap: 14px;">
+                    <div class="col-12">
+                        <label class="form-label" style="font-weight: 500;">Balance Due (₹)</label>
+                        <input type="number" class="form-control" value="${balanceDue}" readonly>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" style="font-weight: 500;">Amount to Pay (₹) *</label>
+                        <input type="number" name="amount" class="form-control" max="${balanceDue}" min="1" required value="${balanceDue}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" style="font-weight: 500;">Payment Method *</label>
+                        <select name="method" class="form-select form-control" required>
+                            <option value="cash">Cash</option>
+                            <option value="upi" selected>UPI (GPay / PhonePe / Paytm)</option>
+                            <option value="bank_transfer">Bank Transfer (NEFT/IMPS)</option>
+                            <option value="card">Debit / Credit Card</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" style="font-weight: 500;">Transaction ID (Optional)</label>
+                        <input type="text" name="transactionId" class="form-control">
+                    </div>
+                    <div class="col-12 text-end mt-3 d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary modal-close-btn" onclick="Modal.close()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Pay Installment</button>
+                    </div>
+                </div>
+            </form>
+        `;
+        
+        const modal = new Modal({
+            title: 'Pay Balance Installment',
+            content: content,
+            size: 'md'
+        });
+        modal.show();
+        
+        const form = content.querySelector('#payBalanceForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            data.amount = parseFloat(data.amount) || 0;
+            
+            try {
+                const res = await api.post(`/api/payments/${paymentId}/pay-balance`, data);
+                if (res.success) {
+                    modal.hide();
+                    Toast.success('Installment paid successfully!');
+                    loadStats();
+                    loadPayments();
+                    showReceiptModal(paymentId);
+                } else {
+                    Toast.error(res.message || 'Failed to pay installment');
+                }
+            } catch (err) {
+                Toast.error(err.message || 'An error occurred');
+            }
+        });
+    }
+
     async function showReceiptModal(paymentId) {
         try {
             const [res, configRes, settingsRes] = await Promise.all([
@@ -538,9 +617,18 @@ export async function render(container) {
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #000;">Total Received</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #000;">Total Amount</td>
                                     <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 1.1em; color: #000;">${formatCurrency(r.paymentDetails.finalAmount)}</td>
                                 </tr>
+                                ${r.balanceDue > 0 || r.installments?.length > 0 ? `
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #000;">Paid Amount</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 1.1em; color: #000;">${formatCurrency(r.paymentDetails.finalAmount - (r.balanceDue || 0))}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #d32f2f;">Balance Due</td>
+                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 1.1em; color: #d32f2f;">${formatCurrency(r.balanceDue || 0)}</td>
+                                </tr>` : ''}
                             </tfoot>
                         </table>
                         
@@ -581,6 +669,7 @@ export async function render(container) {
                         </table>
                         <div style="border-top: 1px dashed #000; padding: 5px 0; text-align: right; font-size: 1.1em; font-weight: bold; margin-bottom: 10px; color: #000;">
                             Total: ${formatCurrency(r.paymentDetails.finalAmount)}
+                            ${r.balanceDue > 0 || r.installments?.length > 0 ? `<br>Paid: ${formatCurrency(r.paymentDetails.finalAmount - (r.balanceDue || 0))}<br><span style="color:red;">Due: ${formatCurrency(r.balanceDue || 0)}</span>` : ''}
                         </div>
                         <div style="text-align: center; font-size: 0.75em; color: #000;">
                             <p style="margin: 2px 0;">Paid via: ${escapeHTML(r.paymentDetails.method)}</p>
@@ -642,6 +731,15 @@ export async function render(container) {
                             <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; color: #333;">
                                 <div>Late Fee</div>
                                 <div>+${formatCurrency(r.paymentDetails.lateFee)}</div>
+                            </div>` : ''}
+                            ${r.balanceDue > 0 || r.installments?.length > 0 ? `
+                            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; font-weight: bold; color: #333;">
+                                <div>Paid Amount</div>
+                                <div>${formatCurrency(r.paymentDetails.finalAmount - (r.balanceDue || 0))}</div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 12px 0; font-weight: bold; color: #d32f2f;">
+                                <div>Balance Due</div>
+                                <div>${formatCurrency(r.balanceDue || 0)}</div>
                             </div>` : ''}
                         </div>
                         
@@ -718,6 +816,15 @@ export async function render(container) {
                                     <td style="padding: 5px; text-align: right; font-weight: bold;">Grand Total:</td>
                                     <td style="padding: 5px; text-align: right; font-weight: bold; border-bottom: 2px solid #000;">${formatCurrency(amt)}</td>
                                 </tr>
+                                ${r.balanceDue > 0 || r.installments?.length > 0 ? `
+                                <tr>
+                                    <td style="padding: 5px; text-align: right; font-weight: bold;">Paid Amount:</td>
+                                    <td style="padding: 5px; text-align: right; font-weight: bold;">${formatCurrency(amt - (r.balanceDue || 0))}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px; text-align: right; font-weight: bold; color: #d32f2f;">Balance Due:</td>
+                                    <td style="padding: 5px; text-align: right; font-weight: bold; color: #d32f2f; border-bottom: 2px solid #000;">${formatCurrency(r.balanceDue || 0)}</td>
+                                </tr>` : ''}
                             </table>
                         </div>
                         

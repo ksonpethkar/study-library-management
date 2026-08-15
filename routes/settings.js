@@ -101,7 +101,7 @@ const validateBusinessProfile = validate([
   body('logo').optional().trim()
 ]);
 
-router.put('/business-profile', validateBusinessProfile, async (req, res) => {
+router.put('/business-profile', roleCheck('owner'), validateBusinessProfile, async (req, res) => {
   try {
     const profile = await BusinessProfile.getProfile();
     const fields = [
@@ -142,7 +142,7 @@ router.put('/business-profile', validateBusinessProfile, async (req, res) => {
  * @desc    Update operational settings
  * @access  Private
  */
-router.put('/system-settings', async (req, res) => {
+router.put('/system-settings', roleCheck('owner'), async (req, res) => {
   try {
     const updates = req.body;
     if (!updates || typeof updates !== 'object') {
@@ -368,7 +368,7 @@ router.post('/change-password', validatePasswordUpdate, async (req, res) => {
  * @desc    Generate and download full JSON database backup
  * @access  Private (Owner / Super Admin)
  */
-router.get('/backup', async (req, res) => {
+router.get('/backup', roleCheck('owner'), async (req, res) => {
   try {
     const Student = require('../models/Student');
     const Seat = require('../models/Seat');
@@ -421,7 +421,7 @@ router.get('/backup', async (req, res) => {
  * @desc    Restore database from JSON backup payload
  * @access  Private (Owner / Super Admin)
  */
-router.post('/restore', async (req, res) => {
+router.post('/restore', roleCheck('owner'), async (req, res) => {
   try {
     const { data } = req.body;
     if (!data) {

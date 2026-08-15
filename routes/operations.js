@@ -5,6 +5,15 @@ const { Visitor, Announcement, Holiday, LostFound, Feedback } = require('../mode
 
 router.use(protect);
 
+const roleCheck = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Not authorized for this role' });
+    }
+    next();
+  };
+};
+
 // ----------------------------------------------------
 // 1. Visitors & Leads
 // ----------------------------------------------------
@@ -56,7 +65,7 @@ router.get('/announcements', async (req, res) => {
   }
 });
 
-router.post('/announcements', async (req, res) => {
+router.post('/announcements', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const announcement = await Announcement.create(req.body);
     res.json({ success: true, data: announcement, message: 'Notice posted successfully' });
@@ -65,7 +74,7 @@ router.post('/announcements', async (req, res) => {
   }
 });
 
-router.delete('/announcements/:id', async (req, res) => {
+router.delete('/announcements/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     await Announcement.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Notice removed' });
@@ -86,7 +95,7 @@ router.get('/holidays', async (req, res) => {
   }
 });
 
-router.post('/holidays', async (req, res) => {
+router.post('/holidays', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const holiday = await Holiday.create(req.body);
     res.json({ success: true, data: holiday, message: 'Holiday scheduled' });
@@ -95,7 +104,7 @@ router.post('/holidays', async (req, res) => {
   }
 });
 
-router.delete('/holidays/:id', async (req, res) => {
+router.delete('/holidays/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     await Holiday.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Holiday removed' });
@@ -202,7 +211,7 @@ router.get('/leave-requests', async (req, res) => {
   }
 });
 
-router.put('/leave-requests/:id', async (req, res) => {
+router.put('/leave-requests/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { status, adminReply } = req.body;
     const leave = await LeaveRequest.findByIdAndUpdate(
@@ -228,7 +237,7 @@ router.get('/seat-changes', async (req, res) => {
   }
 });
 
-router.put('/seat-changes/:id', async (req, res) => {
+router.put('/seat-changes/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { status, allocatedSeatId, adminReply } = req.body;
     const updateData = { status, adminReply };
@@ -277,7 +286,7 @@ router.get('/referrals', async (req, res) => {
   }
 });
 
-router.put('/referrals/:id', async (req, res) => {
+router.put('/referrals/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { status, reward } = req.body;
     const ref = await Referral.findByIdAndUpdate(

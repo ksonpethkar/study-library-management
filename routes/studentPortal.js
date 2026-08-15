@@ -22,13 +22,8 @@ async function getStudentForUser(user) {
     ]
   }).populate('plan').populate('seat').populate('branch');
 
-  // Fallback: If no student matches user's email, return the first active student for preview demo
-  if (!student) {
-    student = await Student.findOne({ status: 'active' })
-      .populate('plan')
-      .populate('seat')
-      .populate('branch');
-  }
+  // Fallback removed
+
 
   return student;
 }
@@ -104,7 +99,7 @@ router.post('/punch', async (req, res) => {
       date: { $gte: today, $lt: tomorrow }
     });
 
-    const nowTimeStr = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    const now = new Date();
 
     if (!att) {
       // Punch In
@@ -112,29 +107,34 @@ router.post('/punch', async (req, res) => {
         student: student._id,
         seat: student.seat?._id || student.seat || null,
         date: new Date(),
-        checkIn: nowTimeStr,
+        checkIn: now,
         status: 'present'
       });
 
       return res.json({
         success: true,
         data: att,
-        message: `Punched in successfully at ${nowTimeStr}`
+        message: `Punched in successfully at ${now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}`
       });
     } else if (att.checkIn && !att.checkOut) {
       // Punch Out
-      att.checkOut = nowTimeStr;
+      att.checkOut = now;
       
       // Calculate duration
-      const [inH, inM] = att.checkIn.split(':').map(Number);
-      const [outH, outM] = nowTimeStr.split(':').map(Number);
-      att.duration = Math.max(0, (outH * 60 + outM) - (inH * 60 + inM));
+      let inTime = att.checkIn;
+      if (typeof inTime === 'string') {
+        const [inH, inM] = inTime.split(':').map(Number);
+        inTime = new Date(today);
+        inTime.setHours(inH, inM, 0, 0);
+      }
+      
+      att.duration = Math.max(0, Math.floor((now.getTime() - inTime.getTime()) / 60000));
       await att.save();
 
       return res.json({
         success: true,
         data: att,
-        message: `Punched out successfully at ${nowTimeStr} (${att.duration} mins studied)`
+        message: `Punched out successfully at ${now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })} (${att.duration} mins studied)`
       });
     } else {
       return res.json({

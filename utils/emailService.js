@@ -62,7 +62,7 @@ class EmailService {
   static async sendPaymentReceipt(student, payment, businessName = 'Study Library') {
     if (!student.email) return;
 
-    const subject = `Receipt Confirmation: ₹${payment.amountPaid.toLocaleString('en-IN')} - ${businessName}`;
+    const subject = `Receipt Confirmation: ₹${(payment.finalAmount || payment.amount).toLocaleString('en-IN')} - ${businessName}`;
     const html = `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
         <div style="background: #6c5ce7; color: #ffffff; padding: 24px; text-align: center;">
@@ -84,11 +84,11 @@ class EmailService {
             </tr>
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 10px 0; color: #64748b;">Amount Paid:</td>
-              <td style="padding: 10px 0; font-weight: 800; font-size: 18px; color: #00b894; text-align: right;">₹${payment.amountPaid.toLocaleString('en-IN')}</td>
+              <td style="padding: 10px 0; font-weight: 800; font-size: 18px; color: #00b894; text-align: right;">₹${(payment.finalAmount || payment.amount).toLocaleString('en-IN')}</td>
             </tr>
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 10px 0; color: #64748b;">Payment Mode:</td>
-              <td style="padding: 10px 0; text-align: right;">${(payment.paymentMode || 'UPI').toUpperCase()}</td>
+              <td style="padding: 10px 0; text-align: right;">${(payment.paymentMethod || 'UPI').toUpperCase()}</td>
             </tr>
             <tr>
               <td style="padding: 10px 0; color: #64748b;">Membership Valid Until:</td>

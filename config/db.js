@@ -39,11 +39,15 @@ const connectDB = async () => {
   }
 };
 
-// Graceful shutdown on SIGINT
-process.on('SIGINT', async () => {
+// Graceful shutdown on SIGINT and SIGTERM
+process.removeAllListeners('SIGINT');
+process.removeAllListeners('SIGTERM');
+const shutdown = async () => {
   await mongoose.connection.close();
   console.log('MongoDB connection closed due to app termination');
   process.exit(0);
-});
+};
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 module.exports = connectDB;

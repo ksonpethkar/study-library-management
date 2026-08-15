@@ -12,6 +12,17 @@ const Seat = require('../models/Seat');
 // Protect all report endpoints
 router.use(protect);
 
+const roleCheck = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Not authorized for this role' });
+    }
+    next();
+  };
+};
+
+router.use(roleCheck('owner', 'branch_manager'));
+
 /**
  * Helper to escape and format CSV field
  */

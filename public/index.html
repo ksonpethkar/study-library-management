@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="Study Library Management System">
   <meta name="theme-color" content="#6c5ce7">
   <title>Study Library — Management System</title>
@@ -127,6 +127,9 @@
         </div>
         
         <div class="header-actions">
+          <button class="action-btn d-md-none" id="mobile-search-btn" onclick="document.getElementById('global-search-btn').click()" style="display: none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          </button>
           <div class="dropdown" id="lang-dropdown">
             <button class="action-btn" id="lang-toggle-btn" title="Change Language" style="font-size: 1.1rem;">
               🌐
@@ -311,7 +314,7 @@
         </div>
         
         <div class="form-floating">
-          <input type="password" id="login-password" class="form-input" placeholder=" " required>
+          <input type="password" id="login-password" class="form-input" placeholder=" " style="padding-right: 48px;" required>
           <label for="login-password">Password</label>
           <button type="button" class="btn btn-icon btn-ghost" style="position:absolute; right:10px; top:12px;" id="toggle-pwd-btn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>

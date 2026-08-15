@@ -1,4 +1,8 @@
 const cron = require('node-cron');
+const fs = require('fs');
+const path = require('path');
+const nodemailer = require('nodemailer');
+const mongoose = require('mongoose');
 const Student = require('../models/Student');
 const Seat = require('../models/Seat');
 const Payment = require('../models/Payment');
@@ -139,9 +143,11 @@ async function generateEODSummary() {
     let upiRevenue = 0;
     let cashRevenue = 0;
     paymentsToday.forEach(p => {
-      todayRevenue += (p.amountPaid || 0);
-      if (p.paymentMode === 'upi') upiRevenue += (p.amountPaid || 0);
-      else if (p.paymentMode === 'cash') cashRevenue += (p.amountPaid || 0);
+      const amt = (p.finalAmount !== undefined ? p.finalAmount : p.amount || 0);
+      const mode = (p.paymentMethod || 'cash');
+      todayRevenue += amt;
+      if (mode === 'upi') upiRevenue += amt;
+      else if (mode === 'cash') cashRevenue += amt;
     });
 
     let todayExpenses = 0;
@@ -177,6 +183,62 @@ async function generateEODSummary() {
   }
 }
 
+async function performDatabaseBackup() {
+  try {
+    const backupDir = path.join(__dirname, '../backups');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+
+    const files = fs.readdirSync(backupDir);
+    const now = Date.now();
+    files.forEach(file => {
+      const filePath = path.join(backupDir, file);
+      const stats = fs.statSync(filePath);
+      if (now - stats.mtime.getTime() > 7 * 24 * 60 * 60 * 1000) {
+        fs.unlinkSync(filePath);
+      }
+    });
+
+    const dbName = mongoose.connection.name || 'library';
+    const dateStr = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupFile = path.join(backupDir, `backup-${dbName}-${dateStr}.json`);
+
+    const collections = mongoose.connection.collections;
+    const backupData = {};
+    for (const [name, collection] of Object.entries(collections)) {
+      backupData[name] = await collection.find({}).toArray();
+    }
+    
+    fs.writeFileSync(backupFile, JSON.stringify(backupData, null, 2));
+    console.log(`✅ Backup created successfully: ${backupFile}`);
+
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        }
+      });
+      
+      const profile = await BusinessProfile.findOne({});
+      const toEmail = profile?.email || process.env.EMAIL_USER;
+
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: toEmail,
+        subject: `Daily Database Backup - ${dbName}`,
+        text: 'Please find the daily automated database backup attached.',
+        attachments: [{ filename: path.basename(backupFile), path: backupFile }]
+      });
+      console.log(`📧 Backup emailed to ${toEmail}`);
+    }
+  } catch (error) {
+    console.error('❌ Database Backup Failed:', error.message);
+  }
+}
+
 function initCronJobs() {
   // Midnight Cron (00:00) — Expiry, Grace Period & Late Fine Check
   cron.schedule('0 0 * * *', async () => {
@@ -188,6 +250,12 @@ function initCronJobs() {
   cron.schedule('0 22 * * *', async () => {
     console.log('📊 Running 10:00 PM End-of-Day Summary computation...');
     await generateEODSummary();
+  });
+
+  // Database Backup Cron (03:00 AM)
+  cron.schedule('0 3 * * *', async () => {
+    console.log('💾 Running 03:00 AM Database Backup...');
+    await performDatabaseBackup();
   });
 
   // Initial check on boot

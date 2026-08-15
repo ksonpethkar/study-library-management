@@ -65,6 +65,7 @@ app.use('/api/lockers', require('./routes/lockers'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/backup', require('./routes/backup'));
 app.use('/api/landing', require('./routes/landingPage'));
+app.use('/api/audit-logs', require('./routes/auditLogs'));
 
 // Health check endpoint for uptime monitoring & Render.com
 app.get('/api/health', (req, res) => {

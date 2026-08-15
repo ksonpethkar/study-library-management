@@ -332,7 +332,7 @@ async function showAssignModal(lockerId, lockerNum, defaultDeposit) {
   let students = [];
   try {
     const res = await api.get('/api/students?limit=100&status=active');
-    students = res?.students || [];
+    students = res?.data?.students || res?.data || res?.students || [];
   } catch (e) {}
 
   const studentOptions = students.map(s => `

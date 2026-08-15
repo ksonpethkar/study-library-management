@@ -4,6 +4,15 @@ const { body, validationResult } = require('express-validator');
 const Student = require('../models/Student');
 const { protect } = require('../middleware/auth');
 
+const roleCheck = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Not authorized for this role' });
+    }
+    next();
+  };
+};
+
 function validate(validations) {
   return async (req, res, next) => {
     for (const validation of validations) {
@@ -98,7 +107,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', validate([
   body('name').notEmpty().withMessage('Name is required').trim(),
   body('phone').notEmpty().withMessage('Phone is required').trim()
-]), async (req, res) => {
+]), roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     req.body.createdBy = req.user._id;
     const student = new Student(req.body);
@@ -113,7 +122,7 @@ router.post('/', validate([
 router.put('/:id', validate([
   body('name').optional().notEmpty().withMessage('Name cannot be empty').trim(),
   body('phone').optional().notEmpty().withMessage('Phone cannot be empty').trim()
-]), async (req, res) => {
+]), roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const student = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!student) {
@@ -126,7 +135,7 @@ router.put('/:id', validate([
 });
 
 // DELETE /:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const student = await Student.findByIdAndUpdate(req.params.id, { status: 'inactive' }, { new: true });
     if (!student) {
@@ -139,7 +148,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // POST /:id/renew
-router.post('/:id/renew', async (req, res) => {
+router.post('/:id/renew', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { expiryDate } = req.body;
     const student = await Student.findByIdAndUpdate(req.params.id, { 
@@ -157,7 +166,7 @@ router.post('/:id/renew', async (req, res) => {
 });
 
 // POST /bulk-renew
-router.post('/bulk-renew', async (req, res) => {
+router.post('/bulk-renew', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { studentIds, days = 30 } = req.body;
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
@@ -186,7 +195,7 @@ router.post('/bulk-renew', async (req, res) => {
 });
 
 // POST /bulk-deactivate
-router.post('/bulk-deactivate', async (req, res) => {
+router.post('/bulk-deactivate', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { studentIds } = req.body;
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
@@ -208,7 +217,7 @@ router.post('/bulk-deactivate', async (req, res) => {
 });
 
 // POST /bulk-remind
-router.post('/bulk-remind', async (req, res) => {
+router.post('/bulk-remind', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { studentIds } = req.body;
     if (!Array.isArray(studentIds) || studentIds.length === 0) {

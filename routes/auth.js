@@ -237,7 +237,7 @@ router.post('/public-register', authLimiter, async (req, res) => {
       name,
       phone,
       email: email || '',
-      gender: gender || 'other',
+      gender: (gender || 'other').toLowerCase(),
       dateOfBirth: dob ? new Date(dob) : null,
       targetExams: Array.isArray(targetExams) ? targetExams : (targetExams ? [targetExams] : []),
       plan: plan || null,
@@ -328,7 +328,10 @@ router.post('/student-login', authLimiter, async (req, res) => {
     }
 
     // If student user exists and password is provided, verify password
-    if (user && password) {
+    if (user) {
+      if (!password) {
+        return res.status(400).json({ success: false, message: 'Password is required' });
+      }
       const isMatch = await user.comparePassword(password);
       if (!isMatch) {
         return res.status(401).json({ success: false, message: 'Invalid password. If you forgot, please contact library front desk.' });

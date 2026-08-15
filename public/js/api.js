@@ -3,14 +3,17 @@ class ApiClient {
     this.baseUrl = baseUrl;
   }
   
-  async request(endpoint, options = {}) {
+  async request(endpoint, options = {}, isFormData = false) {
     const token = localStorage.getItem('sl_token');
+    const headers = {
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers
+    };
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
     const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        ...options.headers
-      },
+      headers,
       ...options
     };
     
@@ -55,8 +58,14 @@ class ApiClient {
     }
     return this.request(endpoint);
   }
-  post(endpoint, body) { return this.request(endpoint, { method: 'POST', body: JSON.stringify(body) }); }
-  put(endpoint, body) { return this.request(endpoint, { method: 'PUT', body: JSON.stringify(body) }); }
+  post(endpoint, body) {
+    if (body instanceof FormData) return this.request(endpoint, { method: 'POST', body }, true);
+    return this.request(endpoint, { method: 'POST', body: JSON.stringify(body) });
+  }
+  put(endpoint, body) {
+    if (body instanceof FormData) return this.request(endpoint, { method: 'PUT', body }, true);
+    return this.request(endpoint, { method: 'PUT', body: JSON.stringify(body) });
+  }
   patch(endpoint, body) { return this.request(endpoint, { method: 'PATCH', body: JSON.stringify(body) }); }
   delete(endpoint) { return this.request(endpoint, { method: 'DELETE' }); }
 }
