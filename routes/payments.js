@@ -181,6 +181,20 @@ router.post('/:id/pay-balance', roleCheck('admin', 'owner', 'staff'), async (req
         payment.balanceDue -= payAmount;
         if (payment.balanceDue <= 0) {
             payment.status = 'paid';
+            if (payment.plan) {
+                const plan = await Plan.findById(payment.plan);
+                if (plan) {
+                    const student = await Student.findById(payment.student);
+                    if (student) {
+                        student.status = 'active';
+                        const baseDate = (student.expiryDate && student.expiryDate > new Date()) ? student.expiryDate : new Date();
+                        const newExpiry = new Date(baseDate);
+                        newExpiry.setDate(newExpiry.getDate() + (plan.duration || 30));
+                        student.expiryDate = newExpiry;
+                        await student.save();
+                    }
+                }
+            }
         }
         
         await payment.save();
@@ -223,9 +237,10 @@ router.post('/', validate([
             if (plan) {
                 const student = await Student.findById(payment.student);
                 if (student) {
+                    student.status = 'active';
                     const baseDate = (student.expiryDate && student.expiryDate > new Date()) ? student.expiryDate : new Date();
                     const newExpiry = new Date(baseDate);
-                    newExpiry.setDate(newExpiry.getDate() + plan.duration);
+                    newExpiry.setDate(newExpiry.getDate() + (plan.duration || 30));
                     student.expiryDate = newExpiry;
                     await student.save();
                 }

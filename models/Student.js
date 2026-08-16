@@ -21,7 +21,7 @@ const studentSchema = new mongoose.Schema({
   seat: { type: mongoose.Schema.Types.ObjectId, ref: 'Seat' },
   admissionDate: { type: Date, default: Date.now },
   expiryDate: { type: Date },
-  status: { type: String, enum: ['active', 'inactive', 'suspended', 'expired'], default: 'active' },
+  status: { type: String, enum: ['active', 'inactive', 'suspended', 'expired', 'pending', 'pending_payment'], default: 'active' },
   targetExams: [{ type: String, trim: true }],
   signature: { type: String }, // Base64 data URL from signature canvas pad
   bloodGroup: { type: String, trim: true },

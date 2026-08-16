@@ -48,6 +48,7 @@ export async function render() {
         <option value="all">${t('All Status')}</option>
         <option value="active">🟢 ${t('Active')}</option>
         <option value="inactive">⚪ ${t('Inactive')}</option>
+        <option value="pending_payment">⏳ Pending Fee</option>
         <option value="suspended">🟡 ${t('Suspended')}</option>
         <option value="expired">🔴 ${t('Expired')}</option>
       </select>
@@ -127,6 +128,7 @@ export async function render() {
     let rowsHtml = state.students.map(s => {
       let statusStyle = 'background: rgba(255,255,255,0.08); color: #ccc;';
       if (s.status === 'active') statusStyle = 'background: rgba(0, 184, 148, 0.2); color: var(--color-success, #00b894);';
+      else if (s.status === 'pending_payment' || s.status === 'pending') statusStyle = 'background: rgba(245, 158, 11, 0.2); color: var(--color-warning, #f59e0b);';
       else if (s.status === 'expired') statusStyle = 'background: rgba(214, 48, 49, 0.2); color: var(--color-danger, #d63031);';
       else if (s.status === 'suspended') statusStyle = 'background: rgba(253, 203, 110, 0.2); color: var(--color-warning, #fdcb6e);';
 

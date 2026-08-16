@@ -188,6 +188,8 @@ router.post('/change-password', protect, validatePasswordChange, async (req, res
 });
 
 const Student = require('../models/Student');
+const Plan = require('../models/Plan');
+const Payment = require('../models/Payment');
 const Notification = require('../models/Notification');
 const { generateStudentId } = require('../utils/idGenerator');
 
@@ -209,7 +211,9 @@ router.post('/public-register', authLimiter, async (req, res) => {
       photo,
       customFields,
       referralCode,
-      requestLocker
+      requestLocker,
+      paymentMethod,
+      transactionId
     } = req.body;
 
     if (!name || !phone) {
@@ -269,6 +273,30 @@ router.post('/public-register', authLimiter, async (req, res) => {
       finalNotes += (finalNotes ? '\n' : '') + '[Locker Requested]';
     }
 
+    // Determine initial status based on payment completion
+    let initialStatus = 'active';
+    let calculatedExpiryDate = null;
+    let selectedPlanDoc = null;
+
+    if (plan) {
+      selectedPlanDoc = await Plan.findById(plan);
+      if (selectedPlanDoc) {
+        const duration = selectedPlanDoc.duration || 30;
+        const durationType = selectedPlanDoc.durationType || 'days';
+        let daysToAdd = duration;
+        if (durationType === 'months') daysToAdd = duration * 30;
+        else if (durationType === 'years') daysToAdd = duration * 365;
+
+        calculatedExpiryDate = new Date();
+        calculatedExpiryDate.setDate(calculatedExpiryDate.getDate() + daysToAdd);
+
+        // If not paying online now, set status to pending_payment
+        if (paymentMethod !== 'upi' || !transactionId) {
+          initialStatus = 'pending_payment';
+        }
+      }
+    }
+
     // Create Student Document
     const newStudent = new Student({
       studentId,
@@ -279,11 +307,12 @@ router.post('/public-register', authLimiter, async (req, res) => {
       dateOfBirth: dob ? new Date(dob) : null,
       targetExams: Array.isArray(targetExams) ? targetExams : (targetExams ? [targetExams] : []),
       plan: plan || null,
+      expiryDate: calculatedExpiryDate,
       notes: finalNotes,
       photo: photo || '',
       signature: signature || '',
       customFields: customFields || {},
-      status: 'active'
+      status: initialStatus
     });
 
     if (referringStudent) {
@@ -299,13 +328,49 @@ router.post('/public-register', authLimiter, async (req, res) => {
 
     await newStudent.save();
 
+    // Create payment record if plan is chosen
+    if (selectedPlanDoc) {
+      const planPrice = Math.round(selectedPlanDoc.effectivePrice || selectedPlanDoc.price || 0);
+      const finalAmount = Math.max(0, planPrice - referralDiscount);
+
+      if (paymentMethod === 'upi' && transactionId) {
+        await Payment.create({
+          student: newStudent._id,
+          plan: selectedPlanDoc._id,
+          amount: planPrice,
+          discount: referralDiscount,
+          finalAmount,
+          paymentMethod: 'upi',
+          transactionId,
+          paymentDate: new Date(),
+          periodStart: new Date(),
+          periodEnd: calculatedExpiryDate,
+          status: 'paid'
+        });
+      } else {
+        await Payment.create({
+          student: newStudent._id,
+          plan: selectedPlanDoc._id,
+          amount: planPrice,
+          discount: referralDiscount,
+          finalAmount,
+          balanceDue: finalAmount,
+          paymentMethod: 'cash',
+          paymentDate: new Date(),
+          status: 'pending',
+          notes: 'Online Admission: Pay Later at Front Desk'
+        });
+      }
+    }
+
     // Create user login account if password provided
-    if (email && password) {
-      const existingUser = await User.findOne({ email });
+    if (password) {
+      const loginIdentifier = email || `${phone}@studylib.local`;
+      const existingUser = await User.findOne({ $or: [{ email: loginIdentifier }, { phone }] });
       if (!existingUser) {
         await User.create({
           name,
-          email,
+          email: loginIdentifier,
           phone,
           password,
           role: 'student',
@@ -316,8 +381,8 @@ router.post('/public-register', authLimiter, async (req, res) => {
 
     // Notify Library Admins
     await Notification.create({
-      title: `🎓 Online Admission: ${name}`,
-      message: `New student registration online! ID: ${studentId} • Phone: ${phone}`,
+      title: `🎓 Online Admission: ${name} (${initialStatus === 'active' ? 'Active' : 'Pending Fee'})`,
+      message: `Student registered: ${studentId} • Plan: ${selectedPlanDoc?.name || 'N/A'} • Status: ${initialStatus}`,
       type: 'student',
       link: '#/students'
     });
