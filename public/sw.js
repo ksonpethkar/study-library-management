@@ -1,70 +1,81 @@
-const CACHE_NAME = 'studylib-cache-v1';
-const STATIC_ASSETS = [
+/**
+ * Study Library Management System — Service Worker (PWA)
+ * Instant offline caching, network-first strategy, app shell optimization
+ */
+
+const CACHE_NAME = 'studylib-pwa-v1';
+const ASSETS_TO_CACHE = [
   '/',
-  '/landing',
+  '/index.html',
+  '/student-login',
+  '/student-login.html',
   '/register',
+  '/register.html',
+  '/landing',
+  '/landing.html',
   '/kiosk',
-  '/css/variables.css',
-  '/css/base.css',
-  '/css/components.css',
+  '/kiosk.html',
+  '/manifest.json',
+  '/css/index.css',
   '/css/layout.css',
+  '/css/components.css',
   '/js/app.js',
+  '/js/auth.js',
   '/js/ui.js',
   '/js/api.js',
-  '/js/router.js',
-  '/manifest.json'
+  '/js/pdfGenerator.js'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {});
-    })
+      return cache.addAll(ASSETS_TO_CACHE);
+    }).then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
+    caches.keys().then((cacheNames) => {
       return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            return caches.delete(cache);
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  // Do not cache API requests
-  if (event.request.url.includes('/api/')) {
+  const req = event.request;
+
+  // Skip non-GET requests and API calls from static caching
+  if (req.method !== 'GET' || req.url.includes('/api/')) {
     return;
   }
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-          return networkResponse;
+    fetch(req)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(req, responseClone);
+          });
         }
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache).catch(() => {});
-        });
         return networkResponse;
-      }).catch(() => {
-        // Fallback for navigation requests
-        if (event.request.mode === 'navigate') {
-          return caches.match('/');
-        }
-      });
-    })
+      })
+      .catch(() => {
+        return caches.match(req).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          if (req.headers.get('accept').includes('text/html')) {
+            return caches.match('/index.html');
+          }
+        });
+      })
   );
 });

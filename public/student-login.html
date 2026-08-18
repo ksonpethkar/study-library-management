@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#6c5ce7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="StudyLib">
   <title>Student Self-Service Portal — Study Library</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -105,6 +109,10 @@
     </div>
 
     <div class="portal-body">
+      <button type="button" class="btn btn-outline-primary btn-pwa-install mb-3" id="btn-pwa-student-install" style="width: 100%; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+        📲 Install App on Phone
+      </button>
+
       <form id="student-login-form">
         
         <div class="form-group mb-3">
@@ -212,6 +220,12 @@
         setTimeout(() => toast.remove(), 300);
       }, 3000);
     }
+
+    import { promptPWAInstall } from './js/pwaManager.js';
+
+    document.getElementById('btn-pwa-student-install')?.addEventListener('click', () => {
+      promptPWAInstall();
+    });
 
     // Credentials Recovery Helper
     window.requestCredentialsRecovery = function(e) {

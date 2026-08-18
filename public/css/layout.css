@@ -510,3 +510,80 @@
   border-color: var(--color-primary);
   color: white;
 }
+
+/* Mobile Safe Area & iOS Notch Insets */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+body {
+  padding-top: var(--sat);
+  padding-bottom: var(--sab);
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Touch-friendly Minimum Action Targets */
+button, input, select, textarea, .btn, .nav-item, .action-btn {
+  min-height: 44px;
+}
+
+.btn-sm {
+  min-height: 38px;
+}
+
+/* PWA Standalone Mode Styling */
+@media (display-mode: standalone) {
+  .main-header {
+    padding-top: calc(var(--space-3) + var(--sat));
+  }
+  .sidebar {
+    padding-top: var(--sat);
+  }
+}
+
+/* Mobile Responsive Optimization (<768px) */
+@media (max-width: 768px) {
+  .app-container {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 280px;
+    transform: translateX(-100%);
+    z-index: 1050;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  
+  .sidebar-overlay.active {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 1040;
+  }
+  
+  .main-content {
+    padding: 12px !important;
+    width: 100% !important;
+    overflow-x: hidden;
+  }
+
+  .kpi-grid, .grid-3, .grid-4 {
+    grid-template-columns: 1fr !important;
+  }
+}

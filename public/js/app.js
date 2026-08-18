@@ -6,6 +6,7 @@ import ShortcutManager from './shortcuts.js';
 import { Toast, Modal, Loading } from './ui.js';
 import { SearchPalette } from './search.js';
 import { AudioFeedback } from './utils/audioFeedback.js';
+import { promptPWAInstall } from './pwaManager.js';
 
 /**
  * Reactive global state store
@@ -182,6 +183,7 @@ class Application {
     // Wire up sidebar, header events only once
     if (!this._appEventsInit) {
       initAppEvents();
+      document.getElementById('btn-pwa-header-install')?.addEventListener('click', () => promptPWAInstall());
       this._appEventsInit = true;
     }
 

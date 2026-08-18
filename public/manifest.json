@@ -1,25 +1,38 @@
 {
-  "name": "Study Library Management System",
+  "name": "Study Library Management & Student Portal",
   "short_name": "StudyLib",
-  "description": "Smart Reading Room & Study Hall Management System",
+  "description": "Smart Library Management System, Student 360° Portal, Desk Reservations & Attendance Kiosk",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f121d",
+  "background_color": "#0f172a",
   "theme_color": "#6c5ce7",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "icons": [
     {
-      "src": "/img/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/img/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='128' fill='%236c5ce7'/><path d='M256 120 L380 180 L256 240 L132 180 Z' fill='%23ffffff'/><path d='M160 215 V290 C160 320 200 350 256 350 C312 350 352 320 352 290 V215' fill='none' stroke='%23ffffff' stroke-width='24'/></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["business", "productivity", "education"]
+  "shortcuts": [
+    {
+      "name": "Student Portal",
+      "short_name": "Portal",
+      "description": "Access Student 360° Dashboard",
+      "url": "/student-login"
+    },
+    {
+      "name": "Apply Online",
+      "short_name": "Register",
+      "description": "Online Admission Wizard",
+      "url": "/register"
+    },
+    {
+      "name": "Attendance Kiosk",
+      "short_name": "Kiosk",
+      "description": "Library Entrance Scanner",
+      "url": "/kiosk"
+    }
+  ]
 }
