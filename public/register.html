@@ -581,6 +581,7 @@
   <script type="module">
     import { SignatureStudio } from './js/signatureStudio.js';
     import { MediaFieldPicker } from './js/mediaStudio.js';
+    import { generateAdmissionFormPDF } from './js/pdfGenerator.js';
 
     let currentStep = 1;
     const totalSteps = 5;
@@ -1104,8 +1105,8 @@
         const waMsg = encodeURIComponent(`Hello! I have registered online for admission. My Student ID is ${result.data?.studentId || ''} (${payload.name}).`);
         document.getElementById('btn-success-whatsapp').href = `https://wa.me/${phone}?text=${waMsg}`;
         
-        document.getElementById('btn-print-slip').addEventListener('click', () => {
-          window.print();
+        document.getElementById('btn-print-slip')?.addEventListener('click', () => {
+          generateAdmissionFormPDF(result.data || payload);
         });
 
       } catch (error) {

@@ -1,6 +1,7 @@
 import api from '../api.js';
 import { Toast, Modal, Confirm, Loading, escapeHTML } from '../ui.js';
 import { t } from '../i18n.js';
+import { generateAdmissionFormPDF } from '../pdfGenerator.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -108,6 +109,9 @@ function renderPortalUI(container, data) {
           </button>
           <button id="btn-portal-idcard" class="btn btn-outline-primary btn-sm" style="font-weight: 600;">
             🪪 Digital ID
+          </button>
+          <button id="btn-portal-download-pdf" class="btn btn-outline-success btn-sm" style="font-weight: 600;">
+            📄 Download PDF Form
           </button>
           <button id="btn-portal-renew" class="btn btn-primary btn-sm" style="font-weight: 600;">
             ⚡ Renew Plan
@@ -238,6 +242,11 @@ function renderPortalUI(container, data) {
     } finally {
       Loading.button(btn, false);
     }
+  });
+
+  // Attach PDF Admission Form Download Handler
+  container.querySelector('#btn-portal-download-pdf')?.addEventListener('click', () => {
+    generateAdmissionFormPDF(student, { business });
   });
 
   // Attach ID Card Handler

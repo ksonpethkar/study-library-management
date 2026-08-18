@@ -2,6 +2,7 @@ import api from '../api.js';
 import { Toast, Modal, Confirm, Loading, escapeHTML } from '../ui.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
 import { t } from '../i18n.js';
+import { generateAdmissionFormPDF } from '../pdfGenerator.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -113,6 +114,9 @@ function renderSettingsUI(container, profile, settings) {
         </button>
         <button class="settings-tab-btn" data-tab="landing" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
           <span>🌐</span> Public Landing Page & SEO
+        </button>
+        <button class="settings-tab-btn" data-tab="pdfstudio" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>📄</span> PDF Admission Form Studio
         </button>
       </div>
     </div>
@@ -802,6 +806,88 @@ function renderSettingsUI(container, profile, settings) {
               <div class="text-center p-4 text-muted">Loading landing page configuration...</div>
             </div>
           </div>
+      <!-- ========================================== -->
+      <!-- SECTION K: PDF ADMISSION FORM STUDIO       -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-pdfstudio" style="display: none;">
+        <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">📄 PDF Admission Form Studio & Field Controls</h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Customize printable preset templates and choose what details appear on student & admin PDF downloads.</p>
+            </div>
+            <button id="btn-preview-pdf" class="btn btn-outline-primary btn-sm" style="font-weight: 600;">👁️ Test Sample PDF Form</button>
+          </div>
+          <div class="card-body" style="padding: 1.5rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+              
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Active Printable PDF Preset Template</label>
+                <select id="setting-pdf-template" class="form-select" style="font-weight: 600;">
+                  <option value="modern_glass">💎 Modern Glassmorphic Slate (Recommended)</option>
+                  <option value="classic_formal">🏛️ Classic Formal Indian Govt / University Style</option>
+                  <option value="compact_card">🪪 Compact 1-Page Gate Pass Slip</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Official Stamp Watermark Text</label>
+                <input type="text" id="setting-pdf-stamp" class="form-control" value="PAID • ACTIVE STUDENT" placeholder="Watermark text">
+              </div>
+            </div>
+
+            <h4 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">👁️ PDF Field Visibility Controls (Choose What Students & Admins Can View)</h4>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-weight: 600; font-size: 0.9rem;">📷 Passport Selfie Photo</div>
+                  <div class="text-muted small">Show student webcam photo</div>
+                </div>
+                <input type="checkbox" id="pdf-toggle-photo" checked class="form-toggle">
+              </div>
+
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-weight: 600; font-size: 0.9rem;">✍️ Digital Signature</div>
+                  <div class="text-muted small">Show student digital signature</div>
+                </div>
+                <input type="checkbox" id="pdf-toggle-sig" checked class="form-toggle">
+              </div>
+
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-weight: 600; font-size: 0.9rem;">🏁 Gate Entry Barcode / QR</div>
+                  <div class="text-muted small">Show barcode for kiosk scanner</div>
+                </div>
+                <input type="checkbox" id="pdf-toggle-qr" checked class="form-toggle">
+              </div>
+
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-weight: 600; font-size: 0.9rem;">💰 Fee & Payment Breakdown</div>
+                  <div class="text-muted small">Show plan price, discount & UTR</div>
+                </div>
+                <input type="checkbox" id="pdf-toggle-payment" checked class="form-toggle">
+              </div>
+
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-weight: 600; font-size: 0.9rem;">📜 Discipline Code & Rules</div>
+                  <div class="text-muted small">Show quiet study rules list</div>
+                </div>
+                <input type="checkbox" id="pdf-toggle-rules" checked class="form-toggle">
+              </div>
+
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-weight: 600; font-size: 0.9rem;">🏷️ Official Status Watermark</div>
+                  <div class="text-muted small">Show PAID / PENDING stamp</div>
+                </div>
+                <input type="checkbox" id="pdf-toggle-stamp" checked class="form-toggle">
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -820,8 +906,52 @@ function renderSettingsUI(container, profile, settings) {
     formbuilder: container.querySelector('#panel-formbuilder'),
     modules: container.querySelector('#panel-modules'),
     audittrail: container.querySelector('#panel-audittrail'),
-    landing: container.querySelector('#panel-landing')
+    landing: container.querySelector('#panel-landing'),
+    pdfstudio: container.querySelector('#panel-pdfstudio')
   };
+
+  container.querySelector('#btn-preview-pdf')?.addEventListener('click', () => {
+    const template = container.querySelector('#setting-pdf-template')?.value || 'modern_glass';
+    const showPhoto = container.querySelector('#pdf-toggle-photo')?.checked;
+    const showSignature = container.querySelector('#pdf-toggle-sig')?.checked;
+    const showQrCode = container.querySelector('#pdf-toggle-qr')?.checked;
+    const showPaymentDetails = container.querySelector('#pdf-toggle-payment')?.checked;
+    const showRules = container.querySelector('#pdf-toggle-rules')?.checked;
+    const showWatermarkStamp = container.querySelector('#pdf-toggle-stamp')?.checked;
+
+    generateAdmissionFormPDF({
+      studentId: 'STU-2026-DEMO',
+      name: 'Rahul Sharma (Sample Student)',
+      phone: '9876543210',
+      email: 'rahul.sharma@example.com',
+      gender: 'Male',
+      dateOfBirth: '2001-05-15',
+      pincode: '411001',
+      city: 'Pune',
+      state: 'Maharashtra',
+      branch: { name: 'Central Campus Branch' },
+      plan: { name: 'Super Achiever 10-Hour Plan', shift: 'Morning Shift (7 AM - 5 PM)' },
+      seat: { seatNumber: 'Seat #18', zone: 'Premium Quiet Cabin' },
+      status: 'active',
+      targetExams: ['UPSC Civil Services', 'MPSC State Services'],
+      paymentMethod: 'UPI (GPay / PhonePe)',
+      transactionId: '423456789012'
+    }, {
+      template,
+      showPhoto,
+      showSignature,
+      showQrCode,
+      showPaymentDetails,
+      showRules,
+      showWatermarkStamp,
+      business: {
+        businessName: profile?.businessName || 'Study Library Management',
+        tagline: profile?.tagline || 'Silent Study Environment & Reading Hall',
+        address: profile?.address || 'Central Library Building',
+        phone: profile?.phone || '+91 9876543210'
+      }
+    });
+  });
 
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {

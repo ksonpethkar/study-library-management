@@ -4,6 +4,7 @@ import { Toast, Modal, Loading, Confirm, escapeHTML } from '../ui.js';
 import { SignatureStudio } from '../signatureStudio.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
 import api from '../api.js';
+import { generateAdmissionFormPDF } from '../pdfGenerator.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -152,6 +153,7 @@ export async function render() {
             <div class="d-flex gap-1">
               <button class="btn btn-sm btn-outline-secondary btn-view" data-id="${escapeHTML(s._id)}" title="View 360° Profile" style="padding: 3px 7px; font-size: 0.75rem;">👁️ View</button>
               <button class="btn btn-sm btn-outline-info btn-idcard" data-id="${escapeHTML(s._id)}" title="Print ID Card" style="padding: 3px 7px; font-size: 0.75rem;">🪪 ID</button>
+              <button class="btn btn-sm btn-outline-success btn-pdfform" data-id="${escapeHTML(s._id)}" title="Download PDF Admission Form" style="padding: 3px 7px; font-size: 0.75rem;">📄 PDF</button>
               <button class="btn btn-sm btn-outline-primary btn-edit" data-id="${escapeHTML(s._id)}" style="padding: 3px 7px; font-size: 0.75rem;">✏️ Edit</button>
               <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${escapeHTML(s._id)}" style="padding: 3px 7px; font-size: 0.75rem;">🗑️ Delete</button>
             </div>
@@ -927,6 +929,14 @@ export async function render() {
       if (student) showStudentIdCard(student);
       return;
     }
+
+    const pdfBtn = e.target.closest('.btn-pdfform');
+    if (pdfBtn) {
+      const id = pdfBtn.getAttribute('data-id');
+      const student = state.students.find(s => s._id === id);
+      if (student) generateAdmissionFormPDF(student);
+      return;
+    }
     
     const deleteBtn = e.target.closest('.btn-delete');
     if (deleteBtn) {
@@ -1020,6 +1030,9 @@ export async function render() {
           <button type="button" class="btn btn-outline-info btn-sm btn-profile-idcard">
             🪪 Print ID Card
           </button>
+          <button type="button" class="btn btn-outline-success btn-sm btn-profile-pdfform">
+            📄 Download PDF Form
+          </button>
           <button type="button" class="btn btn-primary btn-sm btn-profile-edit">
             ✏️ Edit Student
           </button>
@@ -1040,6 +1053,10 @@ export async function render() {
     modalContent.querySelector('.btn-profile-idcard')?.addEventListener('click', () => {
       pModal.close();
       showStudentIdCard(student);
+    });
+
+    modalContent.querySelector('.btn-profile-pdfform')?.addEventListener('click', () => {
+      generateAdmissionFormPDF(student);
     });
 
     modalContent.querySelector('.btn-profile-edit')?.addEventListener('click', () => {
