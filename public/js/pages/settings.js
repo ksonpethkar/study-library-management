@@ -377,7 +377,7 @@ function renderSettingsUI(container, profile, settings) {
                   </p>
                 </div>
                 <div>
-                  <input type="checkbox" id="setting-autoApprove" class="form-toggle" ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'checked' : ''} style="transform: scale(1.2);">
+                  <input type="checkbox" id="setting-autoApprove" class="form-toggle" ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'checked' : ''}>
                 </div>
               </div>
 
@@ -616,7 +616,7 @@ function renderSettingsUI(container, profile, settings) {
                   </p>
                 </div>
                 <div>
-                  <input type="checkbox" id="setting-autoBackup" class="form-toggle" ${(gen['general.autoBackup'] ?? gen.autoBackup) !== false ? 'checked' : ''} style="transform: scale(1.2);">
+                  <input type="checkbox" id="setting-autoBackup" class="form-toggle" ${(gen['general.autoBackup'] ?? gen.autoBackup) !== false ? 'checked' : ''}>
                 </div>
               </div>
 
