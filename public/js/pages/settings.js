@@ -3,6 +3,7 @@ import { Toast, Modal, Confirm, Loading, escapeHTML } from '../ui.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
 import { t } from '../i18n.js';
 import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
+import { FormBuilder } from '../formBuilder.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -676,23 +677,7 @@ function renderSettingsUI(container, profile, settings) {
       <!-- SECTION G: REGISTRATION FORM BUILDER -->
       <!-- ========================================== -->
       <div class="settings-panel" id="panel-formbuilder" style="display: none;">
-        <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
-          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-            <div>
-              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">📝 Dynamic Admission Form Builder</h3>
-              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Add, configure, or remove custom input fields from student admission forms without writing code.</p>
-            </div>
-            <button id="btn-add-custom-field" class="btn btn-primary btn-sm" style="font-weight: 600;">
-              + Add Custom Field
-            </button>
-          </div>
-
-          <div class="card-body" style="padding: 1.5rem;">
-            <div id="custom-fields-list-container">
-              <div class="text-center p-4 text-muted">Loading custom fields...</div>
-            </div>
-          </div>
-        </div>
+        <div id="form-builder-mount-container"></div>
       </div>
 
       <!-- ========================================== -->
@@ -970,6 +955,8 @@ function renderSettingsUI(container, profile, settings) {
 
       if (target === 'audittrail') {
         loadAuditLogs();
+      } else if (target === 'formbuilder') {
+        FormBuilder.render(container.querySelector('#form-builder-mount-container'));
       }
     });
   });
