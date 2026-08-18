@@ -1,5 +1,6 @@
 import api from './api.js';
 import { Toast, Modal, Loading, Confirm, escapeHTML } from './ui.js';
+import { MediaFieldPicker } from './mediaStudio.js';
 
 const FIELD_ICONS = {
   text: '📝', textarea: '📄', number: '🔢', phone: '📱', email: '📧',
@@ -11,7 +12,7 @@ const FIELD_ICONS = {
 };
 
 const SECTION_ICONS = {
-  personal: '👤', academic: '📚', contact: '📍', kyc: '🪪', plan: '💎', payment: '💳', seat: '💺', other: '📝'
+  personal: '👤', academic: '📚', plan: '💎', payment: '💳', seat: '💺', other: '📝'
 };
 
 export class FormBuilder {
@@ -22,6 +23,24 @@ export class FormBuilder {
     this.container = container;
     this.sections = [];
     this.fields = [];
+    this.branches = [];
+    this.plans = [];
+    this.seats = [];
+    this.template = {
+      branding: {
+        showLogo: true,
+        showBanner: false,
+        bannerImage: '',
+        headerText: 'Student Admission Wizard',
+        tagline: 'Silence, Focus & Success',
+        alignment: 'center',
+        logoSize: '64'
+      }
+    };
+    this.selectedBranchId = null;
+    this.selectedPlanId = null;
+    this.selectedSeatId = null;
+    this.selectedPaymentMode = 'upi';
     this.currentPreviewStep = 0;
 
     this.container.innerHTML = `
@@ -31,10 +50,10 @@ export class FormBuilder {
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); flex-wrap: wrap; gap: 12px;">
           <div>
             <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
-              🎨 Registration Form Builder & Live Preview Studio
+              🎨 Registration Form Customizer & Live Preview Studio
             </h3>
             <p style="margin: 2px 0 0 0; font-size: 0.82rem; color: var(--color-text-secondary);">
-              Customize student admission questions, mandatory rules, section steps, and preview changes live in real-time.
+              Full control over student registration header branding, section cards, system fields, and custom questions.
             </p>
           </div>
 
@@ -48,12 +67,54 @@ export class FormBuilder {
               </button>
             </div>
 
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="fb-add-section-btn" style="font-weight: 600;">
-              📂 + Add Section
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="fb-toggle-branding-panel" style="font-weight: 600;">
+              🖼️ Header Branding
             </button>
+
             <button type="button" class="btn btn-primary btn-sm" id="fb-add-field-btn" style="font-weight: 700;">
               ✨ + Add Question Field
             </button>
+          </div>
+        </div>
+
+        <!-- Collapsible Header Branding Panel -->
+        <div id="fb-branding-panel" style="display: none; background: var(--color-surface); border: 1.5px solid var(--color-primary); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-md);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--color-border); padding-bottom: 8px;">
+            <h4 style="margin: 0; font-size: 1rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              🖼️ Public Registration Header Branding & Logo Studio
+            </h4>
+            <button type="button" class="btn btn-primary btn-sm" id="fb-save-branding-btn" style="font-weight: 700;">
+              💾 Save Header Branding
+            </button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
+            <div>
+              <label class="form-label text-xs" style="font-weight: 700;">Header Title Text</label>
+              <input type="text" id="branding-headerText" class="form-control form-control-sm" value="${escapeHTML(this.template.branding?.headerText || 'Student Admission Wizard')}">
+            </div>
+
+            <div>
+              <label class="form-label text-xs" style="font-weight: 700;">Tagline / Slogan</label>
+              <input type="text" id="branding-tagline" class="form-control form-control-sm" value="${escapeHTML(this.template.branding?.tagline || 'Silence, Focus & Success')}">
+            </div>
+
+            <div>
+              <label class="form-label text-xs" style="font-weight: 700;">Header Alignment</label>
+              <select id="branding-alignment" class="form-select form-control-sm">
+                <option value="center">Center Aligned</option>
+                <option value="left">Left Aligned</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="form-label text-xs" style="font-weight: 700;">Logo Size</label>
+              <select id="branding-logoSize" class="form-select form-control-sm">
+                <option value="48">Small (48px)</option>
+                <option value="64" selected>Medium (64px)</option>
+                <option value="96">Large (96px)</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -63,9 +124,9 @@ export class FormBuilder {
           <!-- Left Pane: Form Structure & Question Controls -->
           <div class="fb-left-pane" style="display: flex; flex-direction: column; gap: 16px;">
             <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
-              <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 12px; display: flex; justify-content: space-between;">
-                <span>📋 Form Sections & Question Order</span>
-                <span style="color: var(--color-primary);">Auto-Sync Enabled ⚡</span>
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <span>📋 Registration Form Sections & Questions</span>
+                <span style="color: var(--color-primary); font-size: 0.78rem;">Live Auto-Sync ⚡</span>
               </div>
               <div id="fb-sections-container" style="display: flex; flex-direction: column; gap: 14px;"></div>
             </div>
@@ -76,7 +137,7 @@ export class FormBuilder {
             <div class="card p-0" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-md);">
               <div class="card-header" style="padding: 10px 16px; background: var(--color-surface-hover); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 0.85rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 6px;">
-                  👁️ Real-Time Student Preview (/register)
+                  👁️ Real-Time Student Registration Preview (/register)
                 </span>
                 <span class="badge badge-success" style="font-size: 0.7rem; font-weight: 700;">SYNCED LIVE</span>
               </div>
@@ -98,19 +159,39 @@ export class FormBuilder {
 
   static async loadData() {
     try {
-      const res = await api.get('/api/custom-fields/all');
-      this.fields = res?.data || [];
+      const [fieldsRes, tplRes, branchRes, planRes, seatRes] = await Promise.all([
+        api.get('/api/custom-fields/all'),
+        api.get('/api/custom-fields/templates/active'),
+        api.get('/api/branches/public-list').catch(() => ({ data: [] })),
+        api.get('/api/plans').catch(() => ({ data: [] })),
+        api.get('/api/seats?status=available').catch(() => ({ data: [] }))
+      ]);
 
-      // Extract sections
-      const sectionsMap = new Map();
+      this.fields = fieldsRes?.data || [];
+      if (tplRes?.data) {
+        this.template = tplRes.data;
+      }
+      this.branches = branchRes?.data || [];
+      this.plans = planRes?.data || [];
+      this.seats = seatRes?.data || [];
+
+      if (this.branches.length > 0) {
+        this.selectedBranchId = this.branches[0]._id;
+      }
+      if (this.plans.length > 0) {
+        this.selectedPlanId = this.plans[0]._id;
+      }
+
+      // Populate sections (Step 1 to Step 5)
       const defaultSecs = [
-        { name: 'personal', label: 'Step 1: Study Centre & Personal Info', icon: 'personal', order: 1 },
-        { name: 'academic', label: 'Step 2: Academic Goals & KYC Proof', icon: 'academic', order: 2 },
-        { name: 'plan', label: 'Step 3: Membership Plan & Fee Calculator', icon: 'plan', order: 3 },
-        { name: 'payment', label: 'Step 4: Dynamic Payment Selection', icon: 'payment', order: 4 },
-        { name: 'seat', label: 'Step 5: Seat Selection & Digital Signature', icon: 'seat', order: 5 }
+        { name: 'personal', label: 'Step 1: Study Centre & Personal Info', icon: 'personal', order: 1, isSystem: true },
+        { name: 'academic', label: 'Step 2: Academic Goals & KYC Proof', icon: 'academic', order: 2, isSystem: false },
+        { name: 'plan', label: 'Step 3: Membership Plan & Fee Calculator', icon: 'plan', order: 3, isSystem: true },
+        { name: 'payment', label: 'Step 4: Dynamic Payment Selection', icon: 'payment', order: 4, isSystem: true },
+        { name: 'seat', label: 'Step 5: Seat Selection & Digital Signature', icon: 'seat', order: 5, isSystem: true }
       ];
 
+      const sectionsMap = new Map();
       defaultSecs.forEach(s => sectionsMap.set(s.name, s));
 
       this.fields.forEach(f => {
@@ -119,7 +200,8 @@ export class FormBuilder {
             name: f.section,
             label: f.sectionLabel || `Section: ${f.section.toUpperCase()}`,
             icon: f.sectionIcon || 'other',
-            order: sectionsMap.size + 1
+            order: sectionsMap.size + 1,
+            isSystem: false
           });
         }
       });
@@ -130,7 +212,7 @@ export class FormBuilder {
       this.renderPreview();
     } catch (err) {
       console.error('Failed to load form builder data:', err);
-      Toast.error('Failed to load form fields schema');
+      Toast.error('Failed to load form schema');
     }
   }
 
@@ -151,7 +233,7 @@ export class FormBuilder {
             <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.92rem; color: var(--color-primary);">
               <span>${SECTION_ICONS[sec.icon] || '📁'}</span>
               <span>${escapeHTML(sec.label)}</span>
-              <span class="badge badge-secondary" style="font-size: 0.7rem;">${secFields.length} Questions</span>
+              <span class="badge badge-secondary" style="font-size: 0.7rem;">${sec.isSystem ? 'System Component' : secFields.length + ' Questions'}</span>
             </div>
 
             <div style="display: flex; align-items: center; gap: 4px;">
@@ -161,7 +243,14 @@ export class FormBuilder {
           </div>
 
           <div style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
-            ${secFields.length ? secFields.map((field, fIdx) => this.renderFieldCard(field, fIdx, secFields.length)).join('') : '<div style="text-align: center; color: var(--color-text-secondary); font-size: 0.8rem; padding: 12px; border: 1px dashed var(--color-border); border-radius: 6px;">No custom questions in this section yet. Tap + Add Question Field above.</div>'}
+            ${sec.isSystem && secFields.length === 0 ? `
+              <div style="background: var(--color-surface); border: 1px dashed var(--color-primary); border-radius: 8px; padding: 10px 12px; font-size: 0.82rem; color: var(--color-text-secondary); display: flex; justify-content: space-between; align-items: center;">
+                <span>⚙️ Integrated System Component (Auto-renders live options)</span>
+                <span class="badge badge-primary">SYSTEM STEP</span>
+              </div>
+            ` : ''}
+
+            ${secFields.map((field, fIdx) => this.renderFieldCard(field, fIdx, secFields.length)).join('')}
           </div>
         </div>
       `;
@@ -243,10 +332,17 @@ export class FormBuilder {
       .filter(f => (f.section || 'personal') === currentSec.name && f.isActive !== false)
       .sort((a, b) => (a.order || 0) - (b.order || 0));
 
+    const b = this.template.branding || {};
+    const headerTitle = b.headerText || 'Student Admission Wizard';
+    const tagline = b.tagline || 'Silence, Focus & Success';
+    const align = b.alignment === 'left' ? 'left' : 'center';
+
     let html = `
-      <div style="margin-bottom: 14px; text-align: center;">
-        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary);">Student Admission Wizard</h3>
-        <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">Step ${this.currentPreviewStep + 1} of ${totalSteps}</p>
+      <!-- Form Header Branding Preview -->
+      <div style="margin-bottom: 16px; text-align: ${align}; border-bottom: 1px solid var(--color-border); padding-bottom: 12px;">
+        <div style="font-size: 2rem; margin-bottom: 4px;">🎓</div>
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-text-primary);">${escapeHTML(headerTitle)}</h3>
+        <p style="margin: 3px 0 0 0; font-size: 0.83rem; color: var(--color-text-secondary);">${escapeHTML(tagline)}</p>
       </div>
 
       <!-- Stepper Progress Dots -->
@@ -261,20 +357,18 @@ export class FormBuilder {
 
       <!-- Step Card -->
       <div class="card p-3 mb-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px;">
-        <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; font-weight: 800; color: #6c5ce7; border-bottom: 2px solid #6c5ce7; padding-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+        <h4 style="margin: 0 0 14px 0; font-size: 0.95rem; font-weight: 800; color: #6c5ce7; border-bottom: 2px solid #6c5ce7; padding-bottom: 6px; display: flex; align-items: center; gap: 6px;">
           <span>${SECTION_ICONS[currentSec.icon] || '📁'}</span> ${escapeHTML(currentSec.label)}
         </h4>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-          ${secFields.length ? secFields.map(f => this.renderPreviewInput(f)).join('') : '<div class="text-muted small p-3 text-center">No questions in this section card.</div>'}
-        </div>
+        ${this.renderSectionContent(currentSec, secFields)}
       </div>
 
       <!-- Navigation Buttons -->
       <div style="display: flex; gap: 10px; margin-top: 14px;">
         ${this.currentPreviewStep > 0 ? `<button type="button" id="fb-prev-step" class="btn btn-outline-secondary btn-sm" style="flex: 1; font-weight: 700;">⬅️ Previous Section</button>` : ''}
         ${this.currentPreviewStep < totalSteps - 1 ? `<button type="button" id="fb-next-step" class="btn btn-primary btn-sm" style="flex: 1; font-weight: 700;">Next Section ➡️</button>` : ''}
-        ${this.currentPreviewStep === totalSteps - 1 ? `<button type="button" class="btn btn-success btn-sm" style="flex: 1; font-weight: 700;">🚀 Submit Admission</button>` : ''}
+        ${this.currentPreviewStep === totalSteps - 1 ? `<button type="button" class="btn btn-success btn-sm" style="flex: 1; font-weight: 700;">🚀 Complete Admission & Payment</button>` : ''}
       </div>
     `;
 
@@ -290,6 +384,168 @@ export class FormBuilder {
       this.currentPreviewStep++;
       this.renderPreview();
     });
+
+    // Branch selector event in Step 1
+    container.querySelector('#prev-branch-select')?.addEventListener('change', (e) => {
+      this.selectedBranchId = e.target.value;
+      this.renderPreview();
+    });
+
+    // Plan selector event in Step 3
+    container.querySelector('#prev-plan-select')?.addEventListener('change', (e) => {
+      this.selectedPlanId = e.target.value;
+      this.renderPreview();
+    });
+
+    // Payment mode selector event in Step 4
+    container.querySelectorAll('input[name="prev-pm-mode"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        this.selectedPaymentMode = e.target.value;
+        this.renderPreview();
+      });
+    });
+  }
+
+  static renderSectionContent(currentSec, secFields) {
+    const secName = currentSec.name;
+
+    // STEP 1: Personal & Centre Info
+    if (secName === 'personal') {
+      const branchOptions = this.branches.map(b => `<option value="${b._id}" ${this.selectedBranchId === b._id ? 'selected' : ''}>${escapeHTML(b.name)} — 🟢 ${b.availableSeats || 42}/${b.totalSeats || 100} Available Seats</option>`).join('');
+
+      return `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+          <div style="grid-column: 1 / -1;">
+            <label class="form-label text-xs" style="font-weight:700;">Study Centre / Branch *</label>
+            <select class="form-select form-control-sm" id="prev-branch-select">${branchOptions || '<option>Main Centre (Default)</option>'}</select>
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">Full Name *</label>
+            <input type="text" class="form-control form-control-sm" placeholder="e.g. Rahul Sharma">
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">Mobile / WhatsApp Number *</label>
+            <input type="text" class="form-control form-control-sm" placeholder="10-digit mobile number">
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">Email Address</label>
+            <input type="email" class="form-control form-control-sm" placeholder="student@example.com">
+          </div>
+
+          ${secFields.map(f => this.renderPreviewInput(f)).join('')}
+        </div>
+      `;
+    }
+
+    // STEP 3: Membership Plan & Fee Calculator
+    if (secName === 'plan') {
+      const planOptions = this.plans.map(p => `<option value="${p._id}" ${this.selectedPlanId === p._id ? 'selected' : ''}>${escapeHTML(p.name)} — ₹${p.price} / ${p.duration} ${p.durationType} (${p.shift ? p.shift.toUpperCase() : 'ANY SHIFT'})</option>`).join('');
+      const selectedPlan = this.plans.find(p => p._id === this.selectedPlanId) || this.plans[0] || { name: 'Standard Full Day Plan', price: 1500, shift: 'All Day (24 Hours)' };
+
+      return `
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div>
+            <label class="form-label text-xs" style="font-weight:700;">Select Membership Plan *</label>
+            <select class="form-select form-control-sm" id="prev-plan-select">${planOptions || '<option>Standard 12-Hour Study Plan (₹1,500/mo)</option>'}</select>
+          </div>
+
+          <div style="display: flex; gap: 8px;">
+            <input type="text" class="form-control form-control-sm" placeholder="Referral / Discount Code (Optional)">
+            <button type="button" class="btn btn-outline-primary btn-sm" style="font-weight:700;">Apply</button>
+          </div>
+
+          <!-- Fee Summary Card -->
+          <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
+            <div style="font-weight: 700; color: var(--color-primary); margin-bottom: 6px;">💰 Live Fee Breakdown</div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span>Base Plan Fee (${escapeHTML(selectedPlan.name)})</span>
+              <span style="font-weight:700;">₹${selectedPlan.price || 1500}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--color-success);">
+              <span>Referral Discount</span>
+              <span style="font-weight:700;">-₹0</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--color-border); padding-top: 6px; font-weight: 800; font-size: 0.95rem;">
+              <span>Net Payable Amount</span>
+              <span style="color: var(--color-primary);">₹${selectedPlan.price || 1500}</span>
+            </div>
+          </div>
+
+          ${secFields.map(f => this.renderPreviewInput(f)).join('')}
+        </div>
+      `;
+    }
+
+    // STEP 4: Dynamic Payment Selection
+    if (secName === 'payment') {
+      return `
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <label class="form-label text-xs" style="font-weight:700;">Select Payment Mode *</label>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
+            <label style="border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; background: ${this.selectedPaymentMode === 'upi' ? 'var(--color-surface-hover)' : 'transparent'};">
+              <input type="radio" name="prev-pm-mode" value="upi" ${this.selectedPaymentMode === 'upi' ? 'checked' : ''}> 📱 UPI QR Code
+            </label>
+            <label style="border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; background: ${this.selectedPaymentMode === 'card' ? 'var(--color-surface-hover)' : 'transparent'};">
+              <input type="radio" name="prev-pm-mode" value="card" ${this.selectedPaymentMode === 'card' ? 'checked' : ''}> 💳 Card / NetBank
+            </label>
+            <label style="border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; background: ${this.selectedPaymentMode === 'cash' ? 'var(--color-surface-hover)' : 'transparent'};">
+              <input type="radio" name="prev-pm-mode" value="cash" ${this.selectedPaymentMode === 'cash' ? 'checked' : ''}> 💵 Pay at Desk
+            </label>
+          </div>
+
+          ${this.selectedPaymentMode === 'upi' ? `
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; text-align: center;">
+              <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 6px;">Scan UPI QR Code to Pay</div>
+              <div style="width: 140px; height: 140px; background: #fff; border: 1px solid var(--color-border); border-radius: 8px; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 2rem;">📱 QR</span>
+              </div>
+              <input type="text" class="form-control form-control-sm" placeholder="Enter 12-digit UPI UTR / Transaction No. *" required>
+            </div>
+          ` : ''}
+
+          ${secFields.map(f => this.renderPreviewInput(f)).join('')}
+        </div>
+      `;
+    }
+
+    // STEP 5: Seat Selection & Digital Signature
+    if (secName === 'seat') {
+      const availSeats = this.seats.length > 0 ? this.seats : [
+        { seatNumber: 'A-01', zone: 'Quiet Zone' }, { seatNumber: 'A-02', zone: 'Quiet Zone' },
+        { seatNumber: 'A-03', zone: 'Quiet Zone' }, { seatNumber: 'B-01', zone: 'General Desk' }
+      ];
+
+      return `
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <label class="form-label text-xs" style="font-weight:700;">Choose Your Study Desk Seat *</label>
+          <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px;">
+            ${availSeats.slice(0, 6).map((s, idx) => `
+              <div style="min-width: 65px; padding: 8px; border: 2px solid ${idx === 0 ? '#6c5ce7' : 'var(--color-border)'}; border-radius: 8px; text-align: center; cursor: pointer; background: ${idx === 0 ? 'rgba(108, 92, 231, 0.1)' : 'var(--color-surface)'};">
+                <div style="font-weight: 800; font-size: 0.9rem; color: #6c5ce7;">${escapeHTML(s.seatNumber)}</div>
+                <div style="font-size: 0.65rem; color: var(--color-text-secondary);">${escapeHTML(s.zone || 'General')}</div>
+              </div>
+            `).join('')}
+          </div>
+
+          <label class="form-label text-xs" style="font-weight:700;">Digital Signature Pad *</label>
+          <div style="width: 100%; height: 80px; border: 1.5px dashed var(--color-border); border-radius: 8px; background: #ffffff; display: flex; align-items: center; justify-content: center; color: var(--color-text-secondary); font-size: 0.8rem;">
+            ✍️ Draw student signature canvas
+          </div>
+
+          ${secFields.map(f => this.renderPreviewInput(f)).join('')}
+        </div>
+      `;
+    }
+
+    // Default Section Fields
+    return `
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+        ${secFields.length ? secFields.map(f => this.renderPreviewInput(f)).join('') : '<div class="text-muted small p-3 text-center">No questions in this section card.</div>'}
+      </div>
+    `;
   }
 
   static renderPreviewInput(field) {
@@ -362,18 +618,33 @@ export class FormBuilder {
       document.getElementById('fb-view-desktop').classList.replace('btn-primary', 'btn-ghost');
     });
 
-    // Add Section
-    document.getElementById('fb-add-section-btn')?.addEventListener('click', async () => {
-      const name = prompt('Enter Section Key (e.g., guardian_info):');
-      if (!name) return;
-      const label = prompt('Enter Section Title (e.g., Step 6: Parent / Guardian Info):');
-      if (!label) return;
+    // Toggle Branding Panel
+    document.getElementById('fb-toggle-branding-panel')?.addEventListener('click', () => {
+      const panel = document.getElementById('fb-branding-panel');
+      if (panel) {
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      }
+    });
 
-      const cleanKey = name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-      this.sections.push({ name: cleanKey, label, icon: 'other', order: this.sections.length + 1 });
-      this.renderSections();
-      this.renderPreview();
-      Toast.success('Section created!');
+    // Branding Live Preview Inputs
+    ['headerText', 'tagline', 'alignment', 'logoSize'].forEach(key => {
+      document.getElementById(`branding-${key}`)?.addEventListener('input', (e) => {
+        if (!this.template.branding) this.template.branding = {};
+        this.template.branding[key] = e.target.value;
+        this.renderPreview();
+      });
+    });
+
+    // Save Branding Button
+    document.getElementById('fb-save-branding-btn')?.addEventListener('click', async () => {
+      try {
+        await api.put('/api/custom-fields/templates/active', {
+          branding: this.template.branding
+        });
+        Toast.success('Header branding updated & synced to /register successfully!');
+      } catch (err) {
+        Toast.error(err.message || 'Failed to save header branding');
+      }
     });
 
     // Add Field

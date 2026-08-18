@@ -41,6 +41,21 @@ router.get('/templates/active', async (req, res) => {
   }
 });
 
+// PUT /api/custom-fields/templates/active - Update active template branding & settings
+router.put('/templates/active', async (req, res) => {
+  try {
+    let template = await FormTemplate.findOne({ isActive: true });
+    if (!template) {
+      template = await FormTemplate.create({ name: 'Default Template', slug: 'default', isActive: true, ...req.body });
+    } else {
+      template = await FormTemplate.findByIdAndUpdate(template._id, req.body, { new: true });
+    }
+    res.json({ success: true, data: template, message: 'Header branding & template updated successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // GET /api/custom-fields/sections - Get unique sections
 router.get('/sections', async (req, res) => {
   try {
