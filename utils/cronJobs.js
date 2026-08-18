@@ -258,12 +258,23 @@ function initCronJobs() {
     await performDatabaseBackup();
   });
 
+  // Keep-Alive Self-Ping Cron (Every 10 Minutes) — Prevents Render.com Cold Starts
+  cron.schedule('*/10 * * * *', async () => {
+    try {
+      const liveUrl = process.env.LIVE_URL || 'https://study-library-management.onrender.com';
+      const protocol = liveUrl.startsWith('https') ? require('https') : require('http');
+      protocol.get(`${liveUrl}/api/health`, (res) => {
+        console.log(`💓 Render Keep-Alive Ping Status: ${res.statusCode}`);
+      }).on('error', () => {});
+    } catch (e) {}
+  });
+
   // Initial check on boot
   setTimeout(async () => {
     await checkStudentExpiries();
   }, 10000);
 
-  console.log('  🕒 Automated Notification, Expiry & EOD Cron jobs scheduled');
+  console.log('  🕒 Automated Notification, Expiry, Keep-Alive & EOD Cron jobs scheduled');
 }
 
 module.exports = { initCronJobs, checkStudentExpiries, generateEODSummary };
