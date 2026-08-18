@@ -157,12 +157,18 @@ function renderSettingsUI(container, profile, settings) {
                 </div>
               </div>
 
-              <!-- Media Previews: Logo & UPI QR -->
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem; background: var(--color-bg-primary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+              <!-- Media Previews: Logo, Favicon & UPI QR -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem; background: var(--color-bg-primary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
                 <!-- Logo -->
                 <div>
                   <label class="form-label" style="font-weight: 600;">Library Emblem / Logo</label>
                   <div id="mount-setting-logo"></div>
+                </div>
+
+                <!-- Favicon -->
+                <div>
+                  <label class="form-label" style="font-weight: 600;">🌐 Browser Tab Favicon Icon</label>
+                  <div id="mount-setting-favicon"></div>
                 </div>
 
                 <!-- UPI QR Code -->
@@ -170,6 +176,23 @@ function renderSettingsUI(container, profile, settings) {
                   <label class="form-label" style="font-weight: 600;">UPI Payment QR Code</label>
                   <div id="mount-setting-qr"></div>
                 </div>
+              </div>
+
+              <!-- Custom URL & Domain Guidance -->
+              <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(16, 185, 129, 0.06)); border: 1px solid var(--color-primary-bg); border-radius: var(--radius-md); padding: 16px; margin-bottom: 1.5rem;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                  <span style="font-size: 1.2rem;">🌐</span>
+                  <h4 style="margin: 0; font-size: 1rem; font-weight: 800; color: var(--color-primary);">Custom Domain URL Configuration Guidance</h4>
+                </div>
+                <p class="text-muted small" style="margin-bottom: 10px; line-height: 1.5;">
+                  You can map a custom URL (e.g. <code>https://thecozycornerlibrary.com</code>) to your library system:
+                </p>
+                <ol class="text-muted small" style="margin-left: 1.2rem; line-height: 1.6; margin-bottom: 6px;">
+                  <li>Log into your domain registrar (GoDaddy, Namecheap, Google Domains, Hostinger).</li>
+                  <li>Open your <strong>Render.com Dashboard</strong> ➔ <code>study-library-management</code> ➔ <code>Settings</code> ➔ <code>Custom Domains</code>.</li>
+                  <li>Add your custom domain (e.g., <code>thecozycornerlibrary.com</code>) and copy the DNS CNAME/A records to your registrar.</li>
+                  <li>Render automatically issues a <strong>Free SSL (HTTPS) Certificate</strong> for your custom domain URL!</li>
+                </ol>
               </div>
 
               <!-- Contact & Address -->
@@ -1340,7 +1363,6 @@ function renderSettingsUI(container, profile, settings) {
   container.querySelectorAll('input[name="lateFeeType"]').forEach(r => r.addEventListener('change', updatePolicySim));
   updatePolicySim();
 
-  // Mount Smart Media Pickers for Logo and UPI QR Code
   const logoMount = container.querySelector('#mount-setting-logo');
   if (logoMount) {
     logoMount.appendChild(MediaFieldPicker.create({
@@ -1348,6 +1370,16 @@ function renderSettingsUI(container, profile, settings) {
       preset: 'stamp_logo',
       name: 'logo',
       value: profile.logo || ''
+    }));
+  }
+
+  const faviconMount = container.querySelector('#mount-setting-favicon');
+  if (faviconMount) {
+    faviconMount.appendChild(MediaFieldPicker.create({
+      label: 'Browser Tab Favicon Icon (PNG/ICO 1:1)',
+      preset: 'stamp_logo',
+      name: 'favicon',
+      value: profile.favicon || profile.logo || ''
     }));
   }
 
@@ -1592,6 +1624,7 @@ function renderSettingsUI(container, profile, settings) {
         businessName: container.querySelector('#setting-businessName')?.value?.trim(),
         tagline: container.querySelector('#setting-tagline')?.value?.trim(),
         logo: container.querySelector('input[name="logo"]')?.value?.trim() || container.querySelector('#setting-logo')?.value?.trim() || '',
+        favicon: container.querySelector('input[name="favicon"]')?.value?.trim() || container.querySelector('#setting-favicon')?.value?.trim() || '',
         upiQrCode: container.querySelector('input[name="upiQrCode"]')?.value?.trim() || container.querySelector('#setting-upiQrCode')?.value?.trim() || '',
         phone: container.querySelector('#setting-phone')?.value?.trim(),
         email: container.querySelector('#setting-email')?.value?.trim(),
@@ -1736,6 +1769,7 @@ function renderSettingsUI(container, profile, settings) {
         businessName: container.querySelector('#setting-businessName')?.value?.trim(),
         tagline: container.querySelector('#setting-tagline')?.value?.trim(),
         logo: container.querySelector('input[name="logo"]')?.value?.trim() || container.querySelector('#setting-logo')?.value?.trim() || '',
+        favicon: container.querySelector('input[name="favicon"]')?.value?.trim() || container.querySelector('#setting-favicon')?.value?.trim() || '',
         upiQrCode: container.querySelector('input[name="upiQrCode"]')?.value?.trim() || container.querySelector('#setting-upiQrCode')?.value?.trim() || '',
         phone: container.querySelector('#setting-phone')?.value?.trim(),
         email: container.querySelector('#setting-email')?.value?.trim(),

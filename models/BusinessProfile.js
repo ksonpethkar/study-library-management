@@ -7,6 +7,7 @@ const businessProfileSchema = new mongoose.Schema({
   },
   tagline: String,
   logo: String,
+  favicon: String,
   address: String,
   city: String,
   state: String,

@@ -98,14 +98,15 @@ const validateBusinessProfile = validate([
   body('registrationNumber').optional().trim(),
   body('upiQrCode').optional().trim(),
   body('stampImage').optional().trim(),
-  body('logo').optional().trim()
+  body('logo').optional().trim(),
+  body('favicon').optional().trim()
 ]);
 
 router.put('/business-profile', roleCheck('owner'), validateBusinessProfile, async (req, res) => {
   try {
     const profile = await BusinessProfile.getProfile();
     const fields = [
-      'businessName', 'tagline', 'logo', 'address', 'city', 'state', 'pincode',
+      'businessName', 'tagline', 'logo', 'favicon', 'address', 'city', 'state', 'pincode',
       'phone', 'email', 'website', 'gstNumber', 'registrationNumber', 'upiQrCode',
       'stampImage'
     ];

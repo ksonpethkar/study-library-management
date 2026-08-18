@@ -63,10 +63,54 @@
     });
   });
 
+  function updateDynamicFaviconAndTitle(profile) {
+    if (!profile) return;
+
+    // 1. Update Favicon Icon across Browser Tab
+    const iconUrl = profile.favicon || profile.logo;
+    if (iconUrl) {
+      let favEl = document.getElementById('dynamic-favicon');
+      if (!favEl) {
+        favEl = document.createElement('link');
+        favEl.id = 'dynamic-favicon';
+        favEl.rel = 'icon';
+        document.head.appendChild(favEl);
+      }
+      favEl.href = iconUrl;
+
+      let appleEl = document.getElementById('dynamic-apple-icon');
+      if (!appleEl) {
+        appleEl = document.createElement('link');
+        appleEl.id = 'dynamic-apple-icon';
+        appleEl.rel = 'apple-touch-icon';
+        document.head.appendChild(appleEl);
+      }
+      appleEl.href = iconUrl;
+    }
+
+    // 2. Update Browser Tab Title if businessName exists
+    if (profile.businessName && document.title) {
+      if (document.title.includes('Study Library') || document.title.includes('StudyLib')) {
+        document.title = document.title.replace(/Study Library|StudyLib/g, profile.businessName);
+      }
+    }
+  }
+
+  // Auto-fetch branding profile on boot for dynamic favicon
+  fetch('/api/landing')
+    .then(r => r.json())
+    .then(d => {
+      if (d.data?.businessProfile) {
+        updateDynamicFaviconAndTitle(d.data.businessProfile);
+      }
+    })
+    .catch(() => {});
+
   window.getSystemTheme = getSystemTheme;
   window.applySystemTheme = applySystemTheme;
   window.toggleSystemTheme = toggleSystemTheme;
   window.toggleTheme = toggleSystemTheme;
   window.toggleStudentTheme = toggleSystemTheme;
   window.toggleRegisterTheme = toggleSystemTheme;
+  window.updateDynamicFaviconAndTitle = updateDynamicFaviconAndTitle;
 })();
