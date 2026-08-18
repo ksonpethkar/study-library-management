@@ -21,13 +21,7 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" media="print" href="css/print.css">
 
-  <script>
-    (function() {
-      const t = localStorage.getItem('sl_theme') || 
-        (window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');
-      document.documentElement.setAttribute('data-theme', t);
-    })();
-  </script>
+  <script src="js/themeManager.js"></script>
 </head>
 <body>
 
