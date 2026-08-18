@@ -1248,3 +1248,108 @@
   }
 }
 
+/* ========================================== */
+/* SMART PREMIUM TOGGLE SWITCH COMPONENT       */
+/* ========================================== */
+input[type="checkbox"].form-toggle,
+input[type="checkbox"].smart-toggle,
+input[type="checkbox"].toggle-switch,
+.smart-switch input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 52px;
+  height: 28px;
+  background-color: var(--color-bg-tertiary, #475569);
+  border-radius: 30px;
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  border: 2px solid var(--color-border, #334155);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Knob */
+input[type="checkbox"].form-toggle::before,
+input[type="checkbox"].smart-toggle::before,
+input[type="checkbox"].toggle-switch::before,
+.smart-switch input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s ease, box-shadow 0.25s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+/* Checked State (ON - Emerald Green) */
+input[type="checkbox"].form-toggle:checked,
+input[type="checkbox"].smart-toggle:checked,
+input[type="checkbox"].toggle-switch:checked,
+.smart-switch input[type="checkbox"]:checked {
+  background-color: #10b981 !important; /* Emerald Green */
+  border-color: #059669 !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+
+input[type="checkbox"].form-toggle:checked::before,
+input[type="checkbox"].smart-toggle:checked::before,
+input[type="checkbox"].toggle-switch:checked::before,
+.smart-switch input[type="checkbox"]:checked::before {
+  transform: translateX(24px);
+  background-color: #ffffff;
+}
+
+/* Hover & Touch Tactile Feedback */
+input[type="checkbox"].form-toggle:hover,
+input[type="checkbox"].smart-toggle:hover,
+input[type="checkbox"].toggle-switch:hover {
+  filter: brightness(1.12);
+}
+
+input[type="checkbox"].form-toggle:active::before,
+input[type="checkbox"].smart-toggle:active::before,
+input[type="checkbox"].toggle-switch:active::before {
+  width: 24px;
+}
+
+/* Focus State for Accessibility */
+input[type="checkbox"].form-toggle:focus-visible,
+input[type="checkbox"].smart-toggle:focus-visible,
+input[type="checkbox"].toggle-switch:focus-visible {
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35);
+}
+
+/* Disabled State */
+input[type="checkbox"].form-toggle:disabled,
+input[type="checkbox"].smart-toggle:disabled,
+input[type="checkbox"].toggle-switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Smart Toggle Container with Status Badge Label */
+.smart-toggle-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+}
+
+.smart-toggle-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+

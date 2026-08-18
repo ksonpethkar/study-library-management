@@ -930,20 +930,20 @@ function renderSettingsUI(container, profile, settings) {
                   </div>
 
                   <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-header-showLogo" checked> Show Logo
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-header-showLogo" class="form-toggle" checked> Show Logo
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-header-showBusinessName" checked> Show Business Name
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-header-showBusinessName" class="form-toggle" checked> Show Business Name
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-header-showPhone" checked> Show Phone
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-header-showPhone" class="form-toggle" checked> Show Phone
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-header-showEmail" checked> Show Email
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-header-showEmail" class="form-toggle" checked> Show Email
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-header-showGst" checked> Show GSTIN
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-header-showGst" class="form-toggle" checked> Show GSTIN
                     </label>
                   </div>
                 </div>
@@ -953,29 +953,29 @@ function renderSettingsUI(container, profile, settings) {
                   <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">📋 Receipt Fields & Visibility</div>
                   
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showStudentId" checked> Show Student ID
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showStudentId" class="form-toggle" checked> Show Student ID
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showStudentPhone" checked> Show Student Phone
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showStudentPhone" class="form-toggle" checked> Show Student Phone
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showPlanDetails" checked> Show Plan Name
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showPlanDetails" class="form-toggle" checked> Show Plan Name
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showPeriod" checked> Show Validity Dates
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showPeriod" class="form-toggle" checked> Show Validity Dates
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showSeatNumber" checked> Show Seat No
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showSeatNumber" class="form-toggle" checked> Show Seat No
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showShift" checked> Show Shift Timing
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showShift" class="form-toggle" checked> Show Shift Timing
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showPaymentMethod" checked> Show Payment Mode
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showPaymentMethod" class="form-toggle" checked> Show Payment Mode
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showTransactionId" checked> Show Transaction UTR
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showTransactionId" class="form-toggle" checked> Show Transaction UTR
                     </label>
                   </div>
                 </div>
@@ -984,8 +984,8 @@ function renderSettingsUI(container, profile, settings) {
                 <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px;">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">🏛️ GST Tax Invoice Options</div>
-                    <label style="font-size: 0.8rem; font-weight: 700; cursor: pointer;">
-                      <input type="checkbox" id="rs-gst-enabled"> Enable GST
+                    <label style="font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                      <input type="checkbox" id="rs-gst-enabled" class="form-toggle"> Enable GST
                     </label>
                   </div>
                   
@@ -1006,11 +1006,11 @@ function renderSettingsUI(container, profile, settings) {
                   <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">✍️ Footer, Stamps & Legal Terms</div>
                   
                   <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-footer-showStamp" checked> Show Official Paid Stamp
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-footer-showStamp" class="form-toggle" checked> Show Official Paid Stamp
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                      <input type="checkbox" id="rs-footer-showSignature" checked> Show Authorized Signatory
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" id="rs-footer-showSignature" class="form-toggle" checked> Show Authorized Signatory
                     </label>
                   </div>
 
