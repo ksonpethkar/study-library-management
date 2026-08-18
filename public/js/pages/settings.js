@@ -2186,9 +2186,11 @@ async function initModuleSettings(container) {
   container.querySelector('#btn-save-modules')?.addEventListener('click', async () => {
     const items = [];
     listContainer.querySelectorAll('.module-item').forEach((itemEl, index) => {
+      const key = itemEl.dataset.key;
       items.push({
-        key: itemEl.dataset.key,
-        label: itemEl.querySelector('.module-label-input').value.trim(),
+        key: key,
+        label: itemEl.querySelector('.module-label-input').value.trim() || key,
+        href: `#/${key}`,
         isEnabled: itemEl.querySelector('.module-enable-toggle').checked,
         order: index + 1
       });

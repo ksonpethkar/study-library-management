@@ -543,9 +543,28 @@ router.put('/sidebar', roleCheck('owner', 'branch_manager'), async (req, res) =>
     if (!Array.isArray(items)) return res.status(400).json({ success: false, message: 'Items array required' });
     
     const config = await SidebarConfig.getConfig();
-    config.items = items;
+    const defaults = SidebarConfig.getDefaults();
+    const existingMap = new Map();
+    (config.items || []).forEach(i => existingMap.set(i.key, i.toObject ? i.toObject() : i));
+    defaults.forEach(d => { if (!existingMap.has(d.key)) existingMap.set(d.key, d); });
+
+    const mergedItems = items.map((item, index) => {
+      const existing = existingMap.get(item.key) || {};
+      return {
+        key: item.key,
+        label: item.label || existing.label || item.key,
+        href: item.href || existing.href || `/#/${item.key}`,
+        icon: item.icon || existing.icon || '',
+        isEnabled: item.isEnabled !== undefined ? item.isEnabled : (existing.isEnabled !== false),
+        order: item.order !== undefined ? item.order : index + 1,
+        isSystem: existing.isSystem || false,
+        i18nKey: existing.i18nKey || `nav.${item.key}`
+      };
+    });
+
+    config.items = mergedItems;
     await config.save();
-    res.json({ success: true, data: config.items, message: 'Sidebar configuration saved' });
+    res.json({ success: true, data: config.items, message: 'Sidebar configuration saved successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
