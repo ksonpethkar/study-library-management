@@ -1121,6 +1121,8 @@
       const current = document.documentElement.getAttribute('data-theme') || 'light';
       const next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
+      document.documentElement.classList.toggle('dark-theme', next === 'dark');
+      document.body.classList.toggle('dark-theme', next === 'dark');
       localStorage.setItem('sl_theme', next);
       const btn = document.getElementById('reg-theme-toggle');
       if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
@@ -1129,6 +1131,8 @@
     // Initialize saved theme
     const savedTheme = localStorage.getItem('sl_theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
+    document.documentElement.classList.toggle('dark-theme', savedTheme === 'dark');
+    document.body.classList.toggle('dark-theme', savedTheme === 'dark');
     const themeBtn = document.getElementById('reg-theme-toggle');
     if (themeBtn) themeBtn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
 

@@ -333,6 +333,8 @@ class Application {
 }
 
 export const App = new Application();
+window.App = App;
+window.toggleTheme = () => App.toggleTheme();
 
 // Boot the application
 document.addEventListener('DOMContentLoaded', () => {
