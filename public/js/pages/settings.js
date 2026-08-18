@@ -119,6 +119,9 @@ function renderSettingsUI(container, profile, settings) {
         <button class="settings-tab-btn" data-tab="pdfstudio" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
           <span>📄</span> PDF Admission Form Studio
         </button>
+        <button class="settings-tab-btn" data-tab="receiptstudio" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>🧾</span> Smart Receipt Builder Studio
+        </button>
       </div>
     </div>
 
@@ -874,8 +877,176 @@ function renderSettingsUI(container, profile, settings) {
             </div>
           </div>
         </div>
-      </div>
+      <!-- ========================================== -->
+      <!-- SECTION J: SMART RECEIPT BUILDER STUDIO     -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-receiptstudio" style="display: none;">
+        <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                🧾 Smart Payment Receipt Builder Studio & Presets
+              </h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">
+                Full customization over printable receipts, GST tax invoices, official paid stamps, branding, and thermal POS slips.
+              </p>
+            </div>
+            <button id="btn-save-receipt-config" class="btn btn-primary btn-sm" style="font-weight: 700;">
+              💾 Save Receipt Studio Config
+            </button>
+          </div>
 
+          <div class="card-body" style="padding: 1.5rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
+              
+              <!-- Left Pane: Controls -->
+              <div style="display: flex; flex-direction: column; gap: 16px;">
+                
+                <!-- Presets -->
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md);">
+                  <label class="form-label text-xs" style="font-weight: 700;">Active Receipt Preset Template *</label>
+                  <select id="rs-activeTemplate" class="form-select form-control-sm" style="font-weight: 600;">
+                    <option value="standard_a4">📄 Standard A4 / A5 Official Fee Receipt</option>
+                    <option value="thermal_80">🧾 80mm Thermal POS Receipt (Standard Counter Printer)</option>
+                    <option value="thermal_58">🧾 58mm Thermal Mini Slip (Compact Mobile Bluetooth Printer)</option>
+                    <option value="modern_minimal">💎 Modern Glass Slate (Minimalist Invoice)</option>
+                    <option value="gst_invoice">🏛️ Official Tax / GST Invoice (Double Border with HSN/GSTIN)</option>
+                  </select>
+                </div>
+
+                <!-- Header Options -->
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px;">
+                  <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">🖼️ Header & Logo Branding</div>
+                  
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                      <label class="form-label text-xs" style="font-weight: 600;">Header Subtitle</label>
+                      <input type="text" id="rs-header-subtitle" class="form-control form-control-sm" value="Official Fee Receipt">
+                    </div>
+                    <div>
+                      <label class="form-label text-xs" style="font-weight: 600;">Header Accent Color</label>
+                      <input type="color" id="rs-header-color" class="form-control form-control-sm" value="#4f46e5" style="height: 34px; padding: 2px;">
+                    </div>
+                  </div>
+
+                  <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-header-showLogo" checked> Show Logo
+                    </label>
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-header-showBusinessName" checked> Show Business Name
+                    </label>
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-header-showPhone" checked> Show Phone
+                    </label>
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-header-showEmail" checked> Show Email
+                    </label>
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-header-showGst" checked> Show GSTIN
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Body Field Toggles -->
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px;">
+                  <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">📋 Receipt Fields & Visibility</div>
+                  
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showStudentId" checked> Show Student ID
+                    </label>
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showStudentPhone" checked> Show Student Phone
+                    </label>
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showPlanDetails" checked> Show Plan Name
+                    </label>
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showPeriod" checked> Show Validity Dates
+                    </label>
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showSeatNumber" checked> Show Seat No
+                    </label>
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showShift" checked> Show Shift Timing
+                    </label>
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showPaymentMethod" checked> Show Payment Mode
+                    </label>
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-body-showTransactionId" checked> Show Transaction UTR
+                    </label>
+                  </div>
+                </div>
+
+                <!-- GST Tax Invoicing -->
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">🏛️ GST Tax Invoice Options</div>
+                    <label style="font-size: 0.8rem; font-weight: 700; cursor: pointer;">
+                      <input type="checkbox" id="rs-gst-enabled"> Enable GST
+                    </label>
+                  </div>
+                  
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                      <label class="form-label text-xs" style="font-weight: 600;">GST Rate %</label>
+                      <input type="number" id="rs-gst-gstRate" class="form-control form-control-sm" value="18">
+                    </div>
+                    <div>
+                      <label class="form-label text-xs" style="font-weight: 600;">HSN / SAC Code</label>
+                      <input type="text" id="rs-gst-hsnCode" class="form-control form-control-sm" value="9992">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Footer, Stamps & Signatures -->
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px;">
+                  <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">✍️ Footer, Stamps & Legal Terms</div>
+                  
+                  <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-footer-showStamp" checked> Show Official Paid Stamp
+                    </label>
+                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                      <input type="checkbox" id="rs-footer-showSignature" checked> Show Authorized Signatory
+                    </label>
+                  </div>
+
+                  <div>
+                    <label class="form-label text-xs" style="font-weight: 600;">Custom Note / Tagline</label>
+                    <input type="text" id="rs-footer-customNote" class="form-control form-control-sm" value="Thank you for choosing our study library!">
+                  </div>
+
+                  <div>
+                    <label class="form-label text-xs" style="font-weight: 600;">Terms & Conditions</label>
+                    <textarea id="rs-footer-termsText" class="form-control form-control-sm" rows="2">1. Fees paid are non-refundable. 2. Seat assignment is strictly non-transferable.</textarea>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Right Pane: Real-Time Live Printable Receipt Preview -->
+              <div style="position: sticky; top: 80px;">
+                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm);">
+                  <div style="padding: 10px 14px; background: var(--color-surface-hover); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--color-text-primary);">
+                      👁️ Real-Time Receipt Preview
+                    </span>
+                    <span class="badge badge-success" style="font-size: 0.7rem; font-weight: 700;">LIVE PREVIEW</span>
+                  </div>
+
+                  <div id="rs-live-preview-box" style="padding: 20px; background: #ffffff; color: #000000; min-height: 400px; max-height: 600px; overflow-y: auto;">
+                    <!-- Rendered live preview -->
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   `;
 
@@ -892,7 +1063,8 @@ function renderSettingsUI(container, profile, settings) {
     modules: container.querySelector('#panel-modules'),
     audittrail: container.querySelector('#panel-audittrail'),
     landing: container.querySelector('#panel-landing'),
-    pdfstudio: container.querySelector('#panel-pdfstudio')
+    pdfstudio: container.querySelector('#panel-pdfstudio'),
+    receiptstudio: container.querySelector('#panel-receiptstudio')
   };
 
   container.querySelector('#btn-preview-pdf')?.addEventListener('click', () => {
@@ -957,6 +1129,8 @@ function renderSettingsUI(container, profile, settings) {
         loadAuditLogs();
       } else if (target === 'formbuilder') {
         FormBuilder.render(container.querySelector('#form-builder-mount-container'));
+      } else if (target === 'receiptstudio') {
+        loadReceiptStudio();
       }
     });
   });
@@ -1207,6 +1381,203 @@ function renderSettingsUI(container, profile, settings) {
         btn.style.borderColor = 'var(--color-primary)';
       }
     });
+  });
+
+  // Smart Receipt Studio Logic
+  const renderReceiptLivePreview = () => {
+    const box = container.querySelector('#rs-live-preview-box');
+    if (!box) return;
+
+    const sub = container.querySelector('#rs-header-subtitle')?.value || 'Official Fee Receipt';
+    const color = container.querySelector('#rs-header-color')?.value || '#4f46e5';
+    const showLogo = container.querySelector('#rs-header-showLogo')?.checked;
+    const showBiz = container.querySelector('#rs-header-showBusinessName')?.checked;
+    const showPhone = container.querySelector('#rs-header-showPhone')?.checked;
+    const showEmail = container.querySelector('#rs-header-showEmail')?.checked;
+    const showGst = container.querySelector('#rs-header-showGst')?.checked;
+
+    const showStuId = container.querySelector('#rs-body-showStudentId')?.checked;
+    const showPlan = container.querySelector('#rs-body-showPlanDetails')?.checked;
+    const showSeat = container.querySelector('#rs-body-showSeatNumber')?.checked;
+    const showShift = container.querySelector('#rs-body-showShift')?.checked;
+    const showMode = container.querySelector('#rs-body-showPaymentMethod')?.checked;
+
+    const showStamp = container.querySelector('#rs-footer-showStamp')?.checked;
+    const showSig = container.querySelector('#rs-footer-showSignature')?.checked;
+    const customNote = container.querySelector('#rs-footer-customNote')?.value || '';
+    const terms = container.querySelector('#rs-footer-termsText')?.value || '';
+
+    box.innerHTML = `
+      <div style="border: 2px solid ${color}; border-radius: 8px; padding: 20px; font-family: sans-serif; position: relative;">
+        ${showStamp ? `
+          <div style="position: absolute; top: 20px; right: 20px; border: 3px double #059669; color: #059669; font-weight: 800; font-size: 0.82rem; padding: 5px 12px; border-radius: 6px; transform: rotate(-10deg); letter-spacing: 1px;">
+            PAID • OFFICIAL RECEIPT
+          </div>
+        ` : ''}
+
+        <div style="text-align: center; border-bottom: 2px solid ${color}; padding-bottom: 12px; margin-bottom: 16px;">
+          ${showLogo && profile.logo ? `<img src="${profile.logo}" style="height: 48px; margin-bottom: 6px;">` : ''}
+          ${showBiz ? `<h2 style="margin: 0; color: ${color}; font-weight: 800; font-size: 1.3rem;">${escapeHTML(profile.businessName || 'Study Library Management')}</h2>` : ''}
+          <div style="font-weight: 700; color: #555; margin-top: 2px; font-size: 0.9rem;">${escapeHTML(sub)}</div>
+          <div style="font-size: 0.8rem; color: #666; margin-top: 4px;">
+            ${showPhone ? `📞 ${escapeHTML(profile.phone || '+91 98765 43210')} ` : ''}
+            ${showEmail ? `✉️ ${escapeHTML(profile.email || 'info@studylib.com')}` : ''}
+            ${showGst ? `<br>GSTIN: 27AAAAA0000A1Z5` : ''}
+          </div>
+        </div>
+
+        <!-- Receipt Details Grid -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.83rem; margin-bottom: 16px; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+          <div><strong>Receipt No:</strong> RCP-2026-0892</div>
+          <div><strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}</div>
+          <div><strong>Student Name:</strong> Rahul Sharma</div>
+          ${showStuId ? `<div><strong>Student ID:</strong> STU-2026-018</div>` : ''}
+          ${showPlan ? `<div><strong>Plan Name:</strong> Super Achiever 10-Hour Plan</div>` : ''}
+          ${showSeat ? `<div><strong>Seat No:</strong> Desk #18 (Quiet Zone)</div>` : ''}
+          ${showShift ? `<div><strong>Shift:</strong> Morning Shift (7 AM - 5 PM)</div>` : ''}
+          ${showMode ? `<div><strong>Payment Mode:</strong> UPI (GPay / PhonePe)</div>` : ''}
+        </div>
+
+        <!-- Fee Summary -->
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-bottom: 16px;">
+          <thead>
+            <tr style="background: ${color}; color: #ffffff;">
+              <th style="padding: 8px; text-align: left;">Description</th>
+              <th style="padding: 8px; text-align: right;">Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px;">Library Membership Fee (1 Month)</td>
+              <td style="padding: 8px; text-align: right; font-weight: 700;">₹1,500.00</td>
+            </tr>
+            <tr style="font-weight: 800; font-size: 0.92rem; background: #f1f5f9;">
+              <td style="padding: 8px;">Total Net Amount Paid</td>
+              <td style="padding: 8px; text-align: right; color: ${color};">₹1,500.00</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Footer -->
+        <div style="font-size: 0.78rem; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px; display: flex; justify-content: space-between; align-items: flex-end;">
+          <div>
+            ${customNote ? `<div style="font-weight: 700; color: #334155;">${escapeHTML(customNote)}</div>` : ''}
+            ${terms ? `<div style="margin-top: 4px; font-size: 0.72rem; white-space: pre-line;">${escapeHTML(terms)}</div>` : ''}
+          </div>
+          ${showSig ? `
+            <div style="text-align: center; margin-left: 20px; flex-shrink: 0;">
+              <div style="border-bottom: 1px solid #94a3b8; width: 120px; margin-bottom: 4px;"></div>
+              <div style="font-size: 0.75rem; font-weight: 700;">Authorized Signatory</div>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  };
+
+  const loadReceiptStudio = async () => {
+    try {
+      const res = await api.get('/api/settings/receipt-config');
+      if (res.success && res.data) {
+        const config = res.data;
+        const setVal = (id, val) => {
+          const el = container.querySelector('#' + id);
+          if (el) {
+            if (el.type === 'checkbox') el.checked = !!val;
+            else el.value = val !== undefined ? val : '';
+          }
+        };
+
+        setVal('rs-activeTemplate', config.activeTemplate || 'standard_a4');
+        const h = config.header || {};
+        setVal('rs-header-subtitle', h.subtitle || 'Official Fee Receipt');
+        setVal('rs-header-color', h.headerColor || '#4f46e5');
+        setVal('rs-header-showLogo', h.showLogo !== false);
+        setVal('rs-header-showBusinessName', h.showBusinessName !== false);
+        setVal('rs-header-showPhone', h.showPhone !== false);
+        setVal('rs-header-showEmail', h.showEmail !== false);
+        setVal('rs-header-showGst', h.showGst !== false);
+
+        const b = config.body || {};
+        setVal('rs-body-showStudentId', b.showStudentId !== false);
+        setVal('rs-body-showStudentPhone', b.showStudentPhone !== false);
+        setVal('rs-body-showPlanDetails', b.showPlanDetails !== false);
+        setVal('rs-body-showPeriod', b.showPeriod !== false);
+        setVal('rs-body-showSeatNumber', b.showSeatNumber !== false);
+        setVal('rs-body-showShift', b.showShift !== false);
+        setVal('rs-body-showPaymentMethod', b.showPaymentMethod !== false);
+        setVal('rs-body-showTransactionId', b.showTransactionId !== false);
+
+        const g = config.gst || {};
+        setVal('rs-gst-enabled', !!g.enabled);
+        setVal('rs-gst-gstRate', g.gstRate || 18);
+        setVal('rs-gst-hsnCode', g.hsnCode || '9992');
+
+        const f = config.footer || {};
+        setVal('rs-footer-showStamp', f.showStamp !== false);
+        setVal('rs-footer-showSignature', f.showSignature !== false);
+        setVal('rs-footer-customNote', f.customNote || 'Thank you for choosing our study library!');
+        setVal('rs-footer-termsText', f.termsText || '1. Fees paid are non-refundable. 2. Seat assignment is strictly non-transferable.');
+
+        renderReceiptLivePreview();
+      }
+    } catch (err) {
+      console.error('Error loading receipt studio config:', err);
+    }
+  };
+
+  // Bind Receipt Studio Inputs to Live Preview
+  container.querySelectorAll('#panel-receiptstudio input, #panel-receiptstudio select, #panel-receiptstudio textarea').forEach(el => {
+    el.addEventListener('input', renderReceiptLivePreview);
+    el.addEventListener('change', renderReceiptLivePreview);
+  });
+
+  // Save Receipt Studio Config Handler
+  container.querySelector('#btn-save-receipt-config')?.addEventListener('click', async () => {
+    const btn = container.querySelector('#btn-save-receipt-config');
+    Loading.button(btn, true);
+    try {
+      const payload = {
+        activeTemplate: container.querySelector('#rs-activeTemplate')?.value,
+        header: {
+          subtitle: container.querySelector('#rs-header-subtitle')?.value?.trim(),
+          headerColor: container.querySelector('#rs-header-color')?.value,
+          showLogo: container.querySelector('#rs-header-showLogo')?.checked,
+          showBusinessName: container.querySelector('#rs-header-showBusinessName')?.checked,
+          showPhone: container.querySelector('#rs-header-showPhone')?.checked,
+          showEmail: container.querySelector('#rs-header-showEmail')?.checked,
+          showGst: container.querySelector('#rs-header-showGst')?.checked
+        },
+        body: {
+          showStudentId: container.querySelector('#rs-body-showStudentId')?.checked,
+          showStudentPhone: container.querySelector('#rs-body-showStudentPhone')?.checked,
+          showPlanDetails: container.querySelector('#rs-body-showPlanDetails')?.checked,
+          showPeriod: container.querySelector('#rs-body-showPeriod')?.checked,
+          showSeatNumber: container.querySelector('#rs-body-showSeatNumber')?.checked,
+          showShift: container.querySelector('#rs-body-showShift')?.checked,
+          showPaymentMethod: container.querySelector('#rs-body-showPaymentMethod')?.checked,
+          showTransactionId: container.querySelector('#rs-body-showTransactionId')?.checked
+        },
+        gst: {
+          enabled: container.querySelector('#rs-gst-enabled')?.checked,
+          gstRate: parseFloat(container.querySelector('#rs-gst-gstRate')?.value) || 18,
+          hsnCode: container.querySelector('#rs-gst-hsnCode')?.value?.trim() || '9992'
+        },
+        footer: {
+          showStamp: container.querySelector('#rs-footer-showStamp')?.checked,
+          showSignature: container.querySelector('#rs-footer-showSignature')?.checked,
+          customNote: container.querySelector('#rs-footer-customNote')?.value?.trim(),
+          termsText: container.querySelector('#rs-footer-termsText')?.value?.trim()
+        }
+      };
+
+      const res = await api.put('/api/settings/receipt-config', payload);
+      Toast.success(res?.message || 'Receipt Studio configuration saved successfully!');
+    } catch (err) {
+      Toast.error(err.message || 'Failed to save receipt configuration');
+    } finally {
+      Loading.button(btn, false);
+    }
   });
 
   // ==========================================
