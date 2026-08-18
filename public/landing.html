@@ -28,7 +28,7 @@
       --toast-text: #fff;
     }
 
-    [data-theme="dark"] {
+    [data-theme="dark"], body.dark-theme, html.dark-theme, body[data-theme="dark"], html[data-theme="dark"] {
       --surface: #1e2230;
       --bg: #0f121d;
       --text: #f8fafc;
@@ -38,6 +38,18 @@
       --card-hover: 0 20px 30px -10px rgba(108,92,231,0.3);
       --toast-bg: #e2e8f0;
       --toast-text: #0f172a;
+    }
+
+    [data-theme="light"], body:not(.dark-theme), html[data-theme="light"] {
+      --surface: #ffffff;
+      --bg: #f8fafc;
+      --text: #0f172a;
+      --text-muted: #475569;
+      --border: #cbd5e1;
+      --card-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05);
+      --card-hover: 0 20px 30px -10px rgba(108,92,231,0.15);
+      --toast-bg: #333;
+      --toast-text: #fff;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -72,13 +84,11 @@
       position: sticky;
       top: 0;
       z-index: 1000;
-      background: rgba(255, 255, 255, 0.7);
+      background: var(--surface);
+      color: var(--text);
       backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border);
       transition: all 0.3s ease;
-    }
-    [data-theme="dark"] .landing-nav {
-      background: rgba(30, 34, 48, 0.7);
     }
     .nav-container {
       max-width: 1240px;
@@ -883,37 +893,32 @@
   </div>
 
   <script>
-    // Theme Toggle
-    function toggleTheme() {
-      const html = document.documentElement;
-      const btn = document.getElementById('theme-btn');
-      const current = html.getAttribute('data-theme') || 'light';
-      const nextTheme = current === 'dark' ? 'light' : 'dark';
-      
-      html.setAttribute('data-theme', nextTheme);
-      document.body.setAttribute('data-theme', nextTheme);
-      html.classList.toggle('dark-theme', nextTheme === 'dark');
-      document.body.classList.toggle('dark-theme', nextTheme === 'dark');
-      localStorage.setItem('sl_theme', nextTheme);
+    function applyLandingTheme(theme) {
+      const isDark = theme === 'dark';
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      document.body.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      document.documentElement.classList.toggle('dark-theme', isDark);
+      document.body.classList.toggle('dark-theme', isDark);
+      localStorage.setItem('sl_theme', isDark ? 'dark' : 'light');
 
+      const btn = document.getElementById('theme-btn');
       if (btn) {
-        btn.textContent = nextTheme === 'dark' ? '☀️' : '🌙';
-        btn.title = nextTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+        btn.textContent = isDark ? '☀️' : '🌙';
+        btn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
       }
+    }
+
+    function toggleTheme() {
+      const currentAttr = document.documentElement.getAttribute('data-theme');
+      const hasDarkClass = document.documentElement.classList.contains('dark-theme') || document.body.classList.contains('dark-theme');
+      const isCurrentlyDark = currentAttr === 'dark' || hasDarkClass;
+      applyLandingTheme(isCurrentlyDark ? 'light' : 'dark');
     }
     window.toggleTheme = toggleTheme;
 
     // Initialize saved theme
-    const savedLandingTheme = localStorage.getItem('sl_theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedLandingTheme);
-    document.body.setAttribute('data-theme', savedLandingTheme);
-    document.documentElement.classList.toggle('dark-theme', savedLandingTheme === 'dark');
-    document.body.classList.toggle('dark-theme', savedLandingTheme === 'dark');
-    const landingThemeBtn = document.getElementById('theme-btn');
-    if (landingThemeBtn) {
-      landingThemeBtn.textContent = savedLandingTheme === 'dark' ? '☀️' : '🌙';
-      landingThemeBtn.title = savedLandingTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
-    }
+    const savedTheme = localStorage.getItem('sl_theme') || 'light';
+    applyLandingTheme(savedTheme);
 
     // Mobile Menu
     function toggleMobileMenu() {
