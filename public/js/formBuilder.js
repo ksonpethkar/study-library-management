@@ -243,12 +243,7 @@ export class FormBuilder {
           </div>
 
           <div style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
-            ${sec.isSystem && secFields.length === 0 ? `
-              <div style="background: var(--color-surface); border: 1px dashed var(--color-primary); border-radius: 8px; padding: 10px 12px; font-size: 0.82rem; color: var(--color-text-secondary); display: flex; justify-content: space-between; align-items: center;">
-                <span>⚙️ Integrated System Component (Auto-renders live options)</span>
-                <span class="badge badge-primary">SYSTEM STEP</span>
-              </div>
-            ` : ''}
+            ${sec.isSystem && secFields.length === 0 ? this.renderSystemComponentCard(sec) : ''}
 
             ${secFields.map((field, fIdx) => this.renderFieldCard(field, fIdx, secFields.length)).join('')}
           </div>
@@ -272,6 +267,120 @@ export class FormBuilder {
     container.querySelectorAll('.fb-field-down').forEach(btn => {
       btn.addEventListener('click', () => this.moveField(btn.dataset.id, 1));
     });
+  }
+
+  static renderSystemComponentCard(sec) {
+    if (sec.name === 'plan') {
+      const planCards = (this.plans && this.plans.length > 0)
+        ? this.plans.map(p => `
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
+              <div style="font-weight: 700; color: var(--color-text-primary);">${escapeHTML(p.name)}</div>
+              <div style="color: var(--color-primary); font-weight: 800; font-size: 0.88rem; margin: 2px 0;">₹${p.price} <small style="font-weight: 400; color: var(--color-text-secondary);">/ ${p.duration || 1} ${p.durationType || 'month'}</small></div>
+              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Shift: ${escapeHTML(p.shift || 'Any Shift')}</div>
+            </div>
+          `).join('')
+        : `
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
+              <div style="font-weight: 700; color: var(--color-text-primary);">💎 Full Day 24-Hour Plan</div>
+              <div style="color: var(--color-primary); font-weight: 800; font-size: 0.88rem;">₹1,800 / Month</div>
+              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Shift: All Day (24 Hours)</div>
+            </div>
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
+              <div style="font-weight: 700; color: var(--color-text-primary);">🌅 Morning Shift Plan</div>
+              <div style="color: var(--color-primary); font-weight: 800; font-size: 0.88rem;">₹1,200 / Month</div>
+              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Shift: Morning (7 AM - 5 PM)</div>
+            </div>
+          `;
+
+      return `
+        <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 8px; padding: 12px; font-size: 0.83rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-weight: 700; color: var(--color-primary); font-size: 0.88rem;">
+              💎 Live Membership Plans & Sub-Options Breakdown (${this.plans?.length || 2} Active Plans)
+            </div>
+            <span class="badge badge-primary" style="font-size: 0.68rem;">SYSTEM COMPONENT</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 10px;">
+            ${planCards}
+          </div>
+          <div style="font-size: 0.73rem; color: var(--color-text-secondary); display: flex; flex-wrap: wrap; gap: 12px; background: var(--color-bg-secondary); padding: 6px 10px; border-radius: 6px;">
+            <span>✅ Dynamic Shift Selection</span>
+            <span>✅ Fee Breakdown & Tax Calculator</span>
+            <span>✅ Referral Promo Code</span>
+          </div>
+        </div>
+      `;
+    }
+
+    if (sec.name === 'payment') {
+      return `
+        <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 8px; padding: 12px; font-size: 0.83rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-weight: 700; color: var(--color-primary); font-size: 0.88rem;">
+              💳 Live Payment Methods & Sub-Option Gateway Breakdown
+            </div>
+            <span class="badge badge-primary" style="font-size: 0.68rem;">SYSTEM COMPONENT</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-bottom: 10px;">
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
+              <div style="font-weight: 700; color: var(--color-text-primary);">⚡ Dynamic UPI QR</div>
+              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">GPay / PhonePe / Paytm + 12-digit UTR Verification</div>
+            </div>
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
+              <div style="font-weight: 700; color: var(--color-text-primary);">💵 Pay Later at Desk</div>
+              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Pre-reserves admission & seat; cash paid on arrival</div>
+            </div>
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
+              <div style="font-weight: 700; color: var(--color-text-primary);">🏦 NetBanking / Cards</div>
+              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Bank reference logging & printable receipt generator</div>
+            </div>
+          </div>
+          <div style="font-size: 0.73rem; color: var(--color-text-secondary); display: flex; flex-wrap: wrap; gap: 12px; background: var(--color-bg-secondary); padding: 6px 10px; border-radius: 6px;">
+            <span>✅ Automated WhatsApp Receipt</span>
+            <span>✅ Email Payment Confirmation</span>
+            <span>✅ Tax Invoice Generation</span>
+          </div>
+        </div>
+      `;
+    }
+
+    if (sec.name === 'seat') {
+      return `
+        <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 8px; padding: 12px; font-size: 0.83rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-weight: 700; color: var(--color-primary); font-size: 0.88rem;">
+              🪑 Live Seat Selection Map & Digital Signature Sub-Options
+            </div>
+            <span class="badge badge-primary" style="font-size: 0.68rem;">SYSTEM COMPONENT</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-bottom: 10px;">
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
+              <div style="font-weight: 700; color: var(--color-text-primary);">🔴/🟢 Circular Seat Badges</div>
+              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">22px round circular seat checkmarks with Indigo glow</div>
+            </div>
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
+              <div style="font-weight: 700; color: var(--color-text-primary);">✍️ Digital Signature Canvas</div>
+              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Touch & stylus interactive drawing pad</div>
+            </div>
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
+              <div style="font-weight: 700; color: var(--color-text-primary);">📸 Passport Selfie Capture</div>
+              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Webcam photo & document crop studio</div>
+            </div>
+          </div>
+          <div style="font-size: 0.73rem; color: var(--color-text-secondary); display: flex; flex-wrap: wrap; gap: 12px; background: var(--color-bg-secondary); padding: 6px 10px; border-radius: 6px;">
+            <span>✅ Quiet Study Code Agreement</span>
+            <span>✅ Kiosk Entry Barcode</span>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div style="background: var(--color-surface); border: 1px dashed var(--color-primary); border-radius: 8px; padding: 10px 12px; font-size: 0.82rem; color: var(--color-text-secondary); display: flex; justify-content: space-between; align-items: center;">
+        <span>⚙️ Integrated System Component (${escapeHTML(sec.label)})</span>
+        <span class="badge badge-primary">SYSTEM STEP</span>
+      </div>
+    `;
   }
 
   static renderFieldCard(field, index, total) {
