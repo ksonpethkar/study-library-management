@@ -279,5 +279,103 @@ router.post('/bulk-remind', roleCheck('owner', 'branch_manager'), async (req, re
   }
 });
 
+// POST /api/students/:id/reset-password - Admin reset & set new password for student
+router.post('/:id/reset-password', roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const { newPassword, sendEmail } = req.body;
+    if (!newPassword || newPassword.trim().length < 4) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 4 characters long' });
+    }
+
+    const student = await Student.findById(req.params.id);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student record not found' });
+    }
+
+    const cleanPhone = (student.phone || '').replace(/[^0-9]/g, '').slice(-10);
+    const cleanPassword = newPassword.trim();
+    const User = require('../models/User');
+
+    // Find or create matching User account
+    let user = await User.findOne({
+      $or: [
+        ...(student.email ? [{ email: student.email }] : []),
+        ...(student.phone ? [{ phone: student.phone }] : [])
+      ]
+    });
+
+    if (!user) {
+      user = new User({
+        name: student.name,
+        email: student.email || `${student.studentId.toLowerCase()}@studylib.local`,
+        phone: student.phone || '0000000000',
+        password: cleanPassword,
+        role: 'student',
+        isActive: true
+      });
+    } else {
+      user.password = cleanPassword;
+    }
+
+    await user.save();
+
+    // Generate WhatsApp text & link
+    const waText = encodeURIComponent(
+      `🔑 *STUDY LIBRARY — PORTAL PASSWORD RESET*\n\n` +
+      `Hello *${student.name}*,\n` +
+      `Your Student Portal password has been updated by Admin.\n\n` +
+      `🆔 *Student ID / Phone*: ${student.studentId} / ${student.phone}\n` +
+      `🔑 *New Password / PIN*: ${cleanPassword}\n\n` +
+      `🌐 *Login Portal*: https://study-library-management.onrender.com/student-login\n\n` +
+      `Please keep your credentials secure.`
+    );
+    const whatsappUrl = `https://wa.me/91${cleanPhone}?text=${waText}`;
+
+    // Send Email if requested and student has valid email
+    let emailSent = false;
+    if (sendEmail && student.email && student.email.includes('@')) {
+      try {
+        const sendMail = require('../utils/emailService');
+        await sendMail({
+          to: student.email,
+          subject: '🔑 Your Student Portal Password Has Been Reset',
+          text: `Hello ${student.name},\nYour Student Portal password has been reset by Admin.\nNew Password: ${cleanPassword}\nLogin Portal: https://study-library-management.onrender.com/student-login`,
+          html: `<div style="font-family: sans-serif; padding: 20px; background: #f8fafc; border-radius: 8px;">
+            <h2>🔑 Student Portal Password Reset</h2>
+            <p>Hello <strong>${student.name}</strong>,</p>
+            <p>Your password for the Study Library Student Portal has been updated by Admin.</p>
+            <div style="background: #ffffff; padding: 15px; border-radius: 6px; border: 1px solid #cbd5e1; margin: 15px 0;">
+              <p style="margin: 4px 0;"><strong>Student ID:</strong> ${student.studentId}</p>
+              <p style="margin: 4px 0;"><strong>New Password / PIN:</strong> <code style="font-size: 1.1em; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${cleanPassword}</code></p>
+            </div>
+            <p><a href="https://study-library-management.onrender.com/student-login" style="display: inline-block; padding: 10px 18px; background: #6366f1; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold;">Enter Student Portal ➔</a></p>
+          </div>`
+        });
+        emailSent = true;
+      } catch (e) {
+        console.error('Failed to send password reset email:', e);
+      }
+    }
+
+    try {
+      const { logAction } = require('../middleware/auditLogger');
+      if (logAction) logAction(req, 'update', 'students', `Reset password for student ${student.name} (${student.studentId})`);
+    } catch (e) {}
+
+    res.json({
+      success: true,
+      message: `Password reset successfully for ${student.name}!`,
+      data: {
+        newPassword: cleanPassword,
+        whatsappUrl,
+        emailSent
+      }
+    });
+
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
 

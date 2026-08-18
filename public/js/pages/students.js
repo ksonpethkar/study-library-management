@@ -152,6 +152,7 @@ export async function render() {
           <td>
             <div class="d-flex gap-1">
               <button class="btn btn-sm btn-outline-secondary btn-view" data-id="${escapeHTML(s._id)}" title="View 360° Profile" style="padding: 3px 7px; font-size: 0.75rem;">👁️ View</button>
+              <button class="btn btn-sm btn-outline-warning btn-pwdreset" data-id="${escapeHTML(s._id)}" title="Reset Student Portal Password / PIN" style="padding: 3px 7px; font-size: 0.75rem;">🔑 Key</button>
               <button class="btn btn-sm btn-outline-info btn-idcard" data-id="${escapeHTML(s._id)}" title="Print ID Card" style="padding: 3px 7px; font-size: 0.75rem;">🪪 ID</button>
               <button class="btn btn-sm btn-outline-success btn-pdfform" data-id="${escapeHTML(s._id)}" title="Download PDF Admission Form" style="padding: 3px 7px; font-size: 0.75rem;">📄 PDF</button>
               <button class="btn btn-sm btn-outline-primary btn-edit" data-id="${escapeHTML(s._id)}" style="padding: 3px 7px; font-size: 0.75rem;">✏️ Edit</button>
@@ -938,6 +939,14 @@ export async function render() {
       return;
     }
     
+    const pwdBtn = e.target.closest('.btn-pwdreset');
+    if (pwdBtn) {
+      const id = pwdBtn.getAttribute('data-id');
+      const student = state.students.find(s => s._id === id);
+      if (student) showPasswordResetModal(student);
+      return;
+    }
+
     const deleteBtn = e.target.closest('.btn-delete');
     if (deleteBtn) {
       const id = deleteBtn.getAttribute('data-id');
@@ -1236,6 +1245,109 @@ export async function render() {
     cardContent.querySelector('#btn-print-id-card')?.addEventListener('click', () => {
       window.print();
     });
+  }
+
+  // Password Reset Modal Function
+  function showPasswordResetModal(student) {
+    const cleanPhone = (student.phone || '').replace(/[^0-9]/g, '').slice(-10);
+    const formattedDob = student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().slice(0,10).replace(/-/g, '') : '';
+    const initialPin = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const contentHtml = `
+      <div style="display: flex; flex-direction: column; gap: 14px; user-select: none;">
+        <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <div style="font-weight: 800; font-size: 1.05rem; color: var(--color-primary);">${escapeHTML(student.name)}</div>
+            <div class="text-muted small">ID: ${escapeHTML(student.studentId || '-')} | Phone: ${escapeHTML(student.phone || 'N/A')}</div>
+          </div>
+          <span class="badge badge-success" style="font-weight: 700;">Student Portal</span>
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label" style="font-weight: 700; font-size: 0.88rem;">New Password / 6-Digit PIN *</label>
+          <div style="position: relative;">
+            <input type="text" id="reset-pwd-input" class="form-control form-control-lg" value="${initialPin}" style="padding-right: 48px; font-family: monospace; font-size: 1.2rem; font-weight: 800; letter-spacing: 2px;" required>
+            <button type="button" id="btn-toggle-reset-eye" class="btn btn-icon btn-ghost" style="position: absolute; right: 8px; top: 8px; color: var(--color-text-muted);" title="Toggle Visibility">👁️</button>
+          </div>
+        </div>
+
+        <!-- Preset Quick Buttons -->
+        <div>
+          <label class="form-label text-xs" style="font-weight: 700; text-transform: uppercase; color: var(--color-text-secondary); margin-bottom: 6px; display: block;">⚡ 1-Click Password Presets</label>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-sm btn-secondary" id="preset-random-pin" style="font-weight: 600;">🎲 Random 6-Digit PIN</button>
+            ${cleanPhone ? `<button type="button" class="btn btn-sm btn-secondary" id="preset-phone-pin" style="font-weight: 600;">📱 Phone (${cleanPhone})</button>` : ''}
+            ${formattedDob ? `<button type="button" class="btn btn-sm btn-secondary" id="preset-dob-pin" style="font-weight: 600;">🎂 DOB (${formattedDob})</button>` : ''}
+          </div>
+        </div>
+
+        <!-- Dispatch Options Toggles -->
+        <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+          <label style="font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+            <input type="checkbox" id="reset-toggle-wa" class="form-toggle" checked> 📲 Open Pre-filled WhatsApp Credential Link
+          </label>
+          <label style="font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+            <input type="checkbox" id="reset-toggle-email" class="form-toggle" ${student.email ? 'checked' : ''}> 📧 Send Credentials Notification via Email
+          </label>
+        </div>
+      </div>
+    `;
+
+    Modal.show({
+      title: '🔑 Reset Student Portal Password',
+      content: contentHtml,
+      confirmText: '💾 Save & Update Password',
+      confirmClass: 'btn-primary',
+      onConfirm: async () => {
+        const pwdInput = document.getElementById('reset-pwd-input');
+        const newPassword = pwdInput?.value?.trim();
+        const sendEmail = document.getElementById('reset-toggle-email')?.checked;
+        const sendWa = document.getElementById('reset-toggle-wa')?.checked;
+
+        if (!newPassword || newPassword.length < 4) {
+          Toast.error('Password must be at least 4 characters long');
+          return false;
+        }
+
+        try {
+          const res = await api.post(`/api/students/${student._id}/reset-password`, {
+            newPassword,
+            sendEmail
+          });
+
+          if (res.success) {
+            Toast.success(`Password updated for ${student.name}!`);
+            if (sendWa && res.data?.whatsappUrl) {
+              window.open(res.data.whatsappUrl, '_blank');
+            }
+            return true;
+          } else {
+            Toast.error(res.message || 'Failed to update password');
+            return false;
+          }
+        } catch (err) {
+          Toast.error(err.message || 'Password update failed');
+          return false;
+        }
+      }
+    });
+
+    // Attach Preset Event Listeners inside Modal
+    setTimeout(() => {
+      const input = document.getElementById('reset-pwd-input');
+      document.getElementById('preset-random-pin')?.addEventListener('click', () => {
+        if (input) input.value = Math.floor(100000 + Math.random() * 900000).toString();
+      });
+      document.getElementById('preset-phone-pin')?.addEventListener('click', () => {
+        if (input && cleanPhone) input.value = cleanPhone;
+      });
+      document.getElementById('preset-dob-pin')?.addEventListener('click', () => {
+        if (input && formattedDob) input.value = formattedDob;
+      });
+      document.getElementById('btn-toggle-reset-eye')?.addEventListener('click', () => {
+        if (input) input.type = input.type === 'password' ? 'text' : 'password';
+      });
+    }, 100);
   }
 
   const searchInput = container.querySelector('#studentSearch');
