@@ -214,9 +214,12 @@ export async function initAppEvents() {
         const bp = data.data.businessProfile;
         const nameEl = document.getElementById('sidebar-org-name');
         const logoEl = document.getElementById('sidebar-logo');
-        if (nameEl && bp.businessName) nameEl.textContent = bp.businessName;
+        if (nameEl && bp.businessName) {
+          nameEl.textContent = bp.businessName;
+          nameEl.title = bp.businessName;
+        }
         if (logoEl && bp.logo) {
-          logoEl.innerHTML = `<img src="${bp.logo}" alt="Logo" style="width: 28px; height: 28px; border-radius: 6px; object-fit: cover;">`;
+          logoEl.innerHTML = `<img src="${bp.logo}" alt="Logo" style="width: 38px; height: 38px; border-radius: 8px; object-fit: cover;">`;
         }
       }
     }
