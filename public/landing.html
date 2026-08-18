@@ -1086,6 +1086,23 @@
           }
         }
 
+        // Rules & Conduct Dynamic Rendering
+        if (landing.rules?.items?.length) {
+          const rulesCont = document.getElementById('rules-container');
+          if (rulesCont) {
+            rulesCont.innerHTML = `
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                ${landing.rules.items.map((ruleText, idx) => `
+                  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; display: flex; align-items: flex-start; gap: 12px; box-shadow: var(--card-shadow);">
+                    <span style="background: rgba(108, 92, 231, 0.15); color: var(--primary); font-weight: 800; border-radius: 50%; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0;">${idx + 1}</span>
+                    <span style="font-weight: 600; font-size: 0.95rem; line-height: 1.5; color: var(--text);">${ruleText}</span>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          }
+        }
+
         // Plans injection
         if (plans && plans.length > 0) {
           const plansCont = document.getElementById('plans-container');

@@ -1969,29 +1969,51 @@ async function initLandingSettings(container) {
       });
     });
 
-    // Helper functions to render lists
+    // Helper functions to render lists with reordering controls
     const renderFacilities = () => {
       const parent = listContainer.querySelector('#l-facilities-list');
+      if (!parent) return;
       parent.innerHTML = '';
-      (config.facilities?.items || []).forEach((item, idx) => {
+      const items = config.facilities?.items || [];
+      items.forEach((item, idx) => {
         const div = document.createElement('div');
-        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative;';
+        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface);';
         div.innerHTML = `
-          <button class="btn btn-sm btn-outline-danger btn-delete-facility" style="position: absolute; top: 1rem; right: 1rem;">Delete</button>
-          <div style="display: flex; gap: 1rem;">
-            <input type="text" class="form-control l-fac-icon" style="width: 60px;" placeholder="Icon" value="${escapeHTML(item.icon || '')}">
-            <input type="text" class="form-control l-fac-title" style="flex: 1; width: calc(100% - 140px);" placeholder="Title" value="${escapeHTML(item.title || '')}">
+          <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 4px;">
+            <button class="btn btn-sm btn-outline btn-up-fac" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
+            <button class="btn btn-sm btn-outline btn-down-fac" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-facility">🗑️</button>
           </div>
-          <textarea class="form-control mt-2 l-fac-desc" placeholder="Description">${escapeHTML(item.description || '')}</textarea>
+          <div style="display: flex; gap: 0.75rem; width: calc(100% - 120px);">
+            <input type="text" class="form-control l-fac-icon" style="width: 54px; text-align: center;" placeholder="Icon" value="${escapeHTML(item.icon || '')}">
+            <input type="text" class="form-control l-fac-title" style="flex: 1;" placeholder="Title" value="${escapeHTML(item.title || '')}">
+          </div>
+          <textarea class="form-control mt-2 l-fac-desc" placeholder="Description" rows="2">${escapeHTML(item.description || '')}</textarea>
         `;
+        div.querySelector('.btn-up-fac')?.addEventListener('click', () => {
+          if (idx > 0) {
+            const temp = items[idx];
+            items[idx] = items[idx - 1];
+            items[idx - 1] = temp;
+            renderFacilities();
+          }
+        });
+        div.querySelector('.btn-down-fac')?.addEventListener('click', () => {
+          if (idx < items.length - 1) {
+            const temp = items[idx];
+            items[idx] = items[idx + 1];
+            items[idx + 1] = temp;
+            renderFacilities();
+          }
+        });
         div.querySelector('.btn-delete-facility').addEventListener('click', () => {
-          config.facilities.items.splice(idx, 1);
+          items.splice(idx, 1);
           renderFacilities();
         });
         parent.appendChild(div);
       });
     };
-    listContainer.querySelector('#btn-add-facility').addEventListener('click', () => {
+    listContainer.querySelector('#btn-add-facility')?.addEventListener('click', () => {
       if (!config.facilities) config.facilities = { items: [] };
       config.facilities.items.push({ icon: '✨', title: 'New Facility', description: '' });
       renderFacilities();
@@ -1999,27 +2021,49 @@ async function initLandingSettings(container) {
 
     const renderShifts = () => {
       const parent = listContainer.querySelector('#l-shifts-list');
+      if (!parent) return;
       parent.innerHTML = '';
-      (config.shifts?.items || []).forEach((item, idx) => {
+      const items = config.shifts?.items || [];
+      items.forEach((item, idx) => {
         const div = document.createElement('div');
-        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative;';
+        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface);';
         div.innerHTML = `
-          <button class="btn btn-sm btn-outline-danger btn-delete-shift" style="position: absolute; top: 1rem; right: 1rem;">Delete</button>
-          <div style="display: flex; gap: 1rem; width: calc(100% - 70px);">
-            <input type="text" class="form-control l-shift-icon" style="width: 60px;" placeholder="Icon" value="${escapeHTML(item.icon || '')}">
+          <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 4px;">
+            <button class="btn btn-sm btn-outline btn-up-shift" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
+            <button class="btn btn-sm btn-outline btn-down-shift" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-shift">🗑️</button>
+          </div>
+          <div style="display: flex; gap: 0.75rem; width: calc(100% - 120px); flex-wrap: wrap;">
+            <input type="text" class="form-control l-shift-icon" style="width: 54px; text-align: center;" placeholder="Icon" value="${escapeHTML(item.icon || '')}">
             <input type="text" class="form-control l-shift-name" style="flex: 1;" placeholder="Name" value="${escapeHTML(item.name || '')}">
             <input type="text" class="form-control l-shift-timing" style="flex: 1;" placeholder="Timings" value="${escapeHTML(item.timing || '')}">
           </div>
-          <textarea class="form-control mt-2 l-shift-desc" placeholder="Description">${escapeHTML(item.description || '')}</textarea>
+          <textarea class="form-control mt-2 l-shift-desc" placeholder="Description" rows="2">${escapeHTML(item.description || '')}</textarea>
         `;
+        div.querySelector('.btn-up-shift')?.addEventListener('click', () => {
+          if (idx > 0) {
+            const temp = items[idx];
+            items[idx] = items[idx - 1];
+            items[idx - 1] = temp;
+            renderShifts();
+          }
+        });
+        div.querySelector('.btn-down-shift')?.addEventListener('click', () => {
+          if (idx < items.length - 1) {
+            const temp = items[idx];
+            items[idx] = items[idx + 1];
+            items[idx + 1] = temp;
+            renderShifts();
+          }
+        });
         div.querySelector('.btn-delete-shift').addEventListener('click', () => {
-          config.shifts.items.splice(idx, 1);
+          items.splice(idx, 1);
           renderShifts();
         });
         parent.appendChild(div);
       });
     };
-    listContainer.querySelector('#btn-add-shift').addEventListener('click', () => {
+    listContainer.querySelector('#btn-add-shift')?.addEventListener('click', () => {
       if (!config.shifts) config.shifts = { items: [] };
       config.shifts.items.push({ icon: '🕒', name: 'New Shift', timing: '', description: '' });
       renderShifts();
@@ -2027,22 +2071,45 @@ async function initLandingSettings(container) {
 
     const renderRules = () => {
       const parent = listContainer.querySelector('#l-rules-list');
+      if (!parent) return;
       parent.innerHTML = '';
-      (config.rules?.items || []).forEach((item, idx) => {
+      const items = config.rules?.items || [];
+      items.forEach((item, idx) => {
         const div = document.createElement('div');
-        div.style.cssText = 'display: flex; gap: 0.5rem; align-items: center;';
+        div.style.cssText = 'display: flex; gap: 0.5rem; align-items: center; background: var(--color-surface); padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 6px;';
         div.innerHTML = `
-          <input type="text" class="form-control l-rule-text" style="flex: 1;" value="${escapeHTML(item)}">
-          <button class="btn btn-sm btn-outline-danger btn-delete-rule">Del</button>
+          <span style="font-weight: 700; font-size: 0.85rem; color: var(--color-primary); min-width: 24px; text-align: center;">${idx + 1}.</span>
+          <input type="text" class="form-control l-rule-text" style="flex: 1;" value="${escapeHTML(item)}" placeholder="Rule statement...">
+          <div style="display: flex; gap: 4px;">
+            <button class="btn btn-sm btn-outline btn-up-rule" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
+            <button class="btn btn-sm btn-outline btn-down-rule" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-rule">🗑️</button>
+          </div>
         `;
+        div.querySelector('.btn-up-rule')?.addEventListener('click', () => {
+          if (idx > 0) {
+            const temp = items[idx];
+            items[idx] = items[idx - 1];
+            items[idx - 1] = temp;
+            renderRules();
+          }
+        });
+        div.querySelector('.btn-down-rule')?.addEventListener('click', () => {
+          if (idx < items.length - 1) {
+            const temp = items[idx];
+            items[idx] = items[idx + 1];
+            items[idx + 1] = temp;
+            renderRules();
+          }
+        });
         div.querySelector('.btn-delete-rule').addEventListener('click', () => {
-          config.rules.items.splice(idx, 1);
+          items.splice(idx, 1);
           renderRules();
         });
         parent.appendChild(div);
       });
     };
-    listContainer.querySelector('#btn-add-rule').addEventListener('click', () => {
+    listContainer.querySelector('#btn-add-rule')?.addEventListener('click', () => {
       if (!config.rules) config.rules = { items: [] };
       config.rules.items.push('');
       renderRules();
@@ -2050,16 +2117,18 @@ async function initLandingSettings(container) {
 
     const renderGallery = () => {
       const parent = listContainer.querySelector('#l-gallery-list');
+      if (!parent) return;
       parent.innerHTML = '';
-      (config.gallery?.images || []).forEach((item, idx) => {
+      const items = config.gallery?.images || [];
+      items.forEach((item, idx) => {
         const div = document.createElement('div');
-        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: center; position: relative;';
+        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: center; position: relative; background: var(--color-surface);';
         div.innerHTML = `
-          <img src="${escapeHTML(item.url || 'https://via.placeholder.com/80')}" style="width: 80px; height: 80px; object-fit: cover; border-radius: var(--radius-md);">
-          <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
+          <img src="${escapeHTML(item.url || 'https://via.placeholder.com/80')}" style="width: 70px; height: 70px; object-fit: cover; border-radius: var(--radius-md);">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 0.4rem;">
             <input type="text" class="form-control l-gal-url" placeholder="Image URL" value="${escapeHTML(item.url || '')}">
             <div style="display: flex; gap: 0.5rem;">
-              <select class="form-select l-gal-cat" style="width: 150px;">
+              <select class="form-select l-gal-cat" style="width: 130px;">
                 <option value="Cabins" ${item.category === 'Cabins' ? 'selected' : ''}>Cabins</option>
                 <option value="Hall" ${item.category === 'Hall' ? 'selected' : ''}>Hall</option>
                 <option value="Amenities" ${item.category === 'Amenities' ? 'selected' : ''}>Amenities</option>
@@ -2068,21 +2137,41 @@ async function initLandingSettings(container) {
               <input type="text" class="form-control l-gal-caption" style="flex: 1;" placeholder="Caption" value="${escapeHTML(item.caption || '')}">
             </div>
           </div>
-          <button class="btn btn-sm btn-outline-danger btn-delete-gallery">Del</button>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <button class="btn btn-sm btn-outline btn-up-gal" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
+            <button class="btn btn-sm btn-outline btn-down-gal" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-gallery">🗑️</button>
+          </div>
         `;
         
         div.querySelector('.l-gal-url').addEventListener('input', (e) => {
           div.querySelector('img').src = e.target.value || 'https://via.placeholder.com/80';
         });
 
+        div.querySelector('.btn-up-gal')?.addEventListener('click', () => {
+          if (idx > 0) {
+            const temp = items[idx];
+            items[idx] = items[idx - 1];
+            items[idx - 1] = temp;
+            renderGallery();
+          }
+        });
+        div.querySelector('.btn-down-gal')?.addEventListener('click', () => {
+          if (idx < items.length - 1) {
+            const temp = items[idx];
+            items[idx] = items[idx + 1];
+            items[idx + 1] = temp;
+            renderGallery();
+          }
+        });
         div.querySelector('.btn-delete-gallery').addEventListener('click', () => {
-          config.gallery.images.splice(idx, 1);
+          items.splice(idx, 1);
           renderGallery();
         });
         parent.appendChild(div);
       });
     };
-    listContainer.querySelector('#btn-add-gallery').addEventListener('click', () => {
+    listContainer.querySelector('#btn-add-gallery')?.addEventListener('click', () => {
       if (!config.gallery) config.gallery = { images: [] };
       config.gallery.images.push({ url: '', category: 'Hall', caption: '' });
       renderGallery();
@@ -2090,23 +2179,45 @@ async function initLandingSettings(container) {
 
     const renderFaqs = () => {
       const parent = listContainer.querySelector('#l-faqs-list');
+      if (!parent) return;
       parent.innerHTML = '';
-      (config.faqs?.items || []).forEach((item, idx) => {
+      const items = config.faqs?.items || [];
+      items.forEach((item, idx) => {
         const div = document.createElement('div');
-        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative;';
+        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface);';
         div.innerHTML = `
-          <button class="btn btn-sm btn-outline-danger btn-delete-faq" style="position: absolute; top: 1rem; right: 1rem;">Delete</button>
-          <input type="text" class="form-control l-faq-q mb-2" style="width: calc(100% - 70px);" placeholder="Question" value="${escapeHTML(item.question || '')}">
-          <textarea class="form-control l-faq-a" placeholder="Answer">${escapeHTML(item.answer || '')}</textarea>
+          <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 4px;">
+            <button class="btn btn-sm btn-outline btn-up-faq" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
+            <button class="btn btn-sm btn-outline btn-down-faq" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-faq">🗑️</button>
+          </div>
+          <input type="text" class="form-control l-faq-q mb-2" style="width: calc(100% - 120px);" placeholder="Question" value="${escapeHTML(item.question || '')}">
+          <textarea class="form-control l-faq-a" placeholder="Answer" rows="2">${escapeHTML(item.answer || '')}</textarea>
         `;
+        div.querySelector('.btn-up-faq')?.addEventListener('click', () => {
+          if (idx > 0) {
+            const temp = items[idx];
+            items[idx] = items[idx - 1];
+            items[idx - 1] = temp;
+            renderFaqs();
+          }
+        });
+        div.querySelector('.btn-down-faq')?.addEventListener('click', () => {
+          if (idx < items.length - 1) {
+            const temp = items[idx];
+            items[idx] = items[idx + 1];
+            items[idx + 1] = temp;
+            renderFaqs();
+          }
+        });
         div.querySelector('.btn-delete-faq').addEventListener('click', () => {
-          config.faqs.items.splice(idx, 1);
+          items.splice(idx, 1);
           renderFaqs();
         });
         parent.appendChild(div);
       });
     };
-    listContainer.querySelector('#btn-add-faq').addEventListener('click', () => {
+    listContainer.querySelector('#btn-add-faq')?.addEventListener('click', () => {
       if (!config.faqs) config.faqs = { items: [] };
       config.faqs.items.push({ question: '', answer: '' });
       renderFaqs();
@@ -2114,27 +2225,49 @@ async function initLandingSettings(container) {
 
     const renderTestimonials = () => {
       const parent = listContainer.querySelector('#l-testimonials-list');
+      if (!parent) return;
       parent.innerHTML = '';
-      (config.testimonials?.items || []).forEach((item, idx) => {
+      const items = config.testimonials?.items || [];
+      items.forEach((item, idx) => {
         const div = document.createElement('div');
-        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative;';
+        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface);';
         div.innerHTML = `
-          <button class="btn btn-sm btn-outline-danger btn-delete-test" style="position: absolute; top: 1rem; right: 1rem;">Delete</button>
-          <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem; width: calc(100% - 70px);">
-            <input type="text" class="form-control l-test-name" placeholder="Name" value="${escapeHTML(item.name || '')}">
-            <input type="text" class="form-control l-test-exam" placeholder="Exam" value="${escapeHTML(item.exam || '')}">
-            <input type="number" class="form-control l-test-rating" placeholder="Rating (1-5)" min="1" max="5" value="${item.rating || 5}">
+          <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 4px;">
+            <button class="btn btn-sm btn-outline btn-up-test" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
+            <button class="btn btn-sm btn-outline btn-down-test" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-test">🗑️</button>
           </div>
-          <textarea class="form-control l-test-feedback" placeholder="Feedback Quote">${escapeHTML(item.feedback || '')}</textarea>
+          <div style="display: flex; gap: 0.75rem; margin-bottom: 0.5rem; width: calc(100% - 120px); flex-wrap: wrap;">
+            <input type="text" class="form-control l-test-name" style="flex: 1;" placeholder="Student Name" value="${escapeHTML(item.name || '')}">
+            <input type="text" class="form-control l-test-exam" style="flex: 1;" placeholder="Exam / Badge" value="${escapeHTML(item.exam || '')}">
+            <input type="number" class="form-control l-test-rating" style="width: 110px;" placeholder="Rating (1-5)" min="1" max="5" value="${item.rating || 5}">
+          </div>
+          <textarea class="form-control l-test-feedback" placeholder="Feedback Quote" rows="2">${escapeHTML(item.feedback || '')}</textarea>
         `;
+        div.querySelector('.btn-up-test')?.addEventListener('click', () => {
+          if (idx > 0) {
+            const temp = items[idx];
+            items[idx] = items[idx - 1];
+            items[idx - 1] = temp;
+            renderTestimonials();
+          }
+        });
+        div.querySelector('.btn-down-test')?.addEventListener('click', () => {
+          if (idx < items.length - 1) {
+            const temp = items[idx];
+            items[idx] = items[idx + 1];
+            items[idx + 1] = temp;
+            renderTestimonials();
+          }
+        });
         div.querySelector('.btn-delete-test').addEventListener('click', () => {
-          config.testimonials.items.splice(idx, 1);
+          items.splice(idx, 1);
           renderTestimonials();
         });
         parent.appendChild(div);
       });
     };
-    listContainer.querySelector('#btn-add-testimonial').addEventListener('click', () => {
+    listContainer.querySelector('#btn-add-testimonial')?.addEventListener('click', () => {
       if (!config.testimonials) config.testimonials = { items: [] };
       config.testimonials.items.push({ name: '', exam: '', rating: 5, feedback: '' });
       renderTestimonials();
