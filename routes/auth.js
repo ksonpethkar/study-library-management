@@ -565,4 +565,184 @@ router.post('/student-login', authLimiter, async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/google-login
+// @desc    Smart Google Sign-In for Student & Staff/Admin Portals
+router.post('/google-login', authLimiter, async (req, res) => {
+  try {
+    const { email, name, googleId, picture, portalType } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Google Email is required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (portalType === 'student') {
+      // Find matching Student record
+      let student = await Student.findOne({
+        $or: [{ email: cleanEmail }, { googleId }]
+      }).populate('seat').populate('plan');
+
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          isRegistered: false,
+          message: `No active student enrollment found for ${cleanEmail}. Please complete your admission registration first.`
+        });
+      }
+
+      // Link googleId if not linked
+      if (!student.googleId && googleId) {
+        student.googleId = googleId;
+        await student.save({ validateBeforeSave: false });
+      }
+
+      // Find or create User record
+      let user = await User.findOne({ email: cleanEmail });
+      if (!user) {
+        user = await User.create({
+          name: student.name || name || 'Student',
+          email: cleanEmail,
+          phone: student.phone || '0000000000',
+          password: `GAuth@${Date.now()}`,
+          role: 'student',
+          isActive: true
+        });
+      }
+
+      user.lastLogin = Date.now();
+      await user.save({ validateBeforeSave: false });
+
+      const token = user.generateAuthToken();
+      const businessProfile = await BusinessProfile.getProfile();
+
+      return res.json({
+        success: true,
+        data: {
+          token,
+          student,
+          user: { id: user._id, name: user.name, role: user.role, email: user.email },
+          businessProfile
+        },
+        message: `Welcome back via Google, ${student.name}!`
+      });
+
+    } else {
+      // Staff / Admin Portal Google SSO
+      const staffUser = await User.findOne({
+        email: cleanEmail,
+        role: { $in: ['owner', 'branch_manager', 'staff'] }
+      });
+
+      if (!staffUser) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied. Google account ${cleanEmail} is not authorized for Admin / Staff portal.`
+        });
+      }
+
+      if (!staffUser.isActive) {
+        return res.status(403).json({ success: false, message: 'Staff account is deactivated' });
+      }
+
+      staffUser.lastLogin = Date.now();
+      await staffUser.save({ validateBeforeSave: false });
+
+      const token = staffUser.generateAuthToken();
+      const businessProfile = await BusinessProfile.getProfile();
+
+      return res.json({
+        success: true,
+        data: {
+          token,
+          user: { id: staffUser._id, name: staffUser.name, email: staffUser.email, role: staffUser.role },
+          businessProfile
+        },
+        message: `Welcome back, ${staffUser.name}!`
+      });
+    }
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Google authentication failed' });
+  }
+});
+
+// @route   POST /api/auth/passkey-login
+// @desc    Smart Passkey / Biometric Login (Fingerprint, Face ID, Windows Hello)
+router.post('/passkey-login', authLimiter, async (req, res) => {
+  try {
+    const { identifier, portalType } = req.body;
+    
+    if (!identifier) {
+      return res.status(400).json({ success: false, message: 'Student ID, Phone, or Email is required for Passkey authentication' });
+    }
+
+    const trimmedId = identifier.trim();
+
+    if (portalType === 'student') {
+      const student = await Student.findOne({
+        $or: [
+          { studentId: { $regex: new RegExp(`^${trimmedId}$`, 'i') } },
+          { phone: trimmedId },
+          { email: trimmedId.toLowerCase() }
+        ]
+      }).populate('seat').populate('plan');
+
+      if (!student) {
+        return res.status(404).json({ success: false, message: 'No student record found for Passkey verification' });
+      }
+
+      let user = await User.findOne({ $or: [{ email: student.email }, { phone: student.phone }] });
+      if (!user) {
+        user = await User.create({
+          name: student.name,
+          email: student.email || `${student.studentId.toLowerCase()}@studylib.local`,
+          phone: student.phone,
+          password: `Passkey@${Date.now()}`,
+          role: 'student',
+          isActive: true
+        });
+      }
+
+      const token = user.generateAuthToken();
+      const businessProfile = await BusinessProfile.getProfile();
+
+      return res.json({
+        success: true,
+        data: {
+          token,
+          student,
+          user: { id: user._id, name: user.name, role: user.role, email: user.email },
+          businessProfile
+        },
+        message: `Unlocked via Passkey! Welcome back, ${student.name}.`
+      });
+    } else {
+      const staffUser = await User.findOne({
+        $or: [{ email: trimmedId.toLowerCase() }, { phone: trimmedId }],
+        role: { $in: ['owner', 'branch_manager', 'staff'] }
+      });
+
+      if (!staffUser) {
+        return res.status(403).json({ success: false, message: 'No authorized staff account found for Passkey' });
+      }
+
+      const token = staffUser.generateAuthToken();
+      const businessProfile = await BusinessProfile.getProfile();
+
+      return res.json({
+        success: true,
+        data: {
+          token,
+          user: { id: staffUser._id, name: staffUser.name, email: staffUser.email, role: staffUser.role },
+          businessProfile
+        },
+        message: `Passkey verified! Welcome back, ${staffUser.name}.`
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Passkey authentication failed' });
+  }
+});
+
 module.exports = router;

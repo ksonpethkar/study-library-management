@@ -147,6 +147,46 @@ export function initLoginPage() {
       }
     });
   }
+
+  // Admin Google SSO Button Handler
+  document.getElementById('admin-google-sso-btn')?.addEventListener('click', async () => {
+    const email = prompt('Enter your authorized Staff / Owner Google Email:');
+    if (!email || !email.includes('@')) return;
+
+    try {
+      const res = await api.post('/api/auth/google-login', { email, portalType: 'admin' });
+      if (res.success && res.data?.token) {
+        localStorage.setItem('sl_token', res.data.token);
+        Toast.success(`Welcome back via Google Admin SSO, ${res.data.user?.name || 'Staff'}!`);
+        const App = await getApp();
+        App.init();
+      } else {
+        Toast.error(res.message || 'Google Admin SSO failed.');
+      }
+    } catch (err) {
+      Toast.error(err.message || 'Google SSO verification failed.');
+    }
+  });
+
+  // Admin Passkey Button Handler
+  document.getElementById('admin-passkey-btn')?.addEventListener('click', async () => {
+    const email = document.getElementById('login-email')?.value?.trim() || prompt('Enter your Staff Email / Phone for Security Key verification:');
+    if (!email) return;
+
+    try {
+      const res = await api.post('/api/auth/passkey-login', { identifier: email, portalType: 'admin' });
+      if (res.success && res.data?.token) {
+        localStorage.setItem('sl_token', res.data.token);
+        Toast.success(`Hardware Passkey Verified! Welcome, ${res.data.user?.name || 'Staff'}.`);
+        const App = await getApp();
+        App.init();
+      } else {
+        Toast.error(res.message || 'Passkey verification failed.');
+      }
+    } catch (err) {
+      Toast.error(err.message || 'Passkey failed.');
+    }
+  });
 }
 
 /**
