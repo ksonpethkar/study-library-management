@@ -187,6 +187,28 @@ export function initLoginPage() {
       Toast.error(err.message || 'Passkey failed.');
     }
   });
+
+  // Admin Credentials Recovery Helper
+  window.requestAdminCredentialsRecovery = async function(e) {
+    if (e) e.preventDefault();
+    const existingEmail = document.getElementById('login-email')?.value?.trim();
+    const identifier = prompt('Enter your Staff / Owner Email or Phone for account recovery:', existingEmail || '');
+    if (!identifier) return;
+
+    try {
+      const res = await api.post('/api/auth/forgot-password', { identifier, portalType: 'admin' });
+      if (res.success && res.data?.whatsappUrl) {
+        Toast.success(res.message || 'Recovery request prepared!');
+        setTimeout(() => {
+          window.open(res.data.whatsappUrl, '_blank');
+        }, 600);
+      } else {
+        Toast.error(res.message || 'Staff recovery failed.');
+      }
+    } catch (err) {
+      Toast.error(err.message || 'Network error during recovery.');
+    }
+  };
 }
 
 /**

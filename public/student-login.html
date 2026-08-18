@@ -235,13 +235,30 @@
     });
 
     // Credentials Recovery Helper
-    window.requestCredentialsRecovery = function(e) {
-      e.preventDefault();
-      const id = document.getElementById('student-identifier').value.trim();
-      const promptPhone = id || prompt('Please enter your 10-digit Registered Mobile Number:');
-      if (promptPhone) {
-        const cleanPhone = promptPhone.replace(/[^0-9]/g, '');
-        window.open(`https://wa.me/?text=Hello%20Support,%20I%20forgot%20my%20Student%20ID%20and%20PIN.%20My%20registered%20mobile%20number%20is%20${cleanPhone}.%20Please%20send%20my%20login%20details.`, '_blank');
+    window.requestCredentialsRecovery = async function(e) {
+      if (e) e.preventDefault();
+      const existingId = document.getElementById('student-identifier')?.value?.trim();
+      const identifier = prompt('Enter your Registered Mobile Number, Student ID, or Email for password recovery:', existingId || '');
+      if (!identifier) return;
+
+      try {
+        const res = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, portalType: 'student' })
+        });
+        const data = await res.json();
+
+        if (data.success && data.data?.whatsappUrl) {
+          showToast(data.message || 'Recovery request prepared!', true);
+          setTimeout(() => {
+            window.open(data.data.whatsappUrl, '_blank');
+          }, 600);
+        } else {
+          showToast(data.message || 'Account recovery failed.', false);
+        }
+      } catch (err) {
+        showToast('Network error during account recovery.', false);
       }
     };
 

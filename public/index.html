@@ -311,7 +311,7 @@
             <input type="checkbox" class="form-checkbox" id="login-remember">
             <span class="text-sm">Remember me</span>
           </label>
-          <a href="#" onclick="alert('Please contact the library owner or system administrator to reset staff credentials.'); return false;" class="text-sm">Forgot password?</a>
+          <a href="#" onclick="requestAdminCredentialsRecovery(event)" class="text-sm">Forgot password?</a>
         </div>
         
         <button type="submit" class="btn btn-primary btn-lg w-full justify-center mb-3" id="login-submit-btn" style="font-weight: 700;">

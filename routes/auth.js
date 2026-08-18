@@ -757,4 +757,120 @@ router.post('/passkey-login', authLimiter, async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/forgot-password
+// @desc    Smart Forgot Password Recovery for Students & Admin/Staff
+router.post('/forgot-password', authLimiter, async (req, res) => {
+  try {
+    const { identifier, portalType } = req.body;
+    if (!identifier || !identifier.trim()) {
+      return res.status(400).json({ success: false, message: 'Please enter your Mobile Number, Student ID, or Email address' });
+    }
+
+    const cleanInput = identifier.trim().toLowerCase();
+    const cleanPhone = identifier.replace(/[^0-9]/g, '').slice(-10);
+
+    const businessProfile = await BusinessProfile.getProfile();
+    const ownerPhone = (businessProfile?.phone || process.env.BUSINESS_PHONE || '').replace(/[^0-9]/g, '').slice(-10) || '919876543210';
+
+    if (portalType === 'student') {
+      const student = await Student.findOne({
+        $or: [
+          { email: cleanInput },
+          { studentId: { $regex: new RegExp(`^${cleanInput}$`, 'i') } },
+          { phone: cleanInput },
+          ...(cleanPhone ? [{ phone: cleanPhone }] : [])
+        ]
+      });
+
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: `No active student enrollment found for "${identifier}". Please verify your mobile number or apply online.`
+        });
+      }
+
+      // Generate 1-Click WhatsApp Support Link
+      const waText = encodeURIComponent(
+        `Hello Support, I forgot my Student Portal password/PIN.\n` +
+        `Name: ${student.name}\n` +
+        `Student ID: ${student.studentId}\n` +
+        `Registered Mobile: ${student.phone}\n` +
+        `Please reset my portal password.`
+      );
+      const whatsappUrl = `https://wa.me/91${ownerPhone}?text=${waText}`;
+
+      // If email exists, send temporary PIN / reset instructions via Email
+      let emailSent = false;
+      if (student.email && student.email.includes('@')) {
+        try {
+          const tempPin = Math.floor(100000 + Math.random() * 900000).toString();
+          let user = await User.findOne({
+            $or: [{ email: student.email }, { phone: student.phone }]
+          });
+          if (user) {
+            user.password = tempPin;
+            await user.save();
+          }
+
+          const sendMail = require('../utils/emailService');
+          await sendMail({
+            to: student.email,
+            subject: '🔑 Temporary Password Reset - Study Library Portal',
+            text: `Hello ${student.name},\nYour temporary Student Portal password is: ${tempPin}\nLogin at: https://study-library-management.onrender.com/student-login`,
+            html: `<div style="font-family: sans-serif; padding: 20px; background: #f8fafc; border-radius: 8px;">
+              <h2>🔑 Temporary Password Reset</h2>
+              <p>Hello <strong>${student.name}</strong>,</p>
+              <p>Your temporary password for the Study Library Student Portal is:</p>
+              <div style="background: #ffffff; padding: 15px; border-radius: 6px; border: 1px solid #cbd5e1; margin: 15px 0;">
+                <p style="margin: 0; font-size: 1.2em;"><strong>Temporary Password / PIN:</strong> <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; color: #6366f1;">${tempPin}</code></p>
+              </div>
+              <p><a href="https://study-library-management.onrender.com/student-login" style="display: inline-block; padding: 10px 18px; background: #6366f1; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold;">Login Now ➔</a></p>
+            </div>`
+          });
+          emailSent = true;
+        } catch (e) {
+          console.error('Failed to send forgot password email:', e);
+        }
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          whatsappUrl,
+          emailSent,
+          studentName: student.name
+        },
+        message: emailSent
+          ? `Temporary password sent to ${student.email}. You can also use WhatsApp for instant support.`
+          : `Recovery request prepared for ${student.name}. Click WhatsApp to contact admin for instant password reset.`
+      });
+
+    } else {
+      // Staff / Admin Password Recovery
+      const staffUser = await User.findOne({
+        $or: [{ email: cleanInput }, { phone: cleanInput }],
+        role: { $in: ['owner', 'branch_manager', 'staff'] }
+      });
+
+      if (!staffUser) {
+        return res.status(404).json({ success: false, message: `No staff account found for "${identifier}".` });
+      }
+
+      const waText = encodeURIComponent(
+        `Hello Admin Support, I am staff member ${staffUser.name} (${staffUser.email}). I forgot my staff portal password. Please reset my account credentials.`
+      );
+      const whatsappUrl = `https://wa.me/91${ownerPhone}?text=${waText}`;
+
+      return res.json({
+        success: true,
+        data: { whatsappUrl },
+        message: `Recovery request prepared for staff member ${staffUser.name}. Click WhatsApp link to contact owner.`
+      });
+    }
+
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
