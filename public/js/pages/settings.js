@@ -1725,24 +1725,36 @@ async function initLandingSettings(container) {
 
   const renderForm = () => {
     listContainer.innerHTML = `
-      <div class="landing-editor" style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
-        <!-- Vertical Tabs -->
-        <div style="flex: 0 0 240px; border-right: 1px solid var(--color-border); padding-right: 1rem;">
-          <div class="landing-tabs" style="display: flex; flex-direction: column; gap: 0.5rem;">
-            <button class="landing-tab-btn active" data-tab="hero" style="text-align: left; padding: 0.75rem 1rem; border: none; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 600; border-radius: var(--radius-md); cursor: pointer;">Hero & Alerts</button>
-            <button class="landing-tab-btn" data-tab="about" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">About & Stats</button>
-            <button class="landing-tab-btn" data-tab="facilities" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">Facilities</button>
-            <button class="landing-tab-btn" data-tab="shifts" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">Shifts</button>
-            <button class="landing-tab-btn" data-tab="rules" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">Rules</button>
-            <button class="landing-tab-btn" data-tab="gallery" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">Photo Gallery</button>
-            <button class="landing-tab-btn" data-tab="faqs" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">FAQs</button>
-            <button class="landing-tab-btn" data-tab="testimonials" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">Testimonials & Reviews</button>
-            <button class="landing-tab-btn" data-tab="contact" style="text-align: left; padding: 0.75rem 1rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer;">Contact & Map</button>
-          </div>
+      <!-- Split-Screen Controls Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; background: var(--color-surface); padding: 0.75rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-weight: 700; font-size: 0.9rem;">👁️ Live Preview Mode:</span>
+          <button id="btn-pv-desktop" class="btn btn-sm btn-primary" style="font-weight: 600;">💻 Desktop</button>
+          <button id="btn-pv-mobile" class="btn btn-sm btn-outline" style="font-weight: 600;">📱 Smartphone</button>
+          <button id="btn-pv-refresh" class="btn btn-sm btn-outline" title="Refresh Live Canvas">🔄 Refresh</button>
         </div>
-        
-        <!-- Tab Content -->
-        <div style="flex: 1; min-width: 300px;" id="landing-tab-content">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <small class="text-muted">Instant live preview updates as you type</small>
+        </div>
+      </div>
+
+      <div class="landing-editor-split" style="display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr); gap: 1.25rem; align-items: start;">
+        <!-- Left: CMS Form Editor -->
+        <div class="cms-editor-panel" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; background: var(--color-surface); max-height: 800px; overflow-y: auto;">
+          <div class="landing-tabs" style="display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border);">
+            <button class="landing-tab-btn active" data-tab="hero" style="padding: 0.5rem 0.85rem; border: none; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 600; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap;">Hero & Branding</button>
+            <button class="landing-tab-btn" data-tab="about" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">About & Stats</button>
+            <button class="landing-tab-btn" data-tab="facilities" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Facilities</button>
+            <button class="landing-tab-btn" data-tab="shifts" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Shifts</button>
+            <button class="landing-tab-btn" data-tab="rules" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Rules</button>
+            <button class="landing-tab-btn" data-tab="gallery" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Gallery</button>
+            <button class="landing-tab-btn" data-tab="faqs" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">FAQs</button>
+            <button class="landing-tab-btn" data-tab="testimonials" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Reviews</button>
+            <button class="landing-tab-btn" data-tab="contact" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Contact & Map</button>
+          </div>
+          
+          <!-- Tab Content -->
+          <div id="landing-tab-content">
           <!-- Hero -->
           <div class="landing-panel" id="l-panel-hero">
             <h4>Hero Section</h4>
@@ -1894,8 +1906,47 @@ async function initLandingSettings(container) {
           </div>
           
         </div>
+        
+        <!-- Right: Live Split-Screen Interactive Preview Canvas -->
+        <div class="cms-preview-panel" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: var(--color-bg-secondary); position: sticky; top: 80px; height: 800px; display: flex; flex-direction: column;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding: 0 0.25rem;">
+            <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+              <span>🌐</span> Live Landing Page Viewport
+            </div>
+            <a href="/landing" target="_blank" style="font-size: 0.8rem; font-weight: 600; color: var(--color-primary); text-decoration: none;">
+              Open Full Page ↗
+            </a>
+          </div>
+
+          <div id="pv-frame-shell" style="flex: 1; border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; background: #fff; box-shadow: var(--shadow-md); margin: 0 auto; transition: width 0.3s ease; width: 100%;">
+            <iframe id="pv-landing-iframe" src="/landing?preview=true" style="width: 100%; height: 100%; border: none;"></iframe>
+          </div>
+        </div>
       </div>
     `;
+
+    // Viewport Mode Switching Logic
+    const btnPvDesktop = listContainer.querySelector('#btn-pv-desktop');
+    const btnPvMobile = listContainer.querySelector('#btn-pv-mobile');
+    const btnPvRefresh = listContainer.querySelector('#btn-pv-refresh');
+    const pvShell = listContainer.querySelector('#pv-frame-shell');
+    const pvIframe = listContainer.querySelector('#pv-landing-iframe');
+
+    btnPvDesktop?.addEventListener('click', () => {
+      btnPvDesktop.className = 'btn btn-sm btn-primary';
+      btnPvMobile.className = 'btn btn-sm btn-outline';
+      if (pvShell) pvShell.style.width = '100%';
+    });
+
+    btnPvMobile?.addEventListener('click', () => {
+      btnPvMobile.className = 'btn btn-sm btn-primary';
+      btnPvDesktop.className = 'btn btn-sm btn-outline';
+      if (pvShell) pvShell.style.width = '375px';
+    });
+
+    btnPvRefresh?.addEventListener('click', () => {
+      if (pvIframe) pvIframe.src = '/landing?preview=' + Date.now();
+    });
 
     // Tab Logic
     const tabBtns = listContainer.querySelectorAll('.landing-tab-btn');
@@ -2204,6 +2255,8 @@ async function initLandingSettings(container) {
       const res = await api.put('/api/landing', payload);
       if (res.success) {
         Toast.success('Landing page updated successfully');
+        const pvIframe = listContainer.querySelector('#pv-landing-iframe');
+        if (pvIframe) pvIframe.src = '/landing?preview=' + Date.now();
       } else {
         Toast.error(res.message || 'Error updating landing page');
       }

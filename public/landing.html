@@ -537,8 +537,14 @@
       </p>
 
       <div class="hero-cta-group">
-        <a href="/register" class="btn-hero-primary">🚀 Register Now</a>
+        <a href="/register" class="btn-hero-primary">🚀 Apply for Admission</a>
         <a href="#enquiry" class="btn-hero-secondary">⚡ Book a Free 1-Day Trial</a>
+        <a href="/student-login" class="btn-hero-secondary" style="border-color: var(--primary); color: var(--primary);">🎓 Student Portal</a>
+      </div>
+
+      <!-- Hero Visual Banner Card -->
+      <div id="hero-banner-card" style="margin-top: 2.5rem; display: none; text-align: center;">
+        <img id="hero-banner-img" src="" alt="Library Reading Hall Banner" style="width: 100%; max-height: 420px; object-fit: cover; border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--card-hover);">
       </div>
     </div>
   </section>
@@ -954,6 +960,13 @@
         document.getElementById('footer-copy-name').textContent = name;
         if (businessProfile.tagline) document.getElementById('footer-tagline').textContent = businessProfile.tagline;
 
+        if (businessProfile.logo) {
+          const logoEl = document.getElementById('nav-logo-icon');
+          if (logoEl) logoEl.innerHTML = `<img src="${businessProfile.logo}" alt="Logo" style="height: 36px; width: auto; object-fit: contain; border-radius: 6px;">`;
+          const drawerLogo = document.querySelector('#mobile-drawer .nav-logo');
+          if (drawerLogo) drawerLogo.innerHTML = `<img src="${businessProfile.logo}" alt="Logo" style="height: 32px; width: auto; object-fit: contain;">`;
+        }
+
         // Contact info
         if (landing.contact) {
           if (landing.contact.address) document.getElementById('footer-address').textContent = landing.contact.address;
@@ -984,6 +997,14 @@
           if (landing.hero.liveSeatBadge?.text) document.getElementById('ticker-text').textContent = landing.hero.liveSeatBadge.text;
           if (!landing.hero.enableTicker && !landing.hero.liveSeatBadge?.enabled) {
             document.getElementById('landing-ticker').style.display = 'none';
+          }
+          if (landing.hero.bannerImage) {
+            const card = document.getElementById('hero-banner-card');
+            const img = document.getElementById('hero-banner-img');
+            if (card && img) {
+              img.src = landing.hero.bannerImage;
+              card.style.display = 'block';
+            }
           }
         }
 
