@@ -19,6 +19,8 @@ const studentSchema = new mongoose.Schema({
   photo: { type: String },
   plan: { type: mongoose.Schema.Types.ObjectId, ref: 'Plan' },
   seat: { type: mongoose.Schema.Types.ObjectId, ref: 'Seat' },
+  locker: { type: mongoose.Schema.Types.ObjectId, ref: 'Locker' },
+  shift: { type: mongoose.Schema.Types.ObjectId, ref: 'Shift' },
   admissionDate: { type: Date, default: Date.now },
   expiryDate: { type: Date },
   status: { type: String, enum: ['active', 'inactive', 'suspended', 'expired', 'pending', 'pending_payment'], default: 'active' },

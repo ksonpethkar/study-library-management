@@ -61,8 +61,11 @@ router.get('/', async (req, res) => {
     }
 
     const students = await Student.find(query)
-      .populate('plan', 'name price')
-      .populate('seat', 'seatNumber zone')
+      .populate('plan', 'name price duration durationType shift')
+      .populate('seat', 'seatNumber zone status branch')
+      .populate('locker', 'lockerNumber monthlyFee status')
+      .populate('shift', 'name startTime endTime code')
+      .populate('branch', 'name code city address')
       .sort(req.query.sort || '-createdAt')
       .skip(skip)
       .limit(limit)
@@ -92,8 +95,11 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const student = await Student.findById(req.params.id)
-      .populate('plan', 'name price')
-      .populate('seat', 'seatNumber zone')
+      .populate('plan', 'name price duration durationType shift')
+      .populate('seat', 'seatNumber zone status branch')
+      .populate('locker', 'lockerNumber monthlyFee status')
+      .populate('shift', 'name startTime endTime code')
+      .populate('branch', 'name code city address')
       .lean();
       
     if (!student) {
