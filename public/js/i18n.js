@@ -273,38 +273,26 @@ const translations = {
   }
 };
 
-let currentLang = (typeof localStorage !== 'undefined' ? localStorage.getItem('sl_lang') : null) || 'en';
+let currentLang = 'en';
 
 export function t(key, defaultVal = '', params = {}) {
-  let str = translations[currentLang]?.[key] || translations['en']?.[key] || defaultVal || key;
+  let str = translations['en']?.[key] || defaultVal || key;
   Object.entries(params).forEach(([k, v]) => {
     str = str.replace(`{${k}}`, v);
   });
   return str;
 }
 
-export function setLanguage(lang) {
-  if (translations[lang]) {
-    currentLang = lang;
-    if (typeof localStorage !== 'undefined') localStorage.setItem('sl_lang', lang);
-    if (typeof document !== 'undefined') {
-      document.querySelectorAll('[data-i18n]').forEach(el => {
-        const k = el.getAttribute('data-i18n');
-        if (k) el.textContent = t(k);
-      });
-    }
-  }
+export function setLanguage() {
+  currentLang = 'en';
 }
 
 export function getLanguage() {
-  return currentLang;
+  return 'en';
 }
 
 export function getAvailableLanguages() {
   return [
-    { code: 'en', label: 'English' },
-    { code: 'hi', label: 'हिंदी (Hindi)' },
-    { code: 'mr', label: 'मराठी (Marathi)' },
-    { code: 'ta', label: 'தமிழ் (Tamil)' }
+    { code: 'en', label: 'English (India)' }
   ];
 }
