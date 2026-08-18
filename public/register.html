@@ -232,11 +232,33 @@
 
       <form id="public-reg-form">
         
-        <!-- Step 1: Personal Info & Pincode Auto-Fill -->
+        <!-- Step 1: Personal Info & Centre Choice -->
         <div class="wizard-step-content active" id="step-1">
-          <div class="form-section-title"><span>👤</span> Personal & Contact Details</div>
+          <div class="form-section-title"><span>🏢</span> Select Study Centre & Personal Info</div>
           
           <div id="duplicate-alert-box" class="alert alert-danger mb-3" style="display: none; padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.88rem; font-weight: 600; color: #dc3545; background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.2);"></div>
+
+          <!-- Branch / Study Centre Selector -->
+          <div class="form-group mb-3" style="background: var(--color-bg-secondary); border: 1.5px solid var(--color-primary); padding: 1.25rem; border-radius: var(--radius-lg);">
+            <label class="form-label" style="font-weight: 700; color: var(--color-primary); font-size: 0.95rem;">🏢 Select Preferred Study Centre / Branch *</label>
+            <select id="reg-branch" class="form-select" required style="font-weight: 600;">
+              <option value="">Loading available study centres...</option>
+            </select>
+            
+            <div id="branch-info-card" style="margin-top: 10px; padding: 10px 14px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: none;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div>
+                  <span style="font-weight: 700;" id="bi-name">Main Centre</span>
+                  <span style="font-size: 0.8rem; color: var(--color-text-secondary); display: block;" id="bi-address">Pune, Maharashtra</span>
+                </div>
+                <div style="text-align: right;">
+                  <span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.85rem;" id="bi-seats-badge">
+                    🟢 42 Available / 100 Total Seats
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
             <div class="form-group">
@@ -693,16 +715,20 @@
       });
     });
 
-    // Live Public Seat Map Loader (Step 5)
+    let branchesMap = {};
+    let selectedBranchId = '';
+
+    // Live Public Seat Map Loader (Step 5, Branch Filtered)
     async function loadPublicSeats() {
       const seatContainer = document.getElementById('public-seat-grid-container');
       if (!seatContainer) return;
       
       try {
-        const res = await fetch('/api/seats/public-available');
+        const url = selectedBranchId ? `/api/seats/public-available?branch=${selectedBranchId}` : '/api/seats/public-available';
+        const res = await fetch(url);
         const json = await res.json();
         if (!json.success || !json.data || json.data.length === 0) {
-          seatContainer.innerHTML = '<div class="text-center text-muted p-3">No seats configured yet. Reception desk will assign seat on arrival.</div>';
+          seatContainer.innerHTML = '<div class="text-center text-muted p-3">No available seats for this study centre currently. Reception desk will assist you on arrival.</div>';
           return;
         }
 
@@ -893,14 +919,15 @@
     document.getElementById('public-reg-form').addEventListener('change', evaluateLogic);
     document.getElementById('public-reg-form').addEventListener('input', evaluateLogic);
 
-    // Load Init Data
+    // Load Init Data & Public Branches
     async function loadInitData() {
       try {
-        const [landingRes, plansRes, shiftsRes, fieldsRes] = await Promise.all([
+        const [landingRes, plansRes, shiftsRes, fieldsRes, branchesRes] = await Promise.all([
           fetch('/api/landing').then(r => r.json()).catch(() => null),
           fetch('/api/plans').then(r => r.json()).catch(() => null),
           fetch('/api/shifts').then(r => r.json()).catch(() => null),
-          fetch('/api/custom-fields').then(r => r.json()).catch(() => null)
+          fetch('/api/custom-fields').then(r => r.json()).catch(() => null),
+          fetch('/api/branches/public-list').then(r => r.json()).catch(() => null)
         ]);
 
         const bp = landingRes?.data?.businessProfile;
@@ -910,6 +937,47 @@
         }
         if (bp?.tagline) {
           document.getElementById('lib-tagline').textContent = bp.tagline;
+        }
+
+        // Branch Selection Dropdown & Capacity Card
+        const branchSelect = document.getElementById('reg-branch');
+        const branches = branchesRes?.data || [];
+        if (branchSelect) {
+          branchSelect.innerHTML = '<option value="">-- Select Preferred Study Centre --</option>';
+          if (branches.length > 0) {
+            branches.forEach((b, idx) => {
+              branchesMap[b._id] = b;
+              const opt = document.createElement('option');
+              opt.value = b._id;
+              opt.textContent = `${b.name} (${b.city || 'Central'}) — 🟢 ${b.availableSeats || 0} Available / ${b.totalSeats || 50} Seats`;
+              if (idx === 0) opt.selected = true;
+              branchSelect.appendChild(opt);
+            });
+            
+            // Set initial branch selection
+            if (branches[0]) {
+              selectedBranchId = branches[0]._id;
+              updateBranchCard(branches[0]);
+            }
+          } else {
+            branchSelect.innerHTML = '<option value="default_main">Main Campus Centre — 🟢 42 Available / 100 Seats</option>';
+          }
+
+          branchSelect.addEventListener('change', () => {
+            const bId = branchSelect.value;
+            selectedBranchId = bId;
+            const bObj = branchesMap[bId];
+            if (bObj) updateBranchCard(bObj);
+          });
+        }
+
+        function updateBranchCard(b) {
+          const card = document.getElementById('branch-info-card');
+          if (!card) return;
+          card.style.display = 'block';
+          document.getElementById('bi-name').textContent = `${b.name} (${b.code || 'CENTER'})`;
+          document.getElementById('bi-address').textContent = `${b.address || ''}, ${b.city || ''} ${b.phone ? '• 📞 ' + b.phone : ''}`;
+          document.getElementById('bi-seats-badge').textContent = `🟢 ${b.availableSeats || 0} Available / ${b.totalSeats || 50} Total Seats`;
         }
 
         // Plans dropdown
@@ -976,6 +1044,7 @@
         pincode: document.getElementById('reg-pincode')?.value?.trim() || '',
         city: document.getElementById('reg-city')?.value?.trim() || '',
         state: document.getElementById('reg-state')?.value?.trim() || '',
+        branch: selectedBranchId || document.getElementById('reg-branch')?.value || null,
         photo: photoPicker ? photoPicker.querySelector('.mfp-hidden-value')?.value || '' : '',
         targetExams: Array.from(selectedExams),
         plan: document.getElementById('reg-plan').value || null,

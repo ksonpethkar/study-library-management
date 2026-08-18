@@ -17,7 +17,45 @@ const roleCheck = (...roles) => {
   };
 };
 
-// Protect all branch routes
+// GET /public-list — Public endpoint for student registration branch selection
+router.get('/public-list', async (req, res) => {
+  try {
+    const branches = await Branch.find({ isActive: true }).lean();
+    if (!branches || branches.length === 0) {
+      return res.json({
+        success: true,
+        data: [{
+          _id: 'default_main',
+          name: 'Main Campus Centre',
+          code: 'MAIN',
+          city: 'Central City',
+          address: 'Main Reading Hall Complex',
+          phone: '+91 9876543210',
+          totalSeats: 100,
+          occupiedSeats: 42,
+          availableSeats: 58
+        }]
+      });
+    }
+
+    const data = await Promise.all(branches.map(async (b) => {
+      const occupiedSeats = await Seat.countDocuments({ branch: b._id, status: 'occupied', isActive: true });
+      const totalSeats = b.totalSeats || 50;
+      const availableSeats = Math.max(0, totalSeats - occupiedSeats);
+      return {
+        ...b,
+        occupiedSeats,
+        availableSeats
+      };
+    }));
+
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Protect all remaining branch routes
 router.use(protect);
 
 // GET /stats — Return branch summary
