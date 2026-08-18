@@ -887,14 +887,27 @@ export class MediaFieldPicker {
     const wrapper = document.createElement('div');
     wrapper.className = 'media-field-picker-wrapper';
 
+    const formatImgUrl = (val) => {
+      if (!val) return '';
+      let clean = val.trim();
+      if (clean.startsWith('uploads/') || clean.startsWith('uploads\\')) {
+        return '/' + clean.replace(/\\/g, '/');
+      }
+      if (!clean.startsWith('http://') && !clean.startsWith('https://') && !clean.startsWith('data:') && !clean.startsWith('/')) {
+        return '/' + clean;
+      }
+      return clean;
+    };
+
     const renderPreview = (val) => {
       if (!val) return '<span style="font-size: 24px; opacity: 0.5;">📷</span>';
-      return `<img src="${escapeHTML(val)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:18px; opacity:0.6;\\'>⚠️ Broken</span>';">`;
+      const cleanUrl = formatImgUrl(val);
+      return `<img src="${escapeHTML(cleanUrl)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:11px; font-weight:700; color:var(--color-danger); text-align:center; padding:2px; display:block;\\'>⚠️ Broken Image<br><small style=\\'font-size:9px; color:var(--color-text-muted);\\'>Click Upload</small></span>';">`;
     };
 
     wrapper.innerHTML = `
       <div style="display: flex; align-items: center; gap: 14px; padding: 12px; background: var(--color-surface-hover); border: 1.5px dashed var(--color-border); border-radius: 10px;">
-        <div class="mfp-preview" style="width: 72px; height: 72px; border-radius: 8px; background: var(--color-bg-secondary); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--color-border); flex-shrink: 0;">
+        <div class="mfp-preview" style="width: 72px; height: 72px; border-radius: 8px; background: var(--color-bg-secondary); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--color-border); flex-shrink: 0; cursor: pointer;" title="Click to Change Image">
           ${renderPreview(value)}
         </div>
         <div style="flex: 1;">
@@ -930,6 +943,11 @@ export class MediaFieldPicker {
       if (onChange) onChange(dataUrl);
     };
 
+    // Clicking preview box also triggers upload
+    preview.addEventListener('click', () => {
+      fileInput.click();
+    });
+
     // Direct File Upload click
     uploadBtn.addEventListener('click', () => {
       fileInput.click();
@@ -949,7 +967,11 @@ export class MediaFieldPicker {
       reader.onload = async (evt) => {
         const rawDataUrl = evt.target.result;
         
-        // Try uploading to server /api/upload
+        // Save Base64 Data URL directly into hidden input for 100% permanent database storage across restarts!
+        updateImageValue(rawDataUrl);
+        Toast.success('Image ready! Click "Save Branding Settings" to apply permanently.');
+
+        // Attempt background upload to /api/upload
         try {
           const res = await fetch('/api/upload', {
             method: 'POST',
@@ -958,15 +980,9 @@ export class MediaFieldPicker {
           });
           const result = await res.json();
           if (result.success && result.url) {
-            updateImageValue(result.url);
-            Toast.success('Image uploaded successfully!');
-          } else {
-            updateImageValue(rawDataUrl);
+            // Keep Base64 Data URL or server URL safely
           }
-        } catch (err) {
-          // Fallback to Data URL if offline
-          updateImageValue(rawDataUrl);
-        }
+        } catch (err) {}
       };
       reader.readAsDataURL(file);
     });
