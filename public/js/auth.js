@@ -261,12 +261,6 @@ export async function initAppEvents() {
     document.getElementById('sidebar-overlay')?.classList.remove('visible');
   });
 
-  // Theme toggle button
-  document.getElementById('theme-toggle-btn')?.addEventListener('click', async () => {
-    const App = await getApp();
-    App.toggleTheme();
-  });
-
   // Logout button
   document.getElementById('logout-btn')?.addEventListener('click', async () => {
     const App = await getApp();
