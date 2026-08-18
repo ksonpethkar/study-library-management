@@ -1361,6 +1361,55 @@ input[type="checkbox"].toggle-switch:disabled {
   user-select: none;
 }
 
+/* ========================================== */
+/* CIRCULAR ROUND SELECTED CHECKBOX COMPONENT */
+/* ========================================== */
+input[type="checkbox"].seat-select-cb,
+input[type="checkbox"].round-checkbox,
+.round-checkbox input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50% !important; /* Perfect Round Circle Icon */
+  border: 2px solid var(--color-border, #475569);
+  background-color: var(--color-surface, #1e293b);
+  cursor: pointer;
+  outline: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  margin: 0;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+input[type="checkbox"].seat-select-cb:hover,
+input[type="checkbox"].round-checkbox:hover {
+  border-color: var(--color-primary, #6366f1);
+  transform: scale(1.1);
+}
+
+input[type="checkbox"].seat-select-cb:checked,
+input[type="checkbox"].round-checkbox:checked {
+  background-color: var(--color-primary, #6366f1) !important;
+  border-color: var(--color-primary, #6366f1) !important;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+}
+
+input[type="checkbox"].seat-select-cb:checked::after,
+input[type="checkbox"].round-checkbox:checked::after {
+  content: "✓";
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  display: block;
+}
+
 .smart-toggle-badge {
   font-size: 0.72rem;
   font-weight: 800;

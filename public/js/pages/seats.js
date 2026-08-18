@@ -520,7 +520,7 @@ function renderSeatsGrid(seats, container) {
           
           <!-- Select Checkbox (Top Left) -->
           <div style="position: absolute; top: 6px; left: 6px; z-index: 2;" onclick="event.stopPropagation();">
-            <input type="checkbox" class="form-checkbox seat-select-cb" data-id="${seat._id}" ${isSelected ? 'checked' : ''} style="cursor: pointer; width: 15px; height: 15px;">
+            <input type="checkbox" class="seat-select-cb" data-id="${seat._id}" ${isSelected ? 'checked' : ''} style="cursor: pointer;">
           </div>
 
           <!-- Quick Action Dot Menu (Top Right) -->
