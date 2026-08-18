@@ -2,7 +2,7 @@ import api from '../api.js';
 import { Toast, Modal, Confirm, Loading, escapeHTML } from '../ui.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
 import { t } from '../i18n.js';
-import { generateAdmissionFormPDF } from '../pdfGenerator.js';
+import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -919,7 +919,7 @@ function renderSettingsUI(container, profile, settings) {
     const showRules = container.querySelector('#pdf-toggle-rules')?.checked;
     const showWatermarkStamp = container.querySelector('#pdf-toggle-stamp')?.checked;
 
-    generateAdmissionFormPDF({
+    previewAdmissionFormPDF({
       studentId: 'STU-2026-DEMO',
       name: 'Rahul Sharma (Sample Student)',
       phone: '9876543210',

@@ -581,7 +581,7 @@
   <script type="module">
     import { SignatureStudio } from './js/signatureStudio.js';
     import { MediaFieldPicker } from './js/mediaStudio.js';
-    import { generateAdmissionFormPDF } from './js/pdfGenerator.js';
+    import { generateAdmissionFormPDF, previewAdmissionFormPDF } from './js/pdfGenerator.js';
 
     let currentStep = 1;
     const totalSteps = 5;
@@ -1106,7 +1106,7 @@
         document.getElementById('btn-success-whatsapp').href = `https://wa.me/${phone}?text=${waMsg}`;
         
         document.getElementById('btn-print-slip')?.addEventListener('click', () => {
-          generateAdmissionFormPDF(result.data || payload);
+          previewAdmissionFormPDF(result.data || payload);
         });
 
       } catch (error) {

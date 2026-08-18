@@ -1,7 +1,7 @@
 import api from '../api.js';
 import { Toast, Modal, Confirm, Loading, escapeHTML } from '../ui.js';
 import { t } from '../i18n.js';
-import { generateAdmissionFormPDF } from '../pdfGenerator.js';
+import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -246,7 +246,7 @@ function renderPortalUI(container, data) {
 
   // Attach PDF Admission Form Download Handler
   container.querySelector('#btn-portal-download-pdf')?.addEventListener('click', () => {
-    generateAdmissionFormPDF(student, { business });
+    previewAdmissionFormPDF(student, { business });
   });
 
   // Attach ID Card Handler

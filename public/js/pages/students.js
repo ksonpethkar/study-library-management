@@ -4,7 +4,7 @@ import { Toast, Modal, Loading, Confirm, escapeHTML } from '../ui.js';
 import { SignatureStudio } from '../signatureStudio.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
 import api from '../api.js';
-import { generateAdmissionFormPDF } from '../pdfGenerator.js';
+import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -934,7 +934,7 @@ export async function render() {
     if (pdfBtn) {
       const id = pdfBtn.getAttribute('data-id');
       const student = state.students.find(s => s._id === id);
-      if (student) generateAdmissionFormPDF(student);
+      if (student) previewAdmissionFormPDF(student);
       return;
     }
     
@@ -1056,7 +1056,7 @@ export async function render() {
     });
 
     modalContent.querySelector('.btn-profile-pdfform')?.addEventListener('click', () => {
-      generateAdmissionFormPDF(student);
+      previewAdmissionFormPDF(student);
     });
 
     modalContent.querySelector('.btn-profile-edit')?.addEventListener('click', () => {
