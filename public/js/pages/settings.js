@@ -817,6 +817,9 @@ function renderSettingsUI(container, profile, settings) {
               <div class="text-center p-4 text-muted">Loading landing page configuration...</div>
             </div>
           </div>
+        </div>
+      </div>
+
       <!-- ========================================== -->
       <!-- SECTION K: PDF ADMISSION FORM STUDIO       -->
       <!-- ========================================== -->
@@ -900,6 +903,7 @@ function renderSettingsUI(container, profile, settings) {
             </div>
           </div>
         </div>
+      </div>
       <!-- ========================================== -->
       <!-- SECTION J: SMART RECEIPT BUILDER STUDIO     -->
       <!-- ========================================== -->
