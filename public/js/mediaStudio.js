@@ -886,48 +886,110 @@ export class MediaFieldPicker {
   static create({ label = 'Select Photo', preset = 'passport', value = '', name = 'photo', onChange = null }) {
     const wrapper = document.createElement('div');
     wrapper.className = 'media-field-picker-wrapper';
+
+    const renderPreview = (val) => {
+      if (!val) return '<span style="font-size: 24px; opacity: 0.5;">📷</span>';
+      return `<img src="${escapeHTML(val)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:18px; opacity:0.6;\\'>⚠️ Broken</span>';">`;
+    };
+
     wrapper.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 14px; padding: 10px; background: var(--color-surface-hover); border: 1.5px dashed var(--color-border); border-radius: 10px;">
-        <div class="mfp-preview" style="width: 64px; height: 64px; border-radius: 8px; background: var(--color-bg-secondary); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--color-border); flex-shrink: 0;">
-          ${value ? `<img src="${value}" style="width: 100%; height: 100%; object-fit: cover;">` : '<span style="font-size: 24px; opacity: 0.5;">📷</span>'}
+      <div style="display: flex; align-items: center; gap: 14px; padding: 12px; background: var(--color-surface-hover); border: 1.5px dashed var(--color-border); border-radius: 10px;">
+        <div class="mfp-preview" style="width: 72px; height: 72px; border-radius: 8px; background: var(--color-bg-secondary); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--color-border); flex-shrink: 0;">
+          ${renderPreview(value)}
         </div>
         <div style="flex: 1;">
-          <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text-primary); margin-bottom: 4px;">${escapeHTML(label)}</div>
-          <div class="d-flex gap-2">
+          <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text-primary); margin-bottom: 6px;">${escapeHTML(label)}</div>
+          <div class="d-flex gap-2 flex-wrap" style="align-items: center;">
+            <button type="button" class="btn btn-sm btn-primary mfp-upload-file-btn" style="font-size: 0.75rem; font-weight: 600;">
+              📁 ${value ? 'Change Image' : 'Upload Image'}
+            </button>
             <button type="button" class="btn btn-sm btn-outline-primary mfp-open-btn" style="font-size: 0.75rem; font-weight: 600;">
-              📸 Live Camera / Enhance
+              📸 Camera / Studio
             </button>
             <button type="button" class="btn btn-sm btn-ghost text-danger mfp-remove-btn" style="font-size: 0.75rem; ${value ? '' : 'display: none;'}">
               🗑️ Remove
             </button>
           </div>
         </div>
+        <input type="file" class="mfp-file-input" accept="image/*" style="display: none;">
         <input type="hidden" name="${name}" class="mfp-hidden-value" value="${escapeHTML(value)}">
       </div>
     `;
 
     const hiddenInput = wrapper.querySelector('.mfp-hidden-value');
+    const fileInput = wrapper.querySelector('.mfp-file-input');
     const preview = wrapper.querySelector('.mfp-preview');
     const removeBtn = wrapper.querySelector('.mfp-remove-btn');
+    const uploadBtn = wrapper.querySelector('.mfp-upload-file-btn');
 
+    const updateImageValue = (dataUrl) => {
+      hiddenInput.value = dataUrl;
+      preview.innerHTML = renderPreview(dataUrl);
+      removeBtn.style.display = 'inline-block';
+      uploadBtn.innerHTML = '📁 Change Image';
+      if (onChange) onChange(dataUrl);
+    };
+
+    // Direct File Upload click
+    uploadBtn.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    // File Input change
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        Toast.error('Please select a valid image file (PNG, JPG, WEBP)');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        const rawDataUrl = evt.target.result;
+        
+        // Try uploading to server /api/upload
+        try {
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: rawDataUrl })
+          });
+          const result = await res.json();
+          if (result.success && result.url) {
+            updateImageValue(result.url);
+            Toast.success('Image uploaded successfully!');
+          } else {
+            updateImageValue(rawDataUrl);
+          }
+        } catch (err) {
+          // Fallback to Data URL if offline
+          updateImageValue(rawDataUrl);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Open Camera & Filter Studio
     wrapper.querySelector('.mfp-open-btn').addEventListener('click', () => {
       MediaStudio.open({
         title: label,
         preset,
         value: hiddenInput.value,
         onSave: (dataUrl) => {
-          hiddenInput.value = dataUrl;
-          preview.innerHTML = `<img src="${dataUrl}" style="width: 100%; height: 100%; object-fit: cover;">`;
-          removeBtn.style.display = 'inline-block';
-          if (onChange) onChange(dataUrl);
+          updateImageValue(dataUrl);
         }
       });
     });
 
+    // Remove Image
     removeBtn.addEventListener('click', () => {
       hiddenInput.value = '';
+      fileInput.value = '';
       preview.innerHTML = '<span style="font-size: 24px; opacity: 0.5;">📷</span>';
       removeBtn.style.display = 'none';
+      uploadBtn.innerHTML = '📁 Upload Image';
       if (onChange) onChange('');
     });
 

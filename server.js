@@ -42,8 +42,14 @@ app.use(generalLimiter);
 
 // Static folder
 app.use(express.static(path.join(__dirname, 'public')));
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!require('fs').existsSync(uploadsDir)) {
+  require('fs').mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsDir));
 
 // API Routes
+app.use('/api/upload', require('./routes/upload'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/students', require('./routes/students'));
 app.use('/api/seats', require('./routes/seats'));

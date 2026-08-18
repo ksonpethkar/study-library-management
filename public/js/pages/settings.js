@@ -1233,8 +1233,8 @@ function renderSettingsUI(container, profile, settings) {
       const payload = {
         businessName: container.querySelector('#setting-businessName')?.value?.trim(),
         tagline: container.querySelector('#setting-tagline')?.value?.trim(),
-        logo: container.querySelector('input[name="logo"]')?.value?.trim() || '',
-        upiQrCode: container.querySelector('input[name="upiQrCode"]')?.value?.trim() || '',
+        logo: container.querySelector('input[name="logo"]')?.value?.trim() || container.querySelector('#setting-logo')?.value?.trim() || '',
+        upiQrCode: container.querySelector('input[name="upiQrCode"]')?.value?.trim() || container.querySelector('#setting-upiQrCode')?.value?.trim() || '',
         phone: container.querySelector('#setting-phone')?.value?.trim(),
         email: container.querySelector('#setting-email')?.value?.trim(),
         website: container.querySelector('#setting-website')?.value?.trim(),
