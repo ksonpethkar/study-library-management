@@ -710,6 +710,46 @@ function renderSettingsUI(container, profile, settings) {
             <div id="module-settings-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
               <div class="text-center p-4 text-muted">Loading module configuration...</div>
             </div>
+
+            <!-- Student 360 Self-Service Portal Feature Switches -->
+            <div style="margin-top: 2rem; border-top: 1px solid var(--color-border); padding-top: 1.5rem;">
+              <h4 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: var(--color-text-primary);">🎓 Student 360° Portal Feature Controls</h4>
+              <p style="margin: 0 0 1rem 0; font-size: 0.82rem; color: var(--color-text-secondary);">Toggle which self-service actions are available to enrolled students in their portal.</p>
+              
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 600; font-size: 0.9rem;">🪑 Seat Transfer Requests</div>
+                    <div class="text-muted small">Allow student seat change requests</div>
+                  </div>
+                  <input type="checkbox" id="sp-toggle-seat-transfer" checked class="form-toggle">
+                </div>
+
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 600; font-size: 0.9rem;">🏖️ Leave Applications</div>
+                    <div class="text-muted small">Allow online study leave submission</div>
+                  </div>
+                  <input type="checkbox" id="sp-toggle-leave-app" checked class="form-toggle">
+                </div>
+
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 600; font-size: 0.9rem;">💳 Online UPI Renewals</div>
+                    <div class="text-muted small">Allow online plan renewals via QR</div>
+                  </div>
+                  <input type="checkbox" id="sp-toggle-upi-renewal" checked class="form-toggle">
+                </div>
+
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 600; font-size: 0.9rem;">🪪 Digital ID Card Studio</div>
+                    <div class="text-muted small">Allow view & download ID card</div>
+                  </div>
+                  <input type="checkbox" id="sp-toggle-id-card" checked class="form-toggle">
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

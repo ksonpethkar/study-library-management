@@ -214,35 +214,38 @@
         </div>
         <div class="step" id="stepper-2">
           <div class="step-number">2</div>
-          <div style="font-size: 0.75rem;">Goals</div>
+          <div style="font-size: 0.75rem;">Goals & KYC</div>
         </div>
         <div class="step" id="stepper-3">
           <div class="step-number">3</div>
-          <div style="font-size: 0.75rem;">Plan</div>
+          <div style="font-size: 0.75rem;">Plan & Fee</div>
         </div>
         <div class="step" id="stepper-4">
           <div class="step-number">4</div>
-          <div style="font-size: 0.75rem;">Details</div>
+          <div style="font-size: 0.75rem;">Payment</div>
         </div>
         <div class="step" id="stepper-5">
           <div class="step-number">5</div>
-          <div style="font-size: 0.75rem;">Sign</div>
+          <div style="font-size: 0.75rem;">Seat & Sign</div>
         </div>
       </div>
 
       <form id="public-reg-form">
         
-        <!-- Step 1: Personal Info & Live Photo -->
+        <!-- Step 1: Personal Info & Pincode Auto-Fill -->
         <div class="wizard-step-content active" id="step-1">
           <div class="form-section-title"><span>👤</span> Personal & Contact Details</div>
+          
+          <div id="duplicate-alert-box" class="alert alert-danger mb-3" style="display: none; padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.88rem; font-weight: 600; color: #dc3545; background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.2);"></div>
+
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
             <div class="form-group">
               <label class="form-label" style="font-weight: 600;">Full Name *</label>
               <input type="text" id="reg-name" class="form-control" placeholder="e.g. Rahul Sharma" required>
             </div>
             <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Mobile Phone *</label>
-              <input type="tel" id="reg-phone" class="form-control" placeholder="10-digit WhatsApp number" required>
+              <label class="form-label" style="font-weight: 600;">Mobile Phone (WhatsApp) *</label>
+              <input type="tel" id="reg-phone" class="form-control" placeholder="10-digit WhatsApp number" required maxlength="10">
             </div>
           </div>
 
@@ -252,12 +255,12 @@
               <input type="email" id="reg-email" class="form-control" placeholder="rahul@example.com">
             </div>
             <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Account Password</label>
-              <input type="password" id="reg-password" class="form-control" placeholder="Choose 6+ character password" required>
+              <label class="form-label" style="font-weight: 600;">Account Password *</label>
+              <input type="password" id="reg-password" class="form-control" placeholder="Choose 6+ character password" required minlength="6">
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
             <div class="form-group">
               <label class="form-label" style="font-weight: 600;">Gender</label>
               <select id="reg-gender" class="form-select">
@@ -272,9 +275,20 @@
             </div>
           </div>
 
-          <div class="mb-4">
-            <label class="form-label" style="font-weight: 600;">Student Passport Photo (Live Selfie Camera / File Upload)</label>
-            <div id="public-photo-mount"></div>
+          <!-- Address & Smart Pincode Auto-Fill -->
+          <div style="display: grid; grid-template-columns: 140px 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;" class="form-row-responsive">
+            <div class="form-group">
+              <label class="form-label" style="font-weight: 600;">Pincode ⚡</label>
+              <input type="text" id="reg-pincode" class="form-control" placeholder="411001" maxlength="6">
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="font-weight: 600;">City</label>
+              <input type="text" id="reg-city" class="form-control" placeholder="Auto-filled from pincode">
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="font-weight: 600;">State</label>
+              <input type="text" id="reg-state" class="form-control" placeholder="Auto-filled from pincode">
+            </div>
           </div>
 
           <div class="btn-nav">
@@ -283,9 +297,11 @@
           </div>
         </div>
 
-        <!-- Step 2: Study Goals -->
+        <!-- Step 2: Academic Goals & Document KYC -->
         <div class="wizard-step-content" id="step-2">
-          <div class="form-section-title"><span>🎯</span> Target Exams / Goals</div>
+          <div class="form-section-title"><span>🎯</span> Target Competitive Exams & Documents</div>
+          
+          <label class="form-label" style="font-weight: 600; margin-bottom: 8px;">Select Target Exams</label>
           <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem;" id="exam-pills-container">
             <span class="exam-pill" data-exam="UPSC / Civil Services">UPSC Civil Services</span>
             <span class="exam-pill" data-exam="State PSC / MPSC">State PSC / MPSC</span>
@@ -298,6 +314,12 @@
             <span class="exam-pill" data-exam="Law / CLAT / Judiciary">Judiciary / CLAT</span>
             <span class="exam-pill" data-exam="Defense / NDA / CDS">Defense / CDS</span>
           </div>
+
+          <div class="mb-4">
+            <label class="form-label" style="font-weight: 600;">Student Passport Photo (Live Selfie Camera / File Upload)</label>
+            <div id="public-photo-mount"></div>
+          </div>
+
           <div class="btn-nav">
             <button type="button" class="btn btn-secondary btn-prev" data-step="2">⬅️ Back</button>
             <button type="button" class="btn btn-primary btn-next" data-step="2">Continue to Next Step ➡️</button>
@@ -343,61 +365,134 @@
             </div>
           </div>
 
-          <!-- Payment Options -->
-          <div class="form-section-title" style="margin-top: 1.5rem;"><span>💳</span> Payment Option</div>
-          <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.25rem;">
-            <label style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 1.5px solid var(--color-primary); background: var(--color-bg-secondary); border-radius: var(--radius-md); cursor: pointer;">
+          <div class="btn-nav">
+            <button type="button" class="btn btn-secondary btn-prev" data-step="3">⬅️ Back</button>
+            <button type="button" class="btn btn-primary btn-next" data-step="3">Continue to Payment ➡️</button>
+          </div>
+        </div>
+
+        <!-- Step 4: Payment Mode Selection & Verification -->
+        <div class="wizard-step-content" id="step-4">
+          <div class="form-section-title"><span>💳</span> Select Payment Option</div>
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 1.5rem;">
+            <label class="pm-card active" style="border: 2px solid var(--color-primary); background: var(--color-bg-secondary); padding: 14px; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; gap: 10px;">
               <input type="radio" name="reg-payment-mode" value="upi" checked id="pay-mode-upi">
               <div>
-                <div style="font-weight: 700; font-size: 0.95rem;">⚡ Pay Online via Dynamic UPI QR (Instant Active ID)</div>
-                <div class="text-muted small">Scan QR with GPay, PhonePe, or Paytm and enter 12-digit UTR/Ref number.</div>
+                <div style="font-weight: 700; font-size: 0.9rem;">⚡ Dynamic UPI QR</div>
+                <div class="text-muted small">GPay / PhonePe / Paytm</div>
               </div>
             </label>
-            <label style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius-md); cursor: pointer;">
+
+            <label class="pm-card" style="border: 1px solid var(--color-border); background: var(--color-surface); padding: 14px; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <input type="radio" name="reg-payment-mode" value="card" id="pay-mode-card">
+              <div>
+                <div style="font-weight: 700; font-size: 0.9rem;">💳 Debit / Credit Card</div>
+                <div class="text-muted small">Visa, Mastercard, RuPay</div>
+              </div>
+            </label>
+
+            <label class="pm-card" style="border: 1px solid var(--color-border); background: var(--color-surface); padding: 14px; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <input type="radio" name="reg-payment-mode" value="netbanking" id="pay-mode-nb">
+              <div>
+                <div style="font-weight: 700; font-size: 0.9rem;">🏦 NetBanking</div>
+                <div class="text-muted small">All major Indian banks</div>
+              </div>
+            </label>
+
+            <label class="pm-card" style="border: 1px solid var(--color-border); background: var(--color-surface); padding: 14px; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; gap: 10px;">
               <input type="radio" name="reg-payment-mode" value="desk" id="pay-mode-desk">
               <div>
-                <div style="font-weight: 600; font-size: 0.95rem;">💵 Pay Later at Library Front Desk</div>
-                <div class="text-muted small">Your seat application will be reserved. Pay cash/UPI on your first visit to activate.</div>
+                <div style="font-weight: 700; font-size: 0.9rem;">💵 Pay Later at Desk</div>
+                <div class="text-muted small">Pay cash on arrival</div>
               </div>
             </label>
           </div>
 
-          <!-- UPI Dynamic QR Container -->
-          <div id="upi-qr-wrapper" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; text-align: center; margin-bottom: 1.5rem;">
+          <!-- Dynamic Payment Sub-Option Panes -->
+          <div id="pm-sub-upi" class="pm-sub-pane" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; text-align: center; margin-bottom: 1.5rem;">
             <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">Scan to Pay via Any UPI App</div>
             <div id="admission-upi-qr-mount" style="background: #fff; padding: 12px; border-radius: 10px; display: inline-block; margin: 8px 0; border: 1px solid var(--color-border);"></div>
             <div style="font-family: monospace; font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 10px;" id="admission-upi-id-label">
               UPI ID: thecozycornersc@okaxis
             </div>
-            
-            <div class="form-group" style="max-width: 320px; margin: 0 auto; text-align: left;">
-              <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">UPI Transaction ID / UTR Number *</label>
-              <input type="text" id="reg-upi-ref" class="form-control" placeholder="12-digit UTR reference e.g. 423456789012" maxlength="30">
-              <small class="text-muted" style="display: block; font-size: 0.72rem; margin-top: 3px;">Found in payment receipt in Google Pay / PhonePe / Paytm</small>
+            <div class="form-group" style="max-width: 340px; margin: 0 auto; text-align: left;">
+              <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">UPI UTR / Reference Number *</label>
+              <input type="text" id="reg-upi-ref" class="form-control" placeholder="12-digit UTR e.g. 423456789012" maxlength="30">
             </div>
           </div>
 
-          <div class="btn-nav">
-            <button type="button" class="btn btn-secondary btn-prev" data-step="3">⬅️ Back</button>
-            <button type="button" class="btn btn-primary btn-next" data-step="3">Continue to Next Step ➡️</button>
+          <div id="pm-sub-card" class="pm-sub-pane" style="display: none; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem;">
+            <div class="form-group mb-3">
+              <label class="form-label">Cardholder Name</label>
+              <input type="text" id="reg-card-name" class="form-control" placeholder="Name on card">
+            </div>
+            <div class="form-group mb-3">
+              <label class="form-label">Card Number / Ref</label>
+              <input type="text" id="reg-card-no" class="form-control" placeholder="16-digit card number" maxlength="19">
+            </div>
           </div>
-        </div>
 
-        <!-- Step 4: Additional Information -->
-        <div class="wizard-step-content" id="step-4">
-          <div id="custom-fields-inject">
-            <!-- Custom fields will be grouped and injected here -->
+          <div id="pm-sub-netbanking" class="pm-sub-pane" style="display: none; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem;">
+            <div class="form-group mb-3">
+              <label class="form-label">Select Your Bank</label>
+              <select id="reg-nb-bank" class="form-select">
+                <option value="SBI">State Bank of India (SBI)</option>
+                <option value="HDFC">HDFC Bank</option>
+                <option value="ICICI">ICICI Bank</option>
+                <option value="AXIS">Axis Bank</option>
+                <option value="OTHER">Other Indian Bank</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Transaction Reference Number</label>
+              <input type="text" id="reg-nb-ref" class="form-control" placeholder="Bank transaction reference">
+            </div>
           </div>
+
+          <div id="pm-sub-desk" class="pm-sub-pane" style="display: none; background: var(--color-bg-secondary); border: 1px dashed var(--color-primary); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem; text-align: center;">
+            <div style="font-size: 1.5rem; margin-bottom: 4px;">💵</div>
+            <div style="font-weight: 700; color: var(--color-primary);">Pay Later at Library Desk</div>
+            <div class="text-muted small" style="margin-top: 4px;">Your admission & seat selection will be pre-reserved. Pay your fee at the reception to activate your membership.</div>
+          </div>
+
           <div class="btn-nav">
             <button type="button" class="btn btn-secondary btn-prev" data-step="4">⬅️ Back</button>
-            <button type="button" class="btn btn-primary btn-next" data-step="4">Continue to Next Step ➡️</button>
+            <button type="button" class="btn btn-primary btn-next" data-step="4">Verify & Pick Seat ➡️</button>
           </div>
         </div>
 
-        <!-- Step 5: Signature -->
+        <!-- Step 5: Live Interactive Seat Map & Final Signature -->
         <div class="wizard-step-content" id="step-5">
-          <div class="form-section-title"><span>✍️</span> Digital Signature & Confirmation</div>
+          <div class="form-section-title"><span>🪑</span> Select Available Seat & Sign</div>
+          
+          <div style="margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <label class="form-label" style="font-weight: 700; margin: 0;">Interactive Seat Map (Click to Choose Seat)</label>
+              <div style="display: flex; gap: 12px; font-size: 0.8rem; font-weight: 600;">
+                <span>🟢 <span style="color: var(--color-success);">Available</span></span>
+                <span>🔴 <span style="color: var(--color-danger);">Occupied</span></span>
+                <span>🔵 <span style="color: var(--color-primary);">Selected</span></span>
+              </div>
+            </div>
+
+            <!-- Interactive Seat Grid Container -->
+            <div id="public-seat-grid-container" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; max-height: 280px; overflow-y: auto;">
+              <div class="text-center text-muted p-3">Loading available seats...</div>
+            </div>
+            
+            <input type="hidden" id="reg-selected-seat" value="">
+            <div id="selected-seat-display" style="margin-top: 8px; font-weight: 700; font-size: 0.95rem; color: var(--color-primary);">
+              No seat selected yet (Optional — desk can assign on arrival if unselected)
+            </div>
+          </div>
+
+          <!-- Dynamic Custom Fields Injection -->
+          <div id="custom-fields-inject" class="mb-4"></div>
+
+          <!-- Digital Signature Pad -->
           <div class="mb-4">
+            <label class="form-label" style="font-weight: 600;">Digital Signature (Draw or Touch)</label>
             <div id="public-signature-studio-mount"></div>
           </div>
 
@@ -410,39 +505,48 @@
 
           <div class="btn-nav">
             <button type="button" class="btn btn-secondary btn-prev" data-step="5">⬅️ Back</button>
-            <button type="submit" id="btn-submit-reg" class="btn btn-primary" style="font-size: 1.05rem; font-weight: 700; padding: 0.85rem;">🚀 Confirm & Submit</button>
+            <button type="submit" id="btn-submit-reg" class="btn btn-primary" style="font-size: 1.05rem; font-weight: 700; padding: 0.85rem;">🚀 Complete Admission & Payment</button>
           </div>
         </div>
 
       </form>
     </div>
 
-    <!-- Success Confirmation State -->
+    <!-- Rich Post-Registration Confirmation Screen -->
     <div id="registration-success-wrap" style="display: none; text-align: center; padding: 1.5rem 2rem 2.5rem 2rem;">
       <div style="font-size: 4rem; margin-bottom: 0.5rem;">🎉</div>
-      <h2 style="font-weight: 800; color: var(--color-success); margin-bottom: 0.5rem;">Admission Confirmed!</h2>
-      <p style="color: var(--color-text-secondary); max-width: 500px; margin: 0 auto 1.5rem auto;">
-        Your registration has been successfully submitted to the study library administration.
+      <h2 style="font-weight: 800; color: var(--color-success); margin-bottom: 0.5rem;" id="success-status-title">Admission Confirmed!</h2>
+      <p style="color: var(--color-text-secondary); max-width: 500px; margin: 0 auto 1.5rem auto;" id="success-status-msg">
+        Your registration and payment have been successfully verified.
       </p>
 
-      <div style="background: var(--color-bg-secondary); border: 2px dashed var(--color-primary); border-radius: var(--radius-lg); padding: 1.5rem; max-width: 420px; margin: 0 auto 1.75rem auto;">
-        <div class="text-muted small">Your Allocated Student ID</div>
-        <div id="success-student-id" style="font-size: 1.8rem; font-weight: 800; font-family: monospace; color: var(--color-primary); margin: 6px 0;">
-          STU-2026-001
+      <div style="background: var(--color-bg-secondary); border: 2px dashed var(--color-primary); border-radius: var(--radius-lg); padding: 1.5rem; max-width: 440px; margin: 0 auto 1.75rem auto;">
+        <div class="text-muted small">Official Student Registration Slip</div>
+        
+        <div style="display: flex; justify-content: space-around; margin: 12px 0; background: var(--color-surface); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+          <div>
+            <div class="text-muted small">Student ID</div>
+            <div id="success-student-id" style="font-size: 1.3rem; font-weight: 800; font-family: monospace; color: var(--color-primary);">STU-2026-001</div>
+          </div>
+          <div>
+            <div class="text-muted small">Assigned Seat</div>
+            <div id="success-seat-number" style="font-size: 1.3rem; font-weight: 800; font-family: monospace; color: var(--color-success);">Seat #12</div>
+          </div>
         </div>
-        <div id="success-student-name" style="font-weight: 600; color: var(--color-text-primary);">Rahul Sharma</div>
+
+        <div id="success-student-name" style="font-weight: 700; font-size: 1.1rem; color: var(--color-text-primary);">Rahul Sharma</div>
         
         <div id="qr-code-mount" class="qr-badge"></div>
-        <div id="success-plan-summary" style="font-size: 0.9rem; margin-top: 10px; font-weight: 500;"></div>
+        <div id="success-plan-summary" style="font-size: 0.9rem; margin-top: 10px; font-weight: 600;"></div>
       </div>
 
       <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-        <button id="btn-print-slip" class="btn btn-secondary">📄 Download / Print Slip</button>
-        <a id="btn-success-whatsapp" href="#" target="_blank" class="btn btn-success" style="background: #25D366; border-color: #25D366; font-weight: 700;">
+        <button id="btn-print-slip" class="btn btn-secondary">📄 Download / Print Admission Slip</button>
+        <a id="btn-success-whatsapp" href="#" target="_blank" class="btn btn-success" style="background: #25D366; border-color: #25D366; font-weight: 700; color: #fff;">
           📲 Send to my WhatsApp
         </a>
         <a href="/#/portal" class="btn btn-primary">
-          🎓 Login to Student Portal
+          🎓 Enter Student Portal
         </a>
       </div>
     </div>
@@ -486,9 +590,31 @@
     }
 
     document.querySelectorAll('.btn-next').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const step = parseInt(e.target.dataset.step);
-        // Basic validation for the step
+        
+        // Step 1 Validation & Duplicate Check
+        if (step === 1) {
+          const isDup = await checkDuplicate();
+          if (!isDup) return;
+        }
+
+        // Step 4 Validation (Payment Mode Sub-option check)
+        if (step === 4) {
+          const mode = document.querySelector('input[name="reg-payment-mode"]:checked')?.value || 'upi';
+          if (mode === 'upi' && selectedPlanData) {
+            const utr = document.getElementById('reg-upi-ref')?.value?.trim();
+            if (!utr) {
+              alert('Please enter your 12-digit UPI UTR / Reference number to continue to seat choice.');
+              document.getElementById('reg-upi-ref')?.focus();
+              return;
+            }
+          }
+          // Load public seat map for Step 5
+          loadPublicSeats();
+        }
+
+        // Basic validation for current step
         const stepContent = document.getElementById(`step-${step}`);
         const inputs = stepContent.querySelectorAll('input[required], select[required]');
         let valid = true;
@@ -514,6 +640,117 @@
         }
       });
     });
+
+    // Pincode Auto-Fill Engine
+    document.getElementById('reg-pincode')?.addEventListener('input', async (e) => {
+      const pin = e.target.value.trim();
+      if (pin.length === 6 && /^\d+$/.test(pin)) {
+        try {
+          const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+          const data = await res.json();
+          if (data && data[0]?.Status === 'Success' && data[0]?.PostOffice?.length > 0) {
+            const po = data[0].PostOffice[0];
+            document.getElementById('reg-city').value = po.District || po.Division || po.Block || '';
+            document.getElementById('reg-state').value = po.State || '';
+          }
+        } catch (err) {}
+      }
+    });
+
+    // Real-Time Duplicate Phone/Email Validator
+    async function checkDuplicate() {
+      const phone = document.getElementById('reg-phone')?.value.trim();
+      const email = document.getElementById('reg-email')?.value.trim();
+      const alertBox = document.getElementById('duplicate-alert-box');
+      if (!phone && !email) return true;
+
+      try {
+        const res = await fetch(`/api/auth/check-duplicate?phone=${phone}&email=${email}`);
+        const json = await res.json();
+        if (json.isDuplicate) {
+          if (alertBox) {
+            alertBox.textContent = json.message;
+            alertBox.style.display = 'block';
+          }
+          return false;
+        } else {
+          if (alertBox) alertBox.style.display = 'none';
+          return true;
+        }
+      } catch (e) { return true; }
+    }
+
+    document.getElementById('reg-phone')?.addEventListener('blur', checkDuplicate);
+    document.getElementById('reg-email')?.addEventListener('blur', checkDuplicate);
+
+    // Payment Mode Sub-Options Switcher
+    document.querySelectorAll('input[name="reg-payment-mode"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        document.querySelectorAll('.pm-sub-pane').forEach(p => p.style.display = 'none');
+        const val = radio.value;
+        const subPane = document.getElementById(`pm-sub-${val}`);
+        if (subPane) subPane.style.display = 'block';
+      });
+    });
+
+    // Live Public Seat Map Loader (Step 5)
+    async function loadPublicSeats() {
+      const seatContainer = document.getElementById('public-seat-grid-container');
+      if (!seatContainer) return;
+      
+      try {
+        const res = await fetch('/api/seats/public-available');
+        const json = await res.json();
+        if (!json.success || !json.data || json.data.length === 0) {
+          seatContainer.innerHTML = '<div class="text-center text-muted p-3">No seats configured yet. Reception desk will assign seat on arrival.</div>';
+          return;
+        }
+
+        const seats = json.data;
+        let gridHtml = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 8px;">';
+        
+        seats.forEach(s => {
+          const isAvailable = s.status === 'available';
+          const bg = isAvailable ? 'var(--color-surface)' : 'rgba(239, 68, 68, 0.1)';
+          const color = isAvailable ? 'var(--color-success)' : 'var(--color-danger)';
+          const border = isAvailable ? '1.5px solid var(--color-success)' : '1px dashed var(--color-danger)';
+          
+          gridHtml += `
+            <button type="button" class="seat-picker-btn" data-id="${s._id}" data-number="${s.seatNumber}" ${!isAvailable ? 'disabled' : ''} 
+              style="padding: 10px 4px; border-radius: 8px; font-weight: 800; font-size: 0.88rem; background: ${bg}; color: ${color}; border: ${border}; cursor: ${isAvailable ? 'pointer' : 'not-allowed'}; text-align: center; transition: all 0.2s;">
+              ${s.seatNumber}
+              <div style="font-size: 0.65rem; font-weight: 500; opacity: 0.8;">${s.zone || 'Hall'}</div>
+            </button>
+          `;
+        });
+        gridHtml += '</div>';
+        seatContainer.innerHTML = gridHtml;
+
+        // Seat selection handler
+        seatContainer.querySelectorAll('.seat-picker-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            seatContainer.querySelectorAll('.seat-picker-btn').forEach(b => {
+              if (!b.disabled) {
+                b.style.background = 'var(--color-surface)';
+                b.style.color = 'var(--color-success)';
+                b.style.borderColor = 'var(--color-success)';
+              }
+            });
+            btn.style.background = 'var(--color-primary)';
+            btn.style.color = '#fff';
+            btn.style.borderColor = 'var(--color-primary)';
+            
+            const seatId = btn.dataset.id;
+            const seatNo = btn.dataset.number;
+            document.getElementById('reg-selected-seat').value = seatId;
+            document.getElementById('selected-seat-display').textContent = `✅ Selected Seat: ${seatNo}`;
+          });
+        });
+
+      } catch (e) {
+        seatContainer.innerHTML = '<div class="text-center text-muted p-3">Could not load live seats. Desk will assign seat on arrival.</div>';
+      }
+    }
 
     // Exam pills toggle
     const selectedExams = new Set();
@@ -574,7 +811,6 @@
     document.getElementById('btn-apply-code').addEventListener('click', async () => {
       const code = document.getElementById('reg-referral').value.trim();
       if (!code) return;
-      // Mock validation
       if (code.toUpperCase() === 'WELCOME10') {
         discountAmount = 100;
         document.getElementById('referral-msg').style.display = 'block';
@@ -590,22 +826,6 @@
 
     let libraryUpiId = 'thecozycornersc@okaxis';
     let libraryBusinessName = 'Study Library';
-
-    // Payment Mode Switcher
-    const upiRadio = document.getElementById('pay-mode-upi');
-    const deskRadio = document.getElementById('pay-mode-desk');
-    const upiWrapper = document.getElementById('upi-qr-wrapper');
-
-    function syncPaymentModeUI() {
-      if (upiRadio && upiRadio.checked) {
-        if (upiWrapper) upiWrapper.style.display = 'block';
-      } else {
-        if (upiWrapper) upiWrapper.style.display = 'none';
-      }
-    }
-
-    upiRadio?.addEventListener('change', syncPaymentModeUI);
-    deskRadio?.addEventListener('change', syncPaymentModeUI);
 
     function updateCalculator() {
       if (!selectedPlanData) {
@@ -661,7 +881,6 @@
           } else {
             wrapper.style.display = 'none';
             wrapper.style.opacity = '0';
-            // reset child inputs
             wrapper.querySelectorAll('input, select, textarea').forEach(inp => {
               if (inp.type === 'checkbox' || inp.type === 'radio') inp.checked = false;
               else inp.value = '';
@@ -673,7 +892,6 @@
 
     document.getElementById('public-reg-form').addEventListener('change', evaluateLogic);
     document.getElementById('public-reg-form').addEventListener('input', evaluateLogic);
-
 
     // Load Init Data
     async function loadInitData() {
@@ -710,88 +928,6 @@
           });
         }
 
-        // Custom Fields injection (Grouped by section)
-        if (fieldsRes?.data && fieldsRes.data.length > 0) {
-          const container = document.getElementById('custom-fields-inject');
-          
-          const sections = {};
-          fieldsRes.data.forEach(f => {
-            if (['name', 'phone', 'email', 'gender', 'dateOfBirth'].includes(f.fieldName)) return;
-            const sec = f.sectionLabel || 'General Documents & Info';
-            if (!sections[sec]) sections[sec] = [];
-            sections[sec].push(f);
-          });
-
-          for (const [secName, fields] of Object.entries(sections)) {
-            const secTitle = document.createElement('div');
-            secTitle.className = 'form-section-title';
-            secTitle.innerHTML = `<span>📋</span> ${secName}`;
-            container.appendChild(secTitle);
-            
-            const grid = document.createElement('div');
-            grid.style.display = 'grid';
-            grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(280px, 1fr))';
-            grid.style.gap = '1rem';
-            grid.style.marginBottom = '1.5rem';
-
-            fields.forEach(f => {
-              const fg = document.createElement('div');
-              fg.className = 'form-group dynamic-field-wrapper';
-              if (f.dependsOn && f.showWhen) {
-                fg.dataset.dependsOn = f.dependsOn;
-                fg.dataset.showWhen = f.showWhen;
-                fg.style.display = 'none';
-              }
-
-              let inputHtml = '';
-              if (f.type === 'select' || f.type === 'blood_group') {
-                const opts = f.options && f.options.length > 0 ? f.options : (f.type === 'blood_group' ? ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] : []);
-                inputHtml = `
-                  <select class="form-select custom-field-input" data-name="${f.fieldName}" name="cf_${f.fieldName}" ${f.required ? 'required' : ''}>
-                    <option value="">-- Select ${f.label} --</option>
-                    ${opts.map(o => `<option value="${o}">${o}</option>`).join('')}
-                  </select>
-                `;
-              } else if (f.type === 'textarea') {
-                inputHtml = `<textarea class="form-control custom-field-input" data-name="${f.fieldName}" name="cf_${f.fieldName}" rows="2" placeholder="${f.placeholder || ''}" ${f.required ? 'required' : ''}></textarea>`;
-              } else if (f.type === 'radio') {
-                inputHtml = `
-                  <div class="d-flex gap-3 mt-1">
-                    ${(f.options || []).map(o => `
-                      <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.9rem;">
-                        <input type="radio" name="cf_${f.fieldName}" value="${o}" class="custom-field-radio" data-name="${f.fieldName}" ${f.required ? 'required' : ''}>
-                        <span>${o}</span>
-                      </label>
-                    `).join('')}
-                  </div>
-                `;
-              } else if (f.type === 'checkbox') {
-                inputHtml = `
-                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 4px;">
-                    <input type="checkbox" class="form-checkbox custom-field-input" data-name="${f.fieldName}" name="cf_${f.fieldName}" ${f.required ? 'required' : ''}>
-                    <span style="font-size: 0.9rem;">${f.placeholder || f.label}</span>
-                  </label>
-                `;
-              } else if (f.type === 'file' || f.type === 'photo_upload') {
-                inputHtml = `
-                  <input type="file" accept="image/*,.pdf" class="form-control custom-field-file" data-name="${f.fieldName}" name="cf_${f.fieldName}" ${f.required ? 'required' : ''}>
-                  <small class="text-muted">Max file size: 5MB (Image or PDF)</small>
-                `;
-              } else {
-                inputHtml = `<input type="${f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : 'text'}" class="form-control custom-field-input" data-name="${f.fieldName}" name="cf_${f.fieldName}" placeholder="${f.placeholder || ''}" ${f.required ? 'required' : ''}>`;
-              }
-
-              fg.innerHTML = `
-                <label class="form-label" style="font-weight: 600;">${f.label} ${f.required ? '*' : ''}</label>
-                ${inputHtml}
-                ${f.helpText ? `<small class="text-muted" style="display:block; font-size: 0.75rem; margin-top: 2px;">${f.helpText}</small>` : ''}
-              `;
-              grid.appendChild(fg);
-            });
-            container.appendChild(grid);
-          }
-        }
-
       } catch (err) {
         console.error('Failed to init register page:', err);
       }
@@ -802,19 +938,19 @@
       e.preventDefault();
       const btn = document.getElementById('btn-submit-reg');
 
-      const isUpi = document.getElementById('pay-mode-upi')?.checked;
+      const pmMode = document.querySelector('input[name="reg-payment-mode"]:checked')?.value || 'upi';
       const upiTxnId = document.getElementById('reg-upi-ref')?.value?.trim();
 
-      if (isUpi && selectedPlanData && !upiTxnId) {
+      if (pmMode === 'upi' && selectedPlanData && !upiTxnId) {
         alert('Please enter your 12-digit UPI Transaction ID / UTR number from Google Pay / PhonePe / Paytm to complete your online registration.');
-        currentStep = 3;
+        currentStep = 4;
         updateStepper();
         document.getElementById('reg-upi-ref')?.focus();
         return;
       }
 
       btn.disabled = true;
-      btn.textContent = 'Submitting Admission...';
+      btn.textContent = 'Submitting Admission & Payment...';
 
       const customFields = {};
       document.querySelectorAll('.custom-field-input, .custom-field-radio').forEach(input => {
@@ -837,12 +973,16 @@
         password: document.getElementById('reg-password').value,
         gender: document.getElementById('reg-gender').value,
         dob: document.getElementById('reg-dob').value || null,
+        pincode: document.getElementById('reg-pincode')?.value?.trim() || '',
+        city: document.getElementById('reg-city')?.value?.trim() || '',
+        state: document.getElementById('reg-state')?.value?.trim() || '',
         photo: photoPicker ? photoPicker.querySelector('.mfp-hidden-value')?.value || '' : '',
         targetExams: Array.from(selectedExams),
         plan: document.getElementById('reg-plan').value || null,
+        seat: document.getElementById('reg-selected-seat').value || null,
         signature: sigStudio ? sigStudio.getValue() : '',
-        paymentMethod: isUpi ? 'upi' : 'desk',
-        transactionId: isUpi ? upiTxnId : '',
+        paymentMethod: pmMode,
+        transactionId: pmMode === 'upi' ? upiTxnId : (document.getElementById('reg-card-no')?.value || document.getElementById('reg-nb-ref')?.value || ''),
         customFields
       };
 
@@ -857,7 +997,7 @@
         if (!response.ok || !result.success) {
           alert(result.message || 'Registration failed. Please verify the entered information.');
           btn.disabled = false;
-          btn.textContent = '🚀 Confirm & Submit';
+          btn.textContent = '🚀 Complete Admission & Payment';
           return;
         }
 
@@ -866,23 +1006,24 @@
         document.getElementById('registration-success-wrap').style.display = 'block';
         document.getElementById('success-student-id').textContent = result.data?.studentId || 'CONFIRMED';
         document.getElementById('success-student-name').textContent = payload.name;
+        document.getElementById('success-seat-number').textContent = result.data?.seatNumber || 'Assigned at Desk';
         
         const successTitle = document.querySelector('#registration-success-wrap h2');
         const successMsg = document.querySelector('#registration-success-wrap p');
 
-        if (isUpi) {
+        if (pmMode === 'upi' || pmMode === 'card' || pmMode === 'netbanking') {
           if (successTitle) successTitle.textContent = '🎉 Admission Confirmed & Membership Active!';
           if (successMsg) successMsg.textContent = 'Your payment has been verified and your student membership is active immediately. You can now login to your portal!';
         } else {
           if (successTitle) successTitle.textContent = '⏳ Application Reserved (Pending Desk Fee)';
-          if (successMsg) successMsg.textContent = 'Your admission has been pre-registered. Please pay your fee at the front desk upon arrival to activate your desk membership.';
+          if (successMsg) successMsg.textContent = 'Your admission & seat have been pre-reserved. Please pay your fee at the front desk upon arrival to activate your desk membership.';
         }
 
         if (selectedPlanData) {
            document.getElementById('success-plan-summary').textContent = `Plan: ${selectedPlanData.name} | Shift: ${selectedPlanData.shift ? selectedPlanData.shift.toUpperCase() : 'ANY'}`;
         }
 
-        // Generate QR
+        // Generate QR Code
         try {
           const qr = qrcode(0, 'M');
           qr.addData(result.data?.studentId || payload.name);
@@ -901,7 +1042,7 @@
       } catch (error) {
         alert('Network error. Please check your internet connection.');
         btn.disabled = false;
-        btn.textContent = '🚀 Confirm & Submit';
+        btn.textContent = '🚀 Complete Admission & Payment';
       }
     });
 

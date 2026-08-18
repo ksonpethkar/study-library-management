@@ -189,9 +189,36 @@ router.post('/change-password', protect, validatePasswordChange, async (req, res
 
 const Student = require('../models/Student');
 const Plan = require('../models/Plan');
+const Seat = require('../models/Seat');
 const Payment = require('../models/Payment');
 const Notification = require('../models/Notification');
 const { generateStudentId } = require('../utils/idGenerator');
+
+// @route   GET /api/auth/check-duplicate
+// @desc    Check if phone or email is already registered (Public)
+router.get('/check-duplicate', async (req, res) => {
+  try {
+    const { phone, email } = req.query;
+    if (!phone && !email) return res.json({ success: true, isDuplicate: false });
+
+    const conditions = [];
+    if (phone) conditions.push({ phone: phone.trim() });
+    if (email) conditions.push({ email: email.trim().toLowerCase() });
+
+    const existingStudent = await Student.findOne({ $or: conditions });
+    if (existingStudent) {
+      const matchType = existingStudent.phone === phone ? 'phone number' : 'email address';
+      return res.json({
+        success: true,
+        isDuplicate: true,
+        message: `A student with this ${matchType} is already registered (${existingStudent.studentId}). Please login or contact desk.`
+      });
+    }
+    res.json({ success: true, isDuplicate: false });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // @route   POST /api/auth/public-register
 // @desc    Public online admission registration for prospective students
@@ -206,6 +233,7 @@ router.post('/public-register', authLimiter, async (req, res) => {
       dob,
       targetExams,
       plan,
+      seat,
       notes,
       signature,
       photo,
@@ -326,7 +354,22 @@ router.post('/public-register', authLimiter, async (req, res) => {
       }
     }
 
+    // Handle seat assignment if selected during registration
+    let allocatedSeatDoc = null;
+    if (seat) {
+      allocatedSeatDoc = await Seat.findById(seat);
+      if (allocatedSeatDoc) {
+        newStudent.seat = allocatedSeatDoc._id;
+      }
+    }
+
     await newStudent.save();
+
+    if (allocatedSeatDoc && allocatedSeatDoc.status === 'available') {
+      allocatedSeatDoc.status = 'occupied';
+      allocatedSeatDoc.currentStudent = newStudent._id;
+      await allocatedSeatDoc.save();
+    }
 
     // Create payment record if plan is chosen
     if (selectedPlanDoc) {

@@ -16,7 +16,21 @@ function validate(validations) {
   };
 }
 
-// All routes are protected
+// GET /public-available - Public endpoint for student registration seat selection
+router.get('/public-available', async (req, res) => {
+  try {
+    const seats = await Seat.find({ isActive: true })
+      .select('seatNumber zone floor status type priceMultiplier branch')
+      .populate('branch', 'name code')
+      .sort('seatNumber')
+      .lean();
+    res.json({ success: true, data: seats });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// All remaining routes are protected
 router.use(protect);
 
 // GET / - List seats with branch, zone, status, floor, type filters
