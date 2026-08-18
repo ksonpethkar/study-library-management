@@ -119,6 +119,8 @@ class Application {
   setTheme(theme) {
     store.theme = theme;
     document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.classList.toggle('dark-theme', theme === 'dark');
+    document.body.classList.toggle('dark-theme', theme === 'dark');
     localStorage.setItem('sl_theme', theme);
 
     // Update header toggle icon and tooltip

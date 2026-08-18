@@ -192,6 +192,8 @@
       const current = document.documentElement.getAttribute('data-theme') || 'light';
       const next = current === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', next);
+      document.documentElement.classList.toggle('dark-theme', next === 'dark');
+      document.body.classList.toggle('dark-theme', next === 'dark');
       localStorage.setItem('sl_theme', next);
       const btn = document.getElementById('portal-theme-btn');
       if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
@@ -199,6 +201,8 @@
 
     const savedTheme = localStorage.getItem('sl_theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
+    document.documentElement.classList.toggle('dark-theme', savedTheme === 'dark');
+    document.body.classList.toggle('dark-theme', savedTheme === 'dark');
     const themeBtn = document.getElementById('portal-theme-btn');
     if (themeBtn) themeBtn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
 
@@ -221,10 +225,13 @@
       }, 3000);
     }
 
-    import { promptPWAInstall } from './js/pwaManager.js';
-
-    document.getElementById('btn-pwa-student-install')?.addEventListener('click', () => {
-      promptPWAInstall();
+    document.getElementById('btn-pwa-student-install')?.addEventListener('click', async () => {
+      try {
+        const module = await import('./js/pwaManager.js');
+        if (module && module.promptPWAInstall) module.promptPWAInstall();
+      } catch (e) {
+        showToast('App installation ready in browser menu', true);
+      }
     });
 
     // Credentials Recovery Helper
@@ -240,14 +247,15 @@
 
     // Google Sign-In Handler
     document.getElementById('btn-google-signin')?.addEventListener('click', async () => {
-      const email = prompt('Enter your registered Google Email address to Sign In with Google:');
-      if (!email || !email.includes('@')) return;
+      const existingId = document.getElementById('student-identifier')?.value?.trim();
+      const identifier = prompt('Enter your registered Google Email, Mobile Number, or Student ID:', existingId || '');
+      if (!identifier) return;
 
       try {
         const res = await fetch('/api/auth/google-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, portalType: 'student' })
+          body: JSON.stringify({ identifier, email: identifier, portalType: 'student' })
         });
         const data = await res.json();
 
@@ -258,7 +266,7 @@
             window.location.href = '/#/portal';
           }, 800);
         } else {
-          showToast(data.message || 'Google sign-in failed. Please verify your registered email.', false);
+          showToast(data.message || 'Google sign-in failed. Please verify your registered details.', false);
         }
       } catch (err) {
         showToast('Network error during Google sign-in.', false);

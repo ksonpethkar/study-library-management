@@ -569,25 +569,31 @@ router.post('/student-login', authLimiter, async (req, res) => {
 // @desc    Smart Google Sign-In for Student & Staff/Admin Portals
 router.post('/google-login', authLimiter, async (req, res) => {
   try {
-    const { email, name, googleId, picture, portalType } = req.body;
+    const { email, identifier, name, googleId, picture, portalType } = req.body;
+    const inputVal = (email || identifier || '').trim();
 
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Google Email is required' });
+    if (!inputVal) {
+      return res.status(400).json({ success: false, message: 'Google Email, Mobile Number, or Student ID is required' });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanInput = inputVal.toLowerCase();
 
     if (portalType === 'student') {
-      // Find matching Student record
+      // Find matching Student record by email, phone, studentId, or googleId
       let student = await Student.findOne({
-        $or: [{ email: cleanEmail }, { googleId }]
+        $or: [
+          { email: cleanInput },
+          { studentId: { $regex: new RegExp(`^${cleanInput}$`, 'i') } },
+          { phone: cleanInput },
+          ...(googleId ? [{ googleId }] : [])
+        ]
       }).populate('seat').populate('plan');
 
       if (!student) {
         return res.status(404).json({
           success: false,
           isRegistered: false,
-          message: `No active student enrollment found for ${cleanEmail}. Please complete your admission registration first.`
+          message: `No active student enrollment found for "${inputVal}". Please verify your email or phone, or apply online first.`
         });
       }
 
@@ -598,11 +604,17 @@ router.post('/google-login', authLimiter, async (req, res) => {
       }
 
       // Find or create User record
-      let user = await User.findOne({ email: cleanEmail });
+      let user = await User.findOne({
+        $or: [
+          ...(student.email ? [{ email: student.email }] : []),
+          ...(student.phone ? [{ phone: student.phone }] : [])
+        ]
+      });
+
       if (!user) {
         user = await User.create({
           name: student.name || name || 'Student',
-          email: cleanEmail,
+          email: student.email || (cleanInput.includes('@') ? cleanInput : `${student.studentId.toLowerCase()}@studylib.local`),
           phone: student.phone || '0000000000',
           password: `GAuth@${Date.now()}`,
           role: 'student',
@@ -630,14 +642,14 @@ router.post('/google-login', authLimiter, async (req, res) => {
     } else {
       // Staff / Admin Portal Google SSO
       const staffUser = await User.findOne({
-        email: cleanEmail,
+        $or: [{ email: cleanInput }, { phone: cleanInput }],
         role: { $in: ['owner', 'branch_manager', 'staff'] }
       });
 
       if (!staffUser) {
         return res.status(403).json({
           success: false,
-          message: `Access denied. Google account ${cleanEmail} is not authorized for Admin / Staff portal.`
+          message: `Access denied. Google account ${cleanInput} is not authorized for Admin / Staff portal.`
         });
       }
 
