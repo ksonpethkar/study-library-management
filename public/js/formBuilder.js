@@ -670,28 +670,43 @@ export class FormBuilder {
     // STEP 5: Seat Selection & Digital Signature
     if (secName === 'seat') {
       const availSeats = this.seats.length > 0 ? this.seats : [
-        { seatNumber: 'A-01', zone: 'Quiet Zone' }, { seatNumber: 'A-02', zone: 'Quiet Zone' },
-        { seatNumber: 'A-03', zone: 'Quiet Zone' }, { seatNumber: 'B-01', zone: 'General Desk' }
+        { seatNumber: '01', zone: 'Zone A' }, { seatNumber: '02', zone: 'Zone A' },
+        { seatNumber: '03', zone: 'Zone A' }, { seatNumber: '04', zone: 'Zone A' },
+        { seatNumber: '05', zone: 'Zone A' }, { seatNumber: '06', zone: 'Zone A' }
       ];
 
       return `
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-          <label class="form-label text-xs" style="font-weight:700;">Choose Your Study Desk Seat *</label>
-          <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px;">
-            ${availSeats.slice(0, 6).map((s, idx) => `
-              <div style="min-width: 65px; padding: 8px; border: 2px solid ${idx === 0 ? '#6c5ce7' : 'var(--color-border)'}; border-radius: 8px; text-align: center; cursor: pointer; background: ${idx === 0 ? 'rgba(108, 92, 231, 0.1)' : 'var(--color-surface)'};">
-                <div style="font-weight: 800; font-size: 0.9rem; color: #6c5ce7;">${escapeHTML(s.seatNumber)}</div>
-                <div style="font-size: 0.65rem; color: var(--color-text-secondary);">${escapeHTML(s.zone || 'General')}</div>
-              </div>
-            `).join('')}
-          </div>
-
-          <label class="form-label text-xs" style="font-weight:700;">Digital Signature Pad *</label>
-          <div style="width: 100%; height: 80px; border: 1.5px dashed var(--color-border); border-radius: 8px; background: #ffffff; display: flex; align-items: center; justify-content: center; color: var(--color-text-secondary); font-size: 0.8rem;">
-            ✍️ Draw student signature canvas
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div>
+            <label class="form-label text-xs" style="font-weight:700;">Choose Your Study Desk Seat *</label>
+            <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px;">
+              ${availSeats.slice(0, 6).map((s, idx) => `
+                <div style="min-width: 60px; padding: 8px 6px; border: 1.5px solid ${idx === 0 ? '#6c5ce7' : 'var(--color-border)'}; border-radius: 8px; text-align: center; cursor: pointer; background: ${idx === 0 ? 'rgba(108, 92, 231, 0.12)' : 'var(--color-surface)'};">
+                  <div style="font-weight: 800; font-size: 0.9rem; color: #6c5ce7;">${escapeHTML(s.seatNumber)}</div>
+                  <div style="font-size: 0.65rem; color: var(--color-text-secondary);">${escapeHTML(s.zone || 'Zone A')}</div>
+                </div>
+              `).join('')}
+            </div>
           </div>
 
           ${secFields.map(f => this.renderPreviewInput(f)).join('')}
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:700;">Digital Signature Pad *</label>
+            <div style="width: 100%; height: 85px; border: 1.5px dashed var(--color-border); border-radius: 8px; background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-text-secondary); font-size: 0.82rem;">
+              <div style="color: #6c5ce7; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                <span>✍️</span> <span>Draw student signature canvas</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quiet Study Code Agreement & Terms Checkbox -->
+          <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px;">
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.83rem; color: var(--color-text-primary); margin: 0; line-height: 1.4;">
+              <input type="checkbox" checked style="margin-top: 3px; accent-color: var(--color-primary); width: 16px; height: 16px;">
+              <span>I hereby agree to adhere to the <strong>Quiet Study Code Agreement</strong>, discipline rules, and timings of the study hall. <span style="color: var(--color-danger);">*</span></span>
+            </label>
+          </div>
         </div>
       `;
     }
