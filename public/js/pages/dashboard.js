@@ -31,50 +31,51 @@ export async function render() {
     </div>
     
     <!-- 4 Primary KPI Cards -->
-    <div class="stats-grid mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
-      <div class="stat-card card p-3" style="border-left: 4px solid var(--color-primary, #6c5ce7);">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="text-muted small">${t('dashboard.totalStudents', 'Total Students')}</div>
-            <h3 id="dash-students" style="margin: 4px 0 0 0; font-size: 1.6rem; font-weight: 700;">0</h3>
+    <!-- 4 Primary KPI Cards -->
+    <div class="stats-grid mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem;">
+      <div class="stat-card card" style="border-left: 4px solid var(--color-primary, #6c5ce7);">
+        <div class="stat-card-body">
+          <div class="stat-card-info">
+            <div class="stat-card-title">${t('dashboard.totalStudents', 'Total Students')}</div>
+            <div class="stat-card-value" id="dash-students">0</div>
           </div>
-          <div class="stat-card-icon" style="background: var(--color-primary-bg, rgba(108, 92, 231, 0.15)); color: var(--color-primary, #6c5ce7); padding: 10px; border-radius: 8px;">
+          <div class="stat-card-icon" style="background: var(--color-primary-bg, rgba(108, 92, 231, 0.15)); color: var(--color-primary, #6c5ce7);">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
           </div>
         </div>
       </div>
 
-      <div class="stat-card card p-3" style="border-left: 4px solid var(--color-success, #00b894);">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="text-muted small">${t('dashboard.occupiedSeats', 'Seats Occupied')}</div>
-            <h3 id="dash-seats" style="margin: 4px 0 0 0; font-size: 1.6rem; font-weight: 700; color: var(--color-success, #00b894);">0 / 0</h3>
+      <div class="stat-card card" style="border-left: 4px solid var(--color-success, #00b894);">
+        <div class="stat-card-body">
+          <div class="stat-card-info">
+            <div class="stat-card-title">${t('dashboard.occupiedSeats', 'Seats Occupied')}</div>
+            <div class="stat-card-value" id="dash-seats" style="color: var(--color-success, #00b894);">0 / 0</div>
           </div>
-          <div class="stat-card-icon" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success, #00b894); padding: 10px; border-radius: 8px;">
+          <div class="stat-card-icon" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success, #00b894);">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M5 16V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12"></path><path d="M3 16h18"></path><path d="M5 16v4"></path><path d="M19 16v4"></path></svg>
           </div>
         </div>
       </div>
 
-      <div class="stat-card card p-3" style="border-left: 4px solid var(--color-info, #0984e3);">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="text-muted small">${t('dashboard.monthlyRevenue', 'Revenue This Month')}</div>
-            <h3 id="dash-revenue" style="margin: 4px 0 0 0; font-size: 1.6rem; font-weight: 700; color: var(--color-info, #0984e3);">₹0</h3>
+      <div class="stat-card card" style="border-left: 4px solid var(--color-info, #0984e3);">
+        <div class="stat-card-body">
+          <div class="stat-card-info">
+            <div class="stat-card-title">${t('dashboard.monthlyRevenue', 'Monthly Revenue')}</div>
+            <div class="stat-card-value" id="dash-revenue" style="color: var(--color-info, #0984e3);">₹0</div>
           </div>
-          <div class="stat-card-icon" style="background: rgba(9, 132, 227, 0.15); color: var(--color-info, #0984e3); padding: 10px; border-radius: 8px;">
+          <div class="stat-card-icon" style="background: rgba(9, 132, 227, 0.15); color: var(--color-info, #0984e3);">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
           </div>
         </div>
       </div>
 
-      <div class="stat-card card p-3" style="border-left: 4px solid var(--color-danger, #d63031);">
-        <div class="d-flex justify-content-between align-items-center">
-          <div>
-            <div class="text-muted small">${t('dashboard.pendingDues', 'Pending Dues')}</div>
-            <h3 id="dash-dues" style="margin: 4px 0 0 0; font-size: 1.6rem; font-weight: 700; color: var(--color-danger, #d63031);">₹0</h3>
+      <div class="stat-card card" style="border-left: 4px solid var(--color-danger, #d63031);">
+        <div class="stat-card-body">
+          <div class="stat-card-info">
+            <div class="stat-card-title">${t('dashboard.pendingDues', 'Pending Dues')}</div>
+            <div class="stat-card-value" id="dash-dues" style="color: var(--color-danger, #d63031);">₹0</div>
           </div>
-          <div class="stat-card-icon" style="background: rgba(214, 48, 49, 0.15); color: var(--color-danger, #d63031); padding: 10px; border-radius: 8px;">
+          <div class="stat-card-icon" style="background: rgba(214, 48, 49, 0.15); color: var(--color-danger, #d63031);">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
           </div>
         </div>

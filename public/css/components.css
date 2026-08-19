@@ -359,46 +359,57 @@
 }
 
 .stat-card {
-  display: flex;
-  align-items: center;
-  padding: 1.25rem;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 1rem 1.25rem !important;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-full);
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: var(--space-4);
-  flex-shrink: 0;
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
-.stat-icon svg {
-  width: 24px;
-  height: 24px;
+
+.stat-card-body {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  gap: 0.75rem !important;
 }
-.stat-content {
-  flex: 1;
+
+.stat-card-info, .stat-card-content, .stat-content {
+  flex: 1 !important;
+  min-width: 0 !important;
 }
-.stat-label {
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+
+.stat-card-title, .stat-card-label, .stat-label {
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
   color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin-bottom: 4px;
 }
-.stat-value {
-  font-size: 1.75rem;
-  font-weight: 800;
+
+.stat-card-value, .stat-value {
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
   color: var(--color-text-primary);
-  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .stat-trend {
   font-size: var(--font-size-xs);
@@ -1076,35 +1087,21 @@
 }
 
 /* Stat card aliases for dashboard */
-.stat-card-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: var(--space-4);
-  flex-shrink: 0;
+.stat-card-icon, .stat-icon {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
 }
-.stat-card-icon svg {
-  width: 24px;
-  height: 24px;
-}
-.stat-card-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-.stat-card-label {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--space-1);
-}
-.stat-card-value {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  line-height: 1.2;
+.stat-card-icon svg, .stat-icon svg {
+  width: 22px !important;
+  height: 22px !important;
 }
 
 /* ========================
