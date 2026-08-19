@@ -2306,9 +2306,9 @@ async function initLandingSettings(container) {
         </div>
       </div>
 
-      <div class="landing-editor-split" style="display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr); gap: 1.25rem; align-items: start;">
+      <div class="landing-editor-split" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; width: 100%;">
         <!-- Left: CMS Form Editor -->
-        <div class="cms-editor-panel" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; background: var(--color-surface); max-height: 800px; overflow-y: auto;">
+        <div class="cms-editor-panel" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; background: var(--color-surface); height: calc(100vh - 240px); min-height: 600px; overflow-y: auto;">
           <div class="landing-tabs" style="display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border);">
             <button class="landing-tab-btn active" data-tab="hero" style="padding: 0.5rem 0.85rem; border: none; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 600; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap;">Hero & Branding</button>
             <button class="landing-tab-btn" data-tab="about" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">About & Stats</button>
@@ -2476,8 +2476,8 @@ async function initLandingSettings(container) {
         </div>
         
         <!-- Right: Live Split-Screen Interactive Preview Canvas -->
-        <div class="cms-preview-panel" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: var(--color-bg-secondary); position: sticky; top: 80px; height: 800px; display: flex; flex-direction: column;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding: 0 0.25rem;">
+        <div class="cms-preview-panel" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: var(--color-bg-secondary); position: sticky; top: 20px; height: calc(100vh - 240px); min-height: 600px; display: flex; flex-direction: column; overflow: hidden;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding: 0 0.25rem; flex-shrink: 0;">
             <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
               <span>🌐</span> Live Landing Page Viewport
             </div>
@@ -2486,8 +2486,8 @@ async function initLandingSettings(container) {
             </a>
           </div>
 
-          <div id="pv-frame-shell" style="flex: 1; border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; background: #fff; box-shadow: var(--shadow-md); margin: 0 auto; transition: width 0.3s ease; width: 100%;">
-            <iframe id="pv-landing-iframe" src="/landing?preview=true" style="width: 100%; height: 100%; border: none;"></iframe>
+          <div id="pv-frame-shell" style="flex: 1; border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; background: #fff; box-shadow: var(--shadow-md); margin: 0 auto; transition: all 0.3s ease; width: 100%; position: relative;">
+            <iframe id="pv-landing-iframe" src="/landing?preview=true" style="width: 138.8%; height: 138.8%; border: none; transform: scale(0.72); transform-origin: top left;"></iframe>
           </div>
         </div>
       </div>
@@ -2503,13 +2503,30 @@ async function initLandingSettings(container) {
     btnPvDesktop?.addEventListener('click', () => {
       btnPvDesktop.className = 'btn btn-sm btn-primary';
       btnPvMobile.className = 'btn btn-sm btn-outline';
-      if (pvShell) pvShell.style.width = '100%';
+      if (pvShell) {
+        pvShell.style.width = '100%';
+        pvShell.style.maxWidth = '100%';
+      }
+      if (pvIframe) {
+        pvIframe.style.transform = 'scale(0.72)';
+        pvIframe.style.transformOrigin = 'top left';
+        pvIframe.style.width = '138.8%';
+        pvIframe.style.height = '138.8%';
+      }
     });
 
     btnPvMobile?.addEventListener('click', () => {
       btnPvMobile.className = 'btn btn-sm btn-primary';
       btnPvDesktop.className = 'btn btn-sm btn-outline';
-      if (pvShell) pvShell.style.width = '375px';
+      if (pvShell) {
+        pvShell.style.width = '375px';
+        pvShell.style.maxWidth = '375px';
+      }
+      if (pvIframe) {
+        pvIframe.style.transform = 'none';
+        pvIframe.style.width = '100%';
+        pvIframe.style.height = '100%';
+      }
     });
 
     btnPvRefresh?.addEventListener('click', () => {
