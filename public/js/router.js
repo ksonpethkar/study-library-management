@@ -27,12 +27,23 @@ export default class Router {
       return;
     }
 
-    if (!rawHash && this.routes['']) {
+    const runRoute = (fn) => {
       if (typeof document !== 'undefined' && document.startViewTransition) {
-        document.startViewTransition(() => this.routes['']());
+        try {
+          const transition = document.startViewTransition(() => fn());
+          if (transition && transition.finished) {
+            transition.finished.catch(() => {});
+          }
+        } catch (e) {
+          fn();
+        }
       } else {
-        this.routes['']();
+        fn();
       }
+    };
+
+    if (!rawHash && this.routes['']) {
+      runRoute(this.routes['']);
       return;
     }
     
@@ -44,12 +55,7 @@ export default class Router {
     
     this.currentRoute = rawHash;
     this.updateSidebarActive(basePath);
-    
-    if (typeof document !== 'undefined' && document.startViewTransition) {
-      document.startViewTransition(() => this.routes[basePath]());
-    } else {
-      this.routes[basePath]();
-    }
+    runRoute(this.routes[basePath]);
   }
 
   updateSidebarActive(basePath) {

@@ -23,9 +23,12 @@ window.onerror = function (message, source, lineno, colno, error) {
 
 window.onunhandledrejection = function (event) {
   console.error('❌ Unhandled Promise Rejection:', event.reason);
-  const reasonMsg = event.reason?.message || (typeof event.reason === 'string' ? event.reason : 'An unhandled async error occurred.');
+  const reasonMsg = event.reason?.message || (typeof event.reason === 'string' ? event.reason : '');
+  if (reasonMsg.includes('Transition was skipped') || reasonMsg.includes('AbortError') || reasonMsg.includes('canceled')) {
+    return;
+  }
   if (typeof document !== 'undefined' && document.body && typeof Toast !== 'undefined' && Toast.error) {
-    Toast.error(`Async Error: ${reasonMsg}`);
+    Toast.error(`Async Error: ${reasonMsg || 'An unhandled async error occurred.'}`);
   }
 };
 

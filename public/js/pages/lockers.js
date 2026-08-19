@@ -3,9 +3,10 @@ import { Toast, Modal, escapeHTML } from '../ui.js';
 import { t } from '../i18n.js';
 
 export async function render() {
-  const content = document.getElementById('page-content');
+  const container = document.getElementById('page-content');
+  if (!container) return;
   
-  content.innerHTML = `
+  container.innerHTML = `
     <div class="page-header flex-between mb-4">
       <div>
         <h1 class="page-title">🔐 ${t('nav.lockers', 'Locker Management')}</h1>

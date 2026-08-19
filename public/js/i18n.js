@@ -296,3 +296,19 @@ export function getAvailableLanguages() {
     { code: 'en', label: 'English (India)' }
   ];
 }
+
+export function applyTranslationsToDOM(rootEl = document) {
+  try {
+    const elements = rootEl.querySelectorAll('[data-i18n]');
+    elements.forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (key) {
+        const translated = t(key, el.textContent?.trim());
+        if (translated) el.textContent = translated;
+      }
+    });
+  } catch (e) {
+    console.warn('DOM translation error:', e);
+  }
+}
+
