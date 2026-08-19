@@ -1224,20 +1224,30 @@ function renderSettingsUI(container, profile, settings) {
                   </div>
 
                   <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-header-showLogo" class="form-toggle" checked> Show Logo
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-header-showLogo" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Logo</span>
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-header-showBusinessName" class="form-toggle" checked> Show Business Name
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-header-showBusinessName" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Business Name</span>
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-header-showPhone" class="form-toggle" checked> Show Phone
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-header-showPhone" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Phone</span>
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-header-showEmail" class="form-toggle" checked> Show Email
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-header-showEmail" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Email</span>
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-header-showGst" class="form-toggle" checked> Show GSTIN
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-header-showGst" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show GSTIN</span>
                     </label>
                   </div>
                 </div>
@@ -1246,30 +1256,46 @@ function renderSettingsUI(container, profile, settings) {
                 <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px;">
                   <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">📋 Receipt Fields & Visibility</div>
                   
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showStudentId" class="form-toggle" checked> Show Student ID
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-body-showStudentId" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Student ID</span>
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showStudentPhone" class="form-toggle" checked> Show Student Phone
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-body-showStudentPhone" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Student Phone</span>
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showPlanDetails" class="form-toggle" checked> Show Plan Name
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-body-showPlanDetails" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Plan Name</span>
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showPeriod" class="form-toggle" checked> Show Validity Dates
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-body-showPeriod" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Validity Dates</span>
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showSeatNumber" class="form-toggle" checked> Show Seat No
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-body-showSeatNumber" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Seat No</span>
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showShift" class="form-toggle" checked> Show Shift Timing
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-body-showShift" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Shift Timing</span>
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showPaymentMethod" class="form-toggle" checked> Show Payment Mode
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-body-showPaymentMethod" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Payment Mode</span>
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-body-showTransactionId" class="form-toggle" checked> Show Transaction UTR
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-body-showTransactionId" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Transaction UTR</span>
                     </label>
                   </div>
                 </div>
@@ -1278,8 +1304,10 @@ function renderSettingsUI(container, profile, settings) {
                 <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px;">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">🏛️ GST Tax Invoice Options</div>
-                    <label style="font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                      <input type="checkbox" id="rs-gst-enabled" class="form-toggle"> Enable GST
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 700;">
+                      <input type="checkbox" id="rs-gst-enabled">
+                      <span class="switch-slider"></span>
+                      <span>Enable GST</span>
                     </label>
                   </div>
                   
@@ -1300,11 +1328,15 @@ function renderSettingsUI(container, profile, settings) {
                   <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">✍️ Footer, Stamps & Legal Terms</div>
                   
                   <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-footer-showStamp" class="form-toggle" checked> Show Official Paid Stamp
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-footer-showStamp" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Official Paid Stamp</span>
                     </label>
-                    <label style="font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" id="rs-footer-showSignature" class="form-toggle" checked> Show Authorized Signatory
+                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
+                      <input type="checkbox" id="rs-footer-showSignature" checked>
+                      <span class="switch-slider"></span>
+                      <span>Show Authorized Signatory</span>
                     </label>
                   </div>
 
