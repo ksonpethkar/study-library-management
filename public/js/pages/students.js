@@ -801,8 +801,57 @@ export async function render() {
             chip.classList.remove('btn-outline-secondary');
             chip.classList.add('btn-primary');
           }
-          selectedExamsInput.value = Array.from(selectedSet).join(',');
         });
+      });
+    }
+
+    // Setup Pincode Auto-Fill in Admin Student Modal
+    const pincodeInput = modal.element.querySelector('input[name="pincode"]');
+    const cityInput = modal.element.querySelector('input[name="city"]');
+    const stateInput = modal.element.querySelector('input[name="state"]');
+
+    if (pincodeInput) {
+      const handleAdminPincode = async () => {
+        const pin = pincodeInput.value.trim();
+        if (pin.length === 6 && /^\d+$/.test(pin)) {
+          try {
+            if (cityInput) cityInput.placeholder = '⚡ Auto-filling...';
+            if (stateInput) stateInput.placeholder = '⚡ Auto-filling...';
+
+            let city = '';
+            let state = '';
+            try {
+              const res = await api.get(`/api/search/pincode/${pin}`);
+              if (res.data) {
+                city = res.data.city || res.data.district || '';
+                state = res.data.state || '';
+              }
+            } catch (e) {}
+
+            if (!city && !state) {
+              try {
+                const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+                const data = await res.json();
+                if (data && data[0]?.Status === 'Success' && data[0]?.PostOffice?.length > 0) {
+                  const po = data[0].PostOffice[0];
+                  city = po.District || po.Division || po.Block || po.Name || '';
+                  state = po.State || '';
+                }
+              } catch (e) {}
+            }
+
+            if (city && cityInput) cityInput.value = city;
+            if (state && stateInput) stateInput.value = state;
+          } catch (err) {
+          } finally {
+            if (cityInput) cityInput.placeholder = 'City';
+            if (stateInput) stateInput.placeholder = 'State';
+          }
+        }
+      };
+
+      ['input', 'blur', 'change', 'paste', 'keyup'].forEach(evt => {
+        pincodeInput.addEventListener(evt, handleAdminPincode);
       });
     }
   }

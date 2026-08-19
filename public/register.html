@@ -665,21 +665,63 @@
       });
     });
 
-    // Pincode Auto-Fill Engine
-    document.getElementById('reg-pincode')?.addEventListener('input', async (e) => {
-      const pin = e.target.value.trim();
+    // Ultra-Fast Pincode Auto-Fill Engine
+    const regPincodeInput = document.getElementById('reg-pincode');
+    const handlePincodeLookup = async () => {
+      if (!regPincodeInput) return;
+      const pin = regPincodeInput.value.trim();
+      const cityEl = document.getElementById('reg-city');
+      const stateEl = document.getElementById('reg-state');
       if (pin.length === 6 && /^\d+$/.test(pin)) {
         try {
-          const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
-          const data = await res.json();
-          if (data && data[0]?.Status === 'Success' && data[0]?.PostOffice?.length > 0) {
-            const po = data[0].PostOffice[0];
-            document.getElementById('reg-city').value = po.District || po.Division || po.Block || '';
-            document.getElementById('reg-state').value = po.State || '';
+          if (cityEl) cityEl.placeholder = '⚡ Auto-filling city...';
+          if (stateEl) stateEl.placeholder = '⚡ Auto-filling state...';
+
+          let city = '';
+          let state = '';
+          try {
+            const res = await fetch(`/api/search/pincode/${pin}`);
+            const json = await res.json();
+            if (json.success && json.data) {
+              city = json.data.city || json.data.district || '';
+              state = json.data.state || '';
+            }
+          } catch (e) {}
+
+          if (!city && !state) {
+            try {
+              const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+              const data = await res.json();
+              if (data && data[0]?.Status === 'Success' && data[0]?.PostOffice?.length > 0) {
+                const po = data[0].PostOffice[0];
+                city = po.District || po.Division || po.Block || po.Name || '';
+                state = po.State || '';
+              }
+            } catch (e) {}
           }
-        } catch (err) {}
+
+          if (city && cityEl) {
+            cityEl.value = city;
+            cityEl.style.borderColor = 'var(--color-success, #00b894)';
+          }
+          if (state && stateEl) {
+            stateEl.value = state;
+            stateEl.style.borderColor = 'var(--color-success, #00b894)';
+          }
+        } catch (err) {
+        } finally {
+          if (cityEl) cityEl.placeholder = 'Auto-filled from pincode';
+          if (stateEl) stateEl.placeholder = 'Auto-filled from pincode';
+        }
       }
-    });
+    };
+
+    if (regPincodeInput) {
+      ['input', 'blur', 'change', 'paste', 'keyup'].forEach(evt => {
+        regPincodeInput.addEventListener(evt, handlePincodeLookup);
+      });
+      if (regPincodeInput.value.trim().length === 6) handlePincodeLookup();
+    }
 
     // Real-Time Duplicate Phone/Email Validator
     async function checkDuplicate() {

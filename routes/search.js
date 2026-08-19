@@ -1,10 +1,18 @@
-const express = require('express');
-const router = express.Router();
-const { protect } = require('../middleware/auth');
-const Student = require('../models/Student');
-const Seat = require('../models/Seat');
-const Plan = require('../models/Plan');
-const Payment = require('../models/Payment');
+const { lookupPincode } = require('../utils/pincodeLookup');
+
+// @route   GET /api/search/pincode/:pin
+// @desc    Fast Indian Pincode Lookup (Public - No auth required)
+router.get('/pincode/:pin', async (req, res) => {
+  try {
+    const data = await lookupPincode(req.params.pin);
+    if (data) {
+      return res.json({ success: true, data, message: 'Pincode details fetched successfully' });
+    }
+    return res.status(404).json({ success: false, message: 'Pincode details not found' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 router.use(protect);
 
