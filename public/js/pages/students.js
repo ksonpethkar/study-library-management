@@ -153,7 +153,7 @@ export async function render() {
           <td>
             <div class="d-flex gap-1">
               <button class="btn btn-sm btn-outline-secondary btn-view" data-id="${escapeHTML(s._id)}" title="View 360° Profile" style="padding: 3px 7px; font-size: 0.75rem;">👁️ View</button>
-              <button class="btn btn-sm btn-outline-success btn-wa-remind" data-id="${escapeHTML(s._id)}" title="Send WhatsApp Reminder with 1-Tap UPI Link" style="padding: 3px 7px; font-size: 0.75rem;">📲 Remind</button>
+              <button class="btn btn-sm btn-outline-success btn-wa-remind" data-id="${escapeHTML(s._id)}" title="Send WhatsApp Reminder with 1-Tap UPI Link" style="padding: 3px 7px; font-size: 0.75rem; white-space: nowrap;">📲 WhatsApp Reminder</button>
               <button class="btn btn-sm btn-outline-warning btn-pwdreset" data-id="${escapeHTML(s._id)}" title="Reset Student Portal Password / PIN" style="padding: 3px 7px; font-size: 0.75rem;">🔑 Key</button>
               <button class="btn btn-sm btn-outline-info btn-idcard" data-id="${escapeHTML(s._id)}" title="Print ID Card" style="padding: 3px 7px; font-size: 0.75rem;">🪪 ID</button>
               <button class="btn btn-sm btn-outline-success btn-pdfform" data-id="${escapeHTML(s._id)}" title="Download PDF Admission Form" style="padding: 3px 7px; font-size: 0.75rem;">📄 PDF</button>
@@ -471,29 +471,33 @@ export async function render() {
     function renderFieldInput(f) {
       const val = getVal(f.fieldName);
       const reqMark = f.required ? ' <span class="text-danger">*</span>' : '';
-      const colClass = f.type === 'textarea' || f.type === 'address_autocomplete' || f.type === 'aadhaar_pan' || f.type === 'exam_badge' || f.type === 'signature_pad' ? 'col-12' : 'col-md-6';
+      const colClass = f.type === 'textarea' || f.type === 'address_autocomplete' || f.type === 'aadhaar_pan' || f.type === 'exam_badge' || f.type === 'signature_pad' ? 'col-12' : (f.colSpan === 12 || f.colSpan === 2 ? 'col-12' : 'col-md-6');
+      const depAttr = f.conditional?.enabled ? `data-depends-on="${escapeHTML(f.conditional.dependsOn)}" data-show-when="${escapeHTML(f.conditional.showWhen)}" data-operator="${escapeHTML(f.conditional.operator || 'equals')}"` : '';
+      const helpText = f.helpText ? `<small class="text-muted d-block" style="font-size: 0.72rem; margin-top: 3px;">${escapeHTML(f.helpText)}</small>` : '';
 
       if (f.type === 'photo_upload') {
         return `
-          <div class="col-12 mt-2">
+          <div class="col-12 mt-2 dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 600;">📷 ${escapeHTML(f.label)}${reqMark}</label>
             <div id="mount-student-photo" class="custom-media-mount" data-field="${escapeHTML(f.fieldName)}" data-preset="passport" data-label="${escapeHTML(f.label)}"></div>
+            ${helpText}
           </div>
         `;
       }
 
       if (f.type === 'signature_pad') {
         return `
-          <div class="col-12 mt-2">
+          <div class="col-12 mt-2 dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 600;">✍️ ${escapeHTML(f.label)}${reqMark}</label>
             <div id="admission-signature-studio-mount"></div>
+            ${helpText}
           </div>
         `;
       }
 
       if (f.type === 'aadhaar_pan') {
         return `
-          <div class="col-12 mt-2">
+          <div class="col-12 mt-2 dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 600;">📑 ${escapeHTML(f.label)}${reqMark}</label>
             <div class="row g-2 mb-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
               <div>
@@ -513,6 +517,7 @@ export async function render() {
               </div>
             </div>
             <div id="mount-student-idproof" class="custom-media-mount" data-field="idProofImage" data-preset="document" data-label="ID Proof Document Upload"></div>
+            ${helpText}
           </div>
         `;
       }
@@ -521,7 +526,7 @@ export async function render() {
         const examsList = ['UPSC', 'MPSC', 'SSC CGL', 'Banking / IBPS', 'JEE', 'NEET', 'CA / CS', 'GATE', 'CAT / MBA', 'Law / CLAT', 'UGC NET', 'State PSC', 'Other'];
         const selectedArr = Array.isArray(val) ? val : (typeof val === 'string' && val ? val.split(',') : []);
         return `
-          <div class="col-12 mt-2">
+          <div class="col-12 mt-2 dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 600;">🎯 ${escapeHTML(f.label)}${reqMark}</label>
             <div id="exam-chips-container" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
               ${examsList.map(ex => {
@@ -534,6 +539,7 @@ export async function render() {
               }).join('')}
             </div>
             <input type="hidden" name="targetExams" id="selectedTargetExams" value="${escapeHTML(selectedArr.join(','))}">
+            ${helpText}
           </div>
         `;
       }
@@ -541,40 +547,57 @@ export async function render() {
       if (f.type === 'blood_group') {
         const bgOptions = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
         return `
-          <div class="${colClass}">
-            <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
+          <div class="${colClass} dynamic-field-wrapper" ${depAttr}>
+            <label class="form-label" style="font-weight: 500;">🩸 ${escapeHTML(f.label)}${reqMark}</label>
             <select class="form-select form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
               <option value="">-- Select Blood Group --</option>
               ${bgOptions.map(bg => `<option value="${bg}" ${val === bg ? 'selected' : ''}>${bg}</option>`).join('')}
             </select>
+            ${helpText}
+          </div>
+        `;
+      }
+
+      if (f.type === 'star_rating') {
+        const curRating = parseInt(val, 10) || 5;
+        return `
+          <div class="${colClass} dynamic-field-wrapper" ${depAttr}>
+            <label class="form-label" style="font-weight: 500;">⭐ ${escapeHTML(f.label)}${reqMark}</label>
+            <div class="star-rating-wrap modal-star-rating" data-field="${escapeHTML(f.fieldName)}" style="display: inline-flex; gap: 6px; font-size: 1.4rem; cursor: pointer;">
+              ${[1, 2, 3, 4, 5].map(v => `<span class="star-rating-item ${v <= curRating ? 'active' : ''}" data-val="${v}" style="color: ${v <= curRating ? '#f59e0b' : '#d1d5db'};">★</span>`).join('')}
+            </div>
+            <input type="hidden" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" value="${curRating}">
+            ${helpText}
           </div>
         `;
       }
 
       if (f.type === 'file') {
         return `
-          <div class="col-md-6 mt-2">
-            <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
+          <div class="${colClass} mt-2 dynamic-field-wrapper" ${depAttr}>
+            <label class="form-label" style="font-weight: 500;">📎 ${escapeHTML(f.label)}${reqMark}</label>
             <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}" data-label="${escapeHTML(f.label)}" data-preset="document"></div>
+            ${helpText}
           </div>
         `;
       }
 
       if (f.type === 'select') {
         return `
-          <div class="${colClass}">
+          <div class="${colClass} dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
             <select class="form-select form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
               <option value="">-- Select --</option>
               ${(f.options || []).map(opt => `<option value="${escapeHTML(opt)}" ${val === opt ? 'selected' : ''}>${escapeHTML(opt)}</option>`).join('')}
             </select>
+            ${helpText}
           </div>
         `;
       }
 
       if (f.type === 'radio') {
         return `
-          <div class="${colClass}">
+          <div class="${colClass} dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
             <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px;">
               ${(f.options || []).map(opt => `
@@ -584,27 +607,32 @@ export async function render() {
                 </label>
               `).join('')}
             </div>
+            ${helpText}
           </div>
         `;
       }
 
-      if (f.type === 'checkbox' || f.type === 'terms_checkbox') {
-        const isChecked = val === true || val === 'true' || val === 'on';
+      if (f.type === 'checkbox' || f.type === 'terms_checkbox' || f.type === 'consent_checkbox') {
+        const isChecked = val === true || val === 'true' || val === 'on' || val === 1;
         return `
-          <div class="col-12 mt-1">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500;">
-              <input type="checkbox" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" ${isChecked ? 'checked' : ''} ${f.required ? 'required' : ''} style="width: 17px; height: 17px;">
-              <span>${escapeHTML(f.label)}${reqMark}</span>
-            </label>
+          <div class="col-12 mt-1 dynamic-field-wrapper" ${depAttr}>
+            <div style="background: var(--color-bg-secondary); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; margin: 0;">
+                <input type="checkbox" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" ${isChecked ? 'checked' : ''} ${f.required ? 'required' : ''} style="width: 17px; height: 17px; accent-color: var(--color-primary);">
+                <span>${escapeHTML(f.label)}${reqMark}</span>
+              </label>
+              ${helpText}
+            </div>
           </div>
         `;
       }
 
       if (f.type === 'textarea') {
         return `
-          <div class="col-12">
+          <div class="col-12 dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
             <textarea class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" rows="2" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}>${escapeHTML(val)}</textarea>
+            ${helpText}
           </div>
         `;
       }
@@ -612,9 +640,10 @@ export async function render() {
       const inputType = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : (f.type === 'email' ? 'email' : (f.type === 'phone' ? 'tel' : 'text'))));
 
       return `
-        <div class="${colClass}">
+        <div class="${colClass} dynamic-field-wrapper" ${depAttr}>
           <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
           <input type="${inputType}" class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" value="${escapeHTML(val)}" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}>
+          ${helpText}
         </div>
       `;
     }
@@ -877,6 +906,85 @@ export async function render() {
         });
       });
     }
+
+    // Setup Star Rating Interactivity in Student Modal
+    modal.element.querySelectorAll('.modal-star-rating').forEach(wrap => {
+      const stars = wrap.querySelectorAll('.star-rating-item');
+      const hiddenInp = wrap.nextElementSibling;
+      stars.forEach(star => {
+        star.addEventListener('click', () => {
+          const val = parseInt(star.dataset.val, 10);
+          if (hiddenInp) hiddenInp.value = val;
+          stars.forEach((s, idx) => {
+            if (idx < val) {
+              s.classList.add('active');
+              s.style.color = '#f59e0b';
+            } else {
+              s.classList.remove('active');
+              s.style.color = '#d1d5db';
+            }
+          });
+        });
+      });
+    });
+
+    // Evaluate conditional display rules in modal
+    function evaluateModalLogic() {
+      const formEl = modal.element.querySelector('#studentForm');
+      if (!formEl) return;
+      const formData = new FormData(formEl);
+      const data = Object.fromEntries(formData.entries());
+
+      modal.element.querySelectorAll('.custom-dyn-input, .custom-dyn-radio').forEach(el => {
+        const name = el.dataset.field || el.name;
+        if (name) {
+          if (el.type === 'checkbox') data[name] = el.checked;
+          else if (el.type === 'radio') {
+            if (el.checked) data[name] = el.value;
+          } else if (el.value) data[name] = el.value;
+        }
+      });
+
+      modal.element.querySelectorAll('.dynamic-field-wrapper').forEach(wrapper => {
+        const dependsOn = wrapper.dataset.dependsOn;
+        const showWhen = wrapper.dataset.showWhen;
+        const operator = wrapper.dataset.operator || 'equals';
+
+        if (dependsOn && showWhen) {
+          const rawVal = data[dependsOn];
+          const val = rawVal !== undefined ? String(rawVal).trim() : '';
+          const target = String(showWhen).trim();
+
+          let isMatch = false;
+          if (operator === 'equals') {
+            isMatch = (val.toLowerCase() === target.toLowerCase()) || (rawVal === true && target === 'true');
+          } else if (operator === 'not_equals') {
+            isMatch = val.toLowerCase() !== target.toLowerCase();
+          } else if (operator === 'contains') {
+            isMatch = val.toLowerCase().includes(target.toLowerCase());
+          } else if (operator === 'not_empty') {
+            isMatch = val.length > 0;
+          }
+
+          if (isMatch) {
+            wrapper.style.display = '';
+            wrapper.querySelectorAll('input, select, textarea').forEach(inp => {
+              if (inp.dataset.originallyRequired === 'true') inp.required = true;
+            });
+          } else {
+            wrapper.style.display = 'none';
+            wrapper.querySelectorAll('input, select, textarea').forEach(inp => {
+              if (inp.required) inp.dataset.originallyRequired = 'true';
+              inp.required = false;
+            });
+          }
+        }
+      });
+    }
+
+    modal.element.addEventListener('input', evaluateModalLogic);
+    modal.element.addEventListener('change', evaluateModalLogic);
+    evaluateModalLogic();
 
     // Setup Pincode Auto-Fill in Admin Student Modal
     const pincodeInput = modal.element.querySelector('input[name="pincode"]');
@@ -1243,7 +1351,7 @@ export async function render() {
     loadStudentAnalyticsWidget(student._id, modalContent);
 
     modalContent.querySelector('.btn-profile-remind')?.addEventListener('click', () => {
-      sendWhatsAppReminder(student, 'expiry');
+      sendWhatsAppReminder(student, student.balanceDue > 0 ? 'balance_due' : 'renewal_reminder');
     });
 
     modalContent.querySelector('.btn-profile-idcard')?.addEventListener('click', () => {
@@ -1261,7 +1369,7 @@ export async function render() {
     });
   }
 
-  async function sendWhatsAppReminder(student, reminderType = 'expiry') {
+  async function sendWhatsAppReminder(student, reminderType = 'renewal_reminder') {
     try {
       Loading.show('Preparing WhatsApp reminder & UPI payment link...');
       const res = await api.post('/api/messages/send-reminder', {

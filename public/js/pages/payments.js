@@ -204,7 +204,7 @@ export async function render(container) {
                         <button class="btn btn-sm btn-outline-primary btn-view" data-id="${p._id}" style="padding: 3px 8px; font-size: 0.8rem;">View Receipt</button>
                         ${p.status === 'partial' && p.balanceDue > 0 ? `
                             <button class="btn btn-sm btn-warning btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px;">💰 Pay Balance</button>
-                            <button class="btn btn-sm btn-outline-success btn-remind-balance" data-id="${p._id}" data-student-id="${p.student?._id || p.student}" data-name="${escapeHTML(p.student?.name || 'Student')}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px;" title="Send WhatsApp Balance Reminder with 1-Tap UPI Link">📲 Send Balance Reminder</button>
+                            <button class="btn btn-sm btn-outline-success btn-remind-balance" data-id="${p._id}" data-student-id="${p.student?._id || p.student}" data-name="${escapeHTML(p.student?.name || 'Student')}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px; white-space: nowrap;" title="Send WhatsApp Balance Reminder with 1-Tap UPI Link">📲 WhatsApp Reminder</button>
                         ` : ''}
                     </td>
                 </tr>
@@ -228,6 +228,7 @@ export async function render(container) {
                     const studentId = btn.dataset.studentId;
                     const balance = btn.dataset.balance;
                     const studentName = btn.dataset.name;
+                    const paymentId = btn.dataset.id;
                     if (!studentId) {
                         Toast.error('Student ID not associated with this payment record.');
                         return;
@@ -236,7 +237,8 @@ export async function render(container) {
                         Loading.show('Preparing WhatsApp balance reminder & UPI deep link...');
                         const res = await api.post('/api/messages/send-reminder', {
                             studentId,
-                            reminderType: 'partial_balance',
+                            paymentId,
+                            reminderType: 'balance_due',
                             customAmount: balance
                         });
                         Loading.hide();
@@ -278,7 +280,7 @@ export async function render(container) {
                     <td><span style="color: var(--color-danger); font-weight: 600;">${formatDate(d.expiryDate)}</span></td>
                     <td>
                         <button class="btn btn-sm btn-success btn-collect-due" data-id="${d._id}" style="padding: 3px 8px; font-size: 0.8rem;">Collect Fee</button>
-                        <button class="btn btn-sm btn-outline-success btn-remind-due" data-id="${d._id}" data-name="${escapeHTML(d.name)}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px;" title="Send WhatsApp Expiry Reminder">📲 Remind</button>
+                        <button class="btn btn-sm btn-outline-success btn-remind-due" data-id="${d._id}" data-name="${escapeHTML(d.name)}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px; white-space: nowrap;" title="Send WhatsApp Renewal Reminder with 1-Tap UPI Link">📲 WhatsApp Reminder</button>
                     </td>
                 </tr>
             `).join('');
@@ -297,7 +299,7 @@ export async function render(container) {
                         Loading.show('Preparing WhatsApp reminder & UPI link...');
                         const res = await api.post('/api/messages/send-reminder', {
                             studentId,
-                            reminderType: 'expiry'
+                            reminderType: 'renewal_reminder'
                         });
                         Loading.hide();
                         if (res.success && res.data) {
@@ -614,6 +616,11 @@ export async function render(container) {
                 const bdy = config.body || {};
                 const gst = config.gst || {};
                 const ftr = config.footer || {};
+                const logoImg = head.logoUrl || bp.logo || '';
+                const stampImg = ftr.stampImage || bp.stampImage || '';
+                const sigImg = ftr.signatureImage || '';
+                const gstNo = head.gstNumber || bp.gstNumber || '';
+                const taxNo = head.taxNumber || bp.registrationNumber || '';
                 
                 let html = '';
                 
@@ -625,30 +632,33 @@ export async function render(container) {
                     
                     html = `
                         <div style="text-align: ${head.logoPosition || 'center'}; border-bottom: 2px solid ${head.headerColor || '#4f46e5'}; padding-bottom: 15px; margin-bottom: 20px;">
-                            ${head.showLogo && bp.logo ? `<img src="${bp.logo}" style="max-height: 60px; margin-bottom: 10px;">` : ''}
+                            ${head.showLogo && logoImg ? `<img src="${logoImg}" style="max-height: 60px; margin-bottom: 10px;">` : ''}
                             ${head.showBusinessName ? `<h2 style="margin: 0; color: ${head.headerColor || '#4f46e5'};">${escapeHTML(bp.businessName || r.businessName || 'Library')}</h2>` : ''}
                             <p style="margin: 5px 0 0; color: #555;">${escapeHTML(head.subtitle || 'Official Fee Receipt')}</p>
                             ${head.showAddress && bp.address ? `<p style="margin: 5px 0 0; font-size: 0.9em; color: #666;">${escapeHTML(bp.address)}</p>` : ''}
                             <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
                                 ${head.showPhone && bp.phone ? `<span>📞 ${escapeHTML(bp.phone)}</span> ` : ''}
                                 ${head.showEmail && bp.email ? `<span>✉️ ${escapeHTML(bp.email)}</span>` : ''}
-                                ${head.showGst && bp.gstNumber ? `<br><span>GSTIN: ${escapeHTML(bp.gstNumber)}</span>` : ''}
+                                ${head.showGst && gstNo ? `<br><span>GSTIN: ${escapeHTML(gstNo)}</span>` : ''}
+                                ${taxNo ? `<span style="margin-left: 8px;">Tax ID: ${escapeHTML(taxNo)}</span>` : ''}
                             </div>
                         </div>
                         
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-                            <div style="flex: 1; padding: 10px; border: 1px solid #eee; border-radius: 5px; margin-right: 10px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                            <div style="flex: 1; min-width: 220px; padding: 10px; border: 1px solid #eee; border-radius: 5px;">
                                 <h4 style="margin: 0 0 10px; font-size: 1em; color: #333;">Student Details</h4>
                                 <p style="margin: 0 0 5px; color: #000;"><strong>Name:</strong> ${escapeHTML(r.student?.name || 'N/A')}</p>
                                 ${bdy.showStudentId ? `<p style="margin: 0 0 5px; color: #000;"><strong>ID:</strong> ${escapeHTML(r.student?.studentId || 'N/A')}</p>` : ''}
                                 ${bdy.showStudentPhone ? `<p style="margin: 0 0 5px; color: #000;"><strong>Phone:</strong> ${escapeHTML(r.student?.phone || 'N/A')}</p>` : ''}
+                                ${bdy.showSeatNumber && (r.student?.seat?.seatNumber || r.student?.seatNumber) ? `<p style="margin: 0 0 5px; color: #000;"><strong>Seat:</strong> ${escapeHTML(r.student?.seat?.seatNumber || r.student?.seatNumber)}</p>` : ''}
+                                ${bdy.showShift && (r.student?.shift?.name || r.plan?.shift) ? `<p style="margin: 0 0 5px; color: #000;"><strong>Shift:</strong> ${escapeHTML(r.student?.shift?.name || r.plan?.shift)}</p>` : ''}
                             </div>
-                            <div style="flex: 1; padding: 10px; border: 1px solid #eee; border-radius: 5px;">
+                            <div style="flex: 1; min-width: 220px; padding: 10px; border: 1px solid #eee; border-radius: 5px;">
                                 <h4 style="margin: 0 0 10px; font-size: 1em; color: #333;">Receipt Details</h4>
                                 <p style="margin: 0 0 5px; color: #000;"><strong>Receipt No:</strong> ${escapeHTML(r.receiptNumber)}</p>
                                 <p style="margin: 0 0 5px; color: #000;"><strong>Date:</strong> ${formatDate(r.date)}</p>
-                                ${bdy.showPaymentMethod ? `<p style="margin: 0 0 5px; color: #000;"><strong>Payment Mode:</strong> ${escapeHTML(r.paymentDetails.method).toUpperCase()}</p>` : ''}
-                                ${bdy.showTransactionId && r.paymentDetails.transactionId ? `<p style="margin: 0 0 5px; color: #000;"><strong>Ref:</strong> ${escapeHTML(r.paymentDetails.transactionId)}</p>` : ''}
+                                ${bdy.showPaymentMethod ? `<p style="margin: 0 0 5px; color: #000;"><strong>Payment Mode:</strong> ${escapeHTML(r.paymentDetails?.method || 'CASH').toUpperCase()}</p>` : ''}
+                                ${bdy.showTransactionId && r.paymentDetails?.transactionId ? `<p style="margin: 0 0 5px; color: #000;"><strong>Ref / Txn ID:</strong> ${escapeHTML(r.paymentDetails.transactionId)}</p>` : ''}
                             </div>
                         </div>
                         
@@ -663,6 +673,7 @@ export async function render(container) {
                                 <tr>
                                     <td style="padding: 10px; border: 1px solid #ddd; color: #000;">
                                         Fee Collection ${bdy.showPlanDetails && r.plan ? ` - ${escapeHTML(r.plan.name)}` : ''}
+                                        ${bdy.showPeriod && (r.billingPeriod?.startDate || r.billingPeriod?.endDate) ? `<br><small style="color: #666;">Period: ${formatDate(r.billingPeriod.startDate)} to ${formatDate(r.billingPeriod.endDate)}</small>` : ''}
                                     </td>
                                     <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">${formatCurrency(r.paymentDetails.amount)}</td>
                                 </tr>
@@ -694,15 +705,18 @@ export async function render(container) {
                             </tfoot>
                         </table>
                         
-                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px;">
-                            <div style="flex: 1; font-size: 0.85em; color: #666;">
-                                ${ftr.customNote ? `<p style="margin: 0 0 5px;">${escapeHTML(ftr.customNote)}</p>` : ''}
-                                ${ftr.termsText ? `<p style="margin: 0; font-style: italic;">${escapeHTML(ftr.termsText)}</p>` : ''}
+                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px;">
+                            <div style="flex: 1; font-size: 0.85em; color: #666; padding-right: 15px;">
+                                ${ftr.customNote ? `<p style="margin: 0 0 5px; font-weight: 600; color: #333;">${escapeHTML(ftr.customNote)}</p>` : ''}
+                                ${ftr.termsText ? `<p style="margin: 0; font-style: italic; color: #777;">${escapeHTML(ftr.termsText)}</p>` : ''}
                                 ${ftr.showTimestamp ? `<p style="margin: 5px 0 0; font-size: 0.8em; color: #999;">Generated on: ${new Date().toLocaleString()}</p>` : ''}
                             </div>
-                            <div style="text-align: center; width: 150px;">
-                                ${ftr.showStamp && bp.stampImage ? `<img src="${bp.stampImage}" style="max-height: 60px; margin-bottom: 5px; opacity: 0.8;">` : '<div style="height: 60px;"></div>'}
-                                ${ftr.showSignature ? `<div style="border-top: 1px solid #333; padding-top: 5px; font-size: 0.9em; font-weight: bold; color: #000;">${escapeHTML(ftr.signatureLabel || 'Authorized Signatory')}</div>` : ''}
+                            <div style="text-align: center; min-width: 150px;">
+                                <div style="display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 50px;">
+                                    ${ftr.showStamp && stampImg ? `<img src="${stampImg}" style="max-height: 55px; opacity: 0.85;">` : ''}
+                                    ${ftr.showSignature && sigImg ? `<img src="${sigImg}" style="max-height: 45px;">` : ''}
+                                </div>
+                                ${ftr.showSignature ? `<div style="border-top: 1px solid #333; padding-top: 5px; font-size: 0.85em; font-weight: bold; color: #000;">${escapeHTML(ftr.signatureLabel || 'Authorized Signatory')}</div>` : ''}
                             </div>
                         </div>
                     `;
@@ -714,15 +728,17 @@ export async function render(container) {
                     
                     html = `
                         <div style="text-align: center; margin-bottom: 10px;">
-                            ${head.showLogo && bp.logo ? `<img src="${bp.logo}" style="max-height: 40px; margin-bottom: 5px;">` : ''}
+                            ${head.showLogo && logoImg ? `<img src="${logoImg}" style="max-height: 40px; margin-bottom: 5px;">` : ''}
                             ${head.showBusinessName ? `<h3 style="margin: 0; font-size: 1.2em; color: #000;">${escapeHTML(bp.businessName || r.businessName || 'Library')}</h3>` : ''}
                             <p style="margin: 2px 0; font-size: 0.9em; color: #000;">${escapeHTML(head.subtitle || 'Receipt')}</p>
                             ${head.showPhone && bp.phone ? `<p style="margin: 2px 0; font-size: 0.8em; color: #000;">Ph: ${escapeHTML(bp.phone)}</p>` : ''}
+                            ${head.showGst && gstNo ? `<p style="margin: 2px 0; font-size: 0.75em; color: #000;">GST: ${escapeHTML(gstNo)}</p>` : ''}
                         </div>
                         <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 5px 0; margin-bottom: 10px; font-size: 0.85em; color: #000;">
                             <p style="margin: 2px 0;">No: ${escapeHTML(r.receiptNumber)}</p>
                             <p style="margin: 2px 0;">Dt: ${formatDate(r.date)}</p>
                             <p style="margin: 2px 0;">Name: ${escapeHTML(r.student?.name || 'N/A')}</p>
+                            ${bdy.showSeatNumber && (r.student?.seat?.seatNumber || r.student?.seatNumber) ? `<p style="margin: 2px 0;">Seat: ${escapeHTML(r.student?.seat?.seatNumber || r.student?.seatNumber)}</p>` : ''}
                         </div>
                         <table style="width: 100%; font-size: 0.85em; margin-bottom: 10px; color: #000;">
                             <tr><td style="padding-bottom: 5px;">Fee</td><td style="text-align: right; padding-bottom: 5px;">${formatCurrency(r.paymentDetails.amount)}</td></tr>
@@ -734,8 +750,9 @@ export async function render(container) {
                             ${r.balanceDue > 0 || r.installments?.length > 0 ? `<br>Paid: ${formatCurrency(r.paymentDetails.finalAmount - (r.balanceDue || 0))}<br><span style="color:red;">Due: ${formatCurrency(r.balanceDue || 0)}</span>` : ''}
                         </div>
                         <div style="text-align: center; font-size: 0.75em; color: #000;">
-                            <p style="margin: 2px 0;">Paid via: ${escapeHTML(r.paymentDetails.method)}</p>
+                            <p style="margin: 2px 0;">Paid via: ${escapeHTML(r.paymentDetails?.method || 'CASH')}</p>
                             ${ftr.customNote ? `<p style="margin: 5px 0 0;">${escapeHTML(ftr.customNote)}</p>` : ''}
+                            ${ftr.termsText ? `<p style="margin: 3px 0 0; font-size: 0.7em;">${escapeHTML(ftr.termsText)}</p>` : ''}
                         </div>
                     `;
                 } else if (templateId === 'modern_minimal') {
@@ -750,6 +767,7 @@ export async function render(container) {
                     html = `
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
                             <div>
+                                ${head.showLogo && logoImg ? `<img src="${logoImg}" style="max-height: 48px; margin-bottom: 8px;"><br>` : ''}
                                 ${head.showBusinessName ? `<h2 style="margin: 0 0 5px; font-weight: 800; color: #111;">${escapeHTML(bp.businessName || r.businessName || 'Library')}</h2>` : ''}
                                 <span style="display: inline-block; padding: 4px 10px; background: #f0f0f0; border-radius: 4px; font-size: 0.8em; font-weight: 600; color: #555;">${escapeHTML(head.subtitle || 'RECEIPT')}</span>
                             </div>
@@ -764,13 +782,14 @@ export async function render(container) {
                                 <div style="font-size: 0.8em; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Billed To</div>
                                 <div style="font-weight: 600; color: #222; font-size: 1.1em;">${escapeHTML(r.student?.name || 'N/A')}</div>
                                 <div style="color: #555; font-size: 0.9em; margin-top: 3px;">${escapeHTML(r.student?.phone || '')}</div>
+                                ${bdy.showSeatNumber && (r.student?.seat?.seatNumber || r.student?.seatNumber) ? `<div style="color: #666; font-size: 0.85em;">Seat: ${escapeHTML(r.student?.seat?.seatNumber || r.student?.seatNumber)}</div>` : ''}
                             </div>
                             <div style="flex: 1; min-width: 200px;">
                                 <div style="font-size: 0.8em; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Payment Info</div>
                                 <div style="color: #444; font-size: 0.9em;">
                                     <div style="margin-bottom: 3px;"><strong>Ref:</strong> ${escapeHTML(r.receiptNumber)}</div>
-                                    <div style="margin-bottom: 3px;"><strong>Method:</strong> ${escapeHTML(r.paymentDetails.method).toUpperCase()}</div>
-                                    ${bdy.showTransactionId && r.paymentDetails.transactionId ? `<div><strong>Txn ID:</strong> ${escapeHTML(r.paymentDetails.transactionId)}</div>` : ''}
+                                    <div style="margin-bottom: 3px;"><strong>Method:</strong> ${escapeHTML(r.paymentDetails?.method || 'CASH').toUpperCase()}</div>
+                                    ${bdy.showTransactionId && r.paymentDetails?.transactionId ? `<div><strong>Txn ID:</strong> ${escapeHTML(r.paymentDetails.transactionId)}</div>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -805,9 +824,15 @@ export async function render(container) {
                             </div>` : ''}
                         </div>
                         
-                        <div style="text-align: center; color: #888; font-size: 0.85em; margin-top: 40px;">
+                        <div style="text-align: center; color: #888; font-size: 0.85em; margin-top: 30px;">
                             ${ftr.customNote ? `<div>${escapeHTML(ftr.customNote)}</div>` : ''}
                             ${ftr.termsText ? `<div style="margin-top: 5px; font-size: 0.9em; opacity: 0.8;">${escapeHTML(ftr.termsText)}</div>` : ''}
+                            ${ftr.showSignature && (stampImg || sigImg) ? `
+                                <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px;">
+                                    ${stampImg ? `<img src="${stampImg}" style="max-height: 45px; opacity: 0.8;">` : ''}
+                                    ${sigImg ? `<img src="${sigImg}" style="max-height: 40px;">` : ''}
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 } else if (templateId === 'gst_invoice') {
@@ -825,10 +850,11 @@ export async function render(container) {
                     
                     html = `
                         <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+                            ${head.showLogo && logoImg ? `<img src="${logoImg}" style="max-height: 50px; margin-bottom: 6px;"><br>` : ''}
                             <h2 style="margin: 0; text-transform: uppercase; color: #000;">TAX INVOICE</h2>
                             <h3 style="margin: 5px 0 0; color: #000;">${escapeHTML(bp.businessName || 'Library')}</h3>
                             <p style="margin: 3px 0 0; font-size: 0.9em; color: #000;">${escapeHTML(bp.address || '')}</p>
-                            <p style="margin: 3px 0 0; font-size: 0.9em; color: #000;">GSTIN: ${escapeHTML(bp.gstNumber || 'N/A')}</p>
+                            <p style="margin: 3px 0 0; font-size: 0.9em; color: #000;">GSTIN: ${escapeHTML(gstNo || 'N/A')}</p>
                         </div>
                         
                         <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 0.9em; color: #000;">
@@ -840,6 +866,7 @@ export async function render(container) {
                             <div style="text-align: right;">
                                 <p style="margin: 2px 0;"><strong>Billed To:</strong> ${escapeHTML(r.student?.name || '')}</p>
                                 <p style="margin: 2px 0;"><strong>Phone:</strong> ${escapeHTML(r.student?.phone || '')}</p>
+                                ${bdy.showStudentId ? `<p style="margin: 2px 0;"><strong>Student ID:</strong> ${escapeHTML(r.student?.studentId || '')}</p>` : ''}
                             </div>
                         </div>
                         
@@ -892,11 +919,13 @@ export async function render(container) {
                         
                         <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.85em; color: #000;">
                             <div>
-                                <p style="margin: 0; font-style: italic;">Computer generated invoice, no physical signature required.</p>
+                                <p style="margin: 0; font-style: italic;">${escapeHTML(ftr.termsText || 'Computer generated invoice, no physical signature required.')}</p>
+                                ${ftr.customNote ? `<p style="margin: 4px 0 0;">${escapeHTML(ftr.customNote)}</p>` : ''}
                             </div>
-                            <div style="text-align: center; border-top: 1px solid #000; padding-top: 5px;">
+                            <div style="text-align: center; border-top: 1px solid #000; padding-top: 5px; min-width: 140px;">
+                                ${stampImg ? `<img src="${stampImg}" style="max-height: 40px; margin-bottom: 4px;"><br>` : ''}
                                 For ${escapeHTML(bp.businessName || 'Library')}<br>
-                                Authorized Signatory
+                                ${escapeHTML(ftr.signatureLabel || 'Authorized Signatory')}
                             </div>
                         </div>
                     `;

@@ -38,7 +38,7 @@
     }
     .admission-container {
       width: 100%;
-      max-width: 800px;
+      max-width: 820px;
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-xl);
@@ -58,7 +58,7 @@
     .stepper {
       display: flex;
       justify-content: space-between;
-      padding: 1.5rem 2rem;
+      padding: 1.25rem 1.5rem;
       background: var(--color-bg-secondary);
       border-bottom: 1px solid var(--color-border);
     }
@@ -86,7 +86,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 0.5rem;
+      margin: 0 auto 0.4rem;
       font-weight: 700;
       z-index: 2;
       position: relative;
@@ -94,6 +94,7 @@
     .step.active .step-number {
       background: var(--color-primary);
       color: white;
+      box-shadow: 0 0 10px rgba(108, 92, 231, 0.4);
     }
     .step.completed .step-number {
       background: var(--color-success);
@@ -147,6 +148,7 @@
       background: var(--color-primary);
       color: #ffffff;
       border-color: var(--color-primary);
+      box-shadow: 0 2px 6px rgba(108, 92, 231, 0.3);
     }
     .form-section-title {
       font-size: 1.05rem;
@@ -156,23 +158,26 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      border-bottom: 1px solid var(--color-divider);
+      border-bottom: 1px solid var(--color-border);
       padding-bottom: 0.5rem;
+    }
+    .form-section-title:first-child {
+      margin-top: 0;
     }
 
     /* Calculator Card */
     .calculator-card {
       background: var(--color-bg-secondary);
-      border: 1px solid var(--color-primary);
+      border: 1.5px solid var(--color-primary);
       border-radius: var(--radius-lg);
-      padding: 1.5rem;
+      padding: 1.25rem 1.5rem;
       margin-top: 1.5rem;
     }
     .calc-row {
       display: flex;
       justify-content: space-between;
       margin-bottom: 0.5rem;
-      font-size: 0.95rem;
+      font-size: 0.92rem;
     }
     .calc-total {
       font-size: 1.25rem;
@@ -187,6 +192,7 @@
       display: flex;
       justify-content: space-between;
       margin-top: 2rem;
+      gap: 12px;
     }
 
     .qr-badge {
@@ -195,30 +201,47 @@
       background: white;
       border-radius: 10px;
       margin: 1rem 0;
+      border: 1px solid var(--color-border);
     }
     
     .dynamic-field-wrapper {
       transition: all 0.3s ease;
-      overflow: hidden;
+    }
+
+    /* Star rating widget */
+    .star-rating-wrap {
+      display: inline-flex;
+      gap: 6px;
+      font-size: 1.6rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .star-rating-item {
+      color: #d1d5db;
+      transition: color 0.15s ease, transform 0.15s ease;
+    }
+    .star-rating-item.active, .star-rating-item:hover {
+      color: #f59e0b;
+      transform: scale(1.15);
     }
   </style>
 </head>
 <body>
 
   <div class="admission-container">
-    <div class="admission-header">
+    <div class="admission-header" id="admission-main-header">
       <button type="button" id="reg-theme-toggle" onclick="toggleRegisterTheme()" title="Toggle Dark/Light Mode" style="position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-size: 1.1rem; border-radius: 50%; width: 38px; height: 38px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
         🌙
       </button>
-      <div style="font-size: 2.5rem; margin-bottom: 0.25rem;">📚</div>
+      <div id="lib-logo-icon" style="font-size: 2.5rem; margin-bottom: 0.25rem;">📚</div>
       <h1 id="lib-title" style="margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px;">Study Library</h1>
       <p id="lib-tagline" style="margin: 6px 0 0 0; opacity: 0.9; font-size: 0.95rem;">Premier Air-Conditioned Reading Hall & Self-Study Space</p>
     </div>
 
     <div id="registration-form-wrap">
       
-      <!-- Stepper -->
-      <div class="stepper">
+      <!-- Stepper Progress Dots -->
+      <div class="stepper" id="wizard-stepper">
         <div class="step active" id="stepper-1">
           <div class="step-number">1</div>
           <div style="font-size: 0.75rem;">Personal</div>
@@ -243,9 +266,11 @@
 
       <form id="public-reg-form">
         
+        <!-- ========================================== -->
         <!-- Step 1: Personal Info & Centre Choice -->
+        <!-- ========================================== -->
         <div class="wizard-step-content active" id="step-1">
-          <div class="form-section-title"><span>🏢</span> Select Study Centre & Personal Info</div>
+          <div class="form-section-title"><span>🏢</span> Study Centre & Identification</div>
           
           <div id="duplicate-alert-box" class="alert alert-danger mb-3" style="display: none; padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.88rem; font-weight: 600; color: #dc3545; background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.2);"></div>
 
@@ -264,39 +289,39 @@
                 </div>
                 <div style="text-align: right;">
                   <span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.85rem;" id="bi-seats-badge">
-                    🟢 42 Available / 100 Total Seats
+                    🟢 Available Seats
                   </span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
             <div class="form-group">
               <label class="form-label" style="font-weight: 600;">Full Name *</label>
-              <input type="text" id="reg-name" class="form-control" placeholder="e.g. Rahul Sharma" required>
+              <input type="text" id="reg-name" name="name" class="form-control" placeholder="e.g. Rahul Sharma" required>
             </div>
             <div class="form-group">
               <label class="form-label" style="font-weight: 600;">Mobile Phone (WhatsApp) *</label>
-              <input type="tel" id="reg-phone" class="form-control" placeholder="10-digit WhatsApp number" required maxlength="10">
+              <input type="tel" id="reg-phone" name="phone" class="form-control" placeholder="10-digit WhatsApp number" required maxlength="10">
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
             <div class="form-group">
               <label class="form-label" style="font-weight: 600;">Email Address</label>
-              <input type="email" id="reg-email" class="form-control" placeholder="rahul@example.com">
+              <input type="email" id="reg-email" name="email" class="form-control" placeholder="rahul@example.com">
             </div>
             <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Account Password *</label>
-              <input type="password" id="reg-password" class="form-control" placeholder="Choose 6+ character password" required minlength="6">
+              <label class="form-label" style="font-weight: 600;">Student Portal Password *</label>
+              <input type="password" id="reg-password" name="password" class="form-control" placeholder="Choose 6+ character password" required minlength="6">
             </div>
           </div>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
             <div class="form-group">
               <label class="form-label" style="font-weight: 600;">Gender</label>
-              <select id="reg-gender" class="form-select">
+              <select id="reg-gender" name="gender" class="form-select">
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
@@ -304,7 +329,7 @@
             </div>
             <div class="form-group">
               <label class="form-label" style="font-weight: 600;">Date of Birth</label>
-              <input type="date" id="reg-dob" class="form-control">
+              <input type="date" id="reg-dob" name="dob" class="form-control">
             </div>
           </div>
 
@@ -312,17 +337,20 @@
           <div style="display: grid; grid-template-columns: 140px 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;" class="form-row-responsive">
             <div class="form-group">
               <label class="form-label" style="font-weight: 600;">Pincode ⚡</label>
-              <input type="text" id="reg-pincode" class="form-control" placeholder="411001" maxlength="6">
+              <input type="text" id="reg-pincode" name="pincode" class="form-control" placeholder="411001" maxlength="6">
             </div>
             <div class="form-group">
               <label class="form-label" style="font-weight: 600;">City</label>
-              <input type="text" id="reg-city" class="form-control" placeholder="Auto-filled from pincode">
+              <input type="text" id="reg-city" name="city" class="form-control" placeholder="Auto-filled from pincode">
             </div>
             <div class="form-group">
               <label class="form-label" style="font-weight: 600;">State</label>
-              <input type="text" id="reg-state" class="form-control" placeholder="Auto-filled from pincode">
+              <input type="text" id="reg-state" name="state" class="form-control" placeholder="Auto-filled from pincode">
             </div>
           </div>
+
+          <!-- Dynamic Custom Fields for Step 1 -->
+          <div id="step-1-custom-fields" class="dynamic-step-fields"></div>
 
           <div class="btn-nav">
             <div></div>
@@ -330,7 +358,9 @@
           </div>
         </div>
 
+        <!-- ========================================== -->
         <!-- Step 2: Academic Goals & Document KYC -->
+        <!-- ========================================== -->
         <div class="wizard-step-content" id="step-2">
           <div class="form-section-title"><span>🎯</span> Target Competitive Exams & Documents</div>
           
@@ -353,47 +383,86 @@
             <div id="public-photo-mount"></div>
           </div>
 
+          <!-- Dynamic Custom Fields for Step 2 -->
+          <div id="step-2-custom-fields" class="dynamic-step-fields"></div>
+
           <div class="btn-nav">
             <button type="button" class="btn btn-secondary btn-prev" data-step="2">⬅️ Back</button>
             <button type="button" class="btn btn-primary btn-next" data-step="2">Continue to Next Step ➡️</button>
           </div>
         </div>
 
-        <!-- Step 3: Plan & Fee Calculator -->
+        <!-- ========================================== -->
+        <!-- Step 3: Plan & Dynamic Fee Calculator -->
+        <!-- ========================================== -->
         <div class="wizard-step-content" id="step-3">
-          <div class="form-section-title"><span>⏰</span> Preferred Membership Plan</div>
-          <div class="form-group mb-4">
-            <select id="reg-plan" class="form-select" required>
-              <option value="">-- Choose Study Shift & Plan --</option>
+          <div class="form-section-title"><span>⏰</span> Preferred Membership Plan & Shifts</div>
+          
+          <div class="form-group mb-3">
+            <label class="form-label" style="font-weight: 600;">Choose Membership Plan *</label>
+            <select id="reg-plan" name="plan" class="form-select" required>
+              <option value="">-- Choose Study Plan --</option>
             </select>
           </div>
 
+          <div id="reg-shift-wrapper" class="form-group mb-3" style="display: none;">
+            <label class="form-label" style="font-weight: 600;">Preferred Study Shift / Timing</label>
+            <select id="reg-shift" name="shift" class="form-select">
+              <option value="">-- Select Shift --</option>
+            </select>
+          </div>
+
+          <!-- Locker Add-on Option -->
+          <div class="form-group mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px 16px; border-radius: var(--radius-md);">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 700; margin: 0; color: var(--color-text-primary);">
+              <input type="checkbox" id="reg-request-locker" name="requestLocker" style="width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer;">
+              <span>🔒 Add Personal Study Locker (+₹200/mo)</span>
+            </label>
+            <small class="text-muted" style="display: block; margin-left: 28px; margin-top: 4px; font-size: 0.8rem;">
+              Secure private key-allotted locker to safely keep heavy study books, notes & laptop.
+            </small>
+          </div>
+
           <div class="form-group mb-4">
-            <label class="form-label" style="font-weight: 600;">Referral Code (Optional)</label>
+            <label class="form-label" style="font-weight: 600;">Referral / Discount Coupon Code (Optional)</label>
             <div style="display: flex; gap: 10px;">
-              <input type="text" id="reg-referral" class="form-control" placeholder="Enter code">
-              <button type="button" class="btn btn-secondary" id="btn-apply-code">⚡ Apply Code</button>
+              <input type="text" id="reg-referral" name="referralCode" class="form-control" placeholder="Enter code (e.g. SAVE100 or FRIEND)">
+              <button type="button" class="btn btn-secondary" id="btn-apply-code" style="white-space: nowrap; font-weight: 600;">⚡ Apply Code</button>
             </div>
             <small id="referral-msg" style="color: var(--color-success); font-weight: 600; display: none; margin-top: 5px;"></small>
           </div>
 
+          <!-- Dynamic Custom Fields for Step 3 -->
+          <div id="step-3-custom-fields" class="dynamic-step-fields"></div>
+
           <!-- Live Calculator Card -->
           <div class="calculator-card">
-            <div style="font-weight: 700; margin-bottom: 1rem;">Fee Summary</div>
-            <div class="calc-row">
-              <span>Plan Price</span>
-              <span id="calc-plan-price">₹0</span>
+            <div style="font-weight: 700; margin-bottom: 1rem; color: var(--color-primary); display: flex; justify-content: space-between; align-items: center;">
+              <span>💰 Live Fee Breakdown</span>
+              <span class="badge badge-primary" style="font-size: 0.72rem;">LIVE AUTO-CALC</span>
             </div>
             <div class="calc-row">
-              <span>Duration</span>
-              <span id="calc-duration">-</span>
+              <span>Base Plan Price</span>
+              <span id="calc-plan-price" style="font-weight: 600;">₹0</span>
+            </div>
+            <div class="calc-row">
+              <span>Plan Duration</span>
+              <span id="calc-duration" style="font-weight: 600;">-</span>
+            </div>
+            <div class="calc-row" id="calc-shift-row" style="display: none;">
+              <span>Shift Adjustment</span>
+              <span id="calc-shift-rate" style="font-weight: 600;">1.0x</span>
+            </div>
+            <div class="calc-row" id="calc-locker-row" style="display: none; color: var(--color-primary);">
+              <span>Locker Rental Fee</span>
+              <span id="calc-locker-fee" style="font-weight: 600;">+₹0</span>
             </div>
             <div class="calc-row" style="color: var(--color-success);">
-              <span>Discount</span>
-              <span id="calc-discount">-₹0</span>
+              <span>Referral / Coupon Discount</span>
+              <span id="calc-discount" style="font-weight: 700;">-₹0</span>
             </div>
             <div class="calc-row calc-total">
-              <span>Total Payable</span>
+              <span>Net Total Payable</span>
               <span id="calc-total">₹0</span>
             </div>
           </div>
@@ -404,7 +473,9 @@
           </div>
         </div>
 
-        <!-- Step 4: Payment Mode Selection & Verification -->
+        <!-- ========================================== -->
+        <!-- Step 4: Payment Mode Selection -->
+        <!-- ========================================== -->
         <div class="wizard-step-content" id="step-4">
           <div class="form-section-title"><span>💳</span> Select Payment Option</div>
           
@@ -417,19 +488,24 @@
             <!-- Rendered dynamically according to Admin custom settings -->
           </div>
 
+          <!-- Dynamic Custom Fields for Step 4 -->
+          <div id="step-4-custom-fields" class="dynamic-step-fields"></div>
+
           <div class="btn-nav">
             <button type="button" class="btn btn-secondary btn-prev" data-step="4">⬅️ Back</button>
             <button type="button" class="btn btn-primary btn-next" data-step="4">Verify & Pick Seat ➡️</button>
           </div>
         </div>
 
-        <!-- Step 5: Live Interactive Seat Map & Final Signature -->
+        <!-- ========================================== -->
+        <!-- Step 5: Live Interactive Seat Map & Sign -->
+        <!-- ========================================== -->
         <div class="wizard-step-content" id="step-5">
           <div class="form-section-title"><span>🪑</span> Select Available Seat & Sign</div>
           
-          <div style="margin-bottom: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-              <label class="form-label" style="font-weight: 700; margin: 0;">Interactive Seat Map (Click to Choose Seat)</label>
+          <div style="margin-bottom: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 8px;">
+              <label class="form-label" style="font-weight: 700; margin: 0;">Interactive Study Desk Map</label>
               <div style="display: flex; gap: 12px; font-size: 0.8rem; font-weight: 600;">
                 <span>🟢 <span style="color: var(--color-success);">Available</span></span>
                 <span>🔴 <span style="color: var(--color-danger);">Occupied</span></span>
@@ -442,25 +518,26 @@
               <div class="text-center text-muted p-3">Loading available seats...</div>
             </div>
             
-            <input type="hidden" id="reg-selected-seat" value="">
+            <input type="hidden" id="reg-selected-seat" name="seat" value="">
             <div id="selected-seat-display" style="margin-top: 8px; font-weight: 700; font-size: 0.95rem; color: var(--color-primary);">
               No seat selected yet (Optional — desk can assign on arrival if unselected)
             </div>
           </div>
 
-          <!-- Dynamic Custom Fields Injection -->
+          <!-- Dynamic Custom Fields for Step 5 -->
+          <div id="step-5-custom-fields" class="dynamic-step-fields mb-4"></div>
           <div id="custom-fields-inject" class="mb-4"></div>
 
           <!-- Digital Signature Pad -->
           <div class="mb-4">
-            <label class="form-label" style="font-weight: 600;">Digital Signature (Draw or Touch)</label>
+            <label class="form-label" style="font-weight: 600;">Digital Signature (Draw, Type or Touch) *</label>
             <div id="public-signature-studio-mount"></div>
           </div>
 
-          <div class="form-group mb-4" style="background: var(--color-bg-secondary); padding: 12px 16px; border-radius: var(--radius-md);">
-            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.85rem; color: var(--color-text-secondary);">
-              <input type="checkbox" id="reg-terms" required style="margin-top: 3px;">
-              <span>I hereby agree to adhere to the quiet study environment, discipline rules, and timings of the study hall.</span>
+          <div class="form-group mb-4" style="background: var(--color-bg-secondary); padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.85rem; color: var(--color-text-secondary); margin: 0; line-height: 1.4;">
+              <input type="checkbox" id="reg-terms" required style="margin-top: 3px; width: 17px; height: 17px; accent-color: var(--color-primary);">
+              <span>I hereby agree to adhere to the <strong>Quiet Study Code Agreement</strong>, discipline rules, and timings of the study hall. <span style="color: var(--color-danger);">*</span></span>
             </label>
           </div>
 
@@ -473,48 +550,80 @@
       </form>
     </div>
 
-    <!-- Rich Post-Registration Confirmation Screen -->
-    <div id="registration-success-wrap" style="display: none; text-align: center; padding: 1.5rem 2rem 2.5rem 2rem;">
-      <div style="font-size: 4rem; margin-bottom: 0.5rem;">🎉</div>
-      <h2 style="font-weight: 800; color: var(--color-success); margin-bottom: 0.5rem;" id="success-status-title">Admission Confirmed!</h2>
-      <p style="color: var(--color-text-secondary); max-width: 500px; margin: 0 auto 1.5rem auto;" id="success-status-msg">
-        Your registration and payment have been successfully verified.
+    <!-- ========================================== -->
+    <!-- Rich Post-Registration Confirmation Slip -->
+    <!-- ========================================== -->
+    <div id="registration-success-wrap" style="display: none; text-align: center; padding: 2rem 1.5rem;">
+      <div style="font-size: 3.5rem; margin-bottom: 0.5rem; animation: bounce 0.6s ease;">🎉</div>
+      <h2 style="font-weight: 800; color: var(--color-success); margin-bottom: 0.4rem;" id="success-status-title">Admission Confirmed!</h2>
+      <p style="color: var(--color-text-secondary); max-width: 520px; margin: 0 auto 1.5rem auto; font-size: 0.95rem;" id="success-status-msg">
+        Your registration and admission have been successfully verified.
       </p>
 
-      <div style="background: var(--color-bg-secondary); border: 2px dashed var(--color-primary); border-radius: var(--radius-lg); padding: 1.5rem; max-width: 440px; margin: 0 auto 1.75rem auto;">
-        <div class="text-muted small">Official Student Registration Slip</div>
+      <!-- Official Slip Card -->
+      <div id="printable-success-slip" style="background: var(--color-bg-secondary); border: 2px dashed var(--color-primary); border-radius: var(--radius-lg); padding: 1.75rem; max-width: 460px; margin: 0 auto 1.75rem auto; box-shadow: var(--shadow-md); text-align: left;">
         
-        <div style="display: flex; justify-content: space-around; margin: 12px 0; background: var(--color-surface); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+        <div style="text-align: center; border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 14px;">
+          <div id="slip-business-name" style="font-weight: 800; font-size: 1.25rem; color: var(--color-primary);">Study Library</div>
+          <div id="slip-business-tagline" style="font-size: 0.78rem; color: var(--color-text-secondary);">Premier Reading Hall & Study Space</div>
+          <div id="slip-business-address" style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 2px;"></div>
+        </div>
+
+        <div style="display: flex; justify-content: space-around; margin-bottom: 14px; background: var(--color-surface); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border); text-align: center;">
           <div>
-            <div class="text-muted small">Student ID</div>
+            <div class="text-muted small" style="font-weight: 600;">Student ID</div>
             <div id="success-student-id" style="font-size: 1.3rem; font-weight: 800; font-family: monospace; color: var(--color-primary);">STU-2026-001</div>
           </div>
-          <div>
-            <div class="text-muted small">Assigned Seat</div>
+          <div style="border-left: 1px solid var(--color-border); padding-left: 14px;">
+            <div class="text-muted small" style="font-weight: 600;">Assigned Seat</div>
             <div id="success-seat-number" style="font-size: 1.3rem; font-weight: 800; font-family: monospace; color: var(--color-success);">Seat #12</div>
           </div>
         </div>
 
-        <div id="success-student-name" style="font-weight: 700; font-size: 1.1rem; color: var(--color-text-primary);">Rahul Sharma</div>
+        <div style="font-size: 0.88rem; line-height: 1.6; color: var(--color-text-primary); margin-bottom: 14px;">
+          <div style="display: flex; justify-content: space-between;">
+            <span class="text-muted">Student Name:</span>
+            <strong id="success-student-name">Rahul Sharma</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span class="text-muted">Study Centre / Branch:</span>
+            <strong id="success-branch-name">Main Branch</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span class="text-muted">Membership Plan:</span>
+            <strong id="success-plan-name">Full Day 24h Plan</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;" id="success-shift-row">
+            <span class="text-muted">Selected Shift:</span>
+            <strong id="success-shift-name">All Day (24 Hours)</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span class="text-muted">Payment Status:</span>
+            <span class="badge badge-success" id="success-payment-badge">Paid (UPI)</span>
+          </div>
+        </div>
         
-        <div id="qr-code-mount" class="qr-badge"></div>
-        <div id="success-plan-summary" style="font-size: 0.9rem; margin-top: 10px; font-weight: 600;"></div>
+        <!-- QR Code Mount -->
+        <div style="text-align: center; margin-top: 10px; border-top: 1px dashed var(--color-border); padding-top: 12px;">
+          <div id="qr-code-mount" class="qr-badge"></div>
+          <div class="text-muted" style="font-size: 0.72rem; letter-spacing: 0.5px;">Scan at Kiosk Gate Reader for Entry Access</div>
+        </div>
       </div>
 
       <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-        <button id="btn-print-slip" class="btn btn-secondary">📄 Download / Print Admission Slip</button>
+        <button id="btn-print-slip" class="btn btn-secondary" style="font-weight: 600;">📄 Download / Print Admission Slip</button>
         <a id="btn-success-whatsapp" href="#" target="_blank" class="btn btn-success" style="background: #25D366; border-color: #25D366; font-weight: 700; color: #fff;">
           📲 Send to my WhatsApp
         </a>
-        <a href="/#/portal" class="btn btn-primary">
+        <a href="/#/portal" class="btn btn-primary" style="font-weight: 700;">
           🎓 Enter Student Portal
         </a>
       </div>
     </div>
   </div>
 
-  <div style="text-align: center; color: var(--color-text-secondary); font-size: 0.85rem;">
-    Already a student? <a href="/#/portal" style="color: var(--color-primary); font-weight: 600;">Sign in to Member Portal</a>
+  <div style="text-align: center; color: var(--color-text-secondary); font-size: 0.85rem; margin-bottom: 2rem;">
+    Already enrolled? <a href="/#/portal" style="color: var(--color-primary); font-weight: 600;">Sign in to Student Portal</a>
   </div>
 
   <script type="module">
@@ -535,10 +644,22 @@
     let currentStep = 1;
     const totalSteps = 5;
     let selectedPlanData = null;
+    let selectedShiftData = null;
     let discountAmount = 0;
     
-    // Plans mapped by ID
+    // Maps
     const plansMap = {};
+    const shiftsMap = {};
+    const branchesMap = {};
+    let selectedBranchId = '';
+    let allCustomFields = [];
+
+    let libraryUpiId = 'thecozycorner@okaxis';
+    let libraryBusinessName = 'Study Library';
+    let libraryCustomQrImage = '';
+    let libraryBankDetails = {};
+    let libraryPaymentInstructions = '';
+    let businessProfileData = {};
 
     function updateStepper() {
       for (let i = 1; i <= totalSteps; i++) {
@@ -546,19 +667,20 @@
         const stepperDiv = document.getElementById(`stepper-${i}`);
         
         if (i === currentStep) {
-          stepDiv.classList.add('active');
-          stepperDiv.classList.add('active');
-          stepperDiv.classList.remove('completed');
+          stepDiv?.classList.add('active');
+          stepperDiv?.classList.add('active');
+          stepperDiv?.classList.remove('completed');
         } else {
-          stepDiv.classList.remove('active');
-          stepperDiv.classList.remove('active');
+          stepDiv?.classList.remove('active');
+          stepperDiv?.classList.remove('active');
           if (i < currentStep) {
-            stepperDiv.classList.add('completed');
+            stepperDiv?.classList.add('completed');
           } else {
-            stepperDiv.classList.remove('completed');
+            stepperDiv?.classList.remove('completed');
           }
         }
       }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     document.querySelectorAll('.btn-next').forEach(btn => {
@@ -566,11 +688,11 @@
         const step = parseInt(e.target.dataset.step);
         const stepContent = document.getElementById(`step-${step}`);
         
-        // Basic HTML5 validation for current step FIRST
-        const inputs = stepContent.querySelectorAll('input[required], select[required]');
+        // Basic HTML5 validation for visible required fields
+        const inputs = stepContent.querySelectorAll('input[required], select[required], textarea[required]');
         let valid = true;
         for (const inp of inputs) {
-          if (!inp.checkValidity()) {
+          if (inp.offsetParent !== null && !inp.checkValidity()) {
             inp.reportValidity();
             valid = false;
             return;
@@ -593,7 +715,7 @@
           }
         }
 
-        // Step 4 Validation (Payment Mode Sub-option check)
+        // Step 4 Validation (Payment Mode check)
         if (step === 4) {
           const mode = document.querySelector('input[name="reg-payment-mode"]:checked')?.value || 'upi';
           if (mode === 'upi' && selectedPlanData) {
@@ -604,7 +726,6 @@
               return;
             }
           }
-          // Load public seat map for Step 5
           loadPublicSeats();
         }
         
@@ -624,7 +745,7 @@
       });
     });
 
-    // Ultra-Fast Indian Pincode Auto-Fill Engine (Client-Side + API Proxy)
+    // Pincode Auto-Fill Engine
     const PIN_CLIENT_MAP = {
       '4135': { city: 'Latur / Ausa', state: 'Maharashtra' },
       '4136': { city: 'Dharashiv (Osmanabad)', state: 'Maharashtra' },
@@ -670,7 +791,6 @@
       const cityEl = document.getElementById('reg-city');
       const stateEl = document.getElementById('reg-state');
       if (pin.length === 6 && /^\d+$/.test(pin)) {
-        // Step 1: Instant Client-Side Fallback (<1ms)
         const p4 = pin.substring(0, 4);
         const p3 = pin.substring(0, 3);
         const p1 = pin.substring(0, 1);
@@ -682,9 +802,6 @@
         }
 
         try {
-          if (cityEl) cityEl.placeholder = '⚡ Auto-filling city...';
-          if (stateEl) stateEl.placeholder = '⚡ Auto-filling state...';
-
           let city = '';
           let state = '';
           try {
@@ -708,19 +825,9 @@
             } catch (e) {}
           }
 
-          if (city && cityEl) {
-            cityEl.value = city;
-            cityEl.style.borderColor = 'var(--color-success, #00b894)';
-          }
-          if (state && stateEl) {
-            stateEl.value = state;
-            stateEl.style.borderColor = 'var(--color-success, #00b894)';
-          }
-        } catch (err) {
-        } finally {
-          if (cityEl) cityEl.placeholder = 'Auto-filled from pincode';
-          if (stateEl) stateEl.placeholder = 'Auto-filled from pincode';
-        }
+          if (city && cityEl) cityEl.value = city;
+          if (state && stateEl) stateEl.value = state;
+        } catch (err) {}
       }
     };
 
@@ -757,20 +864,7 @@
     document.getElementById('reg-phone')?.addEventListener('blur', checkDuplicate);
     document.getElementById('reg-email')?.addEventListener('blur', checkDuplicate);
 
-    // Payment Mode Sub-Options Switcher
-    document.querySelectorAll('input[name="reg-payment-mode"]').forEach(radio => {
-      radio.addEventListener('change', () => {
-        document.querySelectorAll('.pm-sub-pane').forEach(p => p.style.display = 'none');
-        const val = radio.value;
-        const subPane = document.getElementById(`pm-sub-${val}`);
-        if (subPane) subPane.style.display = 'block';
-      });
-    });
-
-    let branchesMap = {};
-    let selectedBranchId = '';
-
-    // Live Public Seat Map Loader (Step 5, Branch Filtered)
+    // Live Public Seat Map Loader (Step 5)
     async function loadPublicSeats() {
       const seatContainer = document.getElementById('public-seat-grid-container');
       if (!seatContainer) return;
@@ -780,7 +874,7 @@
         const res = await fetch(url);
         const json = await res.json();
         if (!json.success || !json.data || json.data.length === 0) {
-          seatContainer.innerHTML = '<div class="text-center text-muted p-3">No available seats for this study centre currently. Reception desk will assist you on arrival.</div>';
+          seatContainer.innerHTML = '<div class="text-center text-muted p-3">No available seats for this study centre currently. Reception desk will assign seat on arrival.</div>';
           return;
         }
 
@@ -817,15 +911,20 @@
                 b.style.color = 'var(--color-text-primary)';
                 b.style.borderColor = 'var(--color-success)';
                 const ind = b.querySelector('span:first-child');
-                if (ind) ind.style.background = 'var(--color-success)';
+                if (ind) {
+                  ind.style.background = 'var(--color-success)';
+                  ind.style.color = '#fff';
+                }
               }
             });
             btn.style.background = 'var(--color-primary)';
             btn.style.color = '#fff';
             btn.style.borderColor = 'var(--color-primary)';
             const ind = btn.querySelector('span:first-child');
-            if (ind) ind.style.background = '#ffffff';
-            if (ind) ind.style.color = 'var(--color-primary)';
+            if (ind) {
+              ind.style.background = '#ffffff';
+              ind.style.color = 'var(--color-primary)';
+            }
             
             const seatId = btn.dataset.id;
             const seatNo = btn.dataset.number;
@@ -841,18 +940,21 @@
 
     // Exam pills toggle
     const selectedExams = new Set();
-    document.querySelectorAll('.exam-pill').forEach(pill => {
-      pill.addEventListener('click', () => {
-        const exam = pill.dataset.exam;
-        if (selectedExams.has(exam)) {
-          selectedExams.delete(exam);
-          pill.classList.remove('selected');
-        } else {
-          selectedExams.add(exam);
-          pill.classList.add('selected');
-        }
+    function setupExamPills() {
+      document.querySelectorAll('.exam-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          const exam = pill.dataset.exam;
+          if (selectedExams.has(exam)) {
+            selectedExams.delete(exam);
+            pill.classList.remove('selected');
+          } else {
+            selectedExams.add(exam);
+            pill.classList.add('selected');
+          }
+        });
       });
-    });
+    }
+    setupExamPills();
 
     // Initialize Smart Photo Picker
     let photoPicker = null;
@@ -889,20 +991,34 @@
 
     // Calculator Logic
     const planSelect = document.getElementById('reg-plan');
-    planSelect.addEventListener('change', () => {
+    const shiftSelect = document.getElementById('reg-shift');
+    const lockerCheckbox = document.getElementById('reg-request-locker');
+
+    planSelect?.addEventListener('change', () => {
       const planId = planSelect.value;
       selectedPlanData = plansMap[planId] || null;
       updateCalculator();
     });
 
-    document.getElementById('btn-apply-code').addEventListener('click', async () => {
-      const code = document.getElementById('reg-referral').value.trim();
+    shiftSelect?.addEventListener('change', () => {
+      const shiftId = shiftSelect.value;
+      selectedShiftData = shiftsMap[shiftId] || null;
+      updateCalculator();
+    });
+
+    lockerCheckbox?.addEventListener('change', updateCalculator);
+
+    document.getElementById('btn-apply-code')?.addEventListener('click', async () => {
+      const code = document.getElementById('reg-referral')?.value.trim();
       const planAmount = selectedPlanData ? Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0) : 0;
       if (!code) return;
       if (planAmount === 0) {
-        document.getElementById('referral-msg').style.display = 'block';
-        document.getElementById('referral-msg').style.color = 'var(--color-danger)';
-        document.getElementById('referral-msg').textContent = 'Please select a plan first.';
+        const refMsg = document.getElementById('referral-msg');
+        if (refMsg) {
+          refMsg.style.display = 'block';
+          refMsg.style.color = 'var(--color-danger)';
+          refMsg.textContent = 'Please select a plan first.';
+        }
         return;
       }
       try {
@@ -912,48 +1028,75 @@
           body: JSON.stringify({ code, planAmount })
         });
         const json = await res.json();
+        const refMsg = document.getElementById('referral-msg');
         if (json.success) {
-          discountAmount = json.discountAmount;
-          document.getElementById('referral-msg').style.display = 'block';
-          document.getElementById('referral-msg').style.color = 'var(--color-success)';
-          document.getElementById('referral-msg').textContent = `Code applied: ₹${discountAmount} Off!`;
+          discountAmount = json.discountAmount || 0;
+          if (refMsg) {
+            refMsg.style.display = 'block';
+            refMsg.style.color = 'var(--color-success)';
+            refMsg.textContent = `Code applied: ₹${discountAmount} Off!`;
+          }
         } else {
           discountAmount = 0;
-          document.getElementById('referral-msg').style.display = 'block';
-          document.getElementById('referral-msg').style.color = 'var(--color-danger)';
-          document.getElementById('referral-msg').textContent = json.message || 'Invalid code.';
+          if (refMsg) {
+            refMsg.style.display = 'block';
+            refMsg.style.color = 'var(--color-danger)';
+            refMsg.textContent = json.message || 'Invalid code.';
+          }
         }
       } catch (err) {
         discountAmount = 0;
-        document.getElementById('referral-msg').style.display = 'block';
-        document.getElementById('referral-msg').style.color = 'var(--color-danger)';
-        document.getElementById('referral-msg').textContent = 'Server error.';
+        const refMsg = document.getElementById('referral-msg');
+        if (refMsg) {
+          refMsg.style.display = 'block';
+          refMsg.style.color = 'var(--color-danger)';
+          refMsg.textContent = 'Server error validating code.';
+        }
       }
       updateCalculator();
     });
-
-    let libraryUpiId = 'thecozycorner@okaxis';
-    let libraryBusinessName = 'Study Library';
-    let libraryCustomQrImage = '';
-    let libraryBankDetails = {};
-    let libraryPaymentInstructions = '';
 
     function updateCalculator() {
       if (!selectedPlanData) {
         document.getElementById('calc-plan-price').textContent = '₹0';
         document.getElementById('calc-duration').textContent = '-';
         document.getElementById('calc-total').textContent = '₹0';
+        document.getElementById('calc-shift-row').style.display = 'none';
+        document.getElementById('calc-locker-row').style.display = 'none';
         return;
       }
-      const price = Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0);
-      const payable = Math.max(0, price - discountAmount);
 
-      document.getElementById('calc-plan-price').textContent = `₹${price}`;
+      const basePrice = Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0);
+      const multiplier = selectedShiftData?.priceMultiplier ? Number(selectedShiftData.priceMultiplier) : 1.0;
+      const shiftRow = document.getElementById('calc-shift-row');
+      const shiftRateEl = document.getElementById('calc-shift-rate');
+
+      if (multiplier !== 1.0 && shiftRow && shiftRateEl) {
+        shiftRow.style.display = 'flex';
+        shiftRateEl.textContent = `${multiplier}x (₹${Math.round(basePrice * multiplier)})`;
+      } else if (shiftRow) {
+        shiftRow.style.display = 'none';
+      }
+
+      const isLocker = document.getElementById('reg-request-locker')?.checked;
+      const lockerFee = isLocker ? 200 : 0;
+      const lockerRow = document.getElementById('calc-locker-row');
+      const lockerFeeEl = document.getElementById('calc-locker-fee');
+      if (lockerRow && lockerFeeEl) {
+        lockerRow.style.display = isLocker ? 'flex' : 'none';
+        lockerFeeEl.textContent = `+₹${lockerFee}`;
+      }
+
+      const priceWithShift = Math.round(basePrice * multiplier);
+      const grossAmount = priceWithShift + lockerFee;
+      const payable = Math.max(0, grossAmount - discountAmount);
+
+      document.getElementById('calc-plan-price').textContent = `₹${basePrice}`;
       document.getElementById('calc-duration').textContent = `${selectedPlanData.duration} ${selectedPlanData.durationType || 'days'}`;
       document.getElementById('calc-discount').textContent = `-₹${discountAmount}`;
       document.getElementById('calc-total').textContent = `₹${payable}`;
 
-      // Generate Dynamic UPI QR Code / Render Admin Custom QR Image
+      // Update Step 4 Dynamic UPI QR
       const qrMount = document.getElementById('admission-upi-qr-mount');
       if (qrMount) {
         const upiString = `upi://pay?pa=${encodeURIComponent(libraryUpiId)}&pn=${encodeURIComponent(libraryBusinessName)}&am=${payable}&cu=INR&tn=${encodeURIComponent('StudyLib Admission')}`;
@@ -981,58 +1124,329 @@
     // Dynamic Conditional Logic Engine
     function evaluateLogic() {
       const form = document.getElementById('public-reg-form');
+      if (!form) return;
       const formData = new FormData(form);
       const data = Object.fromEntries(formData.entries());
       
-      document.querySelectorAll('.custom-field-input, .custom-field-radio, .form-checkbox').forEach(el => {
-        if(el.type === 'checkbox') data[el.dataset.name] = el.checked;
-        else if (el.value) data[el.dataset.name] = el.value;
+      document.querySelectorAll('.custom-field-input, .custom-field-radio, .form-checkbox, .custom-dyn-input').forEach(el => {
+        const name = el.dataset.field || el.dataset.name || el.name;
+        if (name) {
+          if (el.type === 'checkbox') data[name] = el.checked;
+          else if (el.type === 'radio') {
+            if (el.checked) data[name] = el.value;
+          } else if (el.value) data[name] = el.value;
+        }
       });
 
       document.querySelectorAll('.dynamic-field-wrapper').forEach(wrapper => {
         const dependsOn = wrapper.dataset.dependsOn;
         const showWhen = wrapper.dataset.showWhen;
+        const operator = wrapper.dataset.operator || 'equals';
+        
         if (dependsOn && showWhen) {
-          const val = data[`cf_${dependsOn}`] || data[dependsOn];
-          const isMatch = (val === showWhen) || (val === true && showWhen === 'true');
+          const rawVal = data[`cf_${dependsOn}`] || data[dependsOn];
+          const val = rawVal !== undefined ? String(rawVal).trim() : '';
+          const target = String(showWhen).trim();
+
+          let isMatch = false;
+          if (operator === 'equals') {
+            isMatch = (val.toLowerCase() === target.toLowerCase()) || (rawVal === true && target === 'true');
+          } else if (operator === 'not_equals') {
+            isMatch = val.toLowerCase() !== target.toLowerCase();
+          } else if (operator === 'contains') {
+            isMatch = val.toLowerCase().includes(target.toLowerCase());
+          } else if (operator === 'not_empty') {
+            isMatch = val.length > 0;
+          }
           
           if (isMatch) {
             wrapper.style.display = 'block';
             wrapper.style.opacity = '1';
+            wrapper.querySelectorAll('input, select, textarea').forEach(inp => {
+              if (inp.dataset.originallyRequired === 'true') inp.required = true;
+            });
           } else {
             wrapper.style.display = 'none';
             wrapper.style.opacity = '0';
             wrapper.querySelectorAll('input, select, textarea').forEach(inp => {
+              if (inp.required) inp.dataset.originallyRequired = 'true';
+              inp.required = false;
               if (inp.type === 'checkbox' || inp.type === 'radio') inp.checked = false;
-              else inp.value = '';
+              else if (inp.type !== 'hidden') inp.value = '';
             });
           }
         }
       });
     }
 
-    document.getElementById('public-reg-form').addEventListener('change', evaluateLogic);
-    document.getElementById('public-reg-form').addEventListener('input', evaluateLogic);
+    document.getElementById('public-reg-form')?.addEventListener('change', evaluateLogic);
+    document.getElementById('public-reg-form')?.addEventListener('input', evaluateLogic);
 
-    // Load Init Data & Public Branches
+    // Dynamic Field Renderer for Admission Wizard
+    function renderCustomFields(fields) {
+      allCustomFields = fields;
+      const coreFieldKeys = new Set([
+        'name', 'phone', 'email', 'password', 'gender', 'dateofbirth', 'dob',
+        'pincode', 'city', 'state', 'targetexams', 'photo', 'signature',
+        'plan', 'seat', 'notes', 'terms'
+      ]);
+
+      const step1Fields = [];
+      const step2Fields = [];
+      const step3Fields = [];
+      const step4Fields = [];
+      const step5Fields = [];
+
+      fields.forEach(f => {
+        if (f.isActive === false) return;
+        const slug = (f.fieldName || '').trim().toLowerCase();
+        if (coreFieldKeys.has(slug)) return;
+
+        const sec = (f.section || 'personal').toLowerCase();
+        if (sec === 'personal' || sec === 'contact') {
+          step1Fields.push(f);
+        } else if (sec === 'academic' || sec === 'kyc') {
+          step2Fields.push(f);
+        } else if (sec === 'plan' || sec === 'fees') {
+          step3Fields.push(f);
+        } else if (sec === 'payment') {
+          step4Fields.push(f);
+        } else {
+          step5Fields.push(f);
+        }
+      });
+
+      function buildFieldGroupHtml(fList) {
+        if (!fList || fList.length === 0) return '';
+        fList.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem;">';
+        
+        fList.forEach(f => {
+          const reqMark = f.required ? ' <span style="color: var(--color-danger);">*</span>' : '';
+          const colStyle = (f.colSpan === 12 || f.colSpan === 2 || ['textarea', 'aadhaar_pan', 'signature_pad', 'exam_badge'].includes(f.type)) ? 'grid-column: 1 / -1;' : '';
+          const helpText = f.helpText ? `<small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 3px;">${escapeHTML(f.helpText)}</small>` : '';
+          const depAttr = f.conditional?.enabled ? `data-depends-on="${escapeHTML(f.conditional.dependsOn)}" data-show-when="${escapeHTML(f.conditional.showWhen)}" data-operator="${escapeHTML(f.conditional.operator || 'equals')}"` : '';
+
+          let fieldInputHtml = '';
+
+          if (f.type === 'aadhaar_pan') {
+            fieldInputHtml = `
+              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+                <label class="form-label" style="font-weight: 600;">📑 ${escapeHTML(f.label)}${reqMark}</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                  <div>
+                    <label class="form-label text-xs">ID Document Type</label>
+                    <select class="form-select form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}_type" name="cf_${escapeHTML(f.fieldName)}_type">
+                      <option value="Aadhaar Card">Aadhaar Card</option>
+                      <option value="PAN Card">PAN Card</option>
+                      <option value="Voter ID">Voter ID</option>
+                      <option value="Driving License">Driving License</option>
+                      <option value="College Student ID">College Student ID</option>
+                      <option value="Passport">Passport</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="form-label text-xs">Document Number</label>
+                    <input type="text" class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}_number" name="cf_${escapeHTML(f.fieldName)}_number" placeholder="e.g. Last 4 digits or ID no." ${f.required ? 'required' : ''}>
+                  </div>
+                </div>
+                <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}_image" data-label="Upload ID Proof Photo / Document" data-preset="document"></div>
+                ${helpText}
+              </div>
+            `;
+          } else if (f.type === 'photo_upload' || f.type === 'file') {
+            fieldInputHtml = `
+              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+                <label class="form-label" style="font-weight: 600;">📎 ${escapeHTML(f.label)}${reqMark}</label>
+                <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}" data-label="${escapeHTML(f.label)}" data-preset="${f.type === 'photo_upload' ? 'passport' : 'document'}"></div>
+                ${helpText}
+              </div>
+            `;
+          } else if (f.type === 'signature_pad') {
+            fieldInputHtml = `
+              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+                <label class="form-label" style="font-weight: 600;">✍️ ${escapeHTML(f.label)}${reqMark}</label>
+                <div class="custom-field-sig-mount" data-field="${escapeHTML(f.fieldName)}"></div>
+                ${helpText}
+              </div>
+            `;
+          } else if (f.type === 'blood_group') {
+            const bgOpts = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+            fieldInputHtml = `
+              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+                <label class="form-label" style="font-weight: 600;">🩸 ${escapeHTML(f.label)}${reqMark}</label>
+                <select class="form-select custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
+                  <option value="">-- Select Blood Group --</option>
+                  ${bgOpts.map(bg => `<option value="${bg}">${bg}</option>`).join('')}
+                </select>
+                ${helpText}
+              </div>
+            `;
+          } else if (f.type === 'star_rating') {
+            fieldInputHtml = `
+              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+                <label class="form-label" style="font-weight: 600;">⭐ ${escapeHTML(f.label)}${reqMark}</label>
+                <div class="star-rating-wrap" data-field="${escapeHTML(f.fieldName)}">
+                  <span class="star-rating-item" data-val="1">★</span>
+                  <span class="star-rating-item" data-val="2">★</span>
+                  <span class="star-rating-item" data-val="3">★</span>
+                  <span class="star-rating-item" data-val="4">★</span>
+                  <span class="star-rating-item" data-val="5">★</span>
+                </div>
+                <input type="hidden" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" value="5">
+                ${helpText}
+              </div>
+            `;
+          } else if (f.type === 'checkbox' || f.type === 'terms_checkbox') {
+            fieldInputHtml = `
+              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+                <div style="background: var(--color-bg-secondary); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; margin: 0;">
+                    <input type="checkbox" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" style="width: 17px; height: 17px; accent-color: var(--color-primary);" ${f.required ? 'required' : ''}>
+                    <span>${escapeHTML(f.label)}${reqMark}</span>
+                  </label>
+                  ${helpText}
+                </div>
+              </div>
+            `;
+          } else if (f.type === 'select') {
+            fieldInputHtml = `
+              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+                <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
+                <select class="form-select custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
+                  <option value="">-- Select --</option>
+                  ${(f.options || []).map(opt => `<option value="${escapeHTML(opt)}">${escapeHTML(opt)}</option>`).join('')}
+                </select>
+                ${helpText}
+              </div>
+            `;
+          } else if (f.type === 'radio') {
+            fieldInputHtml = `
+              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+                <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
+                <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px;">
+                  ${(f.options || []).map(opt => `
+                    <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.88rem; cursor: pointer;">
+                      <input type="radio" class="custom-dyn-radio" name="cf_${escapeHTML(f.fieldName)}" data-field="${escapeHTML(f.fieldName)}" value="${escapeHTML(opt)}">
+                      ${escapeHTML(opt)}
+                    </label>
+                  `).join('')}
+                </div>
+                ${helpText}
+              </div>
+            `;
+          } else if (f.type === 'textarea') {
+            fieldInputHtml = `
+              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+                <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
+                <textarea class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" rows="2" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}></textarea>
+                ${helpText}
+              </div>
+            `;
+          } else {
+            const inputType = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : (f.type === 'email' ? 'email' : (f.type === 'phone' ? 'tel' : 'text'))));
+            fieldInputHtml = `
+              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+                <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
+                <input type="${inputType}" class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}>
+                ${helpText}
+              </div>
+            `;
+          }
+
+          html += fieldInputHtml;
+        });
+
+        html += '</div>';
+        return html;
+      }
+
+      // Inject into Step containers
+      const s1 = document.getElementById('step-1-custom-fields');
+      const s2 = document.getElementById('step-2-custom-fields');
+      const s3 = document.getElementById('step-3-custom-fields');
+      const s4 = document.getElementById('step-4-custom-fields');
+      const s5 = document.getElementById('step-5-custom-fields');
+
+      if (s1 && step1Fields.length > 0) s1.innerHTML = `<div class="form-section-title"><span>📝</span> Additional Details</div>` + buildFieldGroupHtml(step1Fields);
+      if (s2 && step2Fields.length > 0) s2.innerHTML = `<div class="form-section-title"><span>🪪</span> Verification & Credentials</div>` + buildFieldGroupHtml(step2Fields);
+      if (s3 && step3Fields.length > 0) s3.innerHTML = buildFieldGroupHtml(step3Fields);
+      if (s4 && step4Fields.length > 0) s4.innerHTML = buildFieldGroupHtml(step4Fields);
+      if (s5 && step5Fields.length > 0) s5.innerHTML = `<div class="form-section-title"><span>📋</span> Additional Information</div>` + buildFieldGroupHtml(step5Fields);
+
+      // Mount dynamic MediaFieldPickers
+      document.querySelectorAll('.custom-field-media-mount').forEach(mount => {
+        const fieldName = mount.dataset.field;
+        const fieldLabel = mount.dataset.label;
+        const preset = mount.dataset.preset || 'document';
+        mount.appendChild(MediaFieldPicker.create({
+          label: fieldLabel,
+          preset,
+          name: `cf_${fieldName}`
+        }));
+      });
+
+      // Mount dynamic Signature Studios
+      document.querySelectorAll('.custom-field-sig-mount').forEach(mount => {
+        new SignatureStudio(mount, { width: 440, height: 140 });
+      });
+
+      // Initialize Star Rating widgets
+      document.querySelectorAll('.star-rating-wrap').forEach(wrap => {
+        const stars = wrap.querySelectorAll('.star-rating-item');
+        const hiddenInp = wrap.nextElementSibling;
+        stars.forEach(star => {
+          star.addEventListener('click', () => {
+            const val = parseInt(star.dataset.val);
+            if (hiddenInp) hiddenInp.value = val;
+            stars.forEach((s, idx) => {
+              if (idx < val) s.classList.add('active');
+              else s.classList.remove('active');
+            });
+          });
+        });
+        stars.forEach(s => s.classList.add('active'));
+      });
+
+      evaluateLogic();
+    }
+
+    // Load Initial Public Config
     async function loadInitData() {
       try {
+        let publicConfig = null;
+        try {
+          const cfgRes = await fetch('/api/system/public-config');
+          const cfgJson = await cfgRes.json();
+          if (cfgJson.success && cfgJson.data) publicConfig = cfgJson.data;
+        } catch (e) {}
+
         const [landingRes, plansRes, shiftsRes, fieldsRes, branchesRes] = await Promise.all([
-          fetch('/api/landing').then(r => r.json()).catch(() => null),
-          fetch('/api/plans').then(r => r.json()).catch(() => null),
-          fetch('/api/shifts').then(r => r.json()).catch(() => null),
-          fetch('/api/custom-fields').then(r => r.json()).catch(() => null),
-          fetch('/api/branches/public-list').then(r => r.json()).catch(() => null)
+          publicConfig?.businessProfile ? Promise.resolve({ data: { businessProfile: publicConfig.businessProfile } }) : fetch('/api/landing').then(r => r.json()).catch(() => null),
+          publicConfig?.plans ? Promise.resolve({ data: publicConfig.plans }) : fetch('/api/plans').then(r => r.json()).catch(() => null),
+          publicConfig?.shifts ? Promise.resolve({ data: publicConfig.shifts }) : fetch('/api/shifts').then(r => r.json()).catch(() => null),
+          publicConfig?.customFields ? Promise.resolve({ data: publicConfig.customFields }) : fetch('/api/custom-fields').then(r => r.json()).catch(() => null),
+          publicConfig?.branches ? Promise.resolve({ data: publicConfig.branches }) : fetch('/api/branches/public-list').then(r => r.json()).catch(() => null)
         ]);
 
-        const bp = landingRes?.data?.businessProfile;
+        const bp = landingRes?.data?.businessProfile || publicConfig?.businessProfile || {};
+        businessProfileData = bp;
         if (bp?.businessName) {
           libraryBusinessName = bp.businessName;
           document.getElementById('lib-title').textContent = bp.businessName;
-          document.title = `Admission — ${bp.businessName}`;
+          document.title = `Online Admission — ${bp.businessName}`;
+          const slipBiz = document.getElementById('slip-business-name');
+          if (slipBiz) slipBiz.textContent = bp.businessName;
         }
         if (bp?.tagline) {
           document.getElementById('lib-tagline').textContent = bp.tagline;
+          const slipTag = document.getElementById('slip-business-tagline');
+          if (slipTag) slipTag.textContent = bp.tagline;
+        }
+        if (bp?.address) {
+          const slipAddr = document.getElementById('slip-business-address');
+          if (slipAddr) slipAddr.textContent = `${bp.address}, ${bp.city || ''} • 📞 ${bp.phone || ''}`;
         }
 
         libraryUpiId = bp?.upiId || 'thecozycorner@okaxis';
@@ -1040,30 +1454,28 @@
         libraryBankDetails = bp?.bankDetails || {};
         libraryPaymentInstructions = bp?.paymentInstructions || '';
 
-        // Update Bank Account display card in NetBanking step
-        if (libraryBankDetails) {
-          const bankNameEl = document.getElementById('nb-display-bank');
-          const accNameEl = document.getElementById('nb-display-accName');
-          const accNumEl = document.getElementById('nb-display-accNum');
-          const ifscEl = document.getElementById('nb-display-ifsc');
-          const branchEl = document.getElementById('nb-display-branch');
-
-          if (bankNameEl) bankNameEl.textContent = libraryBankDetails.bankName || 'State Bank of India';
-          if (accNameEl) accNameEl.textContent = libraryBankDetails.accountName || libraryBusinessName || 'Study Library';
-          if (accNumEl) accNumEl.textContent = libraryBankDetails.accountNumber || 'Contact reception desk';
-          if (ifscEl) ifscEl.textContent = libraryBankDetails.ifscCode || 'SBIN0001234';
-          if (branchEl) branchEl.textContent = libraryBankDetails.branchName || 'Main Branch';
+        // Dynamic Header Branding Template Support
+        if (publicConfig?.template?.branding) {
+          const tb = publicConfig.template.branding;
+          if (tb.headerText) document.getElementById('lib-title').textContent = tb.headerText;
+          if (tb.tagline) document.getElementById('lib-tagline').textContent = tb.tagline;
+          const mainHeader = document.getElementById('admission-main-header');
+          if (mainHeader && tb.alignment) mainHeader.style.textAlign = tb.alignment;
         }
 
+        // Render Custom Fields
+        const fields = Array.isArray(fieldsRes?.data) ? fieldsRes.data : [];
+        renderCustomFields(fields);
+
+        // Render Payment Gateways
         const paymentMethods = (Array.isArray(bp?.paymentMethods) && bp.paymentMethods.length > 0) ? bp.paymentMethods : [
-          { key: 'upi', name: 'Dynamic UPI QR', subtitle: 'GPay / PhonePe / Paytm', icon: '⚡', enabled: true, order: 1, instructions: 'Scan QR code and enter 12-digit UTR number', requiresRef: true, refLabel: 'UPI UTR / Reference Number *' },
+          { key: 'upi', name: 'Dynamic UPI QR', subtitle: 'GPay / PhonePe / Paytm / BHIM', icon: '⚡', enabled: true, order: 1, instructions: 'Scan QR code and enter 12-digit UTR number', requiresRef: true, refLabel: 'UPI UTR / Reference Number *' },
           { key: 'card', name: 'Debit / Credit Card', subtitle: 'Visa, Mastercard, RuPay', icon: '💳', enabled: true, order: 2, instructions: 'Enter cardholder name and card transaction reference', requiresRef: true, refLabel: 'Card Reference / Transaction ID *' },
-          { key: 'netbanking', name: 'NetBanking', subtitle: 'All major Indian banks', icon: '🏦', enabled: true, order: 3, instructions: 'Transfer fee to official bank account and enter bank UTR', requiresRef: true, refLabel: 'Bank Transaction Reference / UTR *' },
-          { key: 'desk', name: 'Pay Later at Desk', subtitle: 'Pay cash on arrival', icon: '💵', enabled: true, order: 4, instructions: 'Admission will be pre-reserved. Pay cash at front reception desk.', requiresRef: false, refLabel: '' }
+          { key: 'netbanking', name: 'NetBanking / IMPS', subtitle: 'All major Indian banks', icon: '🏦', enabled: true, order: 3, instructions: 'Transfer fee to official bank account and enter bank UTR', requiresRef: true, refLabel: 'Bank Transaction Reference / UTR *' },
+          { key: 'desk', name: 'Pay Later at Front Desk', subtitle: 'Pay cash on arrival', icon: '💵', enabled: true, order: 4, instructions: 'Admission will be pre-reserved. Pay cash at front reception desk on arrival.', requiresRef: false, refLabel: '' }
         ];
 
         const activeMethods = paymentMethods.filter(m => m.enabled !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
-        
         const radioGrid = document.getElementById('payment-methods-radio-grid');
         const subpanesContainer = document.getElementById('payment-methods-subpanes-container');
 
@@ -1074,7 +1486,7 @@
           activeMethods.forEach((m, idx) => {
             const isFirst = idx === 0;
             radioHtml += `
-              <label class="pm-card ${isFirst ? 'active' : ''}" style="border: ${isFirst ? '2px solid var(--color-primary)' : '1px solid var(--color-border)'}; background: ${isFirst ? 'var(--color-bg-secondary)' : 'var(--color-surface)'}; padding: 14px; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <label class="pm-card ${isFirst ? 'active' : ''}" style="border: ${isFirst ? '2px solid var(--color-primary)' : '1px solid var(--color-border)'}; background: ${isFirst ? 'var(--color-bg-secondary)' : 'var(--color-surface)'}; padding: 14px; border-radius: var(--radius-md); cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
                 <input type="radio" name="reg-payment-mode" value="${escapeHTML(m.key)}" ${isFirst ? 'checked' : ''} id="pay-mode-${escapeHTML(m.key)}">
                 <div>
                   <div style="font-weight: 700; font-size: 0.9rem;">${m.icon || '💳'} ${escapeHTML(m.name)}</div>
@@ -1086,7 +1498,7 @@
             if (m.key === 'upi') {
               subpanesHtml += `
                 <div id="pm-sub-upi" class="pm-sub-pane" style="display: ${isFirst ? 'block' : 'none'}; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; text-align: center; margin-bottom: 1.5rem;">
-                  <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 6px;">⚡ Scan QR Code or Pay via Mobile App</div>
+                  <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 6px;">⚡ Scan QR Code or Pay via Mobile UPI App</div>
                   <div id="admission-upi-qr-mount" style="background: #fff; padding: 12px; border-radius: 12px; display: inline-block; margin: 8px 0; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);"></div>
                   
                   <div style="font-family: monospace; font-size: 0.9rem; color: var(--color-text-primary); margin-bottom: 12px; display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;" id="admission-upi-id-label">
@@ -1094,7 +1506,6 @@
                     <button type="button" id="btn-copy-upi" class="btn btn-xs btn-outline-primary" style="margin-left: 8px; padding: 2px 8px; font-size: 0.75rem; border-radius: 4px;">📋 Copy UPI ID</button>
                   </div>
 
-                  <!-- Mobile Direct Tap-To-Pay App Intent Buttons -->
                   <div id="upi-mobile-apps-wrap" style="margin: 1rem auto; max-width: 440px; padding: 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; text-align: center;">
                     <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-primary); margin-bottom: 8px;">📲 Tap Below to Pay via Installed UPI App</div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 8px;">
@@ -1116,7 +1527,7 @@
                   <div class="form-group" style="max-width: 380px; margin: 0 auto; text-align: left;">
                     <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">${escapeHTML(m.refLabel || 'UPI UTR / Reference Number *')}</label>
                     <input type="text" id="reg-upi-ref" class="form-control" placeholder="Enter 12-digit UTR e.g. 423456789012" maxlength="30">
-                    <small class="text-muted" id="reg-payment-note-upi">${escapeHTML(m.instructions || libraryPaymentInstructions || 'Enter the 12-digit transaction ID from your UPI app receipt')}</small>
+                    <small class="text-muted" id="reg-payment-note-upi">${escapeHTML(m.instructions || libraryPaymentInstructions || 'Enter 12-digit transaction ID from your UPI receipt')}</small>
                   </div>
                 </div>
               `;
@@ -1124,31 +1535,21 @@
               subpanesHtml += `
                 <div id="pm-sub-netbanking" class="pm-sub-pane" style="display: ${isFirst ? 'block' : 'none'}; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem;">
                   <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px;">
-                    <span>🏦</span> Bank Account Details for Transfer (NEFT / RTGS / IMPS)
+                    <span>🏦</span> Official Bank Account Transfer Details (NEFT / IMPS)
                   </div>
                   
                   <div id="admission-bank-details-card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1rem;">
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; font-size: 0.85rem;">
-                      <div><span class="text-muted">Bank Name:</span> <strong id="nb-display-bank">${escapeHTML(libraryBankDetails.bankName || '-')}</strong></div>
-                      <div><span class="text-muted">Account Holder:</span> <strong id="nb-display-accName">${escapeHTML(libraryBankDetails.accountName || libraryBusinessName || '-')}</strong></div>
-                      <div><span class="text-muted">Account Number:</span> <strong id="nb-display-accNum" style="font-family: monospace; font-size: 0.9rem;">${escapeHTML(libraryBankDetails.accountNumber || '-')}</strong></div>
-                      <div><span class="text-muted">IFSC Code:</span> <strong id="nb-display-ifsc" style="font-family: monospace; font-size: 0.9rem;">${escapeHTML(libraryBankDetails.ifscCode || '-')}</strong></div>
-                      <div><span class="text-muted">Branch:</span> <strong id="nb-display-branch">${escapeHTML(libraryBankDetails.branchName || '-')}</strong></div>
+                      <div><span class="text-muted">Bank Name:</span> <strong id="nb-display-bank">${escapeHTML(libraryBankDetails.bankName || 'State Bank of India')}</strong></div>
+                      <div><span class="text-muted">Account Holder:</span> <strong id="nb-display-accName">${escapeHTML(libraryBankDetails.accountName || libraryBusinessName || 'Study Library')}</strong></div>
+                      <div><span class="text-muted">Account Number:</span> <strong id="nb-display-accNum" style="font-family: monospace; font-size: 0.9rem;">${escapeHTML(libraryBankDetails.accountNumber || 'Contact reception')}</strong></div>
+                      <div><span class="text-muted">IFSC Code:</span> <strong id="nb-display-ifsc" style="font-family: monospace; font-size: 0.9rem;">${escapeHTML(libraryBankDetails.ifscCode || 'SBIN0001234')}</strong></div>
+                      <div><span class="text-muted">Branch:</span> <strong id="nb-display-branch">${escapeHTML(libraryBankDetails.branchName || 'Main Branch')}</strong></div>
                     </div>
                   </div>
 
                   <div class="form-group mb-3">
-                    <label class="form-label" style="font-weight: 600;">Select Transfer Bank</label>
-                    <select id="reg-nb-bank" class="form-select">
-                      <option value="SBI">State Bank of India (SBI)</option>
-                      <option value="HDFC">HDFC Bank</option>
-                      <option value="ICICI">ICICI Bank</option>
-                      <option value="AXIS">Axis Bank</option>
-                      <option value="OTHER">Other Indian Bank</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" style="font-weight: 600;">${escapeHTML(m.refLabel || 'Bank Transaction Reference / UTR Number *')}</label>
+                    <label class="form-label" style="font-weight: 600;">Transfer Reference / UTR Number *</label>
                     <input type="text" id="reg-nb-ref" class="form-control" placeholder="12-digit UTR / Bank reference number">
                     ${m.instructions ? `<small class="text-muted d-block mt-1">${escapeHTML(m.instructions)}</small>` : ''}
                   </div>
@@ -1159,13 +1560,13 @@
                 <div id="pm-sub-desk" class="pm-sub-pane" style="display: ${isFirst ? 'block' : 'none'}; background: var(--color-bg-secondary); border: 1px dashed var(--color-primary); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem; text-align: center;">
                   <div style="font-size: 1.5rem; margin-bottom: 4px;">💵</div>
                   <div style="font-weight: 700; color: var(--color-primary);">${escapeHTML(m.name)}</div>
-                  <div class="text-muted small" style="margin-top: 4px;">${escapeHTML(m.instructions || 'Your admission & seat reservation request will be recorded immediately. Pay your membership fee at the desk on your first visit to activate your seat.')}</div>
+                  <div class="text-muted small" style="margin-top: 4px;">${escapeHTML(m.instructions || 'Your admission & seat will be pre-reserved. Pay cash at front desk to activate.')}</div>
                 </div>
               `;
             } else {
               subpanesHtml += `
                 <div id="pm-sub-${escapeHTML(m.key)}" class="pm-sub-pane" style="display: ${isFirst ? 'block' : 'none'}; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem;">
-                  <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 10px;">${m.icon || '💳'} ${escapeHTML(m.name)}</div>
+                  <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 8px;">${m.icon || '💳'} ${escapeHTML(m.name)}</div>
                   ${m.instructions ? `<div class="text-muted small mb-3">${escapeHTML(m.instructions)}</div>` : ''}
                   ${m.requiresRef !== false ? `
                     <div class="form-group mb-3">
@@ -1204,17 +1605,18 @@
 
           document.getElementById('btn-copy-upi')?.addEventListener('click', () => {
             navigator.clipboard.writeText(libraryUpiId);
-            if (window.Toast) Toast.success('UPI ID copied to clipboard!');
-            else alert('UPI ID copied to clipboard!');
+            alert('UPI ID copied to clipboard!');
           });
 
-          // Handle Mobile UPI Intent Button Clicks
+          // Mobile UPI Intent Click Handler
           document.querySelectorAll('.upi-intent-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
               e.preventDefault();
               const app = btn.dataset.app;
-              const price = selectedPlanData ? Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0) : 0;
-              const payable = Math.max(0, price - discountAmount);
+              const basePrice = selectedPlanData ? Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0) : 0;
+              const multiplier = selectedShiftData?.priceMultiplier ? Number(selectedShiftData.priceMultiplier) : 1.0;
+              const lockerFee = document.getElementById('reg-request-locker')?.checked ? 200 : 0;
+              const payable = Math.max(0, Math.round((basePrice * multiplier) + lockerFee - discountAmount));
               
               if (payable <= 0) {
                 alert('Please select a membership plan first to compute fee amount.');
@@ -1229,68 +1631,8 @@
               else if (app === 'phonepe') schemeUrl = `phonepe://pay?${baseParams}`;
               else if (app === 'paytm') schemeUrl = `paytmmp://pay?${baseParams}`;
 
-              sessionStorage.setItem('sl_pending_upi', JSON.stringify({
-                txnRef,
-                payable,
-                app,
-                timestamp: Date.now()
-              }));
-
               window.location.href = schemeUrl;
             });
-          });
-
-          // Automatic Return & Live Payment Status Verifier
-          let verifierPromptOpen = false;
-          const checkUpiReturnStatus = () => {
-            const rawPending = sessionStorage.getItem('sl_pending_upi');
-            if (!rawPending || verifierPromptOpen) return;
-
-            try {
-              const pending = JSON.parse(rawPending);
-              if (Date.now() - pending.timestamp > 15 * 60 * 1000) {
-                sessionStorage.removeItem('sl_pending_upi');
-                return;
-              }
-
-              if (currentStep !== 4) return;
-
-              verifierPromptOpen = true;
-              
-              const isSuccess = confirm(
-                `⚡ UPI Payment Return Detected!\n\nDid your payment of ₹${pending.payable} complete successfully in your UPI app?` +
-                `\n\n• Click [OK] if Payment was Successful (Will auto-verify & proceed to Step 5 Seat Selection)` +
-                `\n• Click [Cancel] if payment failed or you returned without completing transaction.`
-              );
-
-              if (isSuccess) {
-                sessionStorage.removeItem('sl_pending_upi');
-                const utrInput = document.getElementById('reg-upi-ref');
-                if (utrInput) utrInput.value = pending.txnRef;
-                
-                alert(`✅ Payment Verified for ₹${pending.payable}! Proceeding to Step 5 (Seat Selection & Signature)...`);
-                
-                currentStep = 5;
-                updateStepper();
-                loadPublicSeats();
-              } else {
-                sessionStorage.removeItem('sl_pending_upi');
-              }
-            } catch (err) {
-              sessionStorage.removeItem('sl_pending_upi');
-            } finally {
-              verifierPromptOpen = false;
-            }
-          };
-
-          window.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-              setTimeout(checkUpiReturnStatus, 500);
-            }
-          });
-
-          window.addEventListener('focus', () => {
-            setTimeout(checkUpiReturnStatus, 500);
           });
         }
 
@@ -1304,12 +1646,11 @@
               branchesMap[b._id] = b;
               const opt = document.createElement('option');
               opt.value = b._id;
-              opt.textContent = `${b.name} (${b.city || 'Central'}) — 🟢 ${b.availableSeats || 0} Available / ${b.totalSeats || 50} Seats`;
+              opt.textContent = `${b.name} (${b.city || 'Central'}) — 🟢 ${b.availableSeats || 0} Available Seats`;
               if (idx === 0) opt.selected = true;
               branchSelect.appendChild(opt);
             });
             
-            // Set initial branch selection
             if (branches[0]) {
               selectedBranchId = branches[0]._id;
               updateBranchCard(branches[0]);
@@ -1335,9 +1676,31 @@
           document.getElementById('bi-seats-badge').textContent = `🟢 ${b.availableSeats || 0} Available / ${b.totalSeats || 50} Total Seats`;
         }
 
-        // Plans dropdown
+        // Shifts Dropdown & Multiplier
+        // Shifts Dropdown & Multiplier with Capacity Indicators
+        const shifts = Array.isArray(shiftsRes?.data) ? shiftsRes.data : [];
+        const shiftWrapper = document.getElementById('reg-shift-wrapper');
+        const shiftDropdown = document.getElementById('reg-shift');
+        if (shifts.length > 0 && shiftDropdown && shiftWrapper) {
+          shiftWrapper.style.display = 'block';
+          shiftDropdown.innerHTML = '<option value="">-- Select Preferred Study Shift (Optional) --</option>';
+          shifts.forEach(s => {
+            shiftsMap[s._id] = s;
+            const multText = s.priceMultiplier && s.priceMultiplier !== 1.0 ? ` (${s.priceMultiplier}x rate)` : '';
+            const isFull = s.isFull || (s.maxCapacity > 0 && s.availableSlots <= 0);
+            const capText = isFull ? ' [🔴 FULL - Waitlist]' : (s.maxCapacity > 0 ? ` [🟢 ${s.availableSlots} Left]` : '');
+            const opt = document.createElement('option');
+            opt.value = s._id;
+            opt.textContent = `${s.name} (${s.startTime} - ${s.endTime})${multText}${capText}`;
+            if (isFull) opt.style.color = '#ef4444';
+            shiftDropdown.appendChild(opt);
+          });
+        }
+
+        // Plans dropdown with Shift Capacity Indicators
         const plans = Array.isArray(plansRes?.data) ? plansRes.data : (landingRes?.data?.plans || []);
-        if (plans && plans.length > 0) {
+        if (plans && plans.length > 0 && planSelect) {
+          planSelect.innerHTML = '<option value="">-- Choose Study Shift & Plan --</option>';
           plans.forEach(p => {
             const planId = p._id || p.id;
             plansMap[planId] = p;
@@ -1346,11 +1709,14 @@
             const price = Math.round(p.effectivePrice || p.price || 0);
             const duration = `${p.duration || 30} ${p.durationType || 'days'}`;
             const shiftStr = p.shift ? p.shift.toUpperCase() : 'ANY SHIFT';
-            opt.textContent = `${p.name} — ₹${price.toLocaleString('en-IN')}/${duration} (${shiftStr})`;
+            const isFull = Boolean(p.isFull);
+            const fullTag = isFull ? ' [🔴 FULL - Waitlist]' : '';
+            opt.textContent = `${p.name} — ₹${price.toLocaleString('en-IN')}/${duration} (${shiftStr})${fullTag}`;
+            if (isFull) opt.style.color = '#ef4444';
             planSelect.appendChild(opt);
           });
 
-          // Auto-preselect plan from URL parameter (e.g. /register?plan=64... or /register?plan=Monthly)
+          // URL query param plan pre-selection
           const urlParams = new URLSearchParams(window.location.search);
           const targetPlan = urlParams.get('plan') || urlParams.get('planId');
           if (targetPlan) {
@@ -1358,12 +1724,14 @@
             const matched = plans.find(p => 
               (p._id && p._id.toString() === decoded) || 
               (p.id && p.id.toString() === decoded) || 
+              (p.slug && p.slug.toLowerCase() === decoded.toLowerCase()) ||
               (p.name && p.name.toLowerCase() === decoded.toLowerCase())
             );
             if (matched) {
               const matchedId = matched._id || matched.id;
               planSelect.value = matchedId;
-              planSelect.dispatchEvent(new Event('change'));
+              selectedPlanData = matched;
+              updateCalculator();
             }
           }
         }
@@ -1374,7 +1742,7 @@
     }
 
     // Submit handler
-    document.getElementById('public-reg-form').addEventListener('submit', async (e) => {
+    document.getElementById('public-reg-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('btn-submit-reg');
 
@@ -1382,7 +1750,7 @@
       const upiTxnId = document.getElementById('reg-upi-ref')?.value?.trim();
 
       if (pmMode === 'upi' && selectedPlanData && !upiTxnId) {
-        alert('Please enter your 12-digit UPI Transaction ID / UTR number from Google Pay / PhonePe / Paytm to complete your online registration.');
+        alert('Please enter your 12-digit UPI Transaction ID / UTR number to complete registration.');
         currentStep = 4;
         updateStepper();
         document.getElementById('reg-upi-ref')?.focus();
@@ -1393,42 +1761,51 @@
       btn.textContent = 'Submitting Admission & Payment...';
 
       const customFields = {};
-      document.querySelectorAll('.custom-field-input, .custom-field-radio, [data-field], [data-name]').forEach(input => {
-        const name = input.dataset.field || input.dataset.name || (input.name ? input.name.replace('cf_', '') : '');
+      document.querySelectorAll('.custom-dyn-input, .custom-dyn-radio').forEach(input => {
+        const name = input.dataset.field;
         if (name) {
           if (input.type === 'checkbox') {
-             customFields[name] = input.checked;
+            customFields[name] = input.checked;
           } else if (input.type === 'radio') {
-             if (input.checked) customFields[name] = input.value;
+            if (input.checked) customFields[name] = input.value;
           } else if (input.value) {
-             customFields[name] = input.value;
+            customFields[name] = input.value;
           }
         }
       });
 
+      // Capture dynamic media fields
+      document.querySelectorAll('.custom-field-media-mount').forEach(mount => {
+        const fName = mount.dataset.field;
+        const val = mount.querySelector('.mfp-hidden-value')?.value;
+        if (fName && val) customFields[fName] = val;
+      });
+
       let txnId = '';
       if (pmMode === 'upi') txnId = document.getElementById('reg-upi-ref')?.value?.trim() || '';
-      else if (pmMode === 'card') txnId = document.getElementById('reg-card-no')?.value?.trim() || '';
       else if (pmMode === 'netbanking') txnId = document.getElementById('reg-nb-ref')?.value?.trim() || '';
       else if (pmMode !== 'desk') {
         txnId = document.getElementById(`reg-custom-ref-${pmMode}`)?.value?.trim() || '';
       }
 
       const payload = {
-        name: document.getElementById('reg-name').value.trim(),
-        phone: document.getElementById('reg-phone').value.trim(),
-        email: document.getElementById('reg-email').value.trim(),
-        password: document.getElementById('reg-password').value,
-        gender: document.getElementById('reg-gender').value,
-        dob: document.getElementById('reg-dob').value || null,
+        name: document.getElementById('reg-name')?.value.trim(),
+        phone: document.getElementById('reg-phone')?.value.trim(),
+        email: document.getElementById('reg-email')?.value.trim(),
+        password: document.getElementById('reg-password')?.value,
+        gender: document.getElementById('reg-gender')?.value,
+        dob: document.getElementById('reg-dob')?.value || null,
         pincode: document.getElementById('reg-pincode')?.value?.trim() || '',
         city: document.getElementById('reg-city')?.value?.trim() || '',
         state: document.getElementById('reg-state')?.value?.trim() || '',
-        branch: (selectedBranchId && selectedBranchId !== 'default_main') ? selectedBranchId : (document.getElementById('reg-branch')?.value !== 'default_main' ? document.getElementById('reg-branch')?.value : null),
+        branch: (selectedBranchId && selectedBranchId !== 'default_main') ? selectedBranchId : null,
         photo: photoPicker ? photoPicker.querySelector('.mfp-hidden-value')?.value || '' : '',
         targetExams: Array.from(selectedExams),
-        plan: document.getElementById('reg-plan').value || null,
-        seat: document.getElementById('reg-selected-seat').value || null,
+        plan: document.getElementById('reg-plan')?.value || null,
+        shift: document.getElementById('reg-shift')?.value || null,
+        seat: document.getElementById('reg-selected-seat')?.value || null,
+        requestLocker: document.getElementById('reg-request-locker')?.checked || false,
+        referralCode: document.getElementById('reg-referral')?.value.trim() || '',
         signature: sigStudio ? sigStudio.getValue() : '',
         paymentMethod: pmMode,
         transactionId: txnId,
@@ -1450,42 +1827,99 @@
           return;
         }
 
-        // Show Success
+        // Show Rich Celebration Slip or Waiting List Ticket
         document.getElementById('registration-form-wrap').style.display = 'none';
         document.getElementById('registration-success-wrap').style.display = 'block';
-        document.getElementById('success-student-id').textContent = result.data?.studentId || 'CONFIRMED';
-        document.getElementById('success-student-name').textContent = payload.name;
-        document.getElementById('success-seat-number').textContent = result.data?.seatNumber || 'Assigned at Desk';
         
-        const successTitle = document.querySelector('#registration-success-wrap h2');
-        const successMsg = document.querySelector('#registration-success-wrap p');
+        const isWaiting = Boolean(result.isWaitingList);
+        const studentId = result.data?.studentId || (isWaiting ? `WAIT-${result.data?.priority || 1}` : 'CONFIRMED');
+        const seatNo = isWaiting ? '⏳ On Waiting List' : (result.data?.seatNumber || (payload.seat ? 'Reserved' : 'Assigned at Desk'));
 
-        if (pmMode === 'upi' || pmMode === 'card' || pmMode === 'netbanking') {
+        document.getElementById('success-student-id').textContent = studentId;
+        document.getElementById('success-student-name').textContent = payload.name;
+        document.getElementById('success-seat-number').textContent = seatNo;
+        
+        const branchObj = branchesMap[payload.branch];
+        document.getElementById('success-branch-name').textContent = branchObj ? branchObj.name : (businessProfileData.businessName || 'Main Branch');
+        document.getElementById('success-plan-name').textContent = selectedPlanData ? selectedPlanData.name : 'Standard Plan';
+        
+        const shiftRow = document.getElementById('success-shift-row');
+        const shiftNameEl = document.getElementById('success-shift-name');
+        if ((selectedShiftData || result.data?.shiftName) && shiftRow && shiftNameEl) {
+          shiftRow.style.display = 'flex';
+          shiftNameEl.textContent = result.data?.shiftName || `${selectedShiftData.name} (${selectedShiftData.startTime} - ${selectedShiftData.endTime})`;
+        } else if (shiftRow) {
+          shiftRow.style.display = 'none';
+        }
+
+        const successTitle = document.getElementById('success-status-title');
+        const successMsg = document.getElementById('success-status-msg');
+        const paymentBadge = document.getElementById('success-payment-badge');
+
+        if (isWaiting) {
+          if (successTitle) successTitle.textContent = `⏳ Placed on Priority Waiting List (#${result.data?.priority || 1})`;
+          if (successMsg) successMsg.textContent = result.message || 'Your requested shift is at full capacity. We have added you to our priority queue. When a desk opens up, you will be notified instantly!';
+          if (paymentBadge) {
+            paymentBadge.textContent = `Waitlist Priority #${result.data?.priority || 1}`;
+            paymentBadge.className = 'badge badge-warning';
+          }
+        } else if (pmMode === 'upi' || pmMode === 'card' || pmMode === 'netbanking') {
           if (successTitle) successTitle.textContent = '🎉 Admission Confirmed & Membership Active!';
-          if (successMsg) successMsg.textContent = 'Your payment has been verified and your student membership is active immediately. You can now login to your portal!';
+          if (successMsg) successMsg.textContent = 'Your payment has been logged and your student membership is active immediately. You can now login to your portal!';
+          if (paymentBadge) {
+            paymentBadge.textContent = `Paid (${pmMode.toUpperCase()})`;
+            paymentBadge.className = 'badge badge-success';
+          }
         } else {
           if (successTitle) successTitle.textContent = '⏳ Application Reserved (Pending Desk Fee)';
           if (successMsg) successMsg.textContent = 'Your admission & seat have been pre-reserved. Please pay your fee at the front desk upon arrival to activate your desk membership.';
-        }
-
-        if (selectedPlanData) {
-           document.getElementById('success-plan-summary').textContent = `Plan: ${selectedPlanData.name} | Shift: ${selectedPlanData.shift ? selectedPlanData.shift.toUpperCase() : 'ANY'}`;
+          if (paymentBadge) {
+            paymentBadge.textContent = 'Pay at Desk (Pending)';
+            paymentBadge.className = 'badge badge-warning';
+          }
         }
 
         // Generate QR Code
         try {
           const qr = qrcode(0, 'M');
-          qr.addData(result.data?.studentId || payload.name);
+          qr.addData(JSON.stringify({
+            studentId,
+            name: payload.name,
+            phone: payload.phone,
+            seat: seatNo
+          }));
           qr.make();
           document.getElementById('qr-code-mount').innerHTML = qr.createImgTag(4);
-        } catch(e) {}
+        } catch(e) {
+          try {
+            const qr = qrcode(0, 'M');
+            qr.addData(studentId);
+            qr.make();
+            document.getElementById('qr-code-mount').innerHTML = qr.createImgTag(4);
+          } catch(e2) {}
+        }
 
-        const phone = result.data?.phone || '';
-        const waMsg = encodeURIComponent(`Hello! I have registered online for admission. My Student ID is ${result.data?.studentId || ''} (${payload.name}).`);
-        document.getElementById('btn-success-whatsapp').href = `https://wa.me/${phone}?text=${waMsg}`;
+        const phone = result.data?.phone || payload.phone || '';
+        const waText = isWaiting
+          ? `Hello! I have joined the waiting list at ${libraryBusinessName}. My Waiting Ticket is ${studentId} (${payload.name}).`
+          : `Hello! I have registered online for admission at ${libraryBusinessName}. My Student ID is ${studentId} (${payload.name}).`;
+        const waMsg = encodeURIComponent(waText);
+        const waBtn = document.getElementById('btn-success-whatsapp');
+        if (waBtn) waBtn.href = `https://wa.me/${phone}?text=${waMsg}`;
         
-        document.getElementById('btn-print-slip')?.addEventListener('click', () => {
-          previewAdmissionFormPDF(result.data || payload);
+        document.getElementById('btn-print-slip')?.addEventListener('click', async () => {
+          let rc = {};
+          try {
+            const cRes = await fetch('/api/system/public-config');
+            const cJson = await cRes.json();
+            rc = cJson.data?.receiptConfig || {};
+          } catch (e) {}
+
+          previewAdmissionFormPDF(result.data?.student || payload, {
+            business: businessProfileData,
+            receiptConfig: rc,
+            stampText: isWaiting ? `WAITING LIST • PRIORITY #${result.data?.priority || 1}` : undefined
+          });
         });
 
       } catch (error) {
@@ -1517,7 +1951,6 @@
       applyRegisterTheme(isCurrentlyDark ? 'light' : 'dark');
     };
 
-    // Initialize saved theme
     const savedTheme = localStorage.getItem('sl_theme') || 'light';
     applyRegisterTheme(savedTheme);
 

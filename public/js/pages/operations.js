@@ -37,6 +37,9 @@ export async function render() {
         <button class="ops-tab-btn" data-tab="leaves" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
           <span>🌴</span> Leave Requests
         </button>
+        <button class="ops-tab-btn" data-tab="waitinglist" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
+          <span>⏳</span> Waiting List Queue
+        </button>
         <button class="ops-tab-btn" data-tab="seatchanges" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">
           <span>💺</span> Seat Changes
         </button>
@@ -74,6 +77,7 @@ export async function render() {
     panel.innerHTML = '<div class="text-center p-5 text-muted"><div class="loading-spinner mb-2"></div>Loading data...</div>';
 
     if (currentTab === 'visitors') await renderVisitors(panel);
+    else if (currentTab === 'waitinglist') await renderWaitingList(panel);
     else if (currentTab === 'notices') await renderNotices(panel);
     else if (currentTab === 'holidays') await renderHolidays(panel);
     else if (currentTab === 'lostfound') await renderLostFound(panel);
@@ -1313,7 +1317,421 @@ export async function render() {
         });
       });
 
-    } catch (e) { panel.innerHTML = `<div class="text-danger p-4">Failed to load referrals</div>`; }
+  // ----------------------------------------------------
+  // Tab 9: Waiting List Queue & 1-Click Admission Converter
+  // ----------------------------------------------------
+  async function renderWaitingList(panel) {
+    try {
+      const res = await api.get('/api/waiting-list');
+      const items = res.data?.items || [];
+      const counts = res.data?.counts || { waiting: 0, offered: 0, assigned: 0, total: items.length };
+
+      panel.innerHTML = `
+        <!-- Top Metrics Cards -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 1.5rem;">
+          <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; align-items: center; gap: 14px;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+              ⏳
+            </div>
+            <div>
+              <div class="text-muted small" style="font-weight: 600; text-transform: uppercase;">Active in Queue</div>
+              <div style="font-size: 1.6rem; font-weight: 800; color: #f59e0b;">${counts.waiting}</div>
+            </div>
+          </div>
+
+          <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; align-items: center; gap: 14px;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(99, 102, 241, 0.15); color: var(--color-primary); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+              💺
+            </div>
+            <div>
+              <div class="text-muted small" style="font-weight: 600; text-transform: uppercase;">Offered / 24h Hold</div>
+              <div style="font-size: 1.6rem; font-weight: 800; color: var(--color-primary);">${counts.offered}</div>
+            </div>
+          </div>
+
+          <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; align-items: center; gap: 14px;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(34, 197, 94, 0.15); color: var(--color-success); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+              ✅
+            </div>
+            <div>
+              <div class="text-muted small" style="font-weight: 600; text-transform: uppercase;">Converted to Admission</div>
+              <div style="font-size: 1.6rem; font-weight: 800; color: var(--color-success);">${counts.assigned}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <div>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">⏳ Shift Capacity & Seat Waiting List (${items.length})</h3>
+            <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">
+              Students queued for full shifts or reserved seats. Allocate vacant seats in 1 click!
+            </p>
+          </div>
+          <div class="d-flex gap-2 align-items-center">
+            <button id="btn-add-waiting-item" class="btn btn-primary btn-sm" style="font-weight: 700;">
+              ➕ Add Walk-in to Queue
+            </button>
+          </div>
+        </div>
+
+        <!-- Waiting Queue Table -->
+        <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
+          <div style="overflow-x: auto;">
+            <table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--color-divider); color: var(--color-text-muted); font-size: 0.85rem; text-align: left;">
+                  <th style="padding: 12px 16px;">Priority</th>
+                  <th style="padding: 12px 16px;">Student Name</th>
+                  <th style="padding: 12px 16px;">Contact</th>
+                  <th style="padding: 12px 16px;">Preferred Shift & Zone</th>
+                  <th style="padding: 12px 16px;">Status</th>
+                  <th style="padding: 12px 16px;">Offered Seat / Note</th>
+                  <th style="padding: 12px 16px;">Date Added</th>
+                  <th style="padding: 12px 16px; text-align: center;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${items.length > 0 ? items.map((it, idx) => {
+                  let statusBadge = 'badge-warning';
+                  if (it.status === 'assigned') statusBadge = 'badge-success';
+                  else if (it.status === 'offered') statusBadge = 'badge-primary';
+                  else if (it.status === 'cancelled') statusBadge = 'badge-danger';
+
+                  const dateStr = it.createdAt ? new Date(it.createdAt).toLocaleDateString('en-IN') : '-';
+                  const offeredSeatNum = it.offeredSeat?.seatNumber || (typeof it.offeredSeat === 'string' ? it.offeredSeat : null);
+
+                  return `
+                    <tr style="border-bottom: 1px solid var(--color-divider); font-size: 0.9rem;">
+                      <td style="padding: 12px 16px;">
+                        <span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary); font-weight: 800; font-size: 0.85rem;">
+                          #${it.priority || (idx + 1)}
+                        </span>
+                      </td>
+                      <td style="padding: 12px 16px;">
+                        <strong style="color: var(--color-text-primary);">${escapeHTML(it.studentName)}</strong>
+                        ${it.student?.studentId ? `<div class="text-muted small">${escapeHTML(it.student.studentId)}</div>` : ''}
+                      </td>
+                      <td style="padding: 12px 16px; font-family: monospace;">
+                        <div>${escapeHTML(it.studentPhone)}</div>
+                        ${it.studentEmail ? `<div class="text-muted small" style="font-size: 0.75rem;">${escapeHTML(it.studentEmail)}</div>` : ''}
+                      </td>
+                      <td style="padding: 12px 16px;">
+                        <span class="badge badge-primary">${escapeHTML(it.preferredShift || 'Any Shift')}</span>
+                        <span class="badge badge-secondary" style="margin-left: 4px;">${escapeHTML(it.preferredZone || 'Any Zone')}</span>
+                      </td>
+                      <td style="padding: 12px 16px;">
+                        <span class="badge ${statusBadge}" style="text-transform: uppercase; font-size: 0.75rem;">
+                          ${escapeHTML(it.status)}
+                        </span>
+                      </td>
+                      <td style="padding: 12px 16px;">
+                        ${offeredSeatNum ? `
+                          <div style="font-weight: 700; color: var(--color-primary);">💺 Seat ${escapeHTML(offeredSeatNum)}</div>
+                          ${it.offerExpiresAt ? `<div class="text-muted small" style="font-size: 0.75rem;">Hold: ${new Date(it.offerExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>` : ''}
+                        ` : `<span class="text-muted small">${escapeHTML(it.notes || 'Awaiting vacant seat')}</span>`}
+                      </td>
+                      <td style="padding: 12px 16px; font-size: 0.85rem; color: var(--color-text-secondary);">
+                        ${dateStr}
+                      </td>
+                      <td style="padding: 12px 16px; text-align: center;">
+                        <div class="d-flex justify-content-center gap-1">
+                          ${it.status !== 'assigned' && it.status !== 'cancelled' ? `
+                            <button class="btn btn-sm btn-success btn-convert-admission" data-id="${it._id}" data-name="${escapeHTML(it.studentName)}" data-phone="${escapeHTML(it.studentPhone)}" data-shift="${escapeHTML(it.preferredShift || '')}" data-seat="${offeredSeatNum || ''}" title="1-Click Convert to Admission" style="padding: 3px 10px; font-size: 0.78rem; font-weight: 700;">
+                              ⚡ Convert to Admission
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary btn-offer-seat" data-id="${it._id}" data-name="${escapeHTML(it.studentName)}" title="Offer Vacant Seat (24h Hold)" style="padding: 3px 8px; font-size: 0.75rem;">
+                              💺 Offer Seat
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger btn-cancel-waiting" data-id="${it._id}" title="Cancel Entry" style="padding: 3px 8px; font-size: 0.75rem;">
+                              ✕
+                            </button>
+                          ` : `<span class="badge badge-success" style="font-size: 0.75rem;">${it.status === 'assigned' ? '✓ Enrolled' : 'Cancelled'}</span>`}
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join('') : `
+                  <tr><td colspan="8" class="p-5 text-center text-muted">No students currently in waiting queue. When a shift reaches maximum capacity, applicants will appear here automatically!</td></tr>
+                `}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      // 1-Click Convert to Admission
+      panel.querySelectorAll('.btn-convert-admission').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const waitingId = btn.dataset.id;
+          const candidateName = btn.dataset.name;
+          const candidatePhone = btn.dataset.phone;
+          const preferredShiftName = btn.dataset.shift;
+
+          let availableSeats = [];
+          let shiftsList = [];
+          let plansList = [];
+
+          try {
+            const [sRes, shiftsRes, pRes] = await Promise.all([
+              api.get('/api/seats?status=available'),
+              api.get('/api/shifts'),
+              api.get('/api/plans')
+            ]);
+            availableSeats = Array.isArray(sRes.data) ? sRes.data : (sRes.data?.seats || sRes.seats || []);
+            shiftsList = Array.isArray(shiftsRes.data) ? shiftsRes.data : (shiftsRes.data?.shifts || []);
+            plansList = Array.isArray(pRes.data) ? pRes.data : (pRes.data?.plans || []);
+          } catch (e) {}
+
+          if (availableSeats.length === 0) {
+            Toast.warning('No vacant seats currently available. Please check seat availability or wait for a desk to clear.');
+            return;
+          }
+
+          const modalContent = document.createElement('div');
+          modalContent.innerHTML = `
+            <form id="form-convert-admission" style="display: flex; flex-direction: column; gap: 14px;">
+              <div style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: var(--radius-md); padding: 12px;">
+                <div style="font-weight: 700; color: var(--color-success);">⚡ 1-Click Admission & Desk Allocation</div>
+                <div style="font-size: 0.85rem; color: var(--color-text-secondary);">
+                  Converting <strong>${escapeHTML(candidateName)}</strong> (${escapeHTML(candidatePhone)}) to an active student membership.
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Select Available Vacant Seat *</label>
+                <select id="conv-seat-id" class="form-select form-control" required style="font-weight: 700; font-size: 0.95rem;">
+                  ${availableSeats.map(s => `<option value="${s._id}">💺 ${escapeHTML(s.seatNumber)} (${escapeHTML(s.zone || 'General')} - ${escapeHTML(s.type || 'Standard')})</option>`).join('')}
+                </select>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                  <label class="form-label" style="font-weight: 700;">Study Shift</label>
+                  <select id="conv-shift-id" class="form-select form-control">
+                    <option value="">-- Select Shift --</option>
+                    ${shiftsList.map(s => `<option value="${s._id}">${escapeHTML(s.name)} (${s.startTime} - ${s.endTime})</option>`).join('')}
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" style="font-weight: 700;">Membership Plan</label>
+                  <select id="conv-plan-id" class="form-select form-control">
+                    <option value="">-- Select Plan --</option>
+                    ${plansList.map(p => `<option value="${p._id}">${escapeHTML(p.name)} (₹${p.price})</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Admission Notes / Reference</label>
+                <input type="text" id="conv-notes" class="form-control" placeholder="Allocated upon seat vacancy...">
+              </div>
+
+              <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;">
+                <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
+                <button type="submit" class="btn btn-success" id="btn-submit-convert" style="font-weight: 700;">
+                  🚀 Convert to Admission & Assign Seat
+                </button>
+              </div>
+            </form>
+          `;
+
+          const modal = new Modal({ title: `⚡ Convert ${candidateName} to Admission`, content: modalContent, size: 'md' });
+          modal.show();
+
+          modalContent.querySelector('#form-convert-admission').onsubmit = async (e) => {
+            e.preventDefault();
+            const submitBtn = modalContent.querySelector('#btn-submit-convert');
+            Loading.button(submitBtn, true);
+
+            try {
+              const payload = {
+                seatId: modalContent.querySelector('#conv-seat-id').value,
+                shiftId: modalContent.querySelector('#conv-shift-id').value || null,
+                planId: modalContent.querySelector('#conv-plan-id').value || null,
+                notes: modalContent.querySelector('#conv-notes').value.trim()
+              };
+
+              const convertRes = await api.post(`/api/waiting-list/${waitingId}/convert-admission`, payload);
+              if (convertRes.success) {
+                Toast.success(convertRes.message || 'Successfully converted to active student admission!');
+                modal.close();
+                loadCurrentTab();
+              } else {
+                Toast.error(convertRes.message);
+              }
+            } catch (err) {
+              Toast.error(err.message || 'Failed to convert admission');
+            } finally {
+              Loading.button(submitBtn, false);
+            }
+          };
+        });
+      });
+
+      // Offer Vacant Seat
+      panel.querySelectorAll('.btn-offer-seat').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const waitingId = btn.dataset.id;
+          const candidateName = btn.dataset.name;
+
+          let availableSeats = [];
+          try {
+            const sRes = await api.get('/api/seats?status=available');
+            availableSeats = Array.isArray(sRes.data) ? sRes.data : (sRes.data?.seats || sRes.seats || []);
+          } catch (e) {}
+
+          if (availableSeats.length === 0) {
+            Toast.warning('No available vacant seats to offer.');
+            return;
+          }
+
+          const modalContent = document.createElement('div');
+          modalContent.innerHTML = `
+            <div class="form-group mb-3">
+              <label class="form-label" style="font-weight: 600;">Choose Vacant Seat to Offer ${escapeHTML(candidateName)} (24-hour Hold)</label>
+              <select id="offer-seat-select" class="form-select form-control">
+                ${availableSeats.map(s => `<option value="${s._id}">${escapeHTML(s.seatNumber)} (${escapeHTML(s.zone || 'Hall')} - ${escapeHTML(s.type || 'Standard')})</option>`).join('')}
+              </select>
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+              <button class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
+              <button class="btn btn-primary" id="btn-confirm-offer" style="font-weight: 700;">💺 Offer Seat Hold</button>
+            </div>
+          `;
+
+          const modal = new Modal({ title: `💺 Offer Seat to ${candidateName}`, content: modalContent, size: 'sm' });
+          modal.show();
+
+          modalContent.querySelector('#btn-confirm-offer').onclick = async () => {
+            const seatId = modalContent.querySelector('#offer-seat-select').value;
+            try {
+              const res = await api.put(`/api/waiting-list/${waitingId}/offer`, { seatId });
+              if (res.success) {
+                Toast.success(res.message);
+                modal.close();
+                loadCurrentTab();
+              } else {
+                Toast.error(res.message);
+              }
+            } catch (err) {
+              Toast.error(err.message || 'Failed to offer seat');
+            }
+          };
+        });
+      });
+
+      // Cancel Waiting Entry
+      panel.querySelectorAll('.btn-cancel-waiting').forEach(btn => {
+        btn.addEventListener('click', () => {
+          Confirm.show({
+            title: 'Cancel Waiting Queue Entry',
+            message: 'Are you sure you want to remove this candidate from the waiting list?',
+            danger: true,
+            onConfirm: async () => {
+              try {
+                await api.put(`/api/waiting-list/${btn.dataset.id}/cancel`, {});
+                Toast.success('Waiting entry cancelled');
+                loadCurrentTab();
+              } catch (e) {
+                Toast.error('Failed to cancel');
+              }
+            }
+          });
+        });
+      });
+
+      // Add Walk-in to Waiting List Modal
+      panel.querySelector('#btn-add-waiting-item')?.addEventListener('click', async () => {
+        let shiftsList = [];
+        try {
+          const shiftsRes = await api.get('/api/shifts');
+          shiftsList = Array.isArray(shiftsRes.data) ? shiftsRes.data : (shiftsRes.data?.shifts || []);
+        } catch (e) {}
+
+        const modalContent = document.createElement('div');
+        modalContent.innerHTML = `
+          <form id="form-add-waiting" style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="form-group">
+              <label class="form-label" style="font-weight: 700;">Student / Candidate Name *</label>
+              <input type="text" id="wl-name" class="form-control" placeholder="Full name" required>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Mobile Phone *</label>
+                <input type="tel" id="wl-phone" class="form-control" placeholder="10-digit mobile" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Email Address</label>
+                <input type="email" id="wl-email" class="form-control" placeholder="student@example.com">
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Preferred Study Shift</label>
+                <select id="wl-shift" class="form-select form-control">
+                  <option value="Any">Any Shift</option>
+                  ${shiftsList.map(s => `<option value="${escapeHTML(s.name)}">${escapeHTML(s.name)} (${s.startTime} - ${s.endTime})</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Preferred Zone / Desk Type</label>
+                <select id="wl-zone" class="form-select form-control">
+                  <option value="General">General Reading Zone</option>
+                  <option value="Silent AC">Silent AC Zone</option>
+                  <option value="Private Cabin">Private Cabin</option>
+                  <option value="Discussion">Discussion Zone</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" style="font-weight: 700;">Notes / Target Exam</label>
+              <textarea id="wl-notes" class="form-control" rows="2" placeholder="Preparing for UPSC, requires morning slot..."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+              <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
+              <button type="submit" class="btn btn-primary" style="font-weight: 700;">➕ Add to Waiting Queue</button>
+            </div>
+          </form>
+        `;
+
+        const modal = new Modal({ title: '⏳ Add Candidate to Waiting List', content: modalContent, size: 'md' });
+        modal.show();
+
+        modalContent.querySelector('#form-add-waiting').onsubmit = async (e) => {
+          e.preventDefault();
+          try {
+            const payload = {
+              studentName: modalContent.querySelector('#wl-name').value.trim(),
+              studentPhone: modalContent.querySelector('#wl-phone').value.trim(),
+              studentEmail: modalContent.querySelector('#wl-email').value.trim(),
+              preferredShift: modalContent.querySelector('#wl-shift').value,
+              preferredZone: modalContent.querySelector('#wl-zone').value,
+              notes: modalContent.querySelector('#wl-notes').value.trim()
+            };
+
+            const addRes = await api.post('/api/waiting-list', payload);
+            if (addRes.success) {
+              Toast.success(addRes.message || 'Added to waiting queue!');
+              modal.close();
+              loadCurrentTab();
+            } else {
+              Toast.error(addRes.message);
+            }
+          } catch (err) {
+            Toast.error(err.message || 'Failed to add to waiting list');
+          }
+        };
+      });
+
+    } catch (e) {
+      panel.innerHTML = `<div class="text-danger p-4">Failed to load waiting list: ${escapeHTML(e.message)}</div>`;
+    }
   }
 
   // Initial load

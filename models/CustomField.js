@@ -37,7 +37,8 @@ const customFieldSchema = new mongoose.Schema({
       'color',
       'address_autocomplete',
       'aadhaar_pan',
-      'terms_checkbox'
+      'terms_checkbox',
+      'star_rating'
     ],
     default: 'text'
   },

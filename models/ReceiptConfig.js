@@ -10,6 +10,7 @@ const receiptConfigSchema = new mongoose.Schema({
   // Header customization
   header: {
     showLogo: { type: Boolean, default: true },
+    logoUrl: { type: String, default: '' },
     logoPosition: { type: String, enum: ['left', 'center', 'right'], default: 'center' },
     showBusinessName: { type: Boolean, default: true },
     subtitle: { type: String, default: 'Official Fee Receipt' },
@@ -17,6 +18,8 @@ const receiptConfigSchema = new mongoose.Schema({
     showPhone: { type: Boolean, default: true },
     showEmail: { type: Boolean, default: true },
     showGst: { type: Boolean, default: true },
+    taxNumber: { type: String, default: '' },
+    gstNumber: { type: String, default: '' },
     headerColor: { type: String, default: '#4f46e5' }
   },
   
@@ -47,7 +50,9 @@ const receiptConfigSchema = new mongoose.Schema({
   // Footer customization
   footer: {
     showStamp: { type: Boolean, default: true },
+    stampImage: { type: String, default: '' },
     showSignature: { type: Boolean, default: true },
+    signatureImage: { type: String, default: '' },
     signatureLabel: { type: String, default: 'Authorized Signatory' },
     showUpiQr: { type: Boolean, default: false },
     termsText: { type: String, default: 'This is a computer-generated receipt and does not require a physical signature.' },

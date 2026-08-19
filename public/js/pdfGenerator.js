@@ -24,6 +24,9 @@ export function buildAdmissionFormHTML(student, options = {}) {
   const opts = { ...defaults, ...options };
   const s = student || {};
   const b = opts.business || defaults.business;
+  const rc = opts.receiptConfig || {};
+  const rcHeader = rc.header || {};
+  const rcFooter = rc.footer || {};
 
   const studentId = s.studentId || 'STU-2026-0001';
   const studentName = s.name || 'Student Name';
@@ -54,9 +57,15 @@ export function buildAdmissionFormHTML(student, options = {}) {
     ? s.targetExams.join(', ') 
     : 'General Competitive Exams & Self Study';
 
-  // Photo & Signature URLs
+  // Photo & Signature & Stamp URLs
   const photoUrl = s.photo || s.photoUrl || '';
   const sigUrl = s.signature || s.signatureUrl || '';
+  const logoUrl = rcHeader.logoUrl || b.logo || b.logoUrl || '';
+  const stampImageUrl = rcFooter.stampImage || b.stampImage || '';
+  const managerSigUrl = rcFooter.signatureImage || '';
+  const gstNumber = rcHeader.gstNumber || rcHeader.taxNumber || b.gstNumber || b.taxNumber || '';
+  const termsText = rcFooter.termsText || rc.terms || '';
+  const customNote = rcFooter.customNote || '';
 
   // Generate QR Code SVG / Image URL
   let qrCodeImg = '';
@@ -196,10 +205,13 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
   <!-- Header -->
   <div class="mg-header">
-    <div>
-      <h1>${b.businessName}</h1>
-      <p>${b.tagline}</p>
-      <p style="margin-top: 4px; font-size: 11px;">📍 ${b.address} • 📞 ${b.phone}</p>
+    <div style="display: flex; align-items: center; gap: 14px;">
+      ${logoUrl ? `<img src="${logoUrl}" style="max-height: 54px; max-width: 90px; object-fit: contain; background: #fff; padding: 4px; border-radius: 8px;">` : ''}
+      <div>
+        <h1>${b.businessName}</h1>
+        <p>${b.tagline}</p>
+        <p style="margin-top: 4px; font-size: 11px;">📍 ${b.address} • 📞 ${b.phone} ${gstNumber ? `• GSTIN/Tax: ${gstNumber}` : ''}</p>
+      </div>
     </div>
     <div style="text-align: right; background: rgba(255,255,255,0.2); padding: 8px 14px; border-radius: 8px;">
       <div style="font-size: 10px; text-transform: uppercase;">Official Form Serial</div>
@@ -335,14 +347,16 @@ export function buildAdmissionFormHTML(student, options = {}) {
   ${opts.showRules ? `
     <div class="sec-card">
       <div class="sec-title">📜 Discipline Code & Student Declaration</div>
+      ${termsText ? `<p style="font-size: 11px; color: #4b5563; margin-bottom: 6px;">${termsText}</p>` : `
       <ol class="rules-list">
         <li>Maintain complete silence in the study hall. Mobile phones must strictly be kept on Silent mode.</li>
         <li>Seats are non-transferable without prior desk manager approval.</li>
         <li>Eatables, tea, and open beverages are strictly prohibited inside the main reading room.</li>
         <li>I agree to adhere to all library rules and timings set by the management.</li>
-      </ol>
+      </ol>`}
+      ${customNote ? `<p style="font-size: 10.5px; color: #6c5ce7; font-weight: 600; margin-top: 6px;">Note: ${customNote}</p>` : ''}
 
-      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px; padding-top: 8px; border-top: 1px dashed #dfe6e9;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 16px; padding-top: 8px; border-top: 1px dashed #dfe6e9;">
         <div>
           <div class="field-label">Date & Place</div>
           <div class="field-value">${joinedDate} • ${city}</div>
@@ -358,9 +372,11 @@ export function buildAdmissionFormHTML(student, options = {}) {
         ` : ''}
 
         <div style="text-align: center;">
-          <div class="field-label">Authorized Stamp & Manager</div>
-          <div class="sig-box" style="border-bottom-style: dotted;">
-            <span style="font-size:10px; color:#b2bec3; font-weight:700;">LIBRARY SEAL</span>
+          <div class="field-label">${rcFooter.signatureLabel || 'Authorized Stamp & Manager'}</div>
+          <div class="sig-box" style="border-bottom-style: dotted; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            ${stampImageUrl ? `<img src="${stampImageUrl}" style="max-height: 45px; opacity: 0.85;">` : ''}
+            ${managerSigUrl ? `<img src="${managerSigUrl}" style="max-height: 40px;">` : ''}
+            ${!stampImageUrl && !managerSigUrl ? `<span style="font-size:10px; color:#b2bec3; font-weight:700;">LIBRARY SEAL</span>` : ''}
           </div>
         </div>
       </div>
@@ -369,7 +385,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
   <!-- Footer -->
   <div class="doc-footer">
-    <div>Generated via StudyLib Management System • Official Student Copy</div>
+    <div>Generated via ${b.businessName || 'StudyLib Management System'} • Official Student Copy</div>
     <div>Document Ref: ${studentId} • Page 1 of 1</div>
   </div>
 

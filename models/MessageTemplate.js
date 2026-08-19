@@ -8,7 +8,20 @@ const messageTemplateSchema = new mongoose.Schema({
   },
   triggerType: {
     type: String,
-    enum: ['welcome_admission', 'payment_receipt', 'expiry_reminder_7d', 'expiry_reminder_3d', 'expiry_reminder_1d', 'fee_due', 'general_broadcast', 'custom'],
+    enum: [
+      'admission_welcome',
+      'payment_receipt',
+      'renewal_reminder',
+      'balance_due',
+      'attendance_punch',
+      'welcome_admission', // backward compatibility alias
+      'fee_due',           // backward compatibility alias
+      'expiry_reminder_7d',
+      'expiry_reminder_3d',
+      'expiry_reminder_1d',
+      'general_broadcast',
+      'custom'
+    ],
     default: 'custom'
   },
   channel: {
@@ -36,42 +49,141 @@ const messageTemplateSchema = new mongoose.Schema({
   timestamps: true
 });
 
+const DEFAULT_TEMPLATES = [
+  {
+    title: 'Admission Welcome & Confirmation',
+    triggerType: 'admission_welcome',
+    channel: 'whatsapp',
+    templateText: `🎉 *Welcome to {{businessName}}!*
+
+Dear *{{studentName}}*,
+Your admission has been confirmed successfully!
+
+🆔 *Student ID:* {{studentId}}
+💺 *Seat No:* {{seatNumber}}
+⏰ *Shift:* {{shiftName}}
+📦 *Plan:* {{planName}}
+📅 *Valid Until:* {{expiryDate}}
+
+Access your Digital QR ID Card & Student Portal:
+🔗 {{portalLink}}
+
+_Please maintain strict library discipline and study hard!_ 📚✨`,
+    availableVariables: ['studentName', 'studentId', 'seatNumber', 'shiftName', 'planName', 'expiryDate', 'businessName', 'portalLink']
+  },
+  {
+    title: 'Fee Payment Receipt Confirmation',
+    triggerType: 'payment_receipt',
+    channel: 'whatsapp',
+    templateText: `🧾 *Payment Receipt Confirmation*
+🏢 *{{businessName}}*
+
+Dear *{{studentName}}*,
+Thank you for your fee payment! Details:
+
+📄 *Receipt No:* {{receiptNumber}}
+💰 *Amount Paid:* ₹{{amount}}
+⚠️ *Balance Due:* ₹{{balanceDue}}
+💳 *Payment Mode:* {{paymentMethod}}
+📅 *Date:* {{paymentDate}}
+⏳ *Valid Until:* {{expiryDate}}
+🔗 *UPI Ref / Txn ID:* {{upiRef}}
+
+View & Download Receipt:
+🔗 {{portalLink}}
+
+_Thank you for choosing {{businessName}}!_`,
+    availableVariables: ['studentName', 'studentId', 'receiptNumber', 'amount', 'balanceDue', 'paymentMethod', 'paymentDate', 'expiryDate', 'upiRef', 'businessName', 'portalLink']
+  },
+  {
+    title: 'Subscription Renewal Reminder',
+    triggerType: 'renewal_reminder',
+    channel: 'whatsapp',
+    templateText: `⏰ *Subscription Renewal Reminder*
+🏢 *{{businessName}}*
+
+Dear *{{studentName}}* (ID: {{studentId}}),
+Your library plan (*{{planName}}* | Seat #{{seatNumber}} | {{shiftName}}) expires on *{{expiryDate}}*.
+
+💰 *Renewal Fee:* ₹{{amount}}
+
+To avoid seat reallocation and continue uninterrupted study hours, please renew your membership:
+
+⚡ *1-Tap Instant UPI Payment:*
+{{upiLink}}
+
+🔗 *Online Student Portal:* {{portalLink}}
+
+_Please share payment confirmation screenshot after completing payment._
+Best regards,
+*{{businessName}} Desk*`,
+    availableVariables: ['studentName', 'studentId', 'planName', 'seatNumber', 'shiftName', 'expiryDate', 'amount', 'upiLink', 'portalLink', 'businessName']
+  },
+  {
+    title: 'Pending Fee Balance Due Notice',
+    triggerType: 'balance_due',
+    channel: 'whatsapp',
+    templateText: `⚠️ *Fee Balance Due Reminder*
+🏢 *{{businessName}}*
+
+Dear *{{studentName}}* (ID: {{studentId}}),
+This is a gentle reminder regarding your outstanding membership balance of *₹{{balanceDue}}* for Seat #{{seatNumber}}.
+
+Please clear your pending dues to maintain active library access:
+
+⚡ *1-Tap Instant UPI Payment:*
+{{upiLink}}
+
+🔗 *Student Portal:* {{portalLink}}
+
+_If already paid, please share your 12-digit UPI UTR number with the library desk._
+Thank you,
+*{{businessName}} Management*`,
+    availableVariables: ['studentName', 'studentId', 'seatNumber', 'shiftName', 'balanceDue', 'amount', 'upiLink', 'portalLink', 'businessName']
+  },
+  {
+    title: 'Daily Attendance Alert',
+    triggerType: 'attendance_punch',
+    channel: 'whatsapp',
+    templateText: `📚 *Daily Attendance Alert*
+🏢 *{{businessName}}*
+
+Dear *{{studentName}}* (ID: {{studentId}}),
+Here is your attendance update:
+
+⏱️ *Activity:* {{status}}
+🕒 *Timestamp:* {{timestamp}}
+💺 *Seat:* {{seatNumber}} | {{shiftName}}
+⏳ *Hours Studied:* {{hoursStudied}}
+
+Access your attendance logs & study hours on student portal:
+🔗 {{portalLink}}
+
+Have a productive study session! ✨`,
+    availableVariables: ['studentName', 'studentId', 'status', 'timestamp', 'seatNumber', 'shiftName', 'hoursStudied', 'businessName', 'portalLink']
+  }
+];
+
 // Seed standard templates
 messageTemplateSchema.statics.seedDefaults = async function() {
-  const count = await this.countDocuments();
-  if (count === 0) {
-    const defaults = [
-      {
-        title: 'Welcome & Admission Confirmation',
-        triggerType: 'welcome_admission',
-        channel: 'whatsapp',
-        templateText: 'Dear {student_name},\n\nWelcome to {library_name}! 🎉\nYour admission is confirmed:\n• Student ID: {student_id}\n• Seat No: {seat_no}\n• Plan: {plan_name}\n• Valid Until: {expiry_date}\n\nStudy hard and all the best for your exams!\n\nRegards,\n{library_name}',
-        availableVariables: ['student_name', 'library_name', 'student_id', 'seat_no', 'plan_name', 'expiry_date']
-      },
-      {
-        title: 'Fee Payment Receipt',
-        triggerType: 'payment_receipt',
-        channel: 'whatsapp',
-        templateText: 'Hello {student_name},\n\nThank you for your payment! 🧾\n• Receipt No: {receipt_no}\n• Amount Paid: ₹{amount}\n• Date: {payment_date}\n• Valid Until: {expiry_date}\n\nHave a productive study session!\n\n{library_name}',
-        availableVariables: ['student_name', 'library_name', 'receipt_no', 'amount', 'payment_date', 'expiry_date']
-      },
-      {
-        title: 'Membership Expiry Reminder (3 Days)',
-        triggerType: 'expiry_reminder_3d',
-        channel: 'whatsapp',
-        templateText: 'Hi {student_name},\n\nFriendly reminder from {library_name} ⏰\nYour study seat ({seat_no}) membership will expire in 3 days on {expiry_date}.\n\nRenew today to retain your preferred seat! Contact desk or pay online via UPI: {upi_id}\n\nThank you!',
-        availableVariables: ['student_name', 'library_name', 'seat_no', 'expiry_date', 'upi_id']
-      },
-      {
-        title: 'Pending Fee Due Alert',
-        triggerType: 'fee_due',
-        channel: 'whatsapp',
-        templateText: 'Dear {student_name},\n\nThis is regarding pending fees of ₹{due_amount} for your library membership ({seat_no}).\nKindly clear the dues by {due_date} to avoid suspension.\n\nThank you,\n{library_name}',
-        availableVariables: ['student_name', 'library_name', 'due_amount', 'seat_no', 'due_date']
-      }
-    ];
-    await this.insertMany(defaults);
+  for (const t of DEFAULT_TEMPLATES) {
+    const query = {
+      $or: [
+        { triggerType: t.triggerType },
+        ...(t.triggerType === 'admission_welcome' ? [{ triggerType: 'welcome_admission' }] : []),
+        ...(t.triggerType === 'balance_due' ? [{ triggerType: 'fee_due' }] : []),
+        ...(t.triggerType === 'renewal_reminder' ? [{ triggerType: 'expiry_reminder_3d' }] : [])
+      ]
+    };
+    const existing = await this.findOne(query);
+    if (!existing) {
+      await this.create(t);
+    }
   }
+};
+
+messageTemplateSchema.statics.getDefaultTemplates = function() {
+  return DEFAULT_TEMPLATES;
 };
 
 module.exports = mongoose.model('MessageTemplate', messageTemplateSchema);

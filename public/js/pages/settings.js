@@ -2491,7 +2491,7 @@ async function initLandingSettings(container) {
           <button id="btn-pv-refresh" class="btn btn-sm btn-outline" title="Refresh Live Canvas">🔄 Refresh</button>
         </div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <small class="text-muted">Instant live preview updates as you type</small>
+          <small class="text-muted">Instant live preview updates on save</small>
         </div>
       </div>
 
@@ -2507,7 +2507,7 @@ async function initLandingSettings(container) {
             <button class="landing-tab-btn" data-tab="rules" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Rules</button>
             <button class="landing-tab-btn" data-tab="gallery" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Gallery</button>
             <button class="landing-tab-btn" data-tab="faqs" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">FAQs</button>
-            <button class="landing-tab-btn" data-tab="testimonials" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Reviews</button>
+            <button class="landing-tab-btn" data-tab="testimonials" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Reviews & Testimonials</button>
             <button class="landing-tab-btn" data-tab="contact" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Contact & Map</button>
             <button class="landing-tab-btn" data-tab="footer" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">🔗 Footer & Quick Links</button>
             <button class="landing-tab-btn" data-tab="floating" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">💬 Floating Action Bar</button>
@@ -2516,7 +2516,7 @@ async function initLandingSettings(container) {
           
           <!-- Tab Content -->
           <div id="landing-tab-content">
-          <!-- Hero -->
+          <!-- 1. Hero & Branding -->
           <div class="landing-panel" id="l-panel-hero">
             <h4>Hero Section</h4>
             <div class="form-group mb-3">
@@ -2525,40 +2525,60 @@ async function initLandingSettings(container) {
             </div>
             <div class="form-group mb-3">
               <label>Sub-headline</label>
-              <textarea id="l-hero-subtitle" class="form-control">${escapeHTML(config.hero?.subtitle || '')}</textarea>
+              <textarea id="l-hero-subtitle" class="form-control" rows="3">${escapeHTML(config.hero?.subtitle || '')}</textarea>
             </div>
             <div class="form-group mb-3">
               <label>Banner Image URL</label>
-              <input type="text" id="l-hero-banner" class="form-control" value="${escapeHTML(config.hero?.bannerImage || '')}">
+              <input type="text" id="l-hero-banner" class="form-control" placeholder="https://.../banner.jpg" value="${escapeHTML(config.hero?.bannerImage || '')}">
             </div>
-            <div class="form-group mb-3" style="display: flex; gap: 1rem; align-items: center;">
-              <input type="checkbox" id="l-hero-enableTicker" ${config.hero?.enableTicker ? 'checked' : ''}>
-              <label class="mb-0">Enable Ticker</label>
+            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label>Primary CTA Button Text</label>
+                <input type="text" id="l-hero-ctaPrimaryText" class="form-control" value="${escapeHTML(config.hero?.ctaPrimaryText || 'Book Your Seat / Register Now')}">
+              </div>
+              <div>
+                <label>Primary CTA Button Link</label>
+                <input type="text" id="l-hero-ctaPrimaryLink" class="form-control" value="${escapeHTML(config.hero?.ctaPrimaryLink || '/register')}">
+              </div>
+            </div>
+            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label>Secondary CTA Button Text</label>
+                <input type="text" id="l-hero-ctaSecondaryText" class="form-control" value="${escapeHTML(config.hero?.ctaSecondaryText || 'Send Quick Enquiry')}">
+              </div>
+              <div>
+                <label>Secondary CTA Button Link</label>
+                <input type="text" id="l-hero-ctaSecondaryLink" class="form-control" value="${escapeHTML(config.hero?.ctaSecondaryLink || '#enquiry')}">
+              </div>
+            </div>
+            <div class="form-group mb-3" style="display: flex; gap: 0.75rem; align-items: center;">
+              <input type="checkbox" id="l-hero-enableTicker" ${config.hero?.enableTicker !== false ? 'checked' : ''}>
+              <label class="mb-0" style="font-weight: 600;">Enable Announcement Ticker</label>
             </div>
             <div class="form-group mb-3">
               <label>Ticker Text</label>
               <input type="text" id="l-hero-ticker" class="form-control" value="${escapeHTML(config.hero?.tickerText || '')}">
             </div>
-            <div class="form-group mb-3" style="display: flex; gap: 1rem; align-items: center;">
-              <input type="checkbox" id="l-hero-liveSeatBadge-enabled" ${config.hero?.liveSeatBadge?.enabled ? 'checked' : ''}>
-              <label class="mb-0">Enable Live Seat Counter Badge</label>
+            <div class="form-group mb-3" style="display: flex; gap: 0.75rem; align-items: center;">
+              <input type="checkbox" id="l-hero-liveSeatBadge-enabled" ${config.hero?.liveSeatBadge?.enabled !== false ? 'checked' : ''}>
+              <label class="mb-0" style="font-weight: 600;">Enable Live Seat Counter Badge</label>
             </div>
             <div class="form-group mb-3">
               <label>Live Seat Badge Text</label>
               <input type="text" id="l-hero-liveSeatBadge-text" class="form-control" value="${escapeHTML(config.hero?.liveSeatBadge?.text || '')}">
             </div>
             <div class="form-group mb-3">
-              <label>Badges (comma separated)</label>
+              <label>Hero Badges (comma separated)</label>
               <input type="text" id="l-hero-badges" class="form-control" value="${escapeHTML((config.hero?.badges || []).join(', '))} ">
             </div>
           </div>
 
-          <!-- Navbar & Header -->
+          <!-- 2. Navbar & CTA -->
           <div class="landing-panel" id="l-panel-navbar" style="display: none;">
             <h4>Navbar & Header Controls</h4>
             <div class="form-group mb-3">
               <label>Brand Display Name (Navbar)</label>
-              <input type="text" id="l-nav-brandName" class="form-control" placeholder="e.g. The Cozy Corner Centre" value="${escapeHTML(config.navbar?.brandName || '')}">
+              <input type="text" id="l-nav-brandName" class="form-control" placeholder="e.g. Study Library" value="${escapeHTML(config.navbar?.brandName || '')}">
             </div>
             <div class="form-group mb-3">
               <label>Brand Logo Image URL</label>
@@ -2586,27 +2606,31 @@ async function initLandingSettings(container) {
             </div>
             <div class="form-group mb-3" style="display: flex; gap: 0.75rem; align-items: center;">
               <input type="checkbox" id="l-nav-darkModeToggle" ${config.navbar?.showDarkModeToggle !== false ? 'checked' : ''}>
-              <label class="mb-0">Show Dark / Light Theme Toggle in Navbar</label>
+              <label class="mb-0" style="font-weight: 600;">Show Dark / Light Theme Toggle in Navbar</label>
             </div>
           </div>
           
-          <!-- About -->
+          <!-- 3. About & Stats -->
           <div class="landing-panel" id="l-panel-about" style="display: none;">
             <h4>About & Stats</h4>
             <div class="form-group mb-3">
               <label>Headline</label>
-              <input type="text" id="l-about-title" class="form-control" value="${escapeHTML(config.about?.title || '')}">
+              <input type="text" id="l-about-title" class="form-control" value="${escapeHTML(config.about?.title || 'About Our Study Library')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Sub-headline / Tagline</label>
+              <input type="text" id="l-about-subtitle" class="form-control" value="${escapeHTML(config.about?.subtitle || 'Why Choose Our Reading Hall?')}">
             </div>
             <div class="form-group mb-3">
               <label>Description</label>
               <textarea id="l-about-description" class="form-control" rows="4">${escapeHTML(config.about?.description || '')}</textarea>
             </div>
             <div class="form-group mb-3">
-              <label>Highlight Points (4 items)</label>
-              ${[0, 1, 2, 3].map(i => `<input type="text" class="form-control mb-2 l-about-point" value="${escapeHTML(config.about?.highlightPoints?.[i] || '')}">`).join('')}
+              <label>Highlight Points (Key Features)</label>
+              ${[0, 1, 2, 3].map(i => `<input type="text" class="form-control mb-2 l-about-point" placeholder="Feature point ${i + 1}" value="${escapeHTML(config.about?.highlightPoints?.[i] || '')}">`).join('')}
             </div>
             <div class="form-group mb-3">
-              <label>Stats (4 items: Number / Label)</label>
+              <label>Stats Badges (4 items: Number / Label)</label>
               ${[0, 1, 2, 3].map(i => `
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                   <input type="text" class="form-control l-about-stat-num" placeholder="Number (e.g. 100%)" value="${escapeHTML(config.about?.stats?.[i]?.number || '')}">
@@ -2616,94 +2640,148 @@ async function initLandingSettings(container) {
             </div>
           </div>
           
-          <!-- Facilities -->
+          <!-- 4. Facilities -->
           <div class="landing-panel" id="l-panel-facilities" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-              <h4 style="margin: 0;">Facilities</h4>
+              <h4 style="margin: 0;">Facilities & Amenities</h4>
               <button class="btn btn-outline-primary btn-sm" id="btn-add-facility">+ Add Facility</button>
+            </div>
+            <div class="form-group mb-3">
+              <label>Section Title</label>
+              <input type="text" id="l-fac-title" class="form-control" value="${escapeHTML(config.facilities?.title || 'World-Class Amenities & Facilities')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Section Subtitle</label>
+              <input type="text" id="l-fac-subtitle" class="form-control" value="${escapeHTML(config.facilities?.subtitle || 'Everything you need for uninterrupted, comfortable 14+ hours study sessions.')}">
             </div>
             <div id="l-facilities-list" style="display: flex; flex-direction: column; gap: 1rem;"></div>
           </div>
           
-          <!-- Shifts -->
+          <!-- 5. Shifts -->
           <div class="landing-panel" id="l-panel-shifts" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
               <h4 style="margin: 0;">Shifts Guide</h4>
               <button class="btn btn-outline-primary btn-sm" id="btn-add-shift">+ Add Shift</button>
             </div>
-            <div id="l-shifts-list" style="display: flex; flex-direction: column; gap: 1rem;"></div>
+            <div class="form-group mb-3">
+              <label>Section Title</label>
+              <input type="text" id="l-shifts-title" class="form-control" value="${escapeHTML(config.shifts?.title || 'Flexible Study Shifts')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Section Subtitle</label>
+              <input type="text" id="l-shifts-subtitle" class="form-control" value="${escapeHTML(config.shifts?.subtitle || 'Choose a timing that fits your schedule.')}">
+            </div>
+            <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 0.75rem;">
+              ℹ️ Live system shifts are automatically populated. Use the checkbox to show or hide any shift on the public landing page.
+            </p>
+            <div id="l-shifts-list" style="display: flex; flex-direction: column; gap: 0.85rem;"></div>
           </div>
           
-          <!-- Rules -->
+          <!-- 6. Rules -->
           <div class="landing-panel" id="l-panel-rules" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-              <h4 style="margin: 0;">Rules</h4>
+              <h4 style="margin: 0;">Rules & Code of Conduct</h4>
               <button class="btn btn-outline-primary btn-sm" id="btn-add-rule">+ Add Rule</button>
+            </div>
+            <div class="form-group mb-3">
+              <label>Section Title</label>
+              <input type="text" id="l-rules-title" class="form-control" value="${escapeHTML(config.rules?.title || 'Library Rules & Code of Conduct')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Section Subtitle</label>
+              <input type="text" id="l-rules-subtitle" class="form-control" value="${escapeHTML(config.rules?.subtitle || 'To maintain a peaceful and productive atmosphere for everyone, all members must adhere to these rules.')}">
             </div>
             <div id="l-rules-list" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
           </div>
           
-          <!-- Gallery -->
+          <!-- 7. Gallery -->
           <div class="landing-panel" id="l-panel-gallery" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
               <h4 style="margin: 0;">Photo Gallery</h4>
               <button class="btn btn-outline-primary btn-sm" id="btn-add-gallery">+ Add Photo</button>
             </div>
+            <div class="form-group mb-3">
+              <label>Section Title</label>
+              <input type="text" id="l-gal-title" class="form-control" value="${escapeHTML(config.gallery?.title || 'Library Hall & Facilities Gallery')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Section Subtitle</label>
+              <input type="text" id="l-gal-subtitle" class="form-control" value="${escapeHTML(config.gallery?.subtitle || 'A glimpse into our state-of-the-art reading halls and study infrastructure.')}">
+            </div>
             <div id="l-gallery-list" style="display: flex; flex-direction: column; gap: 1rem;"></div>
           </div>
           
-          <!-- FAQs -->
+          <!-- 8. FAQs -->
           <div class="landing-panel" id="l-panel-faqs" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-              <h4 style="margin: 0;">FAQs</h4>
+              <h4 style="margin: 0;">Frequently Asked Questions</h4>
               <button class="btn btn-outline-primary btn-sm" id="btn-add-faq">+ Add FAQ</button>
+            </div>
+            <div class="form-group mb-3">
+              <label>Section Title</label>
+              <input type="text" id="l-faqs-title" class="form-control" value="${escapeHTML(config.faqs?.title || 'Frequently Asked Questions')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Section Subtitle</label>
+              <input type="text" id="l-faqs-subtitle" class="form-control" value="${escapeHTML(config.faqs?.subtitle || 'Find answers to common queries.')}">
             </div>
             <div id="l-faqs-list" style="display: flex; flex-direction: column; gap: 1rem;"></div>
           </div>
           
-          <!-- Testimonials -->
+          <!-- 9. Reviews & Testimonials -->
           <div class="landing-panel" id="l-panel-testimonials" style="display: none;">
+            <h4>Reviews & Testimonials</h4>
             <div class="form-group mb-3">
-              <label>Google Rating</label>
-              <input type="text" id="l-test-googleRating" class="form-control" value="${escapeHTML(config.testimonials?.googleRating || '')}">
+              <label>Section Title</label>
+              <input type="text" id="l-test-title" class="form-control" value="${escapeHTML(config.testimonials?.title || 'What Our Students Say')}">
             </div>
-            <div class="form-group mb-3">
-              <label>Google Reviews Count</label>
-              <input type="text" id="l-test-googleReviewsCount" class="form-control" value="${escapeHTML(config.testimonials?.googleReviewsCount || '')}">
+            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label>Google Rating (e.g. 4.9)</label>
+                <input type="text" id="l-test-googleRating" class="form-control" value="${escapeHTML(config.testimonials?.googleRating || '4.9')}">
+              </div>
+              <div>
+                <label>Google Reviews Count (e.g. 250+ Reviews)</label>
+                <input type="text" id="l-test-googleReviewsCount" class="form-control" value="${escapeHTML(config.testimonials?.googleReviewsCount || '250+ Reviews')}">
+              </div>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; margin-top: 2rem;">
-              <h4 style="margin: 0;">Student Reviews</h4>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; margin-top: 1.5rem;">
+              <h5 style="margin: 0; font-size: 1rem; font-weight: 600;">Student Reviews List</h5>
               <button class="btn btn-outline-primary btn-sm" id="btn-add-testimonial">+ Add Testimonial</button>
             </div>
             <div id="l-testimonials-list" style="display: flex; flex-direction: column; gap: 1rem;"></div>
           </div>
           
-          <!-- Contact -->
+          <!-- 10. Contact & Map -->
           <div class="landing-panel" id="l-panel-contact" style="display: none;">
             <h4>Contact & Map</h4>
             <div class="form-group mb-3">
-              <label>Phone</label>
+              <label>Phone Number</label>
               <input type="text" id="l-contact-phone" class="form-control" value="${escapeHTML(config.contact?.phone || '')}">
             </div>
             <div class="form-group mb-3">
-              <label>WhatsApp</label>
+              <label>WhatsApp Number</label>
               <input type="text" id="l-contact-wa" class="form-control" value="${escapeHTML(config.contact?.whatsapp || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Email Address</label>
+              <input type="text" id="l-contact-email" class="form-control" value="${escapeHTML(config.contact?.email || '')}">
             </div>
             <div class="form-group mb-3">
               <label>Address</label>
               <input type="text" id="l-contact-address" class="form-control" value="${escapeHTML(config.contact?.address || '')}">
             </div>
             <div class="form-group mb-3">
-              <label>Timings</label>
+              <label>Timings / Working Hours</label>
               <input type="text" id="l-contact-hours" class="form-control" value="${escapeHTML(config.contact?.openingHours || '')}">
             </div>
             <div class="form-group mb-3">
               <label>Google Map Embed URL</label>
-              <textarea id="l-contact-map" class="form-control" rows="3">${escapeHTML(config.contact?.googleMapEmbedUrl || '')}</textarea>
+              <textarea id="l-contact-map" class="form-control" rows="3" placeholder="https://maps.google.com/maps?q=...&output=embed">${escapeHTML(config.contact?.googleMapEmbedUrl || '')}</textarea>
             </div>
           </div>
 
-          <!-- Footer & Quick Links Panel -->
+          <!-- 11. Footer & Quick Links Panel -->
           <div class="landing-panel" id="l-panel-footer" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
               <h4 style="margin: 0;">🔗 Quick Links & Footer Customizer</h4>
@@ -2729,12 +2807,12 @@ async function initLandingSettings(container) {
             <div id="l-quicklinks-list" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
           </div>
 
-          <!-- Floating Actions Bar Panel -->
+          <!-- 12. Floating Actions Bar Panel -->
           <div class="landing-panel" id="l-panel-floating" style="display: none;">
             <h4>💬 Floating Action Buttons Bar</h4>
             <div class="form-group mb-3" style="display: flex; gap: 0.75rem; align-items: center;">
               <input type="checkbox" id="l-float-enabled" ${config.floatingActions?.enabled !== false ? 'checked' : ''}>
-              <label class="mb-0">Enable Dual Floating Contact Buttons (Bottom Right)</label>
+              <label class="mb-0" style="font-weight: 600;">Enable Dual Floating Contact Buttons (Bottom Right)</label>
             </div>
             <div class="form-group mb-3">
               <label>WhatsApp Number (with Country Code)</label>
@@ -2750,7 +2828,7 @@ async function initLandingSettings(container) {
             </div>
           </div>
 
-          <!-- SEO & Social Meta Panel -->
+          <!-- 13. SEO & Social Meta Panel -->
           <div class="landing-panel" id="l-panel-seo" style="display: none;">
             <h4>🔍 SEO & Social Share Metadata</h4>
             <div class="form-group mb-3">
@@ -2849,11 +2927,12 @@ async function initLandingSettings(container) {
         btn.style.fontWeight = '600';
         
         panels.forEach(p => p.style.display = 'none');
-        listContainer.querySelector(`#l-panel-${btn.dataset.tab}`).style.display = 'block';
+        const targetPanel = listContainer.querySelector(`#l-panel-${btn.dataset.tab}`);
+        if (targetPanel) targetPanel.style.display = 'block';
       });
     });
 
-    // Helper functions to render lists with reordering controls
+    // Helper functions to render lists with full CRUD and reordering
     const renderFacilities = () => {
       const parent = listContainer.querySelector('#l-facilities-list');
       if (!parent) return;
@@ -2877,14 +2956,19 @@ async function initLandingSettings(container) {
           <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 4px;">
             <button class="btn btn-sm btn-outline btn-up-fac" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
             <button class="btn btn-sm btn-outline btn-down-fac" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
-            <button class="btn btn-sm btn-outline-danger btn-delete-facility">🗑️</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-facility" title="Delete Facility">🗑️</button>
           </div>
           <div style="display: flex; gap: 0.75rem; width: calc(100% - 120px);">
-            <input type="text" class="form-control l-fac-icon" style="width: 54px; text-align: center;" placeholder="Icon" value="${escapeHTML(item.icon || '')}">
-            <input type="text" class="form-control l-fac-title" style="flex: 1;" placeholder="Title" value="${escapeHTML(item.title || '')}">
+            <input type="text" class="form-control l-fac-icon" style="width: 54px; text-align: center;" placeholder="Icon" value="${escapeHTML(item.icon || '❄️')}">
+            <input type="text" class="form-control l-fac-title" style="flex: 1; font-weight: 600;" placeholder="Facility Title" value="${escapeHTML(item.title || '')}">
           </div>
-          <textarea class="form-control mt-2 l-fac-desc" placeholder="Description" rows="2">${escapeHTML(item.description || '')}</textarea>
+          <textarea class="form-control mt-2 l-fac-desc" placeholder="Description of amenity..." rows="2">${escapeHTML(item.description || '')}</textarea>
         `;
+
+        div.querySelector('.l-fac-icon')?.addEventListener('input', e => { item.icon = e.target.value; });
+        div.querySelector('.l-fac-title')?.addEventListener('input', e => { item.title = e.target.value; });
+        div.querySelector('.l-fac-desc')?.addEventListener('input', e => { item.description = e.target.value; });
+
         div.querySelector('.btn-up-fac')?.addEventListener('click', () => {
           if (idx > 0) {
             const temp = items[idx];
@@ -2901,17 +2985,18 @@ async function initLandingSettings(container) {
             renderFacilities();
           }
         });
-        div.querySelector('.btn-delete-facility').addEventListener('click', () => {
+        div.querySelector('.btn-delete-facility')?.addEventListener('click', () => {
           items.splice(idx, 1);
           renderFacilities();
         });
         parent.appendChild(div);
       });
     };
+
     listContainer.querySelector('#btn-add-facility')?.addEventListener('click', () => {
       if (!config.facilities) config.facilities = { items: [] };
       if (!Array.isArray(config.facilities.items)) config.facilities.items = [];
-      config.facilities.items.push({ icon: '✨', title: 'New Facility', description: '' });
+      config.facilities.items.push({ icon: '✨', title: 'New Facility', description: 'Description of the new facility.' });
       renderFacilities();
     });
 
@@ -2935,7 +3020,7 @@ async function initLandingSettings(container) {
         const isEnabled = item.enabled !== false;
         const div = document.createElement('div');
         div.dataset.shiftId = item.shiftId || '';
-        div.style.cssText = `border: 1.5px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface); opacity: ${isEnabled ? '1' : '0.65'}; transition: opacity 0.2s; margin-bottom: 0.85rem;`;
+        div.style.cssText = `border: 1.5px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface); opacity: ${isEnabled ? '1' : '0.65'}; transition: opacity 0.2s;`;
         div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; border-bottom: 1px dashed var(--color-border); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
             <label style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.88rem; cursor: pointer; color: ${isEnabled ? 'var(--color-primary)' : 'var(--color-text-secondary)'}; margin-bottom: 0;">
@@ -2962,6 +3047,10 @@ async function initLandingSettings(container) {
           item.enabled = checked;
           div.style.opacity = checked ? '1' : '0.65';
         });
+        div.querySelector('.l-shift-icon')?.addEventListener('input', e => { item.icon = e.target.value; });
+        div.querySelector('.l-shift-name')?.addEventListener('input', e => { item.name = e.target.value; });
+        div.querySelector('.l-shift-timing')?.addEventListener('input', e => { item.timing = e.target.value; });
+        div.querySelector('.l-shift-desc')?.addEventListener('input', e => { item.description = e.target.value; });
 
         div.querySelector('.btn-up-shift')?.addEventListener('click', () => {
           if (idx > 0) {
@@ -2979,17 +3068,18 @@ async function initLandingSettings(container) {
             renderShifts();
           }
         });
-        div.querySelector('.btn-delete-shift').addEventListener('click', () => {
+        div.querySelector('.btn-delete-shift')?.addEventListener('click', () => {
           items.splice(idx, 1);
           renderShifts();
         });
         parent.appendChild(div);
       });
     };
+
     listContainer.querySelector('#btn-add-shift')?.addEventListener('click', () => {
       if (!config.shifts) config.shifts = { items: [] };
       if (!Array.isArray(config.shifts.items)) config.shifts.items = [];
-      config.shifts.items.push({ icon: '⏰', name: 'New Shift', timing: '', description: '', enabled: true });
+      config.shifts.items.push({ icon: '⏰', name: 'Custom Shift', timing: '08:00 AM – 04:00 PM', description: 'Dedicated study slot with AC and high-speed Wi-Fi access.', enabled: true });
       renderShifts();
     });
 
@@ -3020,9 +3110,12 @@ async function initLandingSettings(container) {
           <div style="display: flex; gap: 4px;">
             <button class="btn btn-sm btn-outline btn-up-rule" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
             <button class="btn btn-sm btn-outline btn-down-rule" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
-            <button class="btn btn-sm btn-outline-danger btn-delete-rule">🗑️</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-rule" title="Delete Rule">🗑️</button>
           </div>
         `;
+
+        div.querySelector('.l-rule-text')?.addEventListener('input', e => { items[idx] = e.target.value; });
+
         div.querySelector('.btn-up-rule')?.addEventListener('click', () => {
           if (idx > 0) {
             const temp = items[idx];
@@ -3039,17 +3132,18 @@ async function initLandingSettings(container) {
             renderRules();
           }
         });
-        div.querySelector('.btn-delete-rule').addEventListener('click', () => {
+        div.querySelector('.btn-delete-rule')?.addEventListener('click', () => {
           items.splice(idx, 1);
           renderRules();
         });
         parent.appendChild(div);
       });
     };
+
     listContainer.querySelector('#btn-add-rule')?.addEventListener('click', () => {
       if (!config.rules) config.rules = { items: [] };
       if (!Array.isArray(config.rules.items)) config.rules.items = [];
-      config.rules.items.push('');
+      config.rules.items.push('Members must maintain discipline at all times.');
       renderRules();
     });
 
@@ -3057,7 +3151,7 @@ async function initLandingSettings(container) {
       const parent = listContainer.querySelector('#l-gallery-list');
       if (!parent) return;
       parent.innerHTML = '';
-      let items = config.gallery?.images;
+      let items = config.gallery?.images || config.gallery?.items;
       if (!Array.isArray(items) || items.length === 0) {
         items = [
           { url: 'https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=800', caption: 'Premium Study Cabins', category: 'Cabins' },
@@ -3075,7 +3169,7 @@ async function initLandingSettings(container) {
         const div = document.createElement('div');
         div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: center; position: relative; background: var(--color-surface);';
         div.innerHTML = `
-          <img src="${escapeHTML(item.url || 'https://via.placeholder.com/80')}" style="width: 70px; height: 70px; object-fit: cover; border-radius: var(--radius-md);">
+          <img src="${escapeHTML(item.url || 'https://via.placeholder.com/80')}" style="width: 70px; height: 70px; object-fit: cover; border-radius: var(--radius-md);" onerror="this.src='https://via.placeholder.com/80?text=No+Img'">
           <div style="flex: 1; display: flex; flex-direction: column; gap: 0.4rem;">
             <input type="text" class="form-control l-gal-url" placeholder="Image URL" value="${escapeHTML(item.url || '')}">
             <div style="display: flex; gap: 0.5rem;">
@@ -3091,13 +3185,17 @@ async function initLandingSettings(container) {
           <div style="display: flex; flex-direction: column; gap: 4px;">
             <button class="btn btn-sm btn-outline btn-up-gal" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
             <button class="btn btn-sm btn-outline btn-down-gal" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
-            <button class="btn btn-sm btn-outline-danger btn-delete-gallery">🗑️</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-gallery" title="Delete Photo">🗑️</button>
           </div>
         `;
         
-        div.querySelector('.l-gal-url').addEventListener('input', (e) => {
-          div.querySelector('img').src = e.target.value || 'https://via.placeholder.com/80';
+        div.querySelector('.l-gal-url')?.addEventListener('input', (e) => {
+          item.url = e.target.value;
+          const img = div.querySelector('img');
+          if (img) img.src = e.target.value || 'https://via.placeholder.com/80';
         });
+        div.querySelector('.l-gal-cat')?.addEventListener('change', e => { item.category = e.target.value; });
+        div.querySelector('.l-gal-caption')?.addEventListener('input', e => { item.caption = e.target.value; });
 
         div.querySelector('.btn-up-gal')?.addEventListener('click', () => {
           if (idx > 0) {
@@ -3115,17 +3213,18 @@ async function initLandingSettings(container) {
             renderGallery();
           }
         });
-        div.querySelector('.btn-delete-gallery').addEventListener('click', () => {
+        div.querySelector('.btn-delete-gallery')?.addEventListener('click', () => {
           items.splice(idx, 1);
           renderGallery();
         });
         parent.appendChild(div);
       });
     };
+
     listContainer.querySelector('#btn-add-gallery')?.addEventListener('click', () => {
       if (!config.gallery) config.gallery = { images: [] };
       if (!Array.isArray(config.gallery.images)) config.gallery.images = [];
-      config.gallery.images.push({ url: '', category: 'Hall', caption: '' });
+      config.gallery.images.push({ url: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800', category: 'Hall', caption: 'Reading Room' });
       renderGallery();
     });
 
@@ -3153,11 +3252,15 @@ async function initLandingSettings(container) {
           <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 4px;">
             <button class="btn btn-sm btn-outline btn-up-faq" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
             <button class="btn btn-sm btn-outline btn-down-faq" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
-            <button class="btn btn-sm btn-outline-danger btn-delete-faq">🗑️</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-faq" title="Delete FAQ">🗑️</button>
           </div>
-          <input type="text" class="form-control l-faq-q mb-2" style="width: calc(100% - 120px);" placeholder="Question" value="${escapeHTML(item.question || '')}">
+          <input type="text" class="form-control l-faq-q mb-2" style="width: calc(100% - 120px); font-weight: 600;" placeholder="Question" value="${escapeHTML(item.question || '')}">
           <textarea class="form-control l-faq-a" placeholder="Answer" rows="2">${escapeHTML(item.answer || '')}</textarea>
         `;
+
+        div.querySelector('.l-faq-q')?.addEventListener('input', e => { item.question = e.target.value; });
+        div.querySelector('.l-faq-a')?.addEventListener('input', e => { item.answer = e.target.value; });
+
         div.querySelector('.btn-up-faq')?.addEventListener('click', () => {
           if (idx > 0) {
             const temp = items[idx];
@@ -3174,17 +3277,18 @@ async function initLandingSettings(container) {
             renderFaqs();
           }
         });
-        div.querySelector('.btn-delete-faq').addEventListener('click', () => {
+        div.querySelector('.btn-delete-faq')?.addEventListener('click', () => {
           items.splice(idx, 1);
           renderFaqs();
         });
         parent.appendChild(div);
       });
     };
+
     listContainer.querySelector('#btn-add-faq')?.addEventListener('click', () => {
       if (!config.faqs) config.faqs = { items: [] };
       if (!Array.isArray(config.faqs.items)) config.faqs.items = [];
-      config.faqs.items.push({ question: '', answer: '' });
+      config.faqs.items.push({ question: 'New Question', answer: 'Answer to the question.' });
       renderFaqs();
     });
 
@@ -3210,15 +3314,21 @@ async function initLandingSettings(container) {
           <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 4px;">
             <button class="btn btn-sm btn-outline btn-up-test" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
             <button class="btn btn-sm btn-outline btn-down-test" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
-            <button class="btn btn-sm btn-outline-danger btn-delete-test">🗑️</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete-test" title="Delete Review">🗑️</button>
           </div>
           <div style="display: flex; gap: 0.75rem; margin-bottom: 0.5rem; width: calc(100% - 120px); flex-wrap: wrap;">
-            <input type="text" class="form-control l-test-name" style="flex: 1;" placeholder="Student Name" value="${escapeHTML(item.name || '')}">
-            <input type="text" class="form-control l-test-exam" style="flex: 1;" placeholder="Exam / Badge" value="${escapeHTML(item.exam || '')}">
+            <input type="text" class="form-control l-test-name" style="flex: 1; min-width: 130px; font-weight: 600;" placeholder="Student Name" value="${escapeHTML(item.name || '')}">
+            <input type="text" class="form-control l-test-exam" style="flex: 1; min-width: 130px;" placeholder="Exam / Qualification" value="${escapeHTML(item.exam || '')}">
             <input type="number" class="form-control l-test-rating" style="width: 110px;" placeholder="Rating (1-5)" min="1" max="5" value="${item.rating || 5}">
           </div>
-          <textarea class="form-control l-test-feedback" placeholder="Feedback Quote" rows="2">${escapeHTML(item.feedback || '')}</textarea>
+          <textarea class="form-control l-test-feedback" placeholder="Feedback quote..." rows="2">${escapeHTML(item.feedback || '')}</textarea>
         `;
+
+        div.querySelector('.l-test-name')?.addEventListener('input', e => { item.name = e.target.value; });
+        div.querySelector('.l-test-exam')?.addEventListener('input', e => { item.exam = e.target.value; });
+        div.querySelector('.l-test-rating')?.addEventListener('input', e => { item.rating = Number(e.target.value) || 5; });
+        div.querySelector('.l-test-feedback')?.addEventListener('input', e => { item.feedback = e.target.value; });
+
         div.querySelector('.btn-up-test')?.addEventListener('click', () => {
           if (idx > 0) {
             const temp = items[idx];
@@ -3235,17 +3345,18 @@ async function initLandingSettings(container) {
             renderTestimonials();
           }
         });
-        div.querySelector('.btn-delete-test').addEventListener('click', () => {
+        div.querySelector('.btn-delete-test')?.addEventListener('click', () => {
           items.splice(idx, 1);
           renderTestimonials();
         });
         parent.appendChild(div);
       });
     };
+
     listContainer.querySelector('#btn-add-testimonial')?.addEventListener('click', () => {
       if (!config.testimonials) config.testimonials = { items: [] };
       if (!Array.isArray(config.testimonials.items)) config.testimonials.items = [];
-      config.testimonials.items.push({ name: '', exam: '', rating: 5, feedback: '' });
+      config.testimonials.items.push({ name: 'Student Name', exam: 'UPSC Aspirant', rating: 5, feedback: 'Great study space with calm ambience and ultra-fast Wi-Fi.' });
       renderTestimonials();
     });
 
@@ -3270,7 +3381,7 @@ async function initLandingSettings(container) {
         div.style.cssText = 'border: 1px solid var(--color-border); padding: 0.75rem 1rem; border-radius: var(--radius-md); background: var(--color-surface); display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;';
         div.innerHTML = `
           <div style="display: flex; gap: 0.5rem; flex: 1; min-width: 260px;">
-            <input type="text" class="form-control l-ql-label" style="flex: 1;" placeholder="Link Label" value="${escapeHTML(item.label || '')}">
+            <input type="text" class="form-control l-ql-label" style="flex: 1; font-weight: 600;" placeholder="Link Label" value="${escapeHTML(item.label || '')}">
             <input type="text" class="form-control l-ql-url" style="flex: 1.5;" placeholder="URL (e.g. /register or https://...)" value="${escapeHTML(item.url || '')}">
           </div>
           <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -3281,10 +3392,15 @@ async function initLandingSettings(container) {
             <div style="display: flex; gap: 4px;">
               <button class="btn btn-sm btn-outline btn-up-ql" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
               <button class="btn btn-sm btn-outline btn-down-ql" ${idx === links.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
-              <button class="btn btn-sm btn-outline-danger btn-delete-ql">🗑️</button>
+              <button class="btn btn-sm btn-outline-danger btn-delete-ql" title="Delete Link">🗑️</button>
             </div>
           </div>
         `;
+
+        div.querySelector('.l-ql-label')?.addEventListener('input', e => { item.label = e.target.value; });
+        div.querySelector('.l-ql-url')?.addEventListener('input', e => { item.url = e.target.value; });
+        div.querySelector('.l-ql-target')?.addEventListener('change', e => { item.openInNewTab = e.target.checked; });
+
         div.querySelector('.btn-up-ql')?.addEventListener('click', () => {
           if (idx > 0) {
             const temp = links[idx];
@@ -3301,7 +3417,7 @@ async function initLandingSettings(container) {
             renderQuickLinks();
           }
         });
-        div.querySelector('.btn-delete-ql').addEventListener('click', () => {
+        div.querySelector('.btn-delete-ql')?.addEventListener('click', () => {
           links.splice(idx, 1);
           renderQuickLinks();
         });
@@ -3312,7 +3428,7 @@ async function initLandingSettings(container) {
     listContainer.querySelector('#btn-add-quicklink')?.addEventListener('click', () => {
       if (!config.footer) config.footer = { quickLinks: [] };
       if (!Array.isArray(config.footer.quickLinks)) config.footer.quickLinks = [];
-      config.footer.quickLinks.push({ label: 'New Link', url: '/', openInNewTab: false });
+      config.footer.quickLinks.push({ label: 'New Quick Link', url: '/register', openInNewTab: false });
       renderQuickLinks();
     });
 
@@ -3332,22 +3448,26 @@ async function initLandingSettings(container) {
     // Sync UI to payload
     const payload = { ...config };
     
-    // Hero
+    // 1. Hero
     payload.hero = {
       ...payload.hero,
-      title: listContainer.querySelector('#l-hero-title').value,
-      subtitle: listContainer.querySelector('#l-hero-subtitle').value,
-      bannerImage: listContainer.querySelector('#l-hero-banner').value,
-      enableTicker: listContainer.querySelector('#l-hero-enableTicker').checked,
-      tickerText: listContainer.querySelector('#l-hero-ticker').value,
-      badges: listContainer.querySelector('#l-hero-badges').value.split(',').map(s => s.trim()).filter(Boolean),
+      title: listContainer.querySelector('#l-hero-title')?.value || '',
+      subtitle: listContainer.querySelector('#l-hero-subtitle')?.value || '',
+      bannerImage: listContainer.querySelector('#l-hero-banner')?.value || '',
+      ctaPrimaryText: listContainer.querySelector('#l-hero-ctaPrimaryText')?.value || 'Book Your Seat / Register Now',
+      ctaPrimaryLink: listContainer.querySelector('#l-hero-ctaPrimaryLink')?.value || '/register',
+      ctaSecondaryText: listContainer.querySelector('#l-hero-ctaSecondaryText')?.value || 'Send Quick Enquiry',
+      ctaSecondaryLink: listContainer.querySelector('#l-hero-ctaSecondaryLink')?.value || '#enquiry',
+      enableTicker: listContainer.querySelector('#l-hero-enableTicker')?.checked !== false,
+      tickerText: listContainer.querySelector('#l-hero-ticker')?.value || '',
+      badges: (listContainer.querySelector('#l-hero-badges')?.value || '').split(',').map(s => s.trim()).filter(Boolean),
       liveSeatBadge: {
-        enabled: listContainer.querySelector('#l-hero-liveSeatBadge-enabled').checked,
-        text: listContainer.querySelector('#l-hero-liveSeatBadge-text').value
+        enabled: listContainer.querySelector('#l-hero-liveSeatBadge-enabled')?.checked !== false,
+        text: listContainer.querySelector('#l-hero-liveSeatBadge-text')?.value || 'Only 12 Seats Left'
       }
     };
 
-    // Navbar
+    // 2. Navbar
     payload.navbar = {
       ...payload.navbar,
       brandName: listContainer.querySelector('#l-nav-brandName')?.value || '',
@@ -3359,118 +3479,131 @@ async function initLandingSettings(container) {
       showDarkModeToggle: listContainer.querySelector('#l-nav-darkModeToggle')?.checked !== false
     };
     
-    // About
+    // 3. About
     payload.about = {
       ...payload.about,
-      title: listContainer.querySelector('#l-about-title').value,
-      description: listContainer.querySelector('#l-about-description').value,
-      highlightPoints: Array.from(listContainer.querySelectorAll('.l-about-point')).map(el => el.value),
+      title: listContainer.querySelector('#l-about-title')?.value || 'About Our Study Library',
+      subtitle: listContainer.querySelector('#l-about-subtitle')?.value || 'Why Choose Our Reading Hall?',
+      description: listContainer.querySelector('#l-about-description')?.value || '',
+      highlightPoints: Array.from(listContainer.querySelectorAll('.l-about-point')).map(el => el.value.trim()).filter(Boolean),
       stats: Array.from(listContainer.querySelectorAll('.l-about-stat-num')).map((el, i) => ({
-        number: el.value,
-        label: listContainer.querySelectorAll('.l-about-stat-label')[i].value
-      }))
+        number: el.value.trim(),
+        label: listContainer.querySelectorAll('.l-about-stat-label')[i]?.value?.trim() || ''
+      })).filter(s => s.number || s.label)
     };
     
-    // Facilities
+    // 4. Facilities
     payload.facilities = {
       ...payload.facilities,
+      title: listContainer.querySelector('#l-fac-title')?.value || 'World-Class Amenities & Facilities',
+      subtitle: listContainer.querySelector('#l-fac-subtitle')?.value || 'Everything you need for uninterrupted, comfortable 14+ hours study sessions.',
       items: Array.from(listContainer.querySelectorAll('#l-facilities-list > div')).map(div => ({
-        icon: div.querySelector('.l-fac-icon').value,
-        title: div.querySelector('.l-fac-title').value,
-        description: div.querySelector('.l-fac-desc').value
-      }))
+        icon: div.querySelector('.l-fac-icon')?.value.trim() || '❄️',
+        title: div.querySelector('.l-fac-title')?.value.trim() || '',
+        description: div.querySelector('.l-fac-desc')?.value.trim() || ''
+      })).filter(f => f.title)
     };
     
-    // Shifts
+    // 5. Shifts
     payload.shifts = {
       ...payload.shifts,
+      title: listContainer.querySelector('#l-shifts-title')?.value || 'Flexible Study Shifts',
+      subtitle: listContainer.querySelector('#l-shifts-subtitle')?.value || 'Choose a timing that fits your schedule.',
       items: Array.from(listContainer.querySelectorAll('#l-shifts-list > div')).map(div => ({
         shiftId: div.dataset.shiftId || '',
         enabled: div.querySelector('.l-shift-enabled')?.checked !== false,
-        icon: div.querySelector('.l-shift-icon')?.value || '⏰',
-        name: div.querySelector('.l-shift-name')?.value || '',
-        timing: div.querySelector('.l-shift-timing')?.value || '',
-        description: div.querySelector('.l-shift-desc')?.value || ''
-      })).filter(s => s.name && s.name !== 'New Shift')
+        icon: div.querySelector('.l-shift-icon')?.value.trim() || '⏰',
+        name: div.querySelector('.l-shift-name')?.value.trim() || '',
+        timing: div.querySelector('.l-shift-timing')?.value.trim() || '',
+        description: div.querySelector('.l-shift-desc')?.value.trim() || ''
+      })).filter(s => s.name)
     };
     
-    // Rules
+    // 6. Rules
     payload.rules = {
       ...payload.rules,
-      items: Array.from(listContainer.querySelectorAll('.l-rule-text')).map(el => el.value)
+      title: listContainer.querySelector('#l-rules-title')?.value || 'Library Rules & Code of Conduct',
+      subtitle: listContainer.querySelector('#l-rules-subtitle')?.value || 'To maintain a peaceful and productive atmosphere for everyone, all members must adhere to these rules.',
+      items: Array.from(listContainer.querySelectorAll('.l-rule-text')).map(el => el.value.trim()).filter(Boolean)
     };
     
-    // Gallery
+    // 7. Gallery
     payload.gallery = {
       ...payload.gallery,
+      title: listContainer.querySelector('#l-gal-title')?.value || 'Library Hall & Facilities Gallery',
+      subtitle: listContainer.querySelector('#l-gal-subtitle')?.value || 'A glimpse into our state-of-the-art reading halls and study infrastructure.',
       images: Array.from(listContainer.querySelectorAll('#l-gallery-list > div')).map(div => ({
-        url: div.querySelector('.l-gal-url').value,
-        category: div.querySelector('.l-gal-cat').value,
-        caption: div.querySelector('.l-gal-caption').value
-      }))
+        url: div.querySelector('.l-gal-url')?.value.trim() || '',
+        category: div.querySelector('.l-gal-cat')?.value || 'Hall',
+        caption: div.querySelector('.l-gal-caption')?.value.trim() || ''
+      })).filter(img => img.url)
     };
     
-    // FAQs
+    // 8. FAQs
     payload.faqs = {
       ...payload.faqs,
+      title: listContainer.querySelector('#l-faqs-title')?.value || 'Frequently Asked Questions',
+      subtitle: listContainer.querySelector('#l-faqs-subtitle')?.value || 'Find answers to common queries.',
       items: Array.from(listContainer.querySelectorAll('#l-faqs-list > div')).map(div => ({
-        question: div.querySelector('.l-faq-q').value,
-        answer: div.querySelector('.l-faq-a').value
-      }))
+        question: div.querySelector('.l-faq-q')?.value.trim() || '',
+        answer: div.querySelector('.l-faq-a')?.value.trim() || ''
+      })).filter(faq => faq.question && faq.answer)
     };
     
-    // Testimonials
+    // 9. Testimonials
     payload.testimonials = {
       ...payload.testimonials,
-      googleRating: listContainer.querySelector('#l-test-googleRating').value,
-      googleReviewsCount: listContainer.querySelector('#l-test-googleReviewsCount').value,
+      title: listContainer.querySelector('#l-test-title')?.value || 'What Our Students Say',
+      googleRating: listContainer.querySelector('#l-test-googleRating')?.value.trim() || '4.9',
+      googleReviewsCount: listContainer.querySelector('#l-test-googleReviewsCount')?.value.trim() || '250+ Reviews',
       items: Array.from(listContainer.querySelectorAll('#l-testimonials-list > div')).map(div => ({
-        name: div.querySelector('.l-test-name').value,
-        exam: div.querySelector('.l-test-exam').value,
-        rating: Number(div.querySelector('.l-test-rating').value),
-        feedback: div.querySelector('.l-test-feedback').value
-      }))
+        name: div.querySelector('.l-test-name')?.value.trim() || '',
+        exam: div.querySelector('.l-test-exam')?.value.trim() || '',
+        rating: Number(div.querySelector('.l-test-rating')?.value) || 5,
+        feedback: div.querySelector('.l-test-feedback')?.value.trim() || ''
+      })).filter(t => t.name && t.feedback)
     };
     
-    // Contact
+    // 10. Contact
     payload.contact = {
       ...payload.contact,
-      phone: listContainer.querySelector('#l-contact-phone').value,
-      whatsapp: listContainer.querySelector('#l-contact-wa').value,
-      address: listContainer.querySelector('#l-contact-address').value,
-      openingHours: listContainer.querySelector('#l-contact-hours').value,
-      googleMapEmbedUrl: listContainer.querySelector('#l-contact-map').value
+      phone: listContainer.querySelector('#l-contact-phone')?.value.trim() || '',
+      whatsapp: listContainer.querySelector('#l-contact-wa')?.value.trim() || '',
+      email: listContainer.querySelector('#l-contact-email')?.value.trim() || '',
+      address: listContainer.querySelector('#l-contact-address')?.value.trim() || '',
+      openingHours: listContainer.querySelector('#l-contact-hours')?.value.trim() || '',
+      googleMapEmbedUrl: listContainer.querySelector('#l-contact-map')?.value.trim() || ''
     };
 
-    // Footer & Quick Links
+    // 11. Footer & Quick Links
     payload.footer = {
       ...payload.footer,
       tagline: listContainer.querySelector('#l-footer-tagline')?.value || '',
       copyrightText: listContainer.querySelector('#l-footer-copyright')?.value || '',
       mapDirectLink: listContainer.querySelector('#l-footer-mapDirect')?.value || '',
       quickLinks: Array.from(listContainer.querySelectorAll('#l-quicklinks-list > div')).map(div => ({
-        label: div.querySelector('.l-ql-label').value.trim(),
-        url: div.querySelector('.l-ql-url').value.trim(),
-        openInNewTab: div.querySelector('.l-ql-target').checked
-      }))
+        label: div.querySelector('.l-ql-label')?.value.trim() || '',
+        url: div.querySelector('.l-ql-url')?.value.trim() || '',
+        openInNewTab: div.querySelector('.l-ql-target')?.checked !== false
+      })).filter(l => l.label && l.url)
     };
 
-    // Floating Actions Bar
+    // 12. Floating Actions Bar
     payload.floatingActions = {
       ...payload.floatingActions,
       enabled: listContainer.querySelector('#l-float-enabled')?.checked !== false,
-      whatsappNumber: listContainer.querySelector('#l-float-wa')?.value || '',
-      whatsappMessage: listContainer.querySelector('#l-float-wamsg')?.value || '',
-      callNumber: listContainer.querySelector('#l-float-call')?.value || ''
+      whatsappNumber: listContainer.querySelector('#l-float-wa')?.value.trim() || '',
+      whatsappMessage: listContainer.querySelector('#l-float-wamsg')?.value.trim() || '',
+      callNumber: listContainer.querySelector('#l-float-call')?.value.trim() || ''
     };
 
-    // SEO & Meta
+    // 13. SEO & Meta
     payload.seo = {
       ...payload.seo,
-      metaTitle: listContainer.querySelector('#l-seo-title')?.value || '',
-      metaDescription: listContainer.querySelector('#l-seo-desc')?.value || '',
-      metaKeywords: listContainer.querySelector('#l-seo-keywords')?.value || '',
-      ogImage: listContainer.querySelector('#l-seo-ogImage')?.value || ''
+      metaTitle: listContainer.querySelector('#l-seo-title')?.value.trim() || '',
+      metaDescription: listContainer.querySelector('#l-seo-desc')?.value.trim() || '',
+      metaKeywords: listContainer.querySelector('#l-seo-keywords')?.value.trim() || '',
+      ogImage: listContainer.querySelector('#l-seo-ogImage')?.value.trim() || ''
     };
 
     try {
@@ -3491,3 +3624,4 @@ async function initLandingSettings(container) {
 
   loadSettings();
 }
+

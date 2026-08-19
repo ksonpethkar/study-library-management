@@ -120,6 +120,53 @@ router.post('/', validate([
   body('phone').notEmpty().withMessage('Phone is required').trim()
 ]), roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
+    // Validate Shift Capacity
+    if (req.body.shift || req.body.plan) {
+      const Shift = require('../models/Shift');
+      const Plan = require('../models/Plan');
+      
+      let shiftIdToCheck = req.body.shift;
+      let shiftCodeToCheck = null;
+
+      if (!shiftIdToCheck && req.body.plan) {
+        const planDoc = await Plan.findById(req.body.plan);
+        if (planDoc?.shift && planDoc.shift !== 'any') {
+          shiftCodeToCheck = planDoc.shift.toLowerCase();
+        }
+      }
+
+      let shiftDoc = null;
+      if (shiftIdToCheck) {
+        shiftDoc = await Shift.findById(shiftIdToCheck);
+      } else if (shiftCodeToCheck) {
+        shiftDoc = await Shift.findOne({
+          $or: [
+            { code: new RegExp(`^${shiftCodeToCheck}$`, 'i') },
+            { name: new RegExp(shiftCodeToCheck, 'i') }
+          ],
+          isActive: true
+        });
+      }
+
+      if (shiftDoc && shiftDoc.maxCapacity > 0 && !req.body.allowOvercapacity) {
+        const currentActiveCount = await Student.countDocuments({
+          $or: [
+            { shift: shiftDoc._id },
+            { 'plan.shift': shiftDoc.code }
+          ],
+          status: 'active'
+        });
+
+        if (currentActiveCount >= shiftDoc.maxCapacity) {
+          return res.status(400).json({
+            success: false,
+            isFull: true,
+            message: `Shift "${shiftDoc.name}" is currently FULL (${currentActiveCount}/${shiftDoc.maxCapacity} active). Please add candidate to Waiting List or choose another shift.`
+          });
+        }
+      }
+    }
+
     req.body.createdBy = req.user._id;
     
     // Extract customFields before creating student
@@ -287,18 +334,50 @@ router.post('/bulk-remind', roleCheck('owner', 'branch_manager'), async (req, re
       return res.status(400).json({ success: false, message: 'No students selected' });
     }
 
-    const students = await Student.find({ _id: { $in: studentIds } });
-    const reminders = students.map(s => {
-      const expiryStr = s.expiryDate ? new Date(s.expiryDate).toLocaleDateString('en-IN') : 'Soon';
-      const cleanPhone = s.phone.replace(/[^0-9]/g, '').slice(-10);
-      const text = encodeURIComponent(`Hello ${s.name}, your Study Library subscription validity is active until ${expiryStr}. Please renew on time to retain your seat. Thank you!`);
-      return {
+    const WhatsAppService = require('../utils/whatsappService');
+    const BusinessProfile = require('../models/BusinessProfile');
+    const profile = await BusinessProfile.getProfile();
+    const upiId = profile?.upiId || '';
+    const bizName = profile?.businessName || 'Study Library';
+    const baseUrl = WhatsAppService.getBaseUrl(req);
+
+    const students = await Student.find({ _id: { $in: studentIds } })
+      .populate('seat')
+      .populate('plan')
+      .populate('shift');
+
+    const reminders = [];
+    for (const s of students) {
+      const renewalAmount = s.plan?.price || 0;
+      const upiLink = upiId ? WhatsAppService.generateUpiDeepLink({
+        upiId,
+        businessName: bizName,
+        amount: renewalAmount,
+        note: 'SubscriptionRenewal'
+      }) : '';
+
+      const expDate = s.expiryDate || s.planExpiresAt;
+      const timeLeftStr = expDate ? `${Math.max(0, Math.ceil((new Date(expDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days` : 'Soon';
+
+      const messageText = await WhatsAppService.getExpiryReminderMessage(
+        s,
+        timeLeftStr,
+        bizName,
+        upiId,
+        renewalAmount,
+        upiLink,
+        baseUrl
+      );
+
+      const whatsappUrl = WhatsAppService.getClickToChatUrl(s.phone, messageText);
+      reminders.push({
         studentId: s._id,
         name: s.name,
         phone: s.phone,
-        whatsappUrl: `https://wa.me/91${cleanPhone}?text=${text}`
-      };
-    });
+        message: messageText,
+        whatsappUrl
+      });
+    }
 
     res.json({
       success: true,

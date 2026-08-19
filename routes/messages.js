@@ -50,8 +50,12 @@ router.put('/templates/:id', protect, roleCheck('owner', 'branch_manager'), asyn
 router.post('/prepare-broadcast', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { templateId, customMessage, targetFilter, studentIds } = req.body;
+    const BusinessProfile = require('../models/BusinessProfile');
+    const WhatsAppService = require('../utils/whatsappService');
     const business = await BusinessProfile.getProfile();
     const libraryName = business?.businessName || 'Study Library';
+    const baseUrl = WhatsAppService.getBaseUrl(req);
+    const upiId = business?.upiId || '';
 
     let messageTemplate = customMessage || '';
     if (templateId) {
@@ -61,41 +65,66 @@ router.post('/prepare-broadcast', protect, roleCheck('owner', 'branch_manager'),
 
     let students = [];
     if (studentIds && studentIds.length > 0) {
-      students = await Student.find({ _id: { $in: studentIds } }).populate('seat', 'seatNumber').populate('plan', 'name');
+      students = await Student.find({ _id: { $in: studentIds } })
+        .populate('seat', 'seatNumber')
+        .populate('plan', 'name price')
+        .populate('shift', 'name');
     } else if (targetFilter === 'expiring_3d') {
       const now = new Date();
       const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
       students = await Student.find({
         status: 'active',
         expiryDate: { $gte: now, $lte: threeDaysLater }
-      }).populate('seat', 'seatNumber').populate('plan', 'name');
+      })
+        .populate('seat', 'seatNumber')
+        .populate('plan', 'name price')
+        .populate('shift', 'name');
     } else if (targetFilter === 'expired') {
       students = await Student.find({
-        status: { $in: ['expired', 'suspended'] }
-      }).populate('seat', 'seatNumber').populate('plan', 'name');
+        status: { $in: ['expired', 'suspended', 'grace_period'] }
+      })
+        .populate('seat', 'seatNumber')
+        .populate('plan', 'name price')
+        .populate('shift', 'name');
     } else {
-      students = await Student.find({ status: 'active' }).populate('seat', 'seatNumber').populate('plan', 'name');
+      students = await Student.find({ status: 'active' })
+        .populate('seat', 'seatNumber')
+        .populate('plan', 'name price')
+        .populate('shift', 'name');
     }
 
     const preparedMessages = students.map(s => {
-      let text = messageTemplate;
-      text = text.replace(/{student_name}/g, s.name || 'Student');
-      text = text.replace(/{library_name}/g, libraryName);
-      text = text.replace(/{student_id}/g, s.studentId || '');
-      text = text.replace(/{seat_no}/g, s.seat?.seatNumber || 'N/A');
-      text = text.replace(/{plan_name}/g, s.plan?.name || 'General');
-      text = text.replace(/{expiry_date}/g, s.expiryDate ? new Date(s.expiryDate).toLocaleDateString('en-IN') : 'N/A');
-      text = text.replace(/{upi_id}/g, business?.upiQrCode ? 'Available on request' : '');
+      const renewalAmount = s.plan?.price || 0;
+      const upiLink = upiId ? WhatsAppService.generateUpiDeepLink({
+        upiId,
+        businessName: libraryName,
+        amount: renewalAmount,
+        note: 'SubscriptionRenewal'
+      }) : '';
 
-      let phone = (s.phone || '').replace(/[^0-9]/g, '');
-      if (phone.length === 10) phone = '91' + phone;
+      const text = WhatsAppService.renderTemplate(messageTemplate, {
+        studentName: s.name || 'Student',
+        studentId: s.studentId || '',
+        seatNumber: s.seat?.seatNumber || 'N/A',
+        shiftName: s.shift?.name || s.shift || 'General',
+        planName: s.plan?.name || 'General',
+        expiryDate: s.expiryDate ? new Date(s.expiryDate).toLocaleDateString('en-IN') : 'N/A',
+        businessName: libraryName,
+        upiId,
+        upiLink,
+        portalLink: `${baseUrl}/#/portal`,
+        amount: renewalAmount,
+        balanceDue: s.balanceDue || s.pendingFine || 0
+      });
 
-      const whatsappUrl = phone ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}` : null;
+      const formattedPhone = WhatsAppService.formatPhone(s.phone);
+      const whatsappUrl = formattedPhone ? WhatsAppService.getClickToChatUrl(formattedPhone, text) : null;
 
       return {
         studentId: s._id,
         studentName: s.name,
         phone: s.phone,
+        formattedPhone,
         text,
         whatsappUrl
       };
@@ -114,12 +143,12 @@ router.post('/prepare-broadcast', protect, roleCheck('owner', 'branch_manager'),
 // POST /api/messages/send-reminder - 1-Click WhatsApp Reminder Dispatcher
 router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const { studentId, reminderType = 'expiry', customAmount } = req.body;
+    const { studentId, reminderType = 'renewal_reminder', customAmount, customMessage, paymentId } = req.body;
     if (!studentId) {
       return res.status(400).json({ success: false, message: 'Student ID is required' });
     }
 
-    const student = await Student.findById(studentId).populate('seat').populate('plan');
+    const student = await Student.findById(studentId).populate('seat').populate('plan').populate('shift');
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
@@ -136,7 +165,16 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
     let messageText = '';
     let upiLink = '';
 
-    if (reminderType === 'expiry') {
+    const normType = (reminderType === 'expiry' || reminderType === 'renewal' || reminderType === 'renewal_reminder') ? 'renewal_reminder'
+      : (reminderType === 'partial_balance' || reminderType === 'balance_due' || reminderType === 'fee_due' || reminderType === 'due') ? 'balance_due'
+      : (reminderType === 'admission_welcome' || reminderType === 'admission' || reminderType === 'welcome') ? 'admission_welcome'
+      : (reminderType === 'payment_receipt' || reminderType === 'receipt' || reminderType === 'payment') ? 'payment_receipt'
+      : (reminderType === 'attendance_punch' || reminderType === 'attendance' || reminderType === 'punch') ? 'attendance_punch'
+      : reminderType;
+
+    if (customMessage) {
+      messageText = customMessage;
+    } else if (normType === 'renewal_reminder') {
       const expDate = student.expiryDate || student.planExpiresAt;
       let timeLeftStr = 'Soon';
       if (expDate) {
@@ -155,7 +193,7 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
         note: 'SubscriptionRenewal'
       }) : '';
 
-      messageText = WhatsAppService.getExpiryReminderMessage(
+      messageText = await WhatsAppService.getExpiryReminderMessage(
         student,
         timeLeftStr,
         bizName,
@@ -164,13 +202,18 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
         upiLink,
         baseUrl
       );
-    } else if (reminderType === 'partial_balance') {
-      const payment = await Payment.findOne({
-        student: student._id,
-        balanceDue: { $gt: 0 }
-      }).sort({ createdAt: -1 }) || await Payment.findOne({ student: student._id }).sort({ createdAt: -1 });
+    } else if (normType === 'balance_due') {
+      let payment = null;
+      if (paymentId) {
+        payment = await Payment.findById(paymentId);
+      } else {
+        payment = await Payment.findOne({
+          student: student._id,
+          balanceDue: { $gt: 0 }
+        }).sort({ createdAt: -1 }) || await Payment.findOne({ student: student._id }).sort({ createdAt: -1 });
+      }
 
-      const balanceAmt = customAmount !== undefined ? Number(customAmount) : (payment?.balanceDue || student.pendingFine || 500);
+      const balanceAmt = customAmount !== undefined ? Number(customAmount) : (payment?.balanceDue || student.balanceDue || student.pendingFine || 500);
       upiLink = upiId ? WhatsAppService.generateUpiDeepLink({
         upiId,
         businessName: bizName,
@@ -178,7 +221,7 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
         note: 'PartialPaymentBalance'
       }) : '';
 
-      messageText = WhatsAppService.getPartialBalanceReminderMessage(
+      messageText = await WhatsAppService.getBalanceDueMessage(
         student,
         payment || { balanceDue: balanceAmt, dueDate: new Date() },
         bizName,
@@ -186,13 +229,34 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
         upiLink,
         baseUrl
       );
-    } else if (reminderType === 'attendance') {
+    } else if (normType === 'admission_welcome') {
+      messageText = await WhatsAppService.getAdmissionMessage(student, bizName, baseUrl);
+    } else if (normType === 'payment_receipt') {
+      let payment = null;
+      if (paymentId) {
+        payment = await Payment.findById(paymentId).populate('plan');
+      } else {
+        payment = await Payment.findOne({ student: student._id }).sort({ createdAt: -1 }).populate('plan');
+      }
+      if (!payment) {
+        payment = {
+          receiptNumber: 'REC-' + Date.now(),
+          finalAmount: student.plan?.price || 0,
+          paymentMethod: 'UPI',
+          paymentDate: new Date(),
+          periodEnd: student.expiryDate || student.planExpiresAt,
+          balanceDue: 0
+        };
+      }
+      messageText = await WhatsAppService.getPaymentReceiptMessage(payment, student, bizName, baseUrl, upiId);
+    } else if (normType === 'attendance_punch') {
       const attendance = await Attendance.findOne({ student: student._id }).sort({ date: -1, createdAt: -1 });
       const attendanceInfo = {
-        status: attendance?.status === 'present' ? 'Present / Active' : (attendance?.status || 'Active in Study Hall'),
-        time: attendance?.inTime ? new Date(attendance.inTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+        status: attendance?.status === 'present' ? 'Check-in Recorded (Present)' : (attendance?.status || 'Check-in Recorded'),
+        time: attendance?.checkIn ? new Date(attendance.checkIn).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        hoursStudied: attendance?.duration ? `${(attendance.duration / 60).toFixed(1)} hrs` : 'In Progress'
       };
-      messageText = WhatsAppService.getAttendanceAlertMessage(student, bizName, attendanceInfo, baseUrl);
+      messageText = await WhatsAppService.getAttendanceAlertMessage(student, bizName, attendanceInfo, baseUrl);
     } else {
       return res.status(400).json({ success: false, message: `Unsupported reminder type: ${reminderType}` });
     }
@@ -201,21 +265,21 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
     const result = await WhatsAppService.dispatchReminder({
       student,
       message: messageText,
-      type: reminderType,
-      link: reminderType === 'partial_balance' ? '#/payments' : '#/students'
+      type: normType,
+      link: normType === 'balance_due' || normType === 'payment_receipt' ? '#/payments' : '#/students'
     });
 
     const whatsappUrl = WhatsAppService.getClickToChatUrl(student.phone, messageText);
 
     res.json({
       success: true,
-      message: `${reminderType.replace('_', ' ').toUpperCase()} reminder generated successfully`,
+      message: `${normType.replace('_', ' ').toUpperCase()} reminder generated successfully`,
       data: {
         studentId: student._id,
         studentName: student.name,
         phone: student.phone,
         formattedPhone: WhatsAppService.formatPhone(student.phone),
-        reminderType,
+        reminderType: normType,
         messageText,
         upiLink,
         whatsappUrl

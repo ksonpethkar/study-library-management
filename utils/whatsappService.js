@@ -1,10 +1,11 @@
 /**
  * Zero-Cost WhatsApp Service
- * Provides automated formatting, UPI deep-linking, reminder templates, and message dispatching
+ * Provides automated dynamic template parsing, UPI deep-linking, reminder templates, and message dispatching
  */
 
 const BusinessProfile = require('../models/BusinessProfile');
 const Notification = require('../models/Notification');
+const MessageTemplate = require('../models/MessageTemplate');
 
 class WhatsAppService {
   /**
@@ -12,7 +13,7 @@ class WhatsAppService {
    */
   static formatPhone(phone) {
     if (!phone) return '';
-    let cleaned = phone.replace(/[^0-9]/g, '');
+    let cleaned = String(phone).replace(/[^0-9]/g, '');
     if (cleaned.length === 10) {
       cleaned = '91' + cleaned;
     } else if (cleaned.startsWith('0') && cleaned.length === 11) {
@@ -32,12 +33,12 @@ class WhatsAppService {
 
   /**
    * Construct 1-tap UPI payment deep link
-   * Format: upi://pay?pa=${upiId}&pn=${bizName}&am=${amount}&tn=SubscriptionRenewal
+   * Format: upi://pay?pa=${upiId}&pn=${bizName}&am=${amount}&tn=${note}
    */
   static generateUpiDeepLink({ upiId, businessName = 'Study Library', amount = 0, note = 'SubscriptionRenewal' }) {
     if (!upiId) return '';
-    const encodedBiz = encodeURIComponent(businessName);
-    const encodedNote = encodeURIComponent(note);
+    const encodedBiz = encodeURIComponent(businessName || 'Study Library');
+    const encodedNote = encodeURIComponent(note || 'LibraryFeePayment');
     let link = `upi://pay?pa=${upiId}&pn=${encodedBiz}`;
     const numAmount = Number(amount);
     if (!isNaN(numAmount) && numAmount > 0) {
@@ -68,25 +69,205 @@ class WhatsAppService {
   }
 
   /**
-   * 1. Admission Confirmation Template
+   * Dynamic Template Parser & Placeholder Replacer
+   * Replaces placeholders like {{studentName}}, {{studentId}}, {{planName}}, {{expiryDate}},
+   * {{amount}}, {{balanceDue}}, {{seatNumber}}, {{shiftName}}, {{businessName}}, {{upiLink}}, {{portalLink}}, etc.
+   * Supports both {{placeholder}} and {placeholder} syntax along with snake_case aliases.
    */
-  static getAdmissionMessage(student, businessName = 'Study Library', baseUrl = null) {
-    const base = baseUrl || this.getBaseUrl();
-    return `🎉 *Welcome to ${businessName}!*
+  static renderTemplate(templateText, variables = {}) {
+    if (!templateText) return '';
+    let rendered = templateText;
 
-Dear *${student.name}*,
+    const map = {};
+    const register = (aliases, value) => {
+      const valStr = (value !== undefined && value !== null) ? String(value) : '';
+      aliases.forEach(alias => { map[alias] = valStr; });
+    };
+
+    register(['studentName', 'student_name', 'name'], variables.studentName || variables.name);
+    register(['studentId', 'student_id', 'id'], variables.studentId || variables.id);
+    register(['planName', 'plan_name', 'plan'], variables.planName || variables.plan);
+    register(['expiryDate', 'expiry_date', 'validUntil', 'valid_until', 'dueDate', 'due_date'], variables.expiryDate || variables.validUntil || variables.dueDate);
+    register(['amount', 'amountPaid', 'amount_paid', 'renewalFee', 'fee'], variables.amount || variables.amountPaid);
+    register(['balanceDue', 'balance_due', 'due_amount', 'pendingBalance', 'pendingFine', 'balance'], variables.balanceDue || variables.pendingBalance || variables.pendingFine);
+    register(['seatNumber', 'seat_no', 'seat_number', 'seat'], variables.seatNumber || variables.seat);
+    register(['shiftName', 'shift_name', 'shift'], variables.shiftName || variables.shift);
+    register(['businessName', 'library_name', 'libraryName', 'bizName'], variables.businessName || variables.libraryName || 'Study Library');
+    register(['upiLink', 'upi_link'], variables.upiLink);
+    register(['upiId', 'upi_id'], variables.upiId);
+    register(['portalLink', 'portal_link', 'link', 'portalUrl', 'portal_url', 'url'], variables.portalLink);
+    register(['receiptNumber', 'receipt_no', 'receipt_number'], variables.receiptNumber);
+    register(['paymentMethod', 'payment_mode', 'payment_method'], variables.paymentMethod);
+    register(['paymentDate', 'payment_date'], variables.paymentDate);
+    register(['upiRef', 'upi_ref', 'transactionId', 'utr'], variables.upiRef || variables.transactionId);
+    register(['status', 'attendance_status', 'activity'], variables.status);
+    register(['timestamp', 'time', 'punch_time', 'punchTime'], variables.timestamp || variables.time);
+    register(['hoursStudied', 'hours_studied', 'duration'], variables.hoursStudied || variables.duration);
+
+    // Register any other variables passed
+    for (const [k, v] of Object.entries(variables)) {
+      if (map[k] === undefined) {
+        map[k] = (v !== undefined && v !== null) ? String(v) : '';
+      }
+    }
+
+    // Replace all placeholders
+    for (const [k, v] of Object.entries(map)) {
+      const regDouble = new RegExp(`{{\\s*${k}\\s*}}`, 'gi');
+      const regSingle = new RegExp(`{\\s*${k}\\s*}`, 'gi');
+      rendered = rendered.replace(regDouble, v).replace(regSingle, v);
+    }
+
+    // Clean remaining unmapped {{...}} and {...} tokens
+    rendered = rendered.replace(/{{\s*[\w_]+\s*}}/g, '').replace(/{\s*[\w_]+\s*}/g, '');
+
+    return rendered;
+  }
+
+  /**
+   * Fetch active template by trigger type or return default fallback text
+   */
+  static async getActiveTemplateText(triggerType) {
+    try {
+      const aliases = {
+        'admission_welcome': ['welcome_admission', 'admission_welcome'],
+        'welcome_admission': ['admission_welcome', 'welcome_admission'],
+        'renewal_reminder': ['expiry_reminder_3d', 'expiry_reminder_1d', 'expiry_reminder_7d', 'renewal_reminder'],
+        'expiry_reminder_3d': ['renewal_reminder', 'expiry_reminder_3d'],
+        'balance_due': ['fee_due', 'balance_due'],
+        'fee_due': ['balance_due', 'fee_due'],
+        'payment_receipt': ['payment_receipt'],
+        'attendance_punch': ['attendance_punch']
+      };
+
+      const matchTypes = aliases[triggerType] || [triggerType];
+      const template = await MessageTemplate.findOne({
+        triggerType: { $in: matchTypes },
+        isActive: true
+      });
+
+      if (template && template.templateText) {
+        return template.templateText;
+      }
+    } catch (e) {
+      console.warn(`Could not load MessageTemplate for ${triggerType}:`, e.message);
+    }
+
+    // Fallbacks
+    const defaults = {
+      admission_welcome: `🎉 *Welcome to {{businessName}}!*
+
+Dear *{{studentName}}*,
 Your admission has been confirmed successfully!
 
-🆔 *Student ID:* ${student.studentId || '-'}
-📞 *Registered Phone:* ${student.phone}
-💺 *Seat / Shift:* ${student.seat?.seatNumber || 'Allotted'} (${student.plan?.name || 'Standard'})
-📅 *Admission Date:* ${new Date().toLocaleDateString('en-IN')}
+🆔 *Student ID:* {{studentId}}
+💺 *Seat No:* {{seatNumber}}
+⏰ *Shift:* {{shiftName}}
+📦 *Plan:* {{planName}}
+📅 *Valid Until:* {{expiryDate}}
 
 Access your Digital QR ID Card & Student Portal:
-🔗 ${base}/#/portal
+🔗 {{portalLink}}
 
-_Please maintain strict silence and follow library discipline._
-Best wishes for your exam preparation! 📚✨`;
+_Please maintain strict library discipline and study hard!_ 📚✨`,
+
+      payment_receipt: `🧾 *Payment Receipt Confirmation*
+🏢 *{{businessName}}*
+
+Dear *{{studentName}}*,
+Thank you for your fee payment! Details:
+
+📄 *Receipt No:* {{receiptNumber}}
+💰 *Amount Paid:* ₹{{amount}}
+⚠️ *Balance Due:* ₹{{balanceDue}}
+💳 *Payment Mode:* {{paymentMethod}}
+📅 *Date:* {{paymentDate}}
+⏳ *Valid Until:* {{expiryDate}}
+🔗 *UPI Ref / Txn ID:* {{upiRef}}
+
+View & Download Receipt:
+🔗 {{portalLink}}
+
+_Thank you for choosing {{businessName}}!_`,
+
+      renewal_reminder: `⏰ *Subscription Renewal Reminder*
+🏢 *{{businessName}}*
+
+Dear *{{studentName}}* (ID: {{studentId}}),
+Your library plan (*{{planName}}* | Seat #{{seatNumber}} | {{shiftName}}) expires on *{{expiryDate}}*.
+
+💰 *Renewal Fee:* ₹{{amount}}
+
+To avoid seat reallocation and continue uninterrupted study hours, please renew your membership:
+
+⚡ *1-Tap Instant UPI Payment:*
+{{upiLink}}
+
+🔗 *Online Student Portal:* {{portalLink}}
+
+_Please share payment confirmation screenshot after completing payment._
+Best regards,
+*{{businessName}} Desk*`,
+
+      balance_due: `⚠️ *Fee Balance Due Reminder*
+🏢 *{{businessName}}*
+
+Dear *{{studentName}}* (ID: {{studentId}}),
+This is a gentle reminder regarding your outstanding membership balance of *₹{{balanceDue}}* for Seat #{{seatNumber}}.
+
+Please clear your pending dues to maintain active library access:
+
+⚡ *1-Tap Instant UPI Payment:*
+{{upiLink}}
+
+🔗 *Student Portal:* {{portalLink}}
+
+_If already paid, please share your 12-digit UPI UTR number with the library desk._
+Thank you,
+*{{businessName}} Management*`,
+
+      attendance_punch: `📚 *Daily Attendance Alert*
+🏢 *{{businessName}}*
+
+Dear *{{studentName}}* (ID: {{studentId}}),
+Here is your attendance update:
+
+⏱️ *Activity:* {{status}}
+🕒 *Timestamp:* {{timestamp}}
+💺 *Seat:* {{seatNumber}} | {{shiftName}}
+⏳ *Hours Studied:* {{hoursStudied}}
+
+Access your attendance logs & study hours on student portal:
+🔗 {{portalLink}}
+
+Have a productive study session! ✨`
+    };
+
+    return defaults[triggerType] || defaults['admission_welcome'];
+  }
+
+  /**
+   * 1. Admission Welcome Template (Dynamic)
+   */
+  static async getAdmissionMessage(student, businessName = 'Study Library', baseUrl = null) {
+    const base = baseUrl || this.getBaseUrl();
+    const templateText = await this.getActiveTemplateText('admission_welcome');
+
+    const expDate = student.expiryDate || student.planExpiresAt;
+    const expDateStr = expDate ? new Date(expDate).toLocaleDateString('en-IN') : new Date(Date.now() + 30 * 86400000).toLocaleDateString('en-IN');
+
+    return this.renderTemplate(templateText, {
+      studentName: student.name || 'Student',
+      studentId: student.studentId || '-',
+      seatNumber: student.seat?.seatNumber || (typeof student.seat === 'string' ? student.seat : 'Allotted'),
+      shiftName: student.shift?.name || student.shift || 'General',
+      planName: student.plan?.name || (typeof student.plan === 'string' ? student.plan : 'Standard'),
+      expiryDate: expDateStr,
+      businessName: businessName || 'Study Library',
+      portalLink: `${base}/#/portal`,
+      amount: student.plan?.price || 0,
+      balanceDue: student.balanceDue || student.pendingFine || 0
+    });
   }
 
   /**
@@ -96,8 +277,8 @@ Best wishes for your exam preparation! 📚✨`;
     try {
       const profile = await BusinessProfile.getProfile();
       const base = this.getBaseUrl(req);
-      const msg = this.getAdmissionMessage(student, profile?.businessName || 'Study Library', base);
-      const extra = password ? `\n🔑 *Portal Password / PIN:* ${password}` : '';
+      const msg = await this.getAdmissionMessage(student, profile?.businessName || 'Study Library', base);
+      const extra = password ? `\n\n🔑 *Portal Password / PIN:* ${password}` : '';
       return this.dispatchReminder({
         student,
         message: msg + extra,
@@ -111,111 +292,123 @@ Best wishes for your exam preparation! 📚✨`;
   }
 
   /**
-   * 2. Payment Receipt Confirmation Template
+   * 2. Payment Receipt Confirmation Template (Dynamic)
    */
-  static getPaymentReceiptMessage(payment, student, businessName = 'Study Library', baseUrl = null) {
+  static async getPaymentReceiptMessage(payment, student, businessName = 'Study Library', baseUrl = null, upiId = '') {
     const base = baseUrl || this.getBaseUrl();
-    const amountVal = payment.amountPaid !== undefined ? payment.amountPaid : (payment.finalAmount || payment.amount || 0);
-    return `🧾 *Payment Receipt Confirmation*
-🏢 *${businessName}*
+    const templateText = await this.getActiveTemplateText('payment_receipt');
 
-Dear *${student.name}*,
-Thank you for your fee payment. Details:
+    const amountVal = payment.amountPaid !== undefined ? payment.amountPaid : (payment.finalAmount !== undefined ? payment.finalAmount : (payment.amount || 0));
+    const balanceVal = payment.balanceDue || 0;
+    const directUpiLink = balanceVal > 0 && upiId ? this.generateUpiDeepLink({ upiId, businessName, amount: balanceVal, note: 'BalancePayment' }) : '';
 
-📄 *Receipt No:* ${payment.receiptNumber || 'REC-' + Date.now()}
-💰 *Amount Paid:* ₹${Number(amountVal).toLocaleString('en-IN')}
-💳 *Payment Mode:* ${(payment.paymentMethod || payment.paymentMode || 'UPI').toUpperCase()}
-📅 *Payment Date:* ${new Date(payment.paymentDate || Date.now()).toLocaleDateString('en-IN')}
-⏳ *Valid Until:* ${new Date(payment.periodEnd || payment.validUntil || Date.now() + 30 * 86400000).toLocaleDateString('en-IN')}
-
-View & Download Full Receipt:
-🔗 ${base}/#/payments
-
-_Thank you for choosing ${businessName}!_`;
+    return this.renderTemplate(templateText, {
+      studentName: student?.name || 'Student',
+      studentId: student?.studentId || '-',
+      receiptNumber: payment.receiptNumber || ('REC-' + Date.now()),
+      amount: Number(amountVal).toLocaleString('en-IN'),
+      balanceDue: Number(balanceVal).toLocaleString('en-IN'),
+      paymentMethod: (payment.paymentMethod || payment.paymentMode || 'UPI').toUpperCase(),
+      paymentDate: new Date(payment.paymentDate || Date.now()).toLocaleDateString('en-IN'),
+      expiryDate: new Date(payment.periodEnd || payment.validUntil || payment.newExpiryDate || (Date.now() + 30 * 86400000)).toLocaleDateString('en-IN'),
+      upiRef: payment.transactionId || payment.referenceNumber || payment.notes || 'UPI Reference',
+      seatNumber: student?.seat?.seatNumber || 'Allocated Desk',
+      shiftName: student?.shift?.name || student?.shift || 'General',
+      planName: payment.plan?.name || student?.plan?.name || 'Study Membership',
+      businessName: businessName || 'Study Library',
+      portalLink: `${base}/#/portal`,
+      upiLink: directUpiLink
+    });
   }
 
   /**
-   * 3. Membership Expiry Reminder Template with 1-tap UPI Deep Link
+   * 3. Membership Expiry / Subscription Renewal Reminder Template (Dynamic with 1-tap UPI Deep Link)
    */
-  static getExpiryReminderMessage(student, timeLeftStr = '24 hours', businessName = 'Study Library', upiId = '', amount = 0, upiLink = '', baseUrl = null) {
+  static async getExpiryReminderMessage(student, timeLeftStr = '24 hours', businessName = 'Study Library', upiId = '', amount = 0, upiLink = '', baseUrl = null) {
     const base = baseUrl || this.getBaseUrl();
+    const templateText = await this.getActiveTemplateText('renewal_reminder');
+
     const directUpiLink = upiLink || (upiId ? this.generateUpiDeepLink({ upiId, businessName, amount, note: 'SubscriptionRenewal' }) : '');
     const expDate = student.expiryDate || student.planExpiresAt;
     const expDateStr = expDate ? new Date(expDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Soon';
-    const planName = student.plan?.name || 'Study Membership';
-    const seatNum = student.seat?.seatNumber ? ` | Seat #${student.seat.seatNumber}` : '';
-    const numAmount = Number(amount);
+    const planName = student.plan?.name || (typeof student.plan === 'string' ? student.plan : 'Study Membership');
+    const seatNum = student.seat?.seatNumber || (typeof student.seat === 'string' ? student.seat : '-');
+    const shiftName = student.shift?.name || student.shift || 'General';
+    const numAmount = Number(amount || student.plan?.price || 0);
 
-    return `⏰ *Subscription Renewal Reminder*
-🏢 *${businessName}*
-
-Dear *${student.name}* (ID: ${student.studentId || '-'}),
-Your library plan (*${planName}*${seatNum}) expires in *${timeLeftStr}* on *${expDateStr}*.
-
-${numAmount > 0 ? `💰 *Renewal Fee:* ₹${numAmount.toLocaleString('en-IN')}\n` : ''}To avoid seat reallocation and continue uninterrupted study hours, please renew your membership:
-
-${directUpiLink ? `⚡ *1-Tap Instant UPI Payment:*
-${directUpiLink}
-` : (upiId ? `💳 *UPI ID:* ${upiId}\n` : '')}🔗 *Online Self-Renewal Link:* ${base}/#/portal
-
-_Please share payment confirmation screenshot after completing payment._
-Best regards,
-*${businessName} Desk*`;
+    return this.renderTemplate(templateText, {
+      studentName: student.name || 'Student',
+      studentId: student.studentId || '-',
+      planName,
+      seatNumber: seatNum,
+      shiftName,
+      expiryDate: expDateStr,
+      amount: numAmount.toLocaleString('en-IN'),
+      balanceDue: Number(student.balanceDue || student.pendingFine || 0).toLocaleString('en-IN'),
+      upiLink: directUpiLink,
+      portalLink: `${base}/#/portal`,
+      businessName: businessName || 'Study Library'
+    });
   }
 
   /**
-   * 4. Partial Payment / Outstanding Balance Reminder Template with 1-tap UPI Deep Link
+   * 4. Overdue Balance Due / Partial Payment Reminder Template (Dynamic with 1-tap UPI Deep Link)
    */
-  static getPartialBalanceReminderMessage(student, payment, businessName = 'Study Library', upiId = '', upiLink = '', baseUrl = null) {
+  static async getPartialBalanceReminderMessage(student, payment, businessName = 'Study Library', upiId = '', upiLink = '', baseUrl = null) {
+    return this.getBalanceDueMessage(student, payment, businessName, upiId, upiLink, baseUrl);
+  }
+
+  static async getBalanceDueMessage(student, payment, businessName = 'Study Library', upiId = '', upiLink = '', baseUrl = null) {
     const base = baseUrl || this.getBaseUrl();
-    const balance = payment?.balanceDue || 0;
-    const dueDateStr = payment?.dueDate ? new Date(payment.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Immediate';
+    const templateText = await this.getActiveTemplateText('balance_due');
+
+    const balance = payment?.balanceDue !== undefined ? payment.balanceDue : (student.balanceDue || student.pendingFine || 0);
     const directUpiLink = upiLink || (upiId ? this.generateUpiDeepLink({ upiId, businessName, amount: balance, note: 'PartialPaymentBalance' }) : '');
+    const dueDateStr = payment?.dueDate ? new Date(payment.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Immediate';
+    const seatNum = student.seat?.seatNumber || (typeof student.seat === 'string' ? student.seat : '-');
+    const shiftName = student.shift?.name || student.shift || '-';
 
-    return `⚠️ *Fee Balance Due Reminder*
-🏢 *${businessName}*
-
-Dear *${student.name}* (ID: ${student.studentId || '-'}),
-This is a gentle reminder regarding your outstanding membership balance with ${businessName}.
-
-💰 *Pending Balance:* ₹${Number(balance).toLocaleString('en-IN')}
-📅 *Due Date:* ${dueDateStr}
-📄 *Receipt / Invoice:* ${payment?.receiptNumber || 'Pending Balance'}
-
-Please clear your pending dues to maintain active library access.
-
-${directUpiLink ? `⚡ *1-Tap Instant UPI Payment:*
-${directUpiLink}
-` : (upiId ? `💳 *UPI ID:* ${upiId}\n` : '')}🔗 *Student Portal:* ${base}/#/portal
-
-_If already paid, please share your 12-digit UPI UTR number with the library desk._
-Thank you,
-*${businessName} Management*`;
+    return this.renderTemplate(templateText, {
+      studentName: student.name || 'Student',
+      studentId: student.studentId || '-',
+      seatNumber: seatNum,
+      shiftName,
+      balanceDue: Number(balance).toLocaleString('en-IN'),
+      amount: Number(payment?.amount || payment?.finalAmount || balance).toLocaleString('en-IN'),
+      expiryDate: dueDateStr,
+      dueDate: dueDateStr,
+      receiptNumber: payment?.receiptNumber || 'Pending Balance',
+      businessName: businessName || 'Study Library',
+      upiLink: directUpiLink,
+      portalLink: `${base}/#/portal`
+    });
   }
 
   /**
-   * 5. Daily Attendance Alert Template
+   * 5. Daily Attendance Alert / Punch Alert Template (Dynamic)
    */
-  static getAttendanceAlertMessage(student, businessName = 'Study Library', attendanceInfo = {}, baseUrl = null) {
+  static async getAttendanceAlertMessage(student, businessName = 'Study Library', attendanceInfo = {}, baseUrl = null) {
     const base = baseUrl || this.getBaseUrl();
-    const todayStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    const templateText = await this.getActiveTemplateText('attendance_punch');
+
     const status = attendanceInfo.status || 'Check-in Recorded';
-    const time = attendanceInfo.time || new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    const seat = student.seat?.seatNumber ? ` | Seat #${student.seat.seatNumber}` : '';
+    const time = attendanceInfo.time || attendanceInfo.timestamp || new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const seatNum = student.seat?.seatNumber || (typeof student.seat === 'string' ? student.seat : '-');
+    const shiftName = student.shift?.name || student.shift || attendanceInfo.shift || 'General';
+    const hoursStudied = attendanceInfo.hoursStudied || (attendanceInfo.duration ? `${(attendanceInfo.duration / 60).toFixed(1)} hrs` : 'In Progress');
 
-    return `📚 *Daily Attendance Alert*
-🏢 *${businessName}*
-
-Dear *${student.name}* (ID: ${student.studentId || '-'}),
-Here is your attendance update for *${todayStr}*:
-
-⏱️ *Status:* ${status} at *${time}*${seat}
-🎯 Keep up your consistent study discipline! 
-
-_Access your attendance logs & study hours on student portal:_
-🔗 ${base}/#/portal
-
-Have a productive study session! ✨`;
+    return this.renderTemplate(templateText, {
+      studentName: student.name || 'Student',
+      studentId: student.studentId || '-',
+      status,
+      timestamp: time,
+      time,
+      seatNumber: seatNum,
+      shiftName,
+      hoursStudied,
+      businessName: businessName || 'Study Library',
+      portalLink: `${base}/#/portal`
+    });
   }
 
   /**
@@ -253,7 +446,13 @@ _Automated Daily Audit by StudyLib OS_`;
       const formattedPhone = this.formatPhone(student.phone);
       const clickToChatUrl = this.getClickToChatUrl(student.phone, message);
 
-      const notifType = type === 'partial_balance' ? 'payment' : (type === 'attendance' ? 'system' : (type === 'admission' ? 'admission' : 'expiry'));
+      const notifType = (type === 'partial_balance' || type === 'balance_due' || type === 'payment_receipt') 
+        ? 'payment' 
+        : (type === 'attendance' || type === 'attendance_punch') 
+          ? 'system' 
+          : (type === 'admission' || type === 'admission_welcome') 
+            ? 'admission' 
+            : 'expiry';
 
       const notif = await Notification.create({
         title: `📲 WhatsApp Reminder: ${student.name}`,

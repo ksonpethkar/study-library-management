@@ -143,6 +143,9 @@ function renderPortalUI(container, data, analytics = null) {
 
         <!-- Quick Action Buttons Grid -->
         <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <button id="btn-portal-profile" class="btn btn-outline-primary btn-sm" style="font-weight: 600;">
+            👤 View Profile
+          </button>
           <button id="btn-portal-leave" class="btn btn-outline-secondary btn-sm" style="font-weight: 600;">
             🌴 Request Leave
           </button>
@@ -474,6 +477,226 @@ function renderPortalUI(container, data, analytics = null) {
   });
 
 
+
+  // Attach Student Profile View Modal
+  container.querySelector('#btn-portal-profile')?.addEventListener('click', async () => {
+    const modalContent = document.createElement('div');
+    modalContent.innerHTML = `
+      <div class="text-center p-4 text-muted">
+        <div class="loading-spinner mb-2" style="margin: 0 auto;"></div>
+        Loading complete admission profile...
+      </div>
+    `;
+
+    const profileModal = new Modal({
+      title: '👤 My Admission Profile & Submitted Details',
+      content: modalContent,
+      size: 'lg'
+    });
+    profileModal.show();
+
+    try {
+      const [fieldsRes, cfgRes] = await Promise.all([
+        api.get('/api/custom-fields').catch(() => ({ data: [] })),
+        api.get('/api/system/public-config').catch(() => ({ data: null }))
+      ]);
+
+      const customFieldsList = Array.isArray(fieldsRes.data) ? fieldsRes.data : [];
+      const cfMap = (student.customFields && typeof student.customFields === 'object') ? student.customFields : {};
+
+      // Standard / Core fields helper
+      const getStudentVal = (key) => {
+        if (student[key] !== undefined && student[key] !== null) return student[key];
+        if (cfMap[key] !== undefined && cfMap[key] !== null) return cfMap[key];
+        return '';
+      };
+
+      // Custom fields grouping by section
+      const sections = [
+        { key: 'personal', label: 'Personal & Contact Information', icon: '👤', fields: [] },
+        { key: 'academic', label: 'Academic Goals & Preparation', icon: '🎯', fields: [] },
+        { key: 'contact', label: 'Address & Emergency Contacts', icon: '📍', fields: [] },
+        { key: 'kyc', label: 'KYC & Identity Verification', icon: '🪪', fields: [] },
+        { key: 'other', label: 'Additional Information & Preferences', icon: '📋', fields: [] }
+      ];
+
+      const coreKeys = new Set(['name', 'phone', 'email', 'gender', 'dob', 'dateOfBirth', 'photo', 'signature', 'plan', 'seat', 'status']);
+      
+      customFieldsList.forEach(f => {
+        const fKey = (f.fieldName || '').trim();
+        if (coreKeys.has(fKey.toLowerCase())) return;
+        const val = cfMap[fKey] !== undefined ? cfMap[fKey] : (student[fKey] !== undefined ? student[fKey] : '');
+        const sec = (f.section || 'other').toLowerCase();
+        let targetSec = sections.find(s => s.key === sec);
+        if (!targetSec) targetSec = sections[sections.length - 1];
+        targetSec.fields.push({ ...f, value: val });
+      });
+
+      function formatVal(f, val) {
+        if (val === undefined || val === null || val === '') return '<span class="text-muted small">Not provided</span>';
+        if (f.type === 'star_rating') {
+          const num = parseInt(val, 10) || 5;
+          return `<span style="color: #f59e0b; font-size: 1.1rem;">${'★'.repeat(num)}${'☆'.repeat(Math.max(0, 5 - num))}</span> <strong class="ms-1">(${num}/5)</strong>`;
+        }
+        if (f.type === 'checkbox' || f.type === 'terms_checkbox' || f.type === 'consent_checkbox') {
+          const isTrue = val === true || val === 'true' || val === 'on' || val === 1;
+          return isTrue ? `<span class="badge badge-success">✅ Yes / Agreed</span>` : `<span class="badge badge-secondary">❌ No</span>`;
+        }
+        if (f.type === 'photo_upload' || f.type === 'file' || f.fieldName?.toLowerCase().includes('image')) {
+          const imgUrl = String(val).startsWith('data:image') || String(val).startsWith('/') ? String(val) : `/${val}`;
+          return `
+            <a href="${imgUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--color-primary); font-weight: 600; font-size: 0.85rem;">
+              <img src="${imgUrl}" style="width: 44px; height: 44px; border-radius: 6px; object-fit: cover; border: 1px solid var(--color-border);" onerror="this.style.display='none'">
+              <span>🔍 View Document</span>
+            </a>
+          `;
+        }
+        if (f.type === 'blood_group') {
+          return `<span class="badge" style="background: rgba(239, 68, 68, 0.12); color: var(--color-danger); font-weight: 700;">🩸 ${escapeHTML(val)}</span>`;
+        }
+        if (f.type === 'exam_badge') {
+          const arr = Array.isArray(val) ? val : String(val).split(',').filter(Boolean);
+          return arr.map(e => `<span class="badge badge-primary me-1">${escapeHTML(e)}</span>`).join(' ');
+        }
+        return `<strong>${escapeHTML(val)}</strong>`;
+      }
+
+      // Build section HTML
+      let sectionsHtml = '';
+
+      // Standard Personal & Contact Section
+      sectionsHtml += `
+        <div class="mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+          <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span>👤</span> Personal & Identification Details
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.88rem;">
+            <div><span class="text-muted d-block small">Full Name</span><strong>${escapeHTML(student.name)}</strong></div>
+            <div><span class="text-muted d-block small">Mobile Phone (WhatsApp)</span><strong>${escapeHTML(student.phone)}</strong></div>
+            <div><span class="text-muted d-block small">Email Address</span><strong>${escapeHTML(student.email || 'N/A')}</strong></div>
+            <div><span class="text-muted d-block small">Gender</span><strong style="text-transform: capitalize;">${escapeHTML(student.gender || 'N/A')}</strong></div>
+            <div><span class="text-muted d-block small">Date of Birth</span><strong>${student.dob ? new Date(student.dob).toLocaleDateString('en-IN') : (student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString('en-IN') : 'N/A')}</strong></div>
+            <div><span class="text-muted d-block small">Blood Group</span>${student.bloodGroup ? `<span class="badge" style="background: rgba(239, 68, 68, 0.12); color: var(--color-danger); font-weight: 700;">🩸 ${escapeHTML(student.bloodGroup)}</span>` : '<span class="text-muted small">Not specified</span>'}</div>
+            <div><span class="text-muted d-block small">Pincode</span><strong>${escapeHTML(student.pincode || 'N/A')}</strong></div>
+            <div><span class="text-muted d-block small">City & State</span><strong>${escapeHTML(student.city || '')}${student.state ? ', ' + escapeHTML(student.state) : ''}</strong></div>
+          </div>
+        </div>
+      `;
+
+      // Standard Academic & KYC Section
+      const examsList = Array.isArray(student.targetExams) ? student.targetExams : [];
+      sectionsHtml += `
+        <div class="mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+          <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span>🎯</span> Academic Goals & Identity Verification
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.88rem;">
+            <div>
+              <span class="text-muted d-block small">Target Exams</span>
+              <div>${examsList.length > 0 ? examsList.map(e => `<span class="badge badge-primary me-1 mb-1">${escapeHTML(e)}</span>`).join('') : '<span class="text-muted small">None selected</span>'}</div>
+            </div>
+            <div>
+              <span class="text-muted d-block small">ID Proof Type</span>
+              <strong>${escapeHTML(student.idProof?.type || 'Aadhaar Card')}</strong>
+            </div>
+            <div>
+              <span class="text-muted d-block small">ID Proof Number</span>
+              <strong style="font-family: monospace;">${escapeHTML(student.idProof?.number || 'Verified')}</strong>
+            </div>
+            ${student.idProof?.image ? `
+              <div>
+                <span class="text-muted d-block small">ID Proof Scan</span>
+                <a href="${student.idProof.image.startsWith('/') ? student.idProof.image : '/' + student.idProof.image}" target="_blank" class="btn btn-xs btn-outline-primary mt-1">
+                  🔍 View Document Scan
+                </a>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+
+      // Custom Field Groupings
+      sections.forEach(sec => {
+        if (sec.fields.length === 0) return;
+        sectionsHtml += `
+          <div class="mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+            <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <span>${sec.icon || '📝'}</span> ${escapeHTML(sec.label)}
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; font-size: 0.88rem;">
+              ${sec.fields.map(f => `
+                <div style="${(f.colSpan === 12 || f.colSpan === 2 || f.type === 'textarea') ? 'grid-column: 1 / -1;' : ''}">
+                  <span class="text-muted d-block small" style="margin-bottom: 2px;">${escapeHTML(f.label)}</span>
+                  <div>${formatVal(f, f.value)}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      });
+
+      // Digital Signature Section if available
+      if (student.signature) {
+        sectionsHtml += `
+          <div class="mb-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+            <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <span>✍️</span> Official Digital Signature
+            </div>
+            <div style="background: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid var(--color-border); display: inline-block;">
+              <img src="${student.signature}" style="max-height: 90px; max-width: 280px; object-fit: contain; display: block;">
+            </div>
+            <div class="text-muted small mt-2">Digitally acknowledged upon admission enrollment.</div>
+          </div>
+        `;
+      }
+
+      modalContent.innerHTML = `
+        <div style="font-family: var(--font-family);">
+          <!-- Student Card Header -->
+          <div class="card p-3 mb-4" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.1), rgba(0, 184, 148, 0.06)); border: 1.5px solid var(--color-primary); border-radius: 12px;">
+            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+              ${student.photo ? `
+                <img src="${student.photo.startsWith('/') ? student.photo : '/' + student.photo}" style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid var(--color-primary); box-shadow: var(--shadow-sm);" onerror="this.src='/uploads/avatar.png'">
+              ` : `
+                <div style="width: 72px; height: 72px; border-radius: 50%; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; font-weight: 800;">
+                  ${escapeHTML(initials)}
+                </div>
+              `}
+              <div style="flex-grow: 1;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <h3 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--color-text-primary);">${escapeHTML(student.name)}</h3>
+                  <span class="badge ${student.status === 'active' ? 'badge-success' : 'badge-warning'}" style="text-transform: uppercase;">
+                    ${escapeHTML(student.status || 'Active')}
+                  </span>
+                </div>
+                <div style="display: flex; gap: 14px; font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 4px; flex-wrap: wrap;">
+                  <span>Student ID: <strong style="font-family: monospace; color: var(--color-primary); font-size: 0.95rem;">${escapeHTML(student.studentId || 'N/A')}</strong></span>
+                  <span>Desk: <strong>${seatTitle}</strong></span>
+                  <span>Branch: <strong>${escapeHTML(student.branch?.name || business.businessName || 'Main Campus')}</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section Tabs / Content -->
+          ${sectionsHtml}
+
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-3" style="border-top: 1px solid var(--color-border);">
+            <button type="button" class="btn btn-secondary" id="btn-close-profile-modal">Close</button>
+            <button type="button" class="btn btn-primary" id="btn-modal-print-pdf">📄 Download Admission Slip PDF</button>
+          </div>
+        </div>
+      `;
+
+      modalContent.querySelector('#btn-close-profile-modal')?.addEventListener('click', () => profileModal.close());
+      modalContent.querySelector('#btn-modal-print-pdf')?.addEventListener('click', () => {
+        previewAdmissionFormPDF(student, { business });
+      });
+
+    } catch (err) {
+      modalContent.innerHTML = `<div class="text-danger p-3 text-center">Failed to load profile details: ${escapeHTML(err.message)}</div>`;
+    }
+  });
 
   // Attach Leave Request Modal
   container.querySelector('#btn-portal-leave')?.addEventListener('click', async () => {

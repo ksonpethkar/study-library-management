@@ -77,6 +77,7 @@ app.use('/api/backup', require('./routes/backup'));
 app.use('/api/landing', require('./routes/landingPage'));
 app.use('/api/audit-logs', require('./routes/auditLogs'));
 app.use('/api/coupons', require('./routes/coupons'));
+app.use('/api/system', require('./routes/systemConfig'));
 
 // Health check endpoint for uptime monitoring & Render.com
 app.get('/api/health', (req, res) => {
@@ -89,6 +90,42 @@ app.get('/api/health', (req, res) => {
     database: dbStatus,
     version: '1.0.0'
   });
+});
+
+// Public Configuration Endpoint for Admission Wizard & System
+app.get('/api/system/public-config', async (req, res) => {
+  try {
+    const BusinessProfile = require('./models/BusinessProfile');
+    const CustomField = require('./models/CustomField');
+    const FormTemplate = require('./models/FormTemplate');
+    const Plan = require('./models/Plan');
+    const Shift = require('./models/Shift');
+    const Branch = require('./models/Branch');
+
+    await CustomField.seedDefaultFields().catch(() => {});
+    const [businessProfile, customFields, template, plans, shifts, branches] = await Promise.all([
+      BusinessProfile.getProfile().catch(() => ({})),
+      CustomField.getActiveFields().catch(() => []),
+      FormTemplate.getActiveTemplate().catch(() => null),
+      Plan.find({ isActive: true }).sort('displayOrder').lean().catch(() => []),
+      Shift.find({ isActive: true }).sort('startTime').lean().catch(() => []),
+      Branch.find({ isActive: true }).lean().catch(() => [])
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        businessProfile,
+        customFields,
+        template,
+        plans,
+        shifts,
+        branches
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // Public Landing Page & Registration Routes

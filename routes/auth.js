@@ -317,29 +317,57 @@ router.post('/public-register', authLimiter, async (req, res) => {
       }
     }
 
-    // Flag locker interest
-    let finalNotes = notes || '';
-    if (requestLocker) {
-      finalNotes += (finalNotes ? '\n' : '') + '[Locker Requested]';
+    // Check Shift Capacity & Auto-Route to Waiting List if Full
+    const Shift = require('../models/Shift');
+    const WaitingList = require('../models/WaitingList');
+    
+    let targetShiftDoc = null;
+    if (req.body.shift && mongoose.Types.ObjectId.isValid(req.body.shift)) {
+      targetShiftDoc = await Shift.findById(req.body.shift);
+    } else if (selectedPlanDoc?.shift) {
+      const pShift = selectedPlanDoc.shift.toLowerCase();
+      targetShiftDoc = await Shift.findOne({
+        $or: [
+          { code: new RegExp(`^${pShift}$`, 'i') },
+          { name: new RegExp(pShift, 'i') }
+        ],
+        isActive: true
+      });
     }
 
-    // Determine initial status based on payment completion
-    const isOnlinePayment = ['upi', 'card', 'netbanking', 'online'].includes(paymentMethod);
-    let initialStatus = isOnlinePayment ? 'active' : 'pending_payment';
-    let calculatedExpiryDate = null;
-    let selectedPlanDoc = null;
+    if (targetShiftDoc && targetShiftDoc.maxCapacity > 0) {
+      const activeEnrolledCount = await Student.countDocuments({
+        $or: [
+          { shift: targetShiftDoc._id },
+          { 'plan.shift': targetShiftDoc.code }
+        ],
+        status: 'active'
+      });
 
-    if (plan && mongoose.Types.ObjectId.isValid(plan)) {
-      selectedPlanDoc = await Plan.findById(plan);
-      if (selectedPlanDoc) {
-        const duration = selectedPlanDoc.duration || 30;
-        const durationType = selectedPlanDoc.durationType || 'days';
-        let daysToAdd = duration;
-        if (durationType === 'months') daysToAdd = duration * 30;
-        else if (durationType === 'years') daysToAdd = duration * 365;
+      if (activeEnrolledCount >= targetShiftDoc.maxCapacity) {
+        // Shift is FULL! Route to Waiting List
+        const waitingEntry = new WaitingList({
+          studentName: name,
+          studentPhone: phone,
+          studentEmail: email || '',
+          preferredShift: targetShiftDoc.name,
+          preferredZone: req.body.preferredZone || 'General',
+          notes: `Auto-routed from Registration: Shift "${targetShiftDoc.name}" is currently FULL (${activeEnrolledCount}/${targetShiftDoc.maxCapacity} active).`,
+          status: 'waiting'
+        });
+        await waitingEntry.save();
 
-        calculatedExpiryDate = new Date();
-        calculatedExpiryDate.setDate(calculatedExpiryDate.getDate() + daysToAdd);
+        return res.status(200).json({
+          success: true,
+          isWaitingList: true,
+          message: `Shift "${targetShiftDoc.name}" is currently FULL at maximum capacity (${activeEnrolledCount}/${targetShiftDoc.maxCapacity}). You have been placed on Priority Waiting List (#${waitingEntry.priority}).`,
+          data: {
+            studentId: `WAIT-${String(waitingEntry.priority).padStart(4, '0')}`,
+            waitingListEntry: waitingEntry,
+            shiftName: targetShiftDoc.name,
+            priority: waitingEntry.priority
+          }
+        });
       }
     }
 
@@ -502,7 +530,7 @@ router.post('/public-register', authLimiter, async (req, res) => {
 
     // Trigger automated Welcome WhatsApp & Email notifications
     try {
-      const welcomeBaseMsg = whatsappService.getAdmissionMessage ? whatsappService.getAdmissionMessage(newStudent, business.businessName) : 'Welcome to the library!';
+      const welcomeBaseMsg = whatsappService.getAdmissionMessage ? await whatsappService.getAdmissionMessage(newStudent, business.businessName) : 'Welcome to the library!';
       const passwordMsg = password ? `\n\nLogin Password: ${password}` : '';
       const fullMessage = welcomeBaseMsg + passwordMsg;
 

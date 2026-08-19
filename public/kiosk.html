@@ -216,10 +216,10 @@
   <!-- Header -->
   <div class="kiosk-header">
     <div class="kiosk-brand">
-      <div class="kiosk-logo">📚</div>
+      <div class="kiosk-logo" id="kiosk-logo-container">📚</div>
       <div>
         <h2 id="kiosk-lib-name" style="font-size: 18px; font-weight: 700;">Study Library</h2>
-        <p style="font-size: 12px; color: #94a3b8;">Smart Gate Attendance Kiosk</p>
+        <p id="kiosk-lib-tagline" style="font-size: 12px; color: #94a3b8;">Smart Gate Attendance Kiosk</p>
       </div>
     </div>
     <div class="kiosk-clock">
@@ -228,8 +228,48 @@
     </div>
   </div>
 
+  <!-- Live Punch Stats Bar -->
+  <div id="kiosk-stats-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; max-width: 900px; width: 100%; margin-top: 18px;">
+    <div style="background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 16px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(8px);">
+      <div>
+        <div style="font-size: 11px; color: #86efac; font-weight: 600; text-transform: uppercase;">🟢 Currently Inside</div>
+        <div id="kiosk-stat-inside" style="font-size: 24px; font-weight: 800; color: #22c55e;">0</div>
+      </div>
+      <div style="font-size: 28px;">💺</div>
+    </div>
+
+    <div style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 16px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(8px);">
+      <div>
+        <div style="font-size: 11px; color: #7dd3fc; font-weight: 600; text-transform: uppercase;">📥 Today's Check-ins</div>
+        <div id="kiosk-stat-present" style="font-size: 24px; font-weight: 800; color: #38bdf8;">0</div>
+      </div>
+      <div style="font-size: 28px;">👥</div>
+    </div>
+
+    <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 16px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(8px);">
+      <div>
+        <div style="font-size: 11px; color: #fde68a; font-weight: 600; text-transform: uppercase;">📤 Today's Check-outs</div>
+        <div id="kiosk-stat-checkouts" style="font-size: 24px; font-weight: 800; color: #f59e0b;">0</div>
+      </div>
+      <div style="font-size: 28px;">🚪</div>
+    </div>
+
+    <div style="background: rgba(167, 139, 250, 0.12); border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 16px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(8px);">
+      <div>
+        <div style="font-size: 11px; color: #ddd6fe; font-weight: 600; text-transform: uppercase;">⏰ Active Shift</div>
+        <div id="kiosk-stat-active-shift" style="font-size: 16px; font-weight: 800; color: #c4b5fd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px;">Loading...</div>
+      </div>
+      <div style="font-size: 24px;" id="kiosk-shift-icon">☀️</div>
+    </div>
+  </div>
+
+  <!-- Active Shifts Badges -->
+  <div id="kiosk-shifts-pills" style="display: flex; gap: 8px; max-width: 900px; width: 100%; justify-content: center; flex-wrap: wrap; margin-top: 12px;">
+    <!-- Rendered dynamically from public-config -->
+  </div>
+
   <!-- Mode Selector Tabs -->
-  <div style="display: flex; gap: 12px; margin-top: 24px; max-width: 900px; width: 100%; justify-content: center; flex-wrap: wrap;">
+  <div style="display: flex; gap: 12px; margin-top: 16px; max-width: 900px; width: 100%; justify-content: center; flex-wrap: wrap;">
     <button class="btn btn-pill" id="tab-mode-qr" onclick="switchKioskMode('qr')" style="background: #6366f1; color:#fff; border:none; padding:10px 24px; border-radius:50px; cursor:pointer; font-weight:700;">
       📷 QR & Barcode
     </button>
@@ -238,6 +278,9 @@
     </button>
     <button class="btn btn-outline" id="tab-mode-keypad" onclick="switchKioskMode('keypad')" style="border:1.5px solid rgba(255,255,255,0.2); color:#fff; padding:10px 24px; border-radius:50px; cursor:pointer; font-weight:700; background:transparent;">
       ⌨️ Student ID Keypad
+    </button>
+    <button type="button" id="btn-toggle-voice" onclick="toggleVoiceAudio()" title="Toggle Voice Audio Feedback" style="background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.2); color: #fff; padding: 10px 18px; border-radius: 50px; cursor: pointer; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+      🔊 Voice: ON
     </button>
   </div>
 
@@ -342,6 +385,24 @@
   </div>
 
   <script>
+    // System Config & Voice Audio Preferences State
+    let kioskConfig = {
+      businessName: 'Study Library',
+      logo: '',
+      shifts: [],
+      kioskVoice: {
+        voiceEnabled: true,
+        soundEnabled: true,
+        language: 'en-IN',
+        voiceGender: 'female',
+        pitch: 1.0,
+        rate: 1.0,
+        volume: 1.0,
+        welcomeMessage: 'Welcome to {businessName}, {studentName}! Seat {seatNumber}.',
+        farewellMessage: 'Goodbye {studentName}! Total study duration {duration}.'
+      }
+    };
+
     // Live Clock
     function updateClock() {
       const now = new Date();
@@ -350,6 +411,44 @@
     }
     setInterval(updateClock, 1000);
     updateClock();
+
+    // Toggle Voice Audio Feedback
+    function toggleVoiceAudio() {
+      if (!kioskConfig.kioskVoice) kioskConfig.kioskVoice = {};
+      kioskConfig.kioskVoice.voiceEnabled = !kioskConfig.kioskVoice.voiceEnabled;
+      const btn = document.getElementById('btn-toggle-voice');
+      if (btn) {
+        btn.textContent = kioskConfig.kioskVoice.voiceEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
+        btn.style.color = kioskConfig.kioskVoice.voiceEnabled ? '#fff' : '#94a3b8';
+      }
+    }
+    window.toggleVoiceAudio = toggleVoiceAudio;
+
+    // Synthesized Speech Audio Engine (Web Speech API)
+    function speakAnnouncement(text) {
+      if (!kioskConfig.kioskVoice?.voiceEnabled) return;
+      if (!('speechSynthesis' in window)) return;
+
+      try {
+        window.speechSynthesis.cancel(); // cancel any previous speaking
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = kioskConfig.kioskVoice.language || 'en-IN';
+        utterance.pitch = kioskConfig.kioskVoice.pitch || 1.0;
+        utterance.rate = kioskConfig.kioskVoice.rate || 1.0;
+        utterance.volume = kioskConfig.kioskVoice.volume || 1.0;
+
+        // Try to pick a voice matching preferred language or gender
+        const voices = window.speechSynthesis.getVoices();
+        if (voices && voices.length > 0) {
+          const match = voices.find(v => (v.lang === utterance.lang || v.lang.startsWith(utterance.lang.split('-')[0])) && (kioskConfig.kioskVoice.voiceGender === 'female' ? v.name.includes('Female') || v.name.includes('Google') || v.name.includes('Natural') : true));
+          if (match) utterance.voice = match;
+        }
+
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {
+        console.warn('Speech synthesis note:', e);
+      }
+    }
 
     // Kiosk Mode Switcher
     function switchKioskMode(mode) {
@@ -394,7 +493,6 @@
       btn.disabled = true;
 
       try {
-        // Step 1: Attempt connection to local Biometric RD Service (Mantra MFS100 / Morpho / SecuGen)
         let capturedIdentifier = null;
         try {
           const rdRes = await fetch('http://127.0.0.1:11100/rd/capture', {
@@ -403,15 +501,11 @@
           });
           const xml = await rdRes.text();
           if (xml && xml.includes('PID')) {
-            // Extract device identifier or pid
             capturedIdentifier = 'BIO_' + btoa(xml.substring(0, 30));
           }
-        } catch (e) {
-          // RD Service not running on localhost, fallback to seamless student prompt / demo punch
-        }
+        } catch (e) {}
 
         if (!capturedIdentifier) {
-          // If no physical hardware driver is installed on this device, prompt for Student ID to link biometric punch
           const studentPrompt = prompt('👆 Biometric Sensor Ready!\nEnter Student ID or Phone to simulate Fingerprint punch:', 'STU-2026-001');
           if (!studentPrompt) {
             resetBioUI();
@@ -549,6 +643,18 @@
 
     document.getElementById('result-overlay')?.addEventListener('click', closeResultOverlay);
 
+    // Update Live Punch Stats on Screen
+    function updateLiveStatsDisplay(stats) {
+      if (!stats) return;
+      const insideEl = document.getElementById('kiosk-stat-inside');
+      const presentEl = document.getElementById('kiosk-stat-present');
+      const checkoutEl = document.getElementById('kiosk-stat-checkouts');
+
+      if (insideEl && stats.currentlyCheckedIn !== undefined) insideEl.textContent = stats.currentlyCheckedIn;
+      if (presentEl && stats.totalPresent !== undefined) presentEl.textContent = stats.totalPresent;
+      if (checkoutEl && stats.totalCheckouts !== undefined) checkoutEl.textContent = stats.totalCheckouts;
+    }
+
     async function processPunch(identifier) {
       try {
         const res = await fetch('/api/attendance/rfid-punch', {
@@ -566,6 +672,34 @@
         const isCheckIn = data.action === 'check-in';
         playChime(isCheckIn);
 
+        // Update live punch stats
+        if (data.punchStats) {
+          updateLiveStatsDisplay(data.punchStats);
+        }
+
+        const studentName = data.student?.name || 'Student';
+        const seatNumber = data.student?.seat?.seatNumber || 'Floating Seat';
+        const durationHours = Math.floor((data.durationMinutes || 0) / 60);
+        const durationMins = (data.durationMinutes || 0) % 60;
+        const durationFormatted = durationHours > 0 ? `${durationHours} hours ${durationMins} minutes` : `${durationMins} minutes`;
+
+        // Synthesize Voice Announcement
+        if (isCheckIn) {
+          const welcomeTpl = kioskConfig.kioskVoice?.welcomeMessage || 'Welcome to {businessName}, {studentName}! Assigned Seat {seatNumber}.';
+          const msg = welcomeTpl
+            .replace('{businessName}', kioskConfig.businessName || 'Study Library')
+            .replace('{studentName}', studentName)
+            .replace('{seatNumber}', seatNumber);
+          speakAnnouncement(msg);
+        } else {
+          const farewellTpl = kioskConfig.kioskVoice?.farewellMessage || 'Goodbye {studentName}! Total study duration {duration}.';
+          const msg = farewellTpl
+            .replace('{businessName}', kioskConfig.businessName || 'Study Library')
+            .replace('{studentName}', studentName)
+            .replace('{duration}', durationFormatted);
+          speakAnnouncement(msg);
+        }
+
         // Show confirmation popup
         const overlay = document.getElementById('result-overlay');
         const card = document.getElementById('result-card');
@@ -581,11 +715,11 @@
           badge.textContent = 'CHECKED OUT';
         }
 
-        document.getElementById('result-name').textContent = data.student?.name || 'Student';
+        document.getElementById('result-name').textContent = studentName;
         document.getElementById('result-id').textContent = data.student?.studentId || '';
-        document.getElementById('result-seat').textContent = data.student?.seat?.seatNumber || 'N/A';
-        document.getElementById('result-time').textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        document.getElementById('result-duration').textContent = data.durationMinutes ? `${Math.floor(data.durationMinutes / 60)}h ${data.durationMinutes % 60}m logged today` : 'Session Started';
+        document.getElementById('result-seat').textContent = seatNumber;
+        document.getElementById('result-time').textContent = data.time || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('result-duration').textContent = data.durationMinutes ? `${durationHours}h ${durationMins}m logged today` : 'Session Started';
 
         overlay.style.display = 'flex';
 
@@ -606,18 +740,110 @@
       }
     }
 
-    // Load Library Branding
-    fetch('/api/landing')
-      .then(res => res.json())
-      .then(json => {
-        const bp = json.data?.businessProfile;
-        if (bp?.businessName) {
-          const nameEl = document.getElementById('kiosk-lib-name');
-          if (nameEl) nameEl.textContent = bp.businessName;
-          document.title = `${bp.businessName} — Smart Gate Kiosk`;
+    // Determine current active shift based on current time
+    function updateActiveShiftIndicator(shifts) {
+      if (!Array.isArray(shifts) || shifts.length === 0) return;
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      let activeShift = null;
+      for (const s of shifts) {
+        if (!s.startTime || !s.endTime) continue;
+        const [h1, m1] = s.startTime.split(':').map(Number);
+        const [h2, m2] = s.endTime.split(':').map(Number);
+        const startM = h1 * 60 + m1;
+        let endM = h2 * 60 + m2;
+        if (endM <= startM) endM += 24 * 60; // Overnight shift
+
+        let checkM = currentMinutes;
+        if (checkM < startM && endM > 24 * 60) checkM += 24 * 60;
+
+        if (checkM >= startM && checkM < endM) {
+          activeShift = s;
+          break;
         }
-      })
-      .catch(() => {});
+      }
+
+      const activeShiftEl = document.getElementById('kiosk-stat-active-shift');
+      const shiftIconEl = document.getElementById('kiosk-shift-icon');
+      if (activeShift) {
+        if (activeShiftEl) activeShiftEl.textContent = activeShift.name;
+        if (shiftIconEl) shiftIconEl.textContent = activeShift.icon || activeShift.guessShiftIcon || '☀️';
+      } else if (shifts[0]) {
+        if (activeShiftEl) activeShiftEl.textContent = shifts[0].name;
+        if (shiftIconEl) shiftIconEl.textContent = shifts[0].icon || '☀️';
+      }
+    }
+
+    // Dynamically load Public Configuration from GET /api/system/public-config
+    async function loadPublicConfig() {
+      try {
+        const res = await fetch('/api/system/public-config');
+        const json = await res.json();
+        if (!json.success || !json.data) return;
+
+        const data = json.data;
+        kioskConfig.businessName = data.businessName || data.businessProfile?.businessName || 'Study Library';
+        kioskConfig.logo = data.logo || data.businessProfile?.logo || '';
+        kioskConfig.shifts = data.shifts || [];
+        kioskConfig.kioskVoice = data.kioskVoice || kioskConfig.kioskVoice;
+
+        // Update Library Title & Branding
+        const nameEl = document.getElementById('kiosk-lib-name');
+        const taglineEl = document.getElementById('kiosk-lib-tagline');
+        const logoContainer = document.getElementById('kiosk-logo-container');
+
+        if (nameEl) nameEl.textContent = kioskConfig.businessName;
+        if (taglineEl && (data.tagline || data.businessProfile?.tagline)) {
+          taglineEl.textContent = data.tagline || data.businessProfile?.tagline;
+        }
+        document.title = `${kioskConfig.businessName} — Smart Gate Kiosk`;
+
+        if (kioskConfig.logo && logoContainer) {
+          logoContainer.innerHTML = `<img src="${kioskConfig.logo}" style="width:100%; height:100%; object-fit:contain; border-radius:10px;">`;
+          logoContainer.style.background = 'transparent';
+        }
+
+        // Render Active Shifts Pills
+        const shiftsMount = document.getElementById('kiosk-shifts-pills');
+        if (shiftsMount && kioskConfig.shifts.length > 0) {
+          shiftsMount.innerHTML = kioskConfig.shifts.map(s => {
+            const isFull = s.isFull;
+            const badgeBg = isFull ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.08)';
+            const badgeBorder = isFull ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 255, 255, 0.15)';
+            const badgeColor = isFull ? '#f87171' : '#cbd5e1';
+            const capText = s.maxCapacity > 0 ? (isFull ? '🔴 FULL' : `🟢 ${s.availableSlots} Left`) : '🟢 Open';
+
+            return `
+              <span style="font-size: 11px; padding: 4px 10px; border-radius: 50px; background: ${badgeBg}; border: 1px solid ${badgeBorder}; color: ${badgeColor}; display: inline-flex; align-items: center; gap: 4px;">
+                ${s.icon || '⏰'} <strong>${s.name}</strong> (${s.formattedTiming || s.startTime}) • <span style="font-weight:700;">${capText}</span>
+              </span>
+            `;
+          }).join('');
+        }
+
+        // Update Active Shift Indicator
+        updateActiveShiftIndicator(kioskConfig.shifts);
+
+        // Update Live Stats
+        if (data.livePunchStats) {
+          updateLiveStatsDisplay(data.livePunchStats);
+        }
+
+        // Update Voice Button Text
+        const btn = document.getElementById('btn-toggle-voice');
+        if (btn && kioskConfig.kioskVoice) {
+          btn.textContent = kioskConfig.kioskVoice.voiceEnabled ? '🔊 Voice: ON' : '🔇 Voice: OFF';
+        }
+
+      } catch (err) {
+        console.warn('Could not load public config:', err);
+      }
+    }
+
+    // Initialize Kiosk
+    loadPublicConfig();
+    setInterval(loadPublicConfig, 30000); // Periodic live refresh every 30s
 
     if (!('ontouchstart' in window)) {
       document.getElementById('barcode-input')?.focus();
@@ -631,3 +857,4 @@
   </script>
 </body>
 </html>
+

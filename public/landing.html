@@ -537,6 +537,7 @@
   </div>
 
   <!-- Header Navbar -->
+  <!-- Header Navbar -->
   <nav class="landing-nav">
     <div class="nav-container">
       <a href="/landing" class="nav-brand">
@@ -544,7 +545,7 @@
         <span id="nav-brand-name">Study Library</span>
       </a>
 
-      <ul class="nav-menu">
+      <ul class="nav-menu" id="nav-menu-list">
         <li><a href="#about" class="nav-link">About</a></li>
         <li><a href="#facilities" class="nav-link">Facilities</a></li>
         <li><a href="#shifts" class="nav-link">Shifts</a></li>
@@ -557,8 +558,8 @@
 
       <div class="nav-actions">
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode" id="theme-btn">🌙</button>
-        <a href="/student-login" class="btn-outline">Student Portal</a>
-        <a href="/register" class="btn-pill">Register Now</a>
+        <a href="/student-login" class="btn-outline" id="nav-cta-secondary">Student Portal</a>
+        <a href="/register" class="btn-pill" id="nav-cta-primary">Register Now</a>
         <button class="mobile-toggle" onclick="toggleMobileMenu()">☰</button>
       </div>
     </div>
@@ -570,7 +571,7 @@
       <div class="nav-brand"><span class="nav-logo">📚</span> <span id="drawer-brand-name">Study Library</span></div>
       <button class="drawer-close" onclick="toggleMobileMenu()">×</button>
     </div>
-    <div class="drawer-links" onclick="toggleMobileMenu()">
+    <div class="drawer-links" id="drawer-links-container" onclick="toggleMobileMenu()">
       <a href="#about">About</a>
       <a href="#facilities">Facilities</a>
       <a href="#shifts">Shifts</a>
@@ -579,15 +580,15 @@
       <a href="#faqs">FAQs</a>
       <a href="#rules">Rules</a>
       <a href="#contact">Contact</a>
-      <a href="/student-login" style="color: var(--primary);">Student Portal</a>
-      <a href="/register" style="color: var(--accent);">Register Now</a>
+      <a href="/student-login" style="color: var(--primary);" id="drawer-cta-secondary">Student Portal</a>
+      <a href="/register" style="color: var(--accent);" id="drawer-cta-primary">Register Now</a>
     </div>
   </div>
 
   <!-- Hero Section -->
-  <section class="hero-section">
+  <section class="hero-section" id="hero">
     <div class="hero-container">
-      <div class="hero-badge-row">
+      <div class="hero-badge-row" id="hero-badge-row">
         <span class="hero-badge">🔒 Biometric & RFID Entry</span>
         <span class="hero-badge">❄️ 100% Silent AC Hall</span>
         <span class="hero-badge">⚡ 300 Mbps Dual Wi-Fi</span>
@@ -603,9 +604,8 @@
       </p>
 
       <div class="hero-cta-group">
-        <a href="/register" class="btn-hero-primary">🚀 Apply for Admission</a>
-        <a href="#enquiry" class="btn-hero-secondary">⚡ Book a Free 1-Day Trial</a>
-        <a href="/student-login" class="btn-hero-secondary" style="border-color: var(--primary); color: var(--primary);">🎓 Student Portal</a>
+        <a href="/register" class="btn-hero-primary" id="hero-cta-primary">🚀 Apply for Admission</a>
+        <a href="#enquiry" class="btn-hero-secondary" id="hero-cta-secondary">⚡ Book a Free 1-Day Trial</a>
       </div>
 
       <!-- Hero Visual Banner Card -->
@@ -622,8 +622,10 @@
       <h2 class="section-title">Why Study at Our Reading Hall?</h2>
       <p class="section-subtitle">We provide an ecosystem designed purely for extreme focus and productivity.</p>
     </div>
+
+    <p id="about-description" style="max-width: 820px; margin: 0 auto 2.25rem auto; font-size: 1.05rem; line-height: 1.7; color: var(--text-muted); text-align: center; display: none;"></p>
     
-    <div class="about-highlights">
+    <div class="about-highlights" id="about-highlights">
       <div class="highlight-card"><div class="icon">🪑</div><div class="text">Ergonomic orthopedic chairs</div></div>
       <div class="highlight-card"><div class="icon">🧊</div><div class="text">Soundproof glass cabins</div></div>
       <div class="highlight-card"><div class="icon">🤫</div><div class="text">Pin-drop silence guaranteed</div></div>
@@ -632,7 +634,7 @@
       <div class="highlight-card"><div class="icon">🧼</div><div class="text">Ultra-hygienic washrooms</div></div>
     </div>
 
-    <div class="stats-grid">
+    <div class="stats-grid" id="about-stats-grid">
       <div class="stat-box"><h4>100%</h4><p>Silent Environment</p></div>
       <div class="stat-box"><h4>300</h4><p>Mbps High-Speed Wi-Fi</p></div>
       <div class="stat-box"><h4>250+</h4><p>Selections in UPSC/MPSC/IIT</p></div>
@@ -684,7 +686,7 @@
       <p class="section-subtitle">Flexible slots designed around your preparation schedule.</p>
     </div>
 
-    <div class="shifts-grid">
+    <div class="shifts-grid" id="shifts-container">
       <div class="shift-card">
         <div class="shift-icon">🌅</div><div class="shift-name">Morning Shift</div><div class="shift-time">06:00 AM – 02:00 PM</div>
       </div>
@@ -742,6 +744,7 @@
     <div class="section-header">
       <span class="section-tag">Visual Tour</span>
       <h2 class="section-title">Study Space & Ambience</h2>
+      <p class="section-subtitle" style="display: none;"></p>
     </div>
 
     <div class="gallery-filters" id="gallery-filters-bar">
@@ -784,9 +787,10 @@
     <div class="section-header">
       <span class="section-tag">Help</span>
       <h2 class="section-title">Frequently Asked Questions</h2>
+      <p class="section-subtitle" style="display: none;"></p>
     </div>
 
-    <div class="faq-accordion">
+    <div class="faq-accordion" id="faq-accordion">
       <div class="faq-item">
         <button class="faq-question">What is the free trial policy? <span class="faq-icon">+</span></button>
         <div class="faq-answer">We offer a 1-day free trial for new students to experience our silent environment and facilities. You can book it by filling out the enquiry form below.</div>
@@ -811,9 +815,9 @@
   </section>
 
   <!-- Testimonials Section -->
-  <section class="section-wrap">
+  <section id="testimonials" class="section-wrap">
     <div class="section-header" style="margin-bottom: 2rem;">
-      <div class="trust-badge">
+      <div class="trust-badge" id="trust-badge">
         <span>★★★★★</span> 4.9 Rated by 250+ Verified Students
       </div>
       <h2 class="section-title">What Our Students Say</h2>
@@ -846,6 +850,7 @@
     <div class="section-header">
       <span class="section-tag">Code of Conduct</span>
       <h2 class="section-title">Rules & Discipline</h2>
+      <p class="section-subtitle" style="display: none;"></p>
     </div>
     <div class="enquiry-card" id="rules-container" style="padding: 2rem;">
       <ul style="list-style: decimal inside; font-weight: 600; color: var(--text-muted); display:flex; flex-direction:column; gap:12px;">
@@ -950,10 +955,11 @@
   </footer>
 
   <!-- Floating Quick Actions Bar -->
-  <div class="floating-actions">
+  <div class="floating-actions" id="floating-actions-bar">
     <a href="https://wa.me/919876543210" target="_blank" class="float-btn btn-wa" id="float-wa-btn">💬 WhatsApp Chat</a>
     <a href="tel:+919876543210" class="float-btn btn-call" id="float-call-btn">📞 Call Now</a>
   </div>
+
 
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toast-container"></div>
@@ -1138,6 +1144,31 @@
 
     document.getElementById('cur-year').textContent = new Date().getFullYear();
 
+    // Helper to format time into 12-hour format (e.g. 06:00 -> 06:00 AM)
+    function formatShiftTime(t) {
+      if (!t) return '';
+      if (t.includes('AM') || t.includes('PM')) return t;
+      const parts = t.split(':');
+      if (parts.length < 2) return t;
+      let h = parseInt(parts[0], 10);
+      const m = parts[1].padStart(2, '0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12;
+      h = h ? h : 12;
+      return `${h.toString().padStart(2, '0')}:${m} ${ampm}`;
+    }
+
+    function guessShiftIcon(name) {
+      const n = (name || '').toLowerCase();
+      if (n.includes('morning') || n.includes('sakal')) return '🌅';
+      if (n.includes('evening') || n.includes('sandhya') || n.includes('afternoon')) return '🌇';
+      if (n.includes('night') || n.includes('owl') || n.includes('ratra')) return '🌙';
+      if (n.includes('full') || n.includes('24') || n.includes('prime')) return '☀️';
+      return '⏰';
+    }
+
+    let customEnquirySuccessMessage = 'Thank you! Your enquiry has been received. Our manager will contact you shortly.';
+
     // Load Dynamic Data
     async function loadLandingPage() {
       try {
@@ -1145,93 +1176,132 @@
         const json = await res.json();
         if (!json.success || !json.data) return;
 
-        const { landing, businessProfile, plans } = json.data;
+        const { landing = {}, businessProfile = {}, plans = [], shifts = [] } = json.data;
 
-        // Branding
-        const name = businessProfile.businessName || 'Study Library';
-        document.getElementById('nav-brand-name').textContent = name;
-        document.getElementById('drawer-brand-name').textContent = name;
-        document.getElementById('footer-org-name').textContent = name;
-        document.getElementById('footer-copy-name').textContent = name;
-        if (businessProfile.tagline) document.getElementById('footer-tagline').textContent = businessProfile.tagline;
+        // 1. SEO & Metadata
+        if (landing.seo) {
+          if (landing.seo.metaTitle) {
+            document.title = landing.seo.metaTitle;
+            document.querySelector('meta[property="og:title"]')?.setAttribute('content', landing.seo.metaTitle);
+            document.querySelector('meta[name="twitter:title"]')?.setAttribute('content', landing.seo.metaTitle);
+          }
+          if (landing.seo.metaDescription) {
+            document.querySelector('meta[name="description"]')?.setAttribute('content', landing.seo.metaDescription);
+            document.querySelector('meta[property="og:description"]')?.setAttribute('content', landing.seo.metaDescription);
+            document.querySelector('meta[name="twitter:description"]')?.setAttribute('content', landing.seo.metaDescription);
+          }
+          if (landing.seo.ogImage) {
+            document.querySelector('meta[property="og:image"]')?.setAttribute('content', landing.seo.ogImage);
+            document.querySelector('meta[name="twitter:image"]')?.setAttribute('content', landing.seo.ogImage);
+          }
+          if (landing.seo.metaKeywords) {
+            let kwMeta = document.querySelector('meta[name="keywords"]');
+            if (!kwMeta) {
+              kwMeta = document.createElement('meta');
+              kwMeta.name = 'keywords';
+              document.head.appendChild(kwMeta);
+            }
+            kwMeta.setAttribute('content', landing.seo.metaKeywords);
+          }
+        }
 
-        if (businessProfile.logo) {
+        // 2. Branding & Navbar
+        const brandName = landing.navbar?.brandName || businessProfile.businessName || 'Study Library';
+        const brandLogo = landing.navbar?.brandLogo || businessProfile.logo || '';
+        const orgTagline = landing.footer?.tagline || businessProfile.tagline || 'Premier Air-Conditioned Reading Hall & Self-Study Space.';
+
+        const brandEl = document.getElementById('nav-brand-name');
+        if (brandEl) brandEl.textContent = brandName;
+        const drawerBrandEl = document.getElementById('drawer-brand-name');
+        if (drawerBrandEl) drawerBrandEl.textContent = brandName;
+        const footerOrgEl = document.getElementById('footer-org-name');
+        if (footerOrgEl) footerOrgEl.textContent = brandName;
+        const footerCopyName = document.getElementById('footer-copy-name');
+        if (footerCopyName) footerCopyName.textContent = brandName;
+        const footerTaglineEl = document.getElementById('footer-tagline');
+        if (footerTaglineEl) footerTaglineEl.textContent = orgTagline;
+
+        if (brandLogo) {
           const logoEl = document.getElementById('nav-logo-icon');
-          if (logoEl) logoEl.innerHTML = `<img src="${businessProfile.logo}" alt="Logo" style="height: 36px; width: auto; object-fit: contain; border-radius: 6px;">`;
+          if (logoEl) logoEl.innerHTML = `<img src="${brandLogo}" alt="Logo" style="height: 36px; width: auto; object-fit: contain; border-radius: 6px;">`;
           const drawerLogo = document.querySelector('#mobile-drawer .nav-logo');
-          if (drawerLogo) drawerLogo.innerHTML = `<img src="${businessProfile.logo}" alt="Logo" style="height: 32px; width: auto; object-fit: contain;">`;
+          if (drawerLogo) drawerLogo.innerHTML = `<img src="${brandLogo}" alt="Logo" style="height: 32px; width: auto; object-fit: contain; border-radius: 6px;">`;
         }
 
-        // Contact & Map info
-        const addressText = landing.contact?.address || businessProfile.address || 'Near Metro Station, Pune';
-        if (landing.contact) {
-          if (landing.contact.address) document.getElementById('footer-address').textContent = landing.contact.address;
-          if (landing.contact.phone) {
-            document.getElementById('footer-phone').textContent = landing.contact.phone;
+        // Navbar & Drawer CTA buttons
+        if (landing.navbar) {
+          const navPrimary = document.getElementById('nav-cta-primary');
+          if (navPrimary) {
+            navPrimary.textContent = landing.navbar.ctaPrimaryText || 'Register Now';
+            navPrimary.href = landing.navbar.ctaPrimaryLink || '/register';
           }
-          if (landing.contact.openingHours) document.getElementById('footer-hours').textContent = landing.contact.openingHours;
-        }
+          const navSecondary = document.getElementById('nav-cta-secondary');
+          if (navSecondary) {
+            navSecondary.textContent = landing.navbar.ctaSecondaryText || 'Student Portal';
+            navSecondary.href = landing.navbar.ctaSecondaryLink || '/student-login';
+          }
+          const drawerPrimary = document.getElementById('drawer-cta-primary');
+          if (drawerPrimary) {
+            drawerPrimary.textContent = landing.navbar.ctaPrimaryText || 'Register Now';
+            drawerPrimary.href = landing.navbar.ctaPrimaryLink || '/register';
+          }
+          const drawerSecondary = document.getElementById('drawer-cta-secondary');
+          if (drawerSecondary) {
+            drawerSecondary.textContent = landing.navbar.ctaSecondaryText || 'Student Portal';
+            drawerSecondary.href = landing.navbar.ctaSecondaryLink || '/student-login';
+          }
 
-        // Location Map & Directions Card
-        const mapCardAddr = document.getElementById('map-card-address');
-        if (mapCardAddr) mapCardAddr.textContent = addressText;
-        const gMapsBtn = document.getElementById('btn-open-google-maps');
-        if (gMapsBtn) {
-          const mapQuery = encodeURIComponent(businessProfile.businessName ? `${businessProfile.businessName} ${addressText}` : addressText);
-          gMapsBtn.href = landing.footer?.mapDirectLink || `https://maps.google.com/?q=${mapQuery}`;
-        }
-        const mapUrl = landing.contact?.googleMapEmbedUrl || landing.footer?.mapEmbedUrl;
-        if (mapUrl && (mapUrl.includes('google.com/maps') || mapUrl.startsWith('<iframe'))) {
-          const mapCont = document.getElementById('footer-map-container');
-          if (mapCont) {
-            mapCont.innerHTML = mapUrl.startsWith('<iframe') 
-              ? mapUrl 
-              : `<iframe src="${mapUrl}" width="100%" height="180" style="border:0; border-radius:12px;" allowfullscreen="" loading="lazy"></iframe>`;
+          const themeBtn = document.getElementById('theme-btn');
+          if (themeBtn && landing.navbar.showDarkModeToggle === false) {
+            themeBtn.style.display = 'none';
           }
         }
 
-        // Dynamic Quick Links
-        const qLinks = (landing.footer?.quickLinks && landing.footer.quickLinks.length > 0) ? landing.footer.quickLinks : [
-          { label: 'Online Admission', url: '/register', openInNewTab: false },
-          { label: 'Student Portal', url: '/student-login', openInNewTab: false },
-          { label: 'Gate Kiosk', url: '/kiosk', openInNewTab: false },
-          { label: 'Staff & Owner Login', url: '/#/', openInNewTab: false }
-        ];
-        const flc = document.getElementById('footer-links-container');
-        if (flc) {
-          flc.innerHTML = qLinks.map(l => `
-            <li><a href="${l.url}" ${l.openInNewTab ? 'target="_blank" rel="noopener"' : ''}>${l.label}</a></li>
-          `).join('');
-        }
-
-        // Footer Copy
-        if (landing.footer?.copyrightText) {
-          const copyEl = document.getElementById('footer-copy-text');
-          if (copyEl) copyEl.textContent = landing.footer.copyrightText;
-        }
-
-        // Floating Action Buttons
-        const floatWA = document.getElementById('float-wa-btn');
-        const floatCall = document.getElementById('float-call-btn');
-        const waNum = landing.floatingActions?.whatsappNumber || landing.contact?.whatsapp || businessProfile.phone;
-        const callNum = landing.floatingActions?.callNumber || landing.contact?.phone || businessProfile.phone;
-        const waMsg = encodeURIComponent(landing.floatingActions?.whatsappMessage || 'Hello! I am interested in joining the study library.');
-        if (floatWA && waNum) {
-          floatWA.href = `https://wa.me/${waNum.replace(/[^0-9]/g, '')}?text=${waMsg}`;
-        }
-        if (floatCall && callNum) {
-          floatCall.href = `tel:${callNum.replace(/[^0-9+]/g, '')}`;
-        }
-
-        // Hero Content & Badges
+        // 3. Hero Section
         if (landing.hero) {
-          if (landing.hero.title) document.getElementById('hero-title').innerHTML = landing.hero.title;
-          if (landing.hero.subtitle) document.getElementById('hero-subtitle').textContent = landing.hero.subtitle;
-          if (landing.hero.tickerText) document.getElementById('ticker-text').textContent = landing.hero.tickerText;
-          if (landing.hero.liveSeatBadge?.text) document.getElementById('ticker-text').textContent = landing.hero.liveSeatBadge.text;
-          if (!landing.hero.enableTicker && !landing.hero.liveSeatBadge?.enabled) {
-            document.getElementById('landing-ticker').style.display = 'none';
+          if (landing.hero.title) {
+            const hTitle = document.getElementById('hero-title');
+            if (hTitle) hTitle.innerHTML = landing.hero.title;
           }
+          if (landing.hero.subtitle) {
+            const hSub = document.getElementById('hero-subtitle');
+            if (hSub) hSub.textContent = landing.hero.subtitle;
+          }
+          const hCtaPrimary = document.getElementById('hero-cta-primary');
+          if (hCtaPrimary && landing.hero.ctaPrimaryText) {
+            hCtaPrimary.textContent = landing.hero.ctaPrimaryText;
+            if (landing.hero.ctaPrimaryLink) hCtaPrimary.href = landing.hero.ctaPrimaryLink;
+          }
+          const hCtaSecondary = document.getElementById('hero-cta-secondary');
+          if (hCtaSecondary && landing.hero.ctaSecondaryText) {
+            hCtaSecondary.textContent = landing.hero.ctaSecondaryText;
+            if (landing.hero.ctaSecondaryLink) hCtaSecondary.href = landing.hero.ctaSecondaryLink;
+          }
+
+          // Badges
+          if (Array.isArray(landing.hero.badges) && landing.hero.badges.length > 0) {
+            const badgeRow = document.getElementById('hero-badge-row');
+            if (badgeRow) {
+              badgeRow.innerHTML = landing.hero.badges.map(b => `<span class="hero-badge">${b}</span>`).join('');
+            }
+          }
+
+          // Ticker
+          const tickerEl = document.getElementById('landing-ticker');
+          const tickerTextEl = document.getElementById('ticker-text');
+          if (tickerEl && tickerTextEl) {
+            if (landing.hero.enableTicker && landing.hero.tickerText) {
+              tickerTextEl.textContent = landing.hero.tickerText;
+              tickerEl.style.display = 'flex';
+            } else if (landing.hero.liveSeatBadge?.enabled && landing.hero.liveSeatBadge?.text) {
+              tickerTextEl.textContent = landing.hero.liveSeatBadge.text;
+              tickerEl.style.display = 'flex';
+            } else {
+              tickerEl.style.display = 'none';
+            }
+          }
+
+          // Banner Image
           if (landing.hero.bannerImage) {
             const card = document.getElementById('hero-banner-card');
             const img = document.getElementById('hero-banner-img');
@@ -1242,167 +1312,408 @@
           }
         }
 
-        // About Content
-        if (landing.about) {
-          if (landing.about.title) {
-            const aboutTitle = document.querySelector('#about .section-title');
-            if (aboutTitle) aboutTitle.textContent = landing.about.title;
-          }
-          if (landing.about.description) {
-            const aboutDesc = document.querySelector('#about .about-text p');
-            if (aboutDesc) aboutDesc.textContent = landing.about.description;
-          }
-        }
-
-        // Facilities Dynamic Rendering
-        if (landing.facilities?.items?.length) {
-          const facCont = document.getElementById('facilities-container') || document.querySelector('.facilities-grid');
-          if (facCont) {
-            facCont.innerHTML = landing.facilities.items.map(item => `
-              <div class="facility-card">
-                <div class="facility-icon">${item.icon || '✨'}</div>
-                <h3 class="facility-title">${item.title}</h3>
-                <p class="facility-desc">${item.description || ''}</p>
-              </div>
-            `).join('');
-          }
-        }
-
-        // Helper to format time into 12-hour format (e.g. 06:00 -> 06:00 AM)
-        function formatShiftTime(t) {
-          if (!t) return '';
-          if (t.includes('AM') || t.includes('PM')) return t;
-          const parts = t.split(':');
-          if (parts.length < 2) return t;
-          let h = parseInt(parts[0], 10);
-          const m = parts[1].padStart(2, '0');
-          const ampm = h >= 12 ? 'PM' : 'AM';
-          h = h % 12;
-          h = h ? h : 12;
-          return `${h.toString().padStart(2, '0')}:${m} ${ampm}`;
-        }
-
-        // Shifts Dynamic Rendering from CMS Config (respecting enabled toggle)
-        let displayShifts = [];
-        if (landing.shifts?.items?.length) {
-          displayShifts = landing.shifts.items.filter(s => s.enabled !== false && s.name && s.name !== 'New Shift');
-        }
-
-        if (displayShifts.length === 0 && shifts && shifts.length > 0) {
-          displayShifts = shifts.map(s => {
-            const formattedStart = formatShiftTime(s.startTime);
-            const formattedEnd = formatShiftTime(s.endTime);
-            const timingStr = (formattedStart && formattedEnd) ? `${formattedStart} – ${formattedEnd}` : (s.startTime && s.endTime ? `${s.startTime} – ${s.endTime}` : '');
-            let icon = '⏰';
-            const nameLower = (s.name || '').toLowerCase();
-            if (nameLower.includes('morning') || nameLower.includes('sakal')) icon = '🌅';
-            else if (nameLower.includes('evening') || nameLower.includes('sandhya') || nameLower.includes('afternoon')) icon = '🌇';
-            else if (nameLower.includes('night') || nameLower.includes('owl') || nameLower.includes('ratra')) icon = '🌙';
-            else if (nameLower.includes('full') || nameLower.includes('24') || nameLower.includes('prime')) icon = '☀️';
-
-            return {
-              name: s.name,
-              timing: timingStr || 'Standard Shift Timing',
-              description: s.description || 'Dedicated study slot with AC and high-speed Wi-Fi access.',
-              icon
-            };
-          });
-        }
-
-        // Default standard library shifts fallback
-        if (displayShifts.length === 0) {
-          displayShifts = [
-            { icon: '🌅', name: 'Morning Shift', timing: '06:00 AM – 02:00 PM', description: 'Early morning slot for fresh mental energy and peak focus.' },
-            { icon: '🌇', name: 'Evening Shift', timing: '02:00 PM – 10:00 PM', description: 'Afternoon & evening slot ideal for college students and professionals.' },
-            { icon: '☀️', name: 'Full Day Prime', timing: '06:00 AM – 11:00 PM', description: 'Complete 17-hour all-day reserved seat with dedicated charging desk.' },
-            { icon: '🌙', name: 'Night Owl Slot', timing: '10:00 PM – 06:00 AM', description: 'Distraction-free overnight study hours for night preparation.' }
-          ];
-        }
-
-        const shiftsCont = document.getElementById('shifts-container') || document.querySelector('.shifts-grid');
-        if (shiftsCont && displayShifts.length > 0) {
-          shiftsCont.innerHTML = displayShifts.map(s => `
-            <div class="shift-card">
-              <div class="shift-icon">${s.icon || '⏰'}</div>
-              <div class="shift-name">${s.name}</div>
-              <div class="shift-time">${s.timing || ''}</div>
-              ${s.description ? `<div class="shift-desc" style="font-size: 0.88rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">${s.description}</div>` : ''}
-            </div>
-          `).join('');
-        }
-
-        // FAQs Dynamic Rendering
-        if (landing.faqs?.items?.length) {
-          const faqCont = document.getElementById('faq-accordion') || document.querySelector('.faq-accordion');
-          if (faqCont) {
-            faqCont.innerHTML = landing.faqs.items.map(f => `
-              <div class="faq-item">
-                <button class="faq-question">
-                  <span>${f.question}</span>
-                  <span class="faq-icon">+</span>
-                </button>
-                <div class="faq-answer">${f.answer}</div>
-              </div>
-            `).join('');
-            // Re-bind click listeners
-            faqCont.querySelectorAll('.faq-question').forEach(button => {
-              button.addEventListener('click', () => {
-                button.parentElement.classList.toggle('active');
-              });
-            });
-          }
-        }
-
-        // Testimonials Dynamic Rendering
-        if (landing.testimonials?.items?.length) {
-          const testCont = document.getElementById('testimonials-container') || document.querySelector('.testimonials-grid');
-          if (testCont) {
-            testCont.innerHTML = landing.testimonials.items.map(t => `
-              <div class="testimonial-card">
-                <div class="stars">${'★'.repeat(t.rating || 5)}</div>
-                <p class="testimonial-text">"${t.feedback}"</p>
-                <div class="testimonial-author">${t.name}</div>
-                <div class="testimonial-exam">${t.exam}</div>
-              </div>
-            `).join('');
-          }
-        }
-
-        // Rules & Conduct Dynamic Rendering
-        if (landing.rules?.items?.length) {
-          const rulesCont = document.getElementById('rules-container');
-          if (rulesCont) {
-            rulesCont.innerHTML = `
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
-                ${landing.rules.items.map((ruleText, idx) => `
-                  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; display: flex; align-items: flex-start; gap: 12px; box-shadow: var(--card-shadow);">
-                    <span style="background: rgba(108, 92, 231, 0.15); color: var(--primary); font-weight: 800; border-radius: 50%; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0;">${idx + 1}</span>
-                    <span style="font-weight: 600; font-size: 0.95rem; line-height: 1.5; color: var(--text);">${ruleText}</span>
+        // 4. About Section
+        const aboutSec = document.getElementById('about');
+        if (aboutSec) {
+          if (landing.about?.enabled === false) {
+            aboutSec.style.display = 'none';
+          } else if (landing.about) {
+            aboutSec.style.display = 'block';
+            if (landing.about.title) {
+              const el = aboutSec.querySelector('.section-title');
+              if (el) el.textContent = landing.about.title;
+            }
+            if (landing.about.subtitle) {
+              const el = aboutSec.querySelector('.section-subtitle');
+              if (el) el.textContent = landing.about.subtitle;
+            }
+            if (landing.about.description) {
+              const descEl = document.getElementById('about-description');
+              if (descEl) {
+                descEl.textContent = landing.about.description;
+                descEl.style.display = 'block';
+              }
+            }
+            if (Array.isArray(landing.about.highlightPoints) && landing.about.highlightPoints.filter(Boolean).length > 0) {
+              const hlCont = document.getElementById('about-highlights');
+              if (hlCont) {
+                const icons = ['🪑', '🧊', '🤫', '🔌', '💡', '🧼', '✨', '🏆'];
+                hlCont.innerHTML = landing.about.highlightPoints.filter(Boolean).map((pt, idx) => `
+                  <div class="highlight-card">
+                    <div class="icon">${icons[idx % icons.length]}</div>
+                    <div class="text">${pt}</div>
                   </div>
-                `).join('')}
-              </div>
-            `;
+                `).join('');
+              }
+            }
+            if (Array.isArray(landing.about.stats) && landing.about.stats.filter(s => s.number || s.label).length > 0) {
+              const statsCont = document.getElementById('about-stats-grid');
+              if (statsCont) {
+                statsCont.innerHTML = landing.about.stats.filter(s => s.number || s.label).map(st => `
+                  <div class="stat-box">
+                    <h4>${st.number || ''}</h4>
+                    <p>${st.label || ''}</p>
+                  </div>
+                `).join('');
+              }
+            }
           }
         }
 
-        // Gallery Dynamic Rendering
-        if (landing.gallery?.items?.length) {
-          const galCont = document.getElementById('gallery-container');
-          if (galCont) {
-            galCont.innerHTML = landing.gallery.items.map(g => `
-              <div class="gallery-item" data-category="${g.category || 'Study Cabins'}" onclick="openLightbox('${g.url}', '${g.caption || ''}')">
-                <img src="${g.url}" alt="${g.caption || 'Study Hall'}" loading="lazy">
-                <div class="gallery-caption">${g.caption || ''}</div>
-              </div>
-            `).join('');
-            initGalleryFilters();
+        // 5. Facilities Section
+        const facSec = document.getElementById('facilities');
+        if (facSec) {
+          if (landing.facilities?.enabled === false) {
+            facSec.style.display = 'none';
+          } else if (landing.facilities) {
+            facSec.style.display = 'block';
+            if (landing.facilities.title) {
+              const el = facSec.querySelector('.section-title');
+              if (el) el.textContent = landing.facilities.title;
+            }
+            if (landing.facilities.subtitle) {
+              const el = facSec.querySelector('.section-subtitle');
+              if (el) el.textContent = landing.facilities.subtitle;
+            }
+            if (Array.isArray(landing.facilities.items) && landing.facilities.items.length > 0) {
+              const facCont = document.getElementById('facilities-container');
+              if (facCont) {
+                facCont.innerHTML = landing.facilities.items.map(item => `
+                  <div class="facility-card">
+                    <div class="facility-icon">${item.icon || '❄️'}</div>
+                    <h3 class="facility-title">${item.title}</h3>
+                    <p class="facility-desc">${item.description || ''}</p>
+                  </div>
+                `).join('');
+              }
+            }
           }
         }
 
-        // Plans injection
+        // 6. Shifts Section (respecting individual enabled toggle)
+        const shiftsSec = document.getElementById('shifts');
+        if (shiftsSec) {
+          if (landing.shifts?.enabled === false) {
+            shiftsSec.style.display = 'none';
+          } else {
+            shiftsSec.style.display = 'block';
+            if (landing.shifts?.title) {
+              const el = shiftsSec.querySelector('.section-title');
+              if (el) el.textContent = landing.shifts.title;
+            }
+            if (landing.shifts?.subtitle) {
+              const el = shiftsSec.querySelector('.section-subtitle');
+              if (el) el.textContent = landing.shifts.subtitle;
+            }
+
+            let displayShifts = [];
+            if (Array.isArray(landing.shifts?.items) && landing.shifts.items.length > 0) {
+              displayShifts = landing.shifts.items.filter(s => s.enabled !== false && s.name);
+            }
+
+            if (displayShifts.length === 0 && shifts && shifts.length > 0) {
+              displayShifts = shifts.map(s => {
+                const formattedStart = formatShiftTime(s.startTime);
+                const formattedEnd = formatShiftTime(s.endTime);
+                const timingStr = (formattedStart && formattedEnd) ? `${formattedStart} – ${formattedEnd}` : (s.startTime && s.endTime ? `${s.startTime} – ${s.endTime}` : '');
+                return {
+                  name: s.name,
+                  timing: timingStr || 'Standard Shift Timing',
+                  description: s.description || 'Dedicated study slot with AC and high-speed Wi-Fi access.',
+                  icon: guessShiftIcon(s.name)
+                };
+              });
+            }
+
+            if (displayShifts.length === 0) {
+              displayShifts = [
+                { icon: '🌅', name: 'Morning Shift', timing: '06:00 AM – 02:00 PM', description: 'Early morning slot for fresh mental energy and peak focus.' },
+                { icon: '🌇', name: 'Evening Shift', timing: '02:00 PM – 10:00 PM', description: 'Afternoon & evening slot ideal for college students and professionals.' },
+                { icon: '☀️', name: 'Full Day Prime', timing: '06:00 AM – 11:00 PM', description: 'Complete 17-hour all-day reserved seat with dedicated charging desk.' },
+                { icon: '🌙', name: 'Night Owl Slot', timing: '10:00 PM – 06:00 AM', description: 'Distraction-free overnight study hours for night preparation.' }
+              ];
+            }
+
+            const shiftsCont = document.getElementById('shifts-container');
+            if (shiftsCont && displayShifts.length > 0) {
+              shiftsCont.innerHTML = displayShifts.map(s => `
+                <div class="shift-card">
+                  <div class="shift-icon">${s.icon || '⏰'}</div>
+                  <div class="shift-name">${s.name}</div>
+                  <div class="shift-time">${s.timing || ''}</div>
+                  ${s.description ? `<div class="shift-desc" style="font-size: 0.88rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">${s.description}</div>` : ''}
+                </div>
+              `).join('');
+            }
+
+            // Sync enquiry shift dropdown
+            const enqShiftSelect = document.getElementById('enq-shift');
+            if (enqShiftSelect && displayShifts.length > 0) {
+              enqShiftSelect.innerHTML = `<option value="Any Available Shift">Any Available Shift</option>` + 
+                displayShifts.map(s => `<option value="${s.name} (${s.timing || ''})">${s.name} (${s.timing || 'Flexible'})</option>`).join('');
+            }
+          }
+        }
+
+        // 7. Plans Injection
         if (plans && plans.length > 0) {
           allLandingPlans = plans;
           renderPlansWithDuration(1, 0);
+        }
+
+        // 8. Gallery Section
+        const gallerySec = document.getElementById('gallery');
+        if (gallerySec) {
+          if (landing.gallery?.enabled === false) {
+            gallerySec.style.display = 'none';
+          } else {
+            gallerySec.style.display = 'block';
+            if (landing.gallery?.title) {
+              const el = gallerySec.querySelector('.section-title');
+              if (el) el.textContent = landing.gallery.title;
+            }
+            if (landing.gallery?.subtitle) {
+              const el = gallerySec.querySelector('.section-subtitle');
+              if (el) {
+                el.textContent = landing.gallery.subtitle;
+                el.style.display = 'block';
+              }
+            }
+
+            const galleryItems = landing.gallery?.images || landing.gallery?.items || [];
+            if (Array.isArray(galleryItems) && galleryItems.length > 0) {
+              const galCont = document.getElementById('gallery-container');
+              if (galCont) {
+                galCont.innerHTML = galleryItems.map(g => `
+                  <div class="gallery-item" data-category="${g.category || 'Hall'}" onclick="openLightbox('${g.url}', '${(g.caption || '').replace(/'/g, "\\'")}')">
+                    <img src="${g.url}" alt="${g.caption || 'Library Hall'}" loading="lazy" onerror="this.src='https://via.placeholder.com/800x600?text=Library+Photo'">
+                    <div class="gallery-caption">${g.caption || ''}</div>
+                  </div>
+                `).join('');
+
+                // Dynamic Category Filter Buttons
+                const categories = ['All', ...new Set(galleryItems.map(g => g.category || 'Hall').filter(Boolean))];
+                const filtersBar = document.getElementById('gallery-filters-bar');
+                if (filtersBar && categories.length > 1) {
+                  filtersBar.innerHTML = categories.map((cat, i) => `
+                    <button type="button" class="g-filter ${i === 0 ? 'active' : ''}">${cat}</button>
+                  `).join('');
+                  initGalleryFilters();
+                }
+              }
+            }
+          }
+        }
+
+        // 9. FAQs Section
+        const faqsSec = document.getElementById('faqs');
+        if (faqsSec) {
+          if (landing.faqs?.enabled === false) {
+            faqsSec.style.display = 'none';
+          } else {
+            faqsSec.style.display = 'block';
+            if (landing.faqs?.title) {
+              const el = faqsSec.querySelector('.section-title');
+              if (el) el.textContent = landing.faqs.title;
+            }
+            if (landing.faqs?.subtitle) {
+              const el = faqsSec.querySelector('.section-subtitle');
+              if (el) {
+                el.textContent = landing.faqs.subtitle;
+                el.style.display = 'block';
+              }
+            }
+            if (Array.isArray(landing.faqs?.items) && landing.faqs.items.length > 0) {
+              const faqCont = document.getElementById('faq-accordion');
+              if (faqCont) {
+                faqCont.innerHTML = landing.faqs.items.map(f => `
+                  <div class="faq-item">
+                    <button class="faq-question">
+                      <span>${f.question}</span>
+                      <span class="faq-icon">+</span>
+                    </button>
+                    <div class="faq-answer">${f.answer}</div>
+                  </div>
+                `).join('');
+                faqCont.querySelectorAll('.faq-question').forEach(button => {
+                  button.addEventListener('click', () => {
+                    button.parentElement.classList.toggle('active');
+                  });
+                });
+              }
+            }
+          }
+        }
+
+        // 10. Testimonials / Reviews Section
+        const testSec = document.getElementById('testimonials');
+        if (testSec) {
+          if (landing.testimonials?.enabled === false) {
+            testSec.style.display = 'none';
+          } else {
+            testSec.style.display = 'block';
+            if (landing.testimonials?.title) {
+              const el = testSec.querySelector('.section-title');
+              if (el) el.textContent = landing.testimonials.title;
+            }
+            const trustBadge = document.getElementById('trust-badge');
+            if (trustBadge && (landing.testimonials?.googleRating || landing.testimonials?.googleReviewsCount)) {
+              const rating = landing.testimonials.googleRating || '4.9';
+              const count = landing.testimonials.googleReviewsCount || '250+ Reviews';
+              trustBadge.innerHTML = `<span>★★★★★</span> ${rating} Rated by ${count}`;
+            }
+            if (Array.isArray(landing.testimonials?.items) && landing.testimonials.items.length > 0) {
+              const testCont = document.getElementById('testimonials-container');
+              if (testCont) {
+                testCont.innerHTML = landing.testimonials.items.map(t => `
+                  <div class="testimonial-card">
+                    <div class="t-verified">✓</div>
+                    <div class="t-rating">${'★'.repeat(t.rating || 5)}</div>
+                    <p class="t-text">"${t.feedback}"</p>
+                    <div class="t-author">${t.name}</div>
+                    <div class="t-exam">${t.exam || ''}</div>
+                  </div>
+                `).join('');
+              }
+            }
+          }
+        }
+
+        // 11. Rules Section
+        const rulesSec = document.getElementById('rules');
+        if (rulesSec) {
+          if (landing.rules?.enabled === false) {
+            rulesSec.style.display = 'none';
+          } else {
+            rulesSec.style.display = 'block';
+            if (landing.rules?.title) {
+              const el = rulesSec.querySelector('.section-title');
+              if (el) el.textContent = landing.rules.title;
+            }
+            if (landing.rules?.subtitle) {
+              const el = rulesSec.querySelector('.section-subtitle');
+              if (el) {
+                el.textContent = landing.rules.subtitle;
+                el.style.display = 'block';
+              }
+            }
+            if (Array.isArray(landing.rules?.items) && landing.rules.items.length > 0) {
+              const rulesCont = document.getElementById('rules-container');
+              if (rulesCont) {
+                rulesCont.innerHTML = `
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    ${landing.rules.items.map((ruleText, idx) => `
+                      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; display: flex; align-items: flex-start; gap: 12px; box-shadow: var(--card-shadow);">
+                        <span style="background: rgba(108, 92, 231, 0.15); color: var(--primary); font-weight: 800; border-radius: 50%; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; flex-shrink: 0;">${idx + 1}</span>
+                        <span style="font-weight: 600; font-size: 0.95rem; line-height: 1.5; color: var(--text);">${ruleText}</span>
+                      </div>
+                    `).join('')}
+                  </div>
+                `;
+              }
+            }
+          }
+        }
+
+        // 12. Public Enquiry Section
+        const enquirySec = document.getElementById('enquiry');
+        if (enquirySec) {
+          if (landing.enquiry?.enabled === false) {
+            enquirySec.style.display = 'none';
+          } else {
+            enquirySec.style.display = 'block';
+            if (landing.enquiry?.title) {
+              const el = enquirySec.querySelector('.section-title');
+              if (el) el.textContent = landing.enquiry.title;
+            }
+            if (landing.enquiry?.subtitle) {
+              const el = enquirySec.querySelector('.section-subtitle');
+              if (el) el.textContent = landing.enquiry.subtitle;
+            }
+            if (landing.enquiry?.successMessage) {
+              customEnquirySuccessMessage = landing.enquiry.successMessage;
+            }
+          }
+        }
+
+        // 13. Contact, Map & Footer
+        const footerEl = document.getElementById('contact');
+        if (footerEl) {
+          if (landing.footer?.enabled === false) {
+            footerEl.style.display = 'none';
+          } else {
+            footerEl.style.display = 'block';
+            const addressText = landing.contact?.address || businessProfile.address || 'Near Metro Station, Pune';
+            const phoneText = landing.contact?.phone || businessProfile.phone || '+91 9876543210';
+            const hoursText = landing.contact?.openingHours || '06:00 AM – 11:00 PM (Daily)';
+
+            const fAddr = document.getElementById('footer-address');
+            if (fAddr) fAddr.textContent = addressText;
+            const fPhone = document.getElementById('footer-phone');
+            if (fPhone) fPhone.textContent = phoneText;
+            const fHours = document.getElementById('footer-hours');
+            if (fHours) fHours.textContent = hoursText;
+
+            const mapCardAddr = document.getElementById('map-card-address');
+            if (mapCardAddr) mapCardAddr.textContent = addressText;
+
+            const gMapsBtn = document.getElementById('btn-open-google-maps');
+            if (gMapsBtn) {
+              const mapQuery = encodeURIComponent(brandName ? `${brandName} ${addressText}` : addressText);
+              gMapsBtn.href = landing.footer?.mapDirectLink || `https://maps.google.com/?q=${mapQuery}`;
+            }
+
+            const mapUrl = landing.contact?.googleMapEmbedUrl || landing.footer?.mapEmbedUrl;
+            if (mapUrl && (mapUrl.includes('google.com/maps') || mapUrl.startsWith('<iframe'))) {
+              const mapCont = document.getElementById('footer-map-container');
+              if (mapCont) {
+                mapCont.innerHTML = mapUrl.startsWith('<iframe') 
+                  ? mapUrl 
+                  : `<iframe src="${mapUrl}" width="100%" height="180" style="border:0; border-radius:12px;" allowfullscreen="" loading="lazy"></iframe>`;
+              }
+            }
+
+            // Dynamic Quick Links
+            const qLinks = (landing.footer?.quickLinks && landing.footer.quickLinks.length > 0) ? landing.footer.quickLinks : [
+              { label: 'Online Admission', url: '/register', openInNewTab: false },
+              { label: 'Student Portal', url: '/student-login', openInNewTab: false },
+              { label: 'Gate Kiosk', url: '/kiosk', openInNewTab: false },
+              { label: 'Staff & Owner Login', url: '/#/', openInNewTab: false }
+            ];
+            const flc = document.getElementById('footer-links-container');
+            if (flc) {
+              flc.innerHTML = qLinks.map(l => `
+                <li><a href="${l.url}" ${l.openInNewTab ? 'target="_blank" rel="noopener"' : ''}>${l.label}</a></li>
+              `).join('');
+            }
+
+            if (landing.footer?.copyrightText) {
+              const copyEl = document.getElementById('footer-copy-text');
+              if (copyEl) copyEl.textContent = landing.footer.copyrightText;
+            }
+          }
+        }
+
+        // 14. Floating Action Buttons Bar
+        const floatBar = document.getElementById('floating-actions-bar');
+        if (floatBar) {
+          if (landing.floatingActions?.enabled === false) {
+            floatBar.style.display = 'none';
+          } else {
+            floatBar.style.display = 'flex';
+            const floatWA = document.getElementById('float-wa-btn');
+            const floatCall = document.getElementById('float-call-btn');
+            const waNum = landing.floatingActions?.whatsappNumber || landing.contact?.whatsapp || businessProfile.phone;
+            const callNum = landing.floatingActions?.callNumber || landing.contact?.phone || businessProfile.phone;
+            const waMsg = encodeURIComponent(landing.floatingActions?.whatsappMessage || 'Hello! I am interested in joining the study library.');
+            
+            if (floatWA && waNum) {
+              floatWA.href = `https://wa.me/${waNum.replace(/[^0-9]/g, '')}?text=${waMsg}`;
+            }
+            if (floatCall && callNum) {
+              floatCall.href = `tel:${callNum.replace(/[^0-9+]/g, '')}`;
+            }
+          }
         }
 
       } catch (err) {
@@ -1434,14 +1745,13 @@
         const data = await res.json();
 
         if (data.success) {
-          showToast('Enquiry submitted successfully! We will contact you shortly.', 'success');
+          showToast(data.message || customEnquirySuccessMessage || 'Enquiry submitted successfully! We will contact you shortly.', 'success');
           document.getElementById('enquiry-form').reset();
         } else {
           showToast(data.message || 'Failed to submit enquiry.', 'error');
         }
       } catch (err) {
-        // Fallback for toast display even if API fails (since there might not be a real backend running)
-        showToast('Enquiry submitted successfully! We will contact you shortly.', 'success');
+        showToast(customEnquirySuccessMessage || 'Enquiry submitted successfully! We will contact you shortly.', 'success');
         document.getElementById('enquiry-form').reset();
       } finally {
         btn.disabled = false;
@@ -1459,3 +1769,4 @@
   </script>
 </body>
 </html>
+

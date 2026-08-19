@@ -40,7 +40,7 @@ async function checkStudentExpiries() {
         { expiryDate: { $exists: true, $ne: null } },
         { planExpiresAt: { $exists: true, $ne: null } }
       ]
-    }).populate('plan').populate('seat');
+    }).populate('plan').populate('seat').populate('shift');
 
     for (const student of students) {
       const expDate = student.expiryDate || student.planExpiresAt;
@@ -126,7 +126,7 @@ async function checkStudentExpiries() {
             note: 'SubscriptionRenewal'
           }) : '';
 
-          const waMessage = WhatsAppService.getExpiryReminderMessage(
+          const waMessage = await WhatsAppService.getExpiryReminderMessage(
             student,
             timeLabel,
             bizName,
@@ -179,7 +179,7 @@ async function checkStudentExpiries() {
           note: 'PartialPaymentBalance'
         }) : '';
 
-        const waMsg = WhatsAppService.getPartialBalanceReminderMessage(
+        const waMsg = await WhatsAppService.getPartialBalanceReminderMessage(
           student,
           p,
           bizName,

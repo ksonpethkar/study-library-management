@@ -7,8 +7,8 @@ const Seat = require('../models/Seat');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
 
-router.use(protect);
-router.use(roleCheck('owner', 'branch_manager'));
+// Auth middleware for administrative operations
+const adminAuth = [protect, roleCheck('owner', 'branch_manager', 'staff')];
 
 function validate(validations) {
   return async (req, res, next) => {
@@ -30,8 +30,9 @@ function validate(validations) {
 /**
  * @route   GET /api/waiting-list
  * @desc    Get all waiting list items sorted by priority
+ * @access  Private
  */
-router.get('/', async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
   try {
     const { status = 'all' } = req.query;
     const query = {};
@@ -46,6 +47,7 @@ router.get('/', async (req, res) => {
 
     const waitingCount = await WaitingList.countDocuments({ status: 'waiting' });
     const offeredCount = await WaitingList.countDocuments({ status: 'offered' });
+    const assignedCount = await WaitingList.countDocuments({ status: 'assigned' });
 
     res.json({
       success: true,
@@ -54,6 +56,7 @@ router.get('/', async (req, res) => {
         counts: {
           waiting: waitingCount,
           offered: offeredCount,
+          assigned: assignedCount,
           total: items.length
         }
       }
@@ -66,7 +69,8 @@ router.get('/', async (req, res) => {
 
 /**
  * @route   POST /api/waiting-list
- * @desc    Add student or walk-in to waiting queue
+ * @desc    Add student or walk-in to waiting queue (Public or Admin)
+ * @access  Public / Private
  */
 router.post(
   '/',
@@ -86,14 +90,14 @@ router.post(
         preferredZone: preferredZone || 'Any',
         preferredShift: preferredShift || 'Any',
         notes: notes || '',
-        createdBy: req.user._id
+        createdBy: req.user?._id || null
       });
 
       await item.save();
 
       res.status(201).json({
         success: true,
-        message: `Added ${studentName} to the seat waiting list (#${item.priority})`,
+        message: `Added ${studentName} to the priority waiting list (#${item.priority})`,
         data: item
       });
     } catch (err) {
@@ -105,9 +109,10 @@ router.post(
 
 /**
  * @route   PUT /api/waiting-list/:id/offer
- * @desc    Offer a seat to a waiting student
+ * @desc    Offer a seat to a waiting student (24h hold)
+ * @access  Private
  */
-router.put('/:id/offer', async (req, res) => {
+router.put('/:id/offer', adminAuth, async (req, res) => {
   try {
     const { seatId } = req.body;
     if (!seatId) {
@@ -147,10 +152,107 @@ router.put('/:id/offer', async (req, res) => {
 });
 
 /**
+ * @route   POST /api/waiting-list/:id/convert-admission
+ * @desc    1-Click Convert waiting list entry into an active student admission with seat allocation
+ * @access  Private
+ */
+router.post('/:id/convert-admission', adminAuth, async (req, res) => {
+  try {
+    const item = await WaitingList.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ success: false, message: 'Waiting list entry not found' });
+    }
+
+    const { seatId, planId, shiftId, notes } = req.body;
+    const targetSeatId = seatId || item.offeredSeat;
+
+    if (!targetSeatId) {
+      return res.status(400).json({ success: false, message: 'Please select an available seat to convert this waiting entry' });
+    }
+
+    const seatDoc = await Seat.findById(targetSeatId);
+    if (!seatDoc) {
+      return res.status(404).json({ success: false, message: 'Selected seat not found' });
+    }
+
+    let studentDoc = null;
+
+    if (item.student) {
+      // Existing student record: activate and assign seat
+      studentDoc = await Student.findById(item.student);
+      if (studentDoc) {
+        studentDoc.seat = targetSeatId;
+        studentDoc.status = 'active';
+        if (shiftId) studentDoc.shift = shiftId;
+        if (planId) studentDoc.plan = planId;
+        await studentDoc.save();
+      }
+    }
+
+    if (!studentDoc) {
+      // Check if student with this phone already exists
+      studentDoc = await Student.findOne({ phone: item.studentPhone });
+      if (studentDoc) {
+        studentDoc.seat = targetSeatId;
+        studentDoc.status = 'active';
+        if (shiftId) studentDoc.shift = shiftId;
+        if (planId) studentDoc.plan = planId;
+        await studentDoc.save();
+      } else {
+        // Create new active student
+        const studentCount = await Student.countDocuments();
+        const year = new Date().getFullYear();
+        const studentIdCode = `STU-${year}-${String(studentCount + 1).padStart(4, '0')}`;
+
+        studentDoc = new Student({
+          studentId: studentIdCode,
+          name: item.studentName,
+          phone: item.studentPhone,
+          email: item.studentEmail || '',
+          seat: targetSeatId,
+          shift: shiftId || null,
+          plan: planId || null,
+          status: 'active',
+          notes: `Converted from Waiting List #${item.priority}. ${notes || item.notes || ''}`,
+          createdBy: req.user._id
+        });
+        await studentDoc.save();
+      }
+    }
+
+    // Update Seat Status
+    seatDoc.status = 'occupied';
+    seatDoc.currentStudent = studentDoc._id;
+    seatDoc.assignedAt = new Date();
+    await seatDoc.save();
+
+    // Update WaitingList status
+    item.status = 'assigned';
+    item.offeredSeat = targetSeatId;
+    item.student = studentDoc._id;
+    await item.save();
+
+    res.json({
+      success: true,
+      message: `Successfully converted ${item.studentName} to Active Admission with Seat ${seatDoc.seatNumber}!`,
+      data: {
+        waitingList: item,
+        student: studentDoc,
+        seat: seatDoc
+      }
+    });
+  } catch (err) {
+    console.error('Error converting waiting list entry:', err);
+    res.status(500).json({ success: false, message: err.message || 'Failed to convert to admission' });
+  }
+});
+
+/**
  * @route   PUT /api/waiting-list/:id/assign
  * @desc    Confirm seat assignment and update Student + Seat records
+ * @access  Private
  */
-router.put('/:id/assign', async (req, res) => {
+router.put('/:id/assign', adminAuth, async (req, res) => {
   try {
     const item = await WaitingList.findById(req.params.id);
     if (!item) {
@@ -162,10 +264,8 @@ router.put('/:id/assign', async (req, res) => {
       return res.status(400).json({ success: false, message: 'No seat assigned' });
     }
 
-    // 1. Mark seat occupied
     let studentId = item.student;
     if (!studentId) {
-      // Create student if this was a direct walk-in queue item
       const newStudent = new Student({
         name: item.studentName,
         phone: item.studentPhone,
@@ -204,8 +304,9 @@ router.put('/:id/assign', async (req, res) => {
 /**
  * @route   PUT /api/waiting-list/:id/cancel
  * @desc    Cancel waiting list item
+ * @access  Private
  */
-router.put('/:id/cancel', async (req, res) => {
+router.put('/:id/cancel', adminAuth, async (req, res) => {
   try {
     const item = await WaitingList.findByIdAndUpdate(
       req.params.id,

@@ -515,6 +515,139 @@ router.get('/report', protect, async (req, res) => {
   }
 });
 
+/**
+ * @route   POST /api/attendance/rfid-punch, /api/attendance/kiosk-punch
+ * @desc    Self-service Kiosk Punch (Barcode, RFID, Keypad Student ID, Biometric)
+ * @access  Public (Kiosk terminal)
+ */
+router.post(['/rfid-punch', '/kiosk-punch'], async (req, res) => {
+  try {
+    const Student = require('../models/Student');
+    const rawIdentifier = req.body.rfidCardNumber || req.body.identifier || req.body.studentId || req.body.phone;
+
+    if (!rawIdentifier) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please scan barcode, tap card, or enter Student ID / Phone number'
+      });
+    }
+
+    const identifier = String(rawIdentifier).trim();
+
+    // Look up student by studentId, phone, rfidCardNumber, or biometricId
+    const student = await Student.findOne({
+      $or: [
+        { studentId: { $regex: new RegExp(`^${identifier}$`, 'i') } },
+        { phone: identifier },
+        { rfidCardNumber: identifier },
+        { biometricId: identifier }
+      ]
+    }).populate('seat').populate('shift').populate('plan');
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `Student "${identifier}" not found in database. Please register at reception.`
+      });
+    }
+
+    if (student.status !== 'active') {
+      return res.status(403).json({
+        success: false,
+        message: `Student membership is currently ${student.status.toUpperCase()}. Please contact front desk.`
+      });
+    }
+
+    // Check today's attendance record
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    let att = await Attendance.findOne({
+      student: student._id,
+      date: { $gte: today, $lt: tomorrow }
+    });
+
+    const now = new Date();
+    let action = 'check-in';
+    let durationMinutes = 0;
+
+    if (!att) {
+      // First punch of today = Check-In
+      att = new Attendance({
+        student: student._id,
+        seat: student.seat?._id || student.seat || null,
+        branch: student.branch || null,
+        date: now,
+        checkIn: now,
+        status: 'present',
+        markedBy: 'self'
+      });
+      await att.save();
+      action = 'check-in';
+    } else if (att.checkIn && !att.checkOut) {
+      // Currently checked in = Check-Out
+      att.checkOut = now;
+      durationMinutes = Math.max(0, Math.round((now.getTime() - new Date(att.checkIn).getTime()) / (1000 * 60)));
+      att.duration = durationMinutes;
+      await att.save();
+      action = 'check-out';
+    } else {
+      // Already checked out earlier = Re-entry Check-In
+      att.checkIn = now;
+      att.checkOut = null;
+      att.status = 'present';
+      await att.save();
+      action = 'check-in';
+    }
+
+    // Fetch updated today stats
+    const todayStats = await Attendance.getTodayStats().catch(() => ({ totalPresent: 0, currentlyCheckedIn: 0, totalAbsent: 0 }));
+    const totalCheckouts = await Attendance.countDocuments({
+      date: { $gte: today, $lt: tomorrow },
+      checkIn: { $ne: null },
+      checkOut: { $ne: null }
+    }).catch(() => 0);
+
+    const punchStats = {
+      currentlyCheckedIn: todayStats.currentlyCheckedIn || 0,
+      totalPresent: todayStats.totalPresent || 0,
+      totalCheckouts: totalCheckouts || 0
+    };
+
+    res.json({
+      success: true,
+      action,
+      student: {
+        _id: student._id,
+        name: student.name,
+        studentId: student.studentId,
+        phone: student.phone,
+        seat: student.seat ? {
+          _id: student.seat._id,
+          seatNumber: student.seat.seatNumber,
+          zone: student.seat.zone
+        } : null,
+        shift: student.shift ? {
+          name: student.shift.name,
+          code: student.shift.code,
+          formattedTiming: student.shift.formattedTiming
+        } : null
+      },
+      time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      durationMinutes,
+      punchStats,
+      message: action === 'check-in'
+        ? `Welcome ${student.name}! Checked in successfully.`
+        : `Goodbye ${student.name}! Checked out (${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m logged).`
+    });
+  } catch (error) {
+    console.error('Error during kiosk punch:', error);
+    res.status(500).json({ success: false, message: error.message || 'Kiosk punch processing error' });
+  }
+});
+
 // POST /biometric - Hardware Turnstile / RFID / Fingerprint machine webhook
 router.post('/biometric', async (req, res) => {
   try {

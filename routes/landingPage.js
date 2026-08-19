@@ -132,7 +132,9 @@ router.get('/', async (req, res) => {
           state: businessProfile?.state || '',
           pincode: businessProfile?.pincode || '',
           upiQrCode: businessProfile?.upiQrCode || '',
-          socialLinks: businessProfile?.socialLinks || {}
+          upiId: businessProfile?.upiId || 'thecozycorner@okaxis',
+          socialLinks: businessProfile?.socialLinks || {},
+          mapEmbedUrl: businessProfile?.mapEmbedUrl || landingConfig?.footer?.mapEmbedUrl || landingConfig?.contact?.googleMapEmbedUrl || ''
         },
         plans: (plans || []).map(p => ({
           id: p._id,
@@ -234,7 +236,7 @@ router.put('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) 
     let config = await LandingPage.getPageConfig();
     
     // Deep update fields
-    const { hero, about, facilities, shifts, rules, gallery, faqs, testimonials, contact, enquiry, theme, footer, navbar, floatingActions, seo } = req.body;
+    const { hero, about, facilities, shifts, rules, gallery, faqs, testimonials, contact, enquiry, theme, footer, navbar, floatingActions, seo, businessProfile } = req.body;
 
     if (hero) config.hero = { ...config.hero.toObject(), ...hero };
     if (about) config.about = { ...config.about.toObject(), ...about };
@@ -252,11 +254,53 @@ router.put('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) 
     if (floatingActions) config.floatingActions = { ...config.floatingActions.toObject(), ...floatingActions };
     if (seo) config.seo = { ...config.seo.toObject(), ...seo };
 
+    // Sync business profile if provided in update payload
+    let updatedProfile = null;
+    if (businessProfile && typeof businessProfile === 'object') {
+      updatedProfile = await BusinessProfile.getProfile();
+      const bpFields = [
+        'businessName', 'tagline', 'logo', 'favicon', 'address', 'city', 'state', 'pincode',
+        'phone', 'email', 'website', 'gstNumber', 'registrationNumber', 'upiQrCode', 'upiId',
+        'paymentInstructions', 'enableUpiDeepLinks', 'stampImage', 'mapEmbedUrl'
+      ];
+      bpFields.forEach(field => {
+        if (businessProfile[field] !== undefined) {
+          updatedProfile[field] = businessProfile[field];
+        }
+      });
+      if (businessProfile.socialLinks && typeof businessProfile.socialLinks === 'object') {
+        updatedProfile.socialLinks = {
+          ...updatedProfile.socialLinks,
+          ...businessProfile.socialLinks
+        };
+      }
+      await updatedProfile.save();
+    } else {
+      updatedProfile = await BusinessProfile.getProfile();
+    }
+
     await config.save();
 
     res.json({
       success: true,
-      data: config,
+      data: {
+        landing: config,
+        businessProfile: {
+          businessName: updatedProfile?.businessName || 'Study Library',
+          tagline: updatedProfile?.tagline || 'Premier Air-Conditioned Reading Hall',
+          logo: updatedProfile?.logo || '',
+          phone: updatedProfile?.phone || '',
+          email: updatedProfile?.email || '',
+          address: updatedProfile?.address || '',
+          city: updatedProfile?.city || '',
+          state: updatedProfile?.state || '',
+          pincode: updatedProfile?.pincode || '',
+          upiQrCode: updatedProfile?.upiQrCode || '',
+          upiId: updatedProfile?.upiId || 'thecozycorner@okaxis',
+          socialLinks: updatedProfile?.socialLinks || {},
+          mapEmbedUrl: updatedProfile?.mapEmbedUrl || config.footer?.mapEmbedUrl || config.contact?.googleMapEmbedUrl || ''
+        }
+      },
       message: 'Landing page updated successfully'
     });
   } catch (err) {
