@@ -315,6 +315,13 @@
     .plan-card {
       background: var(--surface); border: 1.5px solid var(--border); border-radius: 24px; padding: 2.5rem;
       box-shadow: var(--card-shadow); display: flex; flex-direction: column; position: relative;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+    .plan-card:hover, .plan-card.selected {
+      border-color: var(--primary) !important;
+      transform: translateY(-6px);
+      box-shadow: 0 16px 32px rgba(108, 92, 231, 0.18);
     }
     .plan-badge {
       position: absolute; top: -14px; right: 24px; background: var(--accent); color: #fff;
@@ -691,16 +698,15 @@
         <ul class="plan-features">
           <li>Morning Shift (6AM - 2PM)</li><li>High-Speed Wi-Fi</li><li>AC Hall Access</li>
         </ul>
-        <a href="/register" class="btn-pill" style="text-align: center; width: 100%;">Register Now</a>
+        <a href="/register" class="btn-hero-primary" style="justify-content: center; text-align: center; width: 100%;">Register Now</a>
       </div>
-      <div class="plan-card" style="border-color: var(--primary);">
-        <div class="plan-badge">Popular</div>
+      <div class="plan-card">
         <h3 class="plan-name">Full Day Prime</h3>
         <div class="plan-price-row"><span class="plan-price">₹1,500</span><span class="plan-period">/ month</span></div>
         <ul class="plan-features">
           <li>Full Day (6AM - 11PM)</li><li>Dedicated Reserved Seat</li><li>High-Speed Wi-Fi</li><li>AC Hall Access</li>
         </ul>
-        <a href="/register" class="btn-hero-primary" style="justify-content: center;">Register Now</a>
+        <a href="/register" class="btn-hero-primary" style="justify-content: center; text-align: center; width: 100%;">Register Now</a>
       </div>
     </div>
   </section>
@@ -1022,7 +1028,7 @@
       const plansCont = document.getElementById('plans-container');
       if (!plansCont) return;
 
-      plansCont.innerHTML = allLandingPlans.map((p, idx) => {
+      plansCont.innerHTML = allLandingPlans.map((p) => {
         const baseEffective = Math.round(p.effectivePrice || p.price || 0);
         const totalBase = baseEffective * multiplier;
         const discountedTotal = Math.round(totalBase * (1 - discountPercent / 100));
@@ -1030,8 +1036,8 @@
         const totalDiscount = Math.max(p.discount || 0, discountPercent);
 
         return `
-          <div class="plan-card" ${idx === 1 ? 'style="border-color: var(--primary);"' : ''}>
-            ${totalDiscount > 0 ? `<div class="plan-badge">${totalDiscount}% OFF</div>` : (idx === 1 ? '<div class="plan-badge">Popular</div>' : '')}
+          <div class="plan-card">
+            ${totalDiscount > 0 ? `<div class="plan-badge">${totalDiscount}% OFF</div>` : ''}
             <h3 class="plan-name">${p.name}</h3>
             <div class="plan-price-row">
               <span class="plan-price">₹${discountedTotal.toLocaleString('en-IN')}</span>
@@ -1042,7 +1048,7 @@
               <li>Shift: <strong>${(p.shift || 'Any').toUpperCase()}</strong></li>
               ${(p.features || []).map(f => `<li>${f}</li>`).join('')}
             </ul>
-            <a href="/register" class="btn-${idx === 1 ? 'hero-primary' : 'pill'}" style="justify-content: center; text-align: center; width: 100%; border: none;">
+            <a href="/register" class="btn-hero-primary" style="justify-content: center; text-align: center; width: 100%; border: none;">
               Register Now
             </a>
           </div>
