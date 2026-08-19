@@ -196,17 +196,19 @@ export class FormBuilder {
         this.selectedPlanId = this.plans[0]._id;
       }
 
-      // Populate sections (Step 1 to Step 5)
-      const defaultSecs = [
-        { name: 'personal', label: 'Step 1: Study Centre & Personal Info', icon: 'personal', order: 1, isSystem: true },
-        { name: 'academic', label: 'Step 2: Academic Goals & KYC Proof', icon: 'academic', order: 2, isSystem: false },
-        { name: 'plan', label: 'Step 3: Membership Plan & Fee Calculator', icon: 'plan', order: 3, isSystem: true },
-        { name: 'payment', label: 'Step 4: Dynamic Payment Selection', icon: 'payment', order: 4, isSystem: true },
-        { name: 'seat', label: 'Step 5: Seat Selection & Digital Signature', icon: 'seat', order: 5, isSystem: true }
-      ];
+      // Populate sections from active template in database or defaults
+      const templateSecs = (this.template && Array.isArray(this.template.sections) && this.template.sections.length > 0)
+        ? this.template.sections
+        : [
+            { name: 'personal', label: 'Step 1: Study Centre & Personal Info', icon: 'personal', order: 1, isSystem: true },
+            { name: 'academic', label: 'Step 2: Academic Goals & KYC Proof', icon: 'academic', order: 2, isSystem: false },
+            { name: 'plan', label: 'Step 3: Membership Plan & Fee Calculator', icon: 'plan', order: 3, isSystem: true },
+            { name: 'payment', label: 'Step 4: Dynamic Payment Selection', icon: 'payment', order: 4, isSystem: true },
+            { name: 'seat', label: 'Step 5: Seat Selection & Digital Signature', icon: 'seat', order: 5, isSystem: true }
+          ];
 
       const sectionsMap = new Map();
-      defaultSecs.forEach(s => sectionsMap.set(s.name, s));
+      templateSecs.forEach(s => sectionsMap.set(s.name, s));
 
       this.fields.forEach(f => {
         if (f.section && !sectionsMap.has(f.section)) {
@@ -220,7 +222,7 @@ export class FormBuilder {
         }
       });
 
-      this.sections = Array.from(sectionsMap.values()).sort((a, b) => a.order - b.order);
+      this.sections = Array.from(sectionsMap.values()).sort((a, b) => (a.order || 0) - (b.order || 0));
 
       this.renderSections();
       this.renderPreview();
@@ -233,7 +235,7 @@ export class FormBuilder {
         { name: 'payment', label: 'Step 4: Dynamic Payment Selection', icon: 'payment', order: 4, isSystem: true },
         { name: 'seat', label: 'Step 5: Seat Selection & Digital Signature', icon: 'seat', order: 5, isSystem: true }
       ];
-      this.sections = defaultSecs;
+      this.sections = (this.template && Array.isArray(this.template.sections) && this.template.sections.length > 0) ? this.template.sections : defaultSecs;
       this.renderSections();
       this.renderPreview();
     }
@@ -843,22 +845,35 @@ export class FormBuilder {
     });
   }
 
-  static moveSection(secName, delta) {
+  static async moveSection(secName, delta) {
     const curIdx = this.sections.findIndex(s => s.name === secName);
     if (curIdx === -1) return;
 
     const targetIdx = curIdx + delta;
     if (targetIdx < 0 || targetIdx >= this.sections.length) return;
 
-    // Swap section orders
-    const targetSec = this.sections[targetIdx];
-    const tempOrder = this.sections[curIdx].order || (curIdx + 1);
-    this.sections[curIdx].order = targetSec.order || (targetIdx + 1);
-    targetSec.order = tempOrder;
+    // Swap section elements in array
+    const [movedSec] = this.sections.splice(curIdx, 1);
+    this.sections.splice(targetIdx, 0, movedSec);
+
+    // Reassign 1-based order numbers
+    this.sections.forEach((s, idx) => {
+      s.order = idx + 1;
+    });
 
     this.renderSections();
     this.renderPreview();
-    Toast.success('Section order rearranged!');
+
+    try {
+      if (!this.template) this.template = {};
+      this.template.sections = this.sections;
+      await api.put('/api/custom-fields/templates/active', {
+        sections: this.sections
+      });
+      Toast.success('Section order saved permanently to database!');
+    } catch (e) {
+      Toast.error('Failed to save section order to server');
+    }
   }
 
   static async deleteField(fieldId) {
@@ -869,7 +884,7 @@ export class FormBuilder {
 
     try {
       await api.delete(`/api/custom-fields/${fieldId}`);
-      Toast.success(`Question "${field.label}" deleted successfully`);
+      Toast.success(`Question "${field.label}" deleted permanently`);
       this.fields = this.fields.filter(f => f._id !== fieldId);
       this.renderSections();
       this.renderPreview();
@@ -886,11 +901,17 @@ export class FormBuilder {
 
     try {
       await api.delete(`/api/custom-fields/sections/${secName}`);
-      Toast.success(`Section "${sec.label}" deleted`);
       this.sections = this.sections.filter(s => s.name !== secName);
+      this.sections.forEach((s, idx) => { s.order = idx + 1; });
       this.fields.forEach(f => {
         if (f.section === secName) f.section = 'personal';
       });
+
+      if (!this.template) this.template = {};
+      this.template.sections = this.sections;
+      await api.put('/api/custom-fields/templates/active', { sections: this.sections });
+
+      Toast.success(`Section "${sec.label}" deleted permanently`);
       this.renderSections();
       this.renderPreview();
     } catch (err) {
@@ -942,7 +963,7 @@ export class FormBuilder {
       modalContent.querySelector('#as-key').value = slug;
     });
 
-    modalContent.querySelector('#fb-add-section-form')?.addEventListener('submit', (e) => {
+    modalContent.querySelector('#fb-add-section-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const label = modalContent.querySelector('#as-label').value.trim();
       const key = modalContent.querySelector('#as-key').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
@@ -953,18 +974,29 @@ export class FormBuilder {
         return;
       }
 
-      this.sections.push({
+      const newSec = {
         name: key,
         label,
         icon,
         order: this.sections.length + 1,
         isSystem: false
-      });
+      };
+
+      this.sections.push(newSec);
+
+      if (!this.template) this.template = {};
+      this.template.sections = this.sections;
+
+      try {
+        await api.put('/api/custom-fields/templates/active', { sections: this.sections });
+        Toast.success(`Custom Section "${label}" created & saved permanently!`);
+      } catch (err) {
+        Toast.error('Failed to save section to database');
+      }
 
       modal.close();
       this.renderSections();
       this.renderPreview();
-      Toast.success(`Custom Section "${label}" created successfully!`);
     });
   }
 
@@ -988,8 +1020,9 @@ export class FormBuilder {
     const field = this.fields.find(f => f._id === fieldId);
     if (!field) return;
 
+    const secName = field.section || 'personal';
     const secFields = this.fields
-      .filter(f => (f.section || 'personal') === (field.section || 'personal'))
+      .filter(f => (f.section || 'personal') === secName)
       .sort((a, b) => (a.order || 0) - (b.order || 0));
 
     const curIdx = secFields.findIndex(f => f._id === fieldId);
@@ -1000,9 +1033,14 @@ export class FormBuilder {
 
     // Swap orders
     const targetField = secFields[targetIdx];
-    const tempOrder = field.order || 0;
-    field.order = targetField.order || 0;
+    const tempOrder = field.order || (curIdx + 1);
+    field.order = targetField.order || (targetIdx + 1);
     targetField.order = tempOrder;
+
+    // Re-index all fields in this section to ensure unique orders
+    secFields.sort((a, b) => (a.order || 0) - (b.order || 0)).forEach((f, idx) => {
+      f.order = idx + 1;
+    });
 
     this.renderSections();
     this.renderPreview();
@@ -1011,8 +1049,10 @@ export class FormBuilder {
       await api.put('/api/custom-fields/reorder/bulk', {
         items: this.fields.map(f => ({ id: f._id, order: f.order, section: f.section }))
       });
-      Toast.success('Question order updated!');
-    } catch (e) {}
+      Toast.success('Question order saved permanently to database!');
+    } catch (e) {
+      Toast.error('Failed to save field order');
+    }
   }
 
   static openFieldEditor(fieldId, targetSection = null) {

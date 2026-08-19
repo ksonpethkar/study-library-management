@@ -35,11 +35,32 @@ const formTemplateSchema = new mongoose.Schema({
     showBanner: { type: Boolean, default: false },
     bannerImage: { type: String, default: '' },
     headerText: { type: String, default: 'Student Registration Form' },
+    tagline: { type: String, default: 'Silence, Focus & Success' },
+    alignment: { type: String, default: 'center' },
+    logoSize: { type: String, default: '64' },
     footerText: { type: String, default: '' },
     termsText: { type: String, default: 'I agree to the library rules and terms of membership.' },
     termsUrl: { type: String, default: '' }
-  }
+  },
+
+  // Dynamic Form Sections (Fully Customizable & Persisted)
+  sections: [{
+    name: { type: String, required: true },
+    label: { type: String, required: true },
+    icon: { type: String, default: 'personal' },
+    order: { type: Number, default: 0 },
+    isSystem: { type: Boolean, default: false },
+    isHidden: { type: Boolean, default: false }
+  }]
 }, { timestamps: true });
+
+const DEFAULT_SECTIONS = [
+  { name: 'personal', label: 'Step 1: Study Centre & Personal Info', icon: 'personal', order: 1, isSystem: true },
+  { name: 'academic', label: 'Step 2: Academic Goals & KYC Proof', icon: 'academic', order: 2, isSystem: false },
+  { name: 'plan', label: 'Step 3: Membership Plan & Fee Calculator', icon: 'plan', order: 3, isSystem: true },
+  { name: 'payment', label: 'Step 4: Dynamic Payment Selection', icon: 'payment', order: 4, isSystem: true },
+  { name: 'seat', label: 'Step 5: Seat Selection & Digital Signature', icon: 'seat', order: 5, isSystem: true }
+];
 
 // Ensure only one template is active
 formTemplateSchema.pre('save', async function() {
@@ -61,10 +82,18 @@ formTemplateSchema.statics.getActiveTemplate = async function() {
         name: 'Clean Professional',
         slug: 'clean-professional',
         isActive: true,
-        theme: { style: 'clean' }
+        theme: { style: 'clean' },
+        sections: DEFAULT_SECTIONS
       });
     }
   }
+
+  // Populate sections if empty
+  if (!template.sections || template.sections.length === 0) {
+    template.sections = DEFAULT_SECTIONS;
+    await template.save();
+  }
+
   return template;
 };
 

@@ -216,11 +216,22 @@ router.post('/reset-defaults', async (req, res) => {
   }
 });
 
-// PUT /api/custom-fields/reorder - Bulk update field orders
+// PUT /api/custom-fields/reorder/bulk - Bulk update field orders & sections
 router.put('/reorder/bulk', async (req, res) => {
   try {
-    const { orderedIds } = req.body;
-    if (Array.isArray(orderedIds)) {
+    const { items, orderedIds, sections } = req.body;
+    if (Array.isArray(items) && items.length > 0) {
+      const bulkOps = items.map((item, index) => ({
+        updateOne: {
+          filter: { _id: item.id || item._id },
+          update: { 
+            order: item.order !== undefined ? item.order : index + 1,
+            ...(item.section ? { section: item.section } : {})
+          }
+        }
+      }));
+      await CustomField.bulkWrite(bulkOps);
+    } else if (Array.isArray(orderedIds) && orderedIds.length > 0) {
       const bulkOps = orderedIds.map((id, index) => ({
         updateOne: {
           filter: { _id: id },
@@ -229,7 +240,16 @@ router.put('/reorder/bulk', async (req, res) => {
       }));
       await CustomField.bulkWrite(bulkOps);
     }
-    res.json({ success: true, message: 'Fields reordered successfully' });
+
+    if (Array.isArray(sections) && sections.length > 0) {
+      let template = await FormTemplate.findOne({ isActive: true });
+      if (template) {
+        template.sections = sections;
+        await template.save();
+      }
+    }
+
+    res.json({ success: true, message: 'Fields and sections reordered & saved successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
