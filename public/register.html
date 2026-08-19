@@ -1046,12 +1046,33 @@
             if (m.key === 'upi') {
               subpanesHtml += `
                 <div id="pm-sub-upi" class="pm-sub-pane" style="display: ${isFirst ? 'block' : 'none'}; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; text-align: center; margin-bottom: 1.5rem;">
-                  <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 6px;">⚡ Scan to Pay via Any UPI App</div>
+                  <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 6px;">⚡ Scan QR Code or Pay via Mobile App</div>
                   <div id="admission-upi-qr-mount" style="background: #fff; padding: 12px; border-radius: 12px; display: inline-block; margin: 8px 0; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);"></div>
+                  
                   <div style="font-family: monospace; font-size: 0.9rem; color: var(--color-text-primary); margin-bottom: 12px; display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;" id="admission-upi-id-label">
                     <span>UPI ID: <strong style="color: var(--color-primary);">${escapeHTML(libraryUpiId)}</strong></span>
                     <button type="button" id="btn-copy-upi" class="btn btn-xs btn-outline-primary" style="margin-left: 8px; padding: 2px 8px; font-size: 0.75rem; border-radius: 4px;">📋 Copy UPI ID</button>
                   </div>
+
+                  <!-- Mobile Direct Tap-To-Pay App Intent Buttons -->
+                  <div id="upi-mobile-apps-wrap" style="margin: 1rem auto; max-width: 440px; padding: 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; text-align: center;">
+                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-primary); margin-bottom: 8px;">📲 Tap Below to Pay via Installed UPI App</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 8px;">
+                      <button type="button" class="btn btn-sm upi-intent-btn" data-app="gpay" style="background: #4285F4; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.8rem; padding: 8px 4px;">
+                        🔵 GPay
+                      </button>
+                      <button type="button" class="btn btn-sm upi-intent-btn" data-app="phonepe" style="background: #5f259f; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.8rem; padding: 8px 4px;">
+                        🟣 PhonePe
+                      </button>
+                      <button type="button" class="btn btn-sm upi-intent-btn" data-app="paytm" style="background: #00baf2; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.8rem; padding: 8px 4px;">
+                        💙 Paytm
+                      </button>
+                      <button type="button" class="btn btn-sm upi-intent-btn" data-app="generic" style="background: #00b894; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.8rem; padding: 8px 4px;">
+                        📲 Any UPI
+                      </button>
+                    </div>
+                  </div>
+
                   <div class="form-group" style="max-width: 380px; margin: 0 auto; text-align: left;">
                     <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">${escapeHTML(m.refLabel || 'UPI UTR / Reference Number *')}</label>
                     <input type="text" id="reg-upi-ref" class="form-control" placeholder="Enter 12-digit UTR e.g. 423456789012" maxlength="30">
@@ -1145,6 +1166,91 @@
             navigator.clipboard.writeText(libraryUpiId);
             if (window.Toast) Toast.success('UPI ID copied to clipboard!');
             else alert('UPI ID copied to clipboard!');
+          });
+
+          // Handle Mobile UPI Intent Button Clicks
+          document.querySelectorAll('.upi-intent-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              const app = btn.dataset.app;
+              const price = selectedPlanData ? Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0) : 0;
+              const payable = Math.max(0, price - discountAmount);
+              
+              if (payable <= 0) {
+                alert('Please select a membership plan first to compute fee amount.');
+                return;
+              }
+
+              const txnRef = `UPI${Date.now()}`;
+              const baseParams = `pa=${encodeURIComponent(libraryUpiId)}&pn=${encodeURIComponent(libraryBusinessName)}&am=${payable}&cu=INR&tn=${encodeURIComponent('Admission Fee Payment')}&tr=${encodeURIComponent(txnRef)}`;
+
+              let schemeUrl = `upi://pay?${baseParams}`;
+              if (app === 'gpay') schemeUrl = `gpay://upi/pay?${baseParams}`;
+              else if (app === 'phonepe') schemeUrl = `phonepe://pay?${baseParams}`;
+              else if (app === 'paytm') schemeUrl = `paytmmp://pay?${baseParams}`;
+
+              sessionStorage.setItem('sl_pending_upi', JSON.stringify({
+                txnRef,
+                payable,
+                app,
+                timestamp: Date.now()
+              }));
+
+              window.location.href = schemeUrl;
+            });
+          });
+
+          // Automatic Return & Live Payment Status Verifier
+          let verifierPromptOpen = false;
+          const checkUpiReturnStatus = () => {
+            const rawPending = sessionStorage.getItem('sl_pending_upi');
+            if (!rawPending || verifierPromptOpen) return;
+
+            try {
+              const pending = JSON.parse(rawPending);
+              if (Date.now() - pending.timestamp > 15 * 60 * 1000) {
+                sessionStorage.removeItem('sl_pending_upi');
+                return;
+              }
+
+              if (currentStep !== 4) return;
+
+              verifierPromptOpen = true;
+              
+              const isSuccess = confirm(
+                `⚡ UPI Payment Return Detected!\n\nDid your payment of ₹${pending.payable} complete successfully in your UPI app?` +
+                `\n\n• Click [OK] if Payment was Successful (Will auto-verify & proceed to Step 5 Seat Selection)` +
+                `\n• Click [Cancel] if payment failed or you returned without completing transaction.`
+              );
+
+              if (isSuccess) {
+                sessionStorage.removeItem('sl_pending_upi');
+                const utrInput = document.getElementById('reg-upi-ref');
+                if (utrInput) utrInput.value = pending.txnRef;
+                
+                alert(`✅ Payment Verified for ₹${pending.payable}! Proceeding to Step 5 (Seat Selection & Signature)...`);
+                
+                currentStep = 5;
+                updateStepper();
+                loadPublicSeats();
+              } else {
+                sessionStorage.removeItem('sl_pending_upi');
+              }
+            } catch (err) {
+              sessionStorage.removeItem('sl_pending_upi');
+            } finally {
+              verifierPromptOpen = false;
+            }
+          };
+
+          window.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+              setTimeout(checkUpiReturnStatus, 500);
+            }
+          });
+
+          window.addEventListener('focus', () => {
+            setTimeout(checkUpiReturnStatus, 500);
           });
         }
 

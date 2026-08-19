@@ -195,6 +195,16 @@ function renderSettingsUI(container, profile, settings) {
                     <label class="form-label" for="setting-bank-name" style="font-weight: 600;">🏦 Bank Name</label>
                     <input type="text" id="setting-bank-name" class="form-control" value="${escapeHTML(profile.bankDetails?.bankName || '')}" placeholder="e.g. State Bank of India / HDFC Bank">
                   </div>
+
+                  <div class="form-group" style="grid-column: 1 / -1; background: var(--color-surface); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; font-size: 0.9rem; margin: 0;">
+                      <input type="checkbox" id="setting-enableUpiDeepLinks" ${profile.enableUpiDeepLinks !== false ? 'checked' : ''}>
+                      <span>📱 Enable Mobile UPI App Intent Direct Deep-Links (GPay, PhonePe, Paytm, BHIM buttons)</span>
+                    </label>
+                    <small class="text-muted" style="margin-left: 26px; display: block; margin-top: 2px;">
+                      When enabled on mobile devices, students see direct tap-to-pay app buttons that open GPay/PhonePe/Paytm directly and verify payment status automatically upon return.
+                    </small>
+                  </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
@@ -1805,6 +1815,7 @@ function renderSettingsUI(container, profile, settings) {
           branchName: container.querySelector('#setting-bank-branch')?.value?.trim() || ''
         },
         paymentInstructions: container.querySelector('#setting-payment-instructions')?.value?.trim() || '',
+        enableUpiDeepLinks: container.querySelector('#setting-enableUpiDeepLinks')?.checked ?? true,
         paymentMethods: activePaymentMethods,
         phone: container.querySelector('#setting-phone')?.value?.trim(),
         email: container.querySelector('#setting-email')?.value?.trim(),
@@ -1960,6 +1971,7 @@ function renderSettingsUI(container, profile, settings) {
           branchName: container.querySelector('#setting-bank-branch')?.value?.trim() || ''
         },
         paymentInstructions: container.querySelector('#setting-payment-instructions')?.value?.trim() || '',
+        enableUpiDeepLinks: container.querySelector('#setting-enableUpiDeepLinks')?.checked ?? true,
         paymentMethods: activePaymentMethods,
         phone: container.querySelector('#setting-phone')?.value?.trim(),
         email: container.querySelector('#setting-email')?.value?.trim(),

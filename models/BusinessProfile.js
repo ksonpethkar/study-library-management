@@ -33,6 +33,10 @@ const businessProfileSchema = new mongoose.Schema({
     type: String,
     default: 'Please enter your 12-digit UTR / Reference number after completing payment.'
   },
+  enableUpiDeepLinks: {
+    type: Boolean,
+    default: true
+  },
   paymentMethods: [
     {
       key: { type: String, default: 'upi' },

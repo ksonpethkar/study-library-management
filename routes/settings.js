@@ -108,7 +108,7 @@ router.put('/business-profile', roleCheck('owner'), validateBusinessProfile, asy
     const fields = [
       'businessName', 'tagline', 'logo', 'favicon', 'address', 'city', 'state', 'pincode',
       'phone', 'email', 'website', 'gstNumber', 'registrationNumber', 'upiQrCode', 'upiId',
-      'paymentInstructions', 'stampImage'
+      'paymentInstructions', 'enableUpiDeepLinks', 'stampImage'
     ];
 
     fields.forEach(field => {
