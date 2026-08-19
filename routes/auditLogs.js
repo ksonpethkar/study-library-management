@@ -47,7 +47,7 @@ router.get('/', roleCheck('owner', 'branch_manager'), async (req, res) => {
     let logs = await AuditLog.find(query)
       .sort('-createdAt')
       .skip(skip)
-      .limit(limit);
+      .limit(limit).lean();
 
     let total = await AuditLog.countDocuments(query);
 
@@ -81,7 +81,7 @@ router.get('/', roleCheck('owner', 'branch_manager'), async (req, res) => {
           ipAddress: req.ip || '127.0.0.1'
         }
       ]);
-      logs = await AuditLog.find(query).sort('-createdAt').skip(skip).limit(limit);
+      logs = await AuditLog.find(query).sort('-createdAt').skip(skip).limit(limit).lean();
       total = await AuditLog.countDocuments(query);
     }
 

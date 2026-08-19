@@ -219,3 +219,19 @@ html, body {
     -webkit-user-select: text;
   }
 }
+
+/* 10. Responsive Skeleton Loaders */
+@media (max-width: 768px) {
+  .skeleton-card {
+    padding: 1rem;
+  }
+  .skeleton-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+  .skeleton-title {
+    width: 75%;
+  }
+}
+

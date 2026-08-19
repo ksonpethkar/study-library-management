@@ -62,6 +62,12 @@ export async function render(container) {
       </div>
     </div>
 
+    <!-- Contextual Guidance Tip Banner -->
+    <div style="background: rgba(108, 92, 231, 0.06); border: 1px solid rgba(108, 92, 231, 0.2); border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
+      <span style="font-size: 1.1rem;">💡</span>
+      <span><strong>Tip:</strong> Track library operational expenses, electricity bills, and rent to monitor net monthly profitability.</span>
+    </div>
+
     <!-- Date & Category Filters Toolbar -->
     <div class="toolbar-card">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">

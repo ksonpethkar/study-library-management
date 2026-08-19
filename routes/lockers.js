@@ -63,7 +63,7 @@ router.get('/', protect, async (req, res) => {
     }
 
     const lockers = await Locker.find(query)
-      .populate('assignedStudent', 'name phone studentId dateOfBirth photo')
+      .populate('assignedStudent'.lean(), 'name phone studentId dateOfBirth photo')
       .populate('branch', 'name')
       .sort({ lockerNumber: 1 })
       .lean();
@@ -99,7 +99,7 @@ router.post('/', protect, roleCheck('owner', 'branch_manager'), async (req, res)
         const num = `${prefix}${numStr}`;
         
         // Skip if exists
-        const exists = await Locker.findOne({ lockerNumber: num, branch: branch || null });
+        const exists = await Locker.findOne({ lockerNumber: num, branch: branch || null }).lean();
         if (!exists) {
           const l = new Locker({
             lockerNumber: num,
@@ -125,7 +125,7 @@ router.post('/', protect, roleCheck('owner', 'branch_manager'), async (req, res)
       return res.status(400).json({ success: false, message: 'Locker number is required' });
     }
 
-    const existing = await Locker.findOne({ lockerNumber: lockerNumber.trim(), branch: branch || null });
+    const existing = await Locker.findOne({ lockerNumber: lockerNumber.trim(), branch: branch || null }).lean();
     if (existing) {
       return res.status(400).json({ success: false, message: `Locker ${lockerNumber} already exists in this branch` });
     }
@@ -191,7 +191,7 @@ router.put('/:id/assign', protect, roleCheck('owner', 'branch_manager'), async (
     student.locker = locker._id;
     await student.save();
 
-    const updated = await Locker.findById(locker._id).populate('assignedStudent', 'name phone studentId');
+    const updated = await Locker.findById(locker._id).populate('assignedStudent', 'name phone studentId').lean();
 
     res.json({ success: true, message: 'Locker assigned successfully', locker: updated });
   } catch (error) {
@@ -244,7 +244,7 @@ router.put('/:id', protect, roleCheck('owner', 'branch_manager'), async (req, re
 // DELETE /api/lockers/:id - Delete locker
 router.delete('/:id', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const locker = await Locker.findById(req.params.id);
+    const locker = await Locker.findById(req.params.id).lean();
     if (!locker) {
       return res.status(404).json({ success: false, message: 'Locker not found' });
     }

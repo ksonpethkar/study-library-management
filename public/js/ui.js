@@ -501,5 +501,101 @@ export const Loading = {
       btn.innerHTML = btn.dataset.originalText || btn.innerHTML;
       btn.disabled = false;
     }
+  },
+  skeleton(container, type = 'table') {
+    let targetEl = container;
+    if (typeof container === 'string') {
+      targetEl = document.querySelector(container);
+    }
+    if (!targetEl) return;
+
+    let html = '';
+    if (type === 'table') {
+      html = `
+        <div class="skeleton-table p-3">
+          ${Array(5).fill(0).map(() => `
+            <div class="skeleton-row">
+              <div class="skeleton skeleton-avatar" style="width: 28px; height: 28px;"></div>
+              <div class="skeleton skeleton-text" style="flex: 1; margin-bottom: 0;"></div>
+              <div class="skeleton skeleton-text" style="flex: 2; margin-bottom: 0;"></div>
+              <div class="skeleton skeleton-text" style="flex: 1; margin-bottom: 0;"></div>
+              <div class="skeleton skeleton-button" style="width: 60px; height: 28px;"></div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else if (type === 'cards') {
+      html = `
+        <div class="grid-auto-fit gap-3 p-3">
+          ${Array(4).fill(0).map(() => `
+            <div class="skeleton-card">
+              <div class="d-flex align-items-center gap-3">
+                <div class="skeleton skeleton-avatar"></div>
+                <div style="flex: 1;">
+                  <div class="skeleton skeleton-title" style="width: 60%; margin-bottom: 4px;"></div>
+                  <div class="skeleton skeleton-text short" style="margin-bottom: 0;"></div>
+                </div>
+              </div>
+              <div class="skeleton skeleton-text" style="margin-top: 8px;"></div>
+              <div class="skeleton skeleton-text short"></div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else if (type === 'kpi') {
+      html = `
+        <div class="kpi-grid">
+          ${Array(4).fill(0).map(() => `
+            <div class="kpi-card skeleton-card" style="min-height: 96px; justify-content: center;">
+              <div class="skeleton skeleton-text short" style="width: 50%; margin-bottom: 8px;"></div>
+              <div class="skeleton skeleton-title" style="width: 40%; height: 1.8rem; margin-bottom: 4px;"></div>
+              <div class="skeleton skeleton-text short" style="width: 70%; margin-bottom: 0;"></div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else if (type === 'profile') {
+      html = `
+        <div class="skeleton-card p-4">
+          <div class="d-flex align-items-center gap-4 mb-4">
+            <div class="skeleton skeleton-avatar" style="width: 72px; height: 72px;"></div>
+            <div style="flex: 1;">
+              <div class="skeleton skeleton-title" style="width: 40%;"></div>
+              <div class="skeleton skeleton-text short mb-2"></div>
+              <div class="skeleton skeleton-text" style="width: 60%;"></div>
+            </div>
+          </div>
+          <div class="skeleton skeleton-text mb-3"></div>
+          <div class="skeleton skeleton-text mb-3"></div>
+          <div class="skeleton skeleton-text short"></div>
+        </div>
+      `;
+    } else {
+      html = `
+        <div class="p-3">
+          <div class="skeleton skeleton-title"></div>
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-text short"></div>
+        </div>
+      `;
+    }
+
+    targetEl.innerHTML = html;
   }
 };
+
+export function debounce(fn, delay = 250) {
+  let timer = null;
+  return function (...args) {
+    const context = this;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      fn.apply(context, args);
+    }, delay);
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.debounce = debounce;
+}
+

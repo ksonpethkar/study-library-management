@@ -41,7 +41,7 @@ router.get('/', adminAuth, async (req, res) => {
     }
 
     const items = await WaitingList.find(query)
-      .populate('student', 'name studentId phone email plan seat')
+      .populate('student'.lean(), 'name studentId phone email plan seat')
       .populate('offeredSeat', 'seatNumber zone type')
       .sort({ priority: 1, createdAt: 1 });
 
@@ -119,7 +119,7 @@ router.put('/:id/offer', adminAuth, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please select a seat to offer' });
     }
 
-    const seat = await Seat.findById(seatId);
+    const seat = await Seat.findById(seatId).lean();
     if (!seat) {
       return res.status(404).json({ success: false, message: 'Seat not found' });
     }
@@ -158,7 +158,7 @@ router.put('/:id/offer', adminAuth, async (req, res) => {
  */
 router.post('/:id/convert-admission', adminAuth, async (req, res) => {
   try {
-    const item = await WaitingList.findById(req.params.id);
+    const item = await WaitingList.findById(req.params.id).lean();
     if (!item) {
       return res.status(404).json({ success: false, message: 'Waiting list entry not found' });
     }

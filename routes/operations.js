@@ -13,7 +13,7 @@ router.use(protect);
 // ----------------------------------------------------
 router.get('/visitors', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const visitors = await Visitor.find().sort({ createdAt: -1 });
+    const visitors = await Visitor.find().sort({ createdAt: -1 }).lean();
     res.json({ success: true, data: visitors });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -52,7 +52,7 @@ router.delete('/visitors/:id', roleCheck('owner', 'branch_manager'), async (req,
 // ----------------------------------------------------
 router.get('/announcements', async (req, res) => {
   try {
-    const announcements = await Announcement.find().sort({ isPinned: -1, createdAt: -1 });
+    const announcements = await Announcement.find().sort({ isPinned: -1, createdAt: -1 }).lean();
     res.json({ success: true, data: announcements });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -82,7 +82,7 @@ router.delete('/announcements/:id', roleCheck('owner', 'branch_manager'), async 
 // ----------------------------------------------------
 router.get('/holidays', async (req, res) => {
   try {
-    const holidays = await Holiday.find().sort({ date: 1 });
+    const holidays = await Holiday.find().sort({ date: 1 }).lean();
     res.json({ success: true, data: holidays });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -112,7 +112,7 @@ router.delete('/holidays/:id', roleCheck('owner', 'branch_manager'), async (req,
 // ----------------------------------------------------
 router.get('/lostfound', async (req, res) => {
   try {
-    const items = await LostFound.find().sort({ createdAt: -1 });
+    const items = await LostFound.find().sort({ createdAt: -1 }).lean();
     res.json({ success: true, data: items });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -151,7 +151,7 @@ router.delete('/lostfound/:id', roleCheck('owner', 'branch_manager'), async (req
 // ----------------------------------------------------
 router.get('/feedback', async (req, res) => {
   try {
-    const feedbacks = await Feedback.find().sort({ createdAt: -1 });
+    const feedbacks = await Feedback.find().sort({ createdAt: -1 }).lean();
     res.json({ success: true, data: feedbacks });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -196,7 +196,7 @@ const Seat = require('../models/Seat');
 // ----------------------------------------------------
 router.get('/leave-requests', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const leaves = await LeaveRequest.find().sort({ createdAt: -1 });
+    const leaves = await LeaveRequest.find().sort({ createdAt: -1 }).lean();
     res.json({ success: true, data: leaves });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -222,7 +222,7 @@ router.put('/leave-requests/:id', roleCheck('owner', 'branch_manager'), async (r
 // ----------------------------------------------------
 router.get('/seat-changes', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const requests = await SeatChangeRequest.find().populate('currentSeat allocatedSeat').sort({ createdAt: -1 });
+    const requests = await SeatChangeRequest.find().populate('currentSeat allocatedSeat').sort({ createdAt: -1 }).lean();
     res.json({ success: true, data: requests });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -236,7 +236,7 @@ router.put('/seat-changes/:id', roleCheck('owner', 'branch_manager'), async (req
 
     if (status === 'approved' && allocatedSeatId) {
       updateData.allocatedSeat = allocatedSeatId;
-      const reqDoc = await SeatChangeRequest.findById(req.params.id);
+      const reqDoc = await SeatChangeRequest.findById(req.params.id).lean();
 
       if (reqDoc && reqDoc.student) {
         // Release old seat
@@ -280,7 +280,7 @@ router.get('/referrals/config', roleCheck('owner', 'branch_manager'), async (req
 
 router.put('/referrals/config', roleCheck('owner'), async (req, res) => {
   try {
-    let config = await ReferralConfig.findOne();
+    let config = await ReferralConfig.findOne().lean();
     if (!config) {
       config = await ReferralConfig.create(req.body);
     } else {
@@ -295,7 +295,7 @@ router.put('/referrals/config', roleCheck('owner'), async (req, res) => {
 router.get('/referrals', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const referrals = await Referral.find()
-      .populate('referrerStudent', 'name studentId phone referralCode referralCredits')
+      .populate('referrerStudent'.lean(), 'name studentId phone referralCode referralCredits')
       .populate('convertedStudent', 'name studentId phone admissionDate')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: referrals });
@@ -314,7 +314,7 @@ router.post('/referrals', roleCheck('owner', 'branch_manager'), async (req, res)
     let referralCode = '';
 
     if (referrerStudentId) {
-      referrerStudent = await Student.findById(referrerStudentId);
+      referrerStudent = await Student.findById(referrerStudentId).lean();
       if (referrerStudent) {
         referrerName = referrerStudent.name;
         referrerPhone = referrerStudent.phone;

@@ -91,6 +91,12 @@ function renderSettingsUI(container, profile, settings) {
       </div>
     </div>
 
+    <!-- Contextual Guidance Tip Banner -->
+    <div style="background: rgba(108, 92, 231, 0.06); border: 1px solid rgba(108, 92, 231, 0.2); border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
+      <span style="font-size: 1.1rem;">💡</span>
+      <span><strong>Tip:</strong> Changes saved in branding, receipt templates, and sidebar rules take effect instantly across all connected devices.</span>
+    </div>
+
     <!-- Navigation Tabs -->
     <div class="settings-tabs-wrapper" style="border-bottom: 1px solid var(--color-border); margin-bottom: 1.5rem; overflow-x: auto; -webkit-overflow-scrolling: touch;">
       <div class="settings-tab-list" style="display: flex; gap: 0.5rem; min-width: max-content;">

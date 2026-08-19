@@ -65,7 +65,7 @@ router.get('/', async (req, res) => {
     }
 
     const students = await Student.find(query)
-      .populate('plan', 'name price duration durationType shift')
+      .populate('plan'.lean(), 'name price duration durationType shift')
       .populate('seat', 'seatNumber zone status branch')
       .populate('locker', 'lockerNumber monthlyFee status')
       .populate('shift', 'name startTime endTime code')
@@ -99,7 +99,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const student = await Student.findById(req.params.id)
-      .populate('plan', 'name price duration durationType shift')
+      .populate('plan'.lean(), 'name price duration durationType shift')
       .populate('seat', 'seatNumber zone status branch')
       .populate('locker', 'lockerNumber monthlyFee status')
       .populate('shift', 'name startTime endTime code')
@@ -130,7 +130,7 @@ router.post('/', validate([
       let shiftCodeToCheck = null;
 
       if (!shiftIdToCheck && req.body.plan) {
-        const planDoc = await Plan.findById(req.body.plan);
+        const planDoc = await Plan.findById(req.body.plan).lean();
         if (planDoc?.shift && planDoc.shift !== 'any') {
           shiftCodeToCheck = planDoc.shift.toLowerCase();
         }
@@ -138,11 +138,11 @@ router.post('/', validate([
 
       let shiftDoc = null;
       if (shiftIdToCheck) {
-        shiftDoc = await Shift.findById(shiftIdToCheck);
+        shiftDoc = await Shift.findById(shiftIdToCheck).lean();
       } else if (shiftCodeToCheck) {
         shiftDoc = await Shift.findOne({
           $or: [
-            { code: new RegExp(`^${shiftCodeToCheck}$`, 'i') },
+            { code: new RegExp(`^${shiftCodeToCheck}$`, 'i') }.lean(),
             { name: new RegExp(shiftCodeToCheck, 'i') }
           ],
           isActive: true
@@ -230,7 +230,7 @@ router.put('/:id', validate([
 // DELETE /:id - Delete student document, release seat & locker
 router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const student = await Student.findById(req.params.id);
+    const student = await Student.findById(req.params.id).lean();
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student record not found' });
     }
@@ -349,7 +349,7 @@ router.post('/bulk-remind', roleCheck('owner', 'branch_manager'), async (req, re
     const students = await Student.find({ _id: { $in: studentIds } })
       .populate('seat')
       .populate('plan')
-      .populate('shift');
+      .populate('shift').lean();
 
     const reminders = [];
     for (const s of students) {
@@ -402,7 +402,7 @@ router.post('/:id/reset-password', roleCheck('owner', 'branch_manager'), async (
       return res.status(400).json({ success: false, message: 'Password must be at least 4 characters long' });
     }
 
-    const student = await Student.findById(req.params.id);
+    const student = await Student.findById(req.params.id).lean();
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student record not found' });
     }

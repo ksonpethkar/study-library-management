@@ -24,7 +24,7 @@ router.get('/public-available', async (req, res) => {
   try {
     const seats = await Seat.find({ isActive: true })
       .select('seatNumber zone floor status type priceMultiplier branch')
-      .populate('branch', 'name code')
+      .populate('branch'.lean(), 'name code')
       .sort('seatNumber')
       .lean();
     res.json({ success: true, data: seats });
@@ -57,7 +57,7 @@ router.get('/', async (req, res) => {
     }
 
     const seats = await Seat.find(filter)
-      .populate('currentStudent', 'name studentId phone email photo')
+      .populate('currentStudent'.lean(), 'name studentId phone email photo')
       .populate('branch', 'name code city')
       .sort('seatNumber')
       .lean();
@@ -129,7 +129,7 @@ router.get('/stats', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const seat = await Seat.findById(req.params.id)
-      .populate('currentStudent', 'name studentId email phone photo')
+      .populate('currentStudent'.lean(), 'name studentId email phone photo')
       .populate('branch', 'name code')
       .lean();
     if (!seat) {
@@ -150,7 +150,7 @@ router.post('/', roleCheck('owner', 'branch_manager'), validate([
     const { seatNumber, zone, floor, type, status, monthlyRate, amenities, branch } = req.body;
     
     const branchId = branch && branch !== 'none' && branch !== 'all' ? branch : null;
-    const existing = await Seat.findOne({ seatNumber: seatNumber.trim(), branch: branchId });
+    const existing = await Seat.findOne({ seatNumber: seatNumber.trim(), branch: branchId }).lean();
     if (existing) {
       return res.status(400).json({ success: false, message: `Seat number '${seatNumber}' already exists for this branch` });
     }
@@ -308,7 +308,7 @@ router.put('/:id', roleCheck('owner', 'branch_manager'), validate([
 // DELETE /:id - Delete seat
 router.delete('/:id', roleCheck('owner'), async (req, res) => {
   try {
-    const seat = await Seat.findById(req.params.id);
+    const seat = await Seat.findById(req.params.id).lean();
     if (!seat) {
       return res.status(404).json({ success: false, message: 'Seat not found' });
     }
@@ -369,7 +369,7 @@ router.post('/:id/assign', roleCheck('owner', 'branch_manager'), validate([
 ]), async (req, res) => {
   try {
     const { studentId } = req.body;
-    const seat = await Seat.findById(req.params.id);
+    const seat = await Seat.findById(req.params.id).lean();
     
     if (!seat) {
       return res.status(404).json({ success: false, message: 'Seat not found' });
@@ -379,14 +379,14 @@ router.post('/:id/assign', roleCheck('owner', 'branch_manager'), validate([
       return res.status(400).json({ success: false, message: 'Cannot assign student to a seat under maintenance' });
     }
 
-    const student = await Student.findById(studentId).populate('shift').populate('plan');
+    const student = await Student.findById(studentId).populate('shift').populate('plan').lean();
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
     // Shift Overlap Prevention: Find other active students assigned to this seat
     const occupiedStudents = await Student.find({
-      seat: seat._id,
+      seat: seat._id.lean(),
       status: 'active',
       _id: { $ne: student._id }
     }).populate('shift').populate('plan');
@@ -417,7 +417,7 @@ router.post('/:id/assign', roleCheck('owner', 'branch_manager'), validate([
     student.seat = seat._id;
     await student.save();
     
-    const populated = await Seat.findById(seat._id).populate('currentStudent', 'name studentId phone');
+    const populated = await Seat.findById(seat._id).populate('currentStudent', 'name studentId phone').lean();
     res.json({ success: true, data: populated, message: `Student ${student.name} assigned to Seat ${seat.seatNumber} successfully` });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

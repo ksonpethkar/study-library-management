@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
       ];
     }
 
-    const shifts = await Shift.find(query).sort({ startTime: 1, name: 1 });
+    const shifts = await Shift.find(query).sort({ startTime: 1, name: 1 }).lean();
     res.json({
       success: true,
       data: shifts,
@@ -71,7 +71,7 @@ router.get('/stats', async (req, res) => {
     const [total, active, shifts] = await Promise.all([
       Shift.countDocuments(),
       Shift.countDocuments({ isActive: true }),
-      Shift.find().sort({ startTime: 1, name: 1 })
+      Shift.find().sort({ startTime: 1, name: 1 }).lean()
     ]);
 
     const fullDay = shifts.filter(s =>
@@ -81,7 +81,7 @@ router.get('/stats', async (req, res) => {
     ).length;
 
     // Aggregate student counts across shifts
-    const activeStudents = await Student.find({ status: 'active' }).populate('plan', 'shift name');
+    const activeStudents = await Student.find({ status: 'active' }).populate('plan', 'shift name').lean();
     const studentEnrollment = {};
     shifts.forEach(shift => {
       studentEnrollment[shift.code] = 0;
@@ -151,7 +151,7 @@ router.get('/', async (req, res) => {
       ];
     }
 
-    const shifts = await Shift.find(query).sort({ startTime: 1, name: 1 });
+    const shifts = await Shift.find(query).sort({ startTime: 1, name: 1 }).lean();
     res.json({
       success: true,
       data: shifts,
@@ -165,7 +165,7 @@ router.get('/', async (req, res) => {
 // GET /:id — Get single shift
 router.get('/:id', async (req, res) => {
   try {
-    const shift = await Shift.findById(req.params.id);
+    const shift = await Shift.findById(req.params.id).lean();
     if (!shift) {
       return res.status(404).json({ success: false, message: 'Shift not found' });
     }
@@ -186,7 +186,7 @@ router.post('/', roleCheck('owner', 'branch_manager'), createShiftValidations, a
 
     const formattedCode = code.trim().toUpperCase();
     const branchId = branch && branch !== 'all' && branch !== 'none' ? branch : null;
-    const existing = await Shift.findOne({ code: formattedCode, branch: branchId });
+    const existing = await Shift.findOne({ code: formattedCode, branch: branchId }).lean();
     if (existing) {
       return res.status(400).json({
         success: false,
@@ -227,7 +227,7 @@ router.put('/:id', roleCheck('owner', 'branch_manager'), updateShiftValidations,
 
     if (req.body.code && req.body.code.trim().toUpperCase() !== shift.code) {
       const codeUpper = req.body.code.trim().toUpperCase();
-      const existing = await Shift.findOne({ code: codeUpper, branch: shift.branch, _id: { $ne: shift._id } });
+      const existing = await Shift.findOne({ code: codeUpper, branch: shift.branch, _id: { $ne: shift._id } }).lean();
       if (existing) {
         return res.status(400).json({
           success: false,

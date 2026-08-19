@@ -108,6 +108,12 @@ function renderPortalUI(container, data, analytics = null) {
       </div>
     ` : ''}
 
+    <!-- Contextual Guidance Tip Banner -->
+    <div style="background: rgba(108, 92, 231, 0.06); border: 1px solid rgba(108, 92, 231, 0.2); border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
+      <span style="font-size: 1.1rem;">💡</span>
+      <span><strong>Tip:</strong> Check your study consistency gauge, download digital ID card, or request seat transfers directly from your portal.</span>
+    </div>
+
     <!-- Top Welcome Banner -->
     <div class="card mb-4" style="
       background: linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(162, 155, 254, 0.05)), var(--color-surface);

@@ -1020,16 +1020,68 @@
   animation: spin 1s linear infinite;
 }
 
-.skeleton {
-  background: linear-gradient(90deg, var(--color-bg-secondary) 25%, var(--color-border-light) 50%, var(--color-bg-secondary) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: var(--radius-sm);
+@keyframes skeletonPulse {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
-.skeleton-text { height: 1rem; width: 100%; margin-bottom: 0.5rem; }
-.skeleton-text.short { width: 60%; }
-.skeleton-avatar { width: 40px; height: 40px; border-radius: 50%; }
-.skeleton-button { width: 100px; height: 36px; border-radius: var(--radius-md); }
+
+.skeleton {
+  background: linear-gradient(90deg, #cbd5e1 0%, #e2e8f0 50%, #cbd5e1 100%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm, 6px);
+  display: inline-block;
+}
+
+[data-theme="dark"] .skeleton {
+  background: linear-gradient(90deg, #334155 0%, #475569 50%, #334155 100%);
+  background-size: 200% 100%;
+}
+
+.skeleton-text {
+  height: 0.875rem;
+  width: 100%;
+  border-radius: var(--radius-sm, 4px);
+  margin-bottom: 0.5rem;
+}
+.skeleton-text.short {
+  width: 60%;
+}
+.skeleton-title {
+  height: 1.5rem;
+  width: 50%;
+  border-radius: var(--radius-md, 6px);
+  margin-bottom: 0.75rem;
+}
+.skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.skeleton-card {
+  padding: 1.25rem;
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-divider);
+  width: 100%;
+}
+.skeleton-button {
+  width: 100px;
+  height: 36px;
+  border-radius: var(--radius-md, 6px);
+}
 
 /* ========================
    Page Header

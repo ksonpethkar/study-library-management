@@ -135,6 +135,12 @@ export async function render(container) {
         </div>
       </div>
 
+      <!-- Contextual Guidance Tip Banner -->
+      <div style="background: rgba(108, 92, 231, 0.06); border: 1px solid rgba(108, 92, 231, 0.2); border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
+        <span style="font-size: 1.1rem;">💡</span>
+        <span><strong>Tip:</strong> Reports update automatically in real-time. Export clean Excel spreadsheets or PDF statements with 1 click.</span>
+      </div>
+
       <!-- Top Standard KPI Metrics Grid -->
       <div class="kpi-grid">
         

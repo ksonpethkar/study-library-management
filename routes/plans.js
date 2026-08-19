@@ -50,7 +50,7 @@ router.get('/all', async (req, res) => {
   try {
     const plans = await Plan.find()
       .sort('displayOrder')
-      .populate('enrolledCount');
+      .populate('enrolledCount').lean();
     res.json({ success: true, data: plans, message: 'All plans retrieved successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -59,7 +59,7 @@ router.get('/all', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const plan = await Plan.findById(req.params.id).populate('enrolledCount');
+    const plan = await Plan.findById(req.params.id).populate('enrolledCount').lean();
     if (!plan) {
       return res.status(404).json({ success: false, message: 'Plan not found' });
     }

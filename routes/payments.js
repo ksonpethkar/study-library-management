@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
         const skip = (page - 1) * limit;
         
         const payments = await Payment.find(query)
-            .populate('student', 'name studentId phone')
+            .populate('student'.lean(), 'name studentId phone')
             .populate('plan', 'name')
             .sort({ paymentDate: -1 })
             .skip(skip)
@@ -88,7 +88,7 @@ router.get('/dues', async (req, res) => {
 router.get('/student/:studentId', async (req, res) => {
     try {
         const payments = await Payment.find({ student: req.params.studentId })
-            .populate('plan', 'name')
+            .populate('plan'.lean(), 'name')
             .sort({ paymentDate: -1 })
             .lean();
             
@@ -101,7 +101,7 @@ router.get('/student/:studentId', async (req, res) => {
 router.get('/pending-installments', async (req, res) => {
     try {
         const payments = await Payment.find({ balanceDue: { $gt: 0 } })
-            .populate('student', 'name studentId phone')
+            .populate('student'.lean(), 'name studentId phone')
             .populate('plan', 'name')
             .sort({ dueDate: 1 })
             .lean();
@@ -115,7 +115,7 @@ router.get('/pending-installments', async (req, res) => {
 router.get('/:id/receipt', async (req, res) => {
     try {
         const payment = await Payment.findById(req.params.id)
-            .populate('student', 'name studentId phone email address')
+            .populate('student'.lean(), 'name studentId phone email address')
             .populate('plan', 'name duration')
             .populate('collectedBy', 'name');
             
@@ -182,7 +182,7 @@ router.post('/:id/pay-balance', roleCheck('owner', 'branch_manager'), async (req
         if (payment.balanceDue <= 0) {
             payment.status = 'paid';
             if (payment.plan) {
-                const plan = await Plan.findById(payment.plan);
+    const plan = await Plan.findById(payment.plan).lean();
                 if (plan) {
                     const student = await Student.findById(payment.student);
                     if (student) {
@@ -206,7 +206,7 @@ router.post('/:id/pay-balance', roleCheck('owner', 'branch_manager'), async (req
 
 router.get('/:id', async (req, res) => {
     try {
-        const payment = await Payment.findById(req.params.id)
+    const payment = await Payment.findById(req.params.id).lean()
             .populate('student', 'name studentId phone email address')
             .populate('plan', 'name price duration')
             .populate('collectedBy', 'name');
@@ -260,7 +260,7 @@ router.post('/', roleCheck('owner', 'branch_manager'), validate([
         await payment.save();
         
         if (payment.plan && payment.status === 'paid') {
-            const plan = await Plan.findById(payment.plan);
+    const plan = await Plan.findById(payment.plan).lean();
             if (plan) {
                 const student = await Student.findById(payment.student);
                 if (student) {

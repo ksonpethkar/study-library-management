@@ -1,6 +1,6 @@
 import { App } from '../app.js';
 import { t } from '../i18n.js';
-import { Toast, Modal, Loading, Confirm, escapeHTML } from '../ui.js';
+import { Toast, Modal, Loading, Confirm, escapeHTML, debounce } from '../ui.js';
 import api from '../api.js';
 
 let activeHubTab = 'seats'; // 'seats' | 'centers' | 'analytics'
@@ -71,6 +71,12 @@ export async function render() {
           🏢 + New Branch
         </button>
       </div>
+    </div>
+
+    <!-- Contextual Guidance Tip Banner -->
+    <div style="background: rgba(108, 92, 231, 0.06); border: 1px solid rgba(108, 92, 231, 0.2); border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
+      <span style="font-size: 1.1rem;">💡</span>
+      <span><strong>Tip:</strong> Green = Vacant, Red = Occupied, Yellow = Reserved Hold. Click any desk to reassign or view student assignment.</span>
     </div>
 
     <!-- Hub View Switcher Tabs -->
@@ -292,14 +298,10 @@ function bindHubEvents(container) {
   });
 
   // Search input with debounce
-  let searchTimer;
-  container.querySelector('#seat-search-input')?.addEventListener('input', (e) => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-      currentSearch = e.target.value.trim();
-      loadSeats(container);
-    }, 300);
-  });
+  container.querySelector('#seat-search-input')?.addEventListener('input', debounce((e) => {
+    currentSearch = e.target.value.trim();
+    loadSeats(container);
+  }, 250));
 
   // Select all toggle
   container.querySelector('#btn-toggle-select-all')?.addEventListener('click', () => {
@@ -445,7 +447,7 @@ async function loadSeats(container) {
   const grid = container.querySelector('#seatsGrid');
   if (!grid) return;
   
-  Loading.show(grid);
+  Loading.skeleton(grid, 'cards');
   
   try {
     const params = new URLSearchParams();
@@ -468,8 +470,6 @@ async function loadSeats(container) {
     console.error('Error loading seats:', error);
     Toast.error('Failed to load seats');
     grid.innerHTML = `<div class="empty-state">Failed to load seats</div>`;
-  } finally {
-    Loading.hide(grid);
   }
 }
 
@@ -1690,17 +1690,14 @@ async function showAssignStudentModal(seat, container) {
   const searchInput = content.querySelector('#assign-student-search');
   const resultsContainer = content.querySelector('#assign-student-results');
 
-  let sTimer;
-  searchInput?.addEventListener('input', () => {
-    clearTimeout(sTimer);
-    sTimer = setTimeout(async () => {
-      const q = searchInput.value.trim();
-      if (!q) {
-        resultsContainer.innerHTML = `<div class="text-center p-3 text-muted small">Type student name or mobile number above...</div>`;
-        return;
-      }
+  searchInput?.addEventListener('input', debounce(async () => {
+    const q = searchInput.value.trim();
+    if (!q) {
+      resultsContainer.innerHTML = `<div class="text-center p-3 text-muted small">Type student name or mobile number above...</div>`;
+      return;
+    }
 
-      resultsContainer.innerHTML = `<div class="text-center p-3 text-muted small">Searching students...</div>`;
+    Loading.skeleton(resultsContainer, 'table');
       try {
         const res = await api.get(`/api/students?search=${encodeURIComponent(q)}&limit=10`);
         const students = res.data?.students || [];
@@ -1743,8 +1740,7 @@ async function showAssignStudentModal(seat, container) {
       } catch (err) {
         resultsContainer.innerHTML = `<div class="text-danger p-2">Search failed</div>`;
       }
-    }, 250);
-  });
+    }, 250));
 }
 
 // ----------------------------------------------------

@@ -22,7 +22,7 @@ async function getStudentForUser(user, req = null) {
 
   // 1. If Admin requested a specific student ID to inspect:
   if (isAdmin && studentIdParam) {
-    const student = await Student.findById(studentIdParam).populate('plan').populate('seat').populate('branch');
+    const student = await Student.findById(studentIdParam).populate('plan').populate('seat').populate('branch').lean();
     if (student) return student;
   }
 
@@ -43,7 +43,7 @@ async function getStudentForUser(user, req = null) {
     const matchedStudent = await Student.findOne({ $or: queryConditions })
       .populate('plan')
       .populate('seat')
-      .populate('branch');
+      .populate('branch').lean();
     if (matchedStudent) return matchedStudent;
   }
 
@@ -53,7 +53,7 @@ async function getStudentForUser(user, req = null) {
     const firstStudent = await Student.findOne({ status: 'active' })
       .populate('plan')
       .populate('seat')
-      .populate('branch') || await Student.findOne().populate('plan').populate('seat').populate('branch');
+      .populate('branch') || await Student.findOne().populate('plan').populate('seat').populate('branch').lean();
     return firstStudent;
   }
 
@@ -78,10 +78,10 @@ router.get('/dashboard', async (req, res) => {
     const business = await BusinessProfile.getProfile();
 
     const [payments, attendanceRecords, todayAttendance] = await Promise.all([
-      Payment.find({ student: student._id }).sort({ paymentDate: -1 }).limit(10),
-      Attendance.find({ student: student._id }).sort({ date: -1 }).limit(30),
+      Payment.find({ student: student._id }).sort({ paymentDate: -1 }).limit(10).lean(),
+      Attendance.find({ student: student._id }).sort({ date: -1 }).limit(30).lean(),
       Attendance.findOne({
-        student: student._id,
+        student: student._id.lean(),
         date: {
           $gte: new Date(new Date().setHours(0, 0, 0, 0)),
           $lte: new Date(new Date().setHours(23, 59, 59, 999))
@@ -257,7 +257,7 @@ router.get('/leave-requests', async (req, res) => {
     const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
-    const leaves = await LeaveRequest.find({ student: student._id }).sort({ createdAt: -1 });
+    const leaves = await LeaveRequest.find({ student: student._id }).sort({ createdAt: -1 }).lean();
     res.json({ success: true, data: leaves });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -307,7 +307,7 @@ router.get('/seat-changes', async (req, res) => {
     const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
-    const requests = await SeatChangeRequest.find({ student: student._id }).sort({ createdAt: -1 });
+    const requests = await SeatChangeRequest.find({ student: student._id }).sort({ createdAt: -1 }).lean();
     res.json({ success: true, data: requests });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -322,7 +322,7 @@ router.get('/referral-stats', async (req, res) => {
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     const config = await ReferralConfig.getConfig();
-    const referrals = await Referral.find({ referrerStudent: student._id }).sort({ createdAt: -1 });
+    const referrals = await Referral.find({ referrerStudent: student._id }).sort({ createdAt: -1 }).lean();
 
     // Auto-generate code if empty
     if (!student.referralCode) {
@@ -428,7 +428,7 @@ router.get('/referrals', async (req, res) => {
     const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
-    const referrals = await Referral.find({ referrerStudent: student._id }).sort({ createdAt: -1 });
+    const referrals = await Referral.find({ referrerStudent: student._id }).sort({ createdAt: -1 }).lean();
     res.json({ success: true, data: referrals });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -443,7 +443,7 @@ router.get('/renewal-quote', async (req, res) => {
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     const business = await BusinessProfile.getProfile();
-    const plan = student.plan || (await Plan.findOne({ isActive: true }));
+    const plan = student.plan || (await Plan.findOne({ isActive: true }).lean());
     const basePrice = plan ? plan.price : 1000;
     const discount = plan?.discount ? (basePrice * plan.discount / 100) : 0;
     

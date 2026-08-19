@@ -1,6 +1,6 @@
 import { App } from '../app.js';
 import { t } from '../i18n.js';
-import { Toast, Modal, Loading, Confirm, escapeHTML } from '../ui.js';
+import { Toast, Modal, Loading, Confirm, escapeHTML, debounce } from '../ui.js';
 import { SignatureStudio } from '../signatureStudio.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
 import api from '../api.js';
@@ -27,6 +27,12 @@ export async function render() {
     </div>
   `;
   container.appendChild(header);
+
+  // Contextual Guidance Tip Banner
+  const tipBanner = document.createElement('div');
+  tipBanner.style.cssText = 'background: rgba(108, 92, 231, 0.06); border: 1px solid rgba(108, 92, 231, 0.2); border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;';
+  tipBanner.innerHTML = `<span style="font-size: 1.1rem;">💡</span> <span><strong>Tip:</strong> Click any student row to view study habit consistency, attendance history, and payment ledger.</span>`;
+  container.appendChild(tipBanner);
 
   // Standard KPI Stats Grid
   const statsContainer = document.createElement('div');
@@ -71,6 +77,7 @@ export async function render() {
   };
 
   async function loadStats() {
+    Loading.skeleton(statsContainer, 'kpi');
     try {
       const res = await api.get('/api/students/stats');
       if (res.success && res.data) {
@@ -107,7 +114,7 @@ export async function render() {
     const search = container.querySelector('#studentSearch')?.value || '';
     const status = container.querySelector('#studentStatusFilter')?.value || 'all';
     
-    tableContainer.innerHTML = '<div class="text-center p-5 text-muted">Loading students...</div>';
+    Loading.skeleton(tableContainer, 'table');
     try {
       const res = await api.get('/api/students', { page, limit: 10, search, status });
       if (res.success && res.data) {
@@ -1797,12 +1804,8 @@ export async function render() {
   }
 
   const searchInput = container.querySelector('#studentSearch');
-  let searchTimeout;
   if (searchInput) {
-    searchInput.addEventListener('input', () => {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => loadStudents(1), 350);
-    });
+    searchInput.addEventListener('input', debounce(() => loadStudents(1), 250));
   }
 
   const statusFilter = container.querySelector('#studentStatusFilter');

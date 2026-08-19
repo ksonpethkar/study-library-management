@@ -20,7 +20,7 @@ const roleCheck = (...roles) => {
 // GET /public-list — Public endpoint for student registration branch selection
 router.get('/public-list', async (req, res) => {
   try {
-    const branches = await Branch.find({ isActive: true }).lean();
+    const branches = await Branch.find({ isActive: true }).lean().lean();
     if (!branches || branches.length === 0) {
       return res.json({
         success: true,
@@ -66,7 +66,7 @@ router.get('/stats', async (req, res) => {
       Branch.countDocuments({ isActive: true }),
       Student.countDocuments({ status: 'active' }),
       Branch.find({ isActive: true })
-    ]);
+    ]).lean();
 
     const totalCapacity = branches.reduce((sum, b) => sum + (b.totalSeats || 0), 0);
     const assignedManagerIds = branches.filter(b => b.manager).map(b => b.manager.toString());
@@ -97,7 +97,7 @@ router.get('/managers', async (req, res) => {
   try {
     const managers = await User.find({ isActive: true })
       .select('name email phone role avatar')
-      .sort('name');
+      .sort('name').lean();
     res.json({
       success: true,
       data: managers,
@@ -124,7 +124,7 @@ router.get('/', async (req, res) => {
     }
 
     const branches = await Branch.find(filter)
-      .populate('manager', 'name email phone avatar role')
+      .populate('manager'.lean(), 'name email phone avatar role')
       .sort({ isMainBranch: -1, createdAt: -1 });
 
     const branchesWithCounts = await Promise.all(branches.map(async (b) => {
@@ -160,7 +160,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const branch = await Branch.findById(req.params.id)
-      .populate('manager', 'name email phone avatar role');
+      .populate('manager', 'name email phone avatar role').lean();
 
     if (!branch) {
       return res.status(404).json({ success: false, message: 'Branch not found' });
@@ -218,7 +218,7 @@ router.post('/', validate([
     } = req.body;
 
     const formattedCode = code.toUpperCase().trim();
-    const existing = await Branch.findOne({ code: formattedCode });
+    const existing = await Branch.findOne({ code: formattedCode }).lean();
     if (existing) {
       return res.status(400).json({ success: false, message: 'Branch code already exists' });
     }
@@ -273,7 +273,7 @@ router.put('/:id', validate([
 
     if (req.body.code) {
       const formattedCode = req.body.code.toUpperCase().trim();
-      const existing = await Branch.findOne({ code: formattedCode, _id: { $ne: branch._id } });
+      const existing = await Branch.findOne({ code: formattedCode, _id: { $ne: branch._id } }).lean();
       if (existing) {
         return res.status(400).json({ success: false, message: 'Branch code already in use by another branch' });
       }

@@ -173,7 +173,7 @@ router.get('/summary', async (req, res) => {
 router.get('/categories', async (req, res) => {
   try {
     await ExpenseCategory.seedDefaultCategories();
-    const categories = await ExpenseCategory.find().sort({ isSystem: -1, name: 1 });
+    const categories = await ExpenseCategory.find().sort({ isSystem: -1, name: 1 }).lean();
     res.json({ success: true, data: categories });
   } catch (err) {
     console.error('Error fetching expense categories:', err);
@@ -220,7 +220,7 @@ router.put(
   ]),
   async (req, res) => {
     try {
-      const category = await ExpenseCategory.findById(req.params.id);
+    const category = await ExpenseCategory.findById(req.params.id).lean();
       if (!category) {
         return res.status(404).json({ success: false, message: 'Category not found' });
       }
@@ -247,7 +247,7 @@ router.put(
  */
 router.delete('/categories/:id', roleCheck('owner'), async (req, res) => {
   try {
-    const category = await ExpenseCategory.findById(req.params.id);
+    const category = await ExpenseCategory.findById(req.params.id).lean();
     if (!category) {
       return res.status(404).json({ success: false, message: 'Category not found' });
     }
@@ -300,7 +300,7 @@ router.get('/', async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [expenses, total] = await Promise.all([
-      Expense.find(query)
+      Expense.find(query).lean()
         .populate('createdBy', 'name email')
         .sort({ date: -1, createdAt: -1 })
         .skip(skip)

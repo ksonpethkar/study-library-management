@@ -1,6 +1,6 @@
 import { App } from '../app.js';
 import { t } from '../i18n.js';
-import { Toast, Modal, Loading, Confirm, escapeHTML } from '../ui.js';
+import { Toast, Modal, Loading, Confirm, escapeHTML, debounce } from '../ui.js';
 import api from '../api.js';
 
 const formatCurrency = (amount) => {
@@ -37,6 +37,12 @@ export async function render(container) {
             </div>
         </div>
         
+        <!-- Contextual Guidance Tip Banner -->
+        <div style="background: rgba(108, 92, 231, 0.06); border: 1px solid rgba(108, 92, 231, 0.2); border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
+            <span style="font-size: 1.1rem;">💡</span>
+            <span><strong>Tip:</strong> 1-Tap WhatsApp buttons send instant payment receipts and partial fee balance reminders with pre-filled UPI deep links.</span>
+        </div>
+
         <!-- Standard KPI Stats Grid -->
         <div class="kpi-grid" id="paymentsStatsContainer">
             <div class="kpi-card kpi-success">
@@ -175,9 +181,11 @@ export async function render(container) {
         if (method) url += `&method=${method}`;
         if (status) url += `&status=${status}`;
         
+        const tbody = document.getElementById('paymentsTableBody');
+        if (tbody) Loading.skeleton(tbody, 'table');
+
         try {
             const res = await api.get(url);
-            const tbody = document.getElementById('paymentsTableBody');
             if (!tbody) return;
 
             if (!res.success || !res.data.payments || res.data.payments.length === 0) {
@@ -262,9 +270,10 @@ export async function render(container) {
     }
 
     async function loadDues() {
+        const tbody = document.getElementById('duesTableBody');
+        if (tbody) Loading.skeleton(tbody, 'table');
         try {
             const res = await api.get('/api/payments/dues');
-            const tbody = document.getElementById('duesTableBody');
             if (!tbody) return;
 
             if (!res.success || !res.data || res.data.length === 0) {

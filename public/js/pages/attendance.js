@@ -1,6 +1,6 @@
 import { App } from '../app.js';
 import { t } from '../i18n.js';
-import { Toast, Modal, Loading, Confirm, escapeHTML } from '../ui.js';
+import { Toast, Modal, Loading, Confirm, escapeHTML, debounce } from '../ui.js';
 import api from '../api.js';
 
 let refreshInterval;
@@ -100,17 +100,15 @@ async function init(container) {
     refreshBtn.addEventListener('click', () => loadData(dateInput.value));
   }
   
-  let searchTimeout;
   if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      clearTimeout(searchTimeout);
+    searchInput.addEventListener('input', debounce((e) => {
       const query = e.target.value.trim();
       if (query.length < 2) {
         searchResults.style.display = 'none';
         return;
       }
-      searchTimeout = setTimeout(() => searchStudents(query, searchResults), 250);
-    });
+      searchStudents(query, searchResults);
+    }, 250));
   }
 
   // Hide search results when clicking outside
@@ -224,7 +222,7 @@ async function init(container) {
 
 async function loadData(dateStr, showLoading = true) {
   const tbody = document.querySelector('#attendance-list');
-  if (showLoading && tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4">Loading...</td></tr>';
+  if (showLoading && tbody) Loading.skeleton(tbody, 'table');
 
   try {
     const isToday = dateStr === new Date().toISOString().split('T')[0];

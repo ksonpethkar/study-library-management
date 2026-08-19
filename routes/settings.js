@@ -52,10 +52,10 @@ router.get('/', async (req, res) => {
     const businessProfile = await BusinessProfile.getProfile();
     
     // Ensure default settings exist
-    let allSettings = await SystemSetting.find();
+    let allSettings = await SystemSetting.find().lean();
     if (!allSettings || allSettings.length === 0) {
       await SystemSetting.initDefaults();
-      allSettings = await SystemSetting.find();
+      allSettings = await SystemSetting.find().lean();
     }
 
     const categorized = {
@@ -301,7 +301,7 @@ const updateSystemSettingsHandler = async (req, res) => {
     }
 
     // Return updated categorized settings
-    const allSettings = await SystemSetting.find();
+    const allSettings = await SystemSetting.find().lean();
     const categorized = {
       general: {},
       payment: {},
@@ -346,7 +346,7 @@ const validateAdminProfile = validate([
 
 router.put('/admin-profile', validateAdminProfile, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).lean();
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -354,7 +354,7 @@ router.put('/admin-profile', validateAdminProfile, async (req, res) => {
     const { name, email, phone, avatar } = req.body;
 
     if (email && email !== user.email) {
-      const existingUser = await User.findOne({ email, _id: { $ne: req.user.id } });
+      const existingUser = await User.findOne({ email, _id: { $ne: req.user.id } }).lean();
       if (existingUser) {
         return res.status(400).json({ success: false, message: 'Email is already in use by another account' });
       }
@@ -634,7 +634,7 @@ router.put('/sidebar/reset', protect, roleCheck('owner', 'branch_manager'), asyn
 // GET /api/settings/dashboard-widgets - Get dashboard widget configuration
 router.get('/dashboard-widgets', async (req, res) => {
   try {
-    const setting = await SystemSetting.findOne({ key: 'dashboard.widgetConfig' });
+    const setting = await SystemSetting.findOne({ key: 'dashboard.widgetConfig' }).lean();
     const defaultWidgets = SystemSetting.getDefaultDashboardWidgets();
 
     if (!setting || !Array.isArray(setting.value) || setting.value.length === 0) {
