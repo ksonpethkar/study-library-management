@@ -43,6 +43,80 @@ router.get('/', async (req, res) => {
 
     if (!landingConfig) landingConfig = LandingPage.getDefaults();
 
+    // Helper functions for shift time and icon formatting
+    const formatShiftTime = (t) => {
+      if (!t) return '';
+      if (t.includes('AM') || t.includes('PM')) return t;
+      const parts = t.split(':');
+      if (parts.length < 2) return t;
+      let h = parseInt(parts[0], 10);
+      const m = parts[1].padStart(2, '0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12;
+      h = h ? h : 12;
+      return `${h.toString().padStart(2, '0')}:${m} ${ampm}`;
+    };
+
+    const guessShiftIcon = (name) => {
+      const n = (name || '').toLowerCase();
+      if (n.includes('morning') || n.includes('sakal')) return '🌅';
+      if (n.includes('evening') || n.includes('sandhya') || n.includes('afternoon')) return '🌇';
+      if (n.includes('night') || n.includes('owl') || n.includes('ratra')) return '🌙';
+      if (n.includes('full') || n.includes('24') || n.includes('prime')) return '☀️';
+      return '⏰';
+    };
+
+    // Auto-sync system database shifts into landingConfig.shifts.items
+    const existingCmsShifts = (landingConfig.shifts?.items || []).filter(item => item.name && item.name !== 'New Shift');
+    let mergedShiftItems = [];
+
+    if (shifts && shifts.length > 0) {
+      shifts.forEach(s => {
+        const found = existingCmsShifts.find(item => 
+          (item.shiftId && item.shiftId.toString() === s._id.toString()) ||
+          (item.name && item.name.toLowerCase() === s.name.toLowerCase())
+        );
+
+        const timingStr = (s.startTime && s.endTime) 
+          ? `${formatShiftTime(s.startTime)} – ${formatShiftTime(s.endTime)}` 
+          : '';
+
+        if (found) {
+          mergedShiftItems.push({
+            shiftId: s._id.toString(),
+            name: found.name || s.name,
+            timing: found.timing || timingStr,
+            description: found.description || s.description || 'Dedicated study slot with AC and high-speed Wi-Fi access.',
+            icon: found.icon || guessShiftIcon(s.name),
+            enabled: found.enabled !== false
+          });
+        } else {
+          mergedShiftItems.push({
+            shiftId: s._id.toString(),
+            name: s.name,
+            timing: timingStr,
+            description: s.description || 'Dedicated study slot with AC and high-speed Wi-Fi access.',
+            icon: guessShiftIcon(s.name),
+            enabled: true
+          });
+        }
+      });
+
+      // Preserve custom CMS items that don't match any DB shift
+      existingCmsShifts.forEach(item => {
+        if (!item.shiftId && !mergedShiftItems.some(m => m.name.toLowerCase() === item.name.toLowerCase())) {
+          mergedShiftItems.push(item);
+        }
+      });
+    } else if (existingCmsShifts.length > 0) {
+      mergedShiftItems = existingCmsShifts;
+    } else {
+      mergedShiftItems = LandingPage.getDefaults().shifts.items;
+    }
+
+    if (!landingConfig.shifts) landingConfig.shifts = {};
+    landingConfig.shifts.items = mergedShiftItems;
+
     res.json({
       success: true,
       data: {

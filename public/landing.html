@@ -1282,9 +1282,13 @@
           return `${h.toString().padStart(2, '0')}:${m} ${ampm}`;
         }
 
-        // Shifts Dynamic Rendering (Live Database Shifts + CMS Shifts fallback)
+        // Shifts Dynamic Rendering from CMS Config (respecting enabled toggle)
         let displayShifts = [];
-        if (shifts && shifts.length > 0) {
+        if (landing.shifts?.items?.length) {
+          displayShifts = landing.shifts.items.filter(s => s.enabled !== false && s.name && s.name !== 'New Shift');
+        }
+
+        if (displayShifts.length === 0 && shifts && shifts.length > 0) {
           displayShifts = shifts.map(s => {
             const formattedStart = formatShiftTime(s.startTime);
             const formattedEnd = formatShiftTime(s.endTime);
@@ -1303,12 +1307,6 @@
               icon
             };
           });
-        }
-
-        // Check if CMS shifts are provided with valid timings
-        if (displayShifts.length === 0 && landing.shifts?.items?.length) {
-          const validCms = landing.shifts.items.filter(item => item.name && item.name !== 'New Shift');
-          if (validCms.length > 0) displayShifts = validCms;
         }
 
         // Default standard library shifts fallback

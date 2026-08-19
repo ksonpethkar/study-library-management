@@ -2922,31 +2922,47 @@ async function initLandingSettings(container) {
       let items = config.shifts?.items;
       if (!Array.isArray(items) || items.length === 0) {
         items = [
-          { icon: '🌅', name: 'Morning Shift', timing: '06:00 AM – 02:00 PM', description: 'Start your day early with peak focus.' },
-          { icon: '🌇', name: 'Evening Shift', timing: '02:00 PM – 10:00 PM', description: 'Perfect for late risers and working professionals.' },
-          { icon: '☀️', name: 'Full Day Shift', timing: '06:00 AM – 11:00 PM', description: '17-hour dedicated reserved desk for serious aspirants.' },
-          { icon: '🌙', name: 'Night Owl Slot', timing: '10:00 PM – 06:00 AM', description: 'Distraction-free overnight study hours.' }
+          { icon: '🌅', name: 'Morning Shift', timing: '06:00 AM – 02:00 PM', description: 'Start your day early with peak focus.', enabled: true },
+          { icon: '🌇', name: 'Evening Shift', timing: '02:00 PM – 10:00 PM', description: 'Perfect for late risers and working professionals.', enabled: true },
+          { icon: '☀️', name: 'Full Day Shift', timing: '06:00 AM – 11:00 PM', description: '17-hour dedicated reserved desk for serious aspirants.', enabled: true },
+          { icon: '🌙', name: 'Night Owl Slot', timing: '10:00 PM – 06:00 AM', description: 'Distraction-free overnight study hours.', enabled: true }
         ];
       }
       if (!config.shifts) config.shifts = {};
       config.shifts.items = items;
 
       items.forEach((item, idx) => {
+        const isEnabled = item.enabled !== false;
         const div = document.createElement('div');
-        div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface);';
+        div.dataset.shiftId = item.shiftId || '';
+        div.style.cssText = `border: 1.5px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface); opacity: ${isEnabled ? '1' : '0.65'}; transition: opacity 0.2s; margin-bottom: 0.85rem;`;
         div.innerHTML = `
-          <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 4px;">
-            <button class="btn btn-sm btn-outline btn-up-shift" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
-            <button class="btn btn-sm btn-outline btn-down-shift" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
-            <button class="btn btn-sm btn-outline-danger btn-delete-shift">🗑️</button>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; border-bottom: 1px dashed var(--color-border); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+            <label style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.88rem; cursor: pointer; color: ${isEnabled ? 'var(--color-primary)' : 'var(--color-text-secondary)'}; margin-bottom: 0;">
+              <input type="checkbox" class="l-shift-enabled" ${isEnabled ? 'checked' : ''}>
+              <span>Show on Landing Page</span>
+            </label>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              ${item.shiftId ? '<span style="font-size: 0.72rem; padding: 2px 6px; background: rgba(108,92,231,0.1); color: var(--color-primary); border-radius: 4px; font-weight: 700;">Live System Shift</span>' : ''}
+              <button class="btn btn-sm btn-outline btn-up-shift" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
+              <button class="btn btn-sm btn-outline btn-down-shift" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
+              <button class="btn btn-sm btn-outline-danger btn-delete-shift" title="Delete Shift">🗑️</button>
+            </div>
           </div>
-          <div style="display: flex; gap: 0.75rem; width: calc(100% - 120px); flex-wrap: wrap;">
-            <input type="text" class="form-control l-shift-icon" style="width: 54px; text-align: center;" placeholder="Icon" value="${escapeHTML(item.icon || '')}">
-            <input type="text" class="form-control l-shift-name" style="flex: 1;" placeholder="Name" value="${escapeHTML(item.name || '')}">
-            <input type="text" class="form-control l-shift-timing" style="flex: 1;" placeholder="Timings" value="${escapeHTML(item.timing || '')}">
+          <div style="display: flex; gap: 0.75rem; width: 100%; flex-wrap: wrap;">
+            <input type="text" class="form-control l-shift-icon" style="width: 54px; text-align: center; font-size: 1.2rem;" placeholder="Icon" value="${escapeHTML(item.icon || '⏰')}">
+            <input type="text" class="form-control l-shift-name" style="flex: 1.2; min-width: 140px; font-weight: 700;" placeholder="Shift Name" value="${escapeHTML(item.name || '')}">
+            <input type="text" class="form-control l-shift-timing" style="flex: 1.2; min-width: 140px; font-weight: 600;" placeholder="Timings (e.g. 06:00 AM – 02:00 PM)" value="${escapeHTML(item.timing || '')}">
           </div>
-          <textarea class="form-control mt-2 l-shift-desc" placeholder="Description" rows="2">${escapeHTML(item.description || '')}</textarea>
+          <textarea class="form-control mt-2 l-shift-desc" placeholder="Brief description / benefits for students..." rows="2">${escapeHTML(item.description || '')}</textarea>
         `;
+
+        div.querySelector('.l-shift-enabled')?.addEventListener('change', (e) => {
+          const checked = e.target.checked;
+          item.enabled = checked;
+          div.style.opacity = checked ? '1' : '0.65';
+        });
+
         div.querySelector('.btn-up-shift')?.addEventListener('click', () => {
           if (idx > 0) {
             const temp = items[idx];
@@ -2973,7 +2989,7 @@ async function initLandingSettings(container) {
     listContainer.querySelector('#btn-add-shift')?.addEventListener('click', () => {
       if (!config.shifts) config.shifts = { items: [] };
       if (!Array.isArray(config.shifts.items)) config.shifts.items = [];
-      config.shifts.items.push({ icon: '🕒', name: 'New Shift', timing: '', description: '' });
+      config.shifts.items.push({ icon: '⏰', name: 'New Shift', timing: '', description: '', enabled: true });
       renderShifts();
     });
 
@@ -3369,11 +3385,13 @@ async function initLandingSettings(container) {
     payload.shifts = {
       ...payload.shifts,
       items: Array.from(listContainer.querySelectorAll('#l-shifts-list > div')).map(div => ({
-        icon: div.querySelector('.l-shift-icon').value,
-        name: div.querySelector('.l-shift-name').value,
-        timing: div.querySelector('.l-shift-timing').value,
-        description: div.querySelector('.l-shift-desc').value
-      }))
+        shiftId: div.dataset.shiftId || '',
+        enabled: div.querySelector('.l-shift-enabled')?.checked !== false,
+        icon: div.querySelector('.l-shift-icon')?.value || '⏰',
+        name: div.querySelector('.l-shift-name')?.value || '',
+        timing: div.querySelector('.l-shift-timing')?.value || '',
+        description: div.querySelector('.l-shift-desc')?.value || ''
+      })).filter(s => s.name && s.name !== 'New Shift')
     };
     
     // Rules
