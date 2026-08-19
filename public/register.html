@@ -434,31 +434,47 @@
 
           <!-- Dynamic Payment Sub-Option Panes -->
           <div id="pm-sub-upi" class="pm-sub-pane" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; text-align: center; margin-bottom: 1.5rem;">
-            <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px;">Scan to Pay via Any UPI App</div>
-            <div id="admission-upi-qr-mount" style="background: #fff; padding: 12px; border-radius: 10px; display: inline-block; margin: 8px 0; border: 1px solid var(--color-border);"></div>
-            <div style="font-family: monospace; font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 10px;" id="admission-upi-id-label">
-              UPI ID: thecozycornersc@okaxis
+            <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 6px;">⚡ Scan to Pay via Any UPI App (GPay / PhonePe / Paytm / BHIM)</div>
+            <div id="admission-upi-qr-mount" style="background: #fff; padding: 12px; border-radius: 12px; display: inline-block; margin: 8px 0; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);"></div>
+            <div style="font-family: monospace; font-size: 0.9rem; color: var(--color-text-primary); margin-bottom: 12px; display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;" id="admission-upi-id-label">
+              <span>UPI ID: <strong>thecozycorner@okaxis</strong></span>
             </div>
-            <div class="form-group" style="max-width: 340px; margin: 0 auto; text-align: left;">
+            <div class="form-group" style="max-width: 380px; margin: 0 auto; text-align: left;">
               <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">UPI UTR / Reference Number *</label>
-              <input type="text" id="reg-upi-ref" class="form-control" placeholder="12-digit UTR e.g. 423456789012" maxlength="30">
+              <input type="text" id="reg-upi-ref" class="form-control" placeholder="Enter 12-digit UTR e.g. 423456789012" maxlength="30">
+              <small class="text-muted" id="reg-payment-note-upi">Enter the 12-digit transaction ID from your UPI app receipt</small>
             </div>
           </div>
 
           <div id="pm-sub-card" class="pm-sub-pane" style="display: none; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem;">
+            <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 10px;">💳 Debit / Credit Card Payment</div>
             <div class="form-group mb-3">
-              <label class="form-label">Cardholder Name</label>
-              <input type="text" id="reg-card-name" class="form-control" placeholder="Name on card">
+              <label class="form-label" style="font-weight: 600;">Cardholder Name *</label>
+              <input type="text" id="reg-card-name" class="form-control" placeholder="Full name on card">
             </div>
             <div class="form-group mb-3">
-              <label class="form-label">Card Number / Ref</label>
-              <input type="text" id="reg-card-no" class="form-control" placeholder="16-digit card number" maxlength="19">
+              <label class="form-label" style="font-weight: 600;">Card Reference / Transaction ID *</label>
+              <input type="text" id="reg-card-no" class="form-control" placeholder="16-digit card ref or POS slip number" maxlength="25">
             </div>
           </div>
 
           <div id="pm-sub-netbanking" class="pm-sub-pane" style="display: none; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem;">
+            <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px;">
+              <span>🏦</span> Bank Account Details for Transfer (NEFT / RTGS / IMPS)
+            </div>
+            
+            <div id="admission-bank-details-card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1rem;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; font-size: 0.85rem;">
+                <div><span class="text-muted">Bank Name:</span> <strong id="nb-display-bank">-</strong></div>
+                <div><span class="text-muted">Account Holder:</span> <strong id="nb-display-accName">-</strong></div>
+                <div><span class="text-muted">Account Number:</span> <strong id="nb-display-accNum" style="font-family: monospace; font-size: 0.9rem;">-</strong></div>
+                <div><span class="text-muted">IFSC Code:</span> <strong id="nb-display-ifsc" style="font-family: monospace; font-size: 0.9rem;">-</strong></div>
+                <div><span class="text-muted">Branch:</span> <strong id="nb-display-branch">-</strong></div>
+              </div>
+            </div>
+
             <div class="form-group mb-3">
-              <label class="form-label">Select Your Bank</label>
+              <label class="form-label" style="font-weight: 600;">Select Transfer Bank</label>
               <select id="reg-nb-bank" class="form-select">
                 <option value="SBI">State Bank of India (SBI)</option>
                 <option value="HDFC">HDFC Bank</option>
@@ -468,15 +484,15 @@
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">Transaction Reference Number</label>
-              <input type="text" id="reg-nb-ref" class="form-control" placeholder="Bank transaction reference">
+              <label class="form-label" style="font-weight: 600;">Bank Transaction Reference / UTR Number *</label>
+              <input type="text" id="reg-nb-ref" class="form-control" placeholder="12-digit UTR / Bank reference number">
             </div>
           </div>
 
           <div id="pm-sub-desk" class="pm-sub-pane" style="display: none; background: var(--color-bg-secondary); border: 1px dashed var(--color-primary); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem; text-align: center;">
             <div style="font-size: 1.5rem; margin-bottom: 4px;">💵</div>
-            <div style="font-weight: 700; color: var(--color-primary);">Pay Later at Library Desk</div>
-            <div class="text-muted small" style="margin-top: 4px;">Your admission & seat selection will be pre-reserved. Pay your fee at the reception to activate your membership.</div>
+            <div style="font-weight: 700; color: var(--color-primary);">Pay Later at Library Reception Desk</div>
+            <div class="text-muted small" style="margin-top: 4px;">Your admission & seat reservation request will be recorded immediately. Pay your membership fee at the desk on your first visit to activate your seat.</div>
           </div>
 
           <div class="btn-nav">
@@ -915,8 +931,11 @@
       updateCalculator();
     });
 
-    let libraryUpiId = 'thecozycornersc@okaxis';
+    let libraryUpiId = 'thecozycorner@okaxis';
     let libraryBusinessName = 'Study Library';
+    let libraryCustomQrImage = '';
+    let libraryBankDetails = {};
+    let libraryPaymentInstructions = '';
 
     function updateCalculator() {
       if (!selectedPlanData) {
@@ -933,17 +952,27 @@
       document.getElementById('calc-discount').textContent = `-₹${discountAmount}`;
       document.getElementById('calc-total').textContent = `₹${payable}`;
 
-      // Generate Dynamic UPI QR Code
+      // Generate Dynamic UPI QR Code / Render Admin Custom QR Image
       const qrMount = document.getElementById('admission-upi-qr-mount');
-      if (qrMount && payable > 0) {
-        try {
-          const upiString = `upi://pay?pa=${libraryUpiId}&pn=${encodeURIComponent(libraryBusinessName)}&am=${payable}&cu=INR&tn=${encodeURIComponent('StudyLib Admission')}`;
-          const qr = qrcode(0, 'M');
-          qr.addData(upiString);
-          qr.make();
-          qrMount.innerHTML = qr.createImgTag(4);
-        } catch (e) {
-          qrMount.innerHTML = `<span class="text-muted">QR Generation Error</span>`;
+      if (qrMount) {
+        const upiString = `upi://pay?pa=${encodeURIComponent(libraryUpiId)}&pn=${encodeURIComponent(libraryBusinessName)}&am=${payable}&cu=INR&tn=${encodeURIComponent('StudyLib Admission')}`;
+        
+        if (libraryCustomQrImage) {
+          const cleanQr = libraryCustomQrImage.startsWith('data:image') ? libraryCustomQrImage : (libraryCustomQrImage.startsWith('/') ? libraryCustomQrImage : '/' + libraryCustomQrImage);
+          qrMount.innerHTML = `
+            <div style="text-align: center;">
+              <img src="${cleanQr}" style="width: 180px; height: 180px; border-radius: 8px; object-fit: contain; border: 1px solid var(--color-border); display: block; margin: 0 auto 6px auto;">
+              <span class="badge badge-primary" style="font-size: 0.75rem;">Pay ₹${payable}</span>
+            </div>
+          `;
+        } else {
+          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiString)}`;
+          qrMount.innerHTML = `
+            <div style="text-align: center;">
+              <img src="${qrUrl}" style="width: 180px; height: 180px; border-radius: 8px; object-fit: contain; display: block; margin: 0 auto 6px auto;" onerror="this.onerror=null; this.src='https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(upiString)}';">
+              <span class="badge badge-primary" style="font-size: 0.75rem;">Pay ₹${payable} via Any UPI App</span>
+            </div>
+          `;
         }
       }
     }
@@ -997,11 +1026,51 @@
 
         const bp = landingRes?.data?.businessProfile;
         if (bp?.businessName) {
+          libraryBusinessName = bp.businessName;
           document.getElementById('lib-title').textContent = bp.businessName;
           document.title = `Admission — ${bp.businessName}`;
         }
         if (bp?.tagline) {
           document.getElementById('lib-tagline').textContent = bp.tagline;
+        }
+
+        libraryUpiId = bp?.upiId || 'thecozycorner@okaxis';
+        libraryCustomQrImage = bp?.upiQrCode || '';
+        libraryBankDetails = bp?.bankDetails || {};
+        libraryPaymentInstructions = bp?.paymentInstructions || '';
+
+        // Update Bank Account display card in NetBanking step
+        if (libraryBankDetails) {
+          const bankNameEl = document.getElementById('nb-display-bank');
+          const accNameEl = document.getElementById('nb-display-accName');
+          const accNumEl = document.getElementById('nb-display-accNum');
+          const ifscEl = document.getElementById('nb-display-ifsc');
+          const branchEl = document.getElementById('nb-display-branch');
+
+          if (bankNameEl) bankNameEl.textContent = libraryBankDetails.bankName || 'State Bank of India';
+          if (accNameEl) accNameEl.textContent = libraryBankDetails.accountName || libraryBusinessName || 'Study Library';
+          if (accNumEl) accNumEl.textContent = libraryBankDetails.accountNumber || 'Contact reception desk';
+          if (ifscEl) ifscEl.textContent = libraryBankDetails.ifscCode || 'SBIN0001234';
+          if (branchEl) branchEl.textContent = libraryBankDetails.branchName || 'Main Branch';
+        }
+
+        // Update UPI ID Label with Copy button
+        const upiLabelEl = document.getElementById('admission-upi-id-label');
+        if (upiLabelEl) {
+          upiLabelEl.innerHTML = `
+            <span>UPI ID: <strong style="color: var(--color-primary);">${escapeHTML(libraryUpiId)}</strong></span>
+            <button type="button" id="btn-copy-upi" class="btn btn-xs btn-outline-primary" style="margin-left: 8px; padding: 2px 8px; font-size: 0.75rem; border-radius: 4px;">📋 Copy UPI ID</button>
+          `;
+          document.getElementById('btn-copy-upi')?.addEventListener('click', () => {
+            navigator.clipboard.writeText(libraryUpiId);
+            if (window.Toast) Toast.success('UPI ID copied to clipboard!');
+            else alert('UPI ID copied to clipboard!');
+          });
+        }
+
+        if (libraryPaymentInstructions) {
+          const noteUpi = document.getElementById('reg-payment-note-upi');
+          if (noteUpi) noteUpi.textContent = libraryPaymentInstructions;
         }
 
         // Branch Selection Dropdown & Capacity Card

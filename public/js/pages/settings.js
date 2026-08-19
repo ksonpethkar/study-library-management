@@ -178,6 +178,53 @@ function renderSettingsUI(container, profile, settings) {
                 </div>
               </div>
 
+              <!-- Payment & Banking Configuration Section -->
+              <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--color-text-primary); margin: 1.5rem 0 1rem 0; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem;">
+                💳 Payment Gateway, UPI & Bank Account Customizations
+              </h4>
+              
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                  <div class="form-group">
+                    <label class="form-label" for="setting-upiId" style="font-weight: 600;">⚡ Official Library UPI ID (VPA)</label>
+                    <input type="text" id="setting-upiId" class="form-control" value="${escapeHTML(profile.upiId || 'thecozycorner@okaxis')}" placeholder="e.g. libraryname@upi or 9876543210@paytm">
+                    <small class="text-muted">Used for dynamic UPI QR generation and instant UPI payments</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="setting-bank-name" style="font-weight: 600;">🏦 Bank Name</label>
+                    <input type="text" id="setting-bank-name" class="form-control" value="${escapeHTML(profile.bankDetails?.bankName || '')}" placeholder="e.g. State Bank of India / HDFC Bank">
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                  <div class="form-group">
+                    <label class="form-label" for="setting-bank-accName" style="font-weight: 600;">👤 Account Holder Name</label>
+                    <input type="text" id="setting-bank-accName" class="form-control" value="${escapeHTML(profile.bankDetails?.accountName || '')}" placeholder="e.g. The Cozy Corner Centre">
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="setting-bank-accNum" style="font-weight: 600;">🔢 Account Number</label>
+                    <input type="text" id="setting-bank-accNum" class="form-control" value="${escapeHTML(profile.bankDetails?.accountNumber || '')}" placeholder="e.g. 50100234567890">
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="setting-bank-ifsc" style="font-weight: 600;">🔤 IFSC Code</label>
+                    <input type="text" id="setting-bank-ifsc" class="form-control" value="${escapeHTML(profile.bankDetails?.ifscCode || '')}" placeholder="e.g. SBIN0001234">
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="setting-bank-branch" style="font-weight: 600;">📍 Branch Name</label>
+                    <input type="text" id="setting-bank-branch" class="form-control" value="${escapeHTML(profile.bankDetails?.branchName || '')}" placeholder="e.g. Main Branch, City Center">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="setting-payment-instructions" style="font-weight: 600;">📝 Registration Payment Instructions Note</label>
+                  <textarea id="setting-payment-instructions" class="form-control" rows="2" placeholder="Custom note for students during online admission payment...">${escapeHTML(profile.paymentInstructions || '')}</textarea>
+                </div>
+              </div>
+
 
 
               <!-- Contact & Address -->
@@ -1615,6 +1662,15 @@ function renderSettingsUI(container, profile, settings) {
         logo: container.querySelector('input[name="logo"]')?.value?.trim() || container.querySelector('#setting-logo')?.value?.trim() || '',
         favicon: container.querySelector('input[name="favicon"]')?.value?.trim() || container.querySelector('#setting-favicon')?.value?.trim() || '',
         upiQrCode: container.querySelector('input[name="upiQrCode"]')?.value?.trim() || container.querySelector('#setting-upiQrCode')?.value?.trim() || '',
+        upiId: container.querySelector('#setting-upiId')?.value?.trim() || 'thecozycorner@okaxis',
+        bankDetails: {
+          accountName: container.querySelector('#setting-bank-accName')?.value?.trim() || '',
+          accountNumber: container.querySelector('#setting-bank-accNum')?.value?.trim() || '',
+          ifscCode: container.querySelector('#setting-bank-ifsc')?.value?.trim() || '',
+          bankName: container.querySelector('#setting-bank-name')?.value?.trim() || '',
+          branchName: container.querySelector('#setting-bank-branch')?.value?.trim() || ''
+        },
+        paymentInstructions: container.querySelector('#setting-payment-instructions')?.value?.trim() || '',
         phone: container.querySelector('#setting-phone')?.value?.trim(),
         email: container.querySelector('#setting-email')?.value?.trim(),
         website: container.querySelector('#setting-website')?.value?.trim(),
@@ -1760,6 +1816,15 @@ function renderSettingsUI(container, profile, settings) {
         logo: container.querySelector('input[name="logo"]')?.value?.trim() || container.querySelector('#setting-logo')?.value?.trim() || '',
         favicon: container.querySelector('input[name="favicon"]')?.value?.trim() || container.querySelector('#setting-favicon')?.value?.trim() || '',
         upiQrCode: container.querySelector('input[name="upiQrCode"]')?.value?.trim() || container.querySelector('#setting-upiQrCode')?.value?.trim() || '',
+        upiId: container.querySelector('#setting-upiId')?.value?.trim() || 'thecozycorner@okaxis',
+        bankDetails: {
+          accountName: container.querySelector('#setting-bank-accName')?.value?.trim() || '',
+          accountNumber: container.querySelector('#setting-bank-accNum')?.value?.trim() || '',
+          ifscCode: container.querySelector('#setting-bank-ifsc')?.value?.trim() || '',
+          bankName: container.querySelector('#setting-bank-name')?.value?.trim() || '',
+          branchName: container.querySelector('#setting-bank-branch')?.value?.trim() || ''
+        },
+        paymentInstructions: container.querySelector('#setting-payment-instructions')?.value?.trim() || '',
         phone: container.querySelector('#setting-phone')?.value?.trim(),
         email: container.querySelector('#setting-email')?.value?.trim(),
         website: container.querySelector('#setting-website')?.value?.trim(),

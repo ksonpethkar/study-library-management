@@ -107,8 +107,8 @@ router.put('/business-profile', roleCheck('owner'), validateBusinessProfile, asy
     const profile = await BusinessProfile.getProfile();
     const fields = [
       'businessName', 'tagline', 'logo', 'favicon', 'address', 'city', 'state', 'pincode',
-      'phone', 'email', 'website', 'gstNumber', 'registrationNumber', 'upiQrCode',
-      'stampImage'
+      'phone', 'email', 'website', 'gstNumber', 'registrationNumber', 'upiQrCode', 'upiId',
+      'paymentInstructions', 'stampImage'
     ];
 
     fields.forEach(field => {
@@ -116,6 +116,16 @@ router.put('/business-profile', roleCheck('owner'), validateBusinessProfile, asy
         profile[field] = req.body[field];
       }
     });
+
+    if (req.body.bankDetails && typeof req.body.bankDetails === 'object') {
+      profile.bankDetails = {
+        accountName: req.body.bankDetails.accountName !== undefined ? req.body.bankDetails.accountName : profile.bankDetails?.accountName,
+        accountNumber: req.body.bankDetails.accountNumber !== undefined ? req.body.bankDetails.accountNumber : profile.bankDetails?.accountNumber,
+        ifscCode: req.body.bankDetails.ifscCode !== undefined ? req.body.bankDetails.ifscCode : profile.bankDetails?.ifscCode,
+        bankName: req.body.bankDetails.bankName !== undefined ? req.body.bankDetails.bankName : profile.bankDetails?.bankName,
+        branchName: req.body.bankDetails.branchName !== undefined ? req.body.bankDetails.branchName : profile.bankDetails?.branchName
+      };
+    }
 
     if (req.body.socialLinks && typeof req.body.socialLinks === 'object') {
       profile.socialLinks = {

@@ -18,6 +18,21 @@ const businessProfileSchema = new mongoose.Schema({
   gstNumber: String,
   registrationNumber: String,
   upiQrCode: String,
+  upiId: {
+    type: String,
+    default: 'thecozycorner@okaxis'
+  },
+  bankDetails: {
+    accountName: { type: String, default: '' },
+    accountNumber: { type: String, default: '' },
+    ifscCode: { type: String, default: '' },
+    bankName: { type: String, default: '' },
+    branchName: { type: String, default: '' }
+  },
+  paymentInstructions: {
+    type: String,
+    default: 'Please enter your 12-digit UTR / Reference number after completing payment.'
+  },
   stampImage: String,
   socialLinks: {
     facebook: String,
