@@ -1453,4 +1453,84 @@ input[type="checkbox"].round-checkbox:checked::after {
   background-color: rgba(108, 92, 231, 0.08) !important;
 }
 
+/* Modern Simple Green Switch Toggle Component (Matching Image 2) */
+.switch-label,
+label.switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.switch-label input[type="checkbox"],
+label.switch input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.switch-slider,
+.switch-track {
+  width: 44px;
+  height: 24px;
+  border-radius: 9999px;
+  background-color: #cbd5e1;
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.switch-slider::before,
+.switch-track::before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  left: 3px;
+  top: 3px;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* Checked ON State */
+.switch-label input[type="checkbox"]:checked + .switch-slider,
+.switch-label input[type="checkbox"]:checked + .switch-track,
+label.switch input[type="checkbox"]:checked + .switch-slider,
+label.switch input[type="checkbox"]:checked + .switch-track {
+  background-color: #10b981 !important;
+}
+
+.switch-label input[type="checkbox"]:checked + .switch-slider::before,
+.switch-label input[type="checkbox"]:checked + .switch-track::before,
+label.switch input[type="checkbox"]:checked + .switch-slider::before,
+label.switch input[type="checkbox"]:checked + .switch-track::before {
+  transform: translateX(20px);
+}
+
+/* Dark mode support */
+[data-theme="dark"] .switch-slider,
+[data-theme="dark"] .switch-track {
+  background-color: #475569;
+}
+
+[data-theme="dark"] .switch-label input[type="checkbox"]:checked + .switch-slider,
+[data-theme="dark"] .switch-label input[type="checkbox"]:checked + .switch-track,
+[data-theme="dark"] label.switch input[type="checkbox"]:checked + .switch-slider,
+[data-theme="dark"] label.switch input[type="checkbox"]:checked + .switch-track {
+  background-color: #10b981 !important;
+}
+
+
 

@@ -523,7 +523,12 @@ function renderSeatsGrid(seats, container) {
           
           <!-- Select Checkbox (Top Left) -->
           <div style="position: absolute; top: 6px; left: 6px; z-index: 2;" onclick="event.stopPropagation();">
-            <input type="checkbox" class="seat-select-cb" data-id="${seat._id}" ${isSelected ? 'checked' : ''} style="cursor: pointer; appearance: none; width: 20px; height: 20px; border-radius: 50%; border: 2px solid ${seat.zoneColor || '#6c5ce7'}; background-color: ${isSelected ? (seat.zoneColor || '#6c5ce7') : 'transparent'};">
+            <label style="position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; width: 22px; height: 22px; margin: 0;" title="Select Seat">
+              <input type="checkbox" class="seat-select-cb" data-id="${seat._id}" ${isSelected ? 'checked' : ''} style="position: absolute; opacity: 0; width: 0; height: 0; margin: 0; pointer-events: none;">
+              <span class="custom-select-circle" style="width: 20px; height: 20px; border-radius: 50%; border: 2px solid ${seat.zoneColor || 'var(--color-primary, #6c5ce7)'}; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease; background-color: ${isSelected ? (seat.zoneColor || 'var(--color-primary, #6c5ce7)') : 'transparent'}; color: #fff;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="${isSelected ? 'display: block;' : 'display: none;'}"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </span>
+            </label>
           </div>
 
           <!-- Quick Action Dot Menu (Top Right) -->

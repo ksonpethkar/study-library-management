@@ -354,9 +354,10 @@ function openCustomizeModal(onSaved) {
                   ⬇️
                 </button>
 
-                <label class="switch-container" style="display: flex; align-items: center; cursor: pointer; margin-left: 8px;">
-                  <input type="checkbox" class="widget-toggle-input" data-index="${idx}" ${w.isEnabled ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary, #6c5ce7);">
-                  <span class="small ms-2" style="font-size: 12px; min-width: 42px; font-weight: 600; color: ${w.isEnabled ? 'var(--color-success, #00b894)' : 'var(--color-text-muted, #888)'};">
+                <label class="switch-label" style="margin-left: 8px;">
+                  <input type="checkbox" class="widget-toggle-input" data-index="${idx}" ${w.isEnabled ? 'checked' : ''}>
+                  <span class="switch-slider"></span>
+                  <span class="small ms-1" style="font-size: 12px; min-width: 32px; font-weight: 700; color: ${w.isEnabled ? '#10b981' : 'var(--color-text-muted, #888)'};">
                     ${w.isEnabled ? 'ON' : 'OFF'}
                   </span>
                 </label>

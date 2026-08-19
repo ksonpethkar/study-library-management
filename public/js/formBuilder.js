@@ -1130,12 +1130,16 @@ export class FormBuilder {
           </div>
         </div>
 
-        <div style="display: flex; gap: 20px; align-items: center; background: var(--color-bg-secondary); padding: 10px 14px; border-radius: 8px;">
-          <label style="font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;">
-            <input type="checkbox" id="fe-required" class="form-toggle" ${field.required ? 'checked' : ''}> 🔴 Mandatory / Required Field
+        <div style="display: flex; gap: 20px; align-items: center; background: var(--color-bg-secondary); padding: 10px 14px; border-radius: 8px; flex-wrap: wrap;">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem; margin: 0;">
+            <input type="checkbox" id="fe-required" ${field.required ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>🔴 Mandatory / Required Field</span>
           </label>
-          <label style="font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;">
-            <input type="checkbox" id="fe-halfwidth" class="form-toggle" ${field.colSpan === 6 ? 'checked' : ''}> 📐 50% Half Width Row
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem; margin: 0;">
+            <input type="checkbox" id="fe-halfwidth" ${field.colSpan === 6 ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>📐 50% Half Width Row</span>
           </label>
         </div>
 

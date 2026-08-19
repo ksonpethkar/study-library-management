@@ -477,7 +477,8 @@ router.get('/renewal-quote', async (req, res) => {
         upiId,
         upiIntentUrl,
         qrCodeUrl,
-        businessName: business.businessName
+        businessName: business.businessName,
+        bankDetails: business.bankDetails
       }
     });
   } catch (err) {

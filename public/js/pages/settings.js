@@ -587,7 +587,10 @@ function renderSettingsUI(container, profile, settings) {
                         Sends renewal notices with seat info & 1-tap UPI deep links to students whose plans are expiring.
                       </div>
                     </div>
-                    <input type="checkbox" id="setting-enableAutoExpiryBot" class="form-toggle" ${(notif['notification.enableAutoExpiryBot'] ?? notif.enableAutoExpiryBot) !== false ? 'checked' : ''}>
+                    <label class="switch-label">
+                      <input type="checkbox" id="setting-enableAutoExpiryBot" ${(notif['notification.enableAutoExpiryBot'] ?? notif.enableAutoExpiryBot) !== false ? 'checked' : ''}>
+                      <span class="switch-slider"></span>
+                    </label>
                   </div>
 
                   <!-- Dues Bot Toggle -->
@@ -600,7 +603,10 @@ function renderSettingsUI(container, profile, settings) {
                         Sends overdue balance reminders with direct UPI link to students with partial/pending fee dues.
                       </div>
                     </div>
-                    <input type="checkbox" id="setting-enableAutoDuesBot" class="form-toggle" ${(notif['notification.enableAutoDuesBot'] ?? notif.enableAutoDuesBot) !== false ? 'checked' : ''}>
+                    <label class="switch-label">
+                      <input type="checkbox" id="setting-enableAutoDuesBot" ${(notif['notification.enableAutoDuesBot'] ?? notif.enableAutoDuesBot) !== false ? 'checked' : ''}>
+                      <span class="switch-slider"></span>
+                    </label>
                   </div>
                 </div>
 
@@ -2761,9 +2767,10 @@ async function initSidebarManager(container) {
               </div>
 
               <!-- Active Toggle -->
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-weight: 600; font-size: 0.88rem;">
+              <label class="switch-label" style="margin: 0; font-weight: 600; font-size: 0.88rem;">
                 <input type="checkbox" class="form-toggle item-enable-toggle" ${item.isEnabled !== false ? 'checked' : ''}>
-                <span class="active-toggle-label" style="color: ${item.isEnabled !== false ? 'var(--color-success)' : 'var(--color-text-muted)'};">[✓] Active</span>
+                <span class="switch-slider"></span>
+                <span class="active-toggle-label" style="color: ${item.isEnabled !== false ? 'var(--color-success)' : 'var(--color-text-muted)'};">${item.isEnabled !== false ? 'Active' : 'Hidden'}</span>
               </label>
             </div>
           </div>
@@ -3497,9 +3504,10 @@ async function initLandingSettings(container) {
         div.style.cssText = `border: 1.5px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface); opacity: ${isEnabled ? '1' : '0.65'}; transition: opacity 0.2s;`;
         div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; border-bottom: 1px dashed var(--color-border); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
-            <label style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.88rem; cursor: pointer; color: ${isEnabled ? 'var(--color-primary)' : 'var(--color-text-secondary)'}; margin-bottom: 0;">
+            <label class="switch-label" style="color: ${isEnabled ? 'var(--color-primary)' : 'var(--color-text-secondary)'}; margin-bottom: 0;">
               <input type="checkbox" class="l-shift-enabled" ${isEnabled ? 'checked' : ''}>
-              <span>Show on Landing Page</span>
+              <span class="switch-slider"></span>
+              <span style="font-weight: 700; font-size: 0.88rem;">Show on Landing Page</span>
             </label>
             <div style="display: flex; align-items: center; gap: 4px;">
               ${item.shiftId ? '<span style="font-size: 0.72rem; padding: 2px 6px; background: rgba(108,92,231,0.1); color: var(--color-primary); border-radius: 4px; font-weight: 700;">Live System Shift</span>' : ''}
