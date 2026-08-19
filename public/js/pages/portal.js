@@ -553,7 +553,7 @@ function renderPortalUI(container, data, analytics = null) {
             </div>
 
             <div style="font-size: 0.82rem; line-height: 1.6; border-top: 1px dashed #e2e8f0; padding-top: 10px; color: #4a5568;">
-              <div style="display: flex; justify-content: space-between;"><strong>Assigned Seat:</strong> <span style="font-weight: 700; color: #6c5ce7;">${escapeHTML(seatNumber)}</span></div>
+              <div style="display: flex; justify-content: space-between;"><strong>Assigned Seat:</strong> <span style="font-weight: 700; color: #6c5ce7;">${escapeHTML(seatTitle)}</span></div>
               <div style="display: flex; justify-content: space-between;"><strong>Plan:</strong> <span>${escapeHTML(planName)}</span></div>
               <div style="display: flex; justify-content: space-between;"><strong>Phone:</strong> <span>${escapeHTML(student.phone || '-')}</span></div>
               <div style="display: flex; justify-content: space-between;"><strong>Valid Till:</strong> <span style="font-weight: 700; color: #e53e3e;">${expiryDateStr}</span></div>
@@ -572,14 +572,19 @@ function renderPortalUI(container, data, analytics = null) {
           </div>
         </div>
 
-        <div class="d-flex justify-content-center gap-3 mt-4">
-          <button class="btn btn-primary" onclick="window.print()">🖨️ Print ID Card</button>
-          <button class="btn btn-secondary modal-close-btn" onclick="Modal.close()">Close</button>
+        <div class="d-flex justify-content-center gap-2 mt-4 flex-wrap">
+          <button class="btn btn-outline-primary btn-sm" id="btn-download-1080p-idpass">📱 Download Mobile ID Pass (1080x1920)</button>
+          <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Print ID Card</button>
+          <button class="btn btn-secondary btn-sm modal-close-btn" onclick="Modal.close()">Close</button>
         </div>
       </div>
     `;
 
     new Modal({ title: `Student ID Card`, content: modalContent, size: 'md' }).show();
+
+    modalContent.querySelector('#btn-download-1080p-idpass')?.addEventListener('click', () => {
+      download1080pMobileIDPass(student, business, initials, seatTitle, planName, expiryDateStr);
+    });
   });
 
 
@@ -1480,3 +1485,208 @@ export function renderHeatmapGridHtml(heatmapData) {
     </div>
   `;
 }
+
+/**
+ * Generate 1080x1920px Offline Mobile ID Pass Canvas Image & Trigger Download
+ */
+export function download1080pMobileIDPass(student, business, initials, seatTitle, planName, expiryDateStr) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1920;
+  const ctx = canvas.getContext('2d');
+
+  // Background gradient (Vertical mobile wallpaper)
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, 1920);
+  bgGrad.addColorStop(0, '#0f172a');
+  bgGrad.addColorStop(0.5, '#1e1b4b');
+  bgGrad.addColorStop(1, '#0f172a');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, 1080, 1920);
+
+  // Outer decorative accent circle
+  ctx.beginPath();
+  ctx.arc(540, -100, 600, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(108, 92, 231, 0.15)';
+  ctx.fill();
+
+  // Card Container (rounded rectangle)
+  const cardX = 90, cardY = 160, cardW = 900, cardH = 1600, cardR = 40;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cardX + cardR, cardY);
+  ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, cardR);
+  ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, cardR);
+  ctx.arcTo(cardX, cardY + cardH, cardX, cardY, cardR);
+  ctx.arcTo(cardX, cardY, cardX + cardW, cardY, cardR);
+  ctx.closePath();
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+  ctx.shadowBlur = 40;
+  ctx.shadowOffsetY = 20;
+  ctx.fill();
+  ctx.restore();
+
+  // Card Header Banner (Gradient)
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cardX + cardR, cardY);
+  ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + 360, cardR);
+  ctx.lineTo(cardX + cardW, cardY + 360);
+  ctx.lineTo(cardX, cardY + 360);
+  ctx.arcTo(cardX, cardY, cardX + cardR, cardY, cardR);
+  ctx.closePath();
+  const headerGrad = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY + 360);
+  headerGrad.addColorStop(0, '#6c5ce7');
+  headerGrad.addColorStop(1, '#00b894');
+  ctx.fillStyle = headerGrad;
+  ctx.fill();
+  ctx.restore();
+
+  // Library Business Name
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '800 48px Outfit, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText((business.businessName || 'STUDY LIBRARY').toUpperCase(), 540, cardY + 120);
+
+  // Subtitle
+  ctx.font = '600 28px Outfit, sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.fillText('OFFLINE DIGITAL PASS', 540, cardY + 175);
+
+  // Avatar Outer Circle
+  const avatarX = 540, avatarY = cardY + 360, avatarR = 120;
+  ctx.beginPath();
+  ctx.arc(avatarX, avatarY, avatarR + 10, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(avatarX, avatarY, avatarR, 0, Math.PI * 2);
+  ctx.fillStyle = '#f0f2f5';
+  ctx.fill();
+
+  // Initials inside circle
+  ctx.fillStyle = '#6c5ce7';
+  ctx.font = '800 84px Outfit, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(initials, avatarX, avatarY);
+
+  // Reset text baseline
+  ctx.textBaseline = 'alphabetic';
+
+  // Student Name
+  ctx.fillStyle = '#1e293b';
+  ctx.font = '800 56px Outfit, sans-serif';
+  ctx.fillText(student.name || 'Student Member', 540, cardY + 570);
+
+  // Student ID Badge Pill
+  const pillW = 420, pillH = 64, pillX = 540 - pillW / 2, pillY = cardY + 610, pillR = 16;
+  ctx.save();
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(pillX, pillY, pillW, pillH, pillR);
+  } else {
+    ctx.rect(pillX, pillY, pillW, pillH);
+  }
+  ctx.fillStyle = '#eef2ff';
+  ctx.fill();
+  ctx.strokeStyle = '#6c5ce7';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = '#4338ca';
+  ctx.font = '800 32px monospace';
+  ctx.fillText(student.studentId || 'STU-MEMBER', 540, pillY + 44);
+
+  // Details Data Box
+  const boxX = cardX + 60, boxY = cardY + 720, boxW = cardW - 120, boxH = 500, boxR = 24;
+  ctx.save();
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(boxX, boxY, boxW, boxH, boxR);
+  } else {
+    ctx.rect(boxX, boxY, boxW, boxH);
+  }
+  ctx.fillStyle = '#f8fafc';
+  ctx.fill();
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  // Details Rows
+  const labels = [
+    { label: 'Assigned Desk:', val: seatTitle, color: '#6c5ce7' },
+    { label: 'Study Plan:', val: planName, color: '#1e293b' },
+    { label: 'Phone Number:', val: student.phone || '-', color: '#1e293b' },
+    { label: 'Valid Till:', val: expiryDateStr, color: '#e53e3e' }
+  ];
+
+  labels.forEach((item, idx) => {
+    const rowY = boxY + 80 + idx * 105;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 32px Outfit, sans-serif';
+    ctx.fillText(item.label, boxX + 40, rowY);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = item.color;
+    ctx.font = '800 34px Outfit, sans-serif';
+    ctx.fillText(item.val, boxX + boxW - 40, rowY);
+
+    if (idx < labels.length - 1) {
+      ctx.beginPath();
+      ctx.moveTo(boxX + 30, rowY + 35);
+      ctx.lineTo(boxX + boxW - 30, rowY + 35);
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  });
+
+  // QR Code Generation onto Canvas
+  const qrData = JSON.stringify({
+    type: 'STUDENT_ID',
+    id: student.studentId,
+    name: student.name,
+    phone: student.phone
+  });
+
+  const triggerDownload = () => {
+    const link = document.createElement('a');
+    link.download = `${(student.name || 'Student').replace(/\s+/g, '_')}_Mobile_ID_Pass_1080x1920.png`;
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    Toast.success('📱 1080x1920px Mobile ID Pass image generated & downloaded!');
+  };
+
+  const qrImg = new Image();
+  qrImg.crossOrigin = 'anonymous';
+  qrImg.onload = () => {
+    const qrSize = 240;
+    const qrX = 540 - qrSize / 2;
+    const qrY = cardY + 1260;
+    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 24px Outfit, sans-serif';
+    ctx.fillText(`Carry Daily on Mobile • Helpdesk: ${business.phone || ''}`, 540, cardY + 1540);
+
+    triggerDownload();
+  };
+  qrImg.onerror = () => {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 24px Outfit, sans-serif';
+    ctx.fillText(`Carry Daily on Mobile • Helpdesk: ${business.phone || ''}`, 540, cardY + 1540);
+
+    triggerDownload();
+  };
+  qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrData)}&margin=4`;
+}
+

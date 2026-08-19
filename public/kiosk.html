@@ -590,7 +590,7 @@
 
     // Barcode scanner input handling
     const barcodeInput = document.getElementById('barcode-input');
-    barcodeInput.addEventListener('keydown', (e) => {
+    barcodeInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         const val = barcodeInput.value.trim();
         if (val) {
@@ -600,16 +600,29 @@
       }
     });
 
+    // Global listener for USB/Bluetooth hardware barcode scanner capture
+    document.addEventListener('keydown', (e) => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT');
+      const overlayVisible = document.getElementById('result-overlay')?.style.display === 'flex';
+
+      if (!isInput && !overlayVisible && e.key && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        if (barcodeInput && document.getElementById('card-mode-qr')?.style.display !== 'none') {
+          barcodeInput.focus();
+          barcodeInput.value += e.key;
+          e.preventDefault();
+        }
+      }
+    });
+
     // Sound effects using Web Audio API
     let audioCtx = null;
-    document.body.addEventListener('click', () => {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-    }, { once: true });
-    document.body.addEventListener('touchstart', () => {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-    }, { once: true });
+    ['click', 'touchstart', 'keydown'].forEach(evt => {
+      document.body.addEventListener(evt, () => {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      }, { once: true });
+    });
 
     function playChime(isCheckin) {
       try {

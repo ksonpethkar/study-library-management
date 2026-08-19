@@ -174,6 +174,21 @@ export async function render(container) {
 
       </div>
 
+      <!-- Multi-Branch Comparative Analytics -->
+      <div class="card mb-2" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom: 1px solid var(--color-divider);">
+          <h3 style="margin: 0; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+            <span>🏢</span> Multi-Branch Comparative Analytics & Occupancy P&L
+          </h3>
+          <span class="badge badge-primary" id="branchAnalyticsCount">0 Branches</span>
+        </div>
+        <div class="card-body p-3">
+          <div id="multiBranchGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+            <div class="text-muted small text-center p-3">Loading branch analytics...</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Charts Section -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
         
@@ -518,16 +533,23 @@ export async function render(container) {
       const params = { startDate, endDate };
 
       // Fetch all reports in parallel
-      const [overviewRes, revenueRes, attendanceRes, expiriesRes] = await Promise.allSettled([
+      const [overviewRes, revenueRes, attendanceRes, expiriesRes, branchesRes] = await Promise.allSettled([
         api.get('/api/reports/overview', params),
         api.get('/api/reports/revenue', params),
         api.get('/api/reports/attendance', params),
-        api.get('/api/reports/expiries', { days: 30 })
+        api.get('/api/reports/expiries', { days: 30 }),
+        api.get('/api/branches')
       ]);
 
       if (overviewRes.status === 'fulfilled' && overviewRes.value?.success) {
         cachedOverview = overviewRes.value.data;
         updateOverviewCards(cachedOverview);
+      }
+
+      if (branchesRes.status === 'fulfilled' && branchesRes.value?.success) {
+        renderMultiBranchAnalytics(branchesRes.value.data);
+      } else {
+        renderMultiBranchAnalytics([]);
       }
 
       if (revenueRes.status === 'fulfilled' && revenueRes.value?.success) {
@@ -553,6 +575,57 @@ export async function render(container) {
       console.error('Error loading reports analytics:', err);
       Toast.error('Failed to load reports data. Please check backend connection.');
     }
+  }
+
+  /**
+   * Render Multi-Branch Comparative Analytics Cards
+   */
+  function renderMultiBranchAnalytics(branches) {
+    const grid = container.querySelector('#multiBranchGrid');
+    const badge = container.querySelector('#branchAnalyticsCount');
+    if (!grid) return;
+
+    if (!branches || branches.length === 0) {
+      grid.innerHTML = `<div class="text-muted small text-center p-3">No active branch locations registered.</div>`;
+      if (badge) badge.textContent = '0 Branches';
+      return;
+    }
+
+    if (badge) badge.textContent = `${branches.length} ${branches.length === 1 ? 'Branch' : 'Branches'}`;
+
+    grid.innerHTML = branches.map(b => {
+      const occPct = b.occupancyPercent || 0;
+      let barColor = 'var(--color-success)';
+      if (occPct > 85) barColor = 'var(--color-danger)';
+      else if (occPct > 60) barColor = 'var(--color-primary)';
+
+      return `
+        <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary);">${escapeHTML(b.name)}</div>
+              <div style="font-size: 0.78rem; color: var(--color-text-secondary);">${escapeHTML(b.city || '')} ${b.isMainBranch ? '• <span class="badge badge-primary" style="font-size: 0.65rem;">MAIN</span>' : ''}</div>
+            </div>
+            <span class="badge ${b.isActive ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.7rem;">${b.isActive ? 'Active' : 'Inactive'}</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem; margin-bottom: 10px;">
+            <div><span class="text-muted d-block small">Occupancy</span><strong style="color: var(--color-primary);">${b.occupiedSeats || 0} / ${b.effectiveCapacity || b.totalSeats || 50}</strong></div>
+            <div><span class="text-muted d-block small">Active Members</span><strong>${b.activeStudents || 0}</strong></div>
+          </div>
+
+          <div style="margin-top: 6px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px; color: var(--color-text-muted);">
+              <span>Occupancy Rate</span>
+              <strong>${occPct}%</strong>
+            </div>
+            <div class="progress" style="height: 6px;">
+              <div class="progress-bar" style="width: ${occPct}%; background: ${barColor};"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   /**

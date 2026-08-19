@@ -506,8 +506,9 @@ export async function render(container) {
                     </div>
                     
                     <div class="col-md-6">
-                        <label class="form-label" style="font-weight: 500;">UPI / Transaction Ref ID</label>
-                        <input type="text" name="transactionId" class="form-control" placeholder="e.g. UPI Ref # 123456789">
+                        <label class="form-label" style="font-weight: 500;">UPI / 12-Digit UTR Transaction ID</label>
+                        <input type="text" name="transactionId" id="payTransactionId" class="form-control" placeholder="e.g. 12-digit UTR (e.g. 423456789012)" maxlength="30">
+                        <small id="utrWarnMsg" class="text-danger" style="display: none; font-size: 0.75rem; margin-top: 3px; font-weight: 600;"></small>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" style="font-weight: 500;">Remarks / Notes</label>
@@ -568,6 +569,41 @@ export async function render(container) {
             }
         }
         
+        const payTxnInput = content.querySelector('#payTransactionId');
+        const utrWarnMsg = content.querySelector('#utrWarnMsg');
+
+        const validateUTR = async () => {
+            const txnVal = payTxnInput?.value?.trim() || '';
+            if (!txnVal || !utrWarnMsg) {
+                if (utrWarnMsg) utrWarnMsg.style.display = 'none';
+                return true;
+            }
+
+            if (/^\d+$/.test(txnVal) && txnVal.length !== 12) {
+                utrWarnMsg.textContent = `ℹ️ UPI UTR is usually 12 digits (currently ${txnVal.length} digits)`;
+                utrWarnMsg.style.color = 'var(--color-warning, #f59e0b)';
+                utrWarnMsg.style.display = 'block';
+            } else {
+                utrWarnMsg.style.display = 'none';
+            }
+
+            try {
+                const cachedPayments = await IDBStorage.get('payments', 'list__') || [];
+                const isDup = Array.isArray(cachedPayments) && cachedPayments.some(p => p.transactionId && p.transactionId.trim().toLowerCase() === txnVal.toLowerCase());
+                if (isDup) {
+                    utrWarnMsg.textContent = `⚠️ Warning: Transaction Ref ID "${txnVal}" has already been recorded!`;
+                    utrWarnMsg.style.color = 'var(--color-danger, #d63031)';
+                    utrWarnMsg.style.display = 'block';
+                    return false;
+                }
+            } catch (e) {}
+            return true;
+        };
+
+        if (payTxnInput) {
+            ['input', 'blur', 'change'].forEach(evt => payTxnInput.addEventListener(evt, validateUTR));
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = form.querySelector('button[type="submit"]');

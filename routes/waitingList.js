@@ -41,7 +41,7 @@ router.get('/', adminAuth, async (req, res) => {
     }
 
     const items = await WaitingList.find(query)
-      .populate('student'.lean(), 'name studentId phone email plan seat')
+      .populate('student', 'name studentId phone email plan seat')
       .populate('offeredSeat', 'seatNumber zone type')
       .sort({ priority: 1, createdAt: 1 });
 

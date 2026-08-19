@@ -488,6 +488,7 @@ export async function render() {
     // Fetch available plans, seats, custom fields, and active form template
     let plansOptions = '<option value="">-- Select Plan (Optional) --</option>';
     let seatsOptions = '<option value="">-- Select Seat (Optional) --</option>';
+    let rawAvailableSeats = [];
     let customFields = [];
     let template = {};
     
@@ -507,6 +508,7 @@ export async function render() {
       }
       
       if (seatsRes?.success && seatsRes.data) {
+        rawAvailableSeats = seatsRes.data;
         seatsRes.data.forEach(s => {
           const selected = (student && student.seat && (student.seat._id === s._id || student.seat === s._id)) ? 'selected' : '';
           seatsOptions += `<option value="${s._id}" ${selected}>${escapeHTML(s.seatNumber)} (${escapeHTML(s.zone)} - ${escapeHTML(s.type)})</option>`;

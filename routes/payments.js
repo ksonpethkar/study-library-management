@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
         const skip = (page - 1) * limit;
         
         const payments = await Payment.find(query)
-            .populate('student'.lean(), 'name studentId phone')
+            .populate('student', 'name studentId phone')
             .populate('plan', 'name')
             .sort({ paymentDate: -1 })
             .skip(skip)
@@ -88,7 +88,7 @@ router.get('/dues', async (req, res) => {
 router.get('/student/:studentId', async (req, res) => {
     try {
         const payments = await Payment.find({ student: req.params.studentId })
-            .populate('plan'.lean(), 'name')
+            .populate('plan', 'name')
             .sort({ paymentDate: -1 })
             .lean();
             
@@ -101,7 +101,7 @@ router.get('/student/:studentId', async (req, res) => {
 router.get('/pending-installments', async (req, res) => {
     try {
         const payments = await Payment.find({ balanceDue: { $gt: 0 } })
-            .populate('student'.lean(), 'name studentId phone')
+            .populate('student', 'name studentId phone')
             .populate('plan', 'name')
             .sort({ dueDate: 1 })
             .lean();
@@ -115,7 +115,7 @@ router.get('/pending-installments', async (req, res) => {
 router.get('/:id/receipt', async (req, res) => {
     try {
         const payment = await Payment.findById(req.params.id)
-            .populate('student'.lean(), 'name studentId phone email address')
+            .populate('student', 'name studentId phone email address')
             .populate('plan', 'name duration')
             .populate('collectedBy', 'name');
             

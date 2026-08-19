@@ -65,7 +65,7 @@ router.get('/', async (req, res) => {
     }
 
     const students = await Student.find(query)
-      .populate('plan'.lean(), 'name price duration durationType shift')
+      .populate('plan', 'name price duration durationType shift')
       .populate('seat', 'seatNumber zone status branch')
       .populate('locker', 'lockerNumber monthlyFee status')
       .populate('shift', 'name startTime endTime code')
@@ -99,7 +99,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const student = await Student.findById(req.params.id)
-      .populate('plan'.lean(), 'name price duration durationType shift')
+      .populate('plan', 'name price duration durationType shift')
       .populate('seat', 'seatNumber zone status branch')
       .populate('locker', 'lockerNumber monthlyFee status')
       .populate('shift', 'name startTime endTime code')
@@ -142,7 +142,7 @@ router.post('/', validate([
       } else if (shiftCodeToCheck) {
         shiftDoc = await Shift.findOne({
           $or: [
-            { code: new RegExp(`^${shiftCodeToCheck}$`, 'i') }.lean(),
+            { code: new RegExp(`^${shiftCodeToCheck}$`, 'i') },
             { name: new RegExp(shiftCodeToCheck, 'i') }
           ],
           isActive: true

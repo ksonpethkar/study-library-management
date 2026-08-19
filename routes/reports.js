@@ -200,7 +200,7 @@ router.get('/revenue', async (req, res) => {
 
     // 1. Trend analysis (daily or monthly)
     const paymentsInPeriod = await Payment.find({
-      paymentDate: { $gte: startDate, $lte: endDate }.lean(),
+      paymentDate: { $gte: startDate, $lte: endDate },
       status: 'paid'
     })
       .populate('student', 'name studentId phone email')
@@ -330,7 +330,7 @@ router.get('/attendance', async (req, res) => {
     if (studentId) filter.student = studentId;
 
     const records = await Attendance.find(filter)
-      .populate('student'.lean(), 'name studentId phone')
+      .populate('student', 'name studentId phone')
       .populate('seat', 'seatNumber zone')
       .sort({ date: 1, checkIn: 1 })
       .lean();
@@ -576,7 +576,7 @@ router.get('/export/students', async (req, res) => {
     if (plan) filter.plan = plan;
 
     const students = await Student.find(filter)
-      .populate('plan'.lean(), 'name price duration durationType')
+      .populate('plan', 'name price duration durationType')
       .populate('seat', 'seatNumber zone')
       .sort({ studentId: 1 })
       .lean();
@@ -635,7 +635,7 @@ router.get('/export/payments', async (req, res) => {
     if (status) filter.status = status;
 
     const payments = await Payment.find(filter)
-      .populate('student'.lean(), 'name studentId phone email')
+      .populate('student', 'name studentId phone email')
       .populate('plan', 'name price duration')
       .populate('collectedBy', 'name')
       .sort({ paymentDate: -1 })
@@ -695,7 +695,7 @@ router.get('/export/attendance', async (req, res) => {
     if (status) filter.status = status;
 
     const records = await Attendance.find(filter)
-      .populate('student'.lean(), 'name studentId phone')
+      .populate('student', 'name studentId phone')
       .populate('seat', 'seatNumber zone')
       .sort({ date: -1, checkIn: -1 })
       .lean();

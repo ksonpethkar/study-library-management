@@ -20,7 +20,7 @@ const roleCheck = (...roles) => {
 // GET /public-list — Public endpoint for student registration branch selection
 router.get('/public-list', async (req, res) => {
   try {
-    const branches = await Branch.find({ isActive: true }).lean().lean();
+    const branches = await Branch.find({ isActive: true }).lean();
     if (!branches || branches.length === 0) {
       return res.json({
         success: true,
@@ -124,7 +124,7 @@ router.get('/', async (req, res) => {
     }
 
     const branches = await Branch.find(filter)
-      .populate('manager'.lean(), 'name email phone avatar role')
+      .populate('manager', 'name email phone avatar role')
       .sort({ isMainBranch: -1, createdAt: -1 });
 
     const branchesWithCounts = await Promise.all(branches.map(async (b) => {

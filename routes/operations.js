@@ -295,7 +295,7 @@ router.put('/referrals/config', roleCheck('owner'), async (req, res) => {
 router.get('/referrals', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const referrals = await Referral.find()
-      .populate('referrerStudent'.lean(), 'name studentId phone referralCode referralCredits')
+      .populate('referrerStudent', 'name studentId phone referralCode referralCredits')
       .populate('convertedStudent', 'name studentId phone admissionDate')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: referrals });

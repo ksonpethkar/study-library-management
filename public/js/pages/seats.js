@@ -1477,13 +1477,13 @@ function showEditSeatModal(seat, container) {
           seat.status = targetStatus;
           const sObj = seatsData.find(s => s._id === seat._id);
           if (sObj) sObj.status = targetStatus;
-          renderSeatGrid(container, seatsData);
+          renderSeatsGrid(seatsData, container);
         },
         rollbackState: () => {
           seat.status = oldStatus;
           const sObj = seatsData.find(s => s._id === seat._id);
           if (sObj) sObj.status = oldStatus;
-          renderSeatGrid(container, seatsData);
+          renderSeatsGrid(seatsData, container);
         },
         apiCall: () => api.put(`/api/seats/${seat._id}`, data),
         onSuccess: (res) => {
@@ -1929,14 +1929,14 @@ function handleBulkStatus(container) {
             const s = seatsData.find(st => st._id === id);
             if (s) s.status = targetStatus;
           });
-          renderSeatGrid(container, seatsData);
+          renderSeatsGrid(seatsData, container);
         },
         rollbackState: () => {
           ids.forEach(id => {
             const s = seatsData.find(st => st._id === id);
             if (s && previousStatuses.has(id)) s.status = previousStatuses.get(id);
           });
-          renderSeatGrid(container, seatsData);
+          renderSeatsGrid(seatsData, container);
         },
         apiCall: () => api.post('/api/seats/bulk-update', {
           seatIds: ids,

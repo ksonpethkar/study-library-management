@@ -796,6 +796,15 @@
       const cityEl = document.getElementById('reg-city');
       const stateEl = document.getElementById('reg-state');
       if (pin.length === 6 && /^\d+$/.test(pin)) {
+        // 0ms Synchronous local client lookup first
+        const p4 = pin.substring(0, 4);
+        const p3 = pin.substring(0, 3);
+        const localMatch = PIN_CLIENT_MAP[p4] || PIN_CLIENT_MAP[p3];
+        if (localMatch) {
+          if (cityEl) cityEl.value = localMatch.city;
+          if (stateEl) stateEl.value = localMatch.state;
+        }
+
         if (cityEl && !cityEl.value) cityEl.placeholder = '⚡ Auto-filling...';
         if (stateEl && !stateEl.value) stateEl.placeholder = '⚡ Auto-filling...';
         try {
@@ -888,9 +897,13 @@
         gridHtml += '</div>';
         seatContainer.innerHTML = gridHtml;
 
-        // Seat selection handler
+        // Seat selection handler with toggle support
         seatContainer.querySelectorAll('.seat-picker-btn').forEach(btn => {
           btn.addEventListener('click', () => {
+            const currentSelected = document.getElementById('reg-selected-seat')?.value;
+            const seatId = btn.dataset.id;
+            const seatNo = btn.dataset.number;
+
             seatContainer.querySelectorAll('.seat-picker-btn').forEach(b => {
               if (!b.disabled) {
                 b.style.background = 'var(--color-surface)';
@@ -903,19 +916,24 @@
                 }
               }
             });
-            btn.style.background = 'var(--color-primary)';
-            btn.style.color = '#fff';
-            btn.style.borderColor = 'var(--color-primary)';
-            const ind = btn.querySelector('span:first-child');
-            if (ind) {
-              ind.style.background = '#ffffff';
-              ind.style.color = 'var(--color-primary)';
+
+            if (currentSelected === seatId) {
+              // Deselect seat
+              document.getElementById('reg-selected-seat').value = '';
+              document.getElementById('selected-seat-display').textContent = 'No seat selected yet (Optional — desk can assign on arrival if unselected)';
+            } else {
+              // Select seat
+              btn.style.background = 'var(--color-primary)';
+              btn.style.color = '#fff';
+              btn.style.borderColor = 'var(--color-primary)';
+              const ind = btn.querySelector('span:first-child');
+              if (ind) {
+                ind.style.background = '#ffffff';
+                ind.style.color = 'var(--color-primary)';
+              }
+              document.getElementById('reg-selected-seat').value = seatId;
+              document.getElementById('selected-seat-display').textContent = `✅ Selected Seat: ${seatNo}`;
             }
-            
-            const seatId = btn.dataset.id;
-            const seatNo = btn.dataset.number;
-            document.getElementById('reg-selected-seat').value = seatId;
-            document.getElementById('selected-seat-display').textContent = `✅ Selected Seat: ${seatNo}`;
           });
         });
 

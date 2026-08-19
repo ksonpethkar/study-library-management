@@ -63,7 +63,7 @@ router.get('/', protect, async (req, res) => {
     }
 
     const lockers = await Locker.find(query)
-      .populate('assignedStudent'.lean(), 'name phone studentId dateOfBirth photo')
+      .populate('assignedStudent', 'name phone studentId dateOfBirth photo')
       .populate('branch', 'name')
       .sort({ lockerNumber: 1 })
       .lean();

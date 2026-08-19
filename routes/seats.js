@@ -24,7 +24,7 @@ router.get('/public-available', async (req, res) => {
   try {
     const seats = await Seat.find({ isActive: true })
       .select('seatNumber zone floor status type priceMultiplier branch')
-      .populate('branch'.lean(), 'name code')
+      .populate('branch', 'name code')
       .sort('seatNumber')
       .lean();
     res.json({ success: true, data: seats });
@@ -57,7 +57,7 @@ router.get('/', async (req, res) => {
     }
 
     const seats = await Seat.find(filter)
-      .populate('currentStudent'.lean(), 'name studentId phone email photo')
+      .populate('currentStudent', 'name studentId phone email photo')
       .populate('branch', 'name code city')
       .sort('seatNumber')
       .lean();
@@ -129,7 +129,7 @@ router.get('/stats', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const seat = await Seat.findById(req.params.id)
-      .populate('currentStudent'.lean(), 'name studentId email phone photo')
+      .populate('currentStudent', 'name studentId email phone photo')
       .populate('branch', 'name code')
       .lean();
     if (!seat) {

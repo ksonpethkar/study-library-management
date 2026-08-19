@@ -40,7 +40,7 @@ router.get('/', protect, async (req, res) => {
 
     const total = await Attendance.countDocuments(filter);
     const records = await Attendance.find(filter)
-      .populate('student'.lean(), 'name studentId phone')
+      .populate('student', 'name studentId phone')
       .populate('seat', 'seatNumber')
       .sort({ date: -1, createdAt: -1 })
       .skip((page - 1) * limit)
@@ -64,7 +64,7 @@ router.get('/today', protect, async (req, res) => {
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    const records = await Attendance.find({ date: { $gte: startOfDay.lean(), $lte: endOfDay } })
+    const records = await Attendance.find({ date: { $gte: startOfDay, $lte: endOfDay } })
       .populate('student', 'name studentId phone')
       .populate('seat', 'seatNumber')
       .sort({ createdAt: -1 });
@@ -85,7 +85,7 @@ router.get('/today', protect, async (req, res) => {
 router.get('/student/:studentId', protect, async (req, res) => {
   try {
     const records = await Attendance.find({ student: req.params.studentId })
-      .populate('seat'.lean(), 'seatNumber')
+      .populate('seat', 'seatNumber')
       .sort({ date: -1 });
 
     res.json({
@@ -109,7 +109,7 @@ router.get('/analytics/:studentId', protect, async (req, res) => {
     if (paramId === 'me') {
       student = await Student.findOne({
         $or: [
-          { email: req.user.email }.lean(),
+          { email: req.user.email },
           { phone: req.user.phone }
         ]
       });
@@ -136,7 +136,7 @@ router.get('/analytics/:studentId', protect, async (req, res) => {
     startOf90Days.setHours(0, 0, 0, 0);
 
     const records = await Attendance.find({
-      student: student._id.lean(),
+      student: student._id,
       date: { $gte: startOf90Days, $lte: endOfToday }
     }).sort({ date: 1 });
 
@@ -366,7 +366,7 @@ router.post('/check-in', protect, validate([
     endOfDay.setHours(23, 59, 59, 999);
 
     let record = await Attendance.findOne({
-      student: studentId.lean(),
+      student: studentId,
       date: { $gte: startOfDay, $lte: endOfDay }
     });
 
@@ -537,7 +537,7 @@ router.post(['/rfid-punch', '/kiosk-punch'], async (req, res) => {
     // Look up student by studentId, phone, rfidCardNumber, or biometricId
     const student = await Student.findOne({
       $or: [
-        { studentId: { $regex: new RegExp(`^${identifier}$`, 'i') } }.lean(),
+        { studentId: { $regex: new RegExp(`^${identifier}$`, 'i') } },
         { phone: identifier },
         { rfidCardNumber: identifier },
         { biometricId: identifier }
@@ -684,7 +684,7 @@ router.post('/biometric', async (req, res) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     let att = await Attendance.findOne({
-      student: student._id.lean(),
+      student: student._id,
       date: { $gte: today, $lt: tomorrow }
     });
 
@@ -773,7 +773,7 @@ router.post('/hardware-sync', async (req, res) => {
       const identifier = String(rawId).trim();
       const student = await Student.findOne({
         $or: [
-          { studentId: { $regex: new RegExp(`^${identifier}$`, 'i') } }.lean(),
+          { studentId: { $regex: new RegExp(`^${identifier}$`, 'i') } },
           { rfidCardNumber: identifier },
           { biometricId: identifier },
           { phone: identifier }
