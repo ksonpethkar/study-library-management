@@ -1,3 +1,10 @@
+const express = require('express');
+const router = express.Router();
+const { protect } = require('../middleware/auth');
+const Student = require('../models/Student');
+const Seat = require('../models/Seat');
+const Plan = require('../models/Plan');
+const Payment = require('../models/Payment');
 const { lookupPincode } = require('../utils/pincodeLookup');
 
 // @route   GET /api/search/pincode/:pin
