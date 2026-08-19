@@ -178,22 +178,7 @@ function renderSettingsUI(container, profile, settings) {
                 </div>
               </div>
 
-              <!-- Custom URL & Domain Guidance -->
-              <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(16, 185, 129, 0.06)); border: 1px solid var(--color-primary-bg); border-radius: var(--radius-md); padding: 16px; margin-bottom: 1.5rem;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                  <span style="font-size: 1.2rem;">🌐</span>
-                  <h4 style="margin: 0; font-size: 1rem; font-weight: 800; color: var(--color-primary);">Custom Domain URL Configuration Guidance</h4>
-                </div>
-                <p class="text-muted small" style="margin-bottom: 10px; line-height: 1.5;">
-                  You can map a custom URL (e.g. <code>https://thecozycornerlibrary.com</code>) to your library system:
-                </p>
-                <ol class="text-muted small" style="margin-left: 1.2rem; line-height: 1.6; margin-bottom: 6px;">
-                  <li>Log into your domain registrar (GoDaddy, Namecheap, Google Domains, Hostinger).</li>
-                  <li>Open your <strong>Render.com Dashboard</strong> ➔ <code>study-library-management</code> ➔ <code>Settings</code> ➔ <code>Custom Domains</code>.</li>
-                  <li>Add your custom domain (e.g., <code>thecozycornerlibrary.com</code>) and copy the DNS CNAME/A records to your registrar.</li>
-                  <li>Render automatically issues a <strong>Free SSL (HTTPS) Certificate</strong> for your custom domain URL!</li>
-                </ol>
-              </div>
+
 
               <!-- Contact & Address -->
               <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--color-text-primary); margin: 1.5rem 0 1rem 0; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem;">
