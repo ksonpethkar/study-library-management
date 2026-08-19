@@ -1349,6 +1349,23 @@
             opt.textContent = `${p.name} — ₹${price.toLocaleString('en-IN')}/${duration} (${shiftStr})`;
             planSelect.appendChild(opt);
           });
+
+          // Auto-preselect plan from URL parameter (e.g. /register?plan=64... or /register?plan=Monthly)
+          const urlParams = new URLSearchParams(window.location.search);
+          const targetPlan = urlParams.get('plan') || urlParams.get('planId');
+          if (targetPlan) {
+            const decoded = decodeURIComponent(targetPlan).trim();
+            const matched = plans.find(p => 
+              (p._id && p._id.toString() === decoded) || 
+              (p.id && p.id.toString() === decoded) || 
+              (p.name && p.name.toLowerCase() === decoded.toLowerCase())
+            );
+            if (matched) {
+              const matchedId = matched._id || matched.id;
+              planSelect.value = matchedId;
+              planSelect.dispatchEvent(new Event('change'));
+            }
+          }
         }
 
       } catch (err) {

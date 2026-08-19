@@ -1032,8 +1032,26 @@
         const baseEffective = Math.round(p.effectivePrice || p.price || 0);
         const totalBase = baseEffective * multiplier;
         const discountedTotal = Math.round(totalBase * (1 - discountPercent / 100));
-        const durationLabel = multiplier === 1 ? `1 Month` : (multiplier === 12 ? `1 Year` : `${multiplier} Months`);
+        
+        let durationLabel = '';
+        if (multiplier > 1) {
+          durationLabel = multiplier === 12 ? '1 Year' : `${multiplier} Months`;
+        } else {
+          if (p.duration && p.duration > 1) {
+            durationLabel = p.durationType === 'days' ? `${p.duration} Days` : `${p.duration} Months`;
+          } else if (p.name && p.name.toLowerCase().includes('quarter')) {
+            durationLabel = '3 Months';
+          } else if (p.name && (p.name.toLowerCase().includes('half') || p.name.toLowerCase().includes('6 month'))) {
+            durationLabel = '6 Months';
+          } else if (p.name && (p.name.toLowerCase().includes('annual') || p.name.toLowerCase().includes('year'))) {
+            durationLabel = '1 Year';
+          } else {
+            durationLabel = '1 Month';
+          }
+        }
+
         const totalDiscount = Math.max(p.discount || 0, discountPercent);
+        const planId = p.id || p._id || '';
 
         return `
           <div class="plan-card">
@@ -1048,7 +1066,7 @@
               <li>Shift: <strong>${(p.shift || 'Any').toUpperCase()}</strong></li>
               ${(p.features || []).map(f => `<li>${f}</li>`).join('')}
             </ul>
-            <a href="/register" class="btn-hero-primary" style="justify-content: center; text-align: center; width: 100%; border: none;">
+            <a href="/register?plan=${encodeURIComponent(planId || p.name)}" class="btn-hero-primary" style="justify-content: center; text-align: center; width: 100%; border: none; text-decoration: none;">
               Register Now
             </a>
           </div>
