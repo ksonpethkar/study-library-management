@@ -2,6 +2,8 @@ import { App } from '../app.js';
 import { t } from '../i18n.js';
 import { Toast, Modal, Loading, Confirm, escapeHTML, debounce } from '../ui.js';
 import api from '../api.js';
+import { IDBStorage } from '../utils/idbStorage.js';
+import { OptimisticUI } from '../utils/optimisticUI.js';
 
 const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
@@ -160,8 +162,23 @@ export async function render(container) {
 
     async function loadStats() {
         try {
+            const cachedStats = await IDBStorage.get('payments', 'stats');
+            if (cachedStats) {
+                const elToday = document.getElementById('statToday');
+                const elMonth = document.getElementById('statMonth');
+                const elPending = document.getElementById('statPending');
+                if (elToday) elToday.textContent = formatCurrency(cachedStats.todayRevenue);
+                if (elMonth) elMonth.textContent = formatCurrency(cachedStats.monthRevenue);
+                if (elPending) elPending.textContent = formatCurrency(cachedStats.totalPending);
+            }
+        } catch (e) {
+            console.warn('IDB read payments stats warning:', e);
+        }
+
+        try {
             const res = await api.get('/api/payments/stats');
             if (res.success && res.data) {
+                await IDBStorage.set('payments', 'stats', res.data);
                 const elToday = document.getElementById('statToday');
                 const elMonth = document.getElementById('statMonth');
                 const elPending = document.getElementById('statPending');
@@ -174,98 +191,152 @@ export async function render(container) {
         }
     }
 
+    function renderPaymentsTableRows(payments, tbody) {
+        if (!tbody) return;
+        if (!payments || payments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center empty-state p-4 text-muted">No payments found. Click "Collect Fee Payment" to record one.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = payments.map(p => `
+            <tr>
+                <td><a href="#" class="receipt-link" data-id="${p._id}" style="font-family: monospace; font-weight: 700; color: var(--color-primary, #6c5ce7);">${escapeHTML(p.receiptNumber || 'N/A')}</a></td>
+                <td>
+                    <div style="font-weight: 600;">${escapeHTML(p.student?.name || 'Unknown')}</div>
+                    <small class="text-muted">${escapeHTML(p.student?.phone || '')}</small>
+                </td>
+                <td><strong style="font-size: 1.05rem;">${formatCurrency(p.finalAmount)}</strong></td>
+                <td><span class="badge" style="background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px; text-transform: uppercase;">${escapeHTML(p.paymentMethod)}</span></td>
+                <td>${formatDate(p.paymentDate)}</td>
+                <td>
+                    <span class="badge btn-toggle-payment-status" data-id="${p._id}" data-status="${escapeHTML(p.status)}" style="${p.status === 'paid' ? 'background: rgba(0, 184, 148, 0.2); color: var(--color-success);' : 'background: rgba(214, 48, 49, 0.2); color: var(--color-danger);'} padding: 4px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;" title="Click to toggle status">
+                        ${escapeHTML(p.status)}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary btn-view" data-id="${p._id}" style="padding: 3px 8px; font-size: 0.8rem;">View Receipt</button>
+                    ${p.status === 'partial' && p.balanceDue > 0 ? `
+                        <button class="btn btn-sm btn-warning btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px;">💰 Pay Balance</button>
+                        <button class="btn btn-sm btn-outline-success btn-remind-balance" data-id="${p._id}" data-student-id="${p.student?._id || p.student}" data-name="${escapeHTML(p.student?.name || 'Student')}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px; white-space: nowrap;" title="Send WhatsApp Balance Reminder with 1-Tap UPI Link">📲 WhatsApp Reminder</button>
+                    ` : ''}
+                </td>
+            </tr>
+        `).join('');
+
+        tbody.querySelectorAll('.receipt-link, .btn-view').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                showReceiptModal(btn.dataset.id);
+            });
+        });
+        tbody.querySelectorAll('.btn-toggle-payment-status').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const id = btn.dataset.id;
+                const currentStatus = btn.dataset.status || 'paid';
+                const newStatus = currentStatus === 'paid' ? 'pending' : 'paid';
+
+                OptimisticUI.execute({
+                    applyState: () => {
+                        btn.dataset.status = newStatus;
+                        btn.textContent = newStatus;
+                        btn.style.cssText = newStatus === 'paid'
+                            ? 'background: rgba(0, 184, 148, 0.2); color: var(--color-success); padding: 4px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;'
+                            : 'background: rgba(214, 48, 49, 0.2); color: var(--color-danger); padding: 4px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;';
+                    },
+                    rollbackState: () => {
+                        btn.dataset.status = currentStatus;
+                        btn.textContent = currentStatus;
+                        btn.style.cssText = currentStatus === 'paid'
+                            ? 'background: rgba(0, 184, 148, 0.2); color: var(--color-success); padding: 4px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;'
+                            : 'background: rgba(214, 48, 49, 0.2); color: var(--color-danger); padding: 4px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;';
+                    },
+                    apiCall: () => api.put(`/api/payments/${id}`, { status: newStatus }),
+                    onSuccess: async (res) => {
+                        Toast.success(res?.message || `Payment status changed to ${newStatus}`);
+                        await IDBStorage.clear('payments');
+                        loadStats();
+                    }
+                });
+            });
+        });
+        tbody.querySelectorAll('.btn-pay-balance').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                showPayBalanceModal(btn.dataset.id, btn.dataset.balance);
+            });
+        });
+        tbody.querySelectorAll('.btn-remind-balance').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const paymentId = btn.dataset.id;
+                const studentId = btn.dataset.studentId;
+                const studentName = btn.dataset.name;
+                const balanceDue = btn.dataset.balance;
+                
+                try {
+                    const res = await api.post('/api/messages/send-reminder', {
+                        studentId,
+                        paymentId,
+                        message: `Hello ${studentName}, this is a gentle reminder that your partial fee balance of ₹${balanceDue} is pending. Please complete your payment using this link: {{upi_link}}`
+                    });
+                    if (res.success) {
+                        Toast.success('WhatsApp reminder sent successfully!');
+                        if (res.data?.waUrl) {
+                            window.open(res.data.waUrl, '_blank');
+                        }
+                    } else {
+                        Toast.error(res.message || 'Failed to send WhatsApp reminder');
+                    }
+                } catch (err) {
+                    Toast.error(err.message || 'Error sending WhatsApp reminder');
+                }
+            });
+        });
+    }
+
     async function loadPayments() {
         const method = document.getElementById('filterMethod')?.value || '';
         const status = document.getElementById('filterStatus')?.value || '';
         let url = '/api/payments?limit=20';
         if (method) url += `&method=${method}`;
         if (status) url += `&status=${status}`;
+        const cacheKey = `list_${method}_${status}`;
         
         const tbody = document.getElementById('paymentsTableBody');
-        if (tbody) Loading.skeleton(tbody, 'table');
+        if (!tbody) return;
+
+        let hasRenderedCache = false;
+        try {
+            const cachedPayments = await IDBStorage.get('payments', cacheKey);
+            if (cachedPayments && Array.isArray(cachedPayments)) {
+                renderPaymentsTableRows(cachedPayments, tbody);
+                hasRenderedCache = true;
+            }
+        } catch (e) {
+            console.warn('IDB read payments list warning:', e);
+        }
+
+        if (!hasRenderedCache) {
+            Loading.skeleton(tbody, 'table');
+        }
 
         try {
             const res = await api.get(url);
-            if (!tbody) return;
-
-            if (!res.success || !res.data.payments || res.data.payments.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center empty-state p-4 text-muted">No payments found. Click "Collect Fee Payment" to record one.</td></tr>';
+            if (!res.success || !res.data.payments) {
+                if (!hasRenderedCache) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center empty-state p-4 text-muted">No payments found. Click "Collect Fee Payment" to record one.</td></tr>';
+                }
                 return;
             }
-            
-            tbody.innerHTML = res.data.payments.map(p => `
-                <tr>
-                    <td><a href="#" class="receipt-link" data-id="${p._id}" style="font-family: monospace; font-weight: 700; color: var(--color-primary, #6c5ce7);">${escapeHTML(p.receiptNumber || 'N/A')}</a></td>
-                    <td>
-                        <div style="font-weight: 600;">${escapeHTML(p.student?.name || 'Unknown')}</div>
-                        <small class="text-muted">${escapeHTML(p.student?.phone || '')}</small>
-                    </td>
-                    <td><strong style="font-size: 1.05rem;">${formatCurrency(p.finalAmount)}</strong></td>
-                    <td><span class="badge" style="background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px; text-transform: uppercase;">${escapeHTML(p.paymentMethod)}</span></td>
-                    <td>${formatDate(p.paymentDate)}</td>
-                    <td>
-                        <span class="badge" style="${p.status === 'paid' ? 'background: rgba(0, 184, 148, 0.2); color: var(--color-success);' : 'background: rgba(214, 48, 49, 0.2); color: var(--color-danger);'} padding: 4px 8px; border-radius: 4px; font-weight: 600;">
-                            ${escapeHTML(p.status)}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary btn-view" data-id="${p._id}" style="padding: 3px 8px; font-size: 0.8rem;">View Receipt</button>
-                        ${p.status === 'partial' && p.balanceDue > 0 ? `
-                            <button class="btn btn-sm btn-warning btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px;">💰 Pay Balance</button>
-                            <button class="btn btn-sm btn-outline-success btn-remind-balance" data-id="${p._id}" data-student-id="${p.student?._id || p.student}" data-name="${escapeHTML(p.student?.name || 'Student')}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px; white-space: nowrap;" title="Send WhatsApp Balance Reminder with 1-Tap UPI Link">📲 WhatsApp Reminder</button>
-                        ` : ''}
-                    </td>
-                </tr>
-            `).join('');
-            
-            tbody.querySelectorAll('.receipt-link, .btn-view').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    showReceiptModal(btn.dataset.id);
-                });
-            });
-            tbody.querySelectorAll('.btn-pay-balance').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    showPayBalanceModal(btn.dataset.id, btn.dataset.balance);
-                });
-            });
-            tbody.querySelectorAll('.btn-remind-balance').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    e.preventDefault();
-                    const studentId = btn.dataset.studentId;
-                    const balance = btn.dataset.balance;
-                    const studentName = btn.dataset.name;
-                    const paymentId = btn.dataset.id;
-                    if (!studentId) {
-                        Toast.error('Student ID not associated with this payment record.');
-                        return;
-                    }
-                    try {
-                        Loading.show('Preparing WhatsApp balance reminder & UPI deep link...');
-                        const res = await api.post('/api/messages/send-reminder', {
-                            studentId,
-                            paymentId,
-                            reminderType: 'balance_due',
-                            customAmount: balance
-                        });
-                        Loading.hide();
-                        if (res.success && res.data) {
-                            if (res.data.whatsappUrl) {
-                                window.open(res.data.whatsappUrl, '_blank');
-                            }
-                            Toast.success(`Balance reminder sent/opened for ${studentName || res.data.studentName}!`);
-                        } else {
-                            Toast.error(res.message || 'Failed to dispatch reminder');
-                        }
-                    } catch (err) {
-                        Loading.hide();
-                        Toast.error(err.message || 'Failed to dispatch reminder');
-                    }
-                });
-            });
+
+            await IDBStorage.set('payments', cacheKey, res.data.payments);
+            renderPaymentsTableRows(res.data.payments, tbody);
         } catch (e) {
             console.error('Error loading payments', e);
+            if (!hasRenderedCache) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center empty-state p-4 text-muted">Error loading payments list.</td></tr>';
+            }
         }
     }
 
@@ -487,6 +558,7 @@ export async function render(container) {
                 if (res.success) {
                     modal.hide();
                     Toast.success('Payment collected successfully!');
+                    await IDBStorage.clear('payments');
                     loadStats();
                     loadPayments();
                     loadDues();
@@ -551,18 +623,39 @@ export async function render(container) {
             data.amount = parseFloat(data.amount) || 0;
             
             try {
-                const res = await api.post(`/api/payments/${paymentId}/pay-balance`, data);
-                if (res.success) {
-                    modal.hide();
-                    Toast.success('Installment paid successfully!');
-                    loadStats();
-                    loadPayments();
-                    showReceiptModal(paymentId);
-                } else {
-                    Toast.error(res.message || 'Failed to pay installment');
-                }
+                await OptimisticUI.execute({
+                    applyState: () => {
+                        modal.hide();
+                        const row = document.querySelector(`.receipt-link[data-id="${paymentId}"]`)?.closest('tr');
+                        if (row) {
+                            const badge = row.querySelector('.badge.btn-toggle-payment-status');
+                            if (badge) {
+                                badge.textContent = 'paid';
+                                badge.style.cssText = 'background: rgba(0, 184, 148, 0.2); color: var(--color-success); padding: 4px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;';
+                            }
+                        }
+                    },
+                    rollbackState: () => {
+                        const row = document.querySelector(`.receipt-link[data-id="${paymentId}"]`)?.closest('tr');
+                        if (row) {
+                            const badge = row.querySelector('.badge.btn-toggle-payment-status');
+                            if (badge) {
+                                badge.textContent = 'partial';
+                                badge.style.cssText = 'background: rgba(214, 48, 49, 0.2); color: var(--color-danger); padding: 4px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;';
+                            }
+                        }
+                    },
+                    apiCall: () => api.post(`/api/payments/${paymentId}/pay-balance`, data),
+                    onSuccess: async (res) => {
+                        Toast.success('Installment paid successfully!');
+                        await IDBStorage.clear('payments');
+                        loadStats();
+                        loadPayments();
+                        showReceiptModal(paymentId);
+                    }
+                });
             } catch (err) {
-                Toast.error(err.message || 'An error occurred');
+                // Handled by OptimisticUI
             }
         });
     }

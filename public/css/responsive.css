@@ -379,5 +379,48 @@ html, body {
   stroke: var(--color-primary, #6366f1);
 }
 
+/* 13. Hardware-Accelerated 120fps GPU Animations & View Transitions API */
+.gpu-accelerated,
+.page-fade-slide-in {
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+}
+
+@keyframes pageFadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes pageFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.page-fade-slide-in {
+  animation: pageFadeSlideIn 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* View Transitions API CSS */
+::view-transition-old(root) {
+  will-change: transform, opacity;
+  animation: 0.15s cubic-bezier(0.4, 0, 0.2, 1) both pageFadeOut;
+}
+
+::view-transition-new(root) {
+  will-change: transform, opacity;
+  animation: 0.22s cubic-bezier(0.4, 0, 0.2, 1) both pageFadeSlideIn;
+}
+
+
 
 

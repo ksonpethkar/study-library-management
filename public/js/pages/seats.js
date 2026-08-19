@@ -2,6 +2,8 @@ import { App } from '../app.js';
 import { t } from '../i18n.js';
 import { Toast, Modal, Loading, Confirm, escapeHTML, debounce } from '../ui.js';
 import api from '../api.js';
+import { IDBStorage } from '../utils/idbStorage.js';
+import { OptimisticUI } from '../utils/optimisticUI.js';
 
 let activeHubTab = 'seats'; // 'seats' | 'centers' | 'analytics'
 let currentBranch = 'all';  // 'all' | branchId | 'unassigned'
@@ -368,8 +370,23 @@ async function loadInitialHubData(container) {
 }
 
 async function loadStats(container) {
+  const branchParam = currentBranch !== 'all' ? `?branch=${currentBranch}` : '';
+  const cacheKey = `stats_${currentBranch}`;
+
   try {
-    const branchParam = currentBranch !== 'all' ? `?branch=${currentBranch}` : '';
+    const cachedStats = await IDBStorage.get('seats', cacheKey);
+    if (cachedStats) {
+      if (container.querySelector('#stat-total')) container.querySelector('#stat-total').textContent = cachedStats.total || 0;
+      if (container.querySelector('#stat-available')) container.querySelector('#stat-available').textContent = cachedStats.available || 0;
+      if (container.querySelector('#stat-occupied')) container.querySelector('#stat-occupied').textContent = cachedStats.occupied || 0;
+      if (container.querySelector('#stat-reserved')) container.querySelector('#stat-reserved').textContent = cachedStats.reserved || 0;
+      if (container.querySelector('#stat-maintenance')) container.querySelector('#stat-maintenance').textContent = cachedStats.maintenance || 0;
+    }
+  } catch (e) {
+    console.warn('IDB read seats stats warning:', e);
+  }
+
+  try {
     const [res, wlRes] = await Promise.all([
       api.get(`/api/seats/stats${branchParam}`),
       api.get('/api/waiting-list')
@@ -377,6 +394,7 @@ async function loadStats(container) {
 
     if (res.success && res.data) {
       const stats = res.data;
+      await IDBStorage.set('seats', cacheKey, stats);
       container.querySelector('#stat-total').textContent = stats.total || 0;
       container.querySelector('#stat-available').textContent = stats.available || 0;
       container.querySelector('#stat-occupied').textContent = stats.occupied || 0;
@@ -400,43 +418,54 @@ async function loadStats(container) {
 async function loadZones(container) {
   const pillsContainer = container.querySelector('#zone-pills-container');
   if (!pillsContainer) return;
+  const branchParam = currentBranch !== 'all' ? `?branch=${currentBranch}` : '';
+  const cacheKey = `zones_${currentBranch}`;
+
+  const renderZonesUI = (zones) => {
+    let totalCount = zones.reduce((acc, z) => acc + (z.count || 0), 0);
+    let html = `
+      <button type="button" class="btn btn-sm ${currentZone === '' ? 'btn-primary' : 'btn-outline-secondary'} zone-pill-btn" data-zone="" style="border-radius: 20px; font-weight: 600; white-space: nowrap;">
+        🌟 All Zones (${totalCount})
+      </button>
+    `;
+    zones.forEach(z => {
+      const isAct = currentZone === z._id;
+      html += `
+        <button type="button" class="btn btn-sm ${isAct ? 'btn-primary' : 'btn-outline-secondary'} zone-pill-btn" data-zone="${escapeHTML(z._id)}" style="border-radius: 20px; font-weight: 600; white-space: nowrap;">
+          📍 ${escapeHTML(z._id)} <span class="badge ${isAct ? 'bg-light text-dark' : 'badge-primary'}" style="font-size: 0.7rem; margin-left: 4px;">${z.count}</span>
+        </button>
+      `;
+    });
+    pillsContainer.innerHTML = html;
+    pillsContainer.querySelectorAll('.zone-pill-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentZone = btn.getAttribute('data-zone') || '';
+        pillsContainer.querySelectorAll('.zone-pill-btn').forEach(b => {
+          b.classList.remove('btn-primary');
+          b.classList.add('btn-outline-secondary');
+        });
+        btn.classList.add('btn-primary');
+        btn.classList.remove('btn-outline-secondary');
+        loadSeats(container);
+      });
+    });
+  };
+
+  try {
+    const cachedZones = await IDBStorage.get('seats', cacheKey);
+    if (cachedZones && Array.isArray(cachedZones)) {
+      renderZonesUI(cachedZones);
+    }
+  } catch (e) {
+    console.warn('IDB read zones warning:', e);
+  }
   
   try {
-    const branchParam = currentBranch !== 'all' ? `?branch=${currentBranch}` : '';
     const res = await api.get(`/api/seats/zones${branchParam}`);
     if (res.success && res.data) {
       const zones = res.data;
-      let totalCount = zones.reduce((acc, z) => acc + (z.count || 0), 0);
-
-      let html = `
-        <button type="button" class="btn btn-sm ${currentZone === '' ? 'btn-primary' : 'btn-outline-secondary'} zone-pill-btn" data-zone="" style="border-radius: 20px; font-weight: 600; white-space: nowrap;">
-          🌟 All Zones (${totalCount})
-        </button>
-      `;
-      
-      zones.forEach(z => {
-        const isAct = currentZone === z._id;
-        html += `
-          <button type="button" class="btn btn-sm ${isAct ? 'btn-primary' : 'btn-outline-secondary'} zone-pill-btn" data-zone="${escapeHTML(z._id)}" style="border-radius: 20px; font-weight: 600; white-space: nowrap;">
-            📍 ${escapeHTML(z._id)} <span class="badge ${isAct ? 'bg-light text-dark' : 'badge-primary'}" style="font-size: 0.7rem; margin-left: 4px;">${z.count}</span>
-          </button>
-        `;
-      });
-      
-      pillsContainer.innerHTML = html;
-      
-      pillsContainer.querySelectorAll('.zone-pill-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          currentZone = btn.getAttribute('data-zone') || '';
-          pillsContainer.querySelectorAll('.zone-pill-btn').forEach(b => {
-            b.classList.remove('btn-primary');
-            b.classList.add('btn-outline-secondary');
-          });
-          btn.classList.add('btn-primary');
-          btn.classList.remove('btn-outline-secondary');
-          loadSeats(container);
-        });
-      });
+      await IDBStorage.set('seats', cacheKey, zones);
+      renderZonesUI(zones);
     }
   } catch (error) {
     console.error('Error loading zones:', error);
@@ -446,30 +475,50 @@ async function loadZones(container) {
 async function loadSeats(container) {
   const grid = container.querySelector('#seatsGrid');
   if (!grid) return;
+
+  const params = new URLSearchParams();
+  if (currentBranch && currentBranch !== 'all') params.append('branch', currentBranch);
+  if (currentZone) params.append('zone', currentZone);
+  if (currentStatus) params.append('status', currentStatus);
+  if (currentSearch) params.append('search', currentSearch);
+  const cacheKey = `list_${params.toString()}`;
+
+  let hasRenderedCache = false;
+  try {
+    const cachedSeats = await IDBStorage.get('seats', cacheKey);
+    if (cachedSeats && Array.isArray(cachedSeats)) {
+      seatsData = cachedSeats;
+      renderSeatsGrid(seatsData, container);
+      hasRenderedCache = true;
+    }
+  } catch (e) {
+    console.warn('IDB read seats list warning:', e);
+  }
   
-  Loading.skeleton(grid, 'cards');
+  if (!hasRenderedCache) {
+    Loading.skeleton(grid, 'cards');
+  }
   
   try {
-    const params = new URLSearchParams();
-    if (currentBranch && currentBranch !== 'all') params.append('branch', currentBranch);
-    if (currentZone) params.append('zone', currentZone);
-    if (currentStatus) params.append('status', currentStatus);
-    if (currentSearch) params.append('search', currentSearch);
-
     const url = `/api/seats?${params.toString()}`;
     const res = await api.get(url);
     
     if (res.success) {
       seatsData = res.data || [];
+      await IDBStorage.set('seats', cacheKey, seatsData);
       renderSeatsGrid(seatsData, container);
     } else {
-      Toast.error(res.message);
-      grid.innerHTML = `<div class="empty-state">Error loading seats</div>`;
+      if (!hasRenderedCache) {
+        Toast.error(res.message);
+        grid.innerHTML = `<div class="empty-state">Error loading seats</div>`;
+      }
     }
   } catch (error) {
     console.error('Error loading seats:', error);
-    Toast.error('Failed to load seats');
-    grid.innerHTML = `<div class="empty-state">Failed to load seats</div>`;
+    if (!hasRenderedCache) {
+      Toast.error('Failed to load seats');
+      grid.innerHTML = `<div class="empty-state">Failed to load seats</div>`;
+    }
   }
 }
 
@@ -1432,19 +1481,34 @@ function showEditSeatModal(seat, container) {
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
 
+    const oldStatus = seat.status;
+    const targetStatus = data.status || oldStatus;
+
     try {
-      const res = await api.put(`/api/seats/${seat._id}`, data);
-      if (res.success) {
-        Toast.success(res.message);
-        eModal.close();
-        loadStats(container);
-        loadZones(container);
-        loadSeats(container);
-      } else {
-        Toast.error(res.message);
-      }
+      await OptimisticUI.execute({
+        applyState: () => {
+          seat.status = targetStatus;
+          const sObj = seatsData.find(s => s._id === seat._id);
+          if (sObj) sObj.status = targetStatus;
+          renderSeatGrid(container, seatsData);
+        },
+        rollbackState: () => {
+          seat.status = oldStatus;
+          const sObj = seatsData.find(s => s._id === seat._id);
+          if (sObj) sObj.status = oldStatus;
+          renderSeatGrid(container, seatsData);
+        },
+        apiCall: () => api.put(`/api/seats/${seat._id}`, data),
+        onSuccess: (res) => {
+          Toast.success(res.message || 'Seat updated successfully');
+          eModal.close();
+          loadStats(container);
+          loadZones(container);
+          loadSeats(container);
+        }
+      });
     } catch (err) {
-      Toast.error(err.message || 'Failed to update seat');
+      // Handled by OptimisticUI
     } finally {
       Loading.button(btn, false);
     }
@@ -1865,18 +1929,44 @@ function handleBulkStatus(container) {
 
   content.querySelector('#btn-apply-bulk-status')?.addEventListener('click', async () => {
     const targetStatus = content.querySelector('#bulk-target-status').value;
+    const previousStatuses = new Map();
+    ids.forEach(id => {
+      const s = seatsData.find(st => st._id === id);
+      if (s) previousStatuses.set(id, s.status);
+    });
+
     try {
-      const res = await api.post('/api/seats/bulk-update', {
-        seatIds: ids,
-        updates: { status: targetStatus }
+      await OptimisticUI.execute({
+        applyState: () => {
+          ids.forEach(id => {
+            const s = seatsData.find(st => st._id === id);
+            if (s) s.status = targetStatus;
+          });
+          renderSeatGrid(container, seatsData);
+        },
+        rollbackState: () => {
+          ids.forEach(id => {
+            const s = seatsData.find(st => st._id === id);
+            if (s && previousStatuses.has(id)) s.status = previousStatuses.get(id);
+          });
+          renderSeatGrid(container, seatsData);
+        },
+        apiCall: () => api.post('/api/seats/bulk-update', {
+          seatIds: ids,
+          updates: { status: targetStatus }
+        }),
+        onSuccess: (res) => {
+          Toast.success(res.message || 'Status updated');
+          m.close();
+          selectedSeatIds.clear();
+          updateBulkActionBar(container);
+          loadStats(container);
+          loadSeats(container);
+        }
       });
-      Toast.success(res.message || 'Status updated');
-      m.close();
-      selectedSeatIds.clear();
-      updateBulkActionBar(container);
-      loadStats(container);
-      loadSeats(container);
-    } catch (err) { Toast.error(err.message); }
+    } catch (err) {
+      // Handled by OptimisticUI
+    }
   });
 }
 

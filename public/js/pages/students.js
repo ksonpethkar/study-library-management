@@ -6,6 +6,8 @@ import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
 import api from '../api.js';
 import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
 import { renderHeatmapGridHtml } from './portal.js';
+import { IDBStorage } from '../utils/idbStorage.js';
+import { OptimisticUI } from '../utils/optimisticUI.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -76,34 +78,53 @@ export async function render() {
     pagination: { page: 1, limit: 10, total: 0, pages: 1 }
   };
 
+  function renderStats(stats) {
+    statsContainer.innerHTML = `
+      <div class="kpi-card kpi-primary">
+        <div class="kpi-label">${t('Total Students')} <span>👥</span></div>
+        <div class="kpi-value">${stats.total || 0}</div>
+        <div class="kpi-subtext">All registered members</div>
+      </div>
+      <div class="kpi-card kpi-success">
+        <div class="kpi-label">${t('Active Members')} <span>🟢</span></div>
+        <div class="kpi-value text-success">${stats.active || 0}</div>
+        <div class="kpi-subtext">Currently studying</div>
+      </div>
+      <div class="kpi-card kpi-danger">
+        <div class="kpi-label">${t('Expired / Due')} <span>🔴</span></div>
+        <div class="kpi-value text-danger">${stats.expired || 0}</div>
+        <div class="kpi-subtext">Needs membership renewal</div>
+      </div>
+      <div class="kpi-card kpi-info">
+        <div class="kpi-label">${t('New This Month')} <span>✨</span></div>
+        <div class="kpi-value" style="color: var(--color-info);">${stats.newThisMonth || 0}</div>
+        <div class="kpi-subtext">Recent admissions</div>
+      </div>
+    `;
+  }
+
   async function loadStats() {
-    Loading.skeleton(statsContainer, 'kpi');
+    let hasRenderedCache = false;
+    try {
+      const cachedStats = await IDBStorage.get('students', 'stats');
+      if (cachedStats) {
+        renderStats(cachedStats);
+        hasRenderedCache = true;
+      }
+    } catch (e) {
+      console.warn('IDB read stats warning:', e);
+    }
+
+    if (!hasRenderedCache) {
+      Loading.skeleton(statsContainer, 'kpi');
+    }
+
     try {
       const res = await api.get('/api/students/stats');
       if (res.success && res.data) {
         const stats = res.data;
-        statsContainer.innerHTML = `
-          <div class="kpi-card kpi-primary">
-            <div class="kpi-label">${t('Total Students')} <span>👥</span></div>
-            <div class="kpi-value">${stats.total || 0}</div>
-            <div class="kpi-subtext">All registered members</div>
-          </div>
-          <div class="kpi-card kpi-success">
-            <div class="kpi-label">${t('Active Members')} <span>🟢</span></div>
-            <div class="kpi-value text-success">${stats.active || 0}</div>
-            <div class="kpi-subtext">Currently studying</div>
-          </div>
-          <div class="kpi-card kpi-danger">
-            <div class="kpi-label">${t('Expired / Due')} <span>🔴</span></div>
-            <div class="kpi-value text-danger">${stats.expired || 0}</div>
-            <div class="kpi-subtext">Needs membership renewal</div>
-          </div>
-          <div class="kpi-card kpi-info">
-            <div class="kpi-label">${t('New This Month')} <span>✨</span></div>
-            <div class="kpi-value" style="color: var(--color-info);">${stats.newThisMonth || 0}</div>
-            <div class="kpi-subtext">Recent admissions</div>
-          </div>
-        `;
+        await IDBStorage.set('students', 'stats', stats);
+        renderStats(stats);
       }
     } catch (err) {
       console.error(err);
@@ -113,18 +134,38 @@ export async function render() {
   async function loadStudents(page = 1) {
     const search = container.querySelector('#studentSearch')?.value || '';
     const status = container.querySelector('#studentStatusFilter')?.value || 'all';
+    const cacheKey = `list_${page}_${search}_${status}`;
+
+    let hasRenderedCache = false;
+    try {
+      const cachedData = await IDBStorage.get('students', cacheKey);
+      if (cachedData && cachedData.students) {
+        state.students = cachedData.students || [];
+        state.pagination = cachedData.pagination || { page: 1, limit: 10, total: 0, pages: 1 };
+        renderTable();
+        hasRenderedCache = true;
+      }
+    } catch (e) {
+      console.warn('IDB read students list warning:', e);
+    }
     
-    Loading.skeleton(tableContainer, 'table');
+    if (!hasRenderedCache) {
+      Loading.skeleton(tableContainer, 'table');
+    }
+
     try {
       const res = await api.get('/api/students', { page, limit: 10, search, status });
       if (res.success && res.data) {
         state.students = res.data.students || [];
         state.pagination = res.data.pagination || { page: 1, limit: 10, total: 0, pages: 1 };
+        await IDBStorage.set('students', cacheKey, res.data);
         renderTable();
       }
     } catch (err) {
-      Toast.error(err.message || 'Failed to load students');
-      tableContainer.innerHTML = '<div class="text-center p-5 text-muted">Error loading students list.</div>';
+      if (!hasRenderedCache) {
+        Toast.error(err.message || 'Failed to load students');
+        tableContainer.innerHTML = '<div class="text-center p-5 text-muted">Error loading students list.</div>';
+      }
     }
   }
 
@@ -161,7 +202,7 @@ export async function render() {
           <td><span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary, #6c5ce7); font-weight: 600;">${escapeHTML(planName)}</span></td>
           <td><span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success, #00b894); font-weight: 600;">${escapeHTML(seatNum)}</span></td>
           <td>${expiry}</td>
-          <td><span class="badge" style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">${escapeHTML(s.status || 'active')}</span></td>
+          <td><span class="badge btn-toggle-student-status" data-id="${escapeHTML(s._id)}" style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; cursor: pointer;" title="Click to toggle status">${escapeHTML(s.status || 'active')}</span></td>
           <td>
             <div class="d-flex gap-1">
               <button class="btn btn-sm btn-outline-secondary btn-view" data-id="${escapeHTML(s._id)}" title="View 360° Profile" style="padding: 3px 7px; font-size: 0.75rem;">👁️ View</button>
@@ -333,6 +374,7 @@ export async function render() {
         try {
           const res = await api.post('/api/students/bulk-renew', { studentIds: selected, days: 30 });
           Toast.success(res.message);
+          await IDBStorage.clear('students');
           loadStudents(state.pagination.page);
           loadStats();
         } catch (err) {
@@ -354,6 +396,7 @@ export async function render() {
         try {
           const res = await api.post('/api/students/bulk-deactivate', { studentIds: selected });
           Toast.success(res.message);
+          await IDBStorage.clear('students');
           loadStudents(state.pagination.page);
           loadStats();
         } catch (err) {
@@ -874,24 +917,38 @@ export async function render() {
               relation: data['emergencyContactRelation'] || data['emergencyContact.relation'] || student?.emergencyContact?.relation || ''
             };
 
+            const prevStatus = student?.status;
+            const prevSeat = student?.seat;
+
             try {
-              let res;
-              if (isEdit) {
-                res = await api.put(`/api/students/${student._id}`, data);
-              } else {
-                res = await api.post('/api/students', data);
-              }
-              
-              if (res.success) {
-                Toast.success(res.message);
-                m.close();
-                loadStats();
-                loadStudents(state.pagination.page);
-              } else {
-                Toast.error(res.message);
-              }
+              await OptimisticUI.execute({
+                applyState: () => {
+                  if (isEdit && student) {
+                    if (data.status) student.status = data.status;
+                    if ('seat' in data) {
+                      student.seat = data.seat ? { _id: data.seat } : null;
+                    }
+                    renderTable();
+                  }
+                },
+                rollbackState: () => {
+                  if (isEdit && student) {
+                    student.status = prevStatus;
+                    student.seat = prevSeat;
+                    renderTable();
+                  }
+                },
+                apiCall: () => isEdit ? api.put(`/api/students/${student._id}`, data) : api.post('/api/students', data),
+                onSuccess: async (res) => {
+                  Toast.success(res.message || 'Student saved successfully');
+                  m.close();
+                  await IDBStorage.clear('students');
+                  loadStats();
+                  loadStudents(state.pagination.page);
+                }
+              });
             } catch (err) {
-              Toast.error(err.message || 'Error saving student');
+              // Handled by OptimisticUI
             }
           }
         }
@@ -1208,6 +1265,7 @@ export async function render() {
           const res = await api.delete(`/api/students/${id}`);
           if (res.success) {
             Toast.success(res.message);
+            await IDBStorage.clear('students');
             loadStats();
             loadStudents(state.pagination.page);
           } else {
@@ -1225,6 +1283,33 @@ export async function render() {
     const addBtn = e.target.closest('#addStudentBtn');
     if (addBtn) {
       showStudentForm();
+      return;
+    }
+
+    const statusToggleBtn = e.target.closest('.btn-toggle-student-status');
+    if (statusToggleBtn) {
+      const id = statusToggleBtn.getAttribute('data-id');
+      const student = state.students.find(s => s._id === id);
+      if (student) {
+        const oldStatus = student.status || 'active';
+        const newStatus = oldStatus === 'active' ? 'inactive' : 'active';
+        OptimisticUI.execute({
+          applyState: () => {
+            student.status = newStatus;
+            renderTable();
+          },
+          rollbackState: () => {
+            student.status = oldStatus;
+            renderTable();
+          },
+          apiCall: () => api.put(`/api/students/${id}`, { status: newStatus }),
+          onSuccess: async (res) => {
+            Toast.success(res.message || `Status updated to ${newStatus}`);
+            await IDBStorage.clear('students');
+            loadStats();
+          }
+        });
+      }
       return;
     }
     

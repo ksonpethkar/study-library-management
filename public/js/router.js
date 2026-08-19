@@ -28,7 +28,11 @@ export default class Router {
     }
 
     if (!rawHash && this.routes['']) {
-      this.routes['']();
+      if (typeof document !== 'undefined' && document.startViewTransition) {
+        document.startViewTransition(() => this.routes['']());
+      } else {
+        this.routes['']();
+      }
       return;
     }
     
@@ -40,7 +44,12 @@ export default class Router {
     
     this.currentRoute = rawHash;
     this.updateSidebarActive(basePath);
-    this.routes[basePath]();
+    
+    if (typeof document !== 'undefined' && document.startViewTransition) {
+      document.startViewTransition(() => this.routes[basePath]());
+    } else {
+      this.routes[basePath]();
+    }
   }
 
   updateSidebarActive(basePath) {

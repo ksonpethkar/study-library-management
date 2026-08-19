@@ -347,6 +347,8 @@
   max-width: 100%;
   margin: 0;
   box-sizing: border-box;
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
 }
 
 .page-container {
@@ -355,6 +357,50 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+}
+
+/* GPU Hardware-Accelerated 120fps Transitions & View Transitions API */
+.gpu-accelerated,
+.page-fade-slide-in {
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+}
+
+@keyframes pageFadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.page-fade-slide-in {
+  animation: pageFadeSlideIn 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* View Transitions API CSS */
+::view-transition-old(root) {
+  will-change: transform, opacity;
+  animation: 0.15s cubic-bezier(0.4, 0, 0.2, 1) both fadeOut;
+}
+
+::view-transition-new(root) {
+  will-change: transform, opacity;
+  animation: 0.22s cubic-bezier(0.4, 0, 0.2, 1) both pageFadeSlideIn;
 }
 
 @media (max-width: 768px) {

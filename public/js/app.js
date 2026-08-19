@@ -402,8 +402,10 @@ class Application {
       }
     };
 
-    if (document.startViewTransition) {
-      document.startViewTransition(() => doRender());
+    if (typeof document !== 'undefined' && document.startViewTransition) {
+      document.startViewTransition(async () => {
+        await doRender();
+      });
     } else {
       content.style.opacity = '0';
       content.style.transform = 'translateY(8px)';
