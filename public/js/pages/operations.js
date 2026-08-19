@@ -1317,6 +1317,11 @@ export async function render() {
         });
       });
 
+    } catch (e) {
+      panel.innerHTML = `<div class="text-danger p-4">Failed to load referrals: ${escapeHTML(e.message)}</div>`;
+    }
+  }
+
   // ----------------------------------------------------
   // Tab 9: Waiting List Queue & 1-Click Admission Converter
   // ----------------------------------------------------
