@@ -464,45 +464,9 @@ export async function showNotificationsModal() {
 // Dynamic sidebar rendering from API config
 async function loadSidebarConfig() {
   try {
-    const res = await fetch('/api/settings/sidebar', {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('sl_token')}` }
-    });
-    const data = await res.json();
-    if (!data.success || !data.data) return;
-    
-    const nav = document.querySelector('.sidebar-nav');
-    if (!nav) return;
-    
-    const enabledKeys = new Set(data.data.map(i => i.key));
-    const orderedItems = data.data;
-    
-    // Hide disabled items
-    nav.querySelectorAll('.nav-item').forEach(item => {
-      const href = item.getAttribute('href');
-      const key = href?.replace('#/', '');
-      if (key && !enabledKeys.has(key)) {
-        item.style.display = 'none';
-      } else {
-        item.style.display = '';
-      }
-    });
-    
-    // Reorder items
-    const fragment = document.createDocumentFragment();
-    orderedItems.forEach(item => {
-      const navLink = nav.querySelector(`a[href="${item.href}"]`);
-      if (navLink) {
-        // Update label if renamed
-        const span = navLink.querySelector('span');
-        if (span && item.label) span.textContent = item.label;
-        fragment.appendChild(navLink);
-      }
-    });
-    // Append remaining hidden items
-    nav.querySelectorAll('.nav-item').forEach(item => {
-      if (!fragment.contains(item)) fragment.appendChild(item);
-    });
-    nav.appendChild(fragment);
-    
+    const App = await getApp();
+    if (App && typeof App.updateSidebarForRole === 'function') {
+      await App.updateSidebarForRole();
+    }
   } catch(e) { console.warn('Could not load sidebar config', e); }
 }

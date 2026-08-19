@@ -290,4 +290,21 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
   }
 });
 
+// POST /api/messages/run-cron-now - Immediately executes the daily subscription expiry and balance due check and dispatches WhatsApp messages
+router.post('/run-cron-now', protect, roleCheck('owner'), async (req, res) => {
+  try {
+    const { checkStudentExpiries } = require('../utils/cronJobs');
+    const result = await checkStudentExpiries({ isManual: true });
+
+    res.json({
+      success: true,
+      message: `Automated WhatsApp Expiry & Dues Bot executed successfully (${result.expiryRemindersSent || 0} expiry alerts, ${result.balanceDueRemindersSent || 0} dues alerts dispatched)`,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error executing automated bot now:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

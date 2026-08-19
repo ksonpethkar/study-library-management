@@ -5,6 +5,7 @@ const Student = require('../models/Student');
 const Seat = require('../models/Seat');
 const Locker = require('../models/Locker');
 const User = require('../models/User');
+const { generateStudentId } = require('../utils/idGenerator');
 const { protect } = require('../middleware/auth');
 
 const roleCheck = (...roles) => {
@@ -168,6 +169,10 @@ router.post('/', validate([
     }
 
     req.body.createdBy = req.user._id;
+    
+    if (!req.body.studentId) {
+      req.body.studentId = await generateStudentId({ branch: req.body.branch });
+    }
     
     // Extract customFields before creating student
     const customFieldsData = req.body.customFields;

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { protect } = require('../middleware/auth');
+const { protect, optionalAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const BusinessProfile = require('../models/BusinessProfile');
 const SystemSetting = require('../models/SystemSetting');
@@ -18,12 +18,22 @@ const roleCheck = (...roles) => {
   };
 };
 
-// GET /api/settings/sidebar - Get sidebar config (public for initial rendering)
-router.get('/sidebar', async (req, res) => {
+// GET /api/settings/sidebar - Get sidebar config filtered by role and enabled status
+router.get('/sidebar', optionalAuth, async (req, res) => {
   try {
     const config = await SidebarConfig.getConfig();
-    const enabledItems = config.items.filter(i => i.isEnabled).sort((a, b) => a.order - b.order);
-    res.json({ success: true, data: enabledItems });
+    const userRole = req.user?.role;
+
+    const visibleItems = config.items
+      .filter(item => {
+        if (item.isEnabled === false) return false;
+        if (!userRole) return true;
+        if (!item.allowedRoles || item.allowedRoles.length === 0) return true;
+        return item.allowedRoles.includes(userRole);
+      })
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    res.json({ success: true, data: visibleItems });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -163,11 +173,11 @@ router.put('/business-profile', roleCheck('owner'), validateBusinessProfile, asy
 });
 
 /**
- * @route   PUT /api/settings/system-settings
- * @desc    Update operational settings
- * @access  Private
+ * @route   PUT /api/settings / PUT /api/settings/system-settings
+ * @desc    Update operational and notification settings
+ * @access  Private (Owner)
  */
-router.put('/system-settings', roleCheck('owner'), async (req, res) => {
+const updateSystemSettingsHandler = async (req, res) => {
   try {
     const updates = req.body;
     if (!updates || typeof updates !== 'object') {
@@ -192,6 +202,12 @@ router.put('/system-settings', roleCheck('owner'), async (req, res) => {
       'admission.idPrefix': { key: 'admission.idPrefix', category: 'admission', type: 'string', label: 'Student ID Prefix' },
       'idFormat': { key: 'admission.idFormat', category: 'admission', type: 'string', label: 'Student ID Format' },
       'admission.idFormat': { key: 'admission.idFormat', category: 'admission', type: 'string', label: 'Student ID Format' },
+      'serialDigits': { key: 'admission.serialDigits', category: 'admission', type: 'number', label: 'Student ID Serial Digits' },
+      'admission.serialDigits': { key: 'admission.serialDigits', category: 'admission', type: 'number', label: 'Student ID Serial Digits' },
+      'startingSerial': { key: 'admission.startingSerial', category: 'admission', type: 'number', label: 'Student ID Starting Serial' },
+      'admission.startingSerial': { key: 'admission.startingSerial', category: 'admission', type: 'number', label: 'Student ID Starting Serial' },
+      'currentSerial': { key: 'admission.currentSerial', category: 'admission', type: 'number', label: 'Student ID Current Serial' },
+      'admission.currentSerial': { key: 'admission.currentSerial', category: 'admission', type: 'number', label: 'Student ID Current Serial' },
 
       // Notification Settings
       'paymentReminder': { key: 'notification.paymentReminder', category: 'notification', type: 'array', label: 'Payment Reminders' },
@@ -205,6 +221,16 @@ router.put('/system-settings', roleCheck('owner'), async (req, res) => {
       'notification.enableEmail': { key: 'notification.enableEmail', category: 'notification', type: 'boolean', label: 'Enable Email' },
       'enableInApp': { key: 'notification.enableInApp', category: 'notification', type: 'boolean', label: 'Enable In-App Notifications' },
       'notification.enableInApp': { key: 'notification.enableInApp', category: 'notification', type: 'boolean', label: 'Enable In-App Notifications' },
+      'whatsappScheduleTime': { key: 'notification.whatsappScheduleTime', category: 'notification', type: 'string', label: 'WhatsApp Schedule Time' },
+      'notification.whatsappScheduleTime': { key: 'notification.whatsappScheduleTime', category: 'notification', type: 'string', label: 'WhatsApp Schedule Time' },
+      'expiryReminderDays': { key: 'notification.expiryReminderDays', category: 'notification', type: 'array', label: 'Expiry Reminder Days Intervals' },
+      'notification.expiryReminderDays': { key: 'notification.expiryReminderDays', category: 'notification', type: 'array', label: 'Expiry Reminder Days Intervals' },
+      'balanceReminderDays': { key: 'notification.balanceReminderDays', category: 'notification', type: 'array', label: 'Overdue Balance Reminder Days Intervals' },
+      'notification.balanceReminderDays': { key: 'notification.balanceReminderDays', category: 'notification', type: 'array', label: 'Overdue Balance Reminder Days Intervals' },
+      'enableAutoExpiryBot': { key: 'notification.enableAutoExpiryBot', category: 'notification', type: 'boolean', label: 'Enable Automated Expiry WhatsApp Bot' },
+      'notification.enableAutoExpiryBot': { key: 'notification.enableAutoExpiryBot', category: 'notification', type: 'boolean', label: 'Enable Automated Expiry WhatsApp Bot' },
+      'enableAutoDuesBot': { key: 'notification.enableAutoDuesBot', category: 'notification', type: 'boolean', label: 'Enable Automated Balance Due WhatsApp Bot' },
+      'notification.enableAutoDuesBot': { key: 'notification.enableAutoDuesBot', category: 'notification', type: 'boolean', label: 'Enable Automated Balance Due WhatsApp Bot' },
 
       // General Settings
       'currency': { key: 'general.currency', category: 'general', type: 'string', label: 'Currency' },
@@ -238,7 +264,7 @@ router.put('/system-settings', roleCheck('owner'), async (req, res) => {
       const targetKey = def ? def.key : key;
       const category = def ? def.category : (targetKey.includes('.') ? targetKey.split('.')[0] : 'general');
       const label = def ? def.label : targetKey;
-      let targetType = def ? def.type : typeof value;
+      let targetType = def ? def.type : (Array.isArray(value) ? 'array' : typeof value);
 
       let parsedValue = value;
       if (targetType === 'number') {
@@ -246,9 +272,14 @@ router.put('/system-settings', roleCheck('owner'), async (req, res) => {
       } else if (targetType === 'boolean') {
         parsedValue = value === true || value === 'true' || value === 1 || value === '1';
       } else if (targetType === 'array') {
-        if (typeof value === 'string') {
+        if (Array.isArray(value)) {
+          parsedValue = value.map(n => Number(n)).filter(n => !isNaN(n));
+        } else if (typeof value === 'string') {
           try {
             parsedValue = JSON.parse(value);
+            if (Array.isArray(parsedValue)) {
+              parsedValue = parsedValue.map(n => Number(n)).filter(n => !isNaN(n));
+            }
           } catch {
             parsedValue = value.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n));
           }
@@ -296,7 +327,10 @@ router.put('/system-settings', roleCheck('owner'), async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
-});
+};
+
+router.put('/system-settings', roleCheck('owner'), updateSystemSettingsHandler);
+router.put('/', roleCheck('owner'), updateSystemSettingsHandler);
 
 /**
  * @route   PUT /api/settings/admin-profile
@@ -540,28 +574,17 @@ router.put('/receipt-config', protect, roleCheck('owner', 'branch_manager'), asy
   }
 });
 
-// GET /api/settings/sidebar - Get sidebar config (public for rendering)
-router.get('/sidebar', async (req, res) => {
-  try {
-    const config = await SidebarConfig.getConfig();
-    const enabledItems = config.items.filter(i => i.isEnabled).sort((a, b) => a.order - b.order);
-    res.json({ success: true, data: enabledItems });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
 // GET /api/settings/sidebar/all - Get all items including disabled (admin only)
 router.get('/sidebar/all', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const config = await SidebarConfig.getConfig();
-    res.json({ success: true, data: config.items.sort((a, b) => a.order - b.order) });
+    res.json({ success: true, data: config.items.sort((a, b) => (a.order || 0) - (b.order || 0)) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// PUT /api/settings/sidebar - Update all sidebar items (reorder, enable/disable, rename)
+// PUT /api/settings/sidebar - Update all sidebar items (reorder, enable/disable, rename, role permissions, icons)
 router.put('/sidebar', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { items } = req.body;
@@ -577,12 +600,13 @@ router.put('/sidebar', roleCheck('owner', 'branch_manager'), async (req, res) =>
       const existing = existingMap.get(item.key) || {};
       return {
         key: item.key,
-        label: item.label || existing.label || item.key,
-        href: item.href || existing.href || `/#/${item.key}`,
-        icon: item.icon || existing.icon || '',
-        isEnabled: item.isEnabled !== undefined ? item.isEnabled : (existing.isEnabled !== false),
-        order: item.order !== undefined ? item.order : index + 1,
-        isSystem: existing.isSystem || false,
+        label: item.label !== undefined ? String(item.label).trim() : (existing.label || item.key),
+        href: item.href || existing.href || `#/${item.key}`,
+        icon: item.icon !== undefined ? String(item.icon).trim() : (existing.icon || ''),
+        isEnabled: item.isEnabled !== undefined ? Boolean(item.isEnabled) : (existing.isEnabled !== false),
+        order: item.order !== undefined ? Number(item.order) : index + 1,
+        allowedRoles: Array.isArray(item.allowedRoles) ? item.allowedRoles : (existing.allowedRoles || ['owner', 'branch_manager', 'staff']),
+        isSystem: existing.isSystem !== undefined ? existing.isSystem : false,
         i18nKey: existing.i18nKey || `nav.${item.key}`
       };
     });
@@ -596,12 +620,129 @@ router.put('/sidebar', roleCheck('owner', 'branch_manager'), async (req, res) =>
 });
 
 // PUT /api/settings/sidebar/reset - Reset to defaults
-router.put('/sidebar/reset', roleCheck('owner'), async (req, res) => {
+router.put('/sidebar/reset', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const config = await SidebarConfig.getConfig();
     config.items = SidebarConfig.getDefaults();
     await config.save();
     res.json({ success: true, data: config.items, message: 'Sidebar reset to defaults' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/settings/dashboard-widgets - Get dashboard widget configuration
+router.get('/dashboard-widgets', async (req, res) => {
+  try {
+    const setting = await SystemSetting.findOne({ key: 'dashboard.widgetConfig' });
+    const defaultWidgets = SystemSetting.getDefaultDashboardWidgets();
+
+    if (!setting || !Array.isArray(setting.value) || setting.value.length === 0) {
+      return res.json({
+        success: true,
+        data: defaultWidgets,
+        message: 'Default dashboard widgets retrieved'
+      });
+    }
+
+    // Merge saved widgets with any defaults that might be missing
+    const existingMap = new Map();
+    setting.value.forEach(w => existingMap.set(w.id, w));
+
+    const merged = defaultWidgets.map(d => {
+      const exist = existingMap.get(d.id);
+      if (exist) {
+        return {
+          id: d.id,
+          label: exist.label || d.label,
+          isEnabled: exist.isEnabled !== undefined ? Boolean(exist.isEnabled) : d.isEnabled,
+          order: exist.order !== undefined ? Number(exist.order) : d.order,
+          category: exist.category || d.category
+        };
+      }
+      return d;
+    });
+
+    // Also preserve any custom widget entries not in defaults
+    setting.value.forEach(w => {
+      if (!defaultWidgets.some(d => d.id === w.id)) {
+        merged.push(w);
+      }
+    });
+
+    merged.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    res.json({
+      success: true,
+      data: merged,
+      message: 'Dashboard widget configuration retrieved successfully'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/settings/dashboard-widgets - Update dashboard widget configuration
+router.put('/dashboard-widgets', roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const widgets = Array.isArray(req.body) ? req.body : (Array.isArray(req.body.widgets) ? req.body.widgets : null);
+    if (!widgets) {
+      return res.status(400).json({ success: false, message: 'Widgets array is required in request body' });
+    }
+
+    const sanitized = widgets.map((w, idx) => ({
+      id: String(w.id),
+      label: String(w.label || w.id),
+      isEnabled: Boolean(w.isEnabled !== false),
+      order: w.order !== undefined ? Number(w.order) : idx + 1,
+      category: ['kpi', 'chart', 'action'].includes(w.category) ? w.category : 'kpi'
+    })).sort((a, b) => a.order - b.order);
+
+    const setting = await SystemSetting.findOneAndUpdate(
+      { key: 'dashboard.widgetConfig' },
+      {
+        category: 'dashboard',
+        key: 'dashboard.widgetConfig',
+        value: sanitized,
+        label: 'Dashboard Widget Configuration',
+        type: 'array',
+        isEditable: true
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    res.json({
+      success: true,
+      data: setting.value,
+      message: 'Dashboard widget configuration saved successfully'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/settings/dashboard-widgets/reset - Reset dashboard widgets to default
+router.put('/dashboard-widgets/reset', roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const defaultWidgets = SystemSetting.getDefaultDashboardWidgets();
+    const setting = await SystemSetting.findOneAndUpdate(
+      { key: 'dashboard.widgetConfig' },
+      {
+        category: 'dashboard',
+        key: 'dashboard.widgetConfig',
+        value: defaultWidgets,
+        label: 'Dashboard Widget Configuration',
+        type: 'array',
+        isEditable: true
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    res.json({
+      success: true,
+      data: setting.value,
+      message: 'Dashboard widgets reset to default successfully'
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

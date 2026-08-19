@@ -265,10 +265,7 @@ router.post('/public-register', authLimiter, async (req, res) => {
     }
 
     // Generate Student ID
-    const studentCount = await Student.countDocuments();
-    const prefix = await SystemSetting.getSetting('admission.idPrefix') || 'STU';
-    const year = new Date().getFullYear();
-    const studentId = generateStudentId(prefix, year, studentCount + 1);
+    const studentId = await generateStudentId({ branch: req.body.branch });
 
     // Validate custom fields safely
     const activeFields = await CustomField.getActiveFields().catch(() => []);

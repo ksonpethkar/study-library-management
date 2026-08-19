@@ -63,18 +63,8 @@ studentSchema.index({ referralCode: 1 });
 
 studentSchema.pre('save', async function() {
   if (this.isNew && !this.studentId) {
-    const year = new Date().getFullYear();
-    const lastStudent = await this.constructor.findOne({
-      studentId: new RegExp(`^STU-${year}-`)
-    }).sort({ studentId: -1 });
-    
-    let serial = 1;
-    if (lastStudent && lastStudent.studentId) {
-      const parts = lastStudent.studentId.split('-');
-      serial = parseInt(parts[2], 10) + 1;
-    }
-    
-    this.studentId = `STU-${year}-${serial.toString().padStart(3, '0')}`;
+    const { generateStudentId } = require('../utils/idGenerator');
+    this.studentId = await generateStudentId({ branch: this.branch });
   }
 
   // Auto-generate referral code if missing

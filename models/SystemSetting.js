@@ -25,6 +25,23 @@ const systemSettingSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+const DEFAULT_DASHBOARD_WIDGETS = [
+  { id: 'kpi_active_students', label: 'Active Students', isEnabled: true, order: 1, category: 'kpi' },
+  { id: 'kpi_available_seats', label: 'Available Seats & Live Occupancy', isEnabled: true, order: 2, category: 'kpi' },
+  { id: 'kpi_today_revenue', label: "Today's Fee Collection", isEnabled: true, order: 3, category: 'kpi' },
+  { id: 'kpi_expiring_soon', label: 'Expiring in 48 Hours', isEnabled: true, order: 4, category: 'kpi' },
+  { id: 'kpi_defaulter_dues', label: 'Overdue Fee Balances', isEnabled: true, order: 5, category: 'kpi' },
+  { id: 'kpi_total_seats', label: 'Total Seat Capacity', isEnabled: true, order: 6, category: 'kpi' },
+  { id: 'chart_revenue_trend', label: 'Monthly Revenue Trend Chart', isEnabled: true, order: 7, category: 'chart' },
+  { id: 'chart_shift_occupancy', label: 'Shift Occupancy Distribution Chart', isEnabled: true, order: 8, category: 'chart' },
+  { id: 'chart_exam_stats', label: 'Student Exam Preparation Breakdown', isEnabled: true, order: 9, category: 'chart' },
+  { id: 'quick_actions', label: 'Quick 1-Tap Action Toolbar', isEnabled: true, order: 10, category: 'action' }
+];
+
+systemSettingSchema.statics.getDefaultDashboardWidgets = function() {
+  return JSON.parse(JSON.stringify(DEFAULT_DASHBOARD_WIDGETS));
+};
+
 systemSettingSchema.statics.getSetting = async function(key) {
   const setting = await this.findOne({ key });
   return setting ? setting.value : null;
@@ -70,6 +87,9 @@ systemSettingSchema.statics.initDefaults = async function() {
     { category: 'admission', key: 'admission.autoApprove', value: false, type: 'boolean', label: 'Auto Approve Admissions' },
     { category: 'admission', key: 'admission.idPrefix', value: 'STU', type: 'string', label: 'Student ID Prefix' },
     { category: 'admission', key: 'admission.idFormat', value: 'prefix-year-serial', type: 'string', label: 'Student ID Format' },
+    { category: 'admission', key: 'admission.serialDigits', value: 3, type: 'number', label: 'Student ID Serial Digits' },
+    { category: 'admission', key: 'admission.startingSerial', value: 1, type: 'number', label: 'Student ID Starting Serial' },
+    { category: 'admission', key: 'admission.currentSerial', value: 1, type: 'number', label: 'Student ID Current Serial' },
     
     // Notifications
     { category: 'notification', key: 'notification.paymentReminder', value: [7, 3, 1], type: 'array', label: 'Payment Reminders (Days before due)' },
@@ -77,6 +97,11 @@ systemSettingSchema.statics.initDefaults = async function() {
     { category: 'notification', key: 'notification.enableWhatsapp', value: false, type: 'boolean', label: 'Enable WhatsApp Notifications' },
     { category: 'notification', key: 'notification.enableEmail', value: true, type: 'boolean', label: 'Enable Email Notifications' },
     { category: 'notification', key: 'notification.enableInApp', value: true, type: 'boolean', label: 'Enable In-App Notifications' },
+    { category: 'notification', key: 'notification.whatsappScheduleTime', value: '09:30', type: 'string', label: 'Automated WhatsApp Dispatch Time' },
+    { category: 'notification', key: 'notification.expiryReminderDays', value: [7, 3, 1, 0], type: 'array', label: 'Expiry Reminder Days Intervals' },
+    { category: 'notification', key: 'notification.balanceReminderDays', value: [7, 3, 1], type: 'array', label: 'Overdue Balance Reminder Days Intervals' },
+    { category: 'notification', key: 'notification.enableAutoExpiryBot', value: true, type: 'boolean', label: 'Enable Automated Expiry WhatsApp Bot' },
+    { category: 'notification', key: 'notification.enableAutoDuesBot', value: true, type: 'boolean', label: 'Enable Automated Balance Due WhatsApp Bot' },
     
     // General Settings
     { category: 'general', key: 'general.currency', value: 'INR', type: 'string', label: 'Currency' },
@@ -84,7 +109,10 @@ systemSettingSchema.statics.initDefaults = async function() {
     { category: 'general', key: 'general.dateFormat', value: 'DD/MM/YYYY', type: 'string', label: 'Date Format' },
     { category: 'general', key: 'general.timezone', value: 'Asia/Kolkata', type: 'string', label: 'Timezone' },
     { category: 'general', key: 'general.autoBackup', value: true, type: 'boolean', label: 'Auto Backup' },
-    { category: 'general', key: 'general.inactivityTimeout', value: 30, type: 'number', label: 'Inactivity Timeout (Minutes)' }
+    { category: 'general', key: 'general.inactivityTimeout', value: 30, type: 'number', label: 'Inactivity Timeout (Minutes)' },
+
+    // Dashboard Widget Configurations
+    { category: 'dashboard', key: 'dashboard.widgetConfig', value: DEFAULT_DASHBOARD_WIDGETS, type: 'array', label: 'Dashboard Widget Configuration' }
   ];
 
   for (const setting of defaults) {

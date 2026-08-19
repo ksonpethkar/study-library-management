@@ -152,7 +152,7 @@ class Application {
   /**
    * Show the main application (sidebar + content)
    */
-  showApp() {
+  async showApp() {
     this._show('app');
 
     // Wire up sidebar, header events only once
@@ -169,8 +169,8 @@ class Application {
       if (avatar) avatar.textContent = initials;
     }
 
-    // Adapt sidebar for role (Student vs Admin/Staff)
-    this.updateSidebarForRole();
+    // Adapt sidebar for role (Student vs Admin/Staff) & render database config
+    await this.updateSidebarForRole();
 
     // Init search palette
     if (!this.searchPalette) {
@@ -186,36 +186,89 @@ class Application {
   }
 
   /**
-   * Filter and style sidebar according to user role
+   * Filter and style sidebar according to user role and saved database navigation configuration
    */
-  updateSidebarForRole() {
-    const role = store.user?.role || 'admin';
+  async updateSidebarForRole() {
+    const role = store.user?.role || 'staff';
     const isStudent = role === 'student';
+    const nav = document.querySelector('.sidebar-nav');
+    if (!nav) return;
 
-    document.querySelectorAll('.sidebar-nav .nav-item').forEach(link => {
-      const href = link.getAttribute('href');
-      if (isStudent) {
-        if (href === '#/portal' || href === '#/profile') {
-          link.style.display = 'flex';
-        } else {
-          link.style.display = 'none';
-        }
-      } else {
-        link.style.display = 'flex';
-      }
-    });
-
-    if (isStudent && !document.querySelector('.sidebar-nav a[href="#/portal"]')) {
-      const portalItem = document.createElement('a');
-      portalItem.href = '#/portal';
-      portalItem.className = 'nav-item active';
-      portalItem.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
-        <span>Student Dashboard</span>
+    if (isStudent) {
+      nav.innerHTML = `
+        <a href="#/portal" class="nav-item active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
+          <span data-i18n="nav.portal">Student Dashboard</span>
+        </a>
+        <a href="#/profile" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <span data-i18n="nav.profile">My Profile</span>
+        </a>
       `;
-      const nav = document.querySelector('.sidebar-nav');
-      if (nav) nav.insertBefore(portalItem, nav.firstChild);
+      this.attachSidebarEvents();
+      const currentRoute = (window.location.hash || '#/portal').replace('#/', '');
+      this.updateActiveNav(currentRoute);
+      return;
     }
+
+    try {
+      const res = await api.get('/api/settings/sidebar');
+      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        const items = res.data;
+        const currentHash = window.location.hash || '#/dashboard';
+        
+        const defaultIcons = {
+          dashboard: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>`,
+          students: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`,
+          seats: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M5 16V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12"></path></svg>`,
+          lockers: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`,
+          plans: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>`,
+          payments: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>`,
+          attendance: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg>`,
+          shifts: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
+          branches: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M9 8h1M9 12h1M9 16h1M14 8h1M14 12h1M14 16h1M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"></path></svg>`,
+          reports: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>`,
+          expenses: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
+          operations: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`,
+          settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,
+          profile: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`
+        };
+
+        nav.innerHTML = items.map(item => {
+          const isActive = item.href === currentHash;
+          let iconHtml = '';
+          if (item.icon && item.icon.startsWith('<svg')) {
+            iconHtml = item.icon;
+          } else if (item.icon && item.icon.trim()) {
+            iconHtml = `<span class="nav-icon-emoji" style="font-size: 1.15rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">${item.icon}</span>`;
+          } else {
+            iconHtml = defaultIcons[item.key] || '<span class="nav-icon-emoji">📌</span>';
+          }
+
+          return `
+            <a href="${item.href}" class="nav-item ${isActive ? 'active' : ''}" data-key="${item.key}">
+              ${iconHtml}
+              <span ${item.i18nKey ? `data-i18n="${item.i18nKey}"` : ''}>${item.label}</span>
+            </a>
+          `;
+        }).join('');
+
+        this.attachSidebarEvents();
+        const currentRoute = (window.location.hash || '#/dashboard').replace('#/', '');
+        this.updateActiveNav(currentRoute);
+      }
+    } catch (err) {
+      console.warn('Could not load dynamic sidebar config:', err);
+    }
+  }
+
+  attachSidebarEvents() {
+    document.querySelectorAll('.sidebar-nav .nav-item').forEach(link => {
+      link.onclick = () => {
+        document.getElementById('sidebar')?.classList.remove('mobile-open');
+        document.getElementById('sidebar-overlay')?.classList.remove('visible');
+      };
+    });
   }
 
   /**
@@ -344,6 +397,7 @@ class Application {
 export const App = new Application();
 window.App = App;
 window.toggleTheme = () => App.toggleTheme();
+window.reloadSidebar = () => App.updateSidebarForRole();
 
 // Boot the application
 document.addEventListener('DOMContentLoaded', () => {

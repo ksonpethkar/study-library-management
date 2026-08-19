@@ -63,6 +63,14 @@ function renderSettingsUI(container, profile, settings) {
     ? (notif['payment.paymentReminder'] || notif.paymentReminder)
     : [7, 3, 1];
 
+  let selectedExpiryDays = Array.isArray(notif['notification.expiryReminderDays'] || notif.expiryReminderDays)
+    ? (notif['notification.expiryReminderDays'] || notif.expiryReminderDays)
+    : [7, 3, 1, 0];
+
+  let selectedBalanceDays = Array.isArray(notif['notification.balanceReminderDays'] || notif.balanceReminderDays)
+    ? (notif['notification.balanceReminderDays'] || notif.balanceReminderDays)
+    : [7, 3, 1];
+
   container.innerHTML = `
     <!-- Header -->
     <div class="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
@@ -93,10 +101,10 @@ function renderSettingsUI(container, profile, settings) {
           <span>💰</span> Fee & Late Fine Policies
         </button>
         <button class="settings-tab-btn" data-tab="admission" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
-          <span>🎓</span> Admission & ID Formatting
+          <span>🎓</span> Admission Rules & Student ID Generator
         </button>
         <button class="settings-tab-btn" data-tab="notifications" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
-          <span>🔔</span> Notification Preferences
+          <span>🔔</span> Notifications & WhatsApp Templates
         </button>
         <button class="settings-tab-btn" data-tab="general" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
           <span>🌍</span> General System Config
@@ -107,8 +115,8 @@ function renderSettingsUI(container, profile, settings) {
         <button class="settings-tab-btn" data-tab="formbuilder" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
           <span>📝</span> Dynamic Form Builder
         </button>
-        <button class="settings-tab-btn" data-tab="modules" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
-          <span>🧩</span> Module Settings
+        <button class="settings-tab-btn" data-tab="sidebar" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>🧭</span> Sidebar & Navigation Manager
         </button>
         <button class="settings-tab-btn" data-tab="audittrail" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
           <span>📋</span> Activity Audit Trail
@@ -419,17 +427,17 @@ function renderSettingsUI(container, profile, settings) {
       </div>
 
       <!-- ========================================== -->
-      <!-- SECTION C: ADMISSION & ID FORMATTING -->
+      <!-- SECTION C: ADMISSION RULES & STUDENT ID GENERATOR -->
       <!-- ========================================== -->
       <div class="settings-panel" id="panel-admission" style="display: none;">
         <form id="form-admission">
           <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
             <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🎓 Admission Approval & Student ID Generation</h3>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Set identifier schemas for new students and auto-activation rules.</p>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🎓 Admission Rules & Student ID Generator</h3>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Configure prefix, dynamic serial formats, padding digits, starting roll numbers, and auto-admission policies.</p>
               </div>
-              <button type="submit" id="btn-save-admission" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Admission Rules</button>
+              <button type="submit" id="btn-save-admission" class="btn btn-primary btn-sm" style="font-weight: 600;">💾 Save Student ID Rules</button>
             </div>
 
             <div class="card-body" style="padding: 1.5rem;">
@@ -452,45 +460,73 @@ function renderSettingsUI(container, profile, settings) {
                 </div>
               </div>
 
-              <!-- ID Formatting Configuration -->
+              <!-- ID Formatting Configuration Grid -->
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
                 
+                <!-- 1. Prefix Input -->
                 <div class="form-group">
                   <label class="form-label" for="setting-idPrefix" style="font-weight: 600;">Student ID Prefix</label>
-                  <input type="text" id="setting-idPrefix" class="form-control" value="${escapeHTML(adm['admission.idPrefix'] || adm.idPrefix || 'STU')}" placeholder="e.g. STU, LIB, RR" maxlength="8" required>
+                  <input type="text" id="setting-idPrefix" class="form-control" value="${escapeHTML(adm['admission.idPrefix'] || adm.idPrefix || 'STU')}" placeholder="e.g. STU, LIB, CCC, PARLI" maxlength="12" required>
                   <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
-                    Short alphabetic code placed at start of unique student ID.
+                    Short alphabetic code placed at start (e.g. STU, LIB, CCC, PARLI).
                   </small>
                 </div>
 
+                <!-- 2. Format Dropdown -->
                 <div class="form-group">
-                  <label class="form-label" for="setting-idFormat" style="font-weight: 600;">Identifier Pattern</label>
+                  <label class="form-label" for="setting-idFormat" style="font-weight: 600;">Student ID Format Pattern</label>
                   <select id="setting-idFormat" class="form-select">
-                    <option value="prefix-year-serial" ${(adm['admission.idFormat'] || adm.idFormat || 'prefix-year-serial') === 'prefix-year-serial' ? 'selected' : ''}>Prefix-Year-Serial (e.g. STU-2026-001)</option>
-                    <option value="prefix-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'prefix-serial' ? 'selected' : ''}>Prefix-Serial (e.g. STU-0001)</option>
-                    <option value="year-prefix-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'year-prefix-serial' ? 'selected' : ''}>Year-Prefix-Serial (e.g. 26-STU-001)</option>
+                    <option value="prefix-year-serial" ${(adm['admission.idFormat'] || adm.idFormat || 'prefix-year-serial') === 'prefix-year-serial' ? 'selected' : ''}>STU-2026-001 (Prefix + Year + Serial)</option>
+                    <option value="prefix-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'prefix-serial' ? 'selected' : ''}>STU-001 (Prefix + Serial)</option>
+                    <option value="prefix-branch-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'prefix-branch-serial' ? 'selected' : ''}>LIB-PUN-2026-001 (Prefix + Branch + Year + Serial)</option>
+                    <option value="prefix-month-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'prefix-month-serial' ? 'selected' : ''}>STU-0826-001 (Prefix + Month/Year + Serial)</option>
                   </select>
                   <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
-                    Format applied when allocating serial roll numbers.
+                    Dynamic structural template for roll numbers.
+                  </small>
+                </div>
+
+                <!-- 3. Serial Digits Selector -->
+                <div class="form-group">
+                  <label class="form-label" for="setting-serialDigits" style="font-weight: 600;">Serial Digits Zero-Padding</label>
+                  <select id="setting-serialDigits" class="form-select">
+                    <option value="3" ${Number(adm['admission.serialDigits'] || adm.serialDigits || 3) === 3 ? 'selected' : ''}>3 Digits (001)</option>
+                    <option value="4" ${Number(adm['admission.serialDigits'] || adm.serialDigits) === 4 ? 'selected' : ''}>4 Digits (0001)</option>
+                    <option value="5" ${Number(adm['admission.serialDigits'] || adm.serialDigits) === 5 ? 'selected' : ''}>5 Digits (00001)</option>
+                  </select>
+                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                    Number of zero-padded digits for sequential roll counter.
+                  </small>
+                </div>
+
+                <!-- 4. Starting Number Input -->
+                <div class="form-group">
+                  <label class="form-label" for="setting-startingSerial" style="font-weight: 600;">Starting Roll Sequence Number</label>
+                  <input type="number" id="setting-startingSerial" class="form-control" value="${escapeHTML(String(adm['admission.startingSerial'] || adm.startingSerial || 1))}" min="1" step="1" placeholder="e.g. 1 or 101" required>
+                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                    Initial baseline counter for student ID numbers (e.g. 1 or 101).
                   </small>
                 </div>
 
               </div>
 
-              <!-- Live ID Badge Preview -->
-              <div style="background: var(--color-surface); border: 2px dashed var(--color-border); border-radius: var(--radius-md); padding: 1.5rem; text-align: center;">
-                <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                  Sample Generated Student Roll Number
+              <!-- Live Dynamic ID Badge Preview -->
+              <div style="background: var(--color-surface); border: 2px dashed var(--color-border); border-radius: var(--radius-md); padding: 1.5rem; text-align: center; margin-top: 1rem;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                  ⚡ Live Dynamic Preview Badge
                 </div>
-                <div id="sample-id-preview" style="font-size: 1.6rem; font-weight: 700; font-family: monospace; color: var(--color-primary); display: inline-block; padding: 0.4rem 1.25rem; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-light);">
-                  STU-2026-001
+                <div id="sample-id-preview" style="font-size: 1.5rem; font-weight: 700; font-family: monospace; color: var(--color-primary); display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 1.5rem; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-light); box-shadow: var(--shadow-sm);">
+                  <span style="opacity: 0.75; font-size: 0.95rem; font-weight: 500;">Sample ID:</span> STU-2026-001
+                </div>
+                <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 0.5rem;">
+                  Updates in real-time as you modify prefix, format, padding, or starting sequence.
                 </div>
               </div>
 
             </div>
 
             <div class="card-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; background: var(--color-surface-hover);">
-              <button type="submit" id="btn-save-admission-bottom" class="btn btn-primary" style="font-weight: 600;">Save Admission Rules</button>
+              <button type="submit" id="btn-save-admission-bottom" class="btn btn-primary" style="font-weight: 600;">💾 Save Student ID Rules</button>
             </div>
           </div>
         </form>
@@ -502,16 +538,148 @@ function renderSettingsUI(container, profile, settings) {
       <div class="settings-panel" id="panel-notifications" style="display: none;">
         <form id="form-notifications">
           <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
-            <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
+            <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
               <div>
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🔔 Automated Alerts & Communication Channels</h3>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Manage fee reminder intervals, membership expiry notices, and notification delivery options.</p>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🔔 Notifications, WhatsApp Schedules & Automated Bots</h3>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Configure automated bot dispatch times, reminder day intervals, WhatsApp Meta API integration, and trigger instant live audits.</p>
               </div>
-              <button type="submit" id="btn-save-notifications" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Alerts</button>
+              <button type="submit" id="btn-save-notifications" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Preferences</button>
             </div>
 
             <div class="card-body" style="padding: 1.5rem;">
-              
+
+              <!-- ==================================================== -->
+              <!-- SUBSECTION 1: AUTOMATED WHATSAPP SCHEDULE & DISPATCH -->
+              <!-- ==================================================== -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.75rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                  <div>
+                    <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                      <span>⏰</span> Automated Dispatch Schedule & WhatsApp Bot Engine
+                    </h4>
+                    <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">The cron service scans registered students daily and dispatches WhatsApp alerts with 1-tap UPI payment links.</p>
+                  </div>
+                  <span class="badge badge-success" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; font-weight: 600;">Active Cron Engine</span>
+                </div>
+
+                <!-- Daily Schedule Time Picker -->
+                <div style="margin-bottom: 1.25rem;">
+                  <label class="form-label" for="setting-whatsappScheduleTime" style="font-weight: 600; font-size: 0.9rem;">
+                    ⏰ Automated Dispatch Schedule Time (24-Hour Format)
+                  </label>
+                  <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                    <input type="time" id="setting-whatsappScheduleTime" class="form-control" style="font-size: 1.1rem; font-weight: 700; max-width: 180px; text-align: center; color: var(--color-primary);" value="${escapeHTML(notif['notification.whatsappScheduleTime'] || notif.whatsappScheduleTime || '09:30')}" required>
+                    <span style="font-size: 0.85rem; color: var(--color-text-secondary);">
+                      Default: <code>09:30 AM</code> IST. The server automatically triggers reminder scans and dispatches WhatsApp messages daily at this exact time.
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Auto Bots Enable/Disable Toggles Grid -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                  <!-- Expiry Bot Toggle -->
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                    <div style="padding-right: 0.75rem;">
+                      <div style="font-weight: 600; color: var(--color-text-primary); font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem;">
+                        <span>🤖</span> Enable Automated Expiry WhatsApp Bot
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">
+                        Sends renewal notices with seat info & 1-tap UPI deep links to students whose plans are expiring.
+                      </div>
+                    </div>
+                    <input type="checkbox" id="setting-enableAutoExpiryBot" class="form-toggle" ${(notif['notification.enableAutoExpiryBot'] ?? notif.enableAutoExpiryBot) !== false ? 'checked' : ''}>
+                  </div>
+
+                  <!-- Dues Bot Toggle -->
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                    <div style="padding-right: 0.75rem;">
+                      <div style="font-weight: 600; color: var(--color-text-primary); font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem;">
+                        <span>⚠️</span> Enable Automated Balance Due WhatsApp Bot
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">
+                        Sends overdue balance reminders with direct UPI link to students with partial/pending fee dues.
+                      </div>
+                    </div>
+                    <input type="checkbox" id="setting-enableAutoDuesBot" class="form-toggle" ${(notif['notification.enableAutoDuesBot'] ?? notif.enableAutoDuesBot) !== false ? 'checked' : ''}>
+                  </div>
+                </div>
+
+                <!-- Expiry Reminder Intervals Checkboxes -->
+                <div class="form-group" style="margin-bottom: 1.25rem;">
+                  <label class="form-label" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.4rem;">
+                    📅 Expiry Reminder Intervals (Days Before / On Expiry)
+                  </label>
+                  <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 0.6rem;">
+                    Select all days when the Expiry Bot should alert students prior to or on the day their plan ends:
+                  </div>
+                  <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;" id="expiry-intervals-container">
+                    ${[
+                      { day: 7, label: '7 Days Before' },
+                      { day: 3, label: '3 Days Before' },
+                      { day: 1, label: '1 Day Before' },
+                      { day: 0, label: 'On Expiry Day' }
+                    ].map(item => {
+                      const isChecked = selectedExpiryDays.includes(item.day);
+                      return `
+                        <label class="expiry-interval-label" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.9rem; border: 1px solid ${isChecked ? 'var(--color-primary)' : 'var(--color-border)'}; background: ${isChecked ? 'rgba(99, 102, 241, 0.12)' : 'var(--color-surface)'}; border-radius: var(--radius-md); cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.15s ease;">
+                          <input type="checkbox" class="expiry-day-checkbox" value="${item.day}" ${isChecked ? 'checked' : ''} style="cursor: pointer;">
+                          <span>${item.label}</span>
+                        </label>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+
+                <!-- Overdue Balance Reminder Intervals Checkboxes -->
+                <div class="form-group" style="margin-bottom: 1.25rem;">
+                  <label class="form-label" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 0.4rem;">
+                    💸 Overdue Balance Reminder Intervals (Days After Due Date)
+                  </label>
+                  <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 0.6rem;">
+                    Select all intervals when the Dues Bot should alert students regarding overdue partial balances:
+                  </div>
+                  <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;" id="balance-intervals-container">
+                    ${[
+                      { day: 1, label: '1 Day After Due' },
+                      { day: 3, label: '3 Days After Due' },
+                      { day: 7, label: '7 Days After Due' }
+                    ].map(item => {
+                      const isChecked = selectedBalanceDays.includes(item.day);
+                      return `
+                        <label class="balance-interval-label" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.9rem; border: 1px solid ${isChecked ? 'var(--color-primary)' : 'var(--color-border)'}; background: ${isChecked ? 'rgba(99, 102, 241, 0.12)' : 'var(--color-surface)'}; border-radius: var(--radius-md); cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.15s ease;">
+                          <input type="checkbox" class="balance-day-checkbox" value="${item.day}" ${isChecked ? 'checked' : ''} style="cursor: pointer;">
+                          <span>${item.label}</span>
+                        </label>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+
+                <!-- Action Button: Run Expiry & Dues Bot Now -->
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.15rem 1.25rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.12)); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: var(--radius-md); margin-top: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+                  <div>
+                    <h5 style="margin: 0 0 3px 0; font-size: 0.95rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.4rem;">
+                      <span>⚡</span> Instant Bot Execution & Dispatch Audit
+                    </h5>
+                    <p style="margin: 0; font-size: 0.8rem; color: var(--color-text-secondary);">
+                      Immediately runs the subscription expiry & balance due check and prepares 1-tap WhatsApp notifications.
+                    </p>
+                  </div>
+                  <button type="button" id="btn-run-bot-now" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; background: linear-gradient(135deg, #4f46e5, #7c3aed); border: none; padding: 0.6rem 1.25rem; box-shadow: var(--shadow-sm); cursor: pointer;">
+                    <span>⚡ Run Expiry & Dues Bot Now</span>
+                  </button>
+                </div>
+
+                <!-- Live Execution Log Stream Output Container -->
+                <div id="bot-execution-log-container" style="display: none; margin-top: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); padding: 1.25rem;">
+                  <!-- Rendered dynamically -->
+                </div>
+
+              </div>
+
+              <!-- ==================================================== -->
+              <!-- SUBSECTION 2: STANDARD NOTIFICATIONS & CHANNELS      -->
+              <!-- ==================================================== -->
               <!-- Payment Reminder Schedule Pills -->
               <div class="form-group" style="margin-bottom: 2rem;">
                 <label class="form-label" style="font-weight: 600;">
@@ -597,7 +765,7 @@ function renderSettingsUI(container, profile, settings) {
             </div>
 
             <div class="card-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; background: var(--color-surface-hover);">
-              <button type="submit" id="btn-save-notifications-bottom" class="btn btn-primary" style="font-weight: 600;">Save Alert Preferences</button>
+              <button type="submit" id="btn-save-notifications-bottom" class="btn btn-primary" style="font-weight: 600;">Save Preferences</button>
             </div>
           </div>
         </form>
@@ -755,23 +923,35 @@ function renderSettingsUI(container, profile, settings) {
       </div>
 
       <!-- ========================================== -->
-      <!-- SECTION H: MODULE SETTINGS                 -->
+      <!-- SECTION H: SIDEBAR & NAVIGATION MANAGER    -->
       <!-- ========================================== -->
-      <div class="settings-panel" id="panel-modules" style="display: none;">
+      <div class="settings-panel" id="panel-sidebar" style="display: none;">
         <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
           <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
             <div>
-              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🧩 Module Configuration</h3>
-              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Enable, disable, rename, and reorder sidebar modules.</p>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🧭 Sidebar & Navigation Manager</h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Manage sidebar items, icons, display names, order, active state, and role visibility permissions.</p>
             </div>
             <div style="display: flex; gap: 0.5rem;">
-              <button id="btn-reset-modules" class="btn btn-outline-danger btn-sm" style="font-weight: 600;">Reset Defaults</button>
-              <button id="btn-save-modules" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Modules</button>
+              <button id="btn-reset-sidebar-nav" class="btn btn-outline-danger btn-sm" style="font-weight: 600;">🔄 Reset to Default</button>
+              <button id="btn-save-sidebar-nav" class="btn btn-primary btn-sm" style="font-weight: 600;">💾 Save Navigation Layout</button>
             </div>
           </div>
           <div class="card-body" style="padding: 1.5rem;">
-            <div id="module-settings-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
-              <div class="text-center p-4 text-muted">Loading module configuration...</div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0.75rem 1rem; background: var(--color-bg-primary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+              <div style="font-size: 0.85rem; color: var(--color-text-secondary);">
+                💡 <strong>Tip:</strong> Use ⬆️ / ⬇️ buttons or drag handle ☰ to reorder items. Uncheck role checkboxes to hide specific items from Owner, Branch Manager, or Staff.
+              </div>
+            </div>
+
+            <div id="sidebar-manager-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <div class="text-center p-4 text-muted">Loading navigation configuration...</div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+              <button id="btn-reset-sidebar-nav-bottom" class="btn btn-outline-danger" style="font-weight: 600;">🔄 Reset to Default</button>
+              <button id="btn-save-sidebar-nav-bottom" class="btn btn-primary" style="font-weight: 600;">💾 Save Navigation Layout</button>
             </div>
 
             <!-- Student 360 Self-Service Portal Feature Switches -->
@@ -1135,7 +1315,8 @@ function renderSettingsUI(container, profile, settings) {
     general: container.querySelector('#panel-general'),
     backup: container.querySelector('#panel-backup'),
     formbuilder: container.querySelector('#panel-formbuilder'),
-    modules: container.querySelector('#panel-modules'),
+    sidebar: container.querySelector('#panel-sidebar') || container.querySelector('#panel-modules'),
+    modules: container.querySelector('#panel-sidebar') || container.querySelector('#panel-modules'),
     audittrail: container.querySelector('#panel-audittrail'),
     landing: container.querySelector('#panel-landing'),
     pdfstudio: container.querySelector('#panel-pdfstudio'),
@@ -1349,25 +1530,44 @@ function renderSettingsUI(container, profile, settings) {
   // Setup dynamic ID preview
   const prefixInput = container.querySelector('#setting-idPrefix');
   const formatSelect = container.querySelector('#setting-idFormat');
+  const digitsSelect = container.querySelector('#setting-serialDigits');
+  const startInput = container.querySelector('#setting-startingSerial');
   const sampleIdPreview = container.querySelector('#sample-id-preview');
 
   function updateIdPreview() {
     const p = (prefixInput?.value?.trim() || 'STU').toUpperCase();
     const fmt = formatSelect?.value || 'prefix-year-serial';
-    const year = new Date().getFullYear();
-    const shortYear = String(year).slice(-2);
+    const digits = parseInt(digitsSelect?.value, 10) || 3;
+    const startNum = parseInt(startInput?.value, 10) || 1;
+    const serialPadded = String(startNum).padStart(digits, '0');
 
+    const now = new Date();
+    const year = now.getFullYear();
+    const shortYear = String(year).slice(-2);
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+
+    let previewId = '';
     if (fmt === 'prefix-year-serial') {
-      sampleIdPreview.textContent = `${p}-${year}-001`;
+      previewId = `${p}-${year}-${serialPadded}`;
     } else if (fmt === 'prefix-serial') {
-      sampleIdPreview.textContent = `${p}-0001`;
-    } else if (fmt === 'year-prefix-serial') {
-      sampleIdPreview.textContent = `${shortYear}-${p}-001`;
+      previewId = `${p}-${serialPadded}`;
+    } else if (fmt === 'prefix-branch-serial') {
+      previewId = `${p}-PUN-${year}-${serialPadded}`;
+    } else if (fmt === 'prefix-month-serial') {
+      previewId = `${p}-${month}${shortYear}-${serialPadded}`;
+    } else {
+      previewId = `${p}-${year}-${serialPadded}`;
+    }
+
+    if (sampleIdPreview) {
+      sampleIdPreview.innerHTML = `<span style="opacity: 0.75; font-size: 0.95rem; font-weight: 500;">Sample ID:</span> ${previewId}`;
     }
   }
 
   prefixInput?.addEventListener('input', updateIdPreview);
   formatSelect?.addEventListener('change', updateIdPreview);
+  digitsSelect?.addEventListener('change', updateIdPreview);
+  startInput?.addEventListener('input', updateIdPreview);
   updateIdPreview();
 
   // Setup auto-approve badge text sync
@@ -1564,7 +1764,7 @@ function renderSettingsUI(container, profile, settings) {
 
   renderPaymentMethodsManager();
 
-  // Setup reminder days pill toggles
+  // Setup payment reminder days pill toggles
   const reminderContainer = container.querySelector('#reminder-days-container');
   reminderContainer?.querySelectorAll('.reminder-day-chip').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1584,6 +1784,157 @@ function renderSettingsUI(container, profile, settings) {
         btn.style.borderColor = 'var(--color-primary)';
       }
     });
+  });
+
+  // Setup Expiry Reminder Interval Checkboxes
+  container.querySelectorAll('.expiry-day-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const day = parseInt(cb.value, 10);
+      const label = cb.closest('.expiry-interval-label');
+      if (cb.checked) {
+        if (!selectedExpiryDays.includes(day)) selectedExpiryDays.push(day);
+        if (label) {
+          label.style.borderColor = 'var(--color-primary)';
+          label.style.background = 'rgba(99, 102, 241, 0.12)';
+        }
+      } else {
+        selectedExpiryDays = selectedExpiryDays.filter(d => d !== day);
+        if (label) {
+          label.style.borderColor = 'var(--color-border)';
+          label.style.background = 'var(--color-surface)';
+        }
+      }
+    });
+  });
+
+  // Setup Overdue Balance Reminder Interval Checkboxes
+  container.querySelectorAll('.balance-day-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const day = parseInt(cb.value, 10);
+      const label = cb.closest('.balance-interval-label');
+      if (cb.checked) {
+        if (!selectedBalanceDays.includes(day)) selectedBalanceDays.push(day);
+        if (label) {
+          label.style.borderColor = 'var(--color-primary)';
+          label.style.background = 'rgba(99, 102, 241, 0.12)';
+        }
+      } else {
+        selectedBalanceDays = selectedBalanceDays.filter(d => d !== day);
+        if (label) {
+          label.style.borderColor = 'var(--color-border)';
+          label.style.background = 'var(--color-surface)';
+        }
+      }
+    });
+  });
+
+  // Render Bot Execution Live Log Helper
+  function renderBotExecutionLog(logBox, data) {
+    if (!logBox) return;
+    logBox.style.display = 'block';
+    const timeFormatted = new Date(data.timestamp || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const logs = data.logs || [];
+
+    const logRowsHtml = logs.length > 0 ? logs.map((l, idx) => {
+      const badgeColor = l.type === 'expiry_reminder' ? '#6366f1' : (l.type === 'balance_due_reminder' ? '#f59e0b' : (l.type === 'seat_release' ? '#ef4444' : '#10b981'));
+      const typeLabel = l.type === 'expiry_reminder' ? '📅 EXPIRY ALERT' : (l.type === 'balance_due_reminder' ? '⚠️ BALANCE DUE' : (l.type === 'seat_release' ? '🚫 SEAT RELEASED' : '⏳ GRACE PERIOD'));
+      const waBtn = l.whatsappUrl ? `<a href="${l.whatsappUrl}" target="_blank" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.75rem; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">💬 Open WhatsApp</a>` : '';
+
+      return `
+        <tr style="border-bottom: 1px solid var(--color-border); font-size: 0.85rem;">
+          <td style="padding: 8px 10px; font-family: monospace; color: var(--color-text-secondary);">${idx + 1}</td>
+          <td style="padding: 8px 10px; font-weight: 600; color: var(--color-text-primary);">${escapeHTML(l.studentName || 'Student')}</td>
+          <td style="padding: 8px 10px; font-family: monospace;">${escapeHTML(l.phone || '-')}</td>
+          <td style="padding: 8px 10px;">
+            <span style="background: ${badgeColor}22; color: ${badgeColor}; border: 1px solid ${badgeColor}55; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 700;">
+              ${typeLabel}
+            </span>
+          </td>
+          <td style="padding: 8px 10px; color: var(--color-text-secondary); font-size: 0.8rem;">
+            ${l.timeLabel ? `<b>${l.timeLabel}</b> • Renewal: ₹${l.amount || 0}` : (l.overdueDays !== undefined ? `Overdue: <b>${l.overdueDays}d</b> • Due: ₹${l.balanceDue || 0}` : (l.detail || ''))}
+          </td>
+          <td style="padding: 8px 10px; text-align: right;">
+            ${waBtn || `<span style="font-size: 0.75rem; color: var(--color-text-muted);">Dispatched</span>`}
+          </td>
+        </tr>
+      `;
+    }).join('') : `<tr><td colspan="6" style="padding: 1.5rem; text-align: center; color: var(--color-text-secondary);">No student memberships required expiry alerts or balance due notices at this run.</td></tr>`;
+
+    logBox.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem; color: var(--color-text-primary);">
+          <span>📋</span> Live Expiry & Dues Bot Execution Audit Log
+          <span style="font-size: 0.75rem; font-weight: normal; color: var(--color-text-secondary);">(${timeFormatted})</span>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-close-bot-log" style="padding: 2px 8px; font-size: 0.75rem;">Close Log</button>
+      </div>
+
+      <!-- Metric Badges Row -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;">
+        <div style="background: var(--color-bg-primary); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--color-border); text-align: center;">
+          <div style="font-size: 0.75rem; color: var(--color-text-secondary); text-transform: uppercase;">Students Scanned</div>
+          <div style="font-size: 1.3rem; font-weight: 700; color: var(--color-text-primary);">${data.totalStudentsScanned ?? 0}</div>
+        </div>
+        <div style="background: rgba(99, 102, 241, 0.1); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid rgba(99, 102, 241, 0.3); text-align: center;">
+          <div style="font-size: 0.75rem; color: #6366f1; text-transform: uppercase; font-weight: 600;">Expiry Alerts</div>
+          <div style="font-size: 1.3rem; font-weight: 700; color: #6366f1;">${data.expiryRemindersSent ?? 0}</div>
+        </div>
+        <div style="background: rgba(245, 158, 11, 0.1); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid rgba(245, 158, 11, 0.3); text-align: center;">
+          <div style="font-size: 0.75rem; color: #f59e0b; text-transform: uppercase; font-weight: 600;">Dues Alerts</div>
+          <div style="font-size: 1.3rem; font-weight: 700; color: #f59e0b;">${data.balanceDueRemindersSent ?? 0}</div>
+        </div>
+        <div style="background: rgba(239, 68, 68, 0.1); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid rgba(239, 68, 68, 0.3); text-align: center;">
+          <div style="font-size: 0.75rem; color: #ef4444; text-transform: uppercase; font-weight: 600;">Seats Released</div>
+          <div style="font-size: 1.3rem; font-weight: 700; color: #ef4444;">${data.seatsReleased ?? 0}</div>
+        </div>
+        <div style="background: rgba(16, 185, 129, 0.1); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid rgba(16, 185, 129, 0.3); text-align: center;">
+          <div style="font-size: 0.75rem; color: #10b981; text-transform: uppercase; font-weight: 600;">Grace Active</div>
+          <div style="font-size: 1.3rem; font-weight: 700; color: #10b981;">${data.gracePeriodCount ?? 0}</div>
+        </div>
+      </div>
+
+      <!-- Detailed Table -->
+      <div style="overflow-x: auto; max-height: 280px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+          <thead>
+            <tr style="background: var(--color-bg-primary); border-bottom: 1px solid var(--color-border); font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase;">
+              <th style="padding: 8px 10px;">#</th>
+              <th style="padding: 8px 10px;">Student</th>
+              <th style="padding: 8px 10px;">Phone</th>
+              <th style="padding: 8px 10px;">Action / Type</th>
+              <th style="padding: 8px 10px;">Details</th>
+              <th style="padding: 8px 10px; text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${logRowsHtml}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    logBox.querySelector('#btn-close-bot-log')?.addEventListener('click', () => {
+      logBox.style.display = 'none';
+    });
+  }
+
+  // Setup Run Expiry & Dues Bot Now Action Button
+  const btnRunBot = container.querySelector('#btn-run-bot-now');
+  const botLogContainer = container.querySelector('#bot-execution-log-container');
+  btnRunBot?.addEventListener('click', async () => {
+    Loading.button(btnRunBot, true);
+    try {
+      const res = await api.post('/api/messages/run-cron-now');
+      Toast.success(res?.message || 'Expiry & Dues Bot executed successfully!');
+      if (botLogContainer && res?.data) {
+        renderBotExecutionLog(botLogContainer, res.data);
+      }
+    } catch (err) {
+      console.error('Failed to run bot now:', err);
+      Toast.error(err.message || 'Failed to execute expiry & dues bot');
+    } finally {
+      Loading.button(btnRunBot, false);
+    }
   });
 
   // Smart Receipt Studio Logic
@@ -1867,14 +2218,18 @@ function renderSettingsUI(container, profile, settings) {
   async function saveAdmission(btn) {
     Loading.button(btn, true);
     try {
+      const startingNum = parseInt(container.querySelector('#setting-startingSerial')?.value, 10) || 1;
       const payload = {
         autoApprove: !!container.querySelector('#setting-autoApprove')?.checked,
         idPrefix: container.querySelector('#setting-idPrefix')?.value?.trim() || 'STU',
-        idFormat: container.querySelector('#setting-idFormat')?.value || 'prefix-year-serial'
+        idFormat: container.querySelector('#setting-idFormat')?.value || 'prefix-year-serial',
+        serialDigits: parseInt(container.querySelector('#setting-serialDigits')?.value, 10) || 3,
+        startingSerial: startingNum,
+        currentSerial: startingNum
       };
 
-      const res = await api.put('/api/settings/system-settings', payload);
-      Toast.success(res?.message || 'Admission & ID rules updated successfully');
+      const res = await api.put('/api/settings', payload);
+      Toast.success(res?.message || 'Student ID rules & admission settings saved successfully');
     } catch (err) {
       Toast.error(err.message || 'Failed to update admission rules');
     } finally {
@@ -1896,11 +2251,16 @@ function renderSettingsUI(container, profile, settings) {
         expiryReminder: parseInt(container.querySelector('#setting-expiryReminder')?.value, 10) || 7,
         enableEmail: !!container.querySelector('#setting-enableEmail')?.checked,
         enableInApp: !!container.querySelector('#setting-enableInApp')?.checked,
-        enableWhatsapp: !!container.querySelector('#setting-enableWhatsapp')?.checked
+        enableWhatsapp: !!container.querySelector('#setting-enableWhatsapp')?.checked,
+        whatsappScheduleTime: container.querySelector('#setting-whatsappScheduleTime')?.value || '09:30',
+        expiryReminderDays: selectedExpiryDays,
+        balanceReminderDays: selectedBalanceDays,
+        enableAutoExpiryBot: !!container.querySelector('#setting-enableAutoExpiryBot')?.checked,
+        enableAutoDuesBot: !!container.querySelector('#setting-enableAutoDuesBot')?.checked
       };
 
       const res = await api.put('/api/settings/system-settings', payload);
-      Toast.success(res?.message || 'Notification preferences updated successfully');
+      Toast.success(res?.message || 'Notification preferences & WhatsApp schedule updated successfully');
     } catch (err) {
       Toast.error(err.message || 'Failed to update notifications');
     } finally {
@@ -1989,11 +2349,19 @@ function renderSettingsUI(container, profile, settings) {
         autoApprove: !!container.querySelector('#setting-autoApprove')?.checked,
         idPrefix: container.querySelector('#setting-idPrefix')?.value?.trim() || 'STU',
         idFormat: container.querySelector('#setting-idFormat')?.value || 'prefix-year-serial',
+        serialDigits: parseInt(container.querySelector('#setting-serialDigits')?.value, 10) || 3,
+        startingSerial: parseInt(container.querySelector('#setting-startingSerial')?.value, 10) || 1,
+        currentSerial: parseInt(container.querySelector('#setting-startingSerial')?.value, 10) || 1,
         paymentReminder: selectedReminderDays,
         expiryReminder: parseInt(container.querySelector('#setting-expiryReminder')?.value, 10) || 7,
         enableEmail: !!container.querySelector('#setting-enableEmail')?.checked,
         enableInApp: !!container.querySelector('#setting-enableInApp')?.checked,
         enableWhatsapp: !!container.querySelector('#setting-enableWhatsapp')?.checked,
+        whatsappScheduleTime: container.querySelector('#setting-whatsappScheduleTime')?.value || '09:30',
+        expiryReminderDays: selectedExpiryDays,
+        balanceReminderDays: selectedBalanceDays,
+        enableAutoExpiryBot: !!container.querySelector('#setting-enableAutoExpiryBot')?.checked,
+        enableAutoDuesBot: !!container.querySelector('#setting-enableAutoDuesBot')?.checked,
         currencySymbol: container.querySelector('#setting-currencySymbol')?.value?.trim() || '₹',
         currency: container.querySelector('#setting-currency')?.value || 'INR',
         dateFormat: container.querySelector('#setting-dateFormat')?.value || 'DD/MM/YYYY',
@@ -2334,47 +2702,118 @@ function renderSettingsUI(container, profile, settings) {
   // Load custom fields initially
   loadCustomFields();
 
-  initModuleSettings(container);
+  initSidebarManager(container);
   initLandingSettings(container);
 }
 
-async function initModuleSettings(container) {
-  const listContainer = container.querySelector('#module-settings-list');
+async function initSidebarManager(container) {
+  const listContainer = container.querySelector('#sidebar-manager-list') || container.querySelector('#module-settings-list');
   if (!listContainer) return;
 
   const renderList = (items) => {
-    listContainer.innerHTML = items.map((item, index) => `
-      <div class="module-item" data-key="${item.key}" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); margin-bottom: 0.5rem; transition: transform 0.2s;">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-          <div class="drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary);">☰</div>
-          <div style="font-weight: 600; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            <span>${item.label}</span>
-            ${item.isSystem ? '<span class="badge badge-secondary" style="font-size: 0.7rem;">System</span>' : ''}
+    listContainer.innerHTML = items.map((item, index) => {
+      const roles = Array.isArray(item.allowedRoles) && item.allowedRoles.length > 0
+        ? item.allowedRoles
+        : ['owner', 'branch_manager', 'staff'];
+
+      return `
+        <div class="sidebar-item-card" data-key="${item.key}" data-href="${item.href || '#/' + item.key}" draggable="true" style="display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem 1.25rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); transition: transform 0.2s, box-shadow 0.2s; box-shadow: var(--shadow-sm); margin-bottom: 0.5rem;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+            <!-- Left: Drag handle, Move buttons, Icon, Label, Route -->
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; flex: 1; min-width: 280px;">
+              <div class="drag-handle" style="cursor: grab; font-size: 1.3rem; color: var(--color-text-secondary); padding: 0 4px; user-select: none;" title="Drag to reorder">☰</div>
+              
+              <div style="display: flex; gap: 4px;">
+                <button type="button" class="btn btn-sm btn-outline btn-move-up" title="Move Up" style="padding: 2px 8px; font-size: 0.85rem; font-weight: 600;">⬆️</button>
+                <button type="button" class="btn btn-sm btn-outline btn-move-down" title="Move Down" style="padding: 2px 8px; font-size: 0.85rem; font-weight: 600;">⬇️</button>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="text" class="form-control form-control-sm item-icon-input" value="${escapeHTML(item.icon || '')}" style="width: 52px; text-align: center; font-size: 1.15rem; padding: 4px;" placeholder="Icon" title="Item Icon (Emoji / Text)">
+                <input type="text" class="form-control form-control-sm item-label-input" value="${escapeHTML(item.label || item.key)}" style="width: 170px; font-weight: 600;" placeholder="Menu Label" title="Display Name">
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <span class="badge" style="font-family: monospace; font-size: 0.78rem; background: var(--color-bg-secondary); border: 1px solid var(--color-border); color: var(--color-text-secondary); padding: 4px 8px; border-radius: 4px;" title="Target Route">
+                  ${escapeHTML(item.href || '#/' + item.key)}
+                </span>
+                ${item.isSystem ? '<span class="badge badge-secondary" style="font-size: 0.68rem; padding: 2px 6px;">System</span>' : ''}
+              </div>
+            </div>
+
+            <!-- Right: Role Checkboxes & Active Toggle -->
+            <div style="display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;">
+              <!-- Role Visibility Checkboxes -->
+              <div style="display: flex; align-items: center; gap: 0.75rem; background: var(--color-bg-secondary); padding: 6px 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                <span style="font-size: 0.78rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; margin-right: 2px;">Visibility:</span>
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 0.85rem; font-weight: 500; cursor: pointer; margin: 0;">
+                  <input type="checkbox" class="role-cb role-owner" ${roles.includes('owner') ? 'checked' : ''}>
+                  <span>👑 Owner</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 0.85rem; font-weight: 500; cursor: pointer; margin: 0;">
+                  <input type="checkbox" class="role-cb role-manager" ${roles.includes('branch_manager') ? 'checked' : ''}>
+                  <span>🏢 Branch Manager</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 0.85rem; font-weight: 500; cursor: pointer; margin: 0;">
+                  <input type="checkbox" class="role-cb role-staff" ${roles.includes('staff') ? 'checked' : ''}>
+                  <span>🧑💼 Staff</span>
+                </label>
+              </div>
+
+              <!-- Active Toggle -->
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0; font-weight: 600; font-size: 0.88rem;">
+                <input type="checkbox" class="form-toggle item-enable-toggle" ${item.isEnabled !== false ? 'checked' : ''}>
+                <span class="active-toggle-label" style="color: ${item.isEnabled !== false ? 'var(--color-success)' : 'var(--color-text-muted)'};">[✓] Active</span>
+              </label>
+            </div>
           </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 1rem;">
-          <input type="text" class="form-control form-control-sm module-label-input" value="${escapeHTML(item.label)}" style="width: 150px;" placeholder="Rename...">
-          <label style="display: flex; align-items: center; cursor: pointer; gap: 0.5rem; margin: 0;">
-            <input type="checkbox" class="form-toggle module-enable-toggle" ${item.isEnabled ? 'checked' : ''} ${item.isSystem ? 'disabled' : ''}>
-          </label>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
-    // Setup drag and drop for .module-item inside listContainer
-    let draggedItem = null;
-    const moduleItems = listContainer.querySelectorAll('.module-item');
-    moduleItems.forEach(item => {
-      item.draggable = true;
-      item.addEventListener('dragstart', (e) => {
-        draggedItem = item;
-        setTimeout(() => item.style.opacity = '0.5', 0);
+    // Setup Move Up & Move Down button handlers
+    listContainer.querySelectorAll('.sidebar-item-card').forEach(card => {
+      card.querySelector('.btn-move-up')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const prev = card.previousElementSibling;
+        if (prev) {
+          listContainer.insertBefore(card, prev);
+        }
       });
-      item.addEventListener('dragend', () => {
-        draggedItem.style.opacity = '1';
+
+      card.querySelector('.btn-move-down')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const next = card.nextElementSibling;
+        if (next) {
+          listContainer.insertBefore(next, card);
+        }
+      });
+
+      // Toggle label color when active checkbox changes
+      const toggle = card.querySelector('.item-enable-toggle');
+      const label = card.querySelector('.active-toggle-label');
+      toggle?.addEventListener('change', () => {
+        if (label) {
+          label.style.color = toggle.checked ? 'var(--color-success)' : 'var(--color-text-muted)';
+        }
+      });
+    });
+
+    // Setup Drag & Drop reordering
+    let draggedItem = null;
+    const cards = listContainer.querySelectorAll('.sidebar-item-card');
+    cards.forEach(card => {
+      card.addEventListener('dragstart', () => {
+        draggedItem = card;
+        setTimeout(() => { card.style.opacity = '0.5'; }, 0);
+      });
+      card.addEventListener('dragend', () => {
+        card.style.opacity = '1';
         draggedItem = null;
       });
-      item.addEventListener('dragover', (e) => {
+      card.addEventListener('dragover', (e) => {
         e.preventDefault();
         const afterElement = getDragAfterElement(listContainer, e.clientY);
         if (afterElement == null) {
@@ -2387,7 +2826,7 @@ async function initModuleSettings(container) {
   };
 
   function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('.module-item:not(.dragging)')];
+    const draggableElements = [...container.querySelectorAll('.sidebar-item-card:not(.dragging)')];
     return draggableElements.reduce((closest, child) => {
       const box = child.getBoundingClientRect();
       const offset = y - box.top - box.height / 2;
@@ -2402,62 +2841,97 @@ async function initModuleSettings(container) {
   const loadSettings = async () => {
     try {
       const res = await api.get('/api/settings/sidebar/all');
-      if (res.success && res.data) {
+      if (res && res.success && res.data) {
         renderList(res.data);
       }
     } catch (e) {
-      listContainer.innerHTML = '<div class="text-danger">Failed to load module settings</div>';
+      listContainer.innerHTML = '<div class="text-danger p-3">Failed to load sidebar navigation layout</div>';
     }
   };
 
-  container.querySelector('#btn-save-modules')?.addEventListener('click', async () => {
+  const handleSave = async (btn) => {
     const items = [];
-    listContainer.querySelectorAll('.module-item').forEach((itemEl, index) => {
-      const key = itemEl.dataset.key;
+    listContainer.querySelectorAll('.sidebar-item-card').forEach((card, index) => {
+      const key = card.dataset.key;
+      const label = card.querySelector('.item-label-input')?.value?.trim() || key;
+      const icon = card.querySelector('.item-icon-input')?.value?.trim() || '';
+      const href = card.dataset.href || `#/${key}`;
+      const isEnabled = card.querySelector('.item-enable-toggle')?.checked ?? true;
+
+      const allowedRoles = [];
+      if (card.querySelector('.role-owner')?.checked) allowedRoles.push('owner');
+      if (card.querySelector('.role-manager')?.checked) allowedRoles.push('branch_manager');
+      if (card.querySelector('.role-staff')?.checked) allowedRoles.push('staff');
+
       items.push({
-        key: key,
-        label: itemEl.querySelector('.module-label-input').value.trim() || key,
-        href: `#/${key}`,
-        isEnabled: itemEl.querySelector('.module-enable-toggle').checked,
-        order: index + 1
+        key,
+        label,
+        icon,
+        href,
+        isEnabled,
+        order: index + 1,
+        allowedRoles
       });
     });
 
-    const btn = container.querySelector('#btn-save-modules');
-    Loading.button(btn, true);
+    if (btn) Loading.button(btn, true);
     try {
       const res = await api.put('/api/settings/sidebar', { items });
-      if (res.success) {
-        Toast.success('Module settings saved. Please refresh the page to see sidebar changes.');
-        renderList(res.data);
+      if (res && res.success) {
+        Toast.success('Sidebar navigation layout saved successfully!');
+        if (Array.isArray(res.data)) {
+          renderList(res.data);
+        }
+        // Real-time refresh of the active app sidebar
+        if (typeof window.reloadSidebar === 'function') {
+          window.reloadSidebar();
+        } else if (window.App && typeof window.App.updateSidebarForRole === 'function') {
+          window.App.updateSidebarForRole();
+        }
       } else {
-        Toast.error(res.message);
+        Toast.error(res?.message || 'Failed to save sidebar navigation');
       }
     } catch (err) {
-      Toast.error(err.message || 'Failed to save module settings');
+      Toast.error(err.message || 'Failed to save sidebar navigation');
     } finally {
-      Loading.button(btn, false);
+      if (btn) Loading.button(btn, false);
     }
-  });
+  };
 
-  container.querySelector('#btn-reset-modules')?.addEventListener('click', () => {
+  const handleReset = () => {
     Confirm.show({
-      title: 'Reset Modules',
-      message: 'Are you sure you want to reset sidebar modules to defaults?',
+      title: 'Reset Navigation Layout',
+      message: 'Are you sure you want to reset all sidebar navigation items to system defaults?',
       danger: true,
       onConfirm: async () => {
         try {
           const res = await api.put('/api/settings/sidebar/reset');
-          if (res.success) {
-            Toast.success('Modules reset. Please refresh.');
-            renderList(res.data);
+          if (res && res.success) {
+            Toast.success('Sidebar navigation reset to system defaults!');
+            if (Array.isArray(res.data)) {
+              renderList(res.data);
+            }
+            if (typeof window.reloadSidebar === 'function') {
+              window.reloadSidebar();
+            } else if (window.App && typeof window.App.updateSidebarForRole === 'function') {
+              window.App.updateSidebarForRole();
+            }
           }
         } catch (err) {
-          Toast.error('Failed to reset modules');
+          Toast.error('Failed to reset sidebar navigation');
         }
       }
     });
-  });
+  };
+
+  // Attach Save and Reset button event handlers (both header & footer)
+  container.querySelector('#btn-save-sidebar-nav')?.addEventListener('click', (e) => handleSave(e.currentTarget));
+  container.querySelector('#btn-save-sidebar-nav-bottom')?.addEventListener('click', (e) => handleSave(e.currentTarget));
+  container.querySelector('#btn-save-modules')?.addEventListener('click', (e) => handleSave(e.currentTarget));
+
+  container.querySelector('#btn-reset-sidebar-nav')?.addEventListener('click', () => handleReset());
+  container.querySelector('#btn-reset-sidebar-nav-bottom')?.addEventListener('click', () => handleReset());
+  container.querySelector('#btn-reset-modules')?.addEventListener('click', () => handleReset());
 
   loadSettings();
 }

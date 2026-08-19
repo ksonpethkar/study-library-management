@@ -552,6 +552,16 @@ router.put('/system-settings', protect, roleCheck('owner'), async (req, res) => 
       'notification.enableEmail': { key: 'notification.enableEmail', category: 'notification', type: 'boolean', label: 'Enable Email' },
       'enableInApp': { key: 'notification.enableInApp', category: 'notification', type: 'boolean', label: 'Enable In-App Notifications' },
       'notification.enableInApp': { key: 'notification.enableInApp', category: 'notification', type: 'boolean', label: 'Enable In-App Notifications' },
+      'whatsappScheduleTime': { key: 'notification.whatsappScheduleTime', category: 'notification', type: 'string', label: 'WhatsApp Schedule Time' },
+      'notification.whatsappScheduleTime': { key: 'notification.whatsappScheduleTime', category: 'notification', type: 'string', label: 'WhatsApp Schedule Time' },
+      'expiryReminderDays': { key: 'notification.expiryReminderDays', category: 'notification', type: 'array', label: 'Expiry Reminder Days Intervals' },
+      'notification.expiryReminderDays': { key: 'notification.expiryReminderDays', category: 'notification', type: 'array', label: 'Expiry Reminder Days Intervals' },
+      'balanceReminderDays': { key: 'notification.balanceReminderDays', category: 'notification', type: 'array', label: 'Overdue Balance Reminder Days Intervals' },
+      'notification.balanceReminderDays': { key: 'notification.balanceReminderDays', category: 'notification', type: 'array', label: 'Overdue Balance Reminder Days Intervals' },
+      'enableAutoExpiryBot': { key: 'notification.enableAutoExpiryBot', category: 'notification', type: 'boolean', label: 'Enable Automated Expiry WhatsApp Bot' },
+      'notification.enableAutoExpiryBot': { key: 'notification.enableAutoExpiryBot', category: 'notification', type: 'boolean', label: 'Enable Automated Expiry WhatsApp Bot' },
+      'enableAutoDuesBot': { key: 'notification.enableAutoDuesBot', category: 'notification', type: 'boolean', label: 'Enable Automated Balance Due WhatsApp Bot' },
+      'notification.enableAutoDuesBot': { key: 'notification.enableAutoDuesBot', category: 'notification', type: 'boolean', label: 'Enable Automated Balance Due WhatsApp Bot' },
 
       // General Settings
       'currency': { key: 'general.currency', category: 'general', type: 'string', label: 'Currency' },
