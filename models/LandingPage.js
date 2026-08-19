@@ -122,6 +122,54 @@ const landingPageSchema = new mongoose.Schema({
     successMessage: { type: String, default: 'Thank you! Your enquiry has been received. Our manager will contact you shortly.' }
   },
 
+  // Footer & Quick Links Customization
+  footer: {
+    enabled: { type: Boolean, default: true },
+    orgName: { type: String, default: '' },
+    tagline: { type: String, default: 'Premier Air-Conditioned Reading Hall & Self-Study Space.' },
+    quickLinks: [{
+      label: { type: String, required: true },
+      url: { type: String, required: true },
+      openInNewTab: { type: Boolean, default: false },
+      isSystem: { type: Boolean, default: false }
+    }],
+    copyrightText: { type: String, default: 'Study Library Management System. All Rights Reserved.' },
+    showMap: { type: Boolean, default: true },
+    mapEmbedUrl: { type: String, default: '' },
+    mapDirectLink: { type: String, default: '' }
+  },
+
+  // Navbar & Header Configuration
+  navbar: {
+    brandName: { type: String, default: '' },
+    brandLogo: { type: String, default: '' },
+    ctaPrimaryText: { type: String, default: 'Register Now' },
+    ctaPrimaryLink: { type: String, default: '/register' },
+    ctaSecondaryText: { type: String, default: 'Student Portal' },
+    ctaSecondaryLink: { type: String, default: '/student-login' },
+    showDarkModeToggle: { type: Boolean, default: true },
+    customNavLinks: [{
+      label: { type: String, required: true },
+      url: { type: String, required: true }
+    }]
+  },
+
+  // Floating Quick Actions Bar
+  floatingActions: {
+    enabled: { type: Boolean, default: true },
+    whatsappNumber: { type: String, default: '' },
+    whatsappMessage: { type: String, default: 'Hello! I am interested in library admission.' },
+    callNumber: { type: String, default: '' }
+  },
+
+  // SEO & Social Share Metadata
+  seo: {
+    metaTitle: { type: String, default: 'Study Library & Reading Hall' },
+    metaDescription: { type: String, default: 'Peaceful, air-conditioned study library with high-speed Wi-Fi, ergonomic seating, and 24x7 power backup.' },
+    metaKeywords: { type: String, default: 'study library, reading hall, silent library, UPSC library' },
+    ogImage: { type: String, default: '' }
+  },
+
   // Theme & Branding Configuration
   theme: {
     preset: { type: String, default: 'default' },
@@ -245,6 +293,43 @@ landingPageSchema.statics.getDefaults = function() {
       address: '2nd Floor, Sai Complex, Near Metro Station, Pune, Maharashtra 411001',
       googleMapEmbedUrl: '',
       openingHours: 'Open Daily: 06:00 AM – 11:00 PM (365 Days)'
+    },
+    footer: {
+      enabled: true,
+      orgName: 'Study Library',
+      tagline: 'Premier Air-Conditioned Reading Hall & Self-Study Space.',
+      quickLinks: [
+        { label: 'Online Admission', url: '/register', openInNewTab: false, isSystem: true },
+        { label: 'Student Portal', url: '/student-login', openInNewTab: false, isSystem: true },
+        { label: 'Gate Kiosk', url: '/kiosk', openInNewTab: false, isSystem: true },
+        { label: 'Staff & Owner Login', url: '/#/', openInNewTab: false, isSystem: true }
+      ],
+      copyrightText: 'Study Library Management System. All Rights Reserved.',
+      showMap: true,
+      mapEmbedUrl: '',
+      mapDirectLink: ''
+    },
+    navbar: {
+      brandName: 'Study Library',
+      brandLogo: '',
+      ctaPrimaryText: 'Register Now',
+      ctaPrimaryLink: '/register',
+      ctaSecondaryText: 'Student Portal',
+      ctaSecondaryLink: '/student-login',
+      showDarkModeToggle: true,
+      customNavLinks: []
+    },
+    floatingActions: {
+      enabled: true,
+      whatsappNumber: '+91 9876543210',
+      whatsappMessage: 'Hello! I am interested in joining the study library.',
+      callNumber: '+91 9876543210'
+    },
+    seo: {
+      metaTitle: 'Study Library & Premium Reading Hall',
+      metaDescription: 'Peaceful, air-conditioned study library with 300 Mbps Wi-Fi, ergonomic seating, and 24x7 power backup.',
+      metaKeywords: 'study library, reading hall, silent library, UPSC study room, Pune library',
+      ogImage: ''
     },
     enquiry: {
       enabled: true,

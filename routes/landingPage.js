@@ -159,7 +159,7 @@ router.put('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) 
     let config = await LandingPage.getPageConfig();
     
     // Deep update fields
-    const { hero, about, facilities, shifts, rules, gallery, faqs, testimonials, contact, enquiry, theme } = req.body;
+    const { hero, about, facilities, shifts, rules, gallery, faqs, testimonials, contact, enquiry, theme, footer, navbar, floatingActions, seo } = req.body;
 
     if (hero) config.hero = { ...config.hero.toObject(), ...hero };
     if (about) config.about = { ...config.about.toObject(), ...about };
@@ -172,6 +172,10 @@ router.put('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) 
     if (contact) config.contact = { ...config.contact.toObject(), ...contact };
     if (enquiry) config.enquiry = { ...config.enquiry.toObject(), ...enquiry };
     if (theme) config.theme = { ...config.theme.toObject(), ...theme };
+    if (footer) config.footer = { ...config.footer.toObject(), ...footer };
+    if (navbar) config.navbar = { ...config.navbar.toObject(), ...navbar };
+    if (floatingActions) config.floatingActions = { ...config.floatingActions.toObject(), ...floatingActions };
+    if (seo) config.seo = { ...config.seo.toObject(), ...seo };
 
     await config.save();
 

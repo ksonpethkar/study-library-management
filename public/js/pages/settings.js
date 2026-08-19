@@ -2500,6 +2500,7 @@ async function initLandingSettings(container) {
         <div class="cms-editor-panel" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; background: var(--color-surface); height: calc(100vh - 240px); min-height: 600px; overflow-y: auto;">
           <div class="landing-tabs" style="display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border);">
             <button class="landing-tab-btn active" data-tab="hero" style="padding: 0.5rem 0.85rem; border: none; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 600; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap;">Hero & Branding</button>
+            <button class="landing-tab-btn" data-tab="navbar" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Navbar & CTA</button>
             <button class="landing-tab-btn" data-tab="about" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">About & Stats</button>
             <button class="landing-tab-btn" data-tab="facilities" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Facilities</button>
             <button class="landing-tab-btn" data-tab="shifts" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Shifts</button>
@@ -2508,6 +2509,9 @@ async function initLandingSettings(container) {
             <button class="landing-tab-btn" data-tab="faqs" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">FAQs</button>
             <button class="landing-tab-btn" data-tab="testimonials" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Reviews</button>
             <button class="landing-tab-btn" data-tab="contact" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Contact & Map</button>
+            <button class="landing-tab-btn" data-tab="footer" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">🔗 Footer & Quick Links</button>
+            <button class="landing-tab-btn" data-tab="floating" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">💬 Floating Action Bar</button>
+            <button class="landing-tab-btn" data-tab="seo" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">🔍 SEO & Meta</button>
           </div>
           
           <!-- Tab Content -->
@@ -2546,6 +2550,43 @@ async function initLandingSettings(container) {
             <div class="form-group mb-3">
               <label>Badges (comma separated)</label>
               <input type="text" id="l-hero-badges" class="form-control" value="${escapeHTML((config.hero?.badges || []).join(', '))} ">
+            </div>
+          </div>
+
+          <!-- Navbar & Header -->
+          <div class="landing-panel" id="l-panel-navbar" style="display: none;">
+            <h4>Navbar & Header Controls</h4>
+            <div class="form-group mb-3">
+              <label>Brand Display Name (Navbar)</label>
+              <input type="text" id="l-nav-brandName" class="form-control" placeholder="e.g. The Cozy Corner Centre" value="${escapeHTML(config.navbar?.brandName || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Brand Logo Image URL</label>
+              <input type="text" id="l-nav-brandLogo" class="form-control" placeholder="https://.../logo.png" value="${escapeHTML(config.navbar?.brandLogo || '')}">
+            </div>
+            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label>Primary CTA Text</label>
+                <input type="text" id="l-nav-ctaPrimaryText" class="form-control" value="${escapeHTML(config.navbar?.ctaPrimaryText || 'Register Now')}">
+              </div>
+              <div>
+                <label>Primary CTA Link</label>
+                <input type="text" id="l-nav-ctaPrimaryLink" class="form-control" value="${escapeHTML(config.navbar?.ctaPrimaryLink || '/register')}">
+              </div>
+            </div>
+            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label>Secondary CTA Text</label>
+                <input type="text" id="l-nav-ctaSecondaryText" class="form-control" value="${escapeHTML(config.navbar?.ctaSecondaryText || 'Student Portal')}">
+              </div>
+              <div>
+                <label>Secondary CTA Link</label>
+                <input type="text" id="l-nav-ctaSecondaryLink" class="form-control" value="${escapeHTML(config.navbar?.ctaSecondaryLink || '/student-login')}">
+              </div>
+            </div>
+            <div class="form-group mb-3" style="display: flex; gap: 0.75rem; align-items: center;">
+              <input type="checkbox" id="l-nav-darkModeToggle" ${config.navbar?.showDarkModeToggle !== false ? 'checked' : ''}>
+              <label class="mb-0">Show Dark / Light Theme Toggle in Navbar</label>
             </div>
           </div>
           
@@ -2659,6 +2700,74 @@ async function initLandingSettings(container) {
             <div class="form-group mb-3">
               <label>Google Map Embed URL</label>
               <textarea id="l-contact-map" class="form-control" rows="3">${escapeHTML(config.contact?.googleMapEmbedUrl || '')}</textarea>
+            </div>
+          </div>
+
+          <!-- Footer & Quick Links Panel -->
+          <div class="landing-panel" id="l-panel-footer" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h4 style="margin: 0;">🔗 Quick Links & Footer Customizer</h4>
+              <button class="btn btn-outline-primary btn-sm" id="btn-add-quicklink">+ Add Quick Link</button>
+            </div>
+            
+            <div class="form-group mb-3">
+              <label>Footer Tagline</label>
+              <input type="text" id="l-footer-tagline" class="form-control" placeholder="Premier Air-Conditioned Reading Hall & Self-Study Space." value="${escapeHTML(config.footer?.tagline || '')}">
+            </div>
+
+            <div class="form-group mb-3">
+              <label>Copyright Notice Text</label>
+              <input type="text" id="l-footer-copyright" class="form-control" placeholder="Study Library Management System. All Rights Reserved." value="${escapeHTML(config.footer?.copyrightText || '')}">
+            </div>
+
+            <div class="form-group mb-3">
+              <label>Direct Google Maps Link (for 'Open in Google Maps' button)</label>
+              <input type="text" id="l-footer-mapDirect" class="form-control" placeholder="https://maps.google.com/?q=..." value="${escapeHTML(config.footer?.mapDirectLink || '')}">
+            </div>
+
+            <h5 style="font-size: 0.95rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--color-border); padding-bottom: 6px;">Footer Quick Links</h5>
+            <div id="l-quicklinks-list" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
+          </div>
+
+          <!-- Floating Actions Bar Panel -->
+          <div class="landing-panel" id="l-panel-floating" style="display: none;">
+            <h4>💬 Floating Action Buttons Bar</h4>
+            <div class="form-group mb-3" style="display: flex; gap: 0.75rem; align-items: center;">
+              <input type="checkbox" id="l-float-enabled" ${config.floatingActions?.enabled !== false ? 'checked' : ''}>
+              <label class="mb-0">Enable Dual Floating Contact Buttons (Bottom Right)</label>
+            </div>
+            <div class="form-group mb-3">
+              <label>WhatsApp Number (with Country Code)</label>
+              <input type="text" id="l-float-wa" class="form-control" placeholder="+91 9876543210" value="${escapeHTML(config.floatingActions?.whatsappNumber || config.contact?.whatsapp || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>WhatsApp Pre-filled Message</label>
+              <textarea id="l-float-wamsg" class="form-control" rows="2" placeholder="Hello! I am interested in joining the study library.">${escapeHTML(config.floatingActions?.whatsappMessage || '')}</textarea>
+            </div>
+            <div class="form-group mb-3">
+              <label>Call Now Phone Number</label>
+              <input type="text" id="l-float-call" class="form-control" placeholder="+91 9876543210" value="${escapeHTML(config.floatingActions?.callNumber || config.contact?.phone || '')}">
+            </div>
+          </div>
+
+          <!-- SEO & Social Meta Panel -->
+          <div class="landing-panel" id="l-panel-seo" style="display: none;">
+            <h4>🔍 SEO & Social Share Metadata</h4>
+            <div class="form-group mb-3">
+              <label>Meta Page Title</label>
+              <input type="text" id="l-seo-title" class="form-control" placeholder="Study Library & Reading Hall" value="${escapeHTML(config.seo?.metaTitle || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Meta Description</label>
+              <textarea id="l-seo-desc" class="form-control" rows="3" placeholder="Peaceful, air-conditioned study library...">${escapeHTML(config.seo?.metaDescription || '')}</textarea>
+            </div>
+            <div class="form-group mb-3">
+              <label>Search Keywords (Comma separated)</label>
+              <input type="text" id="l-seo-keywords" class="form-control" placeholder="study library, reading room, UPSC, Pune" value="${escapeHTML(config.seo?.metaKeywords || '')}">
+            </div>
+            <div class="form-group mb-3">
+              <label>Social Share (OpenGraph) Banner Image URL</label>
+              <input type="text" id="l-seo-ogImage" class="form-control" placeholder="https://.../banner.jpg" value="${escapeHTML(config.seo?.ogImage || '')}">
             </div>
           </div>
           
@@ -3047,12 +3156,77 @@ async function initLandingSettings(container) {
       renderTestimonials();
     });
 
+    const renderQuickLinks = () => {
+      const parent = listContainer.querySelector('#l-quicklinks-list');
+      if (!parent) return;
+      parent.innerHTML = '';
+      const links = config.footer?.quickLinks || [
+        { label: 'Online Admission', url: '/register', openInNewTab: false, isSystem: true },
+        { label: 'Student Portal', url: '/student-login', openInNewTab: false, isSystem: true },
+        { label: 'Gate Kiosk', url: '/kiosk', openInNewTab: false, isSystem: true },
+        { label: 'Staff & Owner Login', url: '/#/', openInNewTab: false, isSystem: true }
+      ];
+      if (!config.footer) config.footer = { quickLinks: links };
+      config.footer.quickLinks = links;
+
+      links.forEach((item, idx) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'border: 1px solid var(--color-border); padding: 0.75rem 1rem; border-radius: var(--radius-md); background: var(--color-surface); display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;';
+        div.innerHTML = `
+          <div style="display: flex; gap: 0.5rem; flex: 1; min-width: 260px;">
+            <input type="text" class="form-control l-ql-label" style="flex: 1;" placeholder="Link Label" value="${escapeHTML(item.label || '')}">
+            <input type="text" class="form-control l-ql-url" style="flex: 1.5;" placeholder="URL (e.g. /register or https://...)" value="${escapeHTML(item.url || '')}">
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; margin-bottom: 0;">
+              <input type="checkbox" class="l-ql-target" ${item.openInNewTab ? 'checked' : ''}>
+              <span>New Tab</span>
+            </label>
+            <div style="display: flex; gap: 4px;">
+              <button class="btn btn-sm btn-outline btn-up-ql" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
+              <button class="btn btn-sm btn-outline btn-down-ql" ${idx === links.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
+              <button class="btn btn-sm btn-outline-danger btn-delete-ql">🗑️</button>
+            </div>
+          </div>
+        `;
+        div.querySelector('.btn-up-ql')?.addEventListener('click', () => {
+          if (idx > 0) {
+            const temp = links[idx];
+            links[idx] = links[idx - 1];
+            links[idx - 1] = temp;
+            renderQuickLinks();
+          }
+        });
+        div.querySelector('.btn-down-ql')?.addEventListener('click', () => {
+          if (idx < links.length - 1) {
+            const temp = links[idx];
+            links[idx] = links[idx + 1];
+            links[idx + 1] = temp;
+            renderQuickLinks();
+          }
+        });
+        div.querySelector('.btn-delete-ql').addEventListener('click', () => {
+          links.splice(idx, 1);
+          renderQuickLinks();
+        });
+        parent.appendChild(div);
+      });
+    };
+
+    listContainer.querySelector('#btn-add-quicklink')?.addEventListener('click', () => {
+      if (!config.footer) config.footer = { quickLinks: [] };
+      if (!config.footer.quickLinks) config.footer.quickLinks = [];
+      config.footer.quickLinks.push({ label: 'New Link', url: '/', openInNewTab: false });
+      renderQuickLinks();
+    });
+
     renderFacilities();
     renderShifts();
     renderRules();
     renderGallery();
     renderFaqs();
     renderTestimonials();
+    renderQuickLinks();
   };
 
   container.querySelector('#btn-save-landing')?.addEventListener('click', async () => {
@@ -3075,6 +3249,18 @@ async function initLandingSettings(container) {
         enabled: listContainer.querySelector('#l-hero-liveSeatBadge-enabled').checked,
         text: listContainer.querySelector('#l-hero-liveSeatBadge-text').value
       }
+    };
+
+    // Navbar
+    payload.navbar = {
+      ...payload.navbar,
+      brandName: listContainer.querySelector('#l-nav-brandName')?.value || '',
+      brandLogo: listContainer.querySelector('#l-nav-brandLogo')?.value || '',
+      ctaPrimaryText: listContainer.querySelector('#l-nav-ctaPrimaryText')?.value || 'Register Now',
+      ctaPrimaryLink: listContainer.querySelector('#l-nav-ctaPrimaryLink')?.value || '/register',
+      ctaSecondaryText: listContainer.querySelector('#l-nav-ctaSecondaryText')?.value || 'Student Portal',
+      ctaSecondaryLink: listContainer.querySelector('#l-nav-ctaSecondaryLink')?.value || '/student-login',
+      showDarkModeToggle: listContainer.querySelector('#l-nav-darkModeToggle')?.checked !== false
     };
     
     // About
@@ -3156,6 +3342,37 @@ async function initLandingSettings(container) {
       address: listContainer.querySelector('#l-contact-address').value,
       openingHours: listContainer.querySelector('#l-contact-hours').value,
       googleMapEmbedUrl: listContainer.querySelector('#l-contact-map').value
+    };
+
+    // Footer & Quick Links
+    payload.footer = {
+      ...payload.footer,
+      tagline: listContainer.querySelector('#l-footer-tagline')?.value || '',
+      copyrightText: listContainer.querySelector('#l-footer-copyright')?.value || '',
+      mapDirectLink: listContainer.querySelector('#l-footer-mapDirect')?.value || '',
+      quickLinks: Array.from(listContainer.querySelectorAll('#l-quicklinks-list > div')).map(div => ({
+        label: div.querySelector('.l-ql-label').value.trim(),
+        url: div.querySelector('.l-ql-url').value.trim(),
+        openInNewTab: div.querySelector('.l-ql-target').checked
+      }))
+    };
+
+    // Floating Actions Bar
+    payload.floatingActions = {
+      ...payload.floatingActions,
+      enabled: listContainer.querySelector('#l-float-enabled')?.checked !== false,
+      whatsappNumber: listContainer.querySelector('#l-float-wa')?.value || '',
+      whatsappMessage: listContainer.querySelector('#l-float-wamsg')?.value || '',
+      callNumber: listContainer.querySelector('#l-float-call')?.value || ''
+    };
+
+    // SEO & Meta
+    payload.seo = {
+      ...payload.seo,
+      metaTitle: listContainer.querySelector('#l-seo-title')?.value || '',
+      metaDescription: listContainer.querySelector('#l-seo-desc')?.value || '',
+      metaKeywords: listContainer.querySelector('#l-seo-keywords')?.value || '',
+      ogImage: listContainer.querySelector('#l-seo-ogImage')?.value || ''
     };
 
     try {

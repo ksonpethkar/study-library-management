@@ -890,8 +890,8 @@
       </div>
 
       <div>
-        <h4 style="font-weight: 700; margin-bottom: 1.5rem; font-size:1.1rem;">Quick Links</h4>
-        <ul class="footer-links">
+        <h4 style="font-weight: 700; margin-bottom: 1.5rem; font-size:1.1rem;" id="footer-links-heading">Quick Links</h4>
+        <ul class="footer-links" id="footer-links-container">
           <li><a href="/register" style="color: var(--primary);">Online Admission</a></li>
           <li><a href="/student-login">Student Portal</a></li>
           <li><a href="/kiosk">Gate Kiosk</a></li>
@@ -900,14 +900,20 @@
       </div>
 
       <div class="footer-map" id="footer-map-container">
-        <!-- Default map if no embed URL -->
-        <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3783.2!2d73.85!3d18.52!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTjCsDMxJzEyLjAiTiA3M8KwNTEnMDAuMCJF!5e0!3m2!1sen!2sin!4v1620000000000!5m2!1sen!2sin" allowfullscreen="" loading="lazy"></iframe>
+        <div class="location-preview-card" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(0, 184, 148, 0.08)); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; justify-content: center; height: 100%; min-height: 180px;">
+          <div style="font-size: 1.8rem; margin-bottom: 0.35rem;">📍</div>
+          <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem; font-size: 1rem;">Visit Our Reading Hall</div>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.85rem;" id="map-card-address">Near Metro Station, Pune</div>
+          <a href="https://maps.google.com/?q=Study+Library" id="btn-open-google-maps" target="_blank" rel="noopener" class="btn-primary" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; font-size: 0.85rem; border-radius: 8px; text-decoration: none; font-weight: 600; width: fit-content;">
+            🗺️ Open in Google Maps ↗
+          </a>
+        </div>
       </div>
     </div>
 
     <div class="footer-bottom">
-      <div>© <span id="cur-year">2026</span> <span id="footer-copy-name">Study Library Management System</span>. All Rights Reserved.</div>
-      <div>Designed for absolute focus and student excellence.</div>
+      <div>© <span id="cur-year">2026</span> <span id="footer-copy-name">Study Library Management System</span>. <span id="footer-copy-text">All Rights Reserved.</span></div>
+      <div id="footer-bottom-tagline">Designed for absolute focus and student excellence.</div>
     </div>
   </footer>
 
@@ -1106,26 +1112,65 @@
           if (drawerLogo) drawerLogo.innerHTML = `<img src="${businessProfile.logo}" alt="Logo" style="height: 32px; width: auto; object-fit: contain;">`;
         }
 
-        // Contact info
+        // Contact & Map info
+        const addressText = landing.contact?.address || businessProfile.address || 'Near Metro Station, Pune';
         if (landing.contact) {
           if (landing.contact.address) document.getElementById('footer-address').textContent = landing.contact.address;
           if (landing.contact.phone) {
             document.getElementById('footer-phone').textContent = landing.contact.phone;
-            document.getElementById('float-call-btn').href = 'tel:' + landing.contact.phone.replace(/[^0-9+]/g, '');
           }
           if (landing.contact.openingHours) document.getElementById('footer-hours').textContent = landing.contact.openingHours;
-          if (landing.contact.whatsapp) {
-            const cleanWA = landing.contact.whatsapp.replace(/[^0-9]/g, '');
-            document.getElementById('float-wa-btn').href = `https://wa.me/${cleanWA}?text=Hello,%20I%20am%20interested%20in%20library%20admission.`;
+        }
+
+        // Location Map & Directions Card
+        const mapCardAddr = document.getElementById('map-card-address');
+        if (mapCardAddr) mapCardAddr.textContent = addressText;
+        const gMapsBtn = document.getElementById('btn-open-google-maps');
+        if (gMapsBtn) {
+          const mapQuery = encodeURIComponent(businessProfile.businessName ? `${businessProfile.businessName} ${addressText}` : addressText);
+          gMapsBtn.href = landing.footer?.mapDirectLink || `https://maps.google.com/?q=${mapQuery}`;
+        }
+        const mapUrl = landing.contact?.googleMapEmbedUrl || landing.footer?.mapEmbedUrl;
+        if (mapUrl && (mapUrl.includes('google.com/maps') || mapUrl.startsWith('<iframe'))) {
+          const mapCont = document.getElementById('footer-map-container');
+          if (mapCont) {
+            mapCont.innerHTML = mapUrl.startsWith('<iframe') 
+              ? mapUrl 
+              : `<iframe src="${mapUrl}" width="100%" height="180" style="border:0; border-radius:12px;" allowfullscreen="" loading="lazy"></iframe>`;
           }
-          if (landing.contact.googleMapEmbedUrl) {
-            const mapCont = document.getElementById('footer-map-container');
-            if (mapCont) {
-              mapCont.innerHTML = landing.contact.googleMapEmbedUrl.startsWith('<iframe') 
-                ? landing.contact.googleMapEmbedUrl 
-                : `<iframe src="${landing.contact.googleMapEmbedUrl}" width="100%" height="200" style="border:0; border-radius:12px;" allowfullscreen="" loading="lazy"></iframe>`;
-            }
-          }
+        }
+
+        // Dynamic Quick Links
+        const qLinks = (landing.footer?.quickLinks && landing.footer.quickLinks.length > 0) ? landing.footer.quickLinks : [
+          { label: 'Online Admission', url: '/register', openInNewTab: false },
+          { label: 'Student Portal', url: '/student-login', openInNewTab: false },
+          { label: 'Gate Kiosk', url: '/kiosk', openInNewTab: false },
+          { label: 'Staff & Owner Login', url: '/#/', openInNewTab: false }
+        ];
+        const flc = document.getElementById('footer-links-container');
+        if (flc) {
+          flc.innerHTML = qLinks.map(l => `
+            <li><a href="${l.url}" ${l.openInNewTab ? 'target="_blank" rel="noopener"' : ''}>${l.label}</a></li>
+          `).join('');
+        }
+
+        // Footer Copy
+        if (landing.footer?.copyrightText) {
+          const copyEl = document.getElementById('footer-copy-text');
+          if (copyEl) copyEl.textContent = landing.footer.copyrightText;
+        }
+
+        // Floating Action Buttons
+        const floatWA = document.getElementById('float-wa-btn');
+        const floatCall = document.getElementById('float-call-btn');
+        const waNum = landing.floatingActions?.whatsappNumber || landing.contact?.whatsapp || businessProfile.phone;
+        const callNum = landing.floatingActions?.callNumber || landing.contact?.phone || businessProfile.phone;
+        const waMsg = encodeURIComponent(landing.floatingActions?.whatsappMessage || 'Hello! I am interested in joining the study library.');
+        if (floatWA && waNum) {
+          floatWA.href = `https://wa.me/${waNum.replace(/[^0-9]/g, '')}?text=${waMsg}`;
+        }
+        if (floatCall && callNum) {
+          floatCall.href = `tel:${callNum.replace(/[^0-9+]/g, '')}`;
         }
 
         // Hero Content & Badges
