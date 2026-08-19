@@ -169,6 +169,9 @@ class Application {
       if (avatar) avatar.textContent = initials;
     }
 
+    // Adapt sidebar for role (Student vs Admin/Staff)
+    this.updateSidebarForRole();
+
     // Init search palette
     if (!this.searchPalette) {
       this.searchPalette = new SearchPalette();
@@ -179,6 +182,39 @@ class Application {
       this.initRouter();
     } else {
       this.router.start();
+    }
+  }
+
+  /**
+   * Filter and style sidebar according to user role
+   */
+  updateSidebarForRole() {
+    const role = store.user?.role || 'admin';
+    const isStudent = role === 'student';
+
+    document.querySelectorAll('.sidebar-nav .nav-item').forEach(link => {
+      const href = link.getAttribute('href');
+      if (isStudent) {
+        if (href === '#/portal' || href === '#/profile') {
+          link.style.display = 'flex';
+        } else {
+          link.style.display = 'none';
+        }
+      } else {
+        link.style.display = 'flex';
+      }
+    });
+
+    if (isStudent && !document.querySelector('.sidebar-nav a[href="#/portal"]')) {
+      const portalItem = document.createElement('a');
+      portalItem.href = '#/portal';
+      portalItem.className = 'nav-item active';
+      portalItem.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
+        <span>Student Dashboard</span>
+      `;
+      const nav = document.querySelector('.sidebar-nav');
+      if (nav) nav.insertBefore(portalItem, nav.firstChild);
     }
   }
 

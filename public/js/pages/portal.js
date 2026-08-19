@@ -44,6 +44,17 @@ export async function render() {
   return container;
 }
 
+function formatPunchTime(val) {
+  if (!val) return '';
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return val;
+    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  } catch (e) {
+    return val;
+  }
+}
+
 function renderPortalUI(container, data, analytics = null) {
   const { student, business, daysRemaining, totalHours, todayAttendance, payments } = data;
 
@@ -54,8 +65,9 @@ function renderPortalUI(container, data, analytics = null) {
     .toUpperCase()
     .slice(0, 2);
 
-  const seatNumber = student.seat?.seatNumber || 'Floating / Not Assigned';
-  const seatZone = student.seat?.zone || 'General';
+  const hasSeat = student.seat && student.seat.seatNumber;
+  const seatTitle = hasSeat ? escapeHTML(student.seat.seatNumber) : 'Floating Desk';
+  const seatBadge = hasSeat ? escapeHTML(student.seat.zone || 'Quiet Zone') : 'Open Access';
   const planName = student.plan?.name || 'Standard Reading Room Plan';
   const planPrice = student.plan?.price || 0;
   const expiryDateStr = student.expiryDate ? new Date(student.expiryDate).toLocaleDateString('en-IN') : 'Not Set';
@@ -66,9 +78,9 @@ function renderPortalUI(container, data, analytics = null) {
 
   const isCheckedIn = todayAttendance && todayAttendance.checkIn && !todayAttendance.checkOut;
   const punchStatusText = isCheckedIn
-    ? `🟢 Currently Checked In since ${todayAttendance.checkIn}`
-    : todayAttendance && todayAttendance.checkOut
-    ? `✅ Completed study session today (${todayAttendance.checkIn} - ${todayAttendance.checkOut})`
+    ? `🟢 Currently Checked In since <strong>${formatPunchTime(todayAttendance.checkIn)}</strong>`
+    : (todayAttendance && todayAttendance.checkOut)
+    ? `✅ Completed study session today (<strong>${formatPunchTime(todayAttendance.checkIn)}</strong> – <strong>${formatPunchTime(todayAttendance.checkOut)}</strong>)`
     : `⚪ Not checked in today`;
 
   container.innerHTML = `
@@ -77,20 +89,20 @@ function renderPortalUI(container, data, analytics = null) {
       background: linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(162, 155, 254, 0.05)), var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-lg);
-      padding: 1.75rem;
+      padding: 1.5rem;
     ">
       <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.25rem;">
         <div style="display: flex; align-items: center; gap: 1.25rem;">
           <div style="
-            width: 72px; height: 72px; border-radius: 50%;
+            width: 68px; height: 68px; border-radius: 50%;
             background: var(--color-primary-bg); color: var(--color-primary);
-            font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; justify-content: center;
             border: 2px solid var(--color-primary); flex-shrink: 0;
           ">
             ${initials}
           </div>
           <div>
-            <h2 style="margin: 0 0 4px 0; font-size: 1.45rem; font-weight: 700; color: var(--color-text-primary);">
+            <h2 style="margin: 0 0 4px 0; font-size: 1.4rem; font-weight: 700; color: var(--color-text-primary);">
               Welcome back, ${escapeHTML(student.name)}!
             </h2>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
@@ -105,7 +117,8 @@ function renderPortalUI(container, data, analytics = null) {
           </div>
         </div>
 
-        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <!-- Quick Action Buttons Grid -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
           <button id="btn-portal-leave" class="btn btn-outline-secondary btn-sm" style="font-weight: 600;">
             🌴 Request Leave
           </button>
@@ -128,44 +141,52 @@ function renderPortalUI(container, data, analytics = null) {
       </div>
     </div>
 
-    <!-- 3 Stat Widgets Grid -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+    <!-- 3 Stat Widgets Grid (Auto-Fit & Responsive) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
       
       <!-- Seat Card -->
-      <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
-        <div class="text-muted small mb-1">💺 Assigned Study Desk</div>
-        <div style="display: flex; align-items: baseline; gap: 8px;">
-          <span style="font-size: 1.8rem; font-weight: 800; color: var(--color-primary);">${escapeHTML(seatNumber)}</span>
-          <span class="text-muted small">(${escapeHTML(seatZone)})</span>
+      <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div class="text-muted small mb-1" style="font-weight: 600;">💺 Assigned Study Desk</div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 1.55rem; font-weight: 800; color: var(--color-primary);">${seatTitle}</span>
+            <span class="badge ${hasSeat ? 'badge-primary' : 'badge-secondary'}" style="font-size: 0.75rem;">${seatBadge}</span>
+          </div>
         </div>
-        <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 6px;">
-          Dedicated quiet cabin seat with power socket & lamp.
+        <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 8px;">
+          ${hasSeat ? 'Dedicated reserved cabin desk with personal power socket & reading light.' : 'Flexible open reading hall access with ergonomic seating.'}
         </div>
       </div>
 
       <!-- Plan Expiry Card -->
-      <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
-        <div class="text-muted small mb-1">⏳ Membership Validity</div>
-        <div style="display: flex; align-items: baseline; gap: 8px;">
-          <span style="font-size: 1.8rem; font-weight: 800; color: ${daysRemaining <= 3 ? 'var(--color-danger)' : 'var(--color-success)'};">
-            ${daysRemaining} Days
-          </span>
-          <span class="text-muted small">left</span>
+      <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div class="text-muted small mb-1" style="font-weight: 600;">⏳ Membership Validity</div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 1.55rem; font-weight: 800; color: ${daysRemaining <= 3 ? 'var(--color-danger)' : 'var(--color-success)'};">
+              ${daysRemaining} ${daysRemaining === 1 ? 'Day' : 'Days'}
+            </span>
+            <span class="badge ${daysRemaining <= 0 ? 'badge-danger' : 'badge-success'}" style="font-size: 0.75rem;">
+              ${daysRemaining <= 0 ? 'Expired / Due' : 'Active Plan'}
+            </span>
+          </div>
         </div>
-        <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 6px;">
+        <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 8px;">
           Plan: <strong>${escapeHTML(planName)}</strong> (Valid till ${expiryDateStr})
         </div>
       </div>
 
       <!-- Study Hours Card -->
-      <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
-        <div class="text-muted small mb-1">📈 Total Study Time</div>
-        <div style="display: flex; align-items: baseline; gap: 8px;">
-          <span style="font-size: 1.8rem; font-weight: 800; color: var(--color-info);">${totalHours} hrs</span>
-          <span class="text-muted small">logged</span>
+      <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div class="text-muted small mb-1" style="font-weight: 600;">📈 Total Study Time</div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 1.55rem; font-weight: 800; color: var(--color-info);">${totalHours} hrs</span>
+            <span class="badge badge-info" style="font-size: 0.75rem;">Logged</span>
+          </div>
         </div>
-        <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 6px;">
-          Consistency score: <strong>${analytics ? analytics.consistencyScore + '%' : '94%'}</strong> (${analytics ? analytics.totalDaysPresent + ' days' : 'Active'} this month)
+        <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 8px;">
+          Consistency: <strong>${analytics ? analytics.consistencyScore + '%' : '94%'}</strong> (${analytics ? (analytics.totalDaysPresent + (analytics.totalDaysPresent === 1 ? ' day' : ' days')) : 'Active'} this month)
         </div>
       </div>
 
@@ -191,23 +212,23 @@ function renderPortalUI(container, data, analytics = null) {
             ${escapeHTML(analytics?.peakStudyHours?.badge || '🌅 Peak Time: 08:00 AM – 02:00 PM')}
           </span>
           <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--color-warning); font-weight: 700; font-size: 0.8rem; padding: 5px 10px; border-radius: 6px;">
-            🔥 ${analytics?.currentStreak || 0} Days Streak
+            🔥 ${analytics?.currentStreak || 0} ${analytics?.currentStreak === 1 ? 'Day' : 'Days'} Streak
           </span>
           <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--color-primary); font-weight: 700; font-size: 0.8rem; padding: 5px 10px; border-radius: 6px;">
-            🏆 Best: ${analytics?.longestStreak || 0} Days
+            🏆 Best: ${analytics?.longestStreak || 0} ${analytics?.longestStreak === 1 ? 'Day' : 'Days'}
           </span>
         </div>
       </div>
 
       <!-- Main Layout: Score Gauge + Heatmap + AI Recommendation -->
-      <div style="display: grid; grid-template-columns: minmax(130px, auto) 1fr; gap: 1.5rem; align-items: center;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; align-items: center;">
         <!-- Circular / Gauge Consistency Score -->
-        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 10px 14px; background: var(--color-bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 12px 14px; background: var(--color-bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
           ${renderGaugeScoreSvg(analytics?.consistencyScore || 0)}
-          <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 4px;">
+          <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-top: 4px;">
             Avg: <strong>${escapeHTML(analytics?.averageDailyDuration?.formatted || '0m')}</strong> / day
           </div>
-          <div style="font-size: 0.72rem; color: var(--color-text-muted);">
+          <div style="font-size: 0.75rem; color: var(--color-text-muted);">
             ${analytics?.totalDaysPresent || 0} / 30 days present
           </div>
         </div>
@@ -238,7 +259,7 @@ function renderPortalUI(container, data, analytics = null) {
           ">
             <span style="font-size: 1.25rem; flex-shrink: 0;">💡</span>
             <div style="font-size: 0.85rem; color: var(--color-text-primary); line-height: 1.4;">
-              <strong>AI Study Tip:</strong> ${escapeHTML(analytics?.aiRecommendation || analytics?.aiStudyTip || 'Keep up regular study hours to maintain momentum!')}
+              <strong>AI Study Tip:</strong> ${escapeHTML(analytics?.aiRecommendation || analytics?.aiStudyTip || 'Consistency is the key to cracking competitive exams. Try regular study blocks every morning!')}
             </div>
           </div>
         </div>
@@ -258,7 +279,7 @@ function renderPortalUI(container, data, analytics = null) {
         </div>
 
         <button id="btn-self-punch" class="btn ${isCheckedIn ? 'btn-danger' : 'btn-success'}" style="font-weight: 700; padding: 0.65rem 1.5rem;">
-          ${isCheckedIn ? '🔴 Punch-Out Now' : '🟢 Punch-In (Check In)'}
+          ${isCheckedIn ? '🔴 Punch-Out Now' : (todayAttendance && todayAttendance.checkOut ? '🟢 Check In Again' : '🟢 Punch-In (Check In)')}
         </button>
       </div>
     </div>
