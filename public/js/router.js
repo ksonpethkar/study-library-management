@@ -44,9 +44,9 @@ export default class Router {
   }
 
   updateSidebarActive(basePath) {
-    document.querySelectorAll('.sidebar-nav .nav-item').forEach(link => {
-      const linkHref = (link.getAttribute('href') || '').split('?')[0];
-      if (linkHref === basePath) {
+    document.querySelectorAll('.sidebar-nav .nav-item, .mobile-bottom-nav .mobile-tab-item, .mobile-nav .mobile-nav-item').forEach(link => {
+      const linkHref = (link.getAttribute('href') || link.getAttribute('data-href') || '').split('?')[0];
+      if (linkHref === basePath && linkHref !== 'javascript:void(0);' && linkHref !== 'action:menu') {
         link.classList.add('active');
       } else {
         link.classList.remove('active');

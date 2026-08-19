@@ -599,3 +599,424 @@ if (typeof window !== 'undefined') {
   window.debounce = debounce;
 }
 
+/**
+ * Native Web Share & Clipboard Fallback Helper
+ */
+export const NativeShare = {
+  async share(options = {}) {
+    let title, text, url;
+    if (typeof options === 'string') {
+      url = options;
+    } else {
+      ({ title, text, url } = options || {});
+    }
+
+    const shareData = {};
+    if (title) shareData.title = title;
+    if (text) shareData.text = text;
+    if (url) shareData.url = url;
+
+    if (navigator.share) {
+      try {
+        if (navigator.canShare && !navigator.canShare(shareData)) {
+          // If canShare returns false, fallback to clipboard
+        } else {
+          await navigator.share(shareData);
+          return true;
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return false;
+      }
+    }
+
+    // Fallback: Copy link to clipboard with Toast confirmation
+    const textToCopy = url || text || title || (typeof window !== 'undefined' ? window.location.href : '');
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(textToCopy);
+      } else if (typeof document !== 'undefined') {
+        const textarea = document.createElement('textarea');
+        textarea.value = textToCopy;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+      }
+      Toast.success('Link copied to clipboard!');
+      return true;
+    } catch (err) {
+      Toast.error('Failed to copy link');
+      return false;
+    }
+  }
+};
+
+if (typeof window !== 'undefined') {
+  window.NativeShare = NativeShare;
+}
+
+/**
+ * Slide-Up Bottom Sheet Modal Component
+ * Renders as a slide-up bottom sheet on mobile screens (<= 768px) with swipe-down gesture support.
+ * Degrades gracefully into a centered modal on desktop screens.
+ */
+export class BottomSheet {
+  constructor(options = {}) {
+    if (typeof options === 'string') {
+      options = { title: options };
+    }
+    this.options = options;
+    this.sheet = null;
+    this.overlay = null;
+    this.onClose = options.onClose || null;
+  }
+
+  static show(options) {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    if (!isMobile) {
+      return Modal.show(options);
+    }
+    const bs = new BottomSheet(options);
+    return bs.open();
+  }
+
+  static close() {
+    if (typeof document === 'undefined') return;
+    const sheets = document.querySelectorAll('.bottom-sheet');
+    sheets.forEach(sheet => {
+      sheet.classList.remove('open');
+      sheet.style.transform = 'translateY(100%)';
+    });
+    const overlays = document.querySelectorAll('.bottom-sheet-overlay');
+    overlays.forEach(overlay => {
+      overlay.classList.remove('open');
+      overlay.style.opacity = '0';
+    });
+    setTimeout(() => {
+      sheets.forEach(s => s.remove());
+      overlays.forEach(o => o.remove());
+    }, 300);
+  }
+
+  open() {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    if (!isMobile) {
+      return Modal.show(this.options);
+    }
+
+    const opts = typeof this.options === 'string' ? { title: this.options } : (this.options || {});
+    const title = opts.title || '';
+    const content = opts.content || '';
+
+    // Create backdrop overlay
+    let overlay = document.querySelector('.bottom-sheet-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = 'bottom-sheet-overlay';
+      document.body.appendChild(overlay);
+    }
+    this.overlay = overlay;
+
+    // Create bottom sheet element
+    const sheet = document.createElement('div');
+    sheet.className = 'bottom-sheet';
+    this.sheet = sheet;
+
+    let headerHTML = '';
+    if (title) {
+      headerHTML = `
+        <div class="bottom-sheet-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--color-divider, rgba(255,255,255,0.08));">
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">${escapeHTML(title)}</h3>
+          <button class="bottom-sheet-close" style="background: none; border: none; font-size: 1.4rem; color: var(--color-text-muted); cursor: pointer; padding: 4px; line-height: 1;">&times;</button>
+        </div>
+      `;
+    }
+
+    let footerHTML = '';
+    if (opts.buttons && Array.isArray(opts.buttons) && opts.buttons.length > 0) {
+      footerHTML = `<div class="bottom-sheet-footer" style="margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end;"></div>`;
+    } else if (opts.actions) {
+      footerHTML = `<div class="bottom-sheet-footer" style="margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end;">${opts.actions}</div>`;
+    }
+
+    sheet.innerHTML = `
+      <div class="bottom-sheet-handle"></div>
+      ${headerHTML}
+      <div class="bottom-sheet-body"></div>
+      ${footerHTML}
+    `;
+
+    const bodyEl = sheet.querySelector('.bottom-sheet-body');
+    if (content instanceof HTMLElement) {
+      bodyEl.appendChild(content);
+    } else if (typeof content === 'string') {
+      bodyEl.innerHTML = content;
+    }
+
+    if (opts.buttons && Array.isArray(opts.buttons) && opts.buttons.length > 0) {
+      const footerEl = sheet.querySelector('.bottom-sheet-footer');
+      opts.buttons.forEach(btn => {
+        const b = document.createElement('button');
+        b.className = `btn ${btn.className || 'btn-secondary'}`;
+        b.textContent = btn.text || 'Button';
+        b.onclick = () => {
+          if (typeof btn.onClick === 'function') {
+            btn.onClick(this);
+          } else {
+            this.close();
+          }
+        };
+        footerEl.appendChild(b);
+      });
+    }
+
+    document.body.appendChild(sheet);
+
+    // Setup close listeners
+    const closeBtn = sheet.querySelector('.bottom-sheet-close');
+    if (closeBtn) {
+      closeBtn.onclick = () => this.close();
+    }
+    overlay.onclick = () => this.close();
+
+    // Attach swipe down gesture support
+    this._initSwipeGesture();
+
+    // Trigger animation
+    requestAnimationFrame(() => {
+      overlay.classList.add('open');
+      sheet.classList.add('open');
+    });
+
+    return sheet;
+  }
+
+  close() {
+    if (this.sheet) {
+      this.sheet.classList.remove('open');
+      this.sheet.style.transform = 'translateY(100%)';
+    }
+    if (this.overlay) {
+      this.overlay.classList.remove('open');
+    }
+    setTimeout(() => {
+      if (this.sheet) this.sheet.remove();
+      if (this.overlay) this.overlay.remove();
+      if (typeof this.onClose === 'function') {
+        this.onClose();
+      }
+    }, 300);
+  }
+
+  _initSwipeGesture() {
+    if (!this.sheet) return;
+    const handle = this.sheet.querySelector('.bottom-sheet-handle') || this.sheet;
+
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+
+    const onTouchStart = (e) => {
+      if (this.sheet.scrollTop > 0 && e.target !== handle) return;
+      startY = e.touches[0].clientY;
+      isDragging = true;
+      this.sheet.style.transition = 'none';
+    };
+
+    const onTouchMove = (e) => {
+      if (!isDragging) return;
+      currentY = e.touches[0].clientY;
+      const deltaY = currentY - startY;
+      if (deltaY > 0) {
+        this.sheet.style.transform = `translateY(${deltaY}px)`;
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      this.sheet.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      const deltaY = currentY - startY;
+      if (deltaY > 80) {
+        this.close();
+      } else {
+        this.sheet.style.transform = '';
+        this.sheet.classList.add('open');
+      }
+    };
+
+    handle.addEventListener('touchstart', onTouchStart, { passive: true });
+    this.sheet.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+  }
+}
+
+/**
+ * Pull-To-Refresh Gesture Listener
+ * Tracks touchstart/touchmove at top of window (window.scrollY === 0).
+ * Shows top spinner indicator when pulled down 70px+.
+ * Triggers active page route refresh (window.dispatchEvent(new HashChangeEvent('hashchange'))).
+ */
+export function initPullToRefresh() {
+  if (typeof window === 'undefined') return;
+
+  let spinner = document.getElementById('pull-to-refresh-spinner');
+  if (!spinner) {
+    spinner = document.createElement('div');
+    spinner.id = 'pull-to-refresh-spinner';
+    spinner.className = 'pull-to-refresh-spinner';
+    spinner.innerHTML = `
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-primary, #6366f1); animation: spin 0.8s linear infinite;">
+        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+      </svg>
+    `;
+    document.body.appendChild(spinner);
+  }
+
+  let startY = 0;
+  let pullDistance = 0;
+  let isPulling = false;
+  let isRefreshing = false;
+
+  window.addEventListener('touchstart', (e) => {
+    if (window.scrollY === 0 && e.touches && e.touches.length === 1) {
+      startY = e.touches[0].clientY;
+      isPulling = true;
+      pullDistance = 0;
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    if (!isPulling || isRefreshing) return;
+    if (window.scrollY > 0) {
+      isPulling = false;
+      return;
+    }
+    if (!e.touches || e.touches.length === 0) return;
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - startY;
+
+    if (deltaY > 0 && window.scrollY === 0) {
+      pullDistance = deltaY;
+      if (pullDistance >= 70) {
+        spinner.classList.add('visible');
+      } else {
+        spinner.classList.remove('visible');
+      }
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchend', () => {
+    if (!isPulling) return;
+    isPulling = false;
+
+    if (pullDistance >= 70 && !isRefreshing) {
+      isRefreshing = true;
+      spinner.classList.add('visible');
+
+      // Trigger active page route refresh
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+
+      setTimeout(() => {
+        spinner.classList.remove('visible');
+        isRefreshing = false;
+        pullDistance = 0;
+      }, 600);
+    } else {
+      spinner.classList.remove('visible');
+      pullDistance = 0;
+    }
+  }, { passive: true });
+}
+
+if (typeof window !== 'undefined') {
+  window.BottomSheet = BottomSheet;
+  window.initPullToRefresh = initPullToRefresh;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => initPullToRefresh());
+  } else {
+    initPullToRefresh();
+  }
+}
+
+/**
+ * Render responsive mobile bottom navigation bar based on user role
+ * @param {string} role - 'admin' | 'staff' | 'student'
+ */
+export function renderMobileBottomNav(role = 'admin') {
+  let nav = document.querySelector('.mobile-bottom-nav') || document.getElementById('mobile-nav');
+  if (!nav) {
+    nav = document.createElement('nav');
+    nav.id = 'mobile-nav';
+    nav.className = 'mobile-bottom-nav mobile-nav';
+    const appContainer = document.getElementById('app') || document.body;
+    appContainer.appendChild(nav);
+  } else {
+    if (!nav.classList.contains('mobile-bottom-nav')) {
+      nav.classList.add('mobile-bottom-nav');
+    }
+  }
+
+  const isStudent = role === 'student';
+
+  const adminTabs = [
+    { label: 'Dashboard', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>', emoji: '🏠', href: '#/dashboard' },
+    { label: 'Students', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>', emoji: '🎓', href: '#/students' },
+    { label: 'Seats', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M5 16V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12"></path></svg>', emoji: '🪑', href: '#/seats' },
+    { label: 'Payments', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>', emoji: '💳', href: '#/payments' },
+    { label: 'Menu', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>', emoji: '☰', href: 'action:menu' }
+  ];
+
+  const studentTabs = [
+    { label: 'Portal', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>', emoji: '🏠', href: '#/portal' },
+    { label: 'Attendance', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg>', emoji: '📊', href: '#/attendance' },
+    { label: 'Pay Renewal', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>', emoji: '💳', href: '#/payments' },
+    { label: 'ID Pass', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><line x1="15" y1="8" x2="17" y2="8"></line><line x1="15" y1="12" x2="17" y2="12"></line><line x1="7" y1="16" x2="17" y2="16"></line></svg>', emoji: '🪪', href: '#/portal' },
+    { label: 'Profile', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>', emoji: '👤', href: '#/profile' }
+  ];
+
+  const tabs = isStudent ? studentTabs : adminTabs;
+  const currentHash = (window.location.hash || (isStudent ? '#/portal' : '#/dashboard')).split('?')[0];
+
+  nav.innerHTML = tabs.map(tab => {
+    const isMenuAction = tab.href === 'action:menu';
+    const isActive = !isMenuAction && currentHash === tab.href;
+    const linkHref = isMenuAction ? 'javascript:void(0);' : tab.href;
+
+    return `
+      <a href="${linkHref}" class="mobile-tab-item mobile-nav-item ${isActive ? 'active' : ''}" data-href="${tab.href}">
+        <span class="tab-icon">${tab.icon || tab.emoji}</span>
+        <span class="tab-label">${tab.label}</span>
+      </a>
+    `;
+  }).join('');
+
+  // Attach tab click events for haptic feedback and Menu toggle
+  nav.querySelectorAll('.mobile-tab-item, .mobile-nav-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      // Subtle haptic vibration pulse
+      if (navigator.vibrate) {
+        try { navigator.vibrate(25); } catch (err) {}
+      }
+
+      const href = item.getAttribute('data-href');
+      if (href === 'action:menu') {
+        e.preventDefault();
+        document.getElementById('sidebar')?.classList.toggle('mobile-open');
+        document.getElementById('sidebar-overlay')?.classList.toggle('visible');
+      }
+    });
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.renderMobileBottomNav = renderMobileBottomNav;
+}
+
+
+
+

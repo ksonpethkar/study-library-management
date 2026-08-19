@@ -23,22 +23,26 @@
   ],
   "shortcuts": [
     {
-      "name": "Student Portal",
-      "short_name": "Portal",
-      "description": "Access Student 360° Dashboard",
-      "url": "/student-login"
+      "name": "⚡ Quick Kiosk Punch",
+      "url": "/kiosk",
+      "icons": [
+        {
+          "src": "/uploads/logo.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
-      "name": "Apply Online",
-      "short_name": "Register",
-      "description": "Online Admission Wizard",
+      "name": "🎓 New Admission",
       "url": "/register"
     },
     {
-      "name": "Attendance Kiosk",
-      "short_name": "Kiosk",
-      "description": "Library Entrance Scanner",
-      "url": "/kiosk"
+      "name": "💳 Collect Fee",
+      "url": "/#/payments"
+    },
+    {
+      "name": "🪑 Seat Occupancy",
+      "url": "/#/seats"
     }
   ]
 }

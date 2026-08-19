@@ -3,7 +3,7 @@ import Router from './router.js';
 import { initSetupWizard, initLoginPage, initAppEvents } from './auth.js';
 import { t } from './i18n.js';
 import ShortcutManager from './shortcuts.js';
-import { Toast, Modal, Loading } from './ui.js';
+import { Toast, Modal, Loading, renderMobileBottomNav } from './ui.js';
 import { SearchPalette } from './search.js';
 import { AudioFeedback } from './utils/audioFeedback.js';
 import { promptPWAInstall } from './pwaManager.js';
@@ -32,6 +32,7 @@ class Application {
     this.searchPalette = null;
     this._appEventsInit = false;
     this._rippleInit = false;
+    this._offlineBannerInit = false;
   }
 
   /**
@@ -42,6 +43,9 @@ class Application {
     const savedTheme = localStorage.getItem('sl_theme') ||
       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     this.setTheme(savedTheme);
+
+    // Init offline/online sync banner listeners
+    this.initOfflineBanner();
 
     // Init keyboard shortcuts
     if (!this.shortcuts) {
@@ -114,6 +118,60 @@ class Application {
   }
 
   /**
+   * Add dynamic Offline/Online banner listener
+   */
+  initOfflineBanner() {
+    if (this._offlineBannerInit) return;
+    this._offlineBannerInit = true;
+
+    let autoHideTimer = null;
+
+    const getOrCreateBanner = () => {
+      let banner = document.getElementById('offline-sync-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'offline-sync-banner';
+        banner.style.cssText = 'position:fixed; top:0; left:0; right:0; width:100%; z-index:100000; padding:10px 16px; text-align:center; font-weight:600; font-size:0.875rem; color:#ffffff; box-shadow:0 2px 10px rgba(0,0,0,0.2); transition:all 0.3s ease; display:none;';
+        document.body.prepend(banner);
+      }
+      return banner;
+    };
+
+    window.addEventListener('offline', () => {
+      if (autoHideTimer) {
+        clearTimeout(autoHideTimer);
+        autoHideTimer = null;
+      }
+      const banner = getOrCreateBanner();
+      banner.textContent = '⚠️ Offline Mode — Viewing cached data';
+      banner.style.background = '#d97706';
+      banner.style.display = 'block';
+    });
+
+    window.addEventListener('online', () => {
+      if (autoHideTimer) {
+        clearTimeout(autoHideTimer);
+      }
+      const banner = getOrCreateBanner();
+      banner.textContent = '🟢 Reconnected — Cloud Sync Restored!';
+      banner.style.background = '#10b981';
+      banner.style.display = 'block';
+
+      autoHideTimer = setTimeout(() => {
+        banner.style.display = 'none';
+        autoHideTimer = null;
+      }, 3000);
+    });
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const banner = getOrCreateBanner();
+      banner.textContent = '⚠️ Offline Mode — Viewing cached data';
+      banner.style.background = '#d97706';
+      banner.style.display = 'block';
+    }
+  }
+
+  /**
    * Set and persist theme
    */
   setTheme(theme) {
@@ -171,6 +229,9 @@ class Application {
 
     // Adapt sidebar for role (Student vs Admin/Staff) & render database config
     await this.updateSidebarForRole();
+
+    // Render mobile bottom navigation bar based on user role
+    renderMobileBottomNav(store.user?.role || 'staff');
 
     // Init search palette
     if (!this.searchPalette) {
@@ -346,12 +407,16 @@ class Application {
 
     // Desktop sidebar
     document.querySelectorAll('.sidebar-nav .nav-item').forEach(link => {
-      link.classList.toggle('active', link.getAttribute('href') === hash);
+      const href = (link.getAttribute('href') || '').split('?')[0];
+      link.classList.toggle('active', href === hash);
     });
 
     // Mobile bottom nav
-    document.querySelectorAll('.mobile-nav .mobile-nav-item').forEach(link => {
-      link.classList.toggle('active', link.getAttribute('href') === hash);
+    document.querySelectorAll('.mobile-bottom-nav .mobile-tab-item, .mobile-nav .mobile-nav-item').forEach(link => {
+      const href = (link.getAttribute('href') || link.getAttribute('data-href') || '').split('?')[0];
+      if (href !== 'javascript:void(0);' && href !== 'action:menu') {
+        link.classList.toggle('active', href === hash);
+      }
     });
   }
 

@@ -1637,5 +1637,79 @@ label.switch input[type="checkbox"]:checked + .switch-track::before {
   background-color: #10b981 !important;
 }
 
+/* ==========================================================================
+   Slide-Up Bottom Sheets & Pull-to-Refresh Component Styles
+   ========================================================================== */
+
+.bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border-radius: 20px 20px 0 0;
+  z-index: 1100;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 16px 20px max(20px, env(safe-area-inset-bottom)) 20px;
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.2);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.bottom-sheet.open {
+  transform: translateY(0);
+}
+
+.bottom-sheet-handle {
+  width: 40px;
+  height: 5px;
+  background: var(--color-text-muted, #888888);
+  border-radius: 9999px;
+  margin: 0 auto 12px auto;
+  cursor: grab;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.bottom-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1099;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.bottom-sheet-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pull-to-refresh-spinner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-60px);
+  transition: transform 0.25s ease;
+  z-index: 1200;
+  background: var(--color-surface);
+  padding: 8px;
+  border-radius: 50%;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.pull-to-refresh-spinner.visible,
+.pull-to-refresh-spinner.active {
+  transform: translateX(-50%) translateY(0);
+}
+
+
 
 
