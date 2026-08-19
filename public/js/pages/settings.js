@@ -4,6 +4,7 @@ import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
 import { t } from '../i18n.js';
 import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
 import { FormBuilder } from '../formBuilder.js';
+import { PushNotifications } from '../utils/pushNotifications.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -780,6 +781,28 @@ function renderSettingsUI(container, profile, settings) {
                   </div>
                   <label class="switch-label" style="margin: 0;">
                     <input type="checkbox" id="setting-enableWhatsapp" ${(notif['notification.enableWhatsapp'] ?? notif.enableWhatsapp) ? 'checked' : ''}>
+                    <span class="switch-slider"></span>
+                  </label>
+                </div>
+
+                <!-- Native Mobile Push Notifications -->
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="font-size: 1.5rem;">🔔</div>
+                    <div>
+                      <div style="font-weight: 600; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <span>🔔 Enable Native Mobile Push Notifications</span>
+                        <span id="push-permission-badge-settings" class="badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; border: 1px solid currentColor;">
+                          Checking...
+                        </span>
+                      </div>
+                      <div style="font-size: 0.8rem; color: var(--color-text-secondary);">
+                        Receive OS lock screen push notifications for fee dues, plan expiry, and announcements.
+                      </div>
+                    </div>
+                  </div>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="setting-enablePush" ${(notif['notification.enablePush'] ?? notif.enablePush) ? 'checked' : ''}>
                     <span class="switch-slider"></span>
                   </label>
                 </div>
@@ -2335,7 +2358,8 @@ function renderSettingsUI(container, profile, settings) {
         expiryReminderDays: selectedExpiryDays,
         balanceReminderDays: selectedBalanceDays,
         enableAutoExpiryBot: !!container.querySelector('#setting-enableAutoExpiryBot')?.checked,
-        enableAutoDuesBot: !!container.querySelector('#setting-enableAutoDuesBot')?.checked
+        enableAutoDuesBot: !!container.querySelector('#setting-enableAutoDuesBot')?.checked,
+        enablePush: !!container.querySelector('#setting-enablePush')?.checked
       };
 
       const res = await api.put('/api/settings/system-settings', payload);
@@ -2350,6 +2374,67 @@ function renderSettingsUI(container, profile, settings) {
   container.querySelector('#form-notifications')?.addEventListener('submit', (e) => {
     e.preventDefault();
     saveNotifications(container.querySelector('#btn-save-notifications'));
+  });
+
+  // Push Notifications Toggle & Status Badge Logic
+  const pushToggleSettings = container.querySelector('#setting-enablePush');
+  const pushBadgeSettings = container.querySelector('#push-permission-badge-settings');
+
+  function syncPushSettingsUI() {
+    if (!pushToggleSettings || !pushBadgeSettings) return;
+
+    if (!PushNotifications.isSupported()) {
+      pushToggleSettings.disabled = true;
+      pushToggleSettings.checked = false;
+      pushBadgeSettings.textContent = 'Not Supported';
+      pushBadgeSettings.className = 'badge badge-secondary';
+      pushBadgeSettings.style.background = 'var(--color-bg-secondary)';
+      pushBadgeSettings.style.color = 'var(--color-text-secondary)';
+      return;
+    }
+
+    const status = PushNotifications.getPermissionStatus();
+    if (status === 'granted') {
+      pushBadgeSettings.textContent = 'Permission Granted';
+      pushBadgeSettings.className = 'badge badge-success';
+      pushBadgeSettings.style.background = 'rgba(0, 184, 148, 0.15)';
+      pushBadgeSettings.style.color = 'var(--color-success)';
+      pushToggleSettings.checked = PushNotifications.isEnabled() || pushToggleSettings.checked;
+    } else if (status === 'denied') {
+      pushBadgeSettings.textContent = 'Blocked in Browser';
+      pushBadgeSettings.className = 'badge badge-danger';
+      pushBadgeSettings.style.background = 'rgba(235, 77, 75, 0.15)';
+      pushBadgeSettings.style.color = 'var(--color-danger)';
+      pushToggleSettings.checked = false;
+    } else {
+      pushBadgeSettings.textContent = 'Permission Required';
+      pushBadgeSettings.className = 'badge badge-warning';
+      pushBadgeSettings.style.background = 'rgba(253, 203, 110, 0.2)';
+      pushBadgeSettings.style.color = 'var(--color-warning)';
+      pushToggleSettings.checked = false;
+    }
+  }
+
+  syncPushSettingsUI();
+
+  pushToggleSettings?.addEventListener('change', async (e) => {
+    if (e.target.checked) {
+      try {
+        const perm = await PushNotifications.requestPermission();
+        if (perm === 'granted') {
+          await PushNotifications.subscribe();
+          Toast.success('🔔 Native Mobile Push Notifications enabled!');
+        } else if (perm === 'denied') {
+          Toast.error('Push notification permission blocked by browser settings.');
+        }
+      } catch (err) {
+        Toast.error(err.message || 'Failed to enable push notifications');
+      }
+    } else {
+      await PushNotifications.unsubscribe();
+      Toast.info('Push notifications disabled.');
+    }
+    syncPushSettingsUI();
   });
 
   // 5. Save General Handler

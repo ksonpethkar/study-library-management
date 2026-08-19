@@ -1,6 +1,7 @@
 import api from '../api.js';
 import { Toast, Modal, Confirm, Loading, escapeHTML } from '../ui.js';
 import { t } from '../i18n.js';
+import { BiometricAuth } from '../utils/biometricAuth.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -192,6 +193,23 @@ function renderProfileUI(container, user) {
         </div>
 
         <div class="card-body" style="padding: 1.5rem;">
+          <!-- Biometric WebAuthn Section -->
+          <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 6px;">
+                  <span>👆</span> Biometric & Touch ID / Face ID Authentication
+                </h4>
+                <p style="margin: 4px 0 0 0; font-size: 0.83rem; color: var(--color-text-secondary);">
+                  Log in instantly without typing your password using your device's biometric sensor.
+                </p>
+              </div>
+              <button type="button" id="btn-enable-biometric" class="btn btn-outline-primary" style="font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                👆 Enable Biometric / Face ID Login on this Device
+              </button>
+            </div>
+          </div>
+
           <form id="form-change-password">
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
@@ -486,4 +504,26 @@ function renderProfileUI(container, user) {
       Loading.button(btn, false);
     }
   });
+
+  // Biometric registration button handler
+  const btnEnableBiometric = container.querySelector('#btn-enable-biometric');
+  if (btnEnableBiometric) {
+    BiometricAuth.isSupported().then(supported => {
+      if (!supported) {
+        btnEnableBiometric.disabled = true;
+        btnEnableBiometric.title = 'Biometrics not supported on this browser or device';
+      }
+    });
+
+    btnEnableBiometric.addEventListener('click', async () => {
+      try {
+        Loading.button(btnEnableBiometric, true);
+        await BiometricAuth.register(user);
+      } catch (err) {
+        // Handled inside BiometricAuth.register()
+      } finally {
+        Loading.button(btnEnableBiometric, false);
+      }
+    });
+  }
 }

@@ -2,6 +2,7 @@ import api from '../api.js';
 import { Toast, Modal, Confirm, Loading, escapeHTML } from '../ui.js';
 import { t } from '../i18n.js';
 import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
+import { PushNotifications } from '../utils/pushNotifications.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -317,6 +318,31 @@ function renderPortalUI(container, data, analytics = null) {
       </div>
     </div>
 
+    <!-- Native Mobile Push Notifications Card -->
+    <div class="card mb-4 p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <div style="font-size: 2rem;">🔔</div>
+          <div>
+            <div style="font-weight: 700; font-size: 1.05rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+              <span>🔔 Enable Native Mobile Push Notifications</span>
+              <span id="portal-push-badge" class="badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; border: 1px solid currentColor;">
+                Checking...
+              </span>
+            </div>
+            <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">
+              Get instant OS lock screen alerts for seat renewals, fee receipts, and library announcements.
+            </p>
+          </div>
+        </div>
+
+        <label class="switch-label" style="margin: 0;">
+          <input type="checkbox" id="portal-push-toggle">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+    </div>
+
     <!-- Payment Receipts History Table -->
     <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
       <div class="card-header p-3" style="border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover);">
@@ -402,6 +428,67 @@ function renderPortalUI(container, data, analytics = null) {
     } finally {
       Loading.button(btn, false);
     }
+  });
+
+  // Initialize Push Notification Toggle & Badge in Student Portal
+  const pushTogglePortal = container.querySelector('#portal-push-toggle');
+  const pushBadgePortal = container.querySelector('#portal-push-badge');
+
+  function syncPortalPushUI() {
+    if (!pushTogglePortal || !pushBadgePortal) return;
+
+    if (!PushNotifications.isSupported()) {
+      pushTogglePortal.disabled = true;
+      pushTogglePortal.checked = false;
+      pushBadgePortal.textContent = 'Not Supported';
+      pushBadgePortal.className = 'badge badge-secondary';
+      pushBadgePortal.style.background = 'var(--color-bg-secondary)';
+      pushBadgePortal.style.color = 'var(--color-text-secondary)';
+      return;
+    }
+
+    const status = PushNotifications.getPermissionStatus();
+    if (status === 'granted') {
+      pushBadgePortal.textContent = 'Permission Granted';
+      pushBadgePortal.className = 'badge badge-success';
+      pushBadgePortal.style.background = 'rgba(0, 184, 148, 0.15)';
+      pushBadgePortal.style.color = 'var(--color-success)';
+      pushTogglePortal.checked = PushNotifications.isEnabled();
+    } else if (status === 'denied') {
+      pushBadgePortal.textContent = 'Blocked in Browser';
+      pushBadgePortal.className = 'badge badge-danger';
+      pushBadgePortal.style.background = 'rgba(235, 77, 75, 0.15)';
+      pushBadgePortal.style.color = 'var(--color-danger)';
+      pushTogglePortal.checked = false;
+    } else {
+      pushBadgePortal.textContent = 'Permission Required';
+      pushBadgePortal.className = 'badge badge-warning';
+      pushBadgePortal.style.background = 'rgba(253, 203, 110, 0.2)';
+      pushBadgePortal.style.color = 'var(--color-warning)';
+      pushTogglePortal.checked = false;
+    }
+  }
+
+  syncPortalPushUI();
+
+  pushTogglePortal?.addEventListener('change', async (e) => {
+    if (e.target.checked) {
+      try {
+        const perm = await PushNotifications.requestPermission();
+        if (perm === 'granted') {
+          await PushNotifications.subscribe();
+          Toast.success('🔔 Native Mobile Push Notifications enabled!');
+        } else if (perm === 'denied') {
+          Toast.error('Push notification permission blocked by browser settings.');
+        }
+      } catch (err) {
+        Toast.error(err.message || 'Failed to enable push notifications');
+      }
+    } else {
+      await PushNotifications.unsubscribe();
+      Toast.info('Push notifications disabled.');
+    }
+    syncPortalPushUI();
   });
 
   // Attach PDF Admission Form Download Handler

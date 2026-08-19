@@ -837,6 +837,98 @@ router.post('/passkey-login', authLimiter, async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/biometric/register
+// @desc    Register native WebAuthn biometric credential for logged in user
+router.post('/biometric/register', protect, async (req, res) => {
+  try {
+    const { credentialId, publicKey, rawId, transports } = req.body;
+
+    if (!credentialId) {
+      return res.status(400).json({ success: false, message: 'Credential ID is required for biometric registration' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found' });
+    }
+
+    user.biometricCredentials = user.biometricCredentials || [];
+
+    const existingIndex = user.biometricCredentials.findIndex(c => c.credentialId === credentialId);
+    if (existingIndex > -1) {
+      user.biometricCredentials[existingIndex].publicKey = publicKey || user.biometricCredentials[existingIndex].publicKey;
+      user.biometricCredentials[existingIndex].transports = transports || user.biometricCredentials[existingIndex].transports;
+      user.biometricCredentials[existingIndex].createdAt = new Date();
+    } else {
+      user.biometricCredentials.push({
+        credentialId,
+        publicKey: publicKey || '',
+        transports: transports || ['internal'],
+        createdAt: new Date()
+      });
+    }
+
+    await user.save({ validateBeforeSave: false });
+
+    res.json({
+      success: true,
+      message: 'Biometric credential registered successfully',
+      data: { credentialId }
+    });
+  } catch (error) {
+    console.error('Biometric registration error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Biometric registration failed' });
+  }
+});
+
+// @route   POST /api/auth/biometric/login
+// @desc    Authenticate user via native WebAuthn biometric assertion
+router.post('/biometric/login', authLimiter, async (req, res) => {
+  try {
+    const { credentialId, savedEmail } = req.body;
+
+    if (!credentialId) {
+      return res.status(400).json({ success: false, message: 'Biometric Credential ID is required' });
+    }
+
+    let user = await User.findOne({ 'biometricCredentials.credentialId': credentialId });
+
+    if (!user && savedEmail) {
+      const candidateUser = await User.findOne({ email: savedEmail.toLowerCase() });
+      if (candidateUser && candidateUser.biometricCredentials && candidateUser.biometricCredentials.length > 0) {
+        user = candidateUser;
+      }
+    }
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Biometric credential not recognized or not registered.' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, message: 'Account is inactive or pending approval' });
+    }
+
+    user.lastLogin = Date.now();
+    await user.save({ validateBeforeSave: false });
+
+    const token = user.generateAuthToken();
+    const businessProfile = await BusinessProfile.getProfile();
+
+    res.json({
+      success: true,
+      data: {
+        token,
+        user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
+        businessProfile
+      },
+      message: `👆 Biometric login successful! Welcome back, ${user.name}.`
+    });
+  } catch (error) {
+    console.error('Biometric login error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Biometric authentication failed' });
+  }
+});
+
 // @route   POST /api/auth/forgot-password
 // @desc    Smart Forgot Password Recovery for Students & Admin/Staff
 router.post('/forgot-password', authLimiter, async (req, res) => {

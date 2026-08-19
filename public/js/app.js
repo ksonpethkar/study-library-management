@@ -3,7 +3,7 @@ import Router from './router.js';
 import { initSetupWizard, initLoginPage, initAppEvents } from './auth.js';
 import { t } from './i18n.js';
 import ShortcutManager from './shortcuts.js';
-import { Toast, Modal, Loading, renderMobileBottomNav } from './ui.js';
+import { Toast, Modal, Loading, renderMobileBottomNav, VoiceSearch } from './ui.js';
 import { SearchPalette } from './search.js';
 import { AudioFeedback } from './utils/audioFeedback.js';
 import { promptPWAInstall } from './pwaManager.js';
@@ -236,6 +236,22 @@ class Application {
     // Init search palette
     if (!this.searchPalette) {
       this.searchPalette = new SearchPalette();
+    }
+
+    // Wire up voice search button
+    const voiceBtn = document.getElementById('voice-search-btn');
+    if (voiceBtn && !voiceBtn._voiceInit) {
+      voiceBtn._voiceInit = true;
+      voiceBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        VoiceSearch.start((transcript) => {
+          if (this.searchPalette) {
+            this.searchPalette.open();
+            this.searchPalette.input.value = transcript;
+            this.searchPalette.search(transcript);
+          }
+        });
+      });
     }
 
     // Init router

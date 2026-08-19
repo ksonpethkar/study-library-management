@@ -49,6 +49,24 @@ export class SearchPalette {
       color: var(--color-text-primary, #fff); outline: none; font-family: 'Outfit', sans-serif;
     `;
 
+    const paletteVoiceBtn = document.createElement('button');
+    paletteVoiceBtn.type = 'button';
+    paletteVoiceBtn.title = 'Voice Search';
+    paletteVoiceBtn.textContent = '🎙️';
+    paletteVoiceBtn.style.cssText = `
+      background: none; border: none; cursor: pointer; font-size: 1.1rem;
+      padding: 4px; line-height: 1; border-radius: 4px; opacity: 0.85;
+      transition: opacity 0.2s;
+    `;
+    paletteVoiceBtn.addEventListener('click', () => {
+      if (window.VoiceSearch) {
+        window.VoiceSearch.start((transcript) => {
+          this.input.value = transcript;
+          this.search(transcript);
+        });
+      }
+    });
+
     const escBadge = document.createElement('span');
     escBadge.className = 'badge';
     escBadge.textContent = 'ESC to close';
@@ -59,6 +77,7 @@ export class SearchPalette {
 
     searchHeader.appendChild(searchIcon);
     searchHeader.appendChild(this.input);
+    searchHeader.appendChild(paletteVoiceBtn);
     searchHeader.appendChild(escBadge);
 
     this.results = document.createElement('div');

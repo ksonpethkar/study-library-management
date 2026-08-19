@@ -181,6 +181,22 @@
       display: flex; align-items: center; justify-content: center;
     }
     
+    .dropdown { position: relative; display: inline-block; }
+    .dropdown-menu {
+      position: absolute; top: 100%; right: 0; margin-top: 0.5rem;
+      background: var(--surface, #ffffff); border: 1px solid var(--border, #e2e8f0);
+      border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+      min-width: 160px; padding: 6px 0; z-index: 1000; display: none;
+    }
+    .dropdown.active .dropdown-menu, .dropdown.open .dropdown-menu { display: block; }
+    .dropdown-item {
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      padding: 8px 14px; border: none; background: none;
+      color: var(--text); font-size: 0.9rem; cursor: pointer; text-align: left;
+      transition: background 0.15s ease;
+    }
+    .dropdown-item:hover, .dropdown-item.active { background: rgba(108, 92, 231, 0.1); color: var(--primary, #6c5ce7); }
+    
     .mobile-toggle { display: none; }
     
     /* Hero Section */
@@ -558,7 +574,14 @@
       </ul>
 
       <div class="nav-actions">
-        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode" id="theme-btn">🌙</button>
+        <div class="dropdown" id="landing-theme-dropdown">
+          <button class="theme-toggle" title="Theme Options" id="theme-btn">💻</button>
+          <div class="dropdown-menu" id="landing-theme-menu">
+            <button class="dropdown-item theme-option" data-theme-mode="system">💻 System Auto</button>
+            <button class="dropdown-item theme-option" data-theme-mode="dark">🌙 Dark Mode</button>
+            <button class="dropdown-item theme-option" data-theme-mode="light">☀️ Light Mode</button>
+          </div>
+        </div>
         <a href="/student-login" class="btn-outline" id="nav-cta-secondary">Student Portal</a>
         <a href="/register" class="btn-pill" id="nav-cta-primary">Register Now</a>
         <button class="mobile-toggle" onclick="toggleMobileMenu()">☰</button>
@@ -974,6 +997,10 @@
 
   <script>
     function applyLandingTheme(theme) {
+      if (window.ThemeManager) {
+        window.ThemeManager.setThemeMode(theme);
+        return;
+      }
       const isDark = theme === 'dark';
       document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
       document.body.setAttribute('data-theme', isDark ? 'dark' : 'light');
@@ -989,6 +1016,10 @@
     }
 
     function toggleTheme() {
+      if (window.ThemeManager) {
+        window.ThemeManager.cycleTheme(true);
+        return;
+      }
       const currentAttr = document.documentElement.getAttribute('data-theme');
       const hasDarkClass = document.documentElement.classList.contains('dark-theme') || document.body.classList.contains('dark-theme');
       const isCurrentlyDark = currentAttr === 'dark' || hasDarkClass;

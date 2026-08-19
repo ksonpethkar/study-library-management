@@ -1,5 +1,6 @@
 import api from './api.js';
 import { Toast, Modal, Loading, escapeHTML } from './ui.js';
+import { BiometricAuth } from './utils/biometricAuth.js';
 
 // We import App lazily to avoid circular dependency at module load time
 let _App = null;
@@ -186,6 +187,27 @@ export function initLoginPage() {
       Toast.error(err.message || 'Google SSO verification failed.');
     }
   });
+
+  // Quick Biometric / Face ID Login Handler
+  const quickBiometricBtn = document.getElementById('btn-quick-biometric-login');
+  if (quickBiometricBtn) {
+    BiometricAuth.isSupported().then(supported => {
+      if (supported && BiometricAuth.hasSavedCredentials()) {
+        quickBiometricBtn.style.display = 'flex';
+      }
+    });
+
+    if (!quickBiometricBtn.dataset.bound) {
+      quickBiometricBtn.dataset.bound = 'true';
+      quickBiometricBtn.addEventListener('click', async () => {
+        try {
+          await BiometricAuth.login();
+        } catch (err) {
+          // Handled inside BiometricAuth.login()
+        }
+      });
+    }
+  }
 
   // Admin Passkey Button Handler
   document.getElementById('admin-passkey-btn')?.addEventListener('click', async () => {

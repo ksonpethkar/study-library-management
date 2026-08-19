@@ -1017,6 +1017,155 @@ if (typeof window !== 'undefined') {
   window.renderMobileBottomNav = renderMobileBottomNav;
 }
 
+/**
+ * VoiceSearch Module using Web Speech API
+ */
+export const VoiceSearch = {
+  recognition: null,
+  isListening: false,
+  indicator: null,
+
+  showIndicator() {
+    this.hideIndicator();
+
+    if (!document.getElementById('voice-search-style')) {
+      const style = document.createElement('style');
+      style.id = 'voice-search-style';
+      style.textContent = `
+        @keyframes voice-pulse-ring {
+          0% { box-shadow: 0 0 0 0 rgba(108, 92, 231, 0.7); }
+          70% { box-shadow: 0 0 0 16px rgba(108, 92, 231, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(108, 92, 231, 0); }
+        }
+        @keyframes voice-mic-bounce {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.25); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    this.indicator = document.createElement('div');
+    this.indicator.id = 'voice-search-indicator';
+    this.indicator.style.cssText = `
+      position: fixed;
+      bottom: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+      color: #ffffff;
+      padding: 12px 24px;
+      border-radius: 50px;
+      box-shadow: 0 8px 24px rgba(108, 92, 231, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      font-family: 'Outfit', sans-serif;
+      z-index: 999999;
+      animation: voice-pulse-ring 1.5s infinite;
+      cursor: pointer;
+    `;
+
+    this.indicator.innerHTML = `
+      <span style="font-size: 1.3rem; display: inline-block; animation: voice-mic-bounce 1s infinite;">🎙️</span>
+      <span>Listening... Speak now</span>
+      <button style="background: rgba(255,255,255,0.2); border: none; color: #fff; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: justify; margin-left: 6px;" title="Cancel">&times;</button>
+    `;
+
+    const cancelBtn = this.indicator.querySelector('button');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.stop();
+      });
+    }
+
+    document.body.appendChild(this.indicator);
+  },
+
+  hideIndicator() {
+    if (this.indicator) {
+      this.indicator.remove();
+      this.indicator = null;
+    }
+  },
+
+  start(onResult, onError) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      Toast.error('Voice search is not supported in this browser.');
+      if (onError) onError('Speech recognition not supported');
+      return;
+    }
+
+    try {
+      if (this.isListening && this.recognition) {
+        this.recognition.abort();
+      }
+
+      const rec = new SpeechRecognition();
+      this.recognition = rec;
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = 'en-US';
+
+      rec.onstart = () => {
+        this.isListening = true;
+        this.showIndicator();
+      };
+
+      rec.onresult = (event) => {
+        this.isListening = false;
+        this.hideIndicator();
+        if (event.results && event.results[0] && event.results[0][0]) {
+          const transcript = event.results[0][0].transcript;
+          if (onResult) onResult(transcript);
+        }
+      };
+
+      rec.onerror = (event) => {
+        this.isListening = false;
+        this.hideIndicator();
+        console.error('Voice recognition error:', event.error);
+        if (event.error !== 'aborted') {
+          Toast.error(`Voice search error: ${event.error}`);
+        }
+        if (onError) onError(event.error);
+      };
+
+      rec.onend = () => {
+        this.isListening = false;
+        this.hideIndicator();
+      };
+
+      rec.start();
+    } catch (err) {
+      this.isListening = false;
+      this.hideIndicator();
+      console.error('Failed to start voice search:', err);
+      Toast.error('Failed to start voice search');
+      if (onError) onError(err);
+    }
+  },
+
+  stop() {
+    if (this.recognition && this.isListening) {
+      try {
+        this.recognition.stop();
+      } catch (err) {}
+      this.isListening = false;
+      this.hideIndicator();
+    }
+  }
+};
+
+if (typeof window !== 'undefined') {
+  window.VoiceSearch = VoiceSearch;
+}
+
+
 
 
 

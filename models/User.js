@@ -43,7 +43,14 @@ const userSchema = new mongoose.Schema({
   },
   lastLogin: {
     type: Date,
-  }
+  },
+  biometricCredentials: [{
+    credentialId: { type: String, required: true },
+    publicKey: { type: String },
+    counter: { type: Number, default: 0 },
+    transports: [String],
+    createdAt: { type: Date, default: Date.now }
+  }]
 }, { timestamps: true });
 
 // Pre-save hook: Hash password before saving
