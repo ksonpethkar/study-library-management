@@ -139,9 +139,14 @@ export async function render() {
       const expiry = s.expiryDate ? new Date(s.expiryDate).toLocaleDateString('en-IN') : '-';
 
       return `
-        <tr>
-          <td style="width: 38px; text-align: center;">
-            <input type="checkbox" class="student-select-cb" data-id="${escapeHTML(s._id)}" style="cursor: pointer;">
+        <tr class="student-row" data-id="${escapeHTML(s._id)}">
+          <td style="width: 44px; text-align: center; vertical-align: middle; padding: 0.5rem 0.25rem;">
+            <label class="student-select-label" style="position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; width: 22px; height: 22px; margin: 0;">
+              <input type="checkbox" class="student-select-cb" data-id="${escapeHTML(s._id)}" style="position: absolute; opacity: 0; width: 0; height: 0; margin: 0; pointer-events: none;">
+              <span class="custom-select-circle" style="width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--color-border, #cbd5e1); display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); opacity: 0; font-size: 11px; color: #fff; background: transparent;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </span>
+            </label>
           </td>
           <td><span style="font-family: monospace; font-weight: 700;">${escapeHTML(s.studentId || '-')}</span></td>
           <td><strong>${escapeHTML(s.name || '-')}</strong></td>
@@ -166,6 +171,38 @@ export async function render() {
     }).join('');
 
     tableContainer.innerHTML = `
+      <style>
+        .students-table-container tr .custom-select-circle {
+          opacity: 0;
+          transform: scale(0.85);
+          transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+        }
+        .students-table-container tr:hover .custom-select-circle {
+          opacity: 0.65;
+          transform: scale(1);
+          border-color: var(--color-primary, #6c5ce7);
+        }
+        .students-table-container.has-selections thead .master-select-circle,
+        .students-table-container thead:hover .master-select-circle {
+          opacity: 0.65 !important;
+          transform: scale(1) !important;
+        }
+        .students-table-container .student-select-cb:checked + .custom-select-circle,
+        .students-table-container #selectAllStudents:checked + .custom-select-circle {
+          opacity: 1 !important;
+          transform: scale(1) !important;
+          background-color: var(--color-primary, #6c5ce7) !important;
+          border-color: var(--color-primary, #6c5ce7) !important;
+        }
+        .students-table-container .student-select-cb:checked + .custom-select-circle svg,
+        .students-table-container #selectAllStudents:checked + .custom-select-circle svg {
+          display: block !important;
+        }
+        .students-table-container tr.row-selected {
+          background-color: rgba(108, 92, 231, 0.08) !important;
+        }
+      </style>
+
       <!-- Floating Bulk Action Bar -->
       <div id="bulk-actions-bar" style="display: none; padding: 0.75rem 1.25rem; background: var(--color-surface); border-bottom: 2px solid var(--color-primary); justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
         <div class="d-flex align-items-center gap-2">
@@ -188,12 +225,17 @@ export async function render() {
         </div>
       </div>
 
-      <div class="table-responsive">
+      <div class="table-responsive students-table-container">
         <table class="table data-table mb-0">
           <thead>
             <tr>
-              <th style="width: 38px; text-align: center;">
-                <input type="checkbox" id="selectAllStudents" style="cursor: pointer;">
+              <th style="width: 44px; text-align: center; vertical-align: middle; padding: 0.5rem 0.25rem;">
+                <label class="select-all-label" style="position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; width: 22px; height: 22px; margin: 0;" title="Select All Students">
+                  <input type="checkbox" id="selectAllStudents" style="position: absolute; opacity: 0; width: 0; height: 0; margin: 0; pointer-events: none;">
+                  <span class="custom-select-circle master-select-circle" style="width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--color-border, #cbd5e1); display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); opacity: 0; font-size: 11px; color: #fff; background: transparent;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  </span>
+                </label>
               </th>
               <th>Student ID</th>
               <th>Name</th>
@@ -217,14 +259,27 @@ export async function render() {
     const cbs = tableContainer.querySelectorAll('.student-select-cb');
     const bulkBar = tableContainer.querySelector('#bulk-actions-bar');
     const countBadge = tableContainer.querySelector('#selected-count-badge');
+    const tableResp = tableContainer.querySelector('.students-table-container');
 
     function updateBulkBar() {
-      const selected = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.dataset.id);
-      if (selected.length > 0) {
+      const selectedCbs = Array.from(cbs).filter(cb => cb.checked);
+      const selectedCount = selectedCbs.length;
+
+      // Highlight selected rows
+      cbs.forEach(cb => {
+        const tr = cb.closest('tr');
+        if (tr) tr.classList.toggle('row-selected', cb.checked);
+      });
+
+      if (selectedCount > 0) {
         bulkBar.style.display = 'flex';
-        countBadge.textContent = `${selected.length} student(s) selected`;
+        countBadge.textContent = `${selectedCount} student(s) selected`;
+        tableResp?.classList.add('has-selections');
+        if (selectAll) selectAll.checked = selectedCount === cbs.length;
       } else {
         bulkBar.style.display = 'none';
+        tableResp?.classList.remove('has-selections');
+        if (selectAll) selectAll.checked = false;
       }
     }
 

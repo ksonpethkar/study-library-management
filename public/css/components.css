@@ -1417,3 +1417,40 @@ input[type="checkbox"].round-checkbox:checked::after {
   transition: all 0.2s ease;
 }
 
+/* Data Table Circular Row Selection Checkboxes */
+.students-table-container tr .custom-select-circle {
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.students-table-container tr:hover .custom-select-circle {
+  opacity: 0.65;
+  transform: scale(1);
+  border-color: var(--color-primary, #6c5ce7);
+}
+
+.students-table-container.has-selections thead .master-select-circle,
+.students-table-container thead:hover .master-select-circle {
+  opacity: 0.65 !important;
+  transform: scale(1) !important;
+}
+
+.students-table-container .student-select-cb:checked + .custom-select-circle,
+.students-table-container #selectAllStudents:checked + .custom-select-circle {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+  background-color: var(--color-primary, #6c5ce7) !important;
+  border-color: var(--color-primary, #6c5ce7) !important;
+}
+
+.students-table-container .student-select-cb:checked + .custom-select-circle svg,
+.students-table-container #selectAllStudents:checked + .custom-select-circle svg {
+  display: block !important;
+}
+
+.students-table-container tr.row-selected {
+  background-color: rgba(108, 92, 231, 0.08) !important;
+}
+
+
