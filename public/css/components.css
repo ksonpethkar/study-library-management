@@ -249,9 +249,9 @@
 }
 
 /* Stat Cards & KPI Standard Grid */
-.kpi-grid {
+.kpi-grid, .stat-grid, .grid-4, .grid-3, .grid-2 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1rem;
   margin-bottom: 1.5rem;
   width: 100%;

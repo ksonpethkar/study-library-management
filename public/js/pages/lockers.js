@@ -26,25 +26,25 @@ export async function render() {
     </div>
 
     <!-- Stat KPI Cards -->
-    <div class="stat-grid grid-4 mb-4">
-      <div class="stat-card">
+    <div class="kpi-grid mb-4">
+      <div class="kpi-card kpi-primary">
         <div class="stat-label">${t('lockers.total', 'Total Lockers')}</div>
-        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-value" id="stat-total" style="font-size: 1.75rem; font-weight: 700;">0</div>
         <div class="stat-meta text-muted">All physical units</div>
       </div>
-      <div class="stat-card text-success">
+      <div class="kpi-card kpi-success">
         <div class="stat-label">${t('lockers.available', 'Available')}</div>
-        <div class="stat-value" id="stat-available" style="color: var(--color-success);">0</div>
+        <div class="stat-value text-success" id="stat-available" style="font-size: 1.75rem; font-weight: 700; color: var(--color-success);">0</div>
         <div class="stat-meta text-muted">Ready for allocation</div>
       </div>
-      <div class="stat-card">
+      <div class="kpi-card kpi-primary">
         <div class="stat-label">${t('lockers.occupied', 'Occupied')}</div>
-        <div class="stat-value" id="stat-occupied" style="color: var(--color-primary);">0</div>
+        <div class="stat-value text-primary" id="stat-occupied" style="font-size: 1.75rem; font-weight: 700; color: var(--color-primary);">0</div>
         <div class="stat-meta text-muted">Currently in use</div>
       </div>
-      <div class="stat-card">
+      <div class="kpi-card kpi-warning">
         <div class="stat-label">${t('lockers.depositHeld', 'Deposit Held')}</div>
-        <div class="stat-value" id="stat-deposit" style="color: var(--color-warning);">₹0</div>
+        <div class="stat-value text-warning" id="stat-deposit" style="font-size: 1.75rem; font-weight: 700; color: var(--color-warning);">₹0</div>
         <div class="stat-meta text-muted">Refundable security</div>
       </div>
     </div>
@@ -171,13 +171,13 @@ function renderLockerGrid(lockers) {
   if (!container) return;
 
   if (lockers.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state p-5 text-center" style="grid-column: 1 / -1; background: var(--color-surface); border-radius: 12px; border: 1px dashed var(--color-border);">
-        <div style="font-size: 40px; margin-bottom: 8px;">🔐</div>
-        <h3>No Lockers Found</h3>
-        <p class="text-muted text-sm">Add lockers individually or bulk generate numbers (L-01 to L-50)</p>
-      </div>
-    `;
+    UI.emptyState(container, {
+      icon: '🔐',
+      title: 'No Lockers Configured',
+      description: 'Add physical lockers individually or bulk generate locker series (e.g. L-01 to L-50).',
+      actionText: '+ Add First Locker',
+      onAction: showAddLockerModal
+    });
     return;
   }
 
