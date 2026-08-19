@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const Student = require('../models/Student');
+const Seat = require('../models/Seat');
+const Locker = require('../models/Locker');
+const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 
 const roleCheck = (...roles) => {
@@ -172,14 +175,36 @@ router.put('/:id', validate([
   }
 });
 
-// DELETE /:id
+// DELETE /:id - Delete student document, release seat & locker
 router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const student = await Student.findByIdAndUpdate(req.params.id, { status: 'inactive' }, { new: true });
+    const student = await Student.findById(req.params.id);
     if (!student) {
-      return res.status(404).json({ success: false, message: 'Student not found' });
+      return res.status(404).json({ success: false, message: 'Student record not found' });
     }
-    res.json({ success: true, data: student, message: 'Student soft deleted' });
+
+    // Release seat if assigned
+    if (student.seat) {
+      await Seat.findByIdAndUpdate(student.seat, { status: 'available', currentStudent: null });
+    }
+
+    // Release locker if assigned
+    if (student.locker) {
+      await Locker.findByIdAndUpdate(student.locker, { status: 'available', currentStudent: null });
+    }
+
+    // Delete student user account if exists
+    if (student.phone || student.email) {
+      const orConditions = [];
+      if (student.phone) orConditions.push({ phone: student.phone });
+      if (student.email) orConditions.push({ email: student.email });
+      if (orConditions.length > 0) {
+        await User.findOneAndDelete({ $or: orConditions });
+      }
+    }
+
+    await Student.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: `Student "${student.name}" deleted successfully` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

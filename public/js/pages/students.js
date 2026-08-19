@@ -959,8 +959,8 @@ export async function render() {
 
   async function handleDelete(id) {
     Confirm.show({
-      title: 'Delete Student',
-      message: 'Are you sure you want to deactivate this student record? This action will set the student status to inactive and release any assigned seat.',
+      title: 'Delete Student Record',
+      message: 'Are you sure you want to permanently delete this student record? This action will remove the student, release their assigned seat & locker, and remove them completely from the directory.',
       danger: true,
       onConfirm: async () => {
         try {
