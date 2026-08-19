@@ -93,12 +93,14 @@
       transition: all 0.3s ease;
     }
     .nav-container {
-      max-width: 1240px;
+      max-width: 1540px;
+      width: 100%;
       margin: 0 auto;
-      padding: 12px 24px;
+      padding: 14px 32px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      box-sizing: border-box;
     }
     .nav-brand {
       display: flex;
@@ -106,20 +108,23 @@
       gap: 10px;
       font-weight: 800;
       font-size: 1.25rem;
+      flex-shrink: 0;
     }
     .nav-logo { font-size: 1.8rem; }
     
     .nav-menu {
       display: flex;
       align-items: center;
-      gap: 24px;
+      gap: 20px;
       list-style: none;
+      flex-wrap: nowrap;
     }
     .nav-link {
       font-weight: 600;
-      font-size: 0.92rem;
+      font-size: 0.9rem;
       color: var(--text-muted);
       transition: color 0.2s;
+      white-space: nowrap;
     }
     .nav-link:hover { color: var(--primary); }
 
@@ -127,6 +132,7 @@
       display: flex;
       align-items: center;
       gap: 16px;
+      flex-shrink: 0;
     }
     .btn-pill {
       background: linear-gradient(135deg, var(--primary), var(--primary-dark));
@@ -458,7 +464,11 @@
     .drawer-links { padding: 2rem 24px; display: flex; flex-direction: column; gap: 1.5rem; }
     .drawer-links a { font-size: 1.25rem; font-weight: 700; }
 
-    @media (max-width: 992px) {
+    @media (max-width: 1280px) and (min-width: 1081px) {
+      .nav-menu { gap: 12px; }
+      .nav-link { font-size: 0.84rem; }
+    }
+    @media (max-width: 1080px) {
       .nav-menu { display: none; }
       .nav-actions .btn-outline { display: none; }
       .mobile-toggle { display: flex; }
