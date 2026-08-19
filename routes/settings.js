@@ -349,7 +349,7 @@ const validateAdminProfile = validate([
 
 router.put('/admin-profile', validateAdminProfile, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).lean();
+    const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
