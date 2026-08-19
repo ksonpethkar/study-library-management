@@ -1384,6 +1384,7 @@ function renderSettingsUI(container, profile, settings) {
     admission: container.querySelector('#panel-admission'),
     notifications: container.querySelector('#panel-notifications'),
     general: container.querySelector('#panel-general'),
+    backup: container.querySelector('#panel-backup'),
     formbuilder: container.querySelector('#panel-formbuilder'),
     sidebar: container.querySelector('#panel-sidebar') || container.querySelector('#panel-modules'),
     audittrail: container.querySelector('#panel-audittrail'),
