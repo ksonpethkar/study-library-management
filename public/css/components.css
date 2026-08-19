@@ -584,35 +584,9 @@
   transform: scale(1);
 }
 
-/* Toggle Switch */
+/* Legacy toggle alias */
 .form-toggle {
-  appearance: none;
-  width: 2.5rem;
-  height: 1.25rem;
-  background: var(--color-border);
-  border-radius: 1rem;
-  position: relative;
   cursor: pointer;
-  outline: none;
-  transition: background var(--transition-fast);
-}
-.form-toggle::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 1rem;
-  height: 1rem;
-  background: white;
-  border-radius: 50%;
-  transition: transform var(--transition-fast);
-  box-shadow: var(--shadow-sm);
-}
-.form-toggle:checked {
-  background: var(--color-primary);
-}
-.form-toggle:checked::after {
-  transform: translateX(1.25rem);
 }
 
 /* Badges */
@@ -1247,107 +1221,115 @@
 
 /* ========================================== */
 /* SIMPLE SMART ON / OFF SWITCH COMPONENT     */
+/* (Matching Image 2: iOS / Material Style)  */
 /* ========================================== */
+.form-toggle,
+.smart-toggle,
+.toggle-switch,
 input[type="checkbox"].form-toggle,
 input[type="checkbox"].smart-toggle,
 input[type="checkbox"].toggle-switch,
-.smart-switch input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 48px;
-  height: 24px;
-  background-color: #475569; /* Slate Gray for OFF */
-  border-radius: 20px;
-  position: relative;
-  cursor: pointer;
-  outline: none;
-  border: 1.5px solid #334155;
-  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: space-between;
-  vertical-align: middle;
-  padding: 0 5px;
-  box-sizing: border-box;
-  overflow: hidden;
-  user-select: none;
-  margin: 0;
+.switch-slider {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 46px !important;
+  height: 24px !important;
+  min-width: 46px !important;
+  min-height: 24px !important;
+  max-width: 46px !important;
+  max-height: 24px !important;
+  aspect-ratio: auto !important;
+  border-radius: 9999px !important;
+  background-color: #cbd5e1 !important; /* Muted Light Gray for OFF */
+  position: relative !important;
+  cursor: pointer !important;
+  outline: none !important;
+  border: none !important;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12) !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
 }
 
-/* Track Text Indicators: "ON" / "OFF" */
-input[type="checkbox"].form-toggle::after,
-input[type="checkbox"].smart-toggle::after,
-input[type="checkbox"].toggle-switch::after,
-.smart-switch input[type="checkbox"]::after {
-  content: "OFF";
-  font-size: 9px;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: 0.5px;
-  margin-left: auto;
-  line-height: 1;
-  transition: opacity 0.2s ease;
-  pointer-events: none;
-}
-
-input[type="checkbox"].form-toggle:checked::after,
-input[type="checkbox"].smart-toggle:checked::after,
-input[type="checkbox"].toggle-switch:checked::after,
-.smart-switch input[type="checkbox"]:checked::after {
-  content: "ON";
-  margin-left: 3px;
-  margin-right: auto;
-}
-
-/* Sliding White Knob */
+/* Sliding White Circular Knob */
+.form-toggle::before,
+.smart-toggle::before,
+.toggle-switch::before,
 input[type="checkbox"].form-toggle::before,
 input[type="checkbox"].smart-toggle::before,
 input[type="checkbox"].toggle-switch::before,
-.smart-switch input[type="checkbox"]::before {
-  content: "";
-  position: absolute;
-  top: 1px;
-  left: 1px;
-  width: 18px;
-  height: 18px;
-  background-color: #ffffff;
-  border-radius: 50%;
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-  z-index: 2;
+.switch-slider::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 3px !important;
+  left: 3px !important;
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 50% !important;
+  background-color: #ffffff !important;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25) !important;
+  display: block !important;
+}
+
+/* Remove text indicators in ::after that distort shape */
+.form-toggle::after,
+.smart-toggle::after,
+.toggle-switch::after,
+input[type="checkbox"].form-toggle::after,
+input[type="checkbox"].smart-toggle::after,
+input[type="checkbox"].toggle-switch::after,
+.switch-slider::after {
+  content: none !important;
+  display: none !important;
 }
 
 /* Checked State (ON - Emerald Green) */
+.form-toggle:checked,
+.smart-toggle:checked,
+.toggle-switch:checked,
 input[type="checkbox"].form-toggle:checked,
 input[type="checkbox"].smart-toggle:checked,
 input[type="checkbox"].toggle-switch:checked,
-.smart-switch input[type="checkbox"]:checked {
+.switch-label input[type="checkbox"]:checked + .switch-slider {
   background-color: #10b981 !important; /* Emerald Green */
-  border-color: #059669 !important;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.35) !important;
 }
 
+/* Slide Knob Right */
+.form-toggle:checked::before,
+.smart-toggle:checked::before,
+.toggle-switch:checked::before,
 input[type="checkbox"].form-toggle:checked::before,
 input[type="checkbox"].smart-toggle:checked::before,
 input[type="checkbox"].toggle-switch:checked::before,
-.smart-switch input[type="checkbox"]:checked::before {
-  transform: translateX(24px);
+.switch-label input[type="checkbox"]:checked + .switch-slider::before {
+  transform: translateX(22px) !important;
 }
 
-/* Hover State */
-input[type="checkbox"].form-toggle:hover,
-input[type="checkbox"].smart-toggle:hover,
-input[type="checkbox"].toggle-switch:hover {
-  filter: brightness(1.1);
+/* Dark mode OFF state */
+[data-theme="dark"] .form-toggle,
+[data-theme="dark"] .smart-toggle,
+[data-theme="dark"] .toggle-switch,
+[data-theme="dark"] input[type="checkbox"].form-toggle,
+[data-theme="dark"] input[type="checkbox"].smart-toggle,
+[data-theme="dark"] input[type="checkbox"].toggle-switch,
+[data-theme="dark"] .switch-slider {
+  background-color: #475569 !important;
 }
 
-/* Disabled State */
-input[type="checkbox"].form-toggle:disabled,
-input[type="checkbox"].smart-toggle:disabled,
-input[type="checkbox"].toggle-switch:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+[data-theme="dark"] .form-toggle:checked,
+[data-theme="dark"] .smart-toggle:checked,
+[data-theme="dark"] .toggle-switch:checked,
+[data-theme="dark"] input[type="checkbox"].form-toggle:checked,
+[data-theme="dark"] input[type="checkbox"].smart-toggle:checked,
+[data-theme="dark"] input[type="checkbox"].toggle-switch:checked,
+[data-theme="dark"] .switch-label input[type="checkbox"]:checked + .switch-slider {
+  background-color: #10b981 !important;
 }
 
 /* Smart Toggle Container with Status Badge Label */

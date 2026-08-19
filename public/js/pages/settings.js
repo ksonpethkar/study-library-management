@@ -456,7 +456,10 @@ function renderSettingsUI(container, profile, settings) {
                   </p>
                 </div>
                 <div>
-                  <input type="checkbox" id="setting-autoApprove" class="form-toggle" ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'checked' : ''}>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="setting-autoApprove" ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'checked' : ''}>
+                    <span class="switch-slider"></span>
+                  </label>
                 </div>
               </div>
 
