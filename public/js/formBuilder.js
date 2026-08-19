@@ -583,51 +583,7 @@ export class FormBuilder {
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
           <div style="grid-column: 1 / -1;">
             <label class="form-label text-xs" style="font-weight:700;">Preferred Study Centre / Branch *</label>
-            <select class="form-select form-control-sm" id="prev-branch-select">${branchOptions || '<option>Main Centre (Default)</option>'}</select>
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">Full Name *</label>
-            <input type="text" class="form-control form-control-sm" placeholder="e.g. Rahul Sharma">
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">Mobile / WhatsApp Number *</label>
-            <input type="text" class="form-control form-control-sm" placeholder="10-digit mobile number">
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">Email Address</label>
-            <input type="email" class="form-control form-control-sm" placeholder="student@example.com">
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">Gender</label>
-            <select class="form-select form-control-sm">
-              <option>Male</option>
-              <option>Female</option>
-              <option>Other</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">Date of Birth</label>
-            <input type="date" class="form-control form-control-sm">
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">Pincode (Auto-Fill)</label>
-            <input type="text" class="form-control form-control-sm" placeholder="6-digit pincode e.g. 413512">
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">City</label>
-            <input type="text" class="form-control form-control-sm" placeholder="Auto-filled city">
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">State</label>
-            <input type="text" class="form-control form-control-sm" placeholder="Auto-filled state">
+            <select class="form-select form-control-sm" id="prev-branch-select">${branchOptions || '<option>Main Campus Central — 🟢 48/50 Available Seats</option>'}</select>
           </div>
 
           ${secFields.map(f => this.renderPreviewInput(f)).join('')}
