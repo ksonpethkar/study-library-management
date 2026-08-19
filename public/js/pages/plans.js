@@ -4,6 +4,7 @@ import { Toast, Modal, Loading, Confirm, escapeHTML } from '../ui.js';
 import api from '../api.js';
 
 let plans = [];
+let coupons = [];
 
 export async function render() {
   const container = document.createElement('div');
@@ -37,6 +38,105 @@ export async function render() {
       <!-- Plans will be rendered here -->
     </div>
     
+    
+    <hr style="margin: 3rem 0; border-color: var(--color-divider);">
+    <div class="module-header mt-4">
+      <div class="module-title-area">
+        <h2>🎟️ Promo Coupons & Discount Manager</h2>
+        <p>Create and manage discount codes for student admissions.</p>
+      </div>
+      <div class="module-actions">
+        <button id="btn-create-coupon" class="btn btn-primary d-flex align-items-center gap-2" style="font-weight: 700;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          ${t('Add Coupon')}
+        </button>
+      </div>
+    </div>
+    
+    <div class="card p-0 mb-5" style="overflow-x: auto;">
+      <table class="table" style="width: 100%; border-collapse: collapse;">
+        <thead style="background: var(--color-surface); border-bottom: 2px solid var(--color-border);">
+          <tr>
+            <th style="padding: 12px 16px; text-align: left;">Code</th>
+            <th style="padding: 12px 16px; text-align: left;">Discount</th>
+            <th style="padding: 12px 16px; text-align: left;">Min Amount</th>
+            <th style="padding: 12px 16px; text-align: left;">Usage</th>
+            <th style="padding: 12px 16px; text-align: left;">Status</th>
+            <th style="padding: 12px 16px; text-align: left;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="coupons-tbody">
+          <tr><td colspan="6" class="text-center text-muted p-4">Loading coupons...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Coupon Modal -->
+    <div id="couponModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; justify-content:center; align-items:center; padding:1.5rem;">
+      <div style="background:var(--color-surface, #1e2230); color: var(--color-text-primary, #fff); border: 1px solid var(--color-border, #333); border-radius:var(--radius-lg, 12px); width:100%; max-width:500px; box-shadow:var(--shadow-xl);">
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--color-divider, rgba(255,255,255,0.08)); display: flex; justify-content: space-between; align-items: center;">
+          <h4 id="couponModalTitle" style="margin: 0; font-size: 1.2rem; font-weight: 600;">${t('Add Coupon')}</h4>
+          <button type="button" id="couponModalClose" style="background:none; border:none; color:var(--color-text-muted, #aaa); font-size: 1.5rem; cursor:pointer; line-height: 1;">&times;</button>
+        </div>
+        <div style="padding: 20px;">
+          <form id="coupon-form">
+            <input type="hidden" id="coupon-id">
+            
+            <div class="mb-3">
+              <label class="form-label">Code *</label>
+              <input type="text" class="form-control" id="coupon-code" required placeholder="e.g. SUMMER50" style="text-transform: uppercase;">
+            </div>
+            
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Type</label>
+                <select class="form-control form-select" id="coupon-discountType">
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="flat">Flat Amount (₹)</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Value *</label>
+                <input type="number" class="form-control" id="coupon-discountValue" required min="0" placeholder="e.g. 10">
+              </div>
+            </div>
+            
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Min Plan Amount</label>
+                <input type="number" class="form-control" id="coupon-minPlanAmount" min="0" value="0">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Max Discount (₹)</label>
+                <input type="number" class="form-control" id="coupon-maxDiscount" min="0" placeholder="Optional">
+              </div>
+            </div>
+            
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Valid Until</label>
+                <input type="date" class="form-control" id="coupon-validUntil">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Usage Limit</label>
+                <input type="number" class="form-control" id="coupon-usageLimit" min="1" value="100">
+              </div>
+            </div>
+            
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <input type="checkbox" id="coupon-isActive" checked style="cursor: pointer; width: 18px; height: 18px;">
+              <label for="coupon-isActive" style="cursor: pointer; margin: 0;">Active</label>
+            </div>
+
+            <div style="padding-top: 14px; border-top: 1px solid var(--color-divider, rgba(255,255,255,0.08)); display: flex; justify-content: flex-end; gap: 10px;">
+              <button type="button" class="btn btn-secondary" id="couponModalCancel">${t('Cancel')}</button>
+              <button type="button" class="btn btn-primary" id="btn-save-coupon">${t('Save Coupon')}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <!-- Plan Modal -->
     <div id="planModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:10000; justify-content:center; align-items:center; padding:1.5rem;">
       <div style="background:var(--color-surface, #1e2230); color: var(--color-text-primary, #fff); border: 1px solid var(--color-border, #333); border-radius:var(--radius-lg, 12px); width:100%; max-width:600px; max-height:90vh; overflow-y:auto; box-shadow:var(--shadow-xl);">
@@ -128,6 +228,55 @@ export async function render() {
 
   setTimeout(() => {
     loadPlans();
+
+    loadCoupons();
+    
+    const createCouponBtn = container.querySelector('#btn-create-coupon');
+    if (createCouponBtn) {
+      createCouponBtn.addEventListener('click', () => {
+        const form = container.querySelector('#coupon-form');
+        if (form) form.reset();
+        container.querySelector('#coupon-id').value = '';
+        container.querySelector('#coupon-isActive').checked = true;
+        container.querySelector('#couponModalTitle').textContent = t('Add Coupon');
+        document.getElementById('couponModal').style.display = 'flex';
+      });
+    }
+    
+    const saveCouponBtn = container.querySelector('#btn-save-coupon');
+    if (saveCouponBtn) saveCouponBtn.addEventListener('click', saveCoupon);
+    
+    const couponsTbody = container.querySelector('#coupons-tbody');
+    if (couponsTbody) {
+      couponsTbody.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.btn-edit-coupon');
+        if (editBtn) {
+          const id = editBtn.dataset.id;
+          openEditCouponModal(id);
+        }
+        
+        const deleteBtn = e.target.closest('.btn-delete-coupon');
+        if (deleteBtn) {
+          const id = deleteBtn.dataset.id;
+          deleteCoupon(id);
+        }
+      });
+
+      couponsTbody.addEventListener('change', (e) => {
+        if (e.target.classList.contains('coupon-active-toggle')) {
+          const id = e.target.dataset.id;
+          const isActive = e.target.checked;
+          toggleCouponStatus(id, isActive);
+        }
+      });
+    }
+
+    const closeCouponBtn = container.querySelector('#couponModalClose');
+    if (closeCouponBtn) closeCouponBtn.addEventListener('click', () => document.getElementById('couponModal').style.display = 'none');
+
+    const cancelCouponBtn = container.querySelector('#couponModalCancel');
+    if (cancelCouponBtn) cancelCouponBtn.addEventListener('click', () => document.getElementById('couponModal').style.display = 'none');
+
     
     const inactiveCheck = container.querySelector('#show-inactive-plans');
     if (inactiveCheck) inactiveCheck.addEventListener('change', loadPlans);
@@ -390,5 +539,152 @@ async function togglePlanStatus(id, isActive) {
   } catch (error) {
     Toast.error('Failed to update plan status');
     loadPlans();
+  }
+}
+
+
+async function loadCoupons() {
+  const tbody = document.getElementById('coupons-tbody');
+  if (!tbody) return;
+  try {
+    const res = await api.get('/api/coupons');
+    if (res.success) {
+      coupons = res.coupons;
+      renderCouponsGrid();
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function renderCouponsGrid() {
+  const tbody = document.getElementById('coupons-tbody');
+  if (!tbody) return;
+  
+  if (!coupons || coupons.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted p-4">No coupons found.</td></tr>';
+    return;
+  }
+  
+  let html = '';
+  coupons.forEach(c => {
+    const discountStr = c.discountType === 'percentage' ? `${c.discountValue}%` : `₹${c.discountValue}`;
+    const validStr = c.validUntil ? new Date(c.validUntil).toLocaleDateString() : 'Never';
+    
+    html += `
+      <tr style="border-bottom: 1px solid var(--color-border);">
+        <td style="padding: 12px 16px; font-weight: 700; color: var(--color-primary);">${escapeHTML(c.code)}</td>
+        <td style="padding: 12px 16px;">${discountStr}</td>
+        <td style="padding: 12px 16px;">₹${c.minPlanAmount}</td>
+        <td style="padding: 12px 16px;">${c.usedCount} / ${c.usageLimit}</td>
+        <td style="padding: 12px 16px;">
+          <input type="checkbox" class="coupon-active-toggle" data-id="${c._id}" ${c.isActive ? 'checked' : ''} style="cursor: pointer;">
+        </td>
+        <td style="padding: 12px 16px;">
+          <button class="btn btn-sm btn-outline-primary btn-edit-coupon" data-id="${c._id}">Edit</button>
+          <button class="btn btn-sm btn-outline-danger btn-delete-coupon" data-id="${c._id}">Delete</button>
+        </td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+}
+
+function openEditCouponModal(id) {
+  const coupon = coupons.find(c => c._id === id);
+  if (!coupon) return;
+  
+  document.getElementById('coupon-id').value = coupon._id;
+  document.getElementById('coupon-code').value = coupon.code;
+  document.getElementById('coupon-discountType').value = coupon.discountType;
+  document.getElementById('coupon-discountValue').value = coupon.discountValue;
+  document.getElementById('coupon-minPlanAmount').value = coupon.minPlanAmount || 0;
+  document.getElementById('coupon-maxDiscount').value = coupon.maxDiscount || '';
+  if (coupon.validUntil) {
+    document.getElementById('coupon-validUntil').value = new Date(coupon.validUntil).toISOString().split('T')[0];
+  } else {
+    document.getElementById('coupon-validUntil').value = '';
+  }
+  document.getElementById('coupon-usageLimit').value = coupon.usageLimit || 100;
+  document.getElementById('coupon-isActive').checked = coupon.isActive;
+  
+  document.getElementById('couponModalTitle').textContent = t('Edit Coupon');
+  document.getElementById('couponModal').style.display = 'flex';
+}
+
+async function saveCoupon() {
+  const form = document.getElementById('coupon-form');
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+  
+  const id = document.getElementById('coupon-id').value;
+  const payload = {
+    code: document.getElementById('coupon-code').value.toUpperCase(),
+    discountType: document.getElementById('coupon-discountType').value,
+    discountValue: parseFloat(document.getElementById('coupon-discountValue').value),
+    minPlanAmount: parseFloat(document.getElementById('coupon-minPlanAmount').value) || 0,
+    maxDiscount: document.getElementById('coupon-maxDiscount').value ? parseFloat(document.getElementById('coupon-maxDiscount').value) : null,
+    validUntil: document.getElementById('coupon-validUntil').value || null,
+    usageLimit: parseInt(document.getElementById('coupon-usageLimit').value) || 100,
+    isActive: document.getElementById('coupon-isActive').checked
+  };
+  
+  const btn = document.getElementById('btn-save-coupon');
+  const origText = btn.innerHTML;
+  btn.innerHTML = 'Saving...';
+  btn.disabled = true;
+  
+  try {
+    const endpoint = id ? `/api/coupons/${id}` : '/api/coupons';
+    const method = id ? 'put' : 'post';
+    const res = await api[method](endpoint, payload);
+    if (res.success) {
+      Toast.success('Coupon saved successfully');
+      document.getElementById('couponModal').style.display = 'none';
+      loadCoupons();
+    } else {
+      Toast.error(res.message);
+    }
+  } catch (err) {
+    Toast.error('Failed to save coupon');
+  } finally {
+    btn.innerHTML = origText;
+    btn.disabled = false;
+  }
+}
+
+async function deleteCoupon(id) {
+  Confirm.show({
+    title: 'Delete Coupon',
+    message: 'Are you sure you want to delete this coupon?',
+    danger: true,
+    onConfirm: async () => {
+      try {
+        const res = await api.delete(`/api/coupons/${id}`);
+        if (res.success) {
+          Toast.success('Coupon deleted');
+          loadCoupons();
+        } else {
+          Toast.error(res.message);
+        }
+      } catch (err) {
+        Toast.error('Failed to delete coupon');
+      }
+    }
+  });
+}
+
+async function toggleCouponStatus(id, isActive) {
+  try {
+    const res = await api.put(`/api/coupons/${id}`, { isActive });
+    if (!res.success) {
+      Toast.error(res.message);
+      loadCoupons();
+    }
+  } catch (err) {
+    Toast.error('Failed to update status');
+    loadCoupons();
   }
 }

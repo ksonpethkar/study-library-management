@@ -838,16 +838,37 @@
 
     document.getElementById('btn-apply-code').addEventListener('click', async () => {
       const code = document.getElementById('reg-referral').value.trim();
+      const planAmount = selectedPlanData ? Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0) : 0;
       if (!code) return;
-      if (code.toUpperCase() === 'WELCOME10') {
-        discountAmount = 100;
+      if (planAmount === 0) {
         document.getElementById('referral-msg').style.display = 'block';
-        document.getElementById('referral-msg').textContent = 'Code applied: ₹100 Off!';
-      } else {
+        document.getElementById('referral-msg').style.color = 'var(--color-danger)';
+        document.getElementById('referral-msg').textContent = 'Please select a plan first.';
+        return;
+      }
+      try {
+        const res = await fetch('/api/coupons/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, planAmount })
+        });
+        const json = await res.json();
+        if (json.success) {
+          discountAmount = json.discountAmount;
+          document.getElementById('referral-msg').style.display = 'block';
+          document.getElementById('referral-msg').style.color = 'var(--color-success)';
+          document.getElementById('referral-msg').textContent = `Code applied: ₹${discountAmount} Off!`;
+        } else {
+          discountAmount = 0;
+          document.getElementById('referral-msg').style.display = 'block';
+          document.getElementById('referral-msg').style.color = 'var(--color-danger)';
+          document.getElementById('referral-msg').textContent = json.message || 'Invalid code.';
+        }
+      } catch (err) {
         discountAmount = 0;
         document.getElementById('referral-msg').style.display = 'block';
         document.getElementById('referral-msg').style.color = 'var(--color-danger)';
-        document.getElementById('referral-msg').textContent = 'Invalid code.';
+        document.getElementById('referral-msg').textContent = 'Server error.';
       }
       updateCalculator();
     });
