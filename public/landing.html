@@ -1224,19 +1224,69 @@
           }
         }
 
-        // Shifts Dynamic Rendering
-        if (landing.shifts?.items?.length) {
-          const shiftsCont = document.getElementById('shifts-container') || document.querySelector('.shifts-grid');
-          if (shiftsCont) {
-            shiftsCont.innerHTML = landing.shifts.items.map(s => `
-              <div class="shift-card">
-                <div class="shift-icon">${s.icon || '⏰'}</div>
-                <div class="shift-name">${s.name}</div>
-                <div class="shift-time">${s.timing}</div>
-                <div class="shift-desc">${s.description || ''}</div>
-              </div>
-            `).join('');
-          }
+        // Helper to format time into 12-hour format (e.g. 06:00 -> 06:00 AM)
+        function formatShiftTime(t) {
+          if (!t) return '';
+          if (t.includes('AM') || t.includes('PM')) return t;
+          const parts = t.split(':');
+          if (parts.length < 2) return t;
+          let h = parseInt(parts[0], 10);
+          const m = parts[1].padStart(2, '0');
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          h = h % 12;
+          h = h ? h : 12;
+          return `${h.toString().padStart(2, '0')}:${m} ${ampm}`;
+        }
+
+        // Shifts Dynamic Rendering (Live Database Shifts + CMS Shifts fallback)
+        let displayShifts = [];
+        if (shifts && shifts.length > 0) {
+          displayShifts = shifts.map(s => {
+            const formattedStart = formatShiftTime(s.startTime);
+            const formattedEnd = formatShiftTime(s.endTime);
+            const timingStr = (formattedStart && formattedEnd) ? `${formattedStart} – ${formattedEnd}` : (s.startTime && s.endTime ? `${s.startTime} – ${s.endTime}` : '');
+            let icon = '⏰';
+            const nameLower = (s.name || '').toLowerCase();
+            if (nameLower.includes('morning') || nameLower.includes('sakal')) icon = '🌅';
+            else if (nameLower.includes('evening') || nameLower.includes('sandhya') || nameLower.includes('afternoon')) icon = '🌇';
+            else if (nameLower.includes('night') || nameLower.includes('owl') || nameLower.includes('ratra')) icon = '🌙';
+            else if (nameLower.includes('full') || nameLower.includes('24') || nameLower.includes('prime')) icon = '☀️';
+
+            return {
+              name: s.name,
+              timing: timingStr || 'Standard Shift Timing',
+              description: s.description || 'Dedicated study slot with AC and high-speed Wi-Fi access.',
+              icon
+            };
+          });
+        }
+
+        // Check if CMS shifts are provided with valid timings
+        if (displayShifts.length === 0 && landing.shifts?.items?.length) {
+          const validCms = landing.shifts.items.filter(item => item.name && item.name !== 'New Shift');
+          if (validCms.length > 0) displayShifts = validCms;
+        }
+
+        // Default standard library shifts fallback
+        if (displayShifts.length === 0) {
+          displayShifts = [
+            { icon: '🌅', name: 'Morning Shift', timing: '06:00 AM – 02:00 PM', description: 'Early morning slot for fresh mental energy and peak focus.' },
+            { icon: '🌇', name: 'Evening Shift', timing: '02:00 PM – 10:00 PM', description: 'Afternoon & evening slot ideal for college students and professionals.' },
+            { icon: '☀️', name: 'Full Day Prime', timing: '06:00 AM – 11:00 PM', description: 'Complete 17-hour all-day reserved seat with dedicated charging desk.' },
+            { icon: '🌙', name: 'Night Owl Slot', timing: '10:00 PM – 06:00 AM', description: 'Distraction-free overnight study hours for night preparation.' }
+          ];
+        }
+
+        const shiftsCont = document.getElementById('shifts-container') || document.querySelector('.shifts-grid');
+        if (shiftsCont && displayShifts.length > 0) {
+          shiftsCont.innerHTML = displayShifts.map(s => `
+            <div class="shift-card">
+              <div class="shift-icon">${s.icon || '⏰'}</div>
+              <div class="shift-name">${s.name}</div>
+              <div class="shift-time">${s.timing || ''}</div>
+              ${s.description ? `<div class="shift-desc" style="font-size: 0.88rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">${s.description}</div>` : ''}
+            </div>
+          `).join('');
         }
 
         // FAQs Dynamic Rendering

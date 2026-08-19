@@ -79,6 +79,7 @@ router.get('/', async (req, res) => {
           code: s.code,
           startTime: s.startTime,
           endTime: s.endTime,
+          description: s.description || '',
           priceMultiplier: s.priceMultiplier
         }))
       }
