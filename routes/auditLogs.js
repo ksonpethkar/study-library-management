@@ -56,7 +56,8 @@ router.get('/', roleCheck('owner', 'branch_manager'), async (req, res) => {
         {
           user: req.user._id,
           userName: req.user.name || 'System Admin',
-          action: 'SETTINGS_UPDATE',
+          userRole: req.user.role || 'owner',
+          action: 'setting_change',
           module: 'settings',
           details: 'Initialized Library Branding & Business Settings',
           ipAddress: req.ip || '127.0.0.1'
@@ -64,7 +65,8 @@ router.get('/', roleCheck('owner', 'branch_manager'), async (req, res) => {
         {
           user: req.user._id,
           userName: req.user.name || 'System Admin',
-          action: 'NAVIGATION_CONFIG',
+          userRole: req.user.role || 'owner',
+          action: 'update',
           module: 'settings',
           details: 'Configured Sidebar Navigation layout & role permissions',
           ipAddress: req.ip || '127.0.0.1'
@@ -72,8 +74,9 @@ router.get('/', roleCheck('owner', 'branch_manager'), async (req, res) => {
         {
           user: req.user._id,
           userName: req.user.name || 'System Admin',
-          action: 'WHATSAPP_SCHEDULE',
-          module: 'messages',
+          userRole: req.user.role || 'owner',
+          action: 'update',
+          module: 'operations',
           details: 'Automated WhatsApp Expiry & Dues Bot schedule set to 09:30 AM',
           ipAddress: req.ip || '127.0.0.1'
         }

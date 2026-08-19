@@ -12,16 +12,14 @@ const auditLogSchema = new mongoose.Schema({
   },
   userRole: {
     type: String,
-    required: true
+    default: 'owner'
   },
   action: {
     type: String,
-    enum: ['create', 'update', 'delete', 'login', 'payment', 'seat_assign', 'backup', 'setting_change'],
     required: true
   },
   module: {
     type: String,
-    enum: ['students', 'seats', 'payments', 'plans', 'settings', 'auth', 'attendance', 'operations'],
     required: true
   },
   details: {
