@@ -1384,10 +1384,8 @@ function renderSettingsUI(container, profile, settings) {
     admission: container.querySelector('#panel-admission'),
     notifications: container.querySelector('#panel-notifications'),
     general: container.querySelector('#panel-general'),
-    backup: container.querySelector('#panel-backup'),
     formbuilder: container.querySelector('#panel-formbuilder'),
     sidebar: container.querySelector('#panel-sidebar') || container.querySelector('#panel-modules'),
-    modules: container.querySelector('#panel-sidebar') || container.querySelector('#panel-modules'),
     audittrail: container.querySelector('#panel-audittrail'),
     landing: container.querySelector('#panel-landing'),
     pdfstudio: container.querySelector('#panel-pdfstudio'),
@@ -1448,8 +1446,9 @@ function renderSettingsUI(container, profile, settings) {
         b.style.fontWeight = isCurrent ? '600' : '500';
       });
 
-      Object.entries(panels).forEach(([key, panel]) => {
-        if (panel) panel.style.display = key === target ? 'block' : 'none';
+      const activePanel = panels[target];
+      container.querySelectorAll('.settings-panel').forEach(p => {
+        if (p) p.style.display = (p === activePanel) ? 'block' : 'none';
       });
 
       if (target === 'audittrail') {
