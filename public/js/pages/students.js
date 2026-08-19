@@ -810,10 +810,39 @@ export async function render() {
     const cityInput = modal.element.querySelector('input[name="city"]');
     const stateInput = modal.element.querySelector('input[name="state"]');
 
+    const PIN_ADMIN_MAP = {
+      '4135': { city: 'Latur / Ausa', state: 'Maharashtra' },
+      '4136': { city: 'Dharashiv (Osmanabad)', state: 'Maharashtra' },
+      '4130': { city: 'Solapur', state: 'Maharashtra' },
+      '4131': { city: 'Solapur / Baramati', state: 'Maharashtra' },
+      '413': { city: 'Latur / Solapur', state: 'Maharashtra' },
+      '4315': { city: 'Hingoli / Parbhani', state: 'Maharashtra' },
+      '4316': { city: 'Nanded', state: 'Maharashtra' },
+      '4311': { city: 'Beed', state: 'Maharashtra' },
+      '4312': { city: 'Jalna', state: 'Maharashtra' },
+      '4310': { city: 'Chhatrapati Sambhajinagar', state: 'Maharashtra' },
+      '431': { city: 'Hingoli / Nanded / Beed', state: 'Maharashtra' },
+      '400': { city: 'Mumbai', state: 'Maharashtra' },
+      '401': { city: 'Thane / Palghar', state: 'Maharashtra' },
+      '411': { city: 'Pune', state: 'Maharashtra' },
+      '110': { city: 'New Delhi', state: 'Delhi' }
+    };
+
     if (pincodeInput) {
       const handleAdminPincode = async () => {
         const pin = pincodeInput.value.trim();
         if (pin.length === 6 && /^\d+$/.test(pin)) {
+          // Instant Client-side Fallback
+          const p4 = pin.substring(0, 4);
+          const p3 = pin.substring(0, 3);
+          const p1 = pin.substring(0, 1);
+          const match = PIN_ADMIN_MAP[p4] || PIN_ADMIN_MAP[p3] || (p1 === '4' ? { city: 'Maharashtra Region', state: 'Maharashtra' } : null);
+
+          if (match) {
+            if (cityInput && !cityInput.value) cityInput.value = match.city;
+            if (stateInput && !stateInput.value) stateInput.value = match.state;
+          }
+
           try {
             if (cityInput) cityInput.placeholder = '⚡ Auto-filling...';
             if (stateInput) stateInput.placeholder = '⚡ Auto-filling...';

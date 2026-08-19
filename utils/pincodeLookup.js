@@ -15,7 +15,7 @@ const PINCODE_PREFIX_MAP = {
   '403': { state: 'Goa', city: 'Panaji / Margao' },
   '411': { state: 'Maharashtra', city: 'Pune' },
   '412': { state: 'Maharashtra', city: 'Pune Rural' },
-  '413': { state: 'Maharashtra', city: 'Solapur' },
+  '413': { state: 'Maharashtra', city: 'Latur / Solapur / Dharashiv' },
   '414': { state: 'Maharashtra', city: 'Ahilya Nagar (Ahmednagar)' },
   '415': { state: 'Maharashtra', city: 'Satara' },
   '416': { state: 'Maharashtra', city: 'Kolhapur / Sangli' },
@@ -24,13 +24,24 @@ const PINCODE_PREFIX_MAP = {
   '423': { state: 'Maharashtra', city: 'Malegaon / Nashik' },
   '424': { state: 'Maharashtra', city: 'Jalgaon' },
   '425': { state: 'Maharashtra', city: 'Jalgaon / Dhule' },
-  '431': { state: 'Maharashtra', city: 'Hingoli / Nanded / Chhatrapati Sambhajinagar' },
+  '431': { state: 'Maharashtra', city: 'Hingoli / Nanded / Sambhajinagar / Beed / Parbhani' },
   '440': { state: 'Maharashtra', city: 'Nagpur' },
   '441': { state: 'Maharashtra', city: 'Nagpur Rural / Bhandara' },
   '442': { state: 'Maharashtra', city: 'Wardha / Chandrapur' },
   '443': { state: 'Maharashtra', city: 'Buldhana' },
   '444': { state: 'Maharashtra', city: 'Akola / Amravati' },
   '445': { state: 'Maharashtra', city: 'Yavatmal' },
+
+  // Sub-district 4-digit maps
+  '4135': { state: 'Maharashtra', city: 'Latur / Ausa' },
+  '4136': { state: 'Maharashtra', city: 'Dharashiv (Osmanabad)' },
+  '4130': { state: 'Maharashtra', city: 'Solapur' },
+  '4131': { state: 'Maharashtra', city: 'Solapur / Baramati' },
+  '4315': { state: 'Maharashtra', city: 'Hingoli / Parbhani' },
+  '4316': { state: 'Maharashtra', city: 'Nanded' },
+  '4311': { state: 'Maharashtra', city: 'Beed' },
+  '4312': { state: 'Maharashtra', city: 'Jalna' },
+  '4310': { state: 'Maharashtra', city: 'Chhatrapati Sambhajinagar' },
 
   // Karnataka
   '560': { state: 'Karnataka', city: 'Bengaluru' },
@@ -161,6 +172,18 @@ async function lookupPincode(pin) {
   } catch (err) {}
 
   // 3rd Priority: Smart Pincode Prefix Dictionary
+  const prefix4 = cleanPin.substring(0, 4);
+  if (PINCODE_PREFIX_MAP[prefix4]) {
+    const match = PINCODE_PREFIX_MAP[prefix4];
+    return {
+      pincode: cleanPin,
+      city: match.city,
+      state: match.state,
+      district: match.city,
+      source: 'LocalDictionary4'
+    };
+  }
+
   const prefix3 = cleanPin.substring(0, 3);
   if (PINCODE_PREFIX_MAP[prefix3]) {
     const match = PINCODE_PREFIX_MAP[prefix3];
@@ -169,7 +192,7 @@ async function lookupPincode(pin) {
       city: match.city,
       state: match.state,
       district: match.city,
-      source: 'LocalDictionary'
+      source: 'LocalDictionary3'
     };
   }
 

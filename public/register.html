@@ -593,7 +593,45 @@
       });
     });
 
-    // Ultra-Fast Pincode Auto-Fill Engine
+    // Ultra-Fast Indian Pincode Auto-Fill Engine (Client-Side + API Proxy)
+    const PIN_CLIENT_MAP = {
+      '4135': { city: 'Latur / Ausa', state: 'Maharashtra' },
+      '4136': { city: 'Dharashiv (Osmanabad)', state: 'Maharashtra' },
+      '4130': { city: 'Solapur', state: 'Maharashtra' },
+      '4131': { city: 'Solapur / Baramati', state: 'Maharashtra' },
+      '413': { city: 'Latur / Solapur', state: 'Maharashtra' },
+      '4315': { city: 'Hingoli / Parbhani', state: 'Maharashtra' },
+      '4316': { city: 'Nanded', state: 'Maharashtra' },
+      '4311': { city: 'Beed', state: 'Maharashtra' },
+      '4312': { city: 'Jalna', state: 'Maharashtra' },
+      '4310': { city: 'Chhatrapati Sambhajinagar', state: 'Maharashtra' },
+      '431': { city: 'Hingoli / Nanded / Beed', state: 'Maharashtra' },
+      '400': { city: 'Mumbai', state: 'Maharashtra' },
+      '401': { city: 'Thane / Palghar', state: 'Maharashtra' },
+      '402': { city: 'Raigad', state: 'Maharashtra' },
+      '403': { city: 'Goa', state: 'Goa' },
+      '411': { city: 'Pune', state: 'Maharashtra' },
+      '412': { city: 'Pune Rural', state: 'Maharashtra' },
+      '414': { city: 'Ahilya Nagar (Ahmednagar)', state: 'Maharashtra' },
+      '415': { city: 'Satara', state: 'Maharashtra' },
+      '416': { city: 'Kolhapur / Sangli', state: 'Maharashtra' },
+      '421': { city: 'Kalyan / Dombivli', state: 'Maharashtra' },
+      '422': { city: 'Nashik', state: 'Maharashtra' },
+      '440': { city: 'Nagpur', state: 'Maharashtra' },
+      '110': { city: 'New Delhi', state: 'Delhi' },
+      '121': { city: 'Faridabad', state: 'Haryana' },
+      '122': { city: 'Gurugram', state: 'Haryana' },
+      '201': { city: 'Noida / Ghaziabad', state: 'Uttar Pradesh' },
+      '560': { city: 'Bengaluru', state: 'Karnataka' },
+      '500': { city: 'Hyderabad', state: 'Telangana' },
+      '600': { city: 'Chennai', state: 'Tamil Nadu' },
+      '380': { city: 'Ahmedabad', state: 'Gujarat' },
+      '302': { city: 'Jaipur', state: 'Rajasthan' },
+      '226': { city: 'Lucknow', state: 'Uttar Pradesh' },
+      '800': { city: 'Patna', state: 'Bihar' },
+      '700': { city: 'Kolkata', state: 'West Bengal' }
+    };
+
     const regPincodeInput = document.getElementById('reg-pincode');
     const handlePincodeLookup = async () => {
       if (!regPincodeInput) return;
@@ -601,6 +639,17 @@
       const cityEl = document.getElementById('reg-city');
       const stateEl = document.getElementById('reg-state');
       if (pin.length === 6 && /^\d+$/.test(pin)) {
+        // Step 1: Instant Client-Side Fallback (<1ms)
+        const p4 = pin.substring(0, 4);
+        const p3 = pin.substring(0, 3);
+        const p1 = pin.substring(0, 1);
+        const instantMatch = PIN_CLIENT_MAP[p4] || PIN_CLIENT_MAP[p3] || (p1 === '4' ? { city: 'Maharashtra Region', state: 'Maharashtra' } : null);
+
+        if (instantMatch) {
+          if (cityEl && !cityEl.value) cityEl.value = instantMatch.city;
+          if (stateEl && !stateEl.value) stateEl.value = instantMatch.state;
+        }
+
         try {
           if (cityEl) cityEl.placeholder = '⚡ Auto-filling city...';
           if (stateEl) stateEl.placeholder = '⚡ Auto-filling state...';
