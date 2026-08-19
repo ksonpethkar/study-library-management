@@ -160,20 +160,20 @@ export class FormBuilder {
   static async loadData() {
     try {
       const [fieldsRes, tplRes, branchRes, planRes, seatRes] = await Promise.all([
-        api.get('/api/custom-fields/all'),
-        api.get('/api/custom-fields/templates/active'),
+        api.get('/api/custom-fields/all').catch(() => ({ data: [] })),
+        api.get('/api/custom-fields/templates/active').catch(() => ({ data: null })),
         api.get('/api/branches/public-list').catch(() => ({ data: [] })),
         api.get('/api/plans').catch(() => ({ data: [] })),
         api.get('/api/seats?status=available').catch(() => ({ data: [] }))
       ]);
 
-      this.fields = fieldsRes?.data || [];
-      if (tplRes?.data) {
+      this.fields = (fieldsRes && Array.isArray(fieldsRes.data)) ? fieldsRes.data : [];
+      if (tplRes && tplRes.data) {
         this.template = tplRes.data;
       }
-      this.branches = branchRes?.data || [];
-      this.plans = planRes?.data || [];
-      this.seats = seatRes?.data || [];
+      this.branches = (branchRes && Array.isArray(branchRes.data)) ? branchRes.data : [];
+      this.plans = (planRes && Array.isArray(planRes.data)) ? planRes.data : [];
+      this.seats = (seatRes && Array.isArray(seatRes.data)) ? seatRes.data : [];
 
       if (this.branches.length > 0) {
         this.selectedBranchId = this.branches[0]._id;
@@ -212,7 +212,16 @@ export class FormBuilder {
       this.renderPreview();
     } catch (err) {
       console.error('Failed to load form builder data:', err);
-      Toast.error('Failed to load form schema');
+      const defaultSecs = [
+        { name: 'personal', label: 'Step 1: Study Centre & Personal Info', icon: 'personal', order: 1, isSystem: true },
+        { name: 'academic', label: 'Step 2: Academic Goals & KYC Proof', icon: 'academic', order: 2, isSystem: false },
+        { name: 'plan', label: 'Step 3: Membership Plan & Fee Calculator', icon: 'plan', order: 3, isSystem: true },
+        { name: 'payment', label: 'Step 4: Dynamic Payment Selection', icon: 'payment', order: 4, isSystem: true },
+        { name: 'seat', label: 'Step 5: Seat Selection & Digital Signature', icon: 'seat', order: 5, isSystem: true }
+      ];
+      this.sections = defaultSecs;
+      this.renderSections();
+      this.renderPreview();
     }
   }
 
@@ -525,7 +534,7 @@ export class FormBuilder {
       return `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
           <div style="grid-column: 1 / -1;">
-            <label class="form-label text-xs" style="font-weight:700;">Study Centre / Branch *</label>
+            <label class="form-label text-xs" style="font-weight:700;">Preferred Study Centre / Branch *</label>
             <select class="form-select form-control-sm" id="prev-branch-select">${branchOptions || '<option>Main Centre (Default)</option>'}</select>
           </div>
 
@@ -542,6 +551,85 @@ export class FormBuilder {
           <div>
             <label class="form-label text-xs" style="font-weight:600;">Email Address</label>
             <input type="email" class="form-control form-control-sm" placeholder="student@example.com">
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">Gender</label>
+            <select class="form-select form-control-sm">
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">Date of Birth</label>
+            <input type="date" class="form-control form-control-sm">
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">Pincode (Auto-Fill)</label>
+            <input type="text" class="form-control form-control-sm" placeholder="6-digit pincode e.g. 413512">
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">City</label>
+            <input type="text" class="form-control form-control-sm" placeholder="Auto-filled city">
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">State</label>
+            <input type="text" class="form-control form-control-sm" placeholder="Auto-filled state">
+          </div>
+
+          ${secFields.map(f => this.renderPreviewInput(f)).join('')}
+        </div>
+      `;
+    }
+
+    // STEP 2: Academic Goals, Occupation & Emergency Contacts
+    if (secName === 'academic') {
+      return `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">Target Competitive Exam</label>
+            <select class="form-select form-control-sm">
+              <option>UPSC Civil Services</option>
+              <option>MPSC / State PSC</option>
+              <option>IIT-JEE / NEET</option>
+              <option>CA / CS / CMA</option>
+              <option>Banking / SSC</option>
+              <option>Other Exam</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">Current Qualification / Occupation</label>
+            <input type="text" class="form-control form-control-sm" placeholder="e.g. Student / Graduation">
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">Emergency Contact Name</label>
+            <input type="text" class="form-control form-control-sm" placeholder="Parent / Guardian Name">
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">Emergency Contact Phone</label>
+            <input type="text" class="form-control form-control-sm" placeholder="10-digit mobile number">
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">ID Proof Type</label>
+            <select class="form-select form-control-sm">
+              <option>Aadhaar Card</option>
+              <option>PAN Card</option>
+              <option>Voter ID</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label text-xs" style="font-weight:600;">ID Proof Document Number</label>
+            <input type="text" class="form-control form-control-sm" placeholder="e.g. XXXX-XXXX-1234">
           </div>
 
           ${secFields.map(f => this.renderPreviewInput(f)).join('')}
@@ -595,23 +683,28 @@ export class FormBuilder {
           <label class="form-label text-xs" style="font-weight:700;">Select Payment Mode *</label>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
             <label style="border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; background: ${this.selectedPaymentMode === 'upi' ? 'var(--color-surface-hover)' : 'transparent'};">
-              <input type="radio" name="prev-pm-mode" value="upi" ${this.selectedPaymentMode === 'upi' ? 'checked' : ''}> 📱 UPI QR Code
+              <input type="radio" name="prev-pm-mode" value="upi" ${this.selectedPaymentMode === 'upi' ? 'checked' : ''}> 📱 Dynamic UPI QR
             </label>
             <label style="border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; background: ${this.selectedPaymentMode === 'card' ? 'var(--color-surface-hover)' : 'transparent'};">
               <input type="radio" name="prev-pm-mode" value="card" ${this.selectedPaymentMode === 'card' ? 'checked' : ''}> 💳 Card / NetBank
             </label>
-            <label style="border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; background: ${this.selectedPaymentMode === 'cash' ? 'var(--color-surface-hover)' : 'transparent'};">
-              <input type="radio" name="prev-pm-mode" value="cash" ${this.selectedPaymentMode === 'cash' ? 'checked' : ''}> 💵 Pay at Desk
+            <label style="border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; background: ${this.selectedPaymentMode === 'desk' ? 'var(--color-surface-hover)' : 'transparent'};">
+              <input type="radio" name="prev-pm-mode" value="desk" ${this.selectedPaymentMode === 'desk' ? 'checked' : ''}> 💵 Pay at Desk
             </label>
           </div>
 
           ${this.selectedPaymentMode === 'upi' ? `
             <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; text-align: center;">
-              <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 6px;">Scan UPI QR Code to Pay</div>
-              <div style="width: 140px; height: 140px; background: #fff; border: 1px solid var(--color-border); border-radius: 8px; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center;">
-                <span style="font-size: 2rem;">📱 QR</span>
+              <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 6px;">⚡ Scan QR Code or Pay via Mobile UPI App</div>
+              <div style="width: 130px; height: 130px; background: #fff; border: 1px solid var(--color-border); border-radius: 8px; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; padding: 4px;">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=thecozycorner@okaxis" style="width:100%;height:100%;object-fit:contain;">
               </div>
-              <input type="text" class="form-control form-control-sm" placeholder="Enter 12-digit UPI UTR / Transaction No. *" required>
+              <div style="display: flex; justify-content: center; gap: 4px; flex-wrap: wrap; margin-bottom: 8px;">
+                <span class="badge badge-primary" style="font-size:0.68rem;">🔵 GPay</span>
+                <span class="badge badge-primary" style="font-size:0.68rem;">🟣 PhonePe</span>
+                <span class="badge badge-primary" style="font-size:0.68rem;">💙 Paytm</span>
+              </div>
+              <input type="text" class="form-control form-control-sm" placeholder="Enter 12-digit UPI UTR / Transaction No. *" required style="max-width: 320px; margin: 0 auto;">
             </div>
           ` : ''}
 
