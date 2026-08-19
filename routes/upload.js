@@ -48,6 +48,15 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Check if image is already a URL
+    if (typeof image === 'string' && (image.startsWith('http://') || image.startsWith('https://') || image.startsWith('/uploads/'))) {
+      return res.json({
+        success: true,
+        message: 'Image URL verified',
+        url: image
+      });
+    }
+
     return res.status(400).json({ success: false, message: 'Unsupported upload format' });
   } catch (err) {
     console.error('Upload Error:', err);

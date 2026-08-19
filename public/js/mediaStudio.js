@@ -956,12 +956,32 @@ export class MediaFieldPicker {
     const removeBtn = wrapper.querySelector('.mfp-remove-btn');
     const uploadBtn = wrapper.querySelector('.mfp-upload-file-btn');
 
-    const updateImageValue = (dataUrl) => {
-      hiddenInput.value = dataUrl;
+    const updateImageValue = async (dataUrl) => {
+      hiddenInput.value = dataUrl || '';
       preview.innerHTML = renderPreview(dataUrl);
-      removeBtn.style.display = 'inline-block';
-      uploadBtn.innerHTML = '📁 Change Image';
+      removeBtn.style.display = dataUrl ? 'inline-block' : 'none';
+      uploadBtn.innerHTML = dataUrl ? '📁 Change Image' : '📁 Upload Image';
+
+      hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+      hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+
       if (onChange) onChange(dataUrl);
+
+      if (dataUrl && dataUrl.startsWith('data:image/')) {
+        try {
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: dataUrl })
+          });
+          const result = await res.json();
+          if (result.success && result.url) {
+            hiddenInput.value = result.url;
+            hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+            if (onChange) onChange(result.url);
+          }
+        } catch (err) {}
+      }
     };
 
     // Clicking preview box also triggers upload
@@ -987,23 +1007,8 @@ export class MediaFieldPicker {
       const reader = new FileReader();
       reader.onload = async (evt) => {
         const rawDataUrl = evt.target.result;
-        
-        // Save Base64 Data URL directly into hidden input for 100% permanent database storage across restarts!
-        updateImageValue(rawDataUrl);
+        await updateImageValue(rawDataUrl);
         Toast.success('Image ready! Click "Save Branding Settings" to apply permanently.');
-
-        // Attempt background upload to /api/upload
-        try {
-          const res = await fetch('/api/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: rawDataUrl })
-          });
-          const result = await res.json();
-          if (result.success && result.url) {
-            // Keep Base64 Data URL or server URL safely
-          }
-        } catch (err) {}
       };
       reader.readAsDataURL(file);
     });
