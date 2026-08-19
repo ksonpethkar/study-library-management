@@ -71,6 +71,10 @@ export class FormBuilder {
               🖼️ Header Branding
             </button>
 
+            <button type="button" class="btn btn-outline-primary btn-sm" id="fb-add-section-btn" style="font-weight: 600;">
+              📁 + Add Custom Section
+            </button>
+
             <button type="button" class="btn btn-primary btn-sm" id="fb-add-field-btn" style="font-weight: 700;">
               ✨ + Add Question Field
             </button>
@@ -260,13 +264,25 @@ export class FormBuilder {
       `;
     }).join('');
 
-    // Attach Question Action Listeners
+    // Attach Section & Question Action Listeners
+    container.querySelectorAll('.fb-sec-up').forEach(btn => {
+      btn.addEventListener('click', () => this.moveSection(btn.dataset.sec, -1));
+    });
+
+    container.querySelectorAll('.fb-sec-down').forEach(btn => {
+      btn.addEventListener('click', () => this.moveSection(btn.dataset.sec, 1));
+    });
+
     container.querySelectorAll('.fb-field-edit').forEach(btn => {
       btn.addEventListener('click', () => this.openFieldEditor(btn.dataset.id));
     });
 
     container.querySelectorAll('.fb-field-toggle').forEach(btn => {
       btn.addEventListener('click', () => this.toggleFieldActive(btn.dataset.id));
+    });
+
+    container.querySelectorAll('.fb-field-delete').forEach(btn => {
+      btn.addEventListener('click', () => this.deleteField(btn.dataset.id));
     });
 
     container.querySelectorAll('.fb-field-up').forEach(btn => {
@@ -425,6 +441,12 @@ export class FormBuilder {
           <button type="button" class="btn btn-sm btn-outline-primary fb-field-edit" data-id="${field._id}" style="font-size: 0.75rem;">
             ✏️ Edit
           </button>
+
+          ${!field.isSystemField ? `
+            <button type="button" class="btn btn-sm btn-ghost text-danger fb-field-delete" data-id="${field._id}" title="Delete Question" style="font-size: 0.75rem;">
+              🗑️ Delete
+            </button>
+          ` : ''}
         </div>
       </div>
     `;
@@ -849,9 +871,114 @@ export class FormBuilder {
       }
     });
 
+    // Add Section
+    document.getElementById('fb-add-section-btn')?.addEventListener('click', () => {
+      this.openAddSectionModal();
+    });
+
     // Add Field
     document.getElementById('fb-add-field-btn')?.addEventListener('click', () => {
       this.openFieldEditor(null);
+    });
+  }
+
+  static moveSection(secName, delta) {
+    const curIdx = this.sections.findIndex(s => s.name === secName);
+    if (curIdx === -1) return;
+
+    const targetIdx = curIdx + delta;
+    if (targetIdx < 0 || targetIdx >= this.sections.length) return;
+
+    // Swap section orders
+    const targetSec = this.sections[targetIdx];
+    const tempOrder = this.sections[curIdx].order || (curIdx + 1);
+    this.sections[curIdx].order = targetSec.order || (targetIdx + 1);
+    targetSec.order = tempOrder;
+
+    this.renderSections();
+    this.renderPreview();
+    Toast.success('Section order rearranged!');
+  }
+
+  static async deleteField(fieldId) {
+    const field = this.fields.find(f => f._id === fieldId);
+    if (!field) return;
+
+    if (!confirm(`Are you sure you want to delete question "${field.label}"?`)) return;
+
+    try {
+      await api.delete(`/api/custom-fields/${fieldId}`);
+      Toast.success(`Question "${field.label}" deleted successfully`);
+      this.fields = this.fields.filter(f => f._id !== fieldId);
+      this.renderSections();
+      this.renderPreview();
+    } catch (err) {
+      Toast.error(err.message || 'Failed to delete question field');
+    }
+  }
+
+  static openAddSectionModal() {
+    const modalContent = document.createElement('div');
+    modalContent.innerHTML = `
+      <form id="fb-add-section-form" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label text-xs" style="font-weight:700;">Section Title *</label>
+          <input type="text" id="as-label" class="form-control" placeholder="e.g. Step 6: Parent Consent & KYC" required>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label class="form-label text-xs" style="font-weight:700;">Section Key/Slug *</label>
+            <input type="text" id="as-key" class="form-control" placeholder="e.g. parent_kyc" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label text-xs" style="font-weight:700;">Section Icon Emoji</label>
+            <input type="text" id="as-icon" class="form-control" value="📁" placeholder="e.g. 📄">
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="Modal.closeAll()">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm" style="font-weight: 700;">➕ Create Section</button>
+        </div>
+      </form>
+    `;
+
+    const modal = new Modal({
+      title: '📁 Add Custom Form Section',
+      content: modalContent,
+      size: 'sm'
+    });
+    modal.show();
+
+    modalContent.querySelector('#as-label')?.addEventListener('input', (e) => {
+      const slug = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      modalContent.querySelector('#as-key').value = slug;
+    });
+
+    modalContent.querySelector('#fb-add-section-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const label = modalContent.querySelector('#as-label').value.trim();
+      const key = modalContent.querySelector('#as-key').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      const icon = modalContent.querySelector('#as-icon').value.trim() || '📁';
+
+      if (this.sections.some(s => s.name === key)) {
+        Toast.error('A section with this key already exists');
+        return;
+      }
+
+      this.sections.push({
+        name: key,
+        label,
+        icon,
+        order: this.sections.length + 1,
+        isSystem: false
+      });
+
+      modal.close();
+      this.renderSections();
+      this.renderPreview();
+      Toast.success(`Custom Section "${label}" created successfully!`);
     });
   }
 
@@ -939,10 +1066,24 @@ export class FormBuilder {
               <option value="text" ${field.type === 'text' ? 'selected' : ''}>📝 Short Text</option>
               <option value="textarea" ${field.type === 'textarea' ? 'selected' : ''}>📄 Long Paragraph Text</option>
               <option value="number" ${field.type === 'number' ? 'selected' : ''}>🔢 Number</option>
+              <option value="phone" ${field.type === 'phone' ? 'selected' : ''}>📱 Phone Number</option>
+              <option value="email" ${field.type === 'email' ? 'selected' : ''}>📧 Email Address</option>
               <option value="select" ${field.type === 'select' ? 'selected' : ''}>📋 Dropdown Select</option>
               <option value="radio" ${field.type === 'radio' ? 'selected' : ''}>🔘 Multiple Choice Radio</option>
               <option value="checkbox" ${field.type === 'checkbox' ? 'selected' : ''}>✅ Single Checkbox</option>
+              <option value="multiselect" ${field.type === 'multiselect' ? 'selected' : ''}>☑️ Multi-Select Checkboxes</option>
               <option value="date" ${field.type === 'date' ? 'selected' : ''}>📅 Date Picker</option>
+              <option value="time" ${field.type === 'time' ? 'selected' : ''}>⏰ Time Picker</option>
+              <option value="file" ${field.type === 'file' ? 'selected' : ''}>📎 File / Document Upload</option>
+              <option value="photo_upload" ${field.type === 'photo_upload' ? 'selected' : ''}>📸 Passport Photo / Selfie</option>
+              <option value="signature_pad" ${field.type === 'signature_pad' ? 'selected' : ''}>✍️ Digital Signature Canvas</option>
+              <option value="exam_badge" ${field.type === 'exam_badge' ? 'selected' : ''}>🎯 Target Competitive Exam</option>
+              <option value="blood_group" ${field.type === 'blood_group' ? 'selected' : ''}>🩸 Blood Group Selector</option>
+              <option value="url" ${field.type === 'url' ? 'selected' : ''}>🔗 Website / Portfolio Link</option>
+              <option value="address_autocomplete" ${field.type === 'address_autocomplete' ? 'selected' : ''}>📍 Address & Pincode Auto-Fill</option>
+              <option value="aadhaar_pan" ${field.type === 'aadhaar_pan' ? 'selected' : ''}>🪪 Aadhaar / PAN Proof Number</option>
+              <option value="terms_checkbox" ${field.type === 'terms_checkbox' ? 'selected' : ''}>📜 Quiet Study Code Consent</option>
+              <option value="star_rating" ${field.type === 'star_rating' ? 'selected' : ''}>⭐ Star Rating</option>
             </select>
           </div>
 
@@ -990,6 +1131,14 @@ export class FormBuilder {
       size: 'md'
     });
     modal.show();
+
+    // Auto slugify field key on label input for new fields
+    if (!isEdit) {
+      modalContent.querySelector('#fe-label')?.addEventListener('input', (e) => {
+        const slug = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+        modalContent.querySelector('#fe-key').value = slug;
+      });
+    }
 
     // Toggle options field
     modalContent.querySelector('#fe-type')?.addEventListener('change', (e) => {
