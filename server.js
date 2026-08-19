@@ -9,6 +9,10 @@ const helmet = require('helmet');
 const path = require('path');
 const connectDB = require('./config/db');
 const { generalLimiter } = require('./middleware/rateLimiter');
+const { errorHandler, initProcessErrorHandlers } = require('./middleware/errorMiddleware');
+
+// Initialize process crash catchers for uncaught exceptions and unhandled rejections
+initProcessErrorHandlers();
 
 const app = express();
 
@@ -156,14 +160,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Server Error'
-  });
-});
+// Global error handler middleware
+app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 5000;

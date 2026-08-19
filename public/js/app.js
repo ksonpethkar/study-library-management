@@ -9,6 +9,27 @@ import { AudioFeedback } from './utils/audioFeedback.js';
 import { promptPWAInstall } from './pwaManager.js';
 
 /**
+ * Global Crash Catchers & Error Recovery
+ * Captures uncaught JS exceptions and unhandled promise rejections to prevent UI freezes.
+ */
+window.onerror = function (message, source, lineno, colno, error) {
+  console.error('❌ Uncaught JS Exception:', { message, source, lineno, colno, error });
+  const errorMsg = error?.message || (typeof message === 'string' ? message : 'An unexpected error occurred.');
+  if (typeof document !== 'undefined' && document.body && typeof Toast !== 'undefined' && Toast.error) {
+    Toast.error(`Application Error: ${errorMsg}`);
+  }
+  return true;
+};
+
+window.onunhandledrejection = function (event) {
+  console.error('❌ Unhandled Promise Rejection:', event.reason);
+  const reasonMsg = event.reason?.message || (typeof event.reason === 'string' ? event.reason : 'An unhandled async error occurred.');
+  if (typeof document !== 'undefined' && document.body && typeof Toast !== 'undefined' && Toast.error) {
+    Toast.error(`Async Error: ${reasonMsg}`);
+  }
+};
+
+/**
  * Reactive global state store
  */
 const store = new Proxy(
