@@ -174,6 +174,16 @@ export class FormBuilder {
       this.fields = (fieldsRes && Array.isArray(fieldsRes.data)) ? fieldsRes.data : [];
       if (tplRes && tplRes.data) {
         this.template = tplRes.data;
+        const b = this.template.branding || {};
+        const headerInput = document.getElementById('branding-headerText');
+        const taglineInput = document.getElementById('branding-tagline');
+        const alignSelect = document.getElementById('branding-alignment');
+        const logoSelect = document.getElementById('branding-logoSize');
+
+        if (headerInput && b.headerText) headerInput.value = b.headerText;
+        if (taglineInput && b.tagline) taglineInput.value = b.tagline;
+        if (alignSelect && b.alignment) alignSelect.value = b.alignment;
+        if (logoSelect && b.logoSize) logoSelect.value = b.logoSize;
       }
       this.branches = (branchRes && Array.isArray(branchRes.data)) ? branchRes.data : [];
       this.plans = (planRes && Array.isArray(planRes.data)) ? planRes.data : [];
@@ -482,15 +492,21 @@ export class FormBuilder {
       .filter(f => (f.section || 'personal') === currentSec.name && f.isActive !== false)
       .sort((a, b) => (a.order || 0) - (b.order || 0));
 
+    const headerInput = document.getElementById('branding-headerText');
+    const taglineInput = document.getElementById('branding-tagline');
+    const alignSelect = document.getElementById('branding-alignment');
+    const logoSelect = document.getElementById('branding-logoSize');
+
     const b = this.template.branding || {};
-    const headerTitle = b.headerText || 'Student Admission Wizard';
-    const tagline = b.tagline || 'Silence, Focus & Success';
-    const align = b.alignment === 'left' ? 'left' : 'center';
+    const headerTitle = (headerInput && headerInput.value.trim()) ? headerInput.value.trim() : (b.headerText || 'Student Admission Wizard');
+    const tagline = (taglineInput && taglineInput.value !== undefined) ? taglineInput.value.trim() : (b.tagline || 'Silence, Focus & Success');
+    const align = (alignSelect && alignSelect.value) ? alignSelect.value : (b.alignment === 'left' ? 'left' : 'center');
+    const logoSize = (logoSelect && logoSelect.value) ? parseInt(logoSelect.value, 10) : parseInt(b.logoSize || '64', 10);
 
     let html = `
       <!-- Form Header Branding Preview -->
       <div style="margin-bottom: 16px; text-align: ${align}; border-bottom: 1px solid var(--color-border); padding-bottom: 12px;">
-        <div style="font-size: 2rem; margin-bottom: 4px;">🎓</div>
+        <div style="font-size: ${logoSize >= 96 ? '2.6rem' : logoSize <= 48 ? '1.6rem' : '2.1rem'}; margin-bottom: 4px;">🎓</div>
         <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-text-primary);">${escapeHTML(headerTitle)}</h3>
         <p style="margin: 3px 0 0 0; font-size: 0.83rem; color: var(--color-text-secondary);">${escapeHTML(tagline)}</p>
       </div>
@@ -810,22 +826,36 @@ export class FormBuilder {
       }
     });
 
-    // Branding Live Preview Inputs
+    // Branding Live Preview Inputs (input & change listeners)
     ['headerText', 'tagline', 'alignment', 'logoSize'].forEach(key => {
-      document.getElementById(`branding-${key}`)?.addEventListener('input', (e) => {
-        if (!this.template.branding) this.template.branding = {};
-        this.template.branding[key] = e.target.value;
-        this.renderPreview();
-      });
+      const el = document.getElementById(`branding-${key}`);
+      if (el) {
+        el.addEventListener('input', (e) => {
+          if (!this.template.branding) this.template.branding = {};
+          this.template.branding[key] = e.target.value;
+          this.renderPreview();
+        });
+        el.addEventListener('change', (e) => {
+          if (!this.template.branding) this.template.branding = {};
+          this.template.branding[key] = e.target.value;
+          this.renderPreview();
+        });
+      }
     });
 
     // Save Branding Button
     document.getElementById('fb-save-branding-btn')?.addEventListener('click', async () => {
       try {
+        if (!this.template.branding) this.template.branding = {};
+        this.template.branding.headerText = document.getElementById('branding-headerText')?.value.trim() || 'Student Admission Wizard';
+        this.template.branding.tagline = document.getElementById('branding-tagline')?.value.trim() || 'Silence, Focus & Success';
+        this.template.branding.alignment = document.getElementById('branding-alignment')?.value || 'center';
+        this.template.branding.logoSize = document.getElementById('branding-logoSize')?.value || '64';
+
         await api.put('/api/custom-fields/templates/active', {
           branding: this.template.branding
         });
-        Toast.success('Header branding updated & synced to /register successfully!');
+        Toast.success('Header branding saved & synced to live admission form!');
       } catch (err) {
         Toast.error(err.message || 'Failed to save header branding');
       }
