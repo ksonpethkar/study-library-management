@@ -1,6 +1,6 @@
 import { App } from '../app.js';
 import { t } from '../i18n.js';
-import { Toast, Modal, Loading, Confirm, escapeHTML, debounce, copyToClipboard } from '../ui.js';
+import { Toast, Modal, Loading, Confirm, escapeHTML, debounce, copyToClipboard, UI } from '../ui.js';
 import { SmartFormatters } from '../utils/smartFormatters.js';
 import { SignatureStudio } from '../signatureStudio.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
@@ -173,7 +173,16 @@ export async function render() {
 
   function renderTable() {
     if (state.students.length === 0) {
-      tableContainer.innerHTML = `<div class="empty-state p-5 text-center text-muted">No students found. Click "Add Student" to enroll the first member.</div>`;
+      UI.emptyState(tableContainer, {
+        icon: '🎓',
+        title: 'No Students Found',
+        description: 'No student records match your search or status filter. Click below to enroll a new member.',
+        actionText: '+ Add Student',
+        onAction: () => {
+          const addBtn = container.querySelector('#addStudentBtn');
+          if (addBtn) addBtn.click();
+        }
+      });
       return;
     }
 
@@ -348,9 +357,11 @@ export async function render() {
     });
 
     // Bulk WhatsApp Reminders
-    tableContainer.querySelector('#btn-bulk-whatsapp')?.addEventListener('click', async () => {
+    tableContainer.querySelector('#btn-bulk-whatsapp')?.addEventListener('click', async (e) => {
       const selected = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.dataset.id);
       if (selected.length === 0) return;
+      const btn = e.currentTarget;
+      UI.buttonLoading(btn, true, 'Sending...');
       try {
         const res = await api.post('/api/students/bulk-remind', { studentIds: selected });
         if (res.success && res.data) {
@@ -361,11 +372,13 @@ export async function render() {
         }
       } catch (err) {
         Toast.error('Failed to generate reminders');
+      } finally {
+        UI.buttonLoading(btn, false);
       }
     });
 
     // Bulk Renew
-    tableContainer.querySelector('#btn-bulk-renew')?.addEventListener('click', async () => {
+    tableContainer.querySelector('#btn-bulk-renew')?.addEventListener('click', async (e) => {
       const selected = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.dataset.id);
       if (selected.length === 0) return;
       const ok = await Confirm.show({
@@ -373,6 +386,8 @@ export async function render() {
         message: `Are you sure you want to extend validity by 30 days for ${selected.length} selected student(s)?`
       });
       if (ok) {
+        const btn = e.currentTarget;
+        UI.buttonLoading(btn, true, 'Renewing...');
         try {
           const res = await api.post('/api/students/bulk-renew', { studentIds: selected, days: 30 });
           Toast.success(res.message);
@@ -381,12 +396,14 @@ export async function render() {
           loadStats();
         } catch (err) {
           Toast.error(err.message || 'Bulk renew failed');
+        } finally {
+          UI.buttonLoading(btn, false);
         }
       }
     });
 
     // Bulk Deactivate
-    tableContainer.querySelector('#btn-bulk-deactivate')?.addEventListener('click', async () => {
+    tableContainer.querySelector('#btn-bulk-deactivate')?.addEventListener('click', async (e) => {
       const selected = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.dataset.id);
       if (selected.length === 0) return;
       const ok = await Confirm.show({
@@ -395,6 +412,8 @@ export async function render() {
         danger: true
       });
       if (ok) {
+        const btn = e.currentTarget;
+        UI.buttonLoading(btn, true, 'Deactivating...');
         try {
           const res = await api.post('/api/students/bulk-deactivate', { studentIds: selected });
           Toast.success(res.message);
@@ -403,6 +422,8 @@ export async function render() {
           loadStats();
         } catch (err) {
           Toast.error(err.message || 'Bulk deactivation failed');
+        } finally {
+          UI.buttonLoading(btn, false);
         }
       }
     });

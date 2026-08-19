@@ -641,6 +641,114 @@ export const Loading = {
   }
 };
 
+/**
+ * Soft Empty State & Button Loading Spinner Helpers
+ */
+export function emptyState(container, options = {}) {
+  let targetEl = typeof container === 'string' ? document.querySelector(container) : container;
+  if (!targetEl) return null;
+
+  const {
+    icon = '<svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-text-muted, #888);"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>',
+    title = 'No Data Available',
+    description = 'There are no items to display at this time.',
+    actionText = null,
+    onAction = null
+  } = options;
+
+  const emptyCard = document.createElement('div');
+  emptyCard.className = 'empty-state-card';
+  emptyCard.style.cssText = `
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    text-align: center;
+    background: var(--color-surface, #1e2230);
+    border: 1px dashed var(--color-border, rgba(255,255,255,0.12));
+    border-radius: var(--radius-lg, 12px);
+    margin: 16px 0;
+    width: 100%;
+    box-sizing: border-box;
+  `;
+
+  let iconHtml = '';
+  if (typeof icon === 'string' && !icon.includes('<')) {
+    iconHtml = `<div style="font-size: 2.8rem; margin-bottom: 12px; line-height: 1;">${icon}</div>`;
+  } else if (typeof icon === 'string') {
+    iconHtml = `<div style="margin-bottom: 14px; opacity: 0.85; display: inline-flex; align-items: center; justify-content: center;">${icon}</div>`;
+  }
+
+  let buttonHtml = '';
+  if (actionText) {
+    buttonHtml = `<button type="button" class="btn btn-primary empty-state-action-btn" style="margin-top: 16px; font-weight: 600;">${escapeHTML(actionText)}</button>`;
+  }
+
+  emptyCard.innerHTML = `
+    ${iconHtml}
+    <h4 style="margin: 0 0 8px 0; font-size: 1.1rem; font-weight: 700; color: var(--color-text-primary, #fff);">${escapeHTML(title)}</h4>
+    <p style="margin: 0; font-size: 0.875rem; color: var(--color-text-muted, #a0aec0); max-width: 420px; line-height: 1.5;">${escapeHTML(description)}</p>
+    ${buttonHtml}
+  `;
+
+  if (actionText && typeof onAction === 'function') {
+    const btn = emptyCard.querySelector('.empty-state-action-btn');
+    if (btn) {
+      btn.onclick = (e) => onAction(e);
+    }
+  }
+
+  if (targetEl.tagName === 'TBODY') {
+    targetEl.innerHTML = '';
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 100;
+    td.style.padding = '12px';
+    td.appendChild(emptyCard);
+    tr.appendChild(td);
+    targetEl.appendChild(tr);
+    return emptyCard;
+  }
+
+  targetEl.innerHTML = '';
+  targetEl.appendChild(emptyCard);
+  return emptyCard;
+}
+
+export function buttonLoading(buttonEl, isLoading, loadingText) {
+  let btn = typeof buttonEl === 'string' ? document.querySelector(buttonEl) : buttonEl;
+  if (!btn) return;
+
+  if (isLoading) {
+    if (btn.dataset.isLoading === 'true') return;
+    btn.dataset.isLoading = 'true';
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.disabled = true;
+
+    const spinnerHtml = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: inline-block; width: 0.9em; height: 0.9em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.75s linear infinite; vertical-align: text-bottom;"></span>`;
+    const textHtml = loadingText ? `<span class="btn-loading-text" style="margin-left: 6px;">${escapeHTML(loadingText)}</span>` : (btn.innerText ? `<span class="btn-loading-text" style="margin-left: 6px;">${escapeHTML(btn.innerText.trim())}</span>` : '');
+
+    btn.innerHTML = `${spinnerHtml}${textHtml}`;
+  } else {
+    if (btn.dataset.originalHtml !== undefined) {
+      btn.innerHTML = btn.dataset.originalHtml;
+      delete btn.dataset.originalHtml;
+    }
+    btn.dataset.isLoading = 'false';
+    btn.disabled = false;
+  }
+}
+
+export const UI = {
+  emptyState,
+  buttonLoading
+};
+
+if (typeof window !== 'undefined') {
+  window.UI = UI;
+}
+
 export function debounce(fn, delay = 250) {
   let timer = null;
   return function (...args) {

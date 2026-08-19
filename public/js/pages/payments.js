@@ -1,6 +1,6 @@
 import { App } from '../app.js';
 import { t } from '../i18n.js';
-import { Toast, Modal, Loading, Confirm, escapeHTML, debounce, copyToClipboard } from '../ui.js';
+import { Toast, Modal, Loading, Confirm, escapeHTML, debounce, copyToClipboard, UI } from '../ui.js';
 import { SmartFormatters } from '../utils/smartFormatters.js';
 import api from '../api.js';
 import { IDBStorage } from '../utils/idbStorage.js';
@@ -189,7 +189,16 @@ export async function render(container) {
     function renderPaymentsTableRows(payments, tbody) {
         if (!tbody) return;
         if (!payments || payments.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center empty-state p-4 text-muted">No payments found. Click "Collect Fee Payment" to record one.</td></tr>';
+            UI.emptyState(tbody, {
+                icon: '💳',
+                title: 'No Payments Found',
+                description: 'No fee collection transactions recorded matching your filter. Click below to collect fee.',
+                actionText: '+ Collect Fee Payment',
+                onAction: () => {
+                    const btnCollect = document.getElementById('btnCollectPayment');
+                    if (btnCollect) btnCollect.click();
+                }
+            });
             return;
         }
 
@@ -356,7 +365,11 @@ export async function render(container) {
             if (!tbody) return;
 
             if (!res.success || !res.data || res.data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-muted">🎉 All student memberships are up to date! No pending dues.</td></tr>';
+                UI.emptyState(tbody, {
+                    icon: '🎉',
+                    title: 'All Memberships Up To Date',
+                    description: 'Great news! There are currently no expired memberships or overdue fee balances.'
+                });
                 return;
             }
             
@@ -557,6 +570,7 @@ export async function render(container) {
         
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const submitBtn = form.querySelector('button[type="submit"]');
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
             
@@ -570,6 +584,7 @@ export async function render(container) {
             data.discount = parseFloat(data.discount) || 0;
             data.lateFee = parseFloat(data.lateFee) || 0;
             
+            if (submitBtn) UI.buttonLoading(submitBtn, true, 'Processing...');
             try {
                 const res = await api.post('/api/payments', data);
                 if (res.success) {
@@ -587,6 +602,8 @@ export async function render(container) {
                 }
             } catch (err) {
                 Toast.error(err.message || 'An error occurred while saving payment');
+            } finally {
+                if (submitBtn) UI.buttonLoading(submitBtn, false);
             }
         });
     }

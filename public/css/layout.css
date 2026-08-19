@@ -253,9 +253,9 @@
 /* Header */
 .main-header {
   height: var(--header-height);
-  background: var(--glass-bg);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-divider);
   position: sticky;
   top: 0;
@@ -264,6 +264,12 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--space-5);
+}
+
+[data-theme="dark"] .main-header,
+body.dark-theme .main-header,
+html.dark-theme .main-header {
+  background: rgba(15, 23, 42, 0.85);
 }
 
 .mobile-menu-btn {
@@ -279,12 +285,13 @@
 .search-bar {
   display: flex;
   align-items: center;
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
   padding: 0.5rem 1rem;
   width: 300px;
   cursor: text;
-  border: 1px solid transparent;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
   transition: all var(--transition-fast);
 }
 .search-bar:hover {
@@ -526,18 +533,24 @@
   width: 100%;
   max-width: 500px;
   background: var(--color-surface);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
   padding: var(--space-8);
   border: 1px solid var(--color-border-light);
   animation: slideIn var(--transition-slow) forwards;
 }
 
 .login-card {
-  background: var(--glass-bg);
-  backdrop-filter: var(--backdrop-blur);
-  -webkit-backdrop-filter: var(--backdrop-blur);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
+}
+
+[data-theme="dark"] .login-card,
+body.dark-theme .login-card,
+html.dark-theme .login-card {
+  background: rgba(15, 23, 42, 0.85);
 }
 
 .wizard-header, .login-header {

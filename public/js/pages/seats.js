@@ -1,6 +1,6 @@
 import { App } from '../app.js';
 import { t } from '../i18n.js';
-import { Toast, Modal, Loading, Confirm, escapeHTML, debounce } from '../ui.js';
+import { Toast, Modal, Loading, Confirm, escapeHTML, debounce, UI } from '../ui.js';
 import api from '../api.js';
 import { IDBStorage } from '../utils/idbStorage.js';
 import { OptimisticUI } from '../utils/optimisticUI.js';
@@ -538,23 +538,12 @@ function renderSeatsGrid(seats, container) {
   if (!grid) return;
   
   if (seats.length === 0) {
-    grid.innerHTML = `
-      <div class="empty-state text-center p-5 col-span-full" style="grid-column: 1 / -1; border: 2px dashed var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface);">
-        <div style="font-size: 3rem; margin-bottom: 0.5rem;">💺</div>
-        <h4 style="font-weight: 700; color: var(--color-text-primary); margin: 0;">No Seats Match Current Filter</h4>
-        <p class="text-muted small" style="margin: 4px 0 1rem 0;">No seats found in this branch/zone combination. Click below to add seats.</p>
-        <div class="d-flex justify-content-center gap-2">
-          <button type="button" class="btn btn-primary btn-sm" id="btn-empty-add-seats">⚡ Bulk Add Seats</button>
-          <button type="button" class="btn btn-outline-primary btn-sm" id="btn-empty-add-single">+ Add Single Seat</button>
-        </div>
-      </div>
-    `;
-
-    grid.querySelector('#btn-empty-add-seats')?.addEventListener('click', () => {
-      showAddSeatsModal(c);
-    });
-    grid.querySelector('#btn-empty-add-single')?.addEventListener('click', () => {
-      showAddSingleSeatModal(c);
+    UI.emptyState(grid, {
+      icon: '💺',
+      title: 'No Seats Match Current Filter',
+      description: 'No seats found in this branch/zone combination. Click below to bulk add seats.',
+      actionText: '⚡ Bulk Add Seats',
+      onAction: () => showAddSeatsModal(c)
     });
     return;
   }
@@ -728,15 +717,13 @@ function renderCentersTab(container) {
   if (!grid) return;
 
   if (branchesList.length === 0) {
-    grid.innerHTML = `
-      <div class="empty-state text-center p-5 col-span-full" style="grid-column: 1 / -1; border: 2px dashed var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface);">
-        <div style="font-size: 3rem; margin-bottom: 0.5rem;">🏢</div>
-        <h4 style="font-weight: 700; margin: 0;">No Study Branches Configured</h4>
-        <p class="text-muted small mt-1 mb-3">Add your first study room or branch location to begin seating allocation.</p>
-        <button class="btn btn-success btn-sm btn-trigger-add-branch">+ Add New Branch</button>
-      </div>
-    `;
-    grid.querySelector('.btn-trigger-add-branch')?.addEventListener('click', () => showBranchModal(null, container));
+    UI.emptyState(grid, {
+      icon: '🏢',
+      title: 'No Study Branches Configured',
+      description: 'Add your first study room or branch location to begin seating allocation.',
+      actionText: '+ Add New Branch',
+      onAction: () => showBranchModal(null, container)
+    });
     return;
   }
 
