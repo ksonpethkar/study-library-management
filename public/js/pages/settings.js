@@ -1408,6 +1408,8 @@ function renderSettingsUI(container, profile, settings) {
         FormBuilder.render(container.querySelector('#form-builder-mount-container'));
       } else if (target === 'receiptstudio') {
         loadReceiptStudio();
+      } else if (target === 'sidebar') {
+        initSidebarManager(container);
       }
     });
   });
@@ -2860,14 +2862,32 @@ async function initSidebarManager(container) {
     }, { offset: Number.NEGATIVE_INFINITY }).element;
   }
 
+  const defaultItems = [
+    { key: 'dashboard', label: 'Dashboard', icon: '📊', href: '#/dashboard', isEnabled: true, allowedRoles: ['owner', 'branch_manager', 'staff'] },
+    { key: 'students', label: 'Students Directory', icon: '👥', href: '#/students', isEnabled: true, allowedRoles: ['owner', 'branch_manager', 'staff'] },
+    { key: 'seats', label: 'Centers & Seats', icon: '🪑', href: '#/seats', isEnabled: true, allowedRoles: ['owner', 'branch_manager', 'staff'] },
+    { key: 'lockers', label: 'Lockers', icon: '🔒', href: '#/lockers', isEnabled: true, allowedRoles: ['owner', 'branch_manager', 'staff'] },
+    { key: 'plans', label: 'Plans', icon: '🏷️', href: '#/plans', isEnabled: true, allowedRoles: ['owner', 'branch_manager', 'staff'] },
+    { key: 'payments', label: 'Payments', icon: '💳', href: '#/payments', isEnabled: true, allowedRoles: ['owner', 'branch_manager', 'staff'] },
+    { key: 'attendance', label: 'Attendance', icon: '📋', href: '#/attendance', isEnabled: true, allowedRoles: ['owner', 'branch_manager', 'staff'] },
+    { key: 'shifts', label: 'Shifts', icon: '⏰', href: '#/shifts', isEnabled: true, allowedRoles: ['owner', 'branch_manager', 'staff'] },
+    { key: 'reports', label: 'Reports', icon: '📈', href: '#/reports', isEnabled: true, allowedRoles: ['owner', 'branch_manager', 'staff'] },
+    { key: 'expenses', label: 'Expenses (P&L)', icon: '💸', href: '#/expenses', isEnabled: true, allowedRoles: ['owner', 'branch_manager'] },
+    { key: 'operations', label: 'Operations', icon: '⚙️', href: '#/operations', isEnabled: true, allowedRoles: ['owner', 'branch_manager', 'staff'] },
+    { key: 'settings', label: 'Settings', icon: '⚙️', href: '#/settings', isEnabled: true, allowedRoles: ['owner'] },
+    { key: 'profile', label: 'My Profile', icon: '👤', href: '#/profile', isEnabled: true, allowedRoles: ['owner', 'branch_manager', 'staff'] }
+  ];
+
   const loadSettings = async () => {
     try {
       const res = await api.get('/api/settings/sidebar/all');
-      if (res && res.success && res.data) {
+      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
         renderList(res.data);
+      } else {
+        renderList(defaultItems);
       }
     } catch (e) {
-      listContainer.innerHTML = '<div class="text-danger p-3">Failed to load sidebar navigation layout</div>';
+      renderList(defaultItems);
     }
   };
 

@@ -575,7 +575,7 @@ router.put('/receipt-config', protect, roleCheck('owner', 'branch_manager'), asy
 });
 
 // GET /api/settings/sidebar/all - Get all items including disabled (admin only)
-router.get('/sidebar/all', roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.get('/sidebar/all', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const config = await SidebarConfig.getConfig();
     res.json({ success: true, data: config.items.sort((a, b) => (a.order || 0) - (b.order || 0)) });
@@ -585,7 +585,7 @@ router.get('/sidebar/all', roleCheck('owner', 'branch_manager'), async (req, res
 });
 
 // PUT /api/settings/sidebar - Update all sidebar items (reorder, enable/disable, rename, role permissions, icons)
-router.put('/sidebar', roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.put('/sidebar', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { items } = req.body;
     if (!Array.isArray(items)) return res.status(400).json({ success: false, message: 'Items array required' });
@@ -620,7 +620,7 @@ router.put('/sidebar', roleCheck('owner', 'branch_manager'), async (req, res) =>
 });
 
 // PUT /api/settings/sidebar/reset - Reset to defaults
-router.put('/sidebar/reset', roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.put('/sidebar/reset', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const config = await SidebarConfig.getConfig();
     config.items = SidebarConfig.getDefaults();
