@@ -207,22 +207,22 @@ export async function render() {
               </span>
             </label>
           </td>
-          <td><span style="font-family: monospace; font-weight: 700;">${escapeHTML(s.studentId || '-')}</span> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(s.studentId || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Student ID">📋</button></td>
-          <td><strong>${escapeHTML(s.name || '-')}</strong></td>
-          <td>${escapeHTML(SmartFormatters.phone(s.phone) || '-')} <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(s.phone || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">📋</button></td>
-          <td><span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary, #6c5ce7); font-weight: 600;">${escapeHTML(planName)}</span></td>
-          <td><span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success, #00b894); font-weight: 600;">${escapeHTML(seatNum)}</span></td>
-          <td>${expiry} ${s.expiryDate ? `<small class="text-muted">(${SmartFormatters.timeAgo(s.expiryDate)})</small>` : ''}</td>
-          <td><span class="badge btn-toggle-student-status" data-id="${escapeHTML(s._id)}" style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; cursor: pointer;" title="Click to toggle status">${escapeHTML(s.status || 'active')}</span></td>
-          <td>
-            <div class="d-flex gap-1">
-              <button class="btn btn-sm btn-outline-secondary btn-view" data-id="${escapeHTML(s._id)}" title="View 360° Profile" style="padding: 3px 7px; font-size: 0.75rem;">👁️ View</button>
-              <button class="btn btn-sm btn-outline-success btn-wa-remind" data-id="${escapeHTML(s._id)}" title="Send WhatsApp Reminder with 1-Tap UPI Link" style="padding: 3px 7px; font-size: 0.75rem; white-space: nowrap;">📲 WhatsApp Reminder</button>
-              <button class="btn btn-sm btn-outline-warning btn-pwdreset" data-id="${escapeHTML(s._id)}" title="Reset Student Portal Password / PIN" style="padding: 3px 7px; font-size: 0.75rem;">🔑 Key</button>
-              <button class="btn btn-sm btn-outline-info btn-idcard" data-id="${escapeHTML(s._id)}" title="Print ID Card" style="padding: 3px 7px; font-size: 0.75rem;">🪪 ID</button>
-              <button class="btn btn-sm btn-outline-success btn-pdfform" data-id="${escapeHTML(s._id)}" title="Download PDF Admission Form" style="padding: 3px 7px; font-size: 0.75rem;">📄 PDF</button>
-              <button class="btn btn-sm btn-outline-primary btn-edit" data-id="${escapeHTML(s._id)}" style="padding: 3px 7px; font-size: 0.75rem;">✏️ Edit</button>
-              <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${escapeHTML(s._id)}" style="padding: 3px 7px; font-size: 0.75rem;">🗑️ Delete</button>
+          <td style="white-space: nowrap;"><span style="font-family: monospace; font-weight: 700; display: inline-block;">${escapeHTML(s.studentId || '-')}</span> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(s.studentId || '')}" style="padding: 2px 5px; font-size: 0.7rem; display: inline-flex; align-items: center; vertical-align: middle;" title="Copy Student ID">📋</button></td>
+          <td style="white-space: nowrap;"><strong>${escapeHTML(s.name || '-')}</strong></td>
+          <td style="white-space: nowrap;"><span style="display: inline-block;">${escapeHTML(SmartFormatters.phone(s.phone) || '-')}</span> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(s.phone || '')}" style="padding: 2px 5px; font-size: 0.7rem; display: inline-flex; align-items: center; vertical-align: middle;" title="Copy Phone">📋</button></td>
+          <td style="white-space: nowrap;"><span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary, #6c5ce7); font-weight: 600;">${escapeHTML(planName)}</span></td>
+          <td style="white-space: nowrap;"><span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success, #00b894); font-weight: 600;">${escapeHTML(seatNum)}</span></td>
+          <td style="white-space: nowrap;">${expiry} ${s.expiryDate ? `<small class="text-muted">(${SmartFormatters.timeAgo(s.expiryDate)})</small>` : ''}</td>
+          <td style="white-space: nowrap;"><span class="badge btn-toggle-student-status" data-id="${escapeHTML(s._id)}" style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; cursor: pointer;" title="Click to toggle status">${escapeHTML(s.status || 'active')}</span></td>
+          <td style="white-space: nowrap;">
+            <div class="d-inline-flex gap-1 align-items-center">
+              <button class="btn btn-sm btn-outline-secondary btn-view" data-id="${escapeHTML(s._id)}" title="View 360° Profile" style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">👁️ View</button>
+              <button class="btn btn-sm btn-outline-success btn-wa-remind" data-id="${escapeHTML(s._id)}" title="Send WhatsApp Reminder" style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">📲 WhatsApp</button>
+              <button class="btn btn-sm btn-outline-warning btn-pwdreset" data-id="${escapeHTML(s._id)}" title="Reset Password / PIN" style="padding: 4px 6px; font-size: 0.75rem;">🔑</button>
+              <button class="btn btn-sm btn-outline-info btn-idcard" data-id="${escapeHTML(s._id)}" title="Print ID Card" style="padding: 4px 6px; font-size: 0.75rem;">🪪</button>
+              <button class="btn btn-sm btn-outline-success btn-pdfform" data-id="${escapeHTML(s._id)}" title="Download PDF Form" style="padding: 4px 6px; font-size: 0.75rem;">📄</button>
+              <button class="btn btn-sm btn-outline-primary btn-edit" data-id="${escapeHTML(s._id)}" title="Edit Student" style="padding: 4px 6px; font-size: 0.75rem;">✏️</button>
+              <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${escapeHTML(s._id)}" title="Delete Student" style="padding: 4px 6px; font-size: 0.75rem;">🗑️</button>
             </div>
           </td>
         </tr>
