@@ -96,6 +96,20 @@ const referralSchema = new mongoose.Schema({
   convertedStudent: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' }
 }, { timestamps: true });
 
+// Database Indexes for Operations Models
+visitorSchema.index({ branch: 1, createdAt: -1 });
+visitorSchema.index({ phone: 1 });
+announcementSchema.index({ branch: 1, isPinned: -1, createdAt: -1 });
+holidaySchema.index({ date: 1 });
+lostFoundSchema.index({ status: 1, createdAt: -1 });
+feedbackSchema.index({ status: 1, createdAt: -1 });
+leaveRequestSchema.index({ branch: 1, status: 1, createdAt: -1 });
+leaveRequestSchema.index({ student: 1, createdAt: -1 });
+seatChangeRequestSchema.index({ status: 1, createdAt: -1 });
+seatChangeRequestSchema.index({ student: 1 });
+referralSchema.index({ referrerStudent: 1 });
+referralSchema.index({ refereePhone: 1 });
+
 const Visitor = mongoose.model('Visitor', visitorSchema);
 const Announcement = mongoose.model('Announcement', announcementSchema);
 const Holiday = mongoose.model('Holiday', holidaySchema);

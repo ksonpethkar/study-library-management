@@ -413,7 +413,7 @@ router.post('/renewal-request', async (req, res) => {
     // Notify Library Admins
     await Notification.create({
       title: `💰 Self-Renewal: ${student.name}`,
-      message: `Student renewed plan online! Amount: ₹${payment.amountPaid} • UTR: ${utrNumber}`,
+      message: `Student renewed plan online! Amount: ₹${payment.finalAmount || payAmount} • UTR: ${utrNumber}`,
       type: 'payment',
       link: '#/payments'
     });
@@ -424,7 +424,7 @@ router.post('/renewal-request', async (req, res) => {
       data: {
         receiptNumber: payment.receiptNumber,
         newExpiryDate: student.expiryDate,
-        amountPaid: payment.amountPaid
+        amount: payment.finalAmount || payAmount
       }
     });
   } catch (err) {

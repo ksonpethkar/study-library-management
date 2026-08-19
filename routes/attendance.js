@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body, query, validationResult } = require('express-validator');
 const { protect } = require('../middleware/auth');
+const { roleCheck } = require('../middleware/roleCheck');
 const Attendance = require('../models/Attendance');
 
 // express-validator wrapper for Express 5
@@ -432,7 +433,7 @@ router.post('/check-out', protect, validate([
 });
 
 // POST /mark - Manual mark
-router.post('/mark', protect, validate([
+router.post('/mark', protect, roleCheck('owner', 'branch_manager'), validate([
   body('studentId').notEmpty().withMessage('Student ID is required'),
   body('date').isISO8601().withMessage('Valid date is required'),
   body('status').isIn(['present', 'absent', 'late', 'half_day']).withMessage('Invalid status')

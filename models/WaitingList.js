@@ -62,6 +62,10 @@ const waitingListSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Database Indexes
+waitingListSchema.index({ branch: 1, status: 1, priority: 1 });
+waitingListSchema.index({ status: 1, priority: 1 });
+
 waitingListSchema.pre('save', async function() {
   if (this.isNew && (!this.priority || this.priority === 1)) {
     const lastItem = await this.constructor.findOne().sort({ priority: -1 });

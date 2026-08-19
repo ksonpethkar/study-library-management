@@ -384,16 +384,77 @@ Confirm.show = async function(opts) {
 
 export const Loading = {
   show(target) {
-    if (typeof target === 'string') target = document.querySelector(target);
-    if (!target) return;
-    target.classList.add('loading-skeleton');
-    target.setAttribute('aria-busy', 'true');
+    if (!target) {
+      let overlay = document.getElementById('global-loading-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'global-loading-overlay';
+        overlay.className = 'global-loading-overlay';
+        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); backdrop-filter:blur(3px); z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px;';
+        overlay.innerHTML = '<div class="loading-spinner"></div><div id="global-loading-text" style="color:#fff; font-weight:600; font-size:0.95rem;">Loading...</div>';
+        document.body.appendChild(overlay);
+      }
+      return;
+    }
+
+    if (target instanceof HTMLElement) {
+      target.classList.add('loading-skeleton');
+      target.setAttribute('aria-busy', 'true');
+      return;
+    }
+
+    if (typeof target === 'string') {
+      try {
+        const el = document.querySelector(target);
+        if (el) {
+          el.classList.add('loading-skeleton');
+          el.setAttribute('aria-busy', 'true');
+          return;
+        }
+      } catch (e) {
+        // Not a valid CSS selector - treat target as a display message
+      }
+
+      let overlay = document.getElementById('global-loading-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'global-loading-overlay';
+        overlay.className = 'global-loading-overlay';
+        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); backdrop-filter:blur(3px); z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px;';
+        overlay.innerHTML = `<div class="loading-spinner"></div><div id="global-loading-text" style="color:#fff; font-weight:600; font-size:0.95rem;">${escapeHTML(target)}</div>`;
+        document.body.appendChild(overlay);
+      } else {
+        const textEl = document.getElementById('global-loading-text');
+        if (textEl) textEl.textContent = target;
+        overlay.style.display = 'flex';
+      }
+    }
   },
   hide(target) {
-    if (typeof target === 'string') target = document.querySelector(target);
-    if (!target) return;
-    target.classList.remove('loading-skeleton');
-    target.removeAttribute('aria-busy');
+    if (!target) {
+      const overlay = document.getElementById('global-loading-overlay');
+      if (overlay) overlay.remove();
+      return;
+    }
+
+    if (target instanceof HTMLElement) {
+      target.classList.remove('loading-skeleton');
+      target.removeAttribute('aria-busy');
+      return;
+    }
+
+    if (typeof target === 'string') {
+      try {
+        const el = document.querySelector(target);
+        if (el) {
+          el.classList.remove('loading-skeleton');
+          el.removeAttribute('aria-busy');
+        }
+      } catch (e) {}
+    }
+
+    const overlay = document.getElementById('global-loading-overlay');
+    if (overlay) overlay.remove();
   },
   button(btn, isLoading) {
     if (typeof btn === 'string') btn = document.querySelector(btn);

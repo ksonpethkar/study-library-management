@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
 const Seat = require('../models/Seat');
 const Student = require('../models/Student');
+const Shift = require('../models/Shift');
 const { protect } = require('../middleware/auth');
+const { roleCheck } = require('../middleware/roleCheck');
 
 function validate(validations) {
   return async (req, res, next) => {
@@ -72,7 +75,7 @@ router.get('/zones', async (req, res) => {
     let match = {};
     if (branch && branch !== 'all') {
       if (branch === 'unassigned') match.branch = null;
-      else match.branch = new (require('mongoose').Types.ObjectId)(branch);
+      else if (mongoose.Types.ObjectId.isValid(branch)) match.branch = new mongoose.Types.ObjectId(branch);
     }
 
     const zoneCounts = await Seat.aggregate([
@@ -94,7 +97,7 @@ router.get('/stats', async (req, res) => {
     let match = {};
     if (branch && branch !== 'all') {
       if (branch === 'unassigned') match.branch = null;
-      else match.branch = new (require('mongoose').Types.ObjectId)(branch);
+      else if (mongoose.Types.ObjectId.isValid(branch)) match.branch = new mongoose.Types.ObjectId(branch);
     }
 
     const stats = await Seat.aggregate([
@@ -139,7 +142,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST / - Create single custom seat
-router.post('/', validate([
+router.post('/', roleCheck('owner', 'branch_manager'), validate([
   body('seatNumber').notEmpty().withMessage('Seat number is required'),
   body('zone').notEmpty().withMessage('Zone is required')
 ]), async (req, res) => {
@@ -170,7 +173,7 @@ router.post('/', validate([
 });
 
 // POST /bulk - Bulk create seats with Branch support
-router.post('/bulk', validate([
+router.post('/bulk', roleCheck('owner', 'branch_manager'), validate([
   body('zone').notEmpty().withMessage('Zone is required'),
   body('count').isInt({ min: 1, max: 500 }).withMessage('Count must be between 1 and 500'),
   body('startNumber').isInt({ min: 1 }).withMessage('Start number must be at least 1')
@@ -222,7 +225,7 @@ router.post('/bulk', validate([
 });
 
 // POST /bulk-delete - Delete multiple seats
-router.post('/bulk-delete', async (req, res) => {
+router.post('/bulk-delete', roleCheck('owner'), async (req, res) => {
   try {
     const { seatIds } = req.body;
     if (!Array.isArray(seatIds) || seatIds.length === 0) {
@@ -246,7 +249,7 @@ router.post('/bulk-delete', async (req, res) => {
 });
 
 // POST /bulk-update - Bulk update zone, floor, type, branch, or status
-router.post('/bulk-update', async (req, res) => {
+router.post('/bulk-update', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { seatIds, updates } = req.body;
     if (!Array.isArray(seatIds) || seatIds.length === 0) {
@@ -269,7 +272,7 @@ router.post('/bulk-update', async (req, res) => {
 });
 
 // PUT /:id - Full update of single seat
-router.put('/:id', validate([
+router.put('/:id', roleCheck('owner', 'branch_manager'), validate([
   body('seatNumber').optional().notEmpty().withMessage('Seat number cannot be empty'),
   body('zone').optional().notEmpty().withMessage('Zone cannot be empty')
 ]), async (req, res) => {
@@ -303,7 +306,7 @@ router.put('/:id', validate([
 });
 
 // DELETE /:id - Delete seat
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', roleCheck('owner'), async (req, res) => {
   try {
     const seat = await Seat.findById(req.params.id);
     if (!seat) {
@@ -321,16 +324,8 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-const roleCheck = (role) => (req, res, next) => {
-  if (req.user && req.user.role === role) {
-    next();
-  } else {
-    res.status(403).json({ success: false, message: `Access denied. Requires ${role} role.` });
-  }
-};
-
 // PUT /zones/update - Update zoneColor and seatType for all seats matching a zone name
-router.put('/zones/update', protect, roleCheck('owner'), async (req, res) => {
+router.put('/zones/update', roleCheck('owner'), async (req, res) => {
   try {
     const { zone, zoneColor, seatType } = req.body;
     if (!zone) return res.status(400).json({ success: false, message: 'Zone name is required' });
@@ -347,7 +342,7 @@ router.put('/zones/update', protect, roleCheck('owner'), async (req, res) => {
 });
 
 // PUT /reorder - Bulk update row/column coordinates for drag-and-drop seat grid reordering
-router.put('/reorder', protect, roleCheck('owner'), async (req, res) => {
+router.put('/reorder', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { seats } = req.body; // Array of { id, row, column }
     if (!Array.isArray(seats) || seats.length === 0) {
@@ -368,8 +363,8 @@ router.put('/reorder', protect, roleCheck('owner'), async (req, res) => {
   }
 });
 
-// POST /:id/assign - Assign student to seat with bidirectional synchronization
-router.post('/:id/assign', validate([
+// POST /:id/assign - Assign student to seat with shift overlap prevention & bidirectional synchronization
+router.post('/:id/assign', roleCheck('owner', 'branch_manager'), validate([
   body('studentId').notEmpty().withMessage('Student ID is required')
 ]), async (req, res) => {
   try {
@@ -380,9 +375,32 @@ router.post('/:id/assign', validate([
       return res.status(404).json({ success: false, message: 'Seat not found' });
     }
 
-    const student = await Student.findById(studentId);
+    if (seat.status === 'maintenance') {
+      return res.status(400).json({ success: false, message: 'Cannot assign student to a seat under maintenance' });
+    }
+
+    const student = await Student.findById(studentId).populate('shift').populate('plan');
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    // Shift Overlap Prevention: Find other active students assigned to this seat
+    const occupiedStudents = await Student.find({
+      seat: seat._id,
+      status: 'active',
+      _id: { $ne: student._id }
+    }).populate('shift').populate('plan');
+
+    for (const other of occupiedStudents) {
+      const otherShift = other.shift;
+      const curShift = student.shift;
+
+      if (Shift.doShiftsOverlap(curShift, otherShift)) {
+        return res.status(409).json({
+          success: false,
+          message: `Shift conflict: Seat ${seat.seatNumber} is already assigned to ${other.name} during overlapping timing (${otherShift?.name || 'Full Day Access'})`
+        });
+      }
     }
 
     // If student was already assigned to another seat, unassign that seat
@@ -407,7 +425,7 @@ router.post('/:id/assign', validate([
 });
 
 // POST /:id/release - Release seat and unassign student
-router.post('/:id/release', async (req, res) => {
+router.post('/:id/release', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const seat = await Seat.findById(req.params.id);
     
@@ -415,9 +433,7 @@ router.post('/:id/release', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Seat not found' });
     }
     
-    if (seat.currentStudent) {
-      await Student.findByIdAndUpdate(seat.currentStudent, { seat: null });
-    }
+    await Student.updateMany({ seat: seat._id }, { $set: { seat: null } });
 
     seat.currentStudent = null;
     seat.status = 'available';

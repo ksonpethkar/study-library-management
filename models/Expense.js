@@ -63,6 +63,11 @@ const expenseSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Database Indexes
+expenseSchema.index({ branch: 1, date: -1 });
+expenseSchema.index({ branch: 1, category: 1 });
+expenseSchema.index({ date: -1 });
+
 // Statics for financial P&L aggregation
 expenseSchema.statics.getMonthlyTotal = async function(year, month) {
   const start = new Date(year, month - 1, 1);

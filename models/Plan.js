@@ -67,6 +67,10 @@ const planSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
+// Database Indexes
+planSchema.index({ branch: 1, isActive: 1, displayOrder: 1 });
+planSchema.index({ isActive: 1, displayOrder: 1 });
+
 planSchema.virtual('effectivePrice').get(function() {
   if (this.price === undefined || this.price === null) return 0;
   return this.price * (1 - (this.discount || 0) / 100);

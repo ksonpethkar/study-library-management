@@ -4,6 +4,7 @@ const { body } = require('express-validator');
 const Shift = require('../models/Shift');
 const Student = require('../models/Student');
 const { protect } = require('../middleware/auth');
+const { roleCheck } = require('../middleware/roleCheck');
 const { validate } = require('../middleware/validate');
 
 // GET / — List all active shifts (Public for registration & landing pages)
@@ -178,28 +179,31 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST / — Create shift (name, code, startTime, endTime, maxCapacity, priceMultiplier, description)
-router.post('/', createShiftValidations, async (req, res) => {
+router.post('/', roleCheck('owner', 'branch_manager'), createShiftValidations, async (req, res) => {
   try {
-    const { name, code, startTime, endTime, maxCapacity, priceMultiplier, daysActive, description, isActive } = req.body;
+    const { name, code, startTime, endTime, maxCapacity, priceMultiplier, daysActive, description, isActive, branch } = req.body;
 
-    const existing = await Shift.findOne({ code: code.trim().toUpperCase() });
+    const formattedCode = code.trim().toUpperCase();
+    const branchId = branch && branch !== 'all' && branch !== 'none' ? branch : null;
+    const existing = await Shift.findOne({ code: formattedCode, branch: branchId });
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: `Shift with code "${code.trim().toUpperCase()}" already exists`
+        message: `Shift with code "${formattedCode}" already exists for this branch`
       });
     }
 
     const shift = await Shift.create({
       name: name.trim(),
-      code: code.trim().toUpperCase(),
+      code: formattedCode,
       startTime: startTime.trim(),
       endTime: endTime.trim(),
       maxCapacity: maxCapacity !== undefined ? Number(maxCapacity) : 0,
       priceMultiplier: priceMultiplier !== undefined ? Number(priceMultiplier) : 1.0,
       daysActive: Array.isArray(daysActive) && daysActive.length > 0 ? daysActive : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
       description: description ? description.trim() : '',
-      isActive: isActive !== undefined ? Boolean(isActive) : true
+      isActive: isActive !== undefined ? Boolean(isActive) : true,
+      branch: branchId
     });
 
     res.status(201).json({
@@ -213,7 +217,7 @@ router.post('/', createShiftValidations, async (req, res) => {
 });
 
 // PUT /:id — Update shift
-router.put('/:id', updateShiftValidations, async (req, res) => {
+router.put('/:id', roleCheck('owner', 'branch_manager'), updateShiftValidations, async (req, res) => {
   try {
     const shift = await Shift.findById(req.params.id);
     if (!shift) {
@@ -222,11 +226,11 @@ router.put('/:id', updateShiftValidations, async (req, res) => {
 
     if (req.body.code && req.body.code.trim().toUpperCase() !== shift.code) {
       const codeUpper = req.body.code.trim().toUpperCase();
-      const existing = await Shift.findOne({ code: codeUpper, _id: { $ne: shift._id } });
+      const existing = await Shift.findOne({ code: codeUpper, branch: shift.branch, _id: { $ne: shift._id } });
       if (existing) {
         return res.status(400).json({
           success: false,
-          message: `Shift with code "${codeUpper}" already exists`
+          message: `Shift with code "${codeUpper}" already exists for this branch`
         });
       }
       shift.code = codeUpper;
@@ -254,7 +258,7 @@ router.put('/:id', updateShiftValidations, async (req, res) => {
 });
 
 // DELETE /:id — Deactivate shift (soft delete)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', roleCheck('owner'), async (req, res) => {
   try {
     const shift = await Shift.findByIdAndUpdate(
       req.params.id,

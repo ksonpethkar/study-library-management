@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const BusinessProfile = require('../models/BusinessProfile');
 const SystemSetting = require('../models/SystemSetting');
@@ -810,8 +811,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
             await user.save();
           }
 
-          const sendMail = require('../utils/emailService');
-          await sendMail({
+          await emailService.sendMail({
             to: student.email,
             subject: '🔑 Temporary Password Reset - Study Library Portal',
             text: `Hello ${student.name},\nYour temporary Student Portal password is: ${tempPin}\nLogin at: https://study-library-management.onrender.com/student-login`,

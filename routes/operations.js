@@ -1,23 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
+const { roleCheck } = require('../middleware/roleCheck');
 const { Visitor, Announcement, Holiday, LostFound, Feedback } = require('../models/Operations');
 
 router.use(protect);
 
-const roleCheck = (...roles) => {
-  return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ success: false, message: 'Not authorized for this role' });
-    }
-    next();
-  };
-};
-
 // ----------------------------------------------------
 // 1. Visitors & Leads
 // ----------------------------------------------------
-router.get('/visitors', async (req, res) => {
+router.get('/visitors', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const visitors = await Visitor.find().sort({ createdAt: -1 });
     res.json({ success: true, data: visitors });
@@ -26,7 +18,7 @@ router.get('/visitors', async (req, res) => {
   }
 });
 
-router.post('/visitors', async (req, res) => {
+router.post('/visitors', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const visitor = await Visitor.create(req.body);
     res.json({ success: true, data: visitor, message: 'Visitor inquiry logged successfully' });
@@ -35,7 +27,7 @@ router.post('/visitors', async (req, res) => {
   }
 });
 
-router.put('/visitors/:id', async (req, res) => {
+router.put('/visitors/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const visitor = await Visitor.findByIdAndUpdate(req.params.id, req.body, { new: true, returnDocument: 'after' });
     res.json({ success: true, data: visitor, message: 'Visitor inquiry updated' });
@@ -44,7 +36,7 @@ router.put('/visitors/:id', async (req, res) => {
   }
 });
 
-router.delete('/visitors/:id', async (req, res) => {
+router.delete('/visitors/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     await Visitor.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Visitor record deleted' });
@@ -125,7 +117,7 @@ router.get('/lostfound', async (req, res) => {
   }
 });
 
-router.post('/lostfound', async (req, res) => {
+router.post('/lostfound', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const item = await LostFound.create(req.body);
     res.json({ success: true, data: item, message: 'Lost item recorded' });
@@ -134,7 +126,7 @@ router.post('/lostfound', async (req, res) => {
   }
 });
 
-router.put('/lostfound/:id', async (req, res) => {
+router.put('/lostfound/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const item = await LostFound.findByIdAndUpdate(req.params.id, req.body, { new: true, returnDocument: 'after' });
     res.json({ success: true, data: item, message: 'Item status updated' });
@@ -143,7 +135,7 @@ router.put('/lostfound/:id', async (req, res) => {
   }
 });
 
-router.delete('/lostfound/:id', async (req, res) => {
+router.delete('/lostfound/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     await LostFound.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Record deleted' });
@@ -173,7 +165,7 @@ router.post('/feedback', async (req, res) => {
   }
 });
 
-router.put('/feedback/:id/reply', async (req, res) => {
+router.put('/feedback/:id/reply', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const fb = await Feedback.findByIdAndUpdate(
       req.params.id,
@@ -186,7 +178,7 @@ router.put('/feedback/:id/reply', async (req, res) => {
   }
 });
 
-router.delete('/feedback/:id', async (req, res) => {
+router.delete('/feedback/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     await Feedback.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Feedback deleted' });
@@ -202,7 +194,7 @@ const Student = require('../models/Student');
 // ----------------------------------------------------
 // 6. Student Leave Requests (Admin)
 // ----------------------------------------------------
-router.get('/leave-requests', async (req, res) => {
+router.get('/leave-requests', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const leaves = await LeaveRequest.find().sort({ createdAt: -1 });
     res.json({ success: true, data: leaves });
@@ -228,7 +220,7 @@ router.put('/leave-requests/:id', roleCheck('owner', 'branch_manager'), async (r
 // ----------------------------------------------------
 // 7. Student Seat Change Requests (Admin)
 // ----------------------------------------------------
-router.get('/seat-changes', async (req, res) => {
+router.get('/seat-changes', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const requests = await SeatChangeRequest.find().populate('currentSeat allocatedSeat').sort({ createdAt: -1 });
     res.json({ success: true, data: requests });
@@ -277,7 +269,7 @@ router.put('/seat-changes/:id', roleCheck('owner', 'branch_manager'), async (req
 // ----------------------------------------------------
 // 8. Referrals (Admin)
 // ----------------------------------------------------
-router.get('/referrals', async (req, res) => {
+router.get('/referrals', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const referrals = await Referral.find().sort({ createdAt: -1 });
     res.json({ success: true, data: referrals });

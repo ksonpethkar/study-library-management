@@ -712,25 +712,37 @@
       <h2 class="section-title">Study Space & Ambience</h2>
     </div>
 
-    <div class="gallery-filters">
-      <button class="g-filter active">All</button>
-      <button class="g-filter">Study Cabins</button>
-      <button class="g-filter">Reading Hall</button>
-      <button class="g-filter">Amenities</button>
+    <div class="gallery-filters" id="gallery-filters-bar">
+      <button type="button" class="g-filter active">All</button>
+      <button type="button" class="g-filter">Study Cabins</button>
+      <button type="button" class="g-filter">Reading Hall</button>
+      <button type="button" class="g-filter">Amenities</button>
     </div>
 
     <div class="gallery-grid" id="gallery-container">
-      <div class="gallery-item" onclick="openLightbox('https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=800', 'Premium Study Cabins')">
+      <div class="gallery-item" data-category="Study Cabins" onclick="openLightbox('https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=800', 'Premium Study Cabins')">
         <img src="https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=800" alt="Study Cabins" loading="lazy">
         <div class="gallery-caption">Premium Study Cabins</div>
       </div>
-      <div class="gallery-item" onclick="openLightbox('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800', 'Silent Reading Hall')">
+      <div class="gallery-item" data-category="Reading Hall" onclick="openLightbox('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800', 'Silent Reading Hall')">
         <img src="https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800" alt="Reading Hall" loading="lazy">
         <div class="gallery-caption">Silent Reading Hall</div>
       </div>
-      <div class="gallery-item" onclick="openLightbox('https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800', 'Discussion Zone & Amenities')">
+      <div class="gallery-item" data-category="Amenities" onclick="openLightbox('https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800', 'Discussion Zone & Amenities')">
         <img src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800" alt="Amenities" loading="lazy">
         <div class="gallery-caption">Discussion Zone & Amenities</div>
+      </div>
+      <div class="gallery-item" data-category="Study Cabins" onclick="openLightbox('https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800', 'Orthopedic Ergonomic Desks')">
+        <img src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800" alt="Ergonomic Desks" loading="lazy">
+        <div class="gallery-caption">Orthopedic Ergonomic Desks</div>
+      </div>
+      <div class="gallery-item" data-category="Reading Hall" onclick="openLightbox('https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800', 'Air-Conditioned Silent Zone')">
+        <img src="https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800" alt="Air Conditioned Zone" loading="lazy">
+        <div class="gallery-caption">Air-Conditioned Silent Zone</div>
+      </div>
+      <div class="gallery-item" data-category="Amenities" onclick="openLightbox('https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=800', 'Discussion Room & High-Speed Wi-Fi')">
+        <img src="https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=800" alt="Discussion Room" loading="lazy">
+        <div class="gallery-caption">Discussion Room & High-Speed Wi-Fi</div>
       </div>
     </div>
   </section>
@@ -956,6 +968,82 @@
       });
     });
 
+    // Gallery Category Filtering
+    function initGalleryFilters() {
+      const filterBtns = document.querySelectorAll('.gallery-filters .g-filter');
+      filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          filterBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const filter = btn.textContent.trim().toLowerCase();
+          const items = document.querySelectorAll('#gallery-container .gallery-item');
+          items.forEach(item => {
+            const cat = (item.dataset.category || '').toLowerCase();
+            if (filter === 'all' || cat.includes(filter) || filter.includes(cat)) {
+              item.style.display = 'block';
+            } else {
+              item.style.display = 'none';
+            }
+          });
+        });
+      });
+    }
+    initGalleryFilters();
+
+    // Plan Duration Filter Handler
+    let allLandingPlans = [];
+    function initPlanToggles() {
+      const planBtns = document.querySelectorAll('.plan-toggles .plan-toggle');
+      planBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          planBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const text = btn.textContent.trim().toLowerCase();
+          let mult = 1;
+          let disc = 0;
+          if (text.includes('3 month')) { mult = 3; disc = 5; }
+          else if (text.includes('6 month')) { mult = 6; disc = 10; }
+          else if (text.includes('1 year')) { mult = 12; disc = 15; }
+
+          renderPlansWithDuration(mult, disc);
+        });
+      });
+    }
+    initPlanToggles();
+
+    function renderPlansWithDuration(multiplier = 1, discountPercent = 0) {
+      if (!allLandingPlans || allLandingPlans.length === 0) return;
+      const plansCont = document.getElementById('plans-container');
+      if (!plansCont) return;
+
+      plansCont.innerHTML = allLandingPlans.map((p, idx) => {
+        const baseEffective = Math.round(p.effectivePrice || p.price || 0);
+        const totalBase = baseEffective * multiplier;
+        const discountedTotal = Math.round(totalBase * (1 - discountPercent / 100));
+        const durationLabel = multiplier === 1 ? `1 Month` : (multiplier === 12 ? `1 Year` : `${multiplier} Months`);
+        const totalDiscount = Math.max(p.discount || 0, discountPercent);
+
+        return `
+          <div class="plan-card" ${idx === 1 ? 'style="border-color: var(--primary);"' : ''}>
+            ${totalDiscount > 0 ? `<div class="plan-badge">${totalDiscount}% OFF</div>` : (idx === 1 ? '<div class="plan-badge">Popular</div>' : '')}
+            <h3 class="plan-name">${p.name}</h3>
+            <div class="plan-price-row">
+              <span class="plan-price">₹${discountedTotal.toLocaleString('en-IN')}</span>
+              <span class="plan-period">/ ${durationLabel}</span>
+            </div>
+            <ul class="plan-features">
+              <li>Seat Type: <strong>${(p.seatType || 'Standard').toUpperCase()}</strong></li>
+              <li>Shift: <strong>${(p.shift || 'Any').toUpperCase()}</strong></li>
+              ${(p.features || []).map(f => `<li>${f}</li>`).join('')}
+            </ul>
+            <a href="/register" class="btn-${idx === 1 ? 'hero-primary' : 'pill'}" style="justify-content: center; text-align: center; width: 100%; border: none;">
+              Register Now
+            </a>
+          </div>
+        `;
+      }).join('');
+    }
+
     // Lightbox
     function openLightbox(url, caption) {
       document.getElementById('lightbox-img').src = url;
@@ -963,10 +1051,18 @@
       document.getElementById('lightbox').classList.add('active');
     }
     function closeLightbox(e) {
-      if (e.target.id === 'lightbox' || e.target.classList.contains('lightbox-close')) {
+      if (!e || e.target.id === 'lightbox' || e.target.classList.contains('lightbox-close') || e.target.closest('.lightbox-close')) {
         document.getElementById('lightbox').classList.remove('active');
       }
     }
+    window.openLightbox = openLightbox;
+    window.closeLightbox = closeLightbox;
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.getElementById('lightbox')?.classList.remove('active');
+      }
+    });
 
     // Toast Notification
     function showToast(message, type = 'success') {
@@ -1146,29 +1242,24 @@
           }
         }
 
-        // Plans injection
-        if (plans && plans.length > 0) {
-          const plansCont = document.getElementById('plans-container');
-          if (plansCont) {
-            plansCont.innerHTML = plans.map((p, idx) => `
-              <div class="plan-card" ${idx === 1 ? 'style="border-color: var(--primary);"' : ''}>
-                ${p.discount > 0 ? `<div class="plan-badge">${p.discount}% OFF</div>` : (idx === 1 ? '<div class="plan-badge">Popular</div>' : '')}
-                <h3 class="plan-name">${p.name}</h3>
-                <div class="plan-price-row">
-                  <span class="plan-price">₹${Math.round(p.effectivePrice).toLocaleString('en-IN')}</span>
-                  <span class="plan-period">/ ${p.duration} ${p.durationType || 'days'}</span>
-                </div>
-                <ul class="plan-features">
-                  <li>Seat Type: <strong>${(p.seatType || 'Standard').toUpperCase()}</strong></li>
-                  <li>Shift: <strong>${(p.shift || 'Any').toUpperCase()}</strong></li>
-                  ${(p.features || []).map(f => `<li>${f}</li>`).join('')}
-                </ul>
-                <a href="/register" class="btn-${idx === 1 ? 'hero-primary' : 'pill'}" style="justify-content: center; text-align: center; width: 100%; border: none;">
-                  Register Now
-                </a>
+        // Gallery Dynamic Rendering
+        if (landing.gallery?.items?.length) {
+          const galCont = document.getElementById('gallery-container');
+          if (galCont) {
+            galCont.innerHTML = landing.gallery.items.map(g => `
+              <div class="gallery-item" data-category="${g.category || 'Study Cabins'}" onclick="openLightbox('${g.url}', '${g.caption || ''}')">
+                <img src="${g.url}" alt="${g.caption || 'Study Hall'}" loading="lazy">
+                <div class="gallery-caption">${g.caption || ''}</div>
               </div>
             `).join('');
+            initGalleryFilters();
           }
+        }
+
+        // Plans injection
+        if (plans && plans.length > 0) {
+          allLandingPlans = plans;
+          renderPlansWithDuration(1, 0);
         }
 
       } catch (err) {

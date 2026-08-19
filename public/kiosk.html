@@ -534,6 +534,21 @@
     }
 
     // Process attendance punch
+    let activeTimer = null;
+    function closeResultOverlay() {
+      if (activeTimer) {
+        clearInterval(activeTimer);
+        activeTimer = null;
+      }
+      const overlay = document.getElementById('result-overlay');
+      if (overlay) overlay.style.display = 'none';
+      const input = document.getElementById('barcode-input');
+      if (input) input.focus();
+    }
+    window.closeResultOverlay = closeResultOverlay;
+
+    document.getElementById('result-overlay')?.addEventListener('click', closeResultOverlay);
+
     async function processPunch(identifier) {
       try {
         const res = await fetch('/api/attendance/rfid-punch', {
@@ -574,16 +589,16 @@
 
         overlay.style.display = 'flex';
 
-        // 4-second auto close
+        // 4-second auto close with timer cleanup
+        if (activeTimer) clearInterval(activeTimer);
         let count = 4;
         document.getElementById('countdown').textContent = count;
-        const timer = setInterval(() => {
+        activeTimer = setInterval(() => {
           count--;
-          document.getElementById('countdown').textContent = count;
+          const countEl = document.getElementById('countdown');
+          if (countEl) countEl.textContent = count;
           if (count <= 0) {
-            clearInterval(timer);
-            overlay.style.display = 'none';
-            barcodeInput.focus();
+            closeResultOverlay();
           }
         }, 1000);
       } catch (err) {
@@ -591,8 +606,21 @@
       }
     }
 
+    // Load Library Branding
+    fetch('/api/landing')
+      .then(res => res.json())
+      .then(json => {
+        const bp = json.data?.businessProfile;
+        if (bp?.businessName) {
+          const nameEl = document.getElementById('kiosk-lib-name');
+          if (nameEl) nameEl.textContent = bp.businessName;
+          document.title = `${bp.businessName} — Smart Gate Kiosk`;
+        }
+      })
+      .catch(() => {});
+
     if (!('ontouchstart' in window)) {
-      document.getElementById('barcode-input').focus();
+      document.getElementById('barcode-input')?.focus();
     }
 
     if ('serviceWorker' in navigator) {

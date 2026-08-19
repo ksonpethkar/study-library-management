@@ -522,6 +522,16 @@
     import { MediaFieldPicker } from './js/mediaStudio.js';
     import { generateAdmissionFormPDF, previewAdmissionFormPDF } from './js/pdfGenerator.js';
 
+    function escapeHTML(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     let currentStep = 1;
     const totalSteps = 5;
     let selectedPlanData = null;
@@ -554,11 +564,33 @@
     document.querySelectorAll('.btn-next').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const step = parseInt(e.target.dataset.step);
+        const stepContent = document.getElementById(`step-${step}`);
         
+        // Basic HTML5 validation for current step FIRST
+        const inputs = stepContent.querySelectorAll('input[required], select[required]');
+        let valid = true;
+        for (const inp of inputs) {
+          if (!inp.checkValidity()) {
+            inp.reportValidity();
+            valid = false;
+            return;
+          }
+        }
+
         // Step 1 Validation & Duplicate Check
         if (step === 1) {
           const isDup = await checkDuplicate();
           if (!isDup) return;
+        }
+
+        // Step 3 Validation (Plan Selection)
+        if (step === 3) {
+          const planId = document.getElementById('reg-plan')?.value;
+          if (!planId) {
+            alert('Please select a study shift & membership plan to proceed.');
+            document.getElementById('reg-plan')?.focus();
+            return;
+          }
         }
 
         // Step 4 Validation (Payment Mode Sub-option check)
@@ -575,17 +607,6 @@
           // Load public seat map for Step 5
           loadPublicSeats();
         }
-
-        // Basic validation for current step
-        const stepContent = document.getElementById(`step-${step}`);
-        const inputs = stepContent.querySelectorAll('input[required], select[required]');
-        let valid = true;
-        inputs.forEach(inp => {
-          if (!inp.checkValidity()) {
-            inp.reportValidity();
-            valid = false;
-          }
-        });
         
         if (valid && step < totalSteps) {
           currentStep++;
@@ -764,19 +785,23 @@
         }
 
         const seats = json.data;
-        let gridHtml = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 8px;">';
+        let gridHtml = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 10px; padding: 4px;">';
         
         seats.forEach(s => {
           const isAvailable = s.status === 'available';
-          const bg = isAvailable ? 'var(--color-surface)' : 'rgba(239, 68, 68, 0.1)';
-          const color = isAvailable ? 'var(--color-success)' : 'var(--color-danger)';
-          const border = isAvailable ? '1.5px solid var(--color-success)' : '1px dashed var(--color-danger)';
+          const bg = isAvailable ? 'var(--color-surface)' : 'rgba(239, 68, 68, 0.08)';
+          const color = isAvailable ? 'var(--color-text-primary)' : 'var(--color-text-muted)';
+          const border = isAvailable ? '1.5px solid var(--color-success)' : '1px dashed var(--color-border)';
+          const indicatorBg = isAvailable ? 'var(--color-success)' : 'var(--color-danger)';
           
           gridHtml += `
-            <button type="button" class="seat-picker-btn" data-id="${s._id}" data-number="${s.seatNumber}" ${!isAvailable ? 'disabled' : ''} 
-              style="padding: 10px 4px; border-radius: 8px; font-weight: 800; font-size: 0.88rem; background: ${bg}; color: ${color}; border: ${border}; cursor: ${isAvailable ? 'pointer' : 'not-allowed'}; text-align: center; transition: all 0.2s;">
-              ${s.seatNumber}
-              <div style="font-size: 0.65rem; font-weight: 500; opacity: 0.8;">${s.zone || 'Hall'}</div>
+            <button type="button" class="seat-picker-btn" data-id="${escapeHTML(s._id)}" data-number="${escapeHTML(s.seatNumber)}" ${!isAvailable ? 'disabled' : ''} 
+              style="padding: 10px 4px; border-radius: var(--radius-md); font-weight: 800; font-size: 0.88rem; background: ${bg}; color: ${color}; border: ${border}; cursor: ${isAvailable ? 'pointer' : 'not-allowed'}; text-align: center; transition: all 0.2s; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
+              <span style="width: 22px; height: 22px; border-radius: 50%; background: ${indicatorBg}; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+                ${isAvailable ? '✓' : '✕'}
+              </span>
+              <span>${escapeHTML(s.seatNumber)}</span>
+              <span style="font-size: 0.65rem; font-weight: 600; color: var(--color-text-secondary);">${escapeHTML(s.zone || 'Hall')}</span>
             </button>
           `;
         });
@@ -789,13 +814,18 @@
             seatContainer.querySelectorAll('.seat-picker-btn').forEach(b => {
               if (!b.disabled) {
                 b.style.background = 'var(--color-surface)';
-                b.style.color = 'var(--color-success)';
+                b.style.color = 'var(--color-text-primary)';
                 b.style.borderColor = 'var(--color-success)';
+                const ind = b.querySelector('span:first-child');
+                if (ind) ind.style.background = 'var(--color-success)';
               }
             });
             btn.style.background = 'var(--color-primary)';
             btn.style.color = '#fff';
             btn.style.borderColor = 'var(--color-primary)';
+            const ind = btn.querySelector('span:first-child');
+            if (ind) ind.style.background = '#ffffff';
+            if (ind) ind.style.color = 'var(--color-primary)';
             
             const seatId = btn.dataset.id;
             const seatNo = btn.dataset.number;

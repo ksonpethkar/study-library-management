@@ -82,13 +82,13 @@ export async function render() {
     </div>
   `;
 
-  // Attach event listeners
-  document.getElementById('btn-add-locker').addEventListener('click', showAddLockerModal);
-  document.getElementById('btn-bulk-lockers').addEventListener('click', showBulkGenerateModal);
-  document.getElementById('btn-block-manager').addEventListener('click', showBlockManagerModal);
-  document.getElementById('locker-search').addEventListener('input', debounce(loadLockers, 300));
-  document.getElementById('locker-status-filter').addEventListener('change', loadLockers);
-  document.getElementById('locker-size-filter').addEventListener('change', loadLockers);
+  // Attach event listeners safely
+  container.querySelector('#btn-add-locker')?.addEventListener('click', showAddLockerModal);
+  container.querySelector('#btn-bulk-lockers')?.addEventListener('click', showBulkGenerateModal);
+  container.querySelector('#btn-block-manager')?.addEventListener('click', showBlockManagerModal);
+  container.querySelector('#locker-search')?.addEventListener('input', debounce(loadLockers, 300));
+  container.querySelector('#locker-status-filter')?.addEventListener('change', loadLockers);
+  container.querySelector('#locker-size-filter')?.addEventListener('change', loadLockers);
 
   // Initial load
   await loadLockers();
@@ -278,7 +278,7 @@ function showAddLockerModal() {
   });
   modal.show();
 
-  document.getElementById('add-locker-form').addEventListener('submit', async (e) => {
+  document.getElementById('add-locker-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
       const payload = {
@@ -346,7 +346,7 @@ function showBulkGenerateModal() {
   });
   modal.show();
 
-  document.getElementById('bulk-locker-form').addEventListener('submit', async (e) => {
+  document.getElementById('bulk-locker-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
       const payload = {
@@ -419,7 +419,7 @@ async function showAssignModal(lockerId, lockerNum, defaultDeposit) {
   });
   modal.show();
 
-  document.getElementById('assign-locker-form').addEventListener('submit', async (e) => {
+  document.getElementById('assign-locker-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
       const studentId = document.getElementById('assign-student-id').value;
@@ -473,7 +473,7 @@ function showReleaseModal(lockerId, lockerNum, depositAmount) {
   });
   modal.show();
 
-  document.getElementById('confirm-release-btn').addEventListener('click', async () => {
+  document.getElementById('confirm-release-btn')?.addEventListener('click', async () => {
     try {
       const refundDeposit = document.getElementById('refund-deposit-cb').checked;
       const res = await api.put(`/api/lockers/${lockerId}/release`, { refundDeposit });
@@ -545,7 +545,7 @@ function showBlockManagerModal() {
   });
   modal.show();
 
-  document.getElementById('block-manager-form').addEventListener('submit', async (e) => {
+  document.getElementById('block-manager-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
       const payload = {

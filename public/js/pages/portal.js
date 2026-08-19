@@ -333,77 +333,75 @@ function renderPortalUI(container, data, analytics = null) {
 
   // Attach ID Card Handler
   container.querySelector('#btn-portal-idcard')?.addEventListener('click', () => {
-    import('./students.js').then(m => {
-      const qrData = JSON.stringify({
-        type: 'STUDENT_ID',
-        id: student.studentId,
-        name: student.name,
-        phone: student.phone
-      });
-      const qrCodeURL = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}&margin=4`;
+    const qrData = JSON.stringify({
+      type: 'STUDENT_ID',
+      id: student.studentId,
+      name: student.name,
+      phone: student.phone
+    });
+    const qrCodeURL = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}&margin=4`;
 
-      // Create ID card
-      const modalContent = document.createElement('div');
-      modalContent.innerHTML = `
-        <div class="id-card-modal-wrapper text-center">
-          <div id="printable-id-card" style="
-            width: 320px; margin: 0 auto; background: #ffffff; color: #1a1a2e;
-            border-radius: 12px; border: 2px solid #6c5ce7; overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15); font-family: 'Outfit', sans-serif; text-align: left;
-          ">
-            <div style="background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; padding: 14px 16px; text-align: center;">
-              <div style="font-weight: 800; font-size: 1.15rem; letter-spacing: 0.5px; text-transform: uppercase;">
-                ${escapeHTML(business.businessName || 'Study Library')}
-              </div>
-              <div style="font-size: 0.75rem; opacity: 0.9; margin-top: 2px;">Student Membership Card</div>
+    // Create ID card
+    const modalContent = document.createElement('div');
+    modalContent.innerHTML = `
+      <div class="id-card-modal-wrapper text-center">
+        <div id="printable-id-card" style="
+          width: 320px; margin: 0 auto; background: #ffffff; color: #1a1a2e;
+          border-radius: 12px; border: 2px solid #6c5ce7; overflow: hidden;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.15); font-family: 'Outfit', sans-serif; text-align: left;
+        ">
+          <div style="background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; padding: 14px 16px; text-align: center;">
+            <div style="font-weight: 800; font-size: 1.15rem; letter-spacing: 0.5px; text-transform: uppercase;">
+              ${escapeHTML(business.businessName || 'Study Library')}
             </div>
-
-            <div style="padding: 16px;">
-              <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 14px;">
-                <div style="
-                  width: 68px; height: 68px; border-radius: 50%; background: #f0f2f5; color: #6c5ce7;
-                  display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800;
-                  border: 3px solid #6c5ce7; flex-shrink: 0;
-                ">
-                  ${initials}
-                </div>
-                <div>
-                  <h4 style="margin: 0 0 4px 0; font-size: 1.1rem; font-weight: 700; color: #2d3436;">${escapeHTML(student.name)}</h4>
-                  <div style="font-size: 0.8rem; background: #eef2ff; color: #4338ca; padding: 2px 8px; border-radius: 4px; display: inline-block; font-weight: 700; font-family: monospace;">
-                    ${escapeHTML(student.studentId || 'STU-MEMBER')}
-                  </div>
-                </div>
-              </div>
-
-              <div style="font-size: 0.82rem; line-height: 1.6; border-top: 1px dashed #e2e8f0; padding-top: 10px; color: #4a5568;">
-                <div style="display: flex; justify-content: space-between;"><strong>Assigned Seat:</strong> <span style="font-weight: 700; color: #6c5ce7;">${escapeHTML(seatNumber)}</span></div>
-                <div style="display: flex; justify-content: space-between;"><strong>Plan:</strong> <span>${escapeHTML(planName)}</span></div>
-                <div style="display: flex; justify-content: space-between;"><strong>Phone:</strong> <span>${escapeHTML(student.phone || '-')}</span></div>
-                <div style="display: flex; justify-content: space-between;"><strong>Valid Till:</strong> <span style="font-weight: 700; color: #e53e3e;">${expiryDateStr}</span></div>
-              </div>
-
-              <!-- QR Code -->
-              <div style="text-align: center; margin: 8px 0;">
-                <img src="${qrCodeURL}" alt="Student QR" style="width: 90px; height: 90px; border-radius: 4px;">
-                <div style="font-size: 0.65rem; color: #718096; letter-spacing: 1px; margin-top: 2px;">
-                  ${escapeHTML(student.studentId || '')}
-                </div>
-              </div>
-            </div>
-            <div style="background: #f7fafc; border-top: 1px solid #edf2f7; padding: 6px 12px; font-size: 0.65rem; color: #718096; text-align: center;">
-              Carry Daily • Library Helpdesk: ${escapeHTML(business.phone || '')}
-            </div>
+            <div style="font-size: 0.75rem; opacity: 0.9; margin-top: 2px;">Student Membership Card</div>
           </div>
 
-          <div class="d-flex justify-content-center gap-3 mt-4">
-            <button class="btn btn-primary" onclick="window.print()">🖨️ Print ID Card</button>
-            <button class="btn btn-secondary modal-close-btn" onclick="Modal.close()">Close</button>
+          <div style="padding: 16px;">
+            <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 14px;">
+              <div style="
+                width: 68px; height: 68px; border-radius: 50%; background: #f0f2f5; color: #6c5ce7;
+                display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800;
+                border: 3px solid #6c5ce7; flex-shrink: 0;
+              ">
+                ${initials}
+              </div>
+              <div>
+                <h4 style="margin: 0 0 4px 0; font-size: 1.1rem; font-weight: 700; color: #2d3436;">${escapeHTML(student.name)}</h4>
+                <div style="font-size: 0.8rem; background: #eef2ff; color: #4338ca; padding: 2px 8px; border-radius: 4px; display: inline-block; font-weight: 700; font-family: monospace;">
+                  ${escapeHTML(student.studentId || 'STU-MEMBER')}
+                </div>
+              </div>
+            </div>
+
+            <div style="font-size: 0.82rem; line-height: 1.6; border-top: 1px dashed #e2e8f0; padding-top: 10px; color: #4a5568;">
+              <div style="display: flex; justify-content: space-between;"><strong>Assigned Seat:</strong> <span style="font-weight: 700; color: #6c5ce7;">${escapeHTML(seatNumber)}</span></div>
+              <div style="display: flex; justify-content: space-between;"><strong>Plan:</strong> <span>${escapeHTML(planName)}</span></div>
+              <div style="display: flex; justify-content: space-between;"><strong>Phone:</strong> <span>${escapeHTML(student.phone || '-')}</span></div>
+              <div style="display: flex; justify-content: space-between;"><strong>Valid Till:</strong> <span style="font-weight: 700; color: #e53e3e;">${expiryDateStr}</span></div>
+            </div>
+
+            <!-- QR Code -->
+            <div style="text-align: center; margin: 8px 0;">
+              <img src="${qrCodeURL}" alt="Student QR" style="width: 90px; height: 90px; border-radius: 4px;">
+              <div style="font-size: 0.65rem; color: #718096; letter-spacing: 1px; margin-top: 2px;">
+                ${escapeHTML(student.studentId || '')}
+              </div>
+            </div>
+          </div>
+          <div style="background: #f7fafc; border-top: 1px solid #edf2f7; padding: 6px 12px; font-size: 0.65rem; color: #718096; text-align: center;">
+            Carry Daily • Library Helpdesk: ${escapeHTML(business.phone || '')}
           </div>
         </div>
-      `;
 
-      new Modal({ title: `Student ID Card`, content: modalContent, size: 'md' }).show();
-    });
+        <div class="d-flex justify-content-center gap-3 mt-4">
+          <button class="btn btn-primary" onclick="window.print()">🖨️ Print ID Card</button>
+          <button class="btn btn-secondary modal-close-btn" onclick="Modal.close()">Close</button>
+        </div>
+      </div>
+    `;
+
+    new Modal({ title: `Student ID Card`, content: modalContent, size: 'md' }).show();
   });
 
 
@@ -786,8 +784,16 @@ function renderPortalUI(container, data, analytics = null) {
 
           Toast.success('🎉 Membership renewed successfully!');
           Modal.closeAll();
-          // Reload portal
-          renderPortalUI(container, (await api.get('/api/student-portal/dashboard')).data);
+          // Reload portal with fresh dashboard and analytics
+          const freshDash = await api.get('/api/student-portal/dashboard');
+          if (freshDash.success && freshDash.data) {
+            let freshAnalytics = null;
+            try {
+              const aRes = await api.get(`/api/attendance/analytics/${freshDash.data.student._id}`);
+              if (aRes.success) freshAnalytics = aRes.data;
+            } catch (e) {}
+            renderPortalUI(container, freshDash.data, freshAnalytics);
+          }
         } catch (err) {
           Toast.error(err.message || 'Renewal failed. Please check UTR.');
         } finally {

@@ -9,7 +9,6 @@ const shiftSchema = new mongoose.Schema({
   code: {
     type: String,
     required: [true, 'Shift code is required'],
-    unique: true,
     uppercase: true,
     trim: true
   },
@@ -83,12 +82,32 @@ shiftSchema.virtual('durationHours').get(function() {
   return Math.round(((endMinutes - startMinutes) / 60) * 10) / 10;
 });
 
-// Async pre-save hook without next param (Critical Rule 2)
-shiftSchema.pre('save', async function() {
-  if (this.code) {
-    this.code = this.code.trim().toUpperCase();
-  }
-});
+// Compound Indexes for multi-branch uniqueness and querying
+shiftSchema.index({ branch: 1, code: 1 }, { unique: true });
+shiftSchema.index({ branch: 1, isActive: 1 });
+
+// Static helper to check if two shifts overlap in study timing
+shiftSchema.statics.doShiftsOverlap = function(s1, s2) {
+  if (!s1 || !s2) return true; // If either has no specific shift (e.g. dedicated / full day), consider overlapping
+  if (s1.code === 'FULL' || s2.code === 'FULL') return true;
+  if (s1._id && s2._id && s1._id.toString() === s2._id.toString()) return true;
+
+  const toMinutes = (t) => {
+    if (!t) return 0;
+    const parts = t.split(':').map(Number);
+    return parts[0] * 60 + (parts[1] || 0);
+  };
+
+  let start1 = toMinutes(s1.startTime);
+  let end1 = toMinutes(s1.endTime);
+  if (end1 <= start1) end1 += 24 * 60; // Overnight shift
+
+  let start2 = toMinutes(s2.startTime);
+  let end2 = toMinutes(s2.endTime);
+  if (end2 <= start2) end2 += 24 * 60; // Overnight shift
+
+  return (start1 < end2 && start2 < end1);
+};
 
 shiftSchema.statics.getActiveShifts = async function(branch = null) {
   const query = { isActive: true };

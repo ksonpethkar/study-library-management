@@ -92,6 +92,11 @@ router.post('/validate', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Code and planAmount are required' });
     }
 
+    const numericPlanAmount = parseFloat(planAmount);
+    if (isNaN(numericPlanAmount) || numericPlanAmount < 0) {
+      return res.status(400).json({ success: false, message: 'Invalid plan amount' });
+    }
+
     const coupon = await Coupon.findOne({ code: code.toUpperCase() });
     
     if (!coupon) {
@@ -110,13 +115,13 @@ router.post('/validate', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Coupon usage limit exceeded' });
     }
 
-    if (coupon.minPlanAmount && planAmount < coupon.minPlanAmount) {
+    if (coupon.minPlanAmount && numericPlanAmount < coupon.minPlanAmount) {
       return res.status(400).json({ success: false, message: `Minimum plan amount of ₹${coupon.minPlanAmount} required` });
     }
 
     let discountAmount = 0;
     if (coupon.discountType === 'percentage') {
-      discountAmount = (planAmount * coupon.discountValue) / 100;
+      discountAmount = (numericPlanAmount * coupon.discountValue) / 100;
       if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
         discountAmount = coupon.maxDiscount;
       }
@@ -125,9 +130,9 @@ router.post('/validate', async (req, res) => {
     }
 
     // Ensure discount doesn't exceed plan amount
-    discountAmount = Math.min(discountAmount, planAmount);
+    discountAmount = Math.min(discountAmount, numericPlanAmount);
     
-    const finalPrice = planAmount - discountAmount;
+    const finalPrice = numericPlanAmount - discountAmount;
 
     res.json({
       success: true,

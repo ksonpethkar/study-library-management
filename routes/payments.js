@@ -159,7 +159,7 @@ router.get('/:id/receipt', async (req, res) => {
     }
 });
 
-router.post('/:id/pay-balance', roleCheck('admin', 'owner', 'staff'), async (req, res) => {
+router.post('/:id/pay-balance', roleCheck('owner', 'branch_manager'), async (req, res) => {
     try {
         const { amount, method, transactionId } = req.body;
         const payment = await Payment.findById(req.params.id);
@@ -168,7 +168,7 @@ router.post('/:id/pay-balance', roleCheck('admin', 'owner', 'staff'), async (req
         if (payment.balanceDue <= 0) return res.status(400).json({ success: false, message: 'No balance due on this payment' });
         
         const payAmount = parseFloat(amount);
-        if (payAmount <= 0) return res.status(400).json({ success: false, message: 'Invalid payment amount' });
+        if (isNaN(payAmount) || payAmount <= 0) return res.status(400).json({ success: false, message: 'Invalid payment amount' });
         if (payAmount > payment.balanceDue) return res.status(400).json({ success: false, message: 'Amount exceeds balance due' });
         
         payment.installments.push({
@@ -219,17 +219,44 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-router.post('/', validate([
+router.post('/', roleCheck('owner', 'branch_manager'), validate([
     body('student').notEmpty().withMessage('Student is required'),
     body('amount').isNumeric().withMessage('Amount is required and must be a number')
 ]), async (req, res) => {
     try {
-        const payment = new Payment({
+        const paymentData = {
             ...req.body,
             collectedBy: req.user._id,
-            branch: req.user.branch
-        });
-        
+            branch: req.user.branch || req.body.branch || null
+        };
+
+        const amount = Number(paymentData.amount) || 0;
+        const discount = Number(paymentData.discount) || 0;
+        const lateFee = Number(paymentData.lateFee) || 0;
+        const finalAmount = Math.max(0, amount - discount + lateFee);
+        paymentData.finalAmount = finalAmount;
+
+        if (paymentData.status === 'paid') {
+            paymentData.balanceDue = 0;
+        } else if (paymentData.status === 'partial') {
+            const paidAmount = Number(paymentData.paidAmount);
+            if (!isNaN(paidAmount) && paidAmount > 0) {
+                paymentData.balanceDue = Math.max(0, finalAmount - paidAmount);
+                paymentData.installments = [{
+                    amount: paidAmount,
+                    date: new Date(),
+                    method: paymentData.paymentMethod || 'cash',
+                    transactionId: paymentData.transactionId || '',
+                    collectedBy: req.user._id
+                }];
+            } else if (paymentData.balanceDue === undefined) {
+                paymentData.balanceDue = finalAmount;
+            }
+        } else if (paymentData.status === 'pending' && paymentData.balanceDue === undefined) {
+            paymentData.balanceDue = finalAmount;
+        }
+
+        const payment = new Payment(paymentData);
         await payment.save();
         
         if (payment.plan && payment.status === 'paid') {
@@ -253,12 +280,15 @@ router.post('/', validate([
     }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
     try {
         const payment = await Payment.findById(req.params.id);
         if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
         
         Object.assign(payment, req.body);
+        if (req.body.status === 'paid' && (!req.body.balanceDue || req.body.balanceDue < 0)) {
+            payment.balanceDue = 0;
+        }
         await payment.save();
         
         res.json({ success: true, data: payment, message: 'Payment updated successfully' });
@@ -267,7 +297,7 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', roleCheck('owner'), async (req, res) => {
     try {
         const payment = await Payment.findByIdAndDelete(req.params.id);
         if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });

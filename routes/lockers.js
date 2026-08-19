@@ -160,6 +160,21 @@ router.put('/:id/assign', protect, roleCheck('owner', 'branch_manager'), async (
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
+    // Concurrency check: prevent double allocation of occupied locker
+    if (locker.status === 'occupied' && locker.assignedStudent && locker.assignedStudent.toString() !== student._id.toString()) {
+      return res.status(409).json({ success: false, message: 'Locker is already assigned to another student' });
+    }
+
+    // If student was already assigned to another locker, release old locker
+    if (student.locker && student.locker.toString() !== locker._id.toString()) {
+      await Locker.findByIdAndUpdate(student.locker, {
+        status: 'available',
+        assignedStudent: null,
+        assignedDate: null,
+        expiryDate: null
+      });
+    }
+
     locker.status = 'occupied';
     locker.assignedStudent = student._id;
     locker.assignedDate = new Date();
@@ -171,6 +186,11 @@ router.put('/:id/assign', protect, roleCheck('owner', 'branch_manager'), async (
     if (notes) locker.notes = notes;
 
     await locker.save();
+
+    // Synchronize Student model
+    student.locker = locker._id;
+    await student.save();
+
     const updated = await Locker.findById(locker._id).populate('assignedStudent', 'name phone studentId');
 
     res.json({ success: true, message: 'Locker assigned successfully', locker: updated });
@@ -188,6 +208,9 @@ router.put('/:id/release', protect, roleCheck('owner', 'branch_manager'), async 
     if (!locker) {
       return res.status(404).json({ success: false, message: 'Locker not found' });
     }
+
+    // Synchronize Student model
+    await Student.updateMany({ locker: locker._id }, { $set: { locker: null } });
 
     locker.status = 'available';
     locker.assignedStudent = null;

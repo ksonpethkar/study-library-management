@@ -76,9 +76,10 @@ const paymentSchema = new mongoose.Schema({
 // Performance Database Indexes
 paymentSchema.index({ student: 1, paymentDate: -1 });
 paymentSchema.index({ branch: 1, paymentDate: -1 });
-paymentSchema.index({ branch: 1, status: 1 });
+paymentSchema.index({ branch: 1, status: 1, dueDate: 1 });
 paymentSchema.index({ branch: 1, createdAt: -1 });
 paymentSchema.index({ status: 1, paymentDate: -1 });
+paymentSchema.index({ balanceDue: 1, dueDate: 1 });
 
 paymentSchema.pre('save', async function() {
     if (this.isNew && !this.receiptNumber) {
@@ -104,7 +105,21 @@ paymentSchema.pre('save', async function() {
         this.receiptNumber = `REC/${finYear}/${nextNum.toString().padStart(3, '0')}`;
     }
     
-    this.finalAmount = this.amount - this.discount + this.lateFee;
+    this.finalAmount = (Number(this.amount) || 0) - (Number(this.discount) || 0) + (Number(this.lateFee) || 0);
+
+    // Balance and Installments calculation integrity
+    if (this.status === 'paid' && (!this.balanceDue || this.balanceDue < 0)) {
+        this.balanceDue = 0;
+    } else if (this.status === 'partial' || this.status === 'pending') {
+        if (Array.isArray(this.installments) && this.installments.length > 0) {
+            const totalPaid = this.installments.reduce((sum, inst) => sum + (Number(inst.amount) || 0), 0);
+            if (this.balanceDue === undefined || this.balanceDue === null) {
+                this.balanceDue = Math.max(0, this.finalAmount - totalPaid);
+            }
+        } else if (this.balanceDue === undefined || this.balanceDue === null) {
+            this.balanceDue = this.finalAmount;
+        }
+    }
 });
 
 paymentSchema.statics.getStats = async function(dateRange) {

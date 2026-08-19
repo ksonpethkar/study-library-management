@@ -222,7 +222,7 @@ export async function initAppEvents() {
 
   // Sidebar logout button
   document.getElementById('sidebar-logout-btn')?.addEventListener('click', async () => {
-    const App = (await import('./app.js')).default || await getApp();
+    const App = await getApp();
     App.logout();
   });
   

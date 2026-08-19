@@ -18,11 +18,12 @@ const attendanceSchema = new mongoose.Schema({
 
 attendanceSchema.index({ student: 1, date: 1 }, { unique: true });
 attendanceSchema.index({ branch: 1, date: 1 });
+attendanceSchema.index({ branch: 1, student: 1, date: -1 });
 attendanceSchema.index({ date: 1, status: 1 });
 
 attendanceSchema.pre('save', async function() {
   if (this.checkIn && this.checkOut) {
-    const diffMs = this.checkOut.getTime() - this.checkIn.getTime();
+    const diffMs = new Date(this.checkOut).getTime() - new Date(this.checkIn).getTime();
     this.duration = Math.max(0, Math.round(diffMs / (1000 * 60)));
   }
 });

@@ -66,6 +66,7 @@ const seatSchema = new mongoose.Schema({
 // Performance & Multi-Branch Database Indexes
 seatSchema.index({ branch: 1, seatNumber: 1 }, { unique: true });
 seatSchema.index({ branch: 1, zone: 1, status: 1 });
+seatSchema.index({ branch: 1, isActive: 1, status: 1 });
 seatSchema.index({ currentStudent: 1 });
 seatSchema.index({ status: 1 });
 

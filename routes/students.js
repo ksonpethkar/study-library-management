@@ -341,8 +341,8 @@ router.post('/:id/reset-password', roleCheck('owner', 'branch_manager'), async (
     let emailSent = false;
     if (sendEmail && student.email && student.email.includes('@')) {
       try {
-        const sendMail = require('../utils/emailService');
-        await sendMail({
+        const emailService = require('../utils/emailService');
+        await emailService.sendMail({
           to: student.email,
           subject: '🔑 Your Student Portal Password Has Been Reset',
           text: `Hello ${student.name},\nYour Student Portal password has been reset by Admin.\nNew Password: ${cleanPassword}\nLogin Portal: https://study-library-management.onrender.com/student-login`,

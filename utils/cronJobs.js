@@ -327,6 +327,52 @@ async function performDatabaseBackup() {
   }
 }
 
+/**
+ * Daily Auto Attendance Reconciliation
+ * Finds all open attendance records (checked in today but missing checkout)
+ * Closes them with duration calculated, ensuring accurate attendance logs.
+ */
+async function reconcileDailyAttendance() {
+  try {
+    const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+    const todayEnd = new Date(new Date().setHours(23, 59, 59, 999));
+
+    // Find all attendance records today where checkIn is present but checkOut is null
+    const openRecords = await Attendance.find({
+      date: { $gte: todayStart, $lte: todayEnd },
+      checkIn: { $exists: true, $ne: null },
+      checkOut: { $in: [null, undefined] }
+    }).populate('student');
+
+    let reconciledCount = 0;
+    const autoCloseTime = new Date();
+
+    for (const record of openRecords) {
+      record.checkOut = autoCloseTime;
+      const diffMs = autoCloseTime.getTime() - new Date(record.checkIn).getTime();
+      record.duration = Math.max(0, Math.round(diffMs / (1000 * 60)));
+      record.notes = (record.notes ? `${record.notes} | ` : '') + 'Auto-closed by end-of-day reconciliation';
+      await record.save();
+      reconciledCount++;
+    }
+
+    if (reconciledCount > 0) {
+      console.log(`✅ Auto Attendance Reconciliation: Closed ${reconciledCount} open check-ins.`);
+      await Notification.create({
+        title: '⏱️ Daily Attendance Reconciled',
+        message: `Automated EOD reconciliation closed ${reconciledCount} open student attendance sessions.`,
+        type: 'attendance',
+        link: '#/attendance'
+      });
+    }
+
+    return reconciledCount;
+  } catch (error) {
+    console.error('Error during auto attendance reconciliation:', error.message);
+    return 0;
+  }
+}
+
 function initCronJobs() {
   // Midnight Cron (00:00) — Expiry, Grace Period & Late Fine Check
   cron.schedule('0 0 * * *', async () => {
@@ -338,6 +384,12 @@ function initCronJobs() {
   cron.schedule('0 22 * * *', async () => {
     console.log('📊 Running 10:00 PM End-of-Day Summary computation...');
     await generateEODSummary();
+  });
+
+  // Auto Attendance Reconciliation (23:55 daily)
+  cron.schedule('55 23 * * *', async () => {
+    console.log('⏱️ Running 23:55 Auto Attendance Reconciliation...');
+    await reconcileDailyAttendance();
   });
 
   // Database Backup Cron (03:00 AM)
@@ -362,7 +414,7 @@ function initCronJobs() {
     await checkStudentExpiries();
   }, 10000);
 
-  console.log('  🕒 Automated Notification, Expiry, Keep-Alive & EOD Cron jobs scheduled');
+  console.log('  🕒 Automated Notification, Expiry, Keep-Alive, EOD & Reconciliation Cron jobs scheduled');
 }
 
-module.exports = { initCronJobs, checkStudentExpiries, generateEODSummary };
+module.exports = { initCronJobs, checkStudentExpiries, generateEODSummary, reconcileDailyAttendance, performDatabaseBackup };

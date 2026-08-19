@@ -11,8 +11,8 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
-export async function render() {
-  const content = document.getElementById('page-content');
+export async function render(container) {
+  const content = container || document.getElementById('page-content');
   if (!content) return;
 
   const user = App.getUser() || { name: 'Admin' };

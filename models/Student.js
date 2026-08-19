@@ -46,7 +46,10 @@ const studentSchema = new mongoose.Schema({
 
 // Performance Database Indexes
 studentSchema.index({ branch: 1, status: 1 });
+studentSchema.index({ branch: 1, status: 1, expiryDate: 1 });
 studentSchema.index({ branch: 1, plan: 1 });
+studentSchema.index({ seat: 1, shift: 1, status: 1 });
+studentSchema.index({ locker: 1 });
 studentSchema.index({ expiryDate: 1 });
 studentSchema.index({ seat: 1 });
 studentSchema.index({ name: 'text', phone: 'text', studentId: 'text' });
