@@ -1107,7 +1107,10 @@ function renderSettingsUI(container, profile, settings) {
                   <div style="font-weight: 600; font-size: 0.9rem;">📷 Passport Selfie Photo</div>
                   <div class="text-muted small">Show student webcam photo</div>
                 </div>
-                <input type="checkbox" id="pdf-toggle-photo" checked class="form-toggle">
+                <label class="switch-label" style="margin: 0;">
+                  <input type="checkbox" id="pdf-toggle-photo" checked>
+                  <span class="switch-slider"></span>
+                </label>
               </div>
 
               <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
@@ -1115,7 +1118,10 @@ function renderSettingsUI(container, profile, settings) {
                   <div style="font-weight: 600; font-size: 0.9rem;">✍️ Digital Signature</div>
                   <div class="text-muted small">Show student digital signature</div>
                 </div>
-                <input type="checkbox" id="pdf-toggle-sig" checked class="form-toggle">
+                <label class="switch-label" style="margin: 0;">
+                  <input type="checkbox" id="pdf-toggle-sig" checked>
+                  <span class="switch-slider"></span>
+                </label>
               </div>
 
               <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
@@ -1123,7 +1129,10 @@ function renderSettingsUI(container, profile, settings) {
                   <div style="font-weight: 600; font-size: 0.9rem;">🏁 Gate Entry Barcode / QR</div>
                   <div class="text-muted small">Show barcode for kiosk scanner</div>
                 </div>
-                <input type="checkbox" id="pdf-toggle-qr" checked class="form-toggle">
+                <label class="switch-label" style="margin: 0;">
+                  <input type="checkbox" id="pdf-toggle-qr" checked>
+                  <span class="switch-slider"></span>
+                </label>
               </div>
 
               <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
@@ -1131,7 +1140,10 @@ function renderSettingsUI(container, profile, settings) {
                   <div style="font-weight: 600; font-size: 0.9rem;">💰 Fee & Payment Breakdown</div>
                   <div class="text-muted small">Show plan price, discount & UTR</div>
                 </div>
-                <input type="checkbox" id="pdf-toggle-payment" checked class="form-toggle">
+                <label class="switch-label" style="margin: 0;">
+                  <input type="checkbox" id="pdf-toggle-payment" checked>
+                  <span class="switch-slider"></span>
+                </label>
               </div>
 
               <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
@@ -1139,7 +1151,10 @@ function renderSettingsUI(container, profile, settings) {
                   <div style="font-weight: 600; font-size: 0.9rem;">📜 Discipline Code & Rules</div>
                   <div class="text-muted small">Show quiet study rules list</div>
                 </div>
-                <input type="checkbox" id="pdf-toggle-rules" checked class="form-toggle">
+                <label class="switch-label" style="margin: 0;">
+                  <input type="checkbox" id="pdf-toggle-rules" checked>
+                  <span class="switch-slider"></span>
+                </label>
               </div>
 
               <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
@@ -1147,7 +1162,10 @@ function renderSettingsUI(container, profile, settings) {
                   <div style="font-weight: 600; font-size: 0.9rem;">🏷️ Official Status Watermark</div>
                   <div class="text-muted small">Show PAID / PENDING stamp</div>
                 </div>
-                <input type="checkbox" id="pdf-toggle-stamp" checked class="form-toggle">
+                <label class="switch-label" style="margin: 0;">
+                  <input type="checkbox" id="pdf-toggle-stamp" checked>
+                  <span class="switch-slider"></span>
+                </label>
               </div>
             </div>
           </div>
