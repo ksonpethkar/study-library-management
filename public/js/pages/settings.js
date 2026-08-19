@@ -2771,10 +2771,11 @@ async function initLandingSettings(container) {
             </div>
           </div>
           
-        </div>
+        </div> <!-- #landing-tab-content -->
+      </div> <!-- .cms-editor-panel -->
         
-        <!-- Right: Live Split-Screen Interactive Preview Canvas -->
-        <div class="cms-preview-panel" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: var(--color-bg-secondary); position: sticky; top: 20px; height: calc(100vh - 240px); min-height: 600px; display: flex; flex-direction: column; overflow: hidden;">
+      <!-- Right: Live Split-Screen Interactive Preview Canvas -->
+      <div class="cms-preview-panel" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: var(--color-bg-secondary); position: sticky; top: 20px; height: calc(100vh - 240px); min-height: 600px; display: flex; flex-direction: column; overflow: hidden;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding: 0 0.25rem; flex-shrink: 0;">
             <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
               <span>🌐</span> Live Landing Page Viewport
