@@ -131,6 +131,7 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
     const profile = await BusinessProfile.getProfile();
     const upiId = profile?.upiId || '';
     const bizName = profile?.businessName || 'Study Library';
+    const baseUrl = WhatsAppService.getBaseUrl(req);
 
     let messageText = '';
     let upiLink = '';
@@ -160,7 +161,8 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
         bizName,
         upiId,
         amount,
-        upiLink
+        upiLink,
+        baseUrl
       );
     } else if (reminderType === 'partial_balance') {
       const payment = await Payment.findOne({
@@ -181,7 +183,8 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
         payment || { balanceDue: balanceAmt, dueDate: new Date() },
         bizName,
         upiId,
-        upiLink
+        upiLink,
+        baseUrl
       );
     } else if (reminderType === 'attendance') {
       const attendance = await Attendance.findOne({ student: student._id }).sort({ date: -1, createdAt: -1 });
@@ -189,7 +192,7 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
         status: attendance?.status === 'present' ? 'Present / Active' : (attendance?.status || 'Active in Study Hall'),
         time: attendance?.inTime ? new Date(attendance.inTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
       };
-      messageText = WhatsAppService.getAttendanceAlertMessage(student, bizName, attendanceInfo);
+      messageText = WhatsAppService.getAttendanceAlertMessage(student, bizName, attendanceInfo, baseUrl);
     } else {
       return res.status(400).json({ success: false, message: `Unsupported reminder type: ${reminderType}` });
     }

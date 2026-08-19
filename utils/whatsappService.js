@@ -48,9 +48,30 @@ class WhatsAppService {
   }
 
   /**
+   * Resolve Dynamic Base Domain URL (Production Render URL or Header Host)
+   */
+  static getBaseUrl(req = null) {
+    if (process.env.APP_URL && !process.env.APP_URL.includes('localhost')) {
+      return process.env.APP_URL.replace(/\/+$/, '');
+    }
+    if (process.env.RENDER_EXTERNAL_URL) {
+      return process.env.RENDER_EXTERNAL_URL.replace(/\/+$/, '');
+    }
+    if (req && req.get) {
+      const host = req.get('host');
+      if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+        const protocol = (req.protocol === 'https' || req.get('x-forwarded-proto') === 'https') ? 'https' : 'http';
+        return `${protocol}://${host}`;
+      }
+    }
+    return 'https://study-library-management.onrender.com';
+  }
+
+  /**
    * 1. Admission Confirmation Template
    */
-  static getAdmissionMessage(student, businessName = 'Study Library') {
+  static getAdmissionMessage(student, businessName = 'Study Library', baseUrl = null) {
+    const base = baseUrl || this.getBaseUrl();
     return `🎉 *Welcome to ${businessName}!*
 
 Dear *${student.name}*,
@@ -62,7 +83,7 @@ Your admission has been confirmed successfully!
 📅 *Admission Date:* ${new Date().toLocaleDateString('en-IN')}
 
 Access your Digital QR ID Card & Student Portal:
-🔗 http://localhost:5000/#/portal
+🔗 ${base}/#/portal
 
 _Please maintain strict silence and follow library discipline._
 Best wishes for your exam preparation! 📚✨`;
@@ -71,10 +92,11 @@ Best wishes for your exam preparation! 📚✨`;
   /**
    * Send Welcome Message Helper
    */
-  static async sendWelcomeMessage(student, password = '') {
+  static async sendWelcomeMessage(student, password = '', req = null) {
     try {
       const profile = await BusinessProfile.getProfile();
-      const msg = this.getAdmissionMessage(student, profile?.businessName || 'Study Library');
+      const base = this.getBaseUrl(req);
+      const msg = this.getAdmissionMessage(student, profile?.businessName || 'Study Library', base);
       const extra = password ? `\n🔑 *Portal Password / PIN:* ${password}` : '';
       return this.dispatchReminder({
         student,
@@ -91,7 +113,8 @@ Best wishes for your exam preparation! 📚✨`;
   /**
    * 2. Payment Receipt Confirmation Template
    */
-  static getPaymentReceiptMessage(payment, student, businessName = 'Study Library') {
+  static getPaymentReceiptMessage(payment, student, businessName = 'Study Library', baseUrl = null) {
+    const base = baseUrl || this.getBaseUrl();
     const amountVal = payment.amountPaid !== undefined ? payment.amountPaid : (payment.finalAmount || payment.amount || 0);
     return `🧾 *Payment Receipt Confirmation*
 🏢 *${businessName}*
@@ -106,7 +129,7 @@ Thank you for your fee payment. Details:
 ⏳ *Valid Until:* ${new Date(payment.periodEnd || payment.validUntil || Date.now() + 30 * 86400000).toLocaleDateString('en-IN')}
 
 View & Download Full Receipt:
-🔗 http://localhost:5000/#/payments
+🔗 ${base}/#/payments
 
 _Thank you for choosing ${businessName}!_`;
   }
@@ -114,7 +137,8 @@ _Thank you for choosing ${businessName}!_`;
   /**
    * 3. Membership Expiry Reminder Template with 1-tap UPI Deep Link
    */
-  static getExpiryReminderMessage(student, timeLeftStr = '24 hours', businessName = 'Study Library', upiId = '', amount = 0, upiLink = '') {
+  static getExpiryReminderMessage(student, timeLeftStr = '24 hours', businessName = 'Study Library', upiId = '', amount = 0, upiLink = '', baseUrl = null) {
+    const base = baseUrl || this.getBaseUrl();
     const directUpiLink = upiLink || (upiId ? this.generateUpiDeepLink({ upiId, businessName, amount, note: 'SubscriptionRenewal' }) : '');
     const expDate = student.expiryDate || student.planExpiresAt;
     const expDateStr = expDate ? new Date(expDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Soon';
@@ -132,7 +156,7 @@ ${numAmount > 0 ? `💰 *Renewal Fee:* ₹${numAmount.toLocaleString('en-IN')}\n
 
 ${directUpiLink ? `⚡ *1-Tap Instant UPI Payment:*
 ${directUpiLink}
-` : (upiId ? `💳 *UPI ID:* ${upiId}\n` : '')}🔗 *Online Self-Renewal Link:* http://localhost:5000/#/portal
+` : (upiId ? `💳 *UPI ID:* ${upiId}\n` : '')}🔗 *Online Self-Renewal Link:* ${base}/#/portal
 
 _Please share payment confirmation screenshot after completing payment._
 Best regards,
@@ -142,7 +166,8 @@ Best regards,
   /**
    * 4. Partial Payment / Outstanding Balance Reminder Template with 1-tap UPI Deep Link
    */
-  static getPartialBalanceReminderMessage(student, payment, businessName = 'Study Library', upiId = '', upiLink = '') {
+  static getPartialBalanceReminderMessage(student, payment, businessName = 'Study Library', upiId = '', upiLink = '', baseUrl = null) {
+    const base = baseUrl || this.getBaseUrl();
     const balance = payment?.balanceDue || 0;
     const dueDateStr = payment?.dueDate ? new Date(payment.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Immediate';
     const directUpiLink = upiLink || (upiId ? this.generateUpiDeepLink({ upiId, businessName, amount: balance, note: 'PartialPaymentBalance' }) : '');
@@ -161,7 +186,7 @@ Please clear your pending dues to maintain active library access.
 
 ${directUpiLink ? `⚡ *1-Tap Instant UPI Payment:*
 ${directUpiLink}
-` : (upiId ? `💳 *UPI ID:* ${upiId}\n` : '')}🔗 *Student Portal:* http://localhost:5000/#/portal
+` : (upiId ? `💳 *UPI ID:* ${upiId}\n` : '')}🔗 *Student Portal:* ${base}/#/portal
 
 _If already paid, please share your 12-digit UPI UTR number with the library desk._
 Thank you,
@@ -171,7 +196,8 @@ Thank you,
   /**
    * 5. Daily Attendance Alert Template
    */
-  static getAttendanceAlertMessage(student, businessName = 'Study Library', attendanceInfo = {}) {
+  static getAttendanceAlertMessage(student, businessName = 'Study Library', attendanceInfo = {}, baseUrl = null) {
+    const base = baseUrl || this.getBaseUrl();
     const todayStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     const status = attendanceInfo.status || 'Check-in Recorded';
     const time = attendanceInfo.time || new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
@@ -187,7 +213,7 @@ Here is your attendance update for *${todayStr}*:
 🎯 Keep up your consistent study discipline! 
 
 _Access your attendance logs & study hours on student portal:_
-🔗 http://localhost:5000/#/portal
+🔗 ${base}/#/portal
 
 Have a productive study session! ✨`;
   }
@@ -195,7 +221,8 @@ Have a productive study session! ✨`;
   /**
    * 6. Owner End-of-Day (EOD) Summary Template
    */
-  static getEODSummaryMessage(summaryData, businessName = 'Study Library') {
+  static getEODSummaryMessage(summaryData, businessName = 'Study Library', baseUrl = null) {
+    const base = baseUrl || this.getBaseUrl();
     return `📊 *Daily End-of-Day (EOD) Report*
 🏢 *${businessName}*
 📅 *Date:* ${new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
@@ -214,7 +241,7 @@ Have a productive study session! ✨`;
 • Expiring in Next 3 Days: *${summaryData.expiringSoonCount || 0}*
 • Overdue / Unpaid Members: *${summaryData.overdueCount || 0}*
 
-🌐 Open Admin Dashboard: http://localhost:5000/#/dashboard
+🌐 Open Admin Dashboard: ${base}/#/dashboard
 _Automated Daily Audit by StudyLib OS_`;
   }
 

@@ -56,22 +56,33 @@ class EmailService {
     }
   }
 
+  static getBaseUrl() {
+    if (process.env.APP_URL && !process.env.APP_URL.includes('localhost')) {
+      return process.env.APP_URL.replace(/\/+$/, '');
+    }
+    if (process.env.RENDER_EXTERNAL_URL) {
+      return process.env.RENDER_EXTERNAL_URL.replace(/\/+$/, '');
+    }
+    return 'https://study-library-management.onrender.com';
+  }
+
   /**
-   * Send Branded Payment Receipt Email
+   * 1. Send Payment Receipt Email Confirmation
    */
-  static async sendPaymentReceipt(student, payment, businessName = 'Study Library') {
+  static async sendPaymentReceiptEmail(student, payment, businessName = 'Study Library') {
     if (!student.email) return;
 
-    const subject = `Receipt Confirmation: ₹${(payment.finalAmount || payment.amount).toLocaleString('en-IN')} - ${businessName}`;
+    const subject = `Fee Payment Receipt Confirmation - ${businessName}`;
+    const baseUrl = this.getBaseUrl();
     const html = `
-      <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-        <div style="background: #6c5ce7; color: #ffffff; padding: 24px; text-align: center;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 800;">${businessName}</h1>
-          <p style="margin: 6px 0 0 0; opacity: 0.9; font-size: 14px;">Fee Payment Confirmation & Receipt</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #6c5ce7, #a29bfe); padding: 24px; text-align: center; color: #ffffff;">
+          <h2 style="margin: 0; font-size: 22px;">Payment Receipt</h2>
+          <p style="margin: 4px 0 0 0; opacity: 0.9;">${businessName}</p>
         </div>
-        <div style="padding: 24px; color: #1e293b;">
-          <p style="font-size: 16px;">Dear <strong>${student.name}</strong>,</p>
-          <p>We have successfully received your membership fee payment. Below are your transaction details:</p>
+        <div style="padding: 24px;">
+          <p style="font-size: 15px; color: #334155;">Dear <strong>${student.name}</strong>,</p>
+          <p style="font-size: 14px; color: #64748b;">Thank you for your payment. Your library admission/renewal has been processed successfully.</p>
           
           <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
             <tr style="border-bottom: 1px solid #f1f5f9;">
@@ -97,7 +108,7 @@ class EmailService {
           </table>
 
           <div style="text-align: center; margin-top: 30px;">
-            <a href="http://localhost:5000/#/portal" style="background: #6c5ce7; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 14px; display: inline-block;">Open Student Portal</a>
+            <a href="${baseUrl}/#/portal" style="background: #6c5ce7; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 14px; display: inline-block;">Open Student Portal</a>
           </div>
         </div>
         <div style="background: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
