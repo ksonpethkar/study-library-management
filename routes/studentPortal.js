@@ -8,6 +8,8 @@ const Payment = require('../models/Payment');
 const Attendance = require('../models/Attendance');
 const BusinessProfile = require('../models/BusinessProfile');
 const Notification = require('../models/Notification');
+const { Referral, LeaveRequest, SeatChangeRequest } = require('../models/Operations');
+const ReferralConfig = require('../models/ReferralConfig');
 
 router.use(protect);
 
@@ -173,7 +175,6 @@ router.post('/renew', async (req, res) => {
   }
 });
 
-const { LeaveRequest, SeatChangeRequest, Referral } = require('../models/Operations');
 
 // @route   POST /api/student-portal/leave-request
 // @desc    Submit a leave / absence request
@@ -275,27 +276,97 @@ router.get('/seat-changes', async (req, res) => {
   }
 });
 
+// @route   GET /api/student-portal/referral-stats
+// @desc    Get student's referral code, active rewards config, and referral ledger
+router.get('/referral-stats', async (req, res) => {
+  try {
+    const student = await getStudentForUser(req.user);
+    if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
+
+    const config = await ReferralConfig.getConfig();
+    const referrals = await Referral.find({ referrerStudent: student._id }).sort({ createdAt: -1 });
+
+    // Auto-generate code if empty
+    if (!student.referralCode) {
+      const cleanName = (student.name || 'STUDENT').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 5) || 'STUDY';
+      student.referralCode = `${cleanName}${Math.floor(100 + Math.random() * 900)}`;
+      await student.save();
+    }
+
+    res.json({
+      success: true,
+      data: {
+        referralCode: student.referralCode,
+        referralCredits: student.referralCredits || 0,
+        totalReferralsCount: student.totalReferralsCount || referrals.length,
+        config,
+        referrals
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// @route   PUT /api/student-portal/custom-referral-code
+// @desc    Allow student to customize vanity referral code
+router.put('/custom-referral-code', async (req, res) => {
+  try {
+    const student = await getStudentForUser(req.user);
+    if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
+
+    let { code } = req.body;
+    if (!code) return res.status(400).json({ success: false, message: 'Referral code cannot be empty' });
+
+    code = code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    if (code.length < 3 || code.length > 20) {
+      return res.status(400).json({ success: false, message: 'Referral code must be between 3 and 20 characters' });
+    }
+
+    // Check uniqueness
+    const existing = await Student.findOne({ referralCode: code, _id: { $ne: student._id } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'This referral code is already taken. Please choose another one.' });
+    }
+
+    student.referralCode = code;
+    await student.save();
+
+    res.json({ success: true, message: `Your custom referral code is now ${code}!`, data: { referralCode: code } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // @route   POST /api/student-portal/referral
-// @desc    Submit a student referral
+// @desc    Submit a friend referral lead
 router.post('/referral', async (req, res) => {
   try {
     const student = await getStudentForUser(req.user);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
-    const { refereeName, refereePhone, refereeEmail, notes } = req.body;
+    const { refereeName, refereePhone, refereeEmail, targetExam, notes } = req.body;
     if (!refereeName || !refereePhone) {
       return res.status(400).json({ success: false, message: 'Friend name and phone number are required' });
     }
+
+    const config = await ReferralConfig.getConfig();
+    const rewardAmt = config.referrerRewardAmount || 100;
 
     const ref = new Referral({
       referrerStudent: student._id,
       referrerName: student.name,
       referrerPhone: student.phone,
+      referralCode: student.referralCode,
       refereeName,
       refereePhone,
       refereeEmail: refereeEmail || '',
+      targetExam: targetExam || '',
       notes: notes || '',
-      reward: '₹100 Fee Discount on Admission'
+      rewardAmount: rewardAmt,
+      reward: `₹${rewardAmt} Discount on Next Month Fee`,
+      status: 'pending',
+      branch: student.branch?._id || student.branch
     });
 
     await ref.save();
@@ -327,7 +398,7 @@ router.get('/referrals', async (req, res) => {
 });
 
 // @route   GET /api/student-portal/renewal-quote
-// @desc    Calculate renewal price, pending dues, and generate dynamic UPI string
+// @desc    Calculate renewal price, apply earned referral credits, pending dues, and generate dynamic UPI string
 router.get('/renewal-quote', async (req, res) => {
   try {
     const student = await getStudentForUser(req.user);
@@ -337,8 +408,13 @@ router.get('/renewal-quote', async (req, res) => {
     const plan = student.plan || (await Plan.findOne({ isActive: true }));
     const basePrice = plan ? plan.price : 1000;
     const discount = plan?.discount ? (basePrice * plan.discount / 100) : 0;
+    
+    // Automatically apply available referral wallet credits
+    const availableReferralCredits = student.referralCredits || 0;
+    const referralDiscount = Math.min(availableReferralCredits, Math.max(0, basePrice - discount));
+
     const pendingFine = student.pendingFine || 0;
-    const totalPayable = Math.round(basePrice - discount + pendingFine);
+    const totalPayable = Math.max(0, Math.round(basePrice - discount - referralDiscount + pendingFine));
 
     const upiId = business.upiQrCode || 'studylibrary@upi';
     const cleanPayee = encodeURIComponent(business.businessName || 'Study Library');
@@ -356,6 +432,8 @@ router.get('/renewal-quote', async (req, res) => {
         durationDays: plan?.duration || 30,
         basePrice,
         discount,
+        referralCredits: availableReferralCredits,
+        referralDiscount,
         pendingFine,
         totalPayable,
         upiId,

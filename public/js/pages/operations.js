@@ -920,57 +920,179 @@ export async function render() {
   }
 
   // ----------------------------------------------------
-  // Tab 8: Student Referrals
+  // Tab 8: Student Referrals & Program Control Suite
   // ----------------------------------------------------
   async function renderReferrals(panel) {
     try {
-      const res = await api.get('/api/operations/referrals');
-      const referrals = res.data || [];
+      const [refRes, configRes] = await Promise.all([
+        api.get('/api/operations/referrals'),
+        api.get('/api/operations/referrals/config')
+      ]);
+
+      const referrals = refRes.data || [];
+      const config = configRes.data || {
+        isEnabled: true,
+        referrerRewardType: 'flat',
+        referrerRewardAmount: 100,
+        refereeRewardType: 'flat',
+        refereeRewardAmount: 100,
+        minPlanAmount: 500,
+        autoApplyToNextRenewal: true
+      };
 
       panel.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600;">🎁 Student Referrals & Inquiries (${referrals.length})</h3>
+        <!-- Top Program Configuration Card -->
+        <div class="card p-4 mb-4" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.08), rgba(0, 184, 148, 0.05)), var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.4rem;">🎁</span>
+                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--color-text-primary);">
+                  Student Referral Program & Reward Settings
+                </h3>
+                <span class="badge ${config.isEnabled ? 'badge-success' : 'badge-danger'}" style="font-size: 0.75rem;">
+                  ${config.isEnabled ? '🟢 Active & Enabled' : '🔴 Disabled'}
+                </span>
+              </div>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">
+                Customize reward discounts, automated next-renewal wallet credits, and referral validation rules.
+              </p>
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button id="btn-add-manual-referral" class="btn btn-primary btn-sm" style="font-weight: 700;">
+                ➕ Record Manual Referral
+              </button>
+            </div>
+          </div>
+
+          <!-- Configuration Controls Form -->
+          <form id="referral-config-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; align-items: flex-end; background: var(--color-surface); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+            <div>
+              <label class="form-label text-xs" style="font-weight: 700;">Program Master Status</label>
+              <select id="cfg-enabled" class="form-select form-control" style="font-weight: 600;">
+                <option value="true" ${config.isEnabled ? 'selected' : ''}>🟢 Enabled (Accepting Referrals)</option>
+                <option value="false" ${!config.isEnabled ? 'selected' : ''}>🔴 Disabled (Paused)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="form-label text-xs" style="font-weight: 700;">Referrer Reward (Next Renewal)</label>
+              <div style="display: flex; gap: 4px;">
+                <span class="input-group-text" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 6px 10px; font-weight: 700; border-radius: 6px 0 0 6px;">₹</span>
+                <input type="number" id="cfg-referrer-amount" class="form-control" value="${config.referrerRewardAmount || 100}" min="0" required style="border-radius: 0 6px 6px 0;">
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label text-xs" style="font-weight: 700;">Friend Discount (On Joining)</label>
+              <div style="display: flex; gap: 4px;">
+                <span class="input-group-text" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 6px 10px; font-weight: 700; border-radius: 6px 0 0 6px;">₹</span>
+                <input type="number" id="cfg-referee-amount" class="form-control" value="${config.refereeRewardAmount || 100}" min="0" required style="border-radius: 0 6px 6px 0;">
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label text-xs" style="font-weight: 700;">Min Plan Price</label>
+              <div style="display: flex; gap: 4px;">
+                <span class="input-group-text" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 6px 10px; font-weight: 700; border-radius: 6px 0 0 6px;">₹</span>
+                <input type="number" id="cfg-min-plan" class="form-control" value="${config.minPlanAmount || 500}" min="0" required style="border-radius: 0 6px 6px 0;">
+              </div>
+            </div>
+
+            <div style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-top: 1px solid var(--color-divider); padding-top: 10px; margin-top: 4px;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--color-text-primary);">
+                <input type="checkbox" id="cfg-auto-apply" ${config.autoApplyToNextRenewal ? 'checked' : ''} style="width: 16px; height: 16px;">
+                ⚡ Automatically apply approved referral credits as discount on student's next renewal invoice
+              </label>
+
+              <button type="submit" class="btn btn-success btn-sm" id="btn-save-referral-config" style="font-weight: 700; padding: 6px 16px;">
+                💾 Save Program Settings
+              </button>
+            </div>
+          </form>
         </div>
+
+        <!-- Referral Leads & Transactions Table -->
         <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
+          <div class="p-3" style="border-bottom: 1px solid var(--color-divider); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; background: var(--color-surface-hover);">
+            <div style="font-weight: 700; font-size: 1rem; color: var(--color-text-primary);">
+              📋 Referral Leads & Reward Ledger (${referrals.length})
+            </div>
+            <div class="text-muted small">
+              Earned discounts automatically deduct from student renewal quotes.
+            </div>
+          </div>
+
           <div style="overflow-x: auto;">
             <table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
               <thead>
                 <tr style="border-bottom: 1px solid var(--color-divider); color: var(--color-text-muted); font-size: 0.85rem; text-align: left;">
-                  <th style="padding: 12px 16px;">Referred By (Student)</th>
+                  <th style="padding: 12px 16px;">Referrer Student</th>
                   <th style="padding: 12px 16px;">Prospect Friend</th>
-                  <th style="padding: 12px 16px;">Friend Phone</th>
-                  <th style="padding: 12px 16px;">Course / Exam</th>
+                  <th style="padding: 12px 16px;">Phone</th>
+                  <th style="padding: 12px 16px;">Referral Code</th>
                   <th style="padding: 12px 16px;">Status</th>
                   <th style="padding: 12px 16px;">Reward</th>
                   <th style="padding: 12px 16px; text-align: center;">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                ${referrals.length > 0 ? referrals.map(r => `
-                  <tr style="border-bottom: 1px solid var(--color-divider); font-size: 0.9rem;">
-                    <td style="padding: 12px 16px;">
-                      <strong>${escapeHTML(r.referrerName)}</strong>
-                      <div class="text-muted small">${escapeHTML(r.referrerPhone || '')}</div>
-                    </td>
-                    <td style="padding: 12px 16px; font-weight: 600;">${escapeHTML(r.refereeName)}</td>
-                    <td style="padding: 12px 16px;">${escapeHTML(r.refereePhone)}</td>
-                    <td style="padding: 12px 16px;">${escapeHTML(r.notes || '-')}</td>
-                    <td style="padding: 12px 16px;">
-                      <span class="badge ${r.status === 'converted' || r.status === 'rewarded' ? 'badge-success' : 'badge-warning'}" style="text-transform: uppercase; font-size: 0.75rem;">
-                        ${escapeHTML(r.status)}
-                      </span>
-                    </td>
-                    <td style="padding: 12px 16px; font-size: 0.8rem; color: var(--color-primary); font-weight: 600;">${escapeHTML(r.reward || '₹100 Discount')}</td>
-                    <td style="padding: 12px 16px; text-align: center;">
-                      ${r.status === 'pending' ? `
-                        <div class="d-flex justify-content-center gap-1">
-                          <button class="btn btn-sm btn-success btn-convert-ref" data-id="${r._id}" style="padding: 2px 8px; font-size: 0.75rem;">Mark Converted</button>
+                ${referrals.length > 0 ? referrals.map(r => {
+                  const studentName = r.referrerStudent?.name || r.referrerName;
+                  const studentId = r.referrerStudent?.studentId || '';
+                  const refCode = r.referralCode || r.referrerStudent?.referralCode || '-';
+                  
+                  let badgeClass = 'badge-secondary';
+                  if (r.status === 'rewarded') badgeClass = 'badge-success';
+                  else if (r.status === 'joined' || r.status === 'approved') badgeClass = 'badge-primary';
+                  else if (r.status === 'pending') badgeClass = 'badge-warning';
+                  else if (r.status === 'rejected') badgeClass = 'badge-danger';
+
+                  return `
+                    <tr style="border-bottom: 1px solid var(--color-divider); font-size: 0.9rem;">
+                      <td style="padding: 12px 16px;">
+                        <div style="font-weight: 700; color: var(--color-text-primary);">${escapeHTML(studentName)}</div>
+                        <div class="text-muted small" style="font-family: monospace;">${escapeHTML(studentId || r.referrerPhone || '')}</div>
+                      </td>
+                      <td style="padding: 12px 16px;">
+                        <div style="font-weight: 600;">${escapeHTML(r.refereeName)}</div>
+                        <div class="text-muted small">${escapeHTML(r.targetExam || r.notes || '-')}</div>
+                      </td>
+                      <td style="padding: 12px 16px; font-family: monospace;">${escapeHTML(r.refereePhone)}</td>
+                      <td style="padding: 12px 16px;">
+                        <span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary); font-family: monospace; font-weight: 700;">
+                          ${escapeHTML(refCode)}
+                        </span>
+                      </td>
+                      <td style="padding: 12px 16px;">
+                        <span class="badge ${badgeClass}" style="text-transform: uppercase; font-size: 0.75rem;">
+                          ${escapeHTML(r.status)}
+                        </span>
+                      </td>
+                      <td style="padding: 12px 16px; font-weight: 700; color: var(--color-success);">
+                        ₹${r.rewardAmount || 100}
+                        ${r.discountApplied ? `<span style="font-size: 0.72rem; color: var(--color-text-muted); display: block;">✓ Credited</span>` : ''}
+                      </td>
+                      <td style="padding: 12px 16px; text-align: center;">
+                        <div style="display: flex; gap: 4px; justify-content: center;">
+                          ${!r.discountApplied && r.status !== 'rejected' ? `
+                            <button class="btn btn-sm btn-success btn-approve-ref-reward" data-id="${r._id}" data-amt="${r.rewardAmount || 100}" title="Approve & Apply Discount to Next Renewal" style="font-size: 0.75rem; padding: 3px 8px; font-weight: 700;">
+                              ⚡ Credit ₹${r.rewardAmount || 100}
+                            </button>
+                          ` : ''}
+                          <button class="btn btn-sm btn-outline-secondary btn-edit-ref" data-ref='${JSON.stringify(r)}' title="Edit Referral" style="font-size: 0.75rem; padding: 3px 8px;">
+                            ✏️
+                          </button>
+                          <button class="btn btn-sm btn-outline-danger btn-delete-ref" data-id="${r._id}" title="Delete" style="font-size: 0.75rem; padding: 3px 8px;">
+                            🗑️
+                          </button>
                         </div>
-                      ` : `<span class="text-muted small">✓ Done</span>`}
-                    </td>
-                  </tr>
-                `).join('') : `
-                  <tr><td colspan="7" class="p-4 text-center text-muted">No student referrals recorded yet.</td></tr>
+                      </td>
+                    </tr>
+                  `;
+                }).join('') : `
+                  <tr><td colspan="7" class="p-5 text-center text-muted">No student referrals recorded yet. Friends who use student referral codes on registration will appear here automatically!</td></tr>
                 `}
               </tbody>
             </table>
@@ -978,15 +1100,216 @@ export async function render() {
         </div>
       `;
 
-      panel.querySelectorAll('.btn-convert-ref').forEach(btn => {
+      // Save Program Settings
+      panel.querySelector('#referral-config-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = panel.querySelector('#btn-save-referral-config');
+        Loading.button(btn, true);
+        try {
+          const payload = {
+            isEnabled: panel.querySelector('#cfg-enabled').value === 'true',
+            referrerRewardAmount: Number(panel.querySelector('#cfg-referrer-amount').value),
+            refereeRewardAmount: Number(panel.querySelector('#cfg-referee-amount').value),
+            minPlanAmount: Number(panel.querySelector('#cfg-min-plan').value),
+            autoApplyToNextRenewal: panel.querySelector('#cfg-auto-apply').checked
+          };
+          const saveRes = await api.put('/api/operations/referrals/config', payload);
+          if (saveRes.success) {
+            Toast.success('Referral Program settings saved successfully!');
+            loadCurrentTab();
+          } else {
+            Toast.error(saveRes.message);
+          }
+        } catch (err) {
+          Toast.error(err.message || 'Failed to save settings');
+        } finally {
+          Loading.button(btn, false);
+        }
+      });
+
+      // Approve & Credit Reward
+      panel.querySelectorAll('.btn-approve-ref-reward').forEach(btn => {
         btn.addEventListener('click', async () => {
           try {
-            await api.put(`/api/operations/referrals/${btn.dataset.id}`, { status: 'converted' });
-            Toast.success('Referral marked as converted! Reward assigned.');
-            loadCurrentTab();
+            Loading.button(btn, true);
+            const res = await api.post(`/api/operations/referrals/${btn.dataset.id}/approve-reward`, {
+              rewardAmount: Number(btn.dataset.amt)
+            });
+            if (res.success) {
+              Toast.success(res.message);
+              loadCurrentTab();
+            } else {
+              Toast.error(res.message);
+            }
           } catch (err) {
-            Toast.error('Failed to update referral');
+            Toast.error(err.message || 'Failed to credit reward');
+          } finally {
+            Loading.button(btn, false);
           }
+        });
+      });
+
+      // Record Manual Referral Modal
+      panel.querySelector('#btn-add-manual-referral')?.addEventListener('click', async () => {
+        let studentsList = [];
+        try {
+          const sRes = await api.get('/api/students?limit=500');
+          studentsList = sRes.data?.students || sRes.data || [];
+        } catch (e) {}
+
+        const modalContent = document.createElement('div');
+        modalContent.innerHTML = `
+          <form id="form-manual-referral" style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="form-group">
+              <label class="form-label" style="font-weight: 700;">Referring Student (Existing Member) *</label>
+              <select id="man-student-id" class="form-select form-control" required>
+                <option value="">-- Select Student --</option>
+                ${studentsList.map(s => `
+                  <option value="${s._id}">${escapeHTML(s.name)} (${s.studentId || s.phone}) [Code: ${s.referralCode || 'N/A'}]</option>
+                `).join('')}
+              </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Friend / Referee Name *</label>
+                <input type="text" id="man-referee-name" class="form-control" placeholder="e.g. Rahul Sharma" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Friend Phone *</label>
+                <input type="tel" id="man-referee-phone" class="form-control" placeholder="10-digit mobile" required>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Course / Target Exam</label>
+                <input type="text" id="man-target-exam" class="form-control" placeholder="e.g. UPSC, CA, NEET">
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Reward Credit Amount (₹)</label>
+                <input type="number" id="man-reward-amt" class="form-control" value="100" min="0">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" style="font-weight: 700;">Notes / Follow-up Details</label>
+              <textarea id="man-notes" class="form-control" rows="2" placeholder="Friend visited library for trial..."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+              <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
+              <button type="submit" class="btn btn-primary" style="font-weight: 700;">➕ Record Referral</button>
+            </div>
+          </form>
+        `;
+
+        const modal = new Modal({ title: '🎁 Record Manual Referral Lead', content: modalContent, size: 'md' });
+        modal.show();
+
+        modalContent.querySelector('#form-manual-referral').onsubmit = async (e) => {
+          e.preventDefault();
+          try {
+            const payload = {
+              referrerStudentId: modalContent.querySelector('#man-student-id').value,
+              refereeName: modalContent.querySelector('#man-referee-name').value.trim(),
+              refereePhone: modalContent.querySelector('#man-referee-phone').value.trim(),
+              targetExam: modalContent.querySelector('#man-target-exam').value.trim(),
+              rewardAmount: Number(modalContent.querySelector('#man-reward-amt').value),
+              notes: modalContent.querySelector('#man-notes').value.trim()
+            };
+            const createRes = await api.post('/api/operations/referrals', payload);
+            if (createRes.success) {
+              Toast.success('Referral lead recorded successfully!');
+              modal.close();
+              loadCurrentTab();
+            } else {
+              Toast.error(createRes.message);
+            }
+          } catch (err) {
+            Toast.error(err.message || 'Failed to record referral');
+          }
+        };
+      });
+
+      // Edit Referral Modal
+      panel.querySelectorAll('.btn-edit-ref').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const r = JSON.parse(btn.dataset.ref);
+          const modalContent = document.createElement('div');
+          modalContent.innerHTML = `
+            <form id="form-edit-referral" style="display: flex; flex-direction: column; gap: 12px;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Referral Status</label>
+                <select id="edit-ref-status" class="form-select form-control">
+                  <option value="pending" ${r.status === 'pending' ? 'selected' : ''}>🟡 Pending Lead</option>
+                  <option value="joined" ${r.status === 'joined' ? 'selected' : ''}>🔵 Friend Joined</option>
+                  <option value="approved" ${r.status === 'approved' ? 'selected' : ''}>🟣 Approved</option>
+                  <option value="rewarded" ${r.status === 'rewarded' ? 'selected' : ''}>🟢 Rewarded & Discount Credited</option>
+                  <option value="rejected" ${r.status === 'rejected' ? 'selected' : ''}>🔴 Rejected / Invalid</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Reward Discount Amount (₹)</label>
+                <input type="number" id="edit-ref-reward-amt" class="form-control" value="${r.rewardAmount || 100}">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Notes</label>
+                <textarea id="edit-ref-notes" class="form-control" rows="2">${escapeHTML(r.notes || '')}</textarea>
+              </div>
+
+              <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="font-weight: 700;">💾 Save Changes</button>
+              </div>
+            </form>
+          `;
+
+          const modal = new Modal({ title: '✏️ Edit Referral Record', content: modalContent, size: 'md' });
+          modal.show();
+
+          modalContent.querySelector('#form-edit-referral').onsubmit = async (e) => {
+            e.preventDefault();
+            try {
+              const payload = {
+                status: modalContent.querySelector('#edit-ref-status').value,
+                rewardAmount: Number(modalContent.querySelector('#edit-ref-reward-amt').value),
+                notes: modalContent.querySelector('#edit-ref-notes').value.trim()
+              };
+              const updateRes = await api.put(`/api/operations/referrals/${r._id}`, payload);
+              if (updateRes.success) {
+                Toast.success('Referral updated successfully!');
+                modal.close();
+                loadCurrentTab();
+              } else {
+                Toast.error(updateRes.message);
+              }
+            } catch (err) {
+              Toast.error(err.message || 'Failed to update referral');
+            }
+          };
+        });
+      });
+
+      // Delete Referral
+      panel.querySelectorAll('.btn-delete-ref').forEach(btn => {
+        btn.addEventListener('click', () => {
+          Confirm.show({
+            title: 'Delete Referral Entry',
+            message: 'Are you sure you want to delete this referral lead?',
+            danger: true,
+            onConfirm: async () => {
+              try {
+                await api.delete(`/api/operations/referrals/${btn.dataset.id}`);
+                Toast.success('Referral deleted');
+                loadCurrentTab();
+              } catch (e) {
+                Toast.error('Failed to delete');
+              }
+            }
+          });
         });
       });
 

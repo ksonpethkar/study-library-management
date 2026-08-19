@@ -100,7 +100,45 @@ router.post('/validate', async (req, res) => {
     const coupon = await Coupon.findOne({ code: code.toUpperCase() });
     
     if (!coupon) {
-      return res.status(404).json({ success: false, message: 'Invalid coupon code' });
+      // Check Student Referral Code
+      try {
+        const Student = require('../models/Student');
+        const ReferralConfig = require('../models/ReferralConfig');
+        const refConfig = await ReferralConfig.getConfig();
+
+        if (refConfig && refConfig.isEnabled) {
+          const student = await Student.findOne({
+            $or: [
+              { referralCode: code.toUpperCase() },
+              { studentId: code.toUpperCase() },
+              { phone: code }
+            ]
+          });
+
+          if (student) {
+            let discount = 0;
+            if (refConfig.refereeRewardType === 'percentage') {
+              discount = Math.round((numericPlanAmount * (refConfig.refereeRewardAmount || 10)) / 100);
+            } else {
+              discount = Math.min(numericPlanAmount, refConfig.refereeRewardAmount || 100);
+            }
+            const finalPrice = Math.max(0, numericPlanAmount - discount);
+
+            return res.json({
+              success: true,
+              isReferral: true,
+              referrerName: student.name,
+              discount,
+              finalPrice,
+              message: `🎉 Referral code from ${student.name} applied! You get ₹${discount} instant discount!`
+            });
+          }
+        }
+      } catch (refErr) {
+        console.warn('Referral validation check error:', refErr);
+      }
+
+      return res.status(404).json({ success: false, message: 'Invalid promo or referral code' });
     }
 
     if (!coupon.isActive) {

@@ -36,6 +36,11 @@ const studentSchema = new mongoose.Schema({
     phone: { type: String },
     relation: { type: String }
   },
+  // Referral Program Fields
+  referralCode: { type: String, uppercase: true, trim: true, sparse: true, index: true },
+  referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
+  referralCredits: { type: Number, default: 0 },
+  totalReferralsCount: { type: Number, default: 0 },
   notes: { type: String },
   customFields: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
   branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
@@ -54,6 +59,7 @@ studentSchema.index({ expiryDate: 1 });
 studentSchema.index({ seat: 1 });
 studentSchema.index({ name: 'text', phone: 'text', studentId: 'text' });
 studentSchema.index({ phone: 1 });
+studentSchema.index({ referralCode: 1 });
 
 studentSchema.pre('save', async function() {
   if (this.isNew && !this.studentId) {
@@ -69,6 +75,13 @@ studentSchema.pre('save', async function() {
     }
     
     this.studentId = `STU-${year}-${serial.toString().padStart(3, '0')}`;
+  }
+
+  // Auto-generate referral code if missing
+  if (!this.referralCode) {
+    const cleanName = (this.name || 'MEMBER').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 5) || 'STUDY';
+    const randSuffix = Math.floor(100 + Math.random() * 900);
+    this.referralCode = `${cleanName}${randSuffix}`;
   }
 });
 

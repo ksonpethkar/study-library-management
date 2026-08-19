@@ -285,15 +285,35 @@ router.post('/public-register', authLimiter, async (req, res) => {
       return res.status(400).json({ success: false, message: `Missing required custom fields: ${missingFields.join(', ')}` });
     }
 
-    // Support referral code validation
+    // Support referral code validation against ReferralConfig and Student referral codes
     let referringStudent = null;
     let referralDiscount = 0;
     if (referralCode) {
-      referringStudent = await Student.findOne({ 
-        $or: [{ studentId: referralCode }, { phone: referralCode }] 
-      });
-      if (referringStudent) {
-        referralDiscount = 500; // default discount
+      try {
+        const ReferralConfig = require('../models/ReferralConfig');
+        const refConfig = await ReferralConfig.getConfig();
+
+        if (refConfig && refConfig.isEnabled) {
+          const cleanRefCode = referralCode.trim().toUpperCase();
+          referringStudent = await Student.findOne({ 
+            $or: [
+              { referralCode: cleanRefCode },
+              { studentId: cleanRefCode },
+              { phone: cleanRefCode }
+            ] 
+          });
+
+          if (referringStudent) {
+            if (refConfig.refereeRewardType === 'percentage') {
+              const planBase = selectedPlanDoc ? selectedPlanDoc.price : 1000;
+              referralDiscount = Math.round((planBase * (refConfig.refereeRewardAmount || 10)) / 100);
+            } else {
+              referralDiscount = refConfig.refereeRewardAmount || 100;
+            }
+          }
+        }
+      } catch (refErr) {
+        console.warn('Referral check warning:', refErr);
       }
     }
 
@@ -343,6 +363,7 @@ router.post('/public-register', authLimiter, async (req, res) => {
     });
 
     if (referringStudent) {
+      newStudent.referredBy = referringStudent._id;
       newStudent.customFields = newStudent.customFields || {};
       if (newStudent.customFields instanceof Map) {
          newStudent.customFields.set('referredBy', referringStudent.studentId);
@@ -363,6 +384,41 @@ router.post('/public-register', authLimiter, async (req, res) => {
     }
 
     await newStudent.save();
+
+    // Auto-create Referral log and credit referrer if applicable
+    if (referringStudent) {
+      try {
+        const { Referral } = require('../models/Operations');
+        const ReferralConfig = require('../models/ReferralConfig');
+        const refConfig = await ReferralConfig.getConfig();
+        const referrerRewardAmt = refConfig.referrerRewardAmount || 100;
+
+        await Referral.create({
+          referrerStudent: referringStudent._id,
+          referrerName: referringStudent.name,
+          referrerPhone: referringStudent.phone,
+          refereeName: newStudent.name,
+          refereePhone: newStudent.phone,
+          refereeEmail: newStudent.email || '',
+          referralCode: referringStudent.referralCode,
+          targetExam: Array.isArray(targetExams) ? targetExams.join(', ') : (targetExams || ''),
+          status: refConfig.autoApplyToNextRenewal ? 'rewarded' : 'joined',
+          rewardAmount: referrerRewardAmt,
+          reward: `₹${referrerRewardAmt} Discount on Next Renewal`,
+          discountApplied: refConfig.autoApplyToNextRenewal,
+          convertedStudent: newStudent._id,
+          branch: newStudent.branch
+        });
+
+        if (refConfig.autoApplyToNextRenewal) {
+          referringStudent.referralCredits = (referringStudent.referralCredits || 0) + referrerRewardAmt;
+          referringStudent.totalReferralsCount = (referringStudent.totalReferralsCount || 0) + 1;
+          await referringStudent.save();
+        }
+      } catch (refLogErr) {
+        console.warn('Referral logging warning:', refLogErr);
+      }
+    }
 
     if (allocatedSeatDoc && allocatedSeatDoc.status === 'available') {
       allocatedSeatDoc.status = 'occupied';

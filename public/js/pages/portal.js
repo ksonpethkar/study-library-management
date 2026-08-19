@@ -583,92 +583,191 @@ function renderPortalUI(container, data, analytics = null) {
     loadScHistory();
   });
 
-  // Attach Referral Modal
+  // Attach Smart Referral Studio Modal
   container.querySelector('#btn-portal-referral')?.addEventListener('click', async () => {
     const modalContent = document.createElement('div');
     modalContent.innerHTML = `
-      <div class="card p-3 mb-3" style="background: rgba(108, 92, 231, 0.1); border: 1px dashed var(--color-primary); border-radius: 8px;">
-        <div class="d-flex align-items-center gap-2">
-          <div style="font-size: 1.8rem;">🎁</div>
-          <div>
-            <strong style="color: var(--color-primary); font-size: 0.95rem;">Refer a Friend & Earn ₹100 Discount!</strong>
-            <p style="margin: 0; font-size: 0.8rem; color: var(--color-text-secondary);">When your friend joins the study hall, you both receive a ₹100 discount on your next renewal.</p>
-          </div>
+      <div style="font-family: 'Outfit', sans-serif;">
+        <div class="text-center p-3 text-muted">
+          <div class="loading-spinner mb-2" style="margin: 0 auto;"></div>
+          Loading your Referral Studio...
         </div>
-      </div>
-
-      <form id="portal-ref-form" class="p-1 mb-4">
-        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-          <div>
-            <label class="form-label" style="font-weight: 600;">Friend's Full Name *</label>
-            <input type="text" id="ref-name" class="form-control" placeholder="Friend Name" required>
-          </div>
-          <div>
-            <label class="form-label" style="font-weight: 600;">Friend's Mobile No. *</label>
-            <input type="tel" id="ref-phone" class="form-control" placeholder="10 digit number" required>
-          </div>
-        </div>
-        <div class="form-group mb-3">
-          <label class="form-label" style="font-weight: 600;">Target Exam / Course</label>
-          <input type="text" id="ref-notes" class="form-control" placeholder="e.g. UPSC, MPSC, CA Inter">
-        </div>
-        <div class="d-flex justify-content-end gap-2">
-          <button type="submit" class="btn btn-primary" id="btn-submit-ref">Submit Referral</button>
-        </div>
-      </form>
-
-      <h5 style="font-size: 0.95rem; font-weight: 700; border-top: 1px solid var(--color-border); padding-top: 12px; margin-bottom: 8px;">🎉 My Referral Rewards</h5>
-      <div id="portal-ref-history" style="max-height: 200px; overflow-y: auto;">
-        <div class="text-center p-3 text-muted">Loading referrals...</div>
       </div>
     `;
 
-    const refModal = new Modal({ title: '🎁 Refer a Friend Program', content: modalContent, size: 'md' });
+    const refModal = new Modal({ title: '🎁 Student Referral Studio & Rewards', content: modalContent, size: 'md' });
     refModal.show();
 
-    async function loadRefHistory() {
-      const histContainer = modalContent.querySelector('#portal-ref-history');
-      try {
-        const res = await api.get('/api/student-portal/referrals');
-        const list = res.data || [];
-        if (list.length === 0) {
-          histContainer.innerHTML = `<p class="text-muted small text-center p-2">No friend referrals submitted yet. Start inviting friends!</p>`;
+    try {
+      const statsRes = await api.get('/api/student-portal/referral-stats');
+      if (!statsRes.success) throw new Error(statsRes.message);
+
+      const { referralCode, referralCredits, totalReferralsCount, config, referrals = [] } = statsRes.data;
+      const origin = window.location.origin;
+      const shareUrl = `${origin}/register?ref=${encodeURIComponent(referralCode)}`;
+      const waText = encodeURIComponent(`Hey! I study at ${business.businessName || 'the study library'}. Use my referral code *${referralCode}* to get ₹${config?.refereeRewardAmount || 100} instant discount on your admission! Register here: ${shareUrl}`);
+
+      modalContent.innerHTML = `
+        <div style="font-family: 'Outfit', sans-serif;">
+          <!-- Highlight Reward Banner -->
+          <div class="card p-3 mb-3" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(0, 184, 148, 0.08)); border: 1px solid rgba(108, 92, 231, 0.25); border-radius: 10px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <strong style="color: var(--color-primary); font-size: 1.05rem; display: block;">
+                  🎁 Give ₹${config?.refereeRewardAmount || 100}, Get ₹${config?.referrerRewardAmount || 100}!
+                </strong>
+                <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">
+                  Every friend who joins using your code gives you a <strong>₹${config?.referrerRewardAmount || 100} discount</strong> on your next renewal.
+                </p>
+              </div>
+
+              <!-- Referral Wallet Badge -->
+              <div style="text-align: right; background: var(--color-surface); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--color-border);">
+                <div style="font-size: 0.72rem; color: var(--color-text-muted); font-weight: 700; text-transform: uppercase;">Available Renewal Credit</div>
+                <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-success);">₹${referralCredits}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Referral Code & Share Link Section -->
+          <div style="background: var(--color-bg-secondary); padding: 14px; border-radius: 10px; border: 1px solid var(--color-border); margin-bottom: 1rem;">
+            <label class="form-label" style="font-weight: 700; font-size: 0.85rem; margin-bottom: 6px;">Your Unique Referral Code</label>
+            
+            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px;">
+              <div id="display-ref-code" style="font-family: monospace; font-size: 1.3rem; font-weight: 800; color: var(--color-primary); background: var(--color-surface); padding: 6px 14px; border-radius: 6px; border: 1px solid var(--color-border); flex-grow: 1; letter-spacing: 1px;">
+                ${escapeHTML(referralCode)}
+              </div>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="btn-copy-ref-code" style="font-weight: 700;">
+                📋 Copy Code
+              </button>
+            </div>
+
+            <!-- Custom Vanity Code Toggle / Form -->
+            <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 12px;">
+              <input type="text" id="custom-code-input" class="form-control form-control-sm" placeholder="Set custom vanity code (e.g. ${escapeHTML(initials)}2026)" style="font-family: monospace; text-transform: uppercase;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-save-custom-code" style="white-space: nowrap; font-weight: 600;">
+                ✏️ Save Code
+              </button>
+            </div>
+
+            <!-- 1-Click WhatsApp Sharing Pill & Link -->
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <a href="https://wa.me/?text=${waText}" target="_blank" class="btn btn-success btn-sm" style="font-weight: 700; flex: 1; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <span>📲 Share on WhatsApp</span>
+              </a>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-copy-ref-link" style="font-weight: 600;">
+                🔗 Copy Direct Registration Link
+              </button>
+            </div>
+          </div>
+
+          <!-- Direct Friend Referral Form -->
+          <div style="border-top: 1px solid var(--color-divider); padding-top: 12px; margin-bottom: 12px;">
+            <h5 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; color: var(--color-text-primary);">
+              📨 Or Submit Friend's Details Directly
+            </h5>
+            <form id="portal-ref-form">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                <div>
+                  <input type="text" id="ref-name" class="form-control form-control-sm" placeholder="Friend's Full Name *" required>
+                </div>
+                <div>
+                  <input type="tel" id="ref-phone" class="form-control form-control-sm" placeholder="10-digit Phone No. *" required>
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="ref-notes" class="form-control form-control-sm" placeholder="Target exam or course (e.g. UPSC, CA, NEET)">
+                <button type="submit" class="btn btn-primary btn-sm" id="btn-submit-ref" style="font-weight: 700; white-space: nowrap;">
+                  Submit Lead
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Referral History / Friends Ledger -->
+          <h5 style="font-size: 0.95rem; font-weight: 700; border-top: 1px solid var(--color-divider); padding-top: 12px; margin-bottom: 8px; color: var(--color-text-primary);">
+            🎉 My Referred Friends (${referrals.length})
+          </h5>
+          <div id="portal-ref-history" style="max-height: 180px; overflow-y: auto;">
+            ${referrals.length > 0 ? referrals.map(r => `
+              <div class="p-2 mb-2" style="background: var(--color-surface); border-radius: 6px; border: 1px solid var(--color-border); font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <strong>${escapeHTML(r.refereeName)}</strong>
+                  <div class="text-muted small">${escapeHTML(r.refereePhone)} • ${escapeHTML(r.targetExam || 'General')}</div>
+                </div>
+                <div style="text-align: right;">
+                  <span class="badge ${r.status === 'rewarded' ? 'badge-success' : (r.status === 'joined' ? 'badge-primary' : 'badge-warning')}" style="text-transform: uppercase; font-size: 0.7rem;">
+                    ${escapeHTML(r.status)}
+                  </span>
+                  <div style="font-size: 0.75rem; color: var(--color-success); font-weight: 700; margin-top: 2px;">
+                    ₹${r.rewardAmount || 100}
+                  </div>
+                </div>
+              </div>
+            `).join('') : `
+              <p class="text-muted small text-center p-2">No referrals submitted yet. Share your code with friends to start earning renewal discounts!</p>
+            `}
+          </div>
+        </div>
+      `;
+
+      // Copy Code
+      modalContent.querySelector('#btn-copy-ref-code')?.addEventListener('click', () => {
+        navigator.clipboard.writeText(referralCode);
+        Toast.success('Referral code copied to clipboard!');
+      });
+
+      // Copy Share Link
+      modalContent.querySelector('#btn-copy-ref-link')?.addEventListener('click', () => {
+        navigator.clipboard.writeText(shareUrl);
+        Toast.success('Direct admission link copied to clipboard!');
+      });
+
+      // Custom Code Save
+      modalContent.querySelector('#btn-save-custom-code')?.addEventListener('click', async () => {
+        const input = modalContent.querySelector('#custom-code-input');
+        const newCode = input.value.trim().toUpperCase();
+        if (!newCode) {
+          Toast.error('Please enter a custom code');
           return;
         }
-        histContainer.innerHTML = list.map(r => `
-          <div class="p-2 mb-2" style="background: var(--color-bg-primary); border-radius: 6px; border: 1px solid var(--color-border); font-size: 0.85rem;">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <strong>${escapeHTML(r.refereeName)} (${escapeHTML(r.refereePhone)})</strong>
-              <span class="badge ${r.status === 'converted' || r.status === 'rewarded' ? 'badge-success' : 'badge-warning'}" style="text-transform: uppercase; font-size: 0.7rem;">
-                ${r.status}
-              </span>
-            </div>
-            <div class="text-muted small">Reward: <strong>${escapeHTML(r.reward || '₹100 Discount')}</strong></div>
-          </div>
-        `).join('');
-      } catch (e) {
-        histContainer.innerHTML = `<p class="text-danger small text-center">Failed to load history</p>`;
-      }
+        try {
+          const res = await api.put('/api/student-portal/custom-referral-code', { code: newCode });
+          if (res.success) {
+            Toast.success(res.message);
+            modalContent.querySelector('#display-ref-code').textContent = newCode;
+            input.value = '';
+          } else {
+            Toast.error(res.message);
+          }
+        } catch (e) {
+          Toast.error(e.message || 'Failed to update code');
+        }
+      });
+
+      // Submit Direct Friend Referral
+      modalContent.querySelector('#portal-ref-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const refereeName = modalContent.querySelector('#ref-name').value.trim();
+        const refereePhone = modalContent.querySelector('#ref-phone').value.trim();
+        const targetExam = modalContent.querySelector('#ref-notes').value.trim();
+
+        try {
+          const sRes = await api.post('/api/student-portal/referral', { refereeName, refereePhone, targetExam });
+          if (sRes.success) {
+            Toast.success('Friend referral submitted! Thank you!');
+            refModal.close();
+          } else {
+            Toast.error(sRes.message);
+          }
+        } catch (err) {
+          Toast.error(err.message || 'Failed to submit referral');
+        }
+      });
+
+    } catch (err) {
+      modalContent.innerHTML = `<div class="text-danger p-4 text-center">Failed to load referral studio: ${escapeHTML(err.message)}</div>`;
     }
-
-    modalContent.querySelector('#portal-ref-form').onsubmit = async (e) => {
-      e.preventDefault();
-      const refereeName = modalContent.querySelector('#ref-name').value.trim();
-      const refereePhone = modalContent.querySelector('#ref-phone').value.trim();
-      const notes = modalContent.querySelector('#ref-notes').value.trim();
-
-      try {
-        await api.post('/api/student-portal/referral', { refereeName, refereePhone, notes });
-        Toast.success('Referral logged! We will contact your friend.');
-        modalContent.querySelector('#ref-name').value = '';
-        modalContent.querySelector('#ref-phone').value = '';
-        loadRefHistory();
-      } catch (err) {
-        Toast.error(err.message || 'Failed to submit referral');
-      }
-    };
-
-    loadRefHistory();
   });
 
   // Attach Payment Receipt Click Handlers

@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
-const { Visitor, Announcement, Holiday, LostFound, Feedback } = require('../models/Operations');
+const { Visitor, Announcement, Holiday, LostFound, Feedback, LeaveRequest, SeatChangeRequest, Referral } = require('../models/Operations');
+const ReferralConfig = require('../models/ReferralConfig');
+const Student = require('../models/Student');
 
 router.use(protect);
 
@@ -187,9 +189,7 @@ router.delete('/feedback/:id', roleCheck('owner', 'branch_manager'), async (req,
   }
 });
 
-const { LeaveRequest, SeatChangeRequest, Referral } = require('../models/Operations');
 const Seat = require('../models/Seat');
-const Student = require('../models/Student');
 
 // ----------------------------------------------------
 // 6. Student Leave Requests (Admin)
@@ -267,12 +267,77 @@ router.put('/seat-changes/:id', roleCheck('owner', 'branch_manager'), async (req
 });
 
 // ----------------------------------------------------
-// 8. Referrals (Admin)
+// 8. Referral Program Configuration & Management (Admin)
 // ----------------------------------------------------
+router.get('/referrals/config', roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const config = await ReferralConfig.getConfig();
+    res.json({ success: true, data: config });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.put('/referrals/config', roleCheck('owner'), async (req, res) => {
+  try {
+    let config = await ReferralConfig.findOne();
+    if (!config) {
+      config = await ReferralConfig.create(req.body);
+    } else {
+      config = await ReferralConfig.findByIdAndUpdate(config._id, req.body, { new: true, returnDocument: 'after' });
+    }
+    res.json({ success: true, data: config, message: 'Referral program settings updated successfully!' });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 router.get('/referrals', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const referrals = await Referral.find().sort({ createdAt: -1 });
+    const referrals = await Referral.find()
+      .populate('referrerStudent', 'name studentId phone referralCode referralCredits')
+      .populate('convertedStudent', 'name studentId phone admissionDate')
+      .sort({ createdAt: -1 });
     res.json({ success: true, data: referrals });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.post('/referrals', roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const { referrerStudentId, refereeName, refereePhone, refereeEmail, targetExam, notes, rewardAmount } = req.body;
+    
+    let referrerStudent = null;
+    let referrerName = req.body.referrerName || 'Staff Manual Entry';
+    let referrerPhone = '';
+    let referralCode = '';
+
+    if (referrerStudentId) {
+      referrerStudent = await Student.findById(referrerStudentId);
+      if (referrerStudent) {
+        referrerName = referrerStudent.name;
+        referrerPhone = referrerStudent.phone;
+        referralCode = referrerStudent.referralCode;
+      }
+    }
+
+    const ref = await Referral.create({
+      referrerStudent: referrerStudent ? referrerStudent._id : undefined,
+      referrerName,
+      referrerPhone,
+      refereeName,
+      refereePhone,
+      refereeEmail: refereeEmail || '',
+      referralCode,
+      targetExam: targetExam || '',
+      notes: notes || '',
+      rewardAmount: Number(rewardAmount || 100),
+      reward: `₹${rewardAmount || 100} Discount on Next Month Fee`,
+      status: 'pending'
+    });
+
+    res.status(201).json({ success: true, data: ref, message: 'Referral recorded successfully!' });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }
@@ -280,13 +345,61 @@ router.get('/referrals', roleCheck('owner', 'branch_manager'), async (req, res) 
 
 router.put('/referrals/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const { status, reward } = req.body;
+    const { status, reward, rewardAmount, notes } = req.body;
+    const updateData = {};
+    if (status !== undefined) updateData.status = status;
+    if (reward !== undefined) updateData.reward = reward;
+    if (rewardAmount !== undefined) updateData.rewardAmount = rewardAmount;
+    if (notes !== undefined) updateData.notes = notes;
+
     const ref = await Referral.findByIdAndUpdate(
       req.params.id,
-      { status, ...(reward && { reward }) },
+      updateData,
       { new: true, returnDocument: 'after' }
     );
-    res.json({ success: true, data: ref, message: `Referral status updated to ${status}` });
+    res.json({ success: true, data: ref, message: `Referral updated successfully` });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.post('/referrals/:id/approve-reward', roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const ref = await Referral.findById(req.params.id);
+    if (!ref) return res.status(404).json({ success: false, message: 'Referral record not found' });
+    
+    if (ref.discountApplied) {
+      return res.status(400).json({ success: false, message: 'Reward discount has already been applied for this referral' });
+    }
+
+    const rewardAmt = Number(req.body.rewardAmount || ref.rewardAmount || 100);
+
+    // Credit to referrer student
+    if (ref.referrerStudent) {
+      const student = await Student.findById(ref.referrerStudent);
+      if (student) {
+        student.referralCredits = (student.referralCredits || 0) + rewardAmt;
+        student.totalReferralsCount = (student.totalReferralsCount || 0) + 1;
+        await student.save();
+      }
+    }
+
+    ref.status = 'rewarded';
+    ref.discountApplied = true;
+    ref.rewardAmount = rewardAmt;
+    ref.reward = `₹${rewardAmt} Discount on Next Renewal`;
+    await ref.save();
+
+    res.json({ success: true, data: ref, message: `₹${rewardAmt} referral reward credited to student account for next renewal!` });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+router.delete('/referrals/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    await Referral.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Referral record deleted successfully' });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }

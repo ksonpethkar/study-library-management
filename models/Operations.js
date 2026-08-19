@@ -90,10 +90,15 @@ const referralSchema = new mongoose.Schema({
   refereeName: { type: String, required: true, trim: true },
   refereePhone: { type: String, required: true, trim: true },
   refereeEmail: { type: String, trim: true, default: '' },
+  referralCode: { type: String, uppercase: true, trim: true },
+  targetExam: { type: String, trim: true, default: '' },
   notes: { type: String, trim: true, default: '' },
-  status: { type: String, enum: ['pending', 'converted', 'rewarded'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'joined', 'approved', 'rewarded', 'rejected'], default: 'pending' },
+  rewardAmount: { type: Number, default: 100 },
   reward: { type: String, default: '₹100 Discount on Next Month Fee' },
-  convertedStudent: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' }
+  discountApplied: { type: Boolean, default: false },
+  convertedStudent: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
+  branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' }
 }, { timestamps: true });
 
 // Database Indexes for Operations Models
