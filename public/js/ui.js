@@ -66,7 +66,63 @@ export const Toast = {
   success(message) { this.show(message, 'success'); },
   error(message) { this.show(message, 'error'); },
   warning(message) { this.show(message, 'warning'); },
-  info(message) { this.show(message, 'info'); }
+  info(message) { this.show(message, 'info'); },
+  undo(message, onUndoFn) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+
+    AudioFeedback.play('info');
+
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-info toast-undo';
+
+    const iconSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+
+    toast.innerHTML = `
+      <div class="toast-content" style="display: flex; align-items: center; gap: 10px; flex: 1;">
+        <span class="toast-icon">${iconSvg}</span>
+        <span class="toast-msg">${escapeHTML(message)}</span>
+      </div>
+      <button class="toast-undo-btn" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: inherit; cursor: pointer; font-weight: 700; font-size: 0.85rem; padding: 4px 10px; border-radius: 6px; margin-left: 10px; display: inline-flex; align-items: center; gap: 4px;">↩️ Undo</button>
+      <button class="toast-close" style="background:none; border:none; color:inherit; cursor:pointer; font-size:16px; margin-left:8px;">&times;</button>
+    `;
+
+    container.appendChild(toast);
+
+    let dismissed = false;
+    let timer = null;
+
+    const dismiss = () => {
+      if (dismissed) return;
+      dismissed = true;
+      if (timer) clearTimeout(timer);
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(20px)';
+      setTimeout(() => toast.remove(), 250);
+    };
+
+    const undoBtn = toast.querySelector('.toast-undo-btn');
+    if (undoBtn) {
+      undoBtn.onclick = () => {
+        if (!dismissed) {
+          dismiss();
+          if (typeof onUndoFn === 'function') {
+            onUndoFn();
+          }
+        }
+      };
+    }
+
+    const closeBtn = toast.querySelector('.toast-close');
+    if (closeBtn) closeBtn.onclick = dismiss;
+
+    timer = setTimeout(dismiss, 5000);
+  }
 };
 
 /**
@@ -253,6 +309,7 @@ Modal.hide = function() {
 
 // Global fallback for any inline HTML onclick handlers and window object
 if (typeof window !== 'undefined') {
+  window.Toast = Toast;
   window.Modal = Modal;
   window.Modal.closeAll = Modal.closeAll;
   window.Modal.close = Modal.close;
@@ -655,6 +712,67 @@ export const NativeShare = {
 
 if (typeof window !== 'undefined') {
   window.NativeShare = NativeShare;
+}
+
+/**
+ * Copy text to clipboard with button green badge feedback for 2 seconds
+ * @param {string} text 
+ * @param {HTMLElement} [btnElement] 
+ * @returns {Promise<boolean>}
+ */
+export async function copyToClipboard(text, btnElement) {
+  if (!text) return false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else if (typeof document !== 'undefined') {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      textarea.remove();
+    }
+
+    if (btnElement) {
+      const originalHTML = btnElement.innerHTML;
+      const originalBg = btnElement.style.backgroundColor;
+      const originalColor = btnElement.style.color;
+      const originalBorderColor = btnElement.style.borderColor;
+
+      btnElement.innerHTML = '✓ Copied!';
+      btnElement.classList.add('badge', 'bg-success', 'text-white');
+      btnElement.style.backgroundColor = 'var(--color-success, #2ed573)';
+      btnElement.style.color = '#ffffff';
+      btnElement.style.borderColor = 'var(--color-success, #2ed573)';
+
+      if (btnElement._copyTimeout) {
+        clearTimeout(btnElement._copyTimeout);
+      }
+
+      btnElement._copyTimeout = setTimeout(() => {
+        btnElement.innerHTML = originalHTML;
+        btnElement.classList.remove('badge', 'bg-success', 'text-white');
+        btnElement.style.backgroundColor = originalBg;
+        btnElement.style.color = originalColor;
+        btnElement.style.borderColor = originalBorderColor;
+        delete btnElement._copyTimeout;
+      }, 2000);
+    }
+
+    Toast.success('Copied to clipboard!');
+    return true;
+  } catch (err) {
+    console.error('Failed to copy to clipboard:', err);
+    Toast.error('Failed to copy to clipboard');
+    return false;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.copyToClipboard = copyToClipboard;
 }
 
 /**

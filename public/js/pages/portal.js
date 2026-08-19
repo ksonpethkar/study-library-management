@@ -1,5 +1,6 @@
 import api from '../api.js';
-import { Toast, Modal, Confirm, Loading, escapeHTML } from '../ui.js';
+import { Toast, Modal, Confirm, Loading, escapeHTML, copyToClipboard } from '../ui.js';
+import { SmartFormatters } from '../utils/smartFormatters.js';
 import { t } from '../i18n.js';
 import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
 import { PushNotifications } from '../utils/pushNotifications.js';
@@ -366,10 +367,13 @@ function renderPortalUI(container, data, analytics = null) {
             <tbody>
               ${payments && payments.length > 0 ? payments.map(p => `
                 <tr style="border-bottom: 1px solid var(--color-divider); font-size: 0.9rem;">
-                  <td style="padding: 12px 16px; font-family: monospace; font-weight: 700;">${escapeHTML(p.receiptNumber || 'REC')}</td>
-                  <td style="padding: 12px 16px;">${new Date(p.paymentDate).toLocaleDateString('en-IN')}</td>
+                  <td style="padding: 12px 16px; font-family: monospace; font-weight: 700;">
+                    ${escapeHTML(p.receiptNumber || 'REC')}
+                    <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(p.receiptNumber || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Receipt #">📋</button>
+                  </td>
+                  <td style="padding: 12px 16px;">${new Date(p.paymentDate).toLocaleDateString('en-IN')} <small class="text-muted">(${SmartFormatters.timeAgo(p.paymentDate)})</small></td>
                   <td style="padding: 12px 16px; text-transform: uppercase;">${escapeHTML(p.paymentMethod || 'UPI')}</td>
-                  <td style="padding: 12px 16px; font-weight: 700; color: var(--color-success);">₹${p.finalAmount}</td>
+                  <td style="padding: 12px 16px; font-weight: 700; color: var(--color-success);">${SmartFormatters.currency(p.finalAmount)}</td>
                   <td style="padding: 12px 16px;"><span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success);">Paid</span></td>
                   <td style="padding: 12px 16px;">
                     <button class="btn btn-sm btn-outline-primary btn-view-receipt" data-receipt='${JSON.stringify(p)}' style="font-size: 0.75rem; padding: 2px 8px;">
@@ -494,6 +498,15 @@ function renderPortalUI(container, data, analytics = null) {
   // Attach PDF Admission Form Download Handler
   container.querySelector('#btn-portal-download-pdf')?.addEventListener('click', () => {
     previewAdmissionFormPDF(student, { business });
+  });
+
+  container.addEventListener('click', (e) => {
+    const copyBtn = e.target.closest('.btn-copy-text');
+    if (copyBtn) {
+      e.stopPropagation();
+      const textToCopy = copyBtn.getAttribute('data-copy');
+      if (textToCopy) copyToClipboard(textToCopy, copyBtn);
+    }
   });
 
   // Attach ID Card Handler
@@ -665,7 +678,7 @@ function renderPortalUI(container, data, analytics = null) {
           </div>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.88rem;">
             <div><span class="text-muted d-block small">Full Name</span><strong>${escapeHTML(student.name)}</strong></div>
-            <div><span class="text-muted d-block small">Mobile Phone (WhatsApp)</span><strong>${escapeHTML(student.phone)}</strong></div>
+            <div><span class="text-muted d-block small">Mobile Phone (WhatsApp)</span><strong>${escapeHTML(SmartFormatters.phone(student.phone))}</strong> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(student.phone || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">📋</button></div>
             <div><span class="text-muted d-block small">Email Address</span><strong>${escapeHTML(student.email || 'N/A')}</strong></div>
             <div><span class="text-muted d-block small">Gender</span><strong style="text-transform: capitalize;">${escapeHTML(student.gender || 'N/A')}</strong></div>
             <div><span class="text-muted d-block small">Date of Birth</span><strong>${student.dob ? new Date(student.dob).toLocaleDateString('en-IN') : (student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString('en-IN') : 'N/A')}</strong></div>
@@ -694,7 +707,8 @@ function renderPortalUI(container, data, analytics = null) {
             </div>
             <div>
               <span class="text-muted d-block small">ID Proof Number</span>
-              <strong style="font-family: monospace;">${escapeHTML(student.idProof?.number || 'Verified')}</strong>
+              <strong style="font-family: monospace;">${escapeHTML((student.idProof?.type === 'Aadhaar Card' || student.idProof?.type === 'Aadhaar' || !student.idProof?.type) ? SmartFormatters.aadhaar(student.idProof?.number) : (student.idProof?.number || 'Verified'))}</strong>
+              ${student.idProof?.number ? `<button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(student.idProof.number)}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy ID Proof Number">📋</button>` : ''}
             </div>
             ${student.idProof?.image ? `
               <div>
@@ -1138,15 +1152,13 @@ function renderPortalUI(container, data, analytics = null) {
       `;
 
       // Copy Code
-      modalContent.querySelector('#btn-copy-ref-code')?.addEventListener('click', () => {
-        navigator.clipboard.writeText(referralCode);
-        Toast.success('Referral code copied to clipboard!');
+      modalContent.querySelector('#btn-copy-ref-code')?.addEventListener('click', (e) => {
+        copyToClipboard(referralCode, e.currentTarget);
       });
 
       // Copy Share Link
-      modalContent.querySelector('#btn-copy-ref-link')?.addEventListener('click', () => {
-        navigator.clipboard.writeText(shareUrl);
-        Toast.success('Direct admission link copied to clipboard!');
+      modalContent.querySelector('#btn-copy-ref-link')?.addEventListener('click', (e) => {
+        copyToClipboard(shareUrl, e.currentTarget);
       });
 
       // Custom Code Save

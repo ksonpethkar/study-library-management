@@ -1,17 +1,12 @@
 import { App } from '../app.js';
 import { t } from '../i18n.js';
-import { Toast, Modal, Loading, Confirm, escapeHTML, debounce } from '../ui.js';
+import { Toast, Modal, Loading, Confirm, escapeHTML, debounce, copyToClipboard } from '../ui.js';
+import { SmartFormatters } from '../utils/smartFormatters.js';
 import api from '../api.js';
 import { IDBStorage } from '../utils/idbStorage.js';
 import { OptimisticUI } from '../utils/optimisticUI.js';
 
-const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-        maximumFractionDigits: 0
-    }).format(amount || 0);
-};
+const formatCurrency = (amount) => SmartFormatters.currency(amount);
 
 const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -200,14 +195,18 @@ export async function render(container) {
 
         tbody.innerHTML = payments.map(p => `
             <tr>
-                <td><a href="#" class="receipt-link" data-id="${p._id}" style="font-family: monospace; font-weight: 700; color: var(--color-primary, #6c5ce7);">${escapeHTML(p.receiptNumber || 'N/A')}</a></td>
+                <td>
+                    <a href="#" class="receipt-link" data-id="${p._id}" style="font-family: monospace; font-weight: 700; color: var(--color-primary, #6c5ce7);">${escapeHTML(p.receiptNumber || 'N/A')}</a>
+                    <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(p.receiptNumber || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Receipt Number">📋</button>
+                </td>
                 <td>
                     <div style="font-weight: 600;">${escapeHTML(p.student?.name || 'Unknown')}</div>
-                    <small class="text-muted">${escapeHTML(p.student?.phone || '')}</small>
+                    <small class="text-muted">${escapeHTML(SmartFormatters.phone(p.student?.phone) || '')}</small>
+                    ${p.student?.phone ? `<button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(p.student.phone)}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">📋</button>` : ''}
                 </td>
                 <td><strong style="font-size: 1.05rem;">${formatCurrency(p.finalAmount)}</strong></td>
                 <td><span class="badge" style="background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px; text-transform: uppercase;">${escapeHTML(p.paymentMethod)}</span></td>
-                <td>${formatDate(p.paymentDate)}</td>
+                <td>${formatDate(p.paymentDate)} <small class="text-muted">(${SmartFormatters.timeAgo(p.paymentDate)})</small></td>
                 <td>
                     <span class="badge btn-toggle-payment-status" data-id="${p._id}" data-status="${escapeHTML(p.status)}" style="${p.status === 'paid' ? 'background: rgba(0, 184, 148, 0.2); color: var(--color-success);' : 'background: rgba(214, 48, 49, 0.2); color: var(--color-danger);'} padding: 4px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;" title="Click to toggle status">
                         ${escapeHTML(p.status)}
@@ -222,6 +221,15 @@ export async function render(container) {
                 </td>
             </tr>
         `).join('');
+
+        tbody.querySelectorAll('.btn-copy-text').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const copyText = btn.getAttribute('data-copy');
+                if (copyText) copyToClipboard(copyText, btn);
+            });
+        });
 
         tbody.querySelectorAll('.receipt-link, .btn-view').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -355,15 +363,24 @@ export async function render(container) {
             tbody.innerHTML = res.data.map(d => `
                 <tr>
                     <td><strong>${escapeHTML(d.name)}</strong></td>
-                    <td>${escapeHTML(d.phone)}</td>
+                    <td>${escapeHTML(SmartFormatters.phone(d.phone))} <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(d.phone || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">📋</button></td>
                     <td><span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary);">${escapeHTML(d.plan?.name || '-')}</span></td>
-                    <td><span style="color: var(--color-danger); font-weight: 600;">${formatDate(d.expiryDate)}</span></td>
+                    <td><span style="color: var(--color-danger); font-weight: 600;">${formatDate(d.expiryDate)} <small class="text-muted">(${SmartFormatters.timeAgo(d.expiryDate)})</small></span></td>
                     <td>
                         <button class="btn btn-sm btn-success btn-collect-due" data-id="${d._id}" style="padding: 3px 8px; font-size: 0.8rem;">Collect Fee</button>
                         <button class="btn btn-sm btn-outline-success btn-remind-due" data-id="${d._id}" data-name="${escapeHTML(d.name)}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px; white-space: nowrap;" title="Send WhatsApp Renewal Reminder with 1-Tap UPI Link">📲 WhatsApp Reminder</button>
                     </td>
                 </tr>
             `).join('');
+            
+            tbody.querySelectorAll('.btn-copy-text').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const copyText = btn.getAttribute('data-copy');
+                    if (copyText) copyToClipboard(copyText, btn);
+                });
+            });
             
             tbody.querySelectorAll('.btn-collect-due').forEach(btn => {
                 btn.addEventListener('click', () => {

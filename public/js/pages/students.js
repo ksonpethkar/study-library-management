@@ -1,6 +1,7 @@
 import { App } from '../app.js';
 import { t } from '../i18n.js';
-import { Toast, Modal, Loading, Confirm, escapeHTML, debounce } from '../ui.js';
+import { Toast, Modal, Loading, Confirm, escapeHTML, debounce, copyToClipboard } from '../ui.js';
+import { SmartFormatters } from '../utils/smartFormatters.js';
 import { SignatureStudio } from '../signatureStudio.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
 import api from '../api.js';
@@ -8,6 +9,7 @@ import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerat
 import { renderHeatmapGridHtml } from './portal.js';
 import { IDBStorage } from '../utils/idbStorage.js';
 import { OptimisticUI } from '../utils/optimisticUI.js';
+import { SmartIntelligence } from '../utils/smartIntelligence.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -196,12 +198,12 @@ export async function render() {
               </span>
             </label>
           </td>
-          <td><span style="font-family: monospace; font-weight: 700;">${escapeHTML(s.studentId || '-')}</span></td>
+          <td><span style="font-family: monospace; font-weight: 700;">${escapeHTML(s.studentId || '-')}</span> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(s.studentId || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Student ID">📋</button></td>
           <td><strong>${escapeHTML(s.name || '-')}</strong></td>
-          <td>${escapeHTML(s.phone || '-')}</td>
+          <td>${escapeHTML(SmartFormatters.phone(s.phone) || '-')} <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(s.phone || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">📋</button></td>
           <td><span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary, #6c5ce7); font-weight: 600;">${escapeHTML(planName)}</span></td>
           <td><span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success, #00b894); font-weight: 600;">${escapeHTML(seatNum)}</span></td>
-          <td>${expiry}</td>
+          <td>${expiry} ${s.expiryDate ? `<small class="text-muted">(${SmartFormatters.timeAgo(s.expiryDate)})</small>` : ''}</td>
           <td><span class="badge btn-toggle-student-status" data-id="${escapeHTML(s._id)}" style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; cursor: pointer;" title="Click to toggle status">${escapeHTML(s.status || 'active')}</span></td>
           <td>
             <div class="d-flex gap-1">
@@ -1105,72 +1107,24 @@ export async function render() {
     modal.element.addEventListener('change', evaluateModalLogic);
     evaluateModalLogic();
 
-    // Setup Pincode Auto-Fill in Admin Student Modal
+    // Setup Pincode Auto-Fill in Admin Student Modal using SmartIntelligence
     const pincodeInput = modal.element.querySelector('input[name="pincode"]');
     const cityInput = modal.element.querySelector('input[name="city"]');
     const stateInput = modal.element.querySelector('input[name="state"]');
-
-    const PIN_ADMIN_MAP = {
-      '4135': { city: 'Latur / Ausa', state: 'Maharashtra' },
-      '4136': { city: 'Dharashiv (Osmanabad)', state: 'Maharashtra' },
-      '4130': { city: 'Solapur', state: 'Maharashtra' },
-      '4131': { city: 'Solapur / Baramati', state: 'Maharashtra' },
-      '413': { city: 'Latur / Solapur', state: 'Maharashtra' },
-      '4315': { city: 'Hingoli / Parbhani', state: 'Maharashtra' },
-      '4316': { city: 'Nanded', state: 'Maharashtra' },
-      '4311': { city: 'Beed', state: 'Maharashtra' },
-      '4312': { city: 'Jalna', state: 'Maharashtra' },
-      '4310': { city: 'Chhatrapati Sambhajinagar', state: 'Maharashtra' },
-      '431': { city: 'Hingoli / Nanded / Beed', state: 'Maharashtra' },
-      '400': { city: 'Mumbai', state: 'Maharashtra' },
-      '401': { city: 'Thane / Palghar', state: 'Maharashtra' },
-      '411': { city: 'Pune', state: 'Maharashtra' },
-      '110': { city: 'New Delhi', state: 'Delhi' }
-    };
 
     if (pincodeInput) {
       const handleAdminPincode = async () => {
         const pin = pincodeInput.value.trim();
         if (pin.length === 6 && /^\d+$/.test(pin)) {
-          // Instant Client-side Fallback
-          const p4 = pin.substring(0, 4);
-          const p3 = pin.substring(0, 3);
-          const p1 = pin.substring(0, 1);
-          const match = PIN_ADMIN_MAP[p4] || PIN_ADMIN_MAP[p3] || (p1 === '4' ? { city: 'Maharashtra Region', state: 'Maharashtra' } : null);
-
-          if (match) {
-            if (cityInput && !cityInput.value) cityInput.value = match.city;
-            if (stateInput && !stateInput.value) stateInput.value = match.state;
-          }
+          if (cityInput && !cityInput.value) cityInput.placeholder = '⚡ Auto-filling...';
+          if (stateInput && !stateInput.value) stateInput.placeholder = '⚡ Auto-filling...';
 
           try {
-            if (cityInput) cityInput.placeholder = '⚡ Auto-filling...';
-            if (stateInput) stateInput.placeholder = '⚡ Auto-filling...';
-
-            let city = '';
-            let state = '';
-            try {
-              const res = await api.get(`/api/search/pincode/${pin}`);
-              if (res.data) {
-                city = res.data.city || res.data.district || '';
-                state = res.data.state || '';
-              }
-            } catch (e) {}
-
-            if (!city && !state) {
-              try {
-                const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
-                const data = await res.json();
-                if (data && data[0]?.Status === 'Success' && data[0]?.PostOffice?.length > 0) {
-                  const po = data[0].PostOffice[0];
-                  city = po.District || po.Division || po.Block || po.Name || '';
-                  state = po.State || '';
-                }
-              } catch (e) {}
+            const res = await SmartIntelligence.lookupPincode(pin);
+            if (res.success) {
+              if (cityInput && res.city) cityInput.value = res.city;
+              if (stateInput && res.state) stateInput.value = res.state;
             }
-
-            if (city && cityInput) cityInput.value = city;
-            if (state && stateInput) stateInput.value = state;
           } catch (err) {
           } finally {
             if (cityInput) cityInput.placeholder = 'City';
@@ -1181,6 +1135,62 @@ export async function render() {
 
       ['input', 'blur', 'change', 'paste', 'keyup'].forEach(evt => {
         pincodeInput.addEventListener(evt, handleAdminPincode);
+      });
+      if (pincodeInput.value.trim().length === 6) handleAdminPincode();
+    }
+
+    // Real-Time Duplicate Student (Phone & Email) Validator in Admin Modal
+    const phoneInput = modal.element.querySelector('input[name="phone"]');
+    const emailInput = modal.element.querySelector('input[name="email"]');
+    const formElement = modal.element.querySelector('#studentForm');
+
+    let dupAlert = modal.element.querySelector('#admin-student-dup-alert');
+    if (!dupAlert && formElement) {
+      dupAlert = document.createElement('div');
+      dupAlert.id = 'admin-student-dup-alert';
+      dupAlert.className = 'alert alert-warning mb-3';
+      dupAlert.style.display = 'none';
+      dupAlert.style.fontSize = '0.85rem';
+      dupAlert.style.fontWeight = '600';
+      formElement.insertBefore(dupAlert, formElement.firstChild);
+    }
+
+    const checkDuplicateAdmin = () => {
+      const phoneVal = phoneInput?.value?.trim() || '';
+      const emailVal = emailInput?.value?.trim() || '';
+
+      const otherStudents = (state.students || []).filter(s => !isEdit || (student && s._id !== student._id));
+      const dupResult = SmartIntelligence.checkDuplicateStudent(phoneVal, emailVal, otherStudents);
+
+      if (dupResult.isDuplicate && dupAlert) {
+        dupAlert.textContent = dupResult.message;
+        dupAlert.style.display = 'block';
+      } else if (dupAlert) {
+        dupAlert.style.display = 'none';
+      }
+    };
+
+    if (phoneInput) {
+      ['input', 'blur', 'change', 'keyup'].forEach(evt => phoneInput.addEventListener(evt, checkDuplicateAdmin));
+    }
+    if (emailInput) {
+      ['input', 'blur', 'change', 'keyup'].forEach(evt => emailInput.addEventListener(evt, checkDuplicateAdmin));
+    }
+
+    // Smart Seat Suggestion Match Action
+    const suggestBtn = modal.element.querySelector('#btn-auto-suggest-seat');
+    const seatSelect = modal.element.querySelector('select[name="seat"]');
+    if (suggestBtn && seatSelect) {
+      suggestBtn.addEventListener('click', () => {
+        const shiftVal = modal.element.querySelector('select[name="shift"]')?.value || null;
+        const zoneVal = modal.element.querySelector('select[name="zone"]')?.value || null;
+        const suggested = SmartIntelligence.suggestSeat(shiftVal, zoneVal, rawAvailableSeats || []);
+        if (suggested && suggested.seatId) {
+          seatSelect.value = suggested.seatId;
+          Toast.show(`⚡ Recommended Seat ${suggested.seatNumber} (${suggested.matchReason})`, 'info');
+        } else {
+          Toast.show('No matching vacant seats available', 'warning');
+        }
       });
     }
   }
@@ -1313,6 +1323,14 @@ export async function render() {
       return;
     }
     
+    const copyBtn = e.target.closest('.btn-copy-text');
+    if (copyBtn) {
+      e.stopPropagation();
+      const textToCopy = copyBtn.getAttribute('data-copy');
+      if (textToCopy) copyToClipboard(textToCopy, copyBtn);
+      return;
+    }
+
     const viewBtn = e.target.closest('.btn-view');
     if (viewBtn) {
       const id = viewBtn.getAttribute('data-id');
@@ -1394,7 +1412,7 @@ export async function render() {
               <span class="badge ${student.status === 'active' ? 'badge-success' : 'badge-danger'}" style="text-transform: uppercase;">${escapeHTML(student.status)}</span>
             </div>
             <div class="text-muted small mt-1">
-              Student ID: <strong style="color: var(--color-primary); font-family: monospace;">${escapeHTML(student.studentId || '-')}</strong> • Phone: <strong>${escapeHTML(student.phone || '-')}</strong>
+              Student ID: <strong style="color: var(--color-primary); font-family: monospace;">${escapeHTML(student.studentId || '-')}</strong> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(student.studentId || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Student ID">📋</button> • Phone: <strong>${escapeHTML(SmartFormatters.phone(student.phone) || '-')}</strong> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(student.phone || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">📋</button>
             </div>
           </div>
         </div>
@@ -1407,7 +1425,7 @@ export async function render() {
             <div class="small text-muted mb-1">Plan: <strong class="text-primary">${escapeHTML(planName)}</strong></div>
             <div class="small text-muted mb-1">Desk / Seat: <strong class="text-success">${escapeHTML(seatNumber)}</strong></div>
             <div class="small text-muted mb-1">Enrolled: <strong>${admissionDate}</strong></div>
-            <div class="small text-muted">Valid Until: <strong class="text-danger">${expiryDate}</strong> (${daysLeft !== null ? (daysLeft <= 0 ? 'Expired' : `${daysLeft} days left`) : '-'})</div>
+            <div class="small text-muted">Valid Until: <strong class="text-danger">${expiryDate}</strong> (${daysLeft !== null ? (daysLeft <= 0 ? 'Expired' : `${daysLeft} days left • ${SmartFormatters.timeAgo(student.expiryDate)}`) : '-'})</div>
           </div>
 
           <!-- Academic & Exams -->
@@ -1425,7 +1443,7 @@ export async function render() {
             <h5 style="margin: 0 0 10px 0; font-size: 0.9rem; font-weight: 700; color: var(--color-warning);">📍 Address & Emergency</h5>
             <div class="small text-muted mb-1">Email: <strong>${escapeHTML(student.email || 'N/A')}</strong></div>
             <div class="small text-muted mb-1">Address: <strong>${escapeHTML(student.address || 'N/A')}, ${escapeHTML(student.city || '')} ${escapeHTML(student.pincode || '')}</strong></div>
-            <div class="small text-muted">Emergency Contact: <strong>${escapeHTML(student.emergencyContact?.name || 'N/A')} (${escapeHTML(student.emergencyContact?.relation || 'Parent')}) - ${escapeHTML(student.emergencyContact?.phone || '')}</strong></div>
+            <div class="small text-muted">Emergency Contact: <strong>${escapeHTML(student.emergencyContact?.name || 'N/A')} (${escapeHTML(student.emergencyContact?.relation || 'Parent')}) - ${escapeHTML(SmartFormatters.phone(student.emergencyContact?.phone) || '')}</strong> ${student.emergencyContact?.phone ? `<button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(student.emergencyContact.phone)}" style="padding: 1px 4px; font-size: 0.7rem;">📋</button>` : ''}</div>
           </div>
 
           <!-- Smart Access & KYC -->
@@ -1433,7 +1451,7 @@ export async function render() {
             <h5 style="margin: 0 0 10px 0; font-size: 0.9rem; font-weight: 700; color: var(--color-success);">🔐 Access & KYC</h5>
             <div class="small text-muted mb-1">RFID Smart Card: <strong>${escapeHTML(student.rfidCardNumber || 'Not Linked')}</strong></div>
             <div class="small text-muted mb-1">Biometric ID: <strong>${escapeHTML(student.biometricId || 'Not Linked')}</strong></div>
-            <div class="small text-muted mb-1">ID Proof: <strong>${escapeHTML(student.idProof?.type || 'Aadhaar')} (${escapeHTML(student.idProof?.number || 'N/A')})</strong></div>
+            <div class="small text-muted mb-1">ID Proof: <strong>${escapeHTML(student.idProof?.type || 'Aadhaar')} (${escapeHTML(student.idProof?.type === 'Aadhaar' || !student.idProof?.type ? SmartFormatters.aadhaar(student.idProof?.number) : (student.idProof?.number || 'N/A'))})</strong> ${student.idProof?.number ? `<button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(student.idProof.number)}" style="padding: 1px 4px; font-size: 0.7rem;">📋</button>` : ''}</div>
             ${student.signature ? `
               <div class="mt-2">
                 <div class="text-xs text-muted">Digital Signature:</div>
@@ -1496,6 +1514,14 @@ export async function render() {
     pModal.show();
 
     loadStudentAnalyticsWidget(student._id, modalContent);
+
+    modalContent.querySelectorAll('.btn-copy-text').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const textToCopy = btn.getAttribute('data-copy');
+        if (textToCopy) copyToClipboard(textToCopy, btn);
+      });
+    });
 
     modalContent.querySelector('.btn-profile-remind')?.addEventListener('click', () => {
       sendWhatsAppReminder(student, student.balanceDue > 0 ? 'balance_due' : 'renewal_reminder');
