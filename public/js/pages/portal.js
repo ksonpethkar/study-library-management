@@ -84,6 +84,30 @@ function renderPortalUI(container, data, analytics = null) {
     : `⚪ Not checked in today`;
 
   container.innerHTML = `
+    <!-- Admin Preview Banner -->
+    ${data.isAdmin ? `
+      <div class="card p-3 mb-4" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(0, 184, 148, 0.08)); border: 1px solid var(--color-primary); border-radius: var(--radius-lg); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.5rem;">👑</span>
+          <div>
+            <div style="font-weight: 700; color: var(--color-primary); font-size: 0.95rem;">Admin Inspection Mode — Student Portal Experience</div>
+            <div style="font-size: 0.8rem; color: var(--color-text-secondary);">You are logged in as Administrator. Inspecting live student view for <strong>${escapeHTML(student.name)}</strong>.</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 0.82rem; font-weight: 600;">Switch Student:</label>
+          <select id="admin-switch-student" class="form-select form-control form-control-sm" style="min-width: 220px; font-weight: 600;">
+            ${(data.allStudents || []).map(s => `
+              <option value="${s._id}" ${String(s._id) === String(student._id) ? 'selected' : ''}>
+                ${escapeHTML(s.name)} (${s.studentId || s.phone})
+              </option>
+            `).join('')}
+          </select>
+          <a href="#/students" class="btn btn-outline-secondary btn-sm" style="font-weight: 600;">➔ Students Directory</a>
+        </div>
+      </div>
+    ` : ''}
+
     <!-- Top Welcome Banner -->
     <div class="card mb-4" style="
       background: linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(162, 155, 254, 0.05)), var(--color-surface);
@@ -327,6 +351,30 @@ function renderPortalUI(container, data, analytics = null) {
       </div>
     </div>
   `;
+
+  // Admin Switch Student Handler
+  container.querySelector('#admin-switch-student')?.addEventListener('change', async (e) => {
+    const selectedStudentId = e.target.value;
+    container.innerHTML = `
+      <div class="card p-5 text-center" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
+        <div class="loading-spinner mb-3" style="margin: 0 auto;"></div>
+        <p style="color: var(--color-text-secondary); margin: 0;">Switching student inspection view...</p>
+      </div>
+    `;
+    try {
+      const res = await api.get(`/api/student-portal/dashboard?studentId=${selectedStudentId}`);
+      if (!res.success || !res.data) throw new Error(res.message);
+      let analytics = null;
+      try {
+        const aRes = await api.get(`/api/attendance/analytics/${res.data.student._id}`);
+        if (aRes.success) analytics = aRes.data;
+      } catch (err) {}
+      renderPortalUI(container, res.data, analytics);
+    } catch (err) {
+      Toast.error(err.message || 'Failed to switch student');
+      render().then(newEl => container.replaceWith(newEl));
+    }
+  });
 
   // Attach Self Punch Handler
   container.querySelector('#btn-self-punch')?.addEventListener('click', async () => {

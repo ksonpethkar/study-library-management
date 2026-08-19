@@ -16,27 +16,63 @@ router.use(protect);
 /**
  * Helper to find student document for current authenticated user
  */
-async function getStudentForUser(user) {
-  let student = await Student.findOne({
-    $or: [
-      { email: user.email },
-      { phone: user.phone }
-    ]
-  }).populate('plan').populate('seat').populate('branch');
+async function getStudentForUser(user, req = null) {
+  const isAdmin = ['owner', 'branch_manager', 'staff', 'superadmin'].includes(user.role);
+  const studentIdParam = req?.query?.studentId || req?.body?.studentId;
 
-  // Fallback removed
+  // 1. If Admin requested a specific student ID to inspect:
+  if (isAdmin && studentIdParam) {
+    const student = await Student.findById(studentIdParam).populate('plan').populate('seat').populate('branch');
+    if (student) return student;
+  }
 
+  // 2. Exact match for regular student accounts (non-empty email and phone only)
+  const queryConditions = [];
+  if (user.email && typeof user.email === 'string' && user.email.trim().length > 0 && !user.email.includes('studylib.local')) {
+    queryConditions.push({ email: user.email.trim().toLowerCase() });
+  }
+  if (user.phone && typeof user.phone === 'string' && user.phone.trim().length > 0) {
+    const cleanPhone = user.phone.replace(/[^0-9]/g, '');
+    if (cleanPhone.length >= 10) {
+      queryConditions.push({ phone: user.phone });
+      queryConditions.push({ phone: cleanPhone.slice(-10) });
+    }
+  }
 
-  return student;
+  if (queryConditions.length > 0) {
+    const matchedStudent = await Student.findOne({ $or: queryConditions })
+      .populate('plan')
+      .populate('seat')
+      .populate('branch');
+    if (matchedStudent) return matchedStudent;
+  }
+
+  // 3. If user is Admin/Owner and has no student record of their own:
+  if (isAdmin) {
+    // Return first active student for preview purposes
+    const firstStudent = await Student.findOne({ status: 'active' })
+      .populate('plan')
+      .populate('seat')
+      .populate('branch') || await Student.findOne().populate('plan').populate('seat').populate('branch');
+    return firstStudent;
+  }
+
+  return null;
 }
 
 // @route   GET /api/student-portal/dashboard
 // @desc    Get student's live membership, seat, attendance, and payment details
 router.get('/dashboard', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) {
       return res.status(404).json({ success: false, message: 'No student record associated with this account' });
+    }
+
+    const isAdmin = ['owner', 'branch_manager', 'staff', 'superadmin'].includes(req.user.role);
+    let allStudents = [];
+    if (isAdmin) {
+      allStudents = await Student.find({}, '_id name studentId phone status').sort({ name: 1 }).lean();
     }
 
     const business = await BusinessProfile.getProfile();
@@ -73,7 +109,9 @@ router.get('/dashboard', async (req, res) => {
         totalHours,
         todayAttendance,
         payments,
-        attendanceRecords
+        attendanceRecords,
+        isAdmin,
+        allStudents
       },
       message: 'Student dashboard loaded'
     });
@@ -86,7 +124,7 @@ router.get('/dashboard', async (req, res) => {
 // @desc    Self-service attendance punch in / out
 router.post('/punch', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student record not found' });
     }
@@ -154,7 +192,7 @@ router.post('/punch', async (req, res) => {
 // @desc    Student requests plan renewal
 router.post('/renew', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student record not found' });
     }
@@ -180,7 +218,7 @@ router.post('/renew', async (req, res) => {
 // @desc    Submit a leave / absence request
 router.post('/leave-request', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     const { startDate, endDate, reason } = req.body;
@@ -216,7 +254,7 @@ router.post('/leave-request', async (req, res) => {
 // @route   GET /api/student-portal/leave-requests
 router.get('/leave-requests', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     const leaves = await LeaveRequest.find({ student: student._id }).sort({ createdAt: -1 });
@@ -230,7 +268,7 @@ router.get('/leave-requests', async (req, res) => {
 // @desc    Submit a seat change / transfer request
 router.post('/seat-change', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     const { preferredZone, reason } = req.body;
@@ -266,7 +304,7 @@ router.post('/seat-change', async (req, res) => {
 // @route   GET /api/student-portal/seat-changes
 router.get('/seat-changes', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     const requests = await SeatChangeRequest.find({ student: student._id }).sort({ createdAt: -1 });
@@ -280,7 +318,7 @@ router.get('/seat-changes', async (req, res) => {
 // @desc    Get student's referral code, active rewards config, and referral ledger
 router.get('/referral-stats', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     const config = await ReferralConfig.getConfig();
@@ -312,7 +350,7 @@ router.get('/referral-stats', async (req, res) => {
 // @desc    Allow student to customize vanity referral code
 router.put('/custom-referral-code', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     let { code } = req.body;
@@ -342,7 +380,7 @@ router.put('/custom-referral-code', async (req, res) => {
 // @desc    Submit a friend referral lead
 router.post('/referral', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     const { refereeName, refereePhone, refereeEmail, targetExam, notes } = req.body;
@@ -387,7 +425,7 @@ router.post('/referral', async (req, res) => {
 // @route   GET /api/student-portal/referrals
 router.get('/referrals', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     const referrals = await Referral.find({ referrerStudent: student._id }).sort({ createdAt: -1 });
@@ -401,7 +439,7 @@ router.get('/referrals', async (req, res) => {
 // @desc    Calculate renewal price, apply earned referral credits, pending dues, and generate dynamic UPI string
 router.get('/renewal-quote', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     const business = await BusinessProfile.getProfile();
@@ -451,7 +489,7 @@ router.get('/renewal-quote', async (req, res) => {
 // @desc    Submit renewal payment with UTR / Transaction ID for admin approval
 router.post('/renewal-request', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user);
+    const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     const { utrNumber, amountPaid, paymentMode = 'upi', notes } = req.body;
