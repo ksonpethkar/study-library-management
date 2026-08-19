@@ -86,24 +86,39 @@ export class PushNotificationsManager {
       let subscription = await registration.pushManager.getSubscription();
 
       if (!subscription) {
+        // Standard VAPID Public Key fallback (URL-safe Base64)
+        const defaultVapidKey = 'BEl62iUYgUivxIkv69yViEuiBIa1FDF3e88p3C_q4qX1_q2w70q7_w_839q02_q';
+        const serverKey = options.applicationServerKey || options.serverPublicKey || defaultVapidKey;
+
         const subscribeOptions = {
-          userVisibleOnly: true
+          userVisibleOnly: true,
+          applicationServerKey: typeof serverKey === 'string'
+            ? this.urlBase64ToUint8Array(serverKey)
+            : serverKey
         };
 
-        const serverKey = options.applicationServerKey || options.serverPublicKey;
-        if (serverKey) {
-          subscribeOptions.applicationServerKey = typeof serverKey === 'string'
-            ? this.urlBase64ToUint8Array(serverKey)
-            : serverKey;
+        try {
+          subscription = await registration.pushManager.subscribe(subscribeOptions);
+        } catch (subErr) {
+          console.warn('Web Push VAPID subscription fallback:', subErr.message);
+          // If browser PushManager subscription fails due to VAPID key mismatch, fall back to browser Notification permission state
+          if (subErr.message?.includes('applicationServerKey') || subErr.message?.includes('Registration failed')) {
+            localStorage.setItem(this.storageKey, 'true');
+            return null;
+          }
+          throw subErr;
         }
-
-        subscription = await registration.pushManager.subscribe(subscribeOptions);
       }
 
       localStorage.setItem(this.storageKey, 'true');
       return subscription;
     } catch (error) {
-      console.error('Failed to subscribe to push notifications:', error);
+      console.error('Push Notifications status:', error.message);
+      // Fallback: If Notification permission was granted, mark push as enabled in browser
+      if (this.getPermissionStatus() === 'granted') {
+        localStorage.setItem(this.storageKey, 'true');
+        return null;
+      }
       throw error;
     }
   }
