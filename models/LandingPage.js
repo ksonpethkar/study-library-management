@@ -205,6 +205,30 @@ landingPageSchema.statics.getPageConfig = async function() {
       config.seo = defaults.seo;
       needsSave = true;
     }
+    if (!config.faqs || !Array.isArray(config.faqs.items) || config.faqs.items.length === 0) {
+      config.faqs = defaults.faqs;
+      needsSave = true;
+    }
+    if (!config.facilities || !Array.isArray(config.facilities.items) || config.facilities.items.length === 0) {
+      config.facilities = defaults.facilities;
+      needsSave = true;
+    }
+    if (!config.shifts || !Array.isArray(config.shifts.items) || config.shifts.items.length === 0) {
+      config.shifts = defaults.shifts;
+      needsSave = true;
+    }
+    if (!config.rules || !Array.isArray(config.rules.items) || config.rules.items.length === 0) {
+      config.rules = defaults.rules;
+      needsSave = true;
+    }
+    if (!config.gallery || !Array.isArray(config.gallery.images) || config.gallery.images.length === 0) {
+      config.gallery = defaults.gallery;
+      needsSave = true;
+    }
+    if (!config.testimonials || !Array.isArray(config.testimonials.items) || config.testimonials.items.length === 0) {
+      config.testimonials = defaults.testimonials;
+      needsSave = true;
+    }
     if (needsSave) {
       try {
         await config.save();
@@ -267,9 +291,10 @@ landingPageSchema.statics.getDefaults = function() {
       title: 'Flexible Study Shifts',
       subtitle: 'Choose a timing that fits your schedule.',
       items: [
-        { name: 'Morning Shift', timing: '06:00 AM to 02:00 PM', description: 'Start your day early.', icon: '🌅' },
-        { name: 'Evening Shift', timing: '02:00 PM to 10:00 PM', description: 'Perfect for late risers.', icon: '🌇' },
-        { name: 'Full Day Shift', timing: '06:00 AM to 10:00 PM', description: 'For dedicated aspirants.', icon: '☀️' }
+        { name: 'Morning Shift', timing: '06:00 AM – 02:00 PM', description: 'Start your day early with peak focus.', icon: '🌅' },
+        { name: 'Evening Shift', timing: '02:00 PM – 10:00 PM', description: 'Perfect for late risers and working professionals.', icon: '🌇' },
+        { name: 'Full Day Shift', timing: '06:00 AM – 11:00 PM', description: '17-hour dedicated reserved desk for serious aspirants.', icon: '☀️' },
+        { name: 'Night Owl Slot', timing: '10:00 PM – 06:00 AM', description: 'Distraction-free overnight study hours.', icon: '🌙' }
       ]
     },
     rules: {
@@ -290,8 +315,12 @@ landingPageSchema.statics.getDefaults = function() {
       title: 'Our Study Space & Ambience',
       subtitle: 'Take a virtual tour of our modern reading rooms and student facilities.',
       images: [
-        { url: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=800&auto=format&fit=crop&q=80', caption: 'Quiet Individual Study Cubicles', category: 'Cabins' },
-        { url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800&auto=format&fit=crop&q=80', caption: 'Reference Book Section & Clean Hall', category: 'Hall' }
+        { url: 'https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=800', caption: 'Premium Study Cabins', category: 'Cabins' },
+        { url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800', caption: 'Silent Reading Hall', category: 'Hall' },
+        { url: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800', caption: 'Discussion Zone & Amenities', category: 'Amenities' },
+        { url: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800', caption: 'Orthopedic Ergonomic Desks', category: 'Cabins' },
+        { url: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800', caption: 'Air-Conditioned Silent Zone', category: 'Hall' },
+        { url: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=800', caption: 'Discussion Room & High-Speed Wi-Fi', category: 'Amenities' }
       ]
     },
     faqs: {
@@ -299,8 +328,11 @@ landingPageSchema.statics.getDefaults = function() {
       title: 'Frequently Asked Questions',
       subtitle: 'Find answers to common queries.',
       items: [
-        { question: 'What are the library timings?', answer: 'We are open from 06:00 AM to 11:00 PM daily.' },
-        { question: 'Is Wi-Fi provided?', answer: 'Yes, we provide 300 Mbps high-speed Wi-Fi.' }
+        { question: 'What is the free trial policy?', answer: 'We offer a 1-day free trial for new students to experience our silent environment and facilities. You can book it by filling out the enquiry form below.' },
+        { question: 'How is locker allotment handled?', answer: 'Lockers are available on a first-come, first-served basis for a nominal monthly fee. Full Day Prime members get priority locker allotment.' },
+        { question: 'Can I pause my membership or get a refund?', answer: 'Membership fees are non-refundable. However, long-term plans (6 months+) allow for a 15-day membership pause in case of medical emergencies or exams.' },
+        { question: 'Can I switch my shift later?', answer: 'Yes, shift switching is allowed subject to seat availability in the requested shift. A small admin fee may apply.' },
+        { question: 'What is the admission procedure?', answer: 'Simply click on "Register Now", fill the online form, choose your plan, and complete the payment. Bring your ID proof to the library to collect your access card.' }
       ]
     },
     testimonials: {
@@ -309,8 +341,9 @@ landingPageSchema.statics.getDefaults = function() {
       googleRating: '4.9',
       googleReviewsCount: '250+ Reviews',
       items: [
-        { name: 'Aditya Deshmukh', exam: 'Cleared MPSC Rajyaseva', feedback: 'Studied here for 1.5 years. The strict silence and comfortable seating helped me maintain 14 hours of daily study stamina without back pain!', rating: 5 },
-        { name: 'Priya Kulkarni', exam: 'Cleared IBPS PO Exam', feedback: 'High-speed Wi-Fi and the peaceful vibe made all the difference for my mock tests and online preparation. Highly recommended for serious aspirants.', rating: 5 }
+        { name: 'Rahul Desai', exam: 'UPSC Aspirant', feedback: 'The absolute best place in the city to prepare for UPSC. The silence is strictly maintained and the chairs are very comfortable for 10+ hour sessions.', rating: 5 },
+        { name: 'Snehal Patil', exam: 'Cleared MPSC Rajyaseva', feedback: 'High-speed Wi-Fi, dedicated personal charging socket, and zero disturbances helped me crack MPSC in my first attempt!', rating: 5 },
+        { name: 'Priya Kulkarni', exam: 'Cleared IBPS PO Exam', feedback: 'The peaceful vibe and ergonomic setup made all the difference for my mock tests and online preparation. Highly recommended for serious aspirants.', rating: 5 }
       ]
     },
     contact: {

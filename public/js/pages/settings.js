@@ -2858,7 +2858,18 @@ async function initLandingSettings(container) {
       const parent = listContainer.querySelector('#l-facilities-list');
       if (!parent) return;
       parent.innerHTML = '';
-      const items = config.facilities?.items || [];
+      let items = config.facilities?.items;
+      if (!Array.isArray(items) || items.length === 0) {
+        items = [
+          { icon: '❄️', title: 'Central Air Conditioning', description: 'Dual inverter ACs maintaining optimal 23°C temperature all year round.' },
+          { icon: '📶', title: 'Ultra High-Speed Wi-Fi', description: 'Dual fiber broadband connections (300 Mbps) with zero downtime.' },
+          { icon: '💺', title: 'Ergonomic Seating', description: 'Orthopedic lumbar-support chairs with spacious individual wooden desks.' },
+          { icon: '🔋', title: '100% Power Backup', description: 'Heavy-duty silent online UPS + generator backup ensures no blackout pauses.' }
+        ];
+      }
+      if (!config.facilities) config.facilities = {};
+      config.facilities.items = items;
+
       items.forEach((item, idx) => {
         const div = document.createElement('div');
         div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface);';
@@ -2899,6 +2910,7 @@ async function initLandingSettings(container) {
     };
     listContainer.querySelector('#btn-add-facility')?.addEventListener('click', () => {
       if (!config.facilities) config.facilities = { items: [] };
+      if (!Array.isArray(config.facilities.items)) config.facilities.items = [];
       config.facilities.items.push({ icon: '✨', title: 'New Facility', description: '' });
       renderFacilities();
     });
@@ -2907,7 +2919,18 @@ async function initLandingSettings(container) {
       const parent = listContainer.querySelector('#l-shifts-list');
       if (!parent) return;
       parent.innerHTML = '';
-      const items = config.shifts?.items || [];
+      let items = config.shifts?.items;
+      if (!Array.isArray(items) || items.length === 0) {
+        items = [
+          { icon: '🌅', name: 'Morning Shift', timing: '06:00 AM – 02:00 PM', description: 'Start your day early with peak focus.' },
+          { icon: '🌇', name: 'Evening Shift', timing: '02:00 PM – 10:00 PM', description: 'Perfect for late risers and working professionals.' },
+          { icon: '☀️', name: 'Full Day Shift', timing: '06:00 AM – 11:00 PM', description: '17-hour dedicated reserved desk for serious aspirants.' },
+          { icon: '🌙', name: 'Night Owl Slot', timing: '10:00 PM – 06:00 AM', description: 'Distraction-free overnight study hours.' }
+        ];
+      }
+      if (!config.shifts) config.shifts = {};
+      config.shifts.items = items;
+
       items.forEach((item, idx) => {
         const div = document.createElement('div');
         div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface);';
@@ -2949,6 +2972,7 @@ async function initLandingSettings(container) {
     };
     listContainer.querySelector('#btn-add-shift')?.addEventListener('click', () => {
       if (!config.shifts) config.shifts = { items: [] };
+      if (!Array.isArray(config.shifts.items)) config.shifts.items = [];
       config.shifts.items.push({ icon: '🕒', name: 'New Shift', timing: '', description: '' });
       renderShifts();
     });
@@ -2957,7 +2981,20 @@ async function initLandingSettings(container) {
       const parent = listContainer.querySelector('#l-rules-list');
       if (!parent) return;
       parent.innerHTML = '';
-      const items = config.rules?.items || [];
+      let items = config.rules?.items;
+      if (!Array.isArray(items) || items.length === 0) {
+        items = [
+          'Strict pin-drop silence must be maintained in the reading hall at all times.',
+          'Mobile phones MUST be kept on Silent/Vibrate mode. Phone calls must only be attended outside the hall.',
+          'Seats are strictly reserved for allotted members during their designated shift hours.',
+          'Eating snacks or meals inside the study hall is prohibited. Please use the designated cafeteria area.',
+          'Please keep your study desk clean and tidy before leaving for the day.',
+          'Library management reserves the right to cancel admission in case of indiscipline or misbehavior.'
+        ];
+      }
+      if (!config.rules) config.rules = {};
+      config.rules.items = items;
+
       items.forEach((item, idx) => {
         const div = document.createElement('div');
         div.style.cssText = 'display: flex; gap: 0.5rem; align-items: center; background: var(--color-surface); padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 6px;';
@@ -2995,6 +3032,7 @@ async function initLandingSettings(container) {
     };
     listContainer.querySelector('#btn-add-rule')?.addEventListener('click', () => {
       if (!config.rules) config.rules = { items: [] };
+      if (!Array.isArray(config.rules.items)) config.rules.items = [];
       config.rules.items.push('');
       renderRules();
     });
@@ -3003,7 +3041,20 @@ async function initLandingSettings(container) {
       const parent = listContainer.querySelector('#l-gallery-list');
       if (!parent) return;
       parent.innerHTML = '';
-      const items = config.gallery?.images || [];
+      let items = config.gallery?.images;
+      if (!Array.isArray(items) || items.length === 0) {
+        items = [
+          { url: 'https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=800', caption: 'Premium Study Cabins', category: 'Cabins' },
+          { url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800', caption: 'Silent Reading Hall', category: 'Hall' },
+          { url: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800', caption: 'Discussion Zone & Amenities', category: 'Amenities' },
+          { url: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800', caption: 'Orthopedic Ergonomic Desks', category: 'Cabins' },
+          { url: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800', caption: 'Air-Conditioned Silent Zone', category: 'Hall' },
+          { url: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=800', caption: 'Discussion Room & High-Speed Wi-Fi', category: 'Amenities' }
+        ];
+      }
+      if (!config.gallery) config.gallery = {};
+      config.gallery.images = items;
+
       items.forEach((item, idx) => {
         const div = document.createElement('div');
         div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: center; position: relative; background: var(--color-surface);';
@@ -3057,6 +3108,7 @@ async function initLandingSettings(container) {
     };
     listContainer.querySelector('#btn-add-gallery')?.addEventListener('click', () => {
       if (!config.gallery) config.gallery = { images: [] };
+      if (!Array.isArray(config.gallery.images)) config.gallery.images = [];
       config.gallery.images.push({ url: '', category: 'Hall', caption: '' });
       renderGallery();
     });
@@ -3065,7 +3117,19 @@ async function initLandingSettings(container) {
       const parent = listContainer.querySelector('#l-faqs-list');
       if (!parent) return;
       parent.innerHTML = '';
-      const items = config.faqs?.items || [];
+      let items = config.faqs?.items;
+      if (!Array.isArray(items) || items.length === 0) {
+        items = [
+          { question: 'What is the free trial policy?', answer: 'We offer a 1-day free trial for new students to experience our silent environment and facilities. You can book it by filling out the enquiry form below.' },
+          { question: 'How is locker allotment handled?', answer: 'Lockers are available on a first-come, first-served basis for a nominal monthly fee. Full Day Prime members get priority locker allotment.' },
+          { question: 'Can I pause my membership or get a refund?', answer: 'Membership fees are non-refundable. However, long-term plans (6 months+) allow for a 15-day membership pause in case of medical emergencies or exams.' },
+          { question: 'Can I switch my shift later?', answer: 'Yes, shift switching is allowed subject to seat availability in the requested shift. A small admin fee may apply.' },
+          { question: 'What is the admission procedure?', answer: 'Simply click on "Register Now", fill the online form, choose your plan, and complete the payment. Bring your ID proof to the library to collect your access card.' }
+        ];
+      }
+      if (!config.faqs) config.faqs = {};
+      config.faqs.items = items;
+
       items.forEach((item, idx) => {
         const div = document.createElement('div');
         div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface);';
@@ -3103,6 +3167,7 @@ async function initLandingSettings(container) {
     };
     listContainer.querySelector('#btn-add-faq')?.addEventListener('click', () => {
       if (!config.faqs) config.faqs = { items: [] };
+      if (!Array.isArray(config.faqs.items)) config.faqs.items = [];
       config.faqs.items.push({ question: '', answer: '' });
       renderFaqs();
     });
@@ -3111,7 +3176,17 @@ async function initLandingSettings(container) {
       const parent = listContainer.querySelector('#l-testimonials-list');
       if (!parent) return;
       parent.innerHTML = '';
-      const items = config.testimonials?.items || [];
+      let items = config.testimonials?.items;
+      if (!Array.isArray(items) || items.length === 0) {
+        items = [
+          { name: 'Rahul Desai', exam: 'UPSC Aspirant', feedback: 'The absolute best place in the city to prepare for UPSC. The silence is strictly maintained and the chairs are very comfortable for 10+ hour sessions.', rating: 5 },
+          { name: 'Snehal Patil', exam: 'Cleared MPSC Rajyaseva', feedback: 'High-speed Wi-Fi, dedicated personal charging socket, and zero disturbances helped me crack MPSC in my first attempt!', rating: 5 },
+          { name: 'Priya Kulkarni', exam: 'Cleared IBPS PO Exam', feedback: 'The peaceful vibe and ergonomic setup made all the difference for my mock tests and online preparation. Highly recommended for serious aspirants.', rating: 5 }
+        ];
+      }
+      if (!config.testimonials) config.testimonials = {};
+      config.testimonials.items = items;
+
       items.forEach((item, idx) => {
         const div = document.createElement('div');
         div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface);';
@@ -3153,6 +3228,7 @@ async function initLandingSettings(container) {
     };
     listContainer.querySelector('#btn-add-testimonial')?.addEventListener('click', () => {
       if (!config.testimonials) config.testimonials = { items: [] };
+      if (!Array.isArray(config.testimonials.items)) config.testimonials.items = [];
       config.testimonials.items.push({ name: '', exam: '', rating: 5, feedback: '' });
       renderTestimonials();
     });
