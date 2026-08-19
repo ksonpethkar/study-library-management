@@ -1,0 +1,221 @@
+/* ==========================================================================
+   Comprehensive Mobile Compatibility, Auto-Fit, & Screen-Fit Design System
+   iOS & Android Touch Flexibility, Responsive Tables, Modals & Auto-Shrink
+   ========================================================================== */
+
+/* 1. Prevent Horizontal Page Out-of-Bounds Scrolling */
+html, body {
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  -webkit-text-size-adjust: 100%;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* 2. iOS Safari Auto-Zoom Prevention & Touch Accessibility */
+@media (max-width: 768px) {
+  /* Enforce 16px font-size on all form inputs on mobile to prevent iOS Safari auto-zooming */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  select,
+  textarea,
+  .form-control,
+  .form-select {
+    font-size: 16px !important;
+    touch-action: manipulation;
+  }
+
+  /* Minimum 44px touch target height for mobile touch ergonomics */
+  button,
+  .btn,
+  .nav-item,
+  .action-btn,
+  .dropdown-item,
+  .mobile-nav-item {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* 3. Global Responsive Auto-Fit Grid System */
+.grid-auto-fit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.grid-2-col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  gap: 1.25rem;
+}
+
+.grid-3-col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 1rem;
+}
+
+/* 4. Responsive Auto-Scrolling Data Tables */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  margin-bottom: 1rem;
+  border-radius: var(--radius-md, 8px);
+}
+
+.table-responsive table {
+  width: 100%;
+  min-width: 600px;
+  border-collapse: collapse;
+}
+
+@media (max-width: 767px) {
+  /* Subtle scroll prompt for wide tables */
+  .table-responsive {
+    position: relative;
+    box-shadow: inset -10px 0 10px -10px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* 5. Mobile Touch-Scrollable Sub-Tab Pill Navigation */
+.settings-tabs,
+.sub-tabs,
+.tab-list,
+.nav-tabs {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  gap: 8px !important;
+  padding-bottom: 8px;
+  margin-bottom: 1.25rem;
+  width: 100%;
+}
+
+.settings-tabs::-webkit-scrollbar,
+.sub-tabs::-webkit-scrollbar,
+.tab-list::-webkit-scrollbar,
+.nav-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-tab-btn,
+.sub-tab-btn,
+.tab-btn {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  padding: 8px 16px !important;
+  border-radius: 9999px !important;
+  font-size: 0.88rem !important;
+  font-weight: 600 !important;
+}
+
+/* 6. Mobile Modal Dialog Auto-Sizing & Screen-Fit */
+@media (max-width: 768px) {
+  .modal-dialog,
+  .modal-content,
+  .custom-modal {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 88vh !important;
+    margin: 10px auto !important;
+    border-radius: 16px !important;
+    padding: 1rem !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-header {
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+
+  .modal-body {
+    padding: 4px 0;
+  }
+
+  .modal-footer {
+    padding-top: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .modal-footer .btn {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}
+
+/* 7. Page Container & Layout Auto-Fit Rules */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 0.85rem !important;
+    width: 100% !important;
+    overflow-x: hidden;
+  }
+
+  .module-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .module-header .module-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .module-header .module-actions .btn {
+    flex: 1;
+    min-width: 130px;
+  }
+
+  /* Card padding reduction for mobile screens */
+  .card {
+    padding: 1rem !important;
+    border-radius: 12px !important;
+  }
+}
+
+/* 8. iOS Safe Area & PWA Display Enhancements */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .mobile-nav,
+  .floating-action-bar,
+  .modal-footer {
+    padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .header {
+    padding-top: max(8px, env(safe-area-inset-top));
+  }
+}
+
+/* 9. Standalone PWA Screen-Fit Adjustments */
+@media (display-mode: standalone) {
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  
+  input, textarea {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+}
