@@ -269,13 +269,14 @@ router.post('/public-register', authLimiter, async (req, res) => {
     const year = new Date().getFullYear();
     const studentId = generateStudentId(prefix, year, studentCount + 1);
 
-    // Validate custom fields
-    const activeFields = await CustomField.getActiveFields();
+    // Validate custom fields safely
+    const activeFields = await CustomField.getActiveFields().catch(() => []);
     const missingFields = [];
     for (const field of activeFields) {
       if (field.required && !field.isSystemField) {
-        if (!customFields || customFields[field.fieldName] === undefined || customFields[field.fieldName] === null || customFields[field.fieldName] === '') {
-          missingFields.push(field.label);
+        const val = customFields ? (customFields[field.fieldName] ?? customFields[`cf_${field.fieldName}`]) : null;
+        if (val === undefined || val === null || val === '') {
+          missingFields.push(field.label || field.fieldName);
         }
       }
     }
@@ -302,11 +303,12 @@ router.post('/public-register', authLimiter, async (req, res) => {
     }
 
     // Determine initial status based on payment completion
-    let initialStatus = 'active';
+    const isOnlinePayment = ['upi', 'card', 'netbanking', 'online'].includes(paymentMethod);
+    let initialStatus = isOnlinePayment ? 'active' : 'pending_payment';
     let calculatedExpiryDate = null;
     let selectedPlanDoc = null;
 
-    if (plan) {
+    if (plan && mongoose.Types.ObjectId.isValid(plan)) {
       selectedPlanDoc = await Plan.findById(plan);
       if (selectedPlanDoc) {
         const duration = selectedPlanDoc.duration || 30;
@@ -317,11 +319,6 @@ router.post('/public-register', authLimiter, async (req, res) => {
 
         calculatedExpiryDate = new Date();
         calculatedExpiryDate.setDate(calculatedExpiryDate.getDate() + daysToAdd);
-
-        // If not paying online now, set status to pending_payment
-        if (paymentMethod !== 'upi' || !transactionId) {
-          initialStatus = 'pending_payment';
-        }
       }
     }
 
@@ -334,7 +331,8 @@ router.post('/public-register', authLimiter, async (req, res) => {
       gender: (gender || 'other').toLowerCase(),
       dateOfBirth: dob ? new Date(dob) : null,
       targetExams: Array.isArray(targetExams) ? targetExams : (targetExams ? [targetExams] : []),
-      plan: plan || null,
+      plan: (plan && mongoose.Types.ObjectId.isValid(plan)) ? plan : null,
+      branch: (req.body.branch && mongoose.Types.ObjectId.isValid(req.body.branch)) ? req.body.branch : null,
       expiryDate: calculatedExpiryDate,
       notes: finalNotes,
       photo: photo || '',
@@ -356,7 +354,7 @@ router.post('/public-register', authLimiter, async (req, res) => {
 
     // Handle seat assignment if selected during registration
     let allocatedSeatDoc = null;
-    if (seat) {
+    if (seat && mongoose.Types.ObjectId.isValid(seat)) {
       allocatedSeatDoc = await Seat.findById(seat);
       if (allocatedSeatDoc) {
         newStudent.seat = allocatedSeatDoc._id;
@@ -376,15 +374,15 @@ router.post('/public-register', authLimiter, async (req, res) => {
       const planPrice = Math.round(selectedPlanDoc.effectivePrice || selectedPlanDoc.price || 0);
       const finalAmount = Math.max(0, planPrice - referralDiscount);
 
-      if (paymentMethod === 'upi' && transactionId) {
+      if (isOnlinePayment) {
         await Payment.create({
           student: newStudent._id,
           plan: selectedPlanDoc._id,
           amount: planPrice,
           discount: referralDiscount,
           finalAmount,
-          paymentMethod: 'upi',
-          transactionId,
+          paymentMethod: paymentMethod || 'upi',
+          transactionId: transactionId || `TXN-${Date.now()}`,
           paymentDate: new Date(),
           periodStart: new Date(),
           periodEnd: calculatedExpiryDate,

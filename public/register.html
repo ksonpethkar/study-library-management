@@ -1155,8 +1155,8 @@
       btn.textContent = 'Submitting Admission & Payment...';
 
       const customFields = {};
-      document.querySelectorAll('.custom-field-input, .custom-field-radio').forEach(input => {
-        const name = input.dataset.name;
+      document.querySelectorAll('.custom-field-input, .custom-field-radio, [data-field], [data-name]').forEach(input => {
+        const name = input.dataset.field || input.dataset.name || (input.name ? input.name.replace('cf_', '') : '');
         if (name) {
           if (input.type === 'checkbox') {
              customFields[name] = input.checked;
@@ -1168,6 +1168,11 @@
         }
       });
 
+      let txnId = '';
+      if (pmMode === 'upi') txnId = document.getElementById('reg-upi-ref')?.value?.trim() || '';
+      else if (pmMode === 'card') txnId = document.getElementById('reg-card-no')?.value?.trim() || '';
+      else if (pmMode === 'netbanking') txnId = document.getElementById('reg-nb-ref')?.value?.trim() || '';
+
       const payload = {
         name: document.getElementById('reg-name').value.trim(),
         phone: document.getElementById('reg-phone').value.trim(),
@@ -1178,14 +1183,14 @@
         pincode: document.getElementById('reg-pincode')?.value?.trim() || '',
         city: document.getElementById('reg-city')?.value?.trim() || '',
         state: document.getElementById('reg-state')?.value?.trim() || '',
-        branch: selectedBranchId || document.getElementById('reg-branch')?.value || null,
+        branch: (selectedBranchId && selectedBranchId !== 'default_main') ? selectedBranchId : (document.getElementById('reg-branch')?.value !== 'default_main' ? document.getElementById('reg-branch')?.value : null),
         photo: photoPicker ? photoPicker.querySelector('.mfp-hidden-value')?.value || '' : '',
         targetExams: Array.from(selectedExams),
         plan: document.getElementById('reg-plan').value || null,
         seat: document.getElementById('reg-selected-seat').value || null,
         signature: sigStudio ? sigStudio.getValue() : '',
         paymentMethod: pmMode,
-        transactionId: pmMode === 'upi' ? upiTxnId : (document.getElementById('reg-card-no')?.value || document.getElementById('reg-nb-ref')?.value || ''),
+        transactionId: txnId,
         customFields
       };
 
