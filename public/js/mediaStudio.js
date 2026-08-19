@@ -909,37 +909,40 @@ export class MediaFieldPicker {
         if (preset === 'qr_code') {
           const upiString = `upi://pay?pa=thecozycorner@okaxis&pn=${encodeURIComponent('Study Library')}&am=0&cu=INR`;
           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiString)}`;
-          return `<img src="${qrUrl}" style="width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 2px;" title="Dynamic UPI QR Preview">`;
+          return `<img src="${qrUrl}" alt="UPI QR" style="width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 2px;">`;
         }
-        return '<span style="font-size: 24px; opacity: 0.5;">📷</span>';
+        const defaultEmoji = preset === 'stamp_logo' ? '🏛️' : preset === 'qr_code' ? '📱' : '👤';
+        return `<span style="font-size: 2rem; line-height: 1; opacity: 0.85;">${defaultEmoji}</span>`;
       }
 
       const safeSrc = cleanUrl.startsWith('data:image') ? cleanUrl : escapeHTML(cleanUrl);
-      const fallbackQr = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=thecozycorner@okaxis`;
-      const fallbackMarkup = preset === 'qr_code'
-        ? `<img src="${fallbackQr}" style="width:100%;height:100%;object-fit:contain;background:#fff;padding:2px;" title="Dynamic QR Preview">`
-        : `<span style="font-size:11px;font-weight:700;color:var(--color-primary);text-align:center;padding:2px;display:block;">📷 Click Upload<br><small style="font-size:9px;color:var(--color-text-muted);">Select Image</small></span>`;
+      const fallbackUrl = preset === 'qr_code'
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=thecozycorner@okaxis`
+        : `https://ui-avatars.com/api/?name=${encodeURIComponent(label.replace(/[^a-zA-Z0-9 ]/g, ''))}&background=6c5ce7&color=fff&size=128`;
 
-      return `<img src="${safeSrc}" style="width: 100%; height: 100%; object-fit: contain; background: #fff;" onerror="this.onerror=null; this.style.display='none'; if(this.parentElement) this.parentElement.innerHTML='${fallbackMarkup.replace(/'/g, "\\'")}';">`;
+      return `<img src="${safeSrc}" alt="Preview" style="width: 100%; height: 100%; object-fit: contain; background: #fff; border-radius: 6px; padding: 2px;" onerror="this.onerror=null; this.src='${fallbackUrl}';">`;
     };
 
     wrapper.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 14px; padding: 12px; background: var(--color-surface-hover); border: 1.5px dashed var(--color-border); border-radius: 10px;">
-        <div class="mfp-preview" style="width: 72px; height: 72px; border-radius: 8px; background: var(--color-bg-secondary); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid var(--color-border); flex-shrink: 0; cursor: pointer;" title="Click to Change Image">
-          ${renderPreview(value)}
-        </div>
-        <div style="flex: 1;">
-          <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text-primary); margin-bottom: 6px;">${escapeHTML(label)}</div>
-          <div class="d-flex gap-2 flex-wrap" style="align-items: center;">
-            <button type="button" class="btn btn-sm btn-primary mfp-upload-file-btn" style="font-size: 0.75rem; font-weight: 600;">
-              📁 ${value ? 'Change Image' : 'Upload Image'}
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-primary mfp-open-btn" style="font-size: 0.75rem; font-weight: 600;">
-              📸 Camera / Studio
-            </button>
-            <button type="button" class="btn btn-sm btn-ghost text-danger mfp-remove-btn" style="font-size: 0.75rem; ${value ? '' : 'display: none;'}">
-              🗑️ Remove
-            </button>
+      <div style="background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 12px; padding: 14px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(label)}</div>
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div class="mfp-preview" style="width: 68px; height: 68px; border-radius: 10px; background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid var(--color-border); flex-shrink: 0; cursor: pointer; box-shadow: var(--shadow-sm);" title="Click to Change Image">
+            ${renderPreview(value)}
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+              <button type="button" class="btn btn-sm btn-primary mfp-upload-file-btn" style="font-size: 0.76rem; font-weight: 600; padding: 4px 10px;">
+                📁 ${value ? 'Change' : 'Upload'}
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-primary mfp-open-btn" style="font-size: 0.76rem; font-weight: 600; padding: 4px 10px;">
+                📸 Camera / Studio
+              </button>
+              <button type="button" class="btn btn-sm btn-ghost text-danger mfp-remove-btn" style="font-size: 0.76rem; padding: 4px 8px; ${value ? '' : 'display: none;'}">
+                🗑️ Remove
+              </button>
+            </div>
+            <small style="color: var(--color-text-secondary); font-size: 0.72rem;">${preset === 'qr_code' ? '⚡ UPI QR for student fees' : '✨ 1:1 Transparent PNG / SVG'}</small>
           </div>
         </div>
         <input type="file" class="mfp-file-input" accept="image/*" style="display: none;">

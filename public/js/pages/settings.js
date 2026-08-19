@@ -158,24 +158,15 @@ function renderSettingsUI(container, profile, settings) {
               </div>
 
               <!-- Media Previews: Logo, Favicon & UPI QR -->
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; padding: 1.25rem; background: var(--color-bg-primary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; padding: 1.25rem; background: var(--color-bg-primary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
                 <!-- Logo -->
-                <div>
-                  <label class="form-label" style="font-weight: 600;">Library Emblem / Logo</label>
-                  <div id="mount-setting-logo"></div>
-                </div>
+                <div id="mount-setting-logo"></div>
 
                 <!-- Favicon -->
-                <div>
-                  <label class="form-label" style="font-weight: 600;">🌐 Browser Tab Favicon Icon</label>
-                  <div id="mount-setting-favicon"></div>
-                </div>
+                <div id="mount-setting-favicon"></div>
 
                 <!-- UPI QR Code -->
-                <div>
-                  <label class="form-label" style="font-weight: 600;">UPI Payment QR Code</label>
-                  <div id="mount-setting-qr"></div>
-                </div>
+                <div id="mount-setting-qr"></div>
               </div>
 
               <!-- Payment & Banking Configuration Section -->
