@@ -1456,12 +1456,13 @@ label.switch {
 
 .switch-label input[type="checkbox"],
 label.switch input[type="checkbox"] {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  margin: 0;
-  pointer-events: none;
+  position: absolute !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  pointer-events: none !important;
+  display: none !important;
 }
 
 .form-toggle,

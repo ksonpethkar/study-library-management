@@ -2835,7 +2835,7 @@ async function initSidebarManager(container) {
 
               <!-- Active Toggle -->
               <label class="switch-label" style="margin: 0; font-weight: 600; font-size: 0.88rem;">
-                <input type="checkbox" class="form-toggle item-enable-toggle" ${item.isEnabled !== false ? 'checked' : ''}>
+                <input type="checkbox" class="item-enable-toggle" ${item.isEnabled !== false ? 'checked' : ''}>
                 <span class="switch-slider"></span>
                 <span class="active-toggle-label" style="color: ${item.isEnabled !== false ? 'var(--color-success)' : 'var(--color-text-muted)'};">${item.isEnabled !== false ? 'Active' : 'Hidden'}</span>
               </label>
