@@ -888,8 +888,12 @@ export class MediaFieldPicker {
     wrapper.className = 'media-field-picker-wrapper';
 
     const formatImgUrl = (val) => {
-      if (!val) return '';
+      if (!val || typeof val !== 'string') return '';
       let clean = val.trim();
+      if (!clean || clean === 'null' || clean === 'undefined') return '';
+      if (clean.startsWith('data:image')) {
+        return clean;
+      }
       if (clean.startsWith('uploads/') || clean.startsWith('uploads\\')) {
         return '/' + clean.replace(/\\/g, '/');
       }
@@ -900,9 +904,10 @@ export class MediaFieldPicker {
     };
 
     const renderPreview = (val) => {
-      if (!val) return '<span style="font-size: 24px; opacity: 0.5;">📷</span>';
       const cleanUrl = formatImgUrl(val);
-      return `<img src="${escapeHTML(cleanUrl)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:11px; font-weight:700; color:var(--color-danger); text-align:center; padding:2px; display:block;\\'>⚠️ Broken Image<br><small style=\\'font-size:9px; color:var(--color-text-muted);\\'>Click Upload</small></span>';">`;
+      if (!cleanUrl) return '<span style="font-size: 24px; opacity: 0.5;">📷</span>';
+      const safeSrc = cleanUrl.startsWith('data:image') ? cleanUrl : escapeHTML(cleanUrl);
+      return `<img src="${safeSrc}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.style.display='none'; if(this.parentElement) this.parentElement.innerHTML='<span style=\\'font-size:11px; font-weight:700; color:var(--color-danger); text-align:center; padding:2px; display:block;\\'>⚠️ Broken Image<br><small style=\\'font-size:9px; color:var(--color-text-muted);\\'>Click Upload</small></span>';">`;
     };
 
     wrapper.innerHTML = `
