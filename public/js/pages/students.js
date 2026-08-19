@@ -357,33 +357,33 @@ export async function render() {
 
   async function showStudentForm(student = null) {
     const isEdit = !!student;
-    
-    // Fetch available plans and seats
+    // Fetch available plans, seats, custom fields, and active form template
     let plansOptions = '<option value="">-- Select Plan (Optional) --</option>';
     let seatsOptions = '<option value="">-- Select Seat (Optional) --</option>';
     let customFields = [];
+    let template = {};
     
     try {
-      const [plansRes, seatsRes, cfRes] = await Promise.all([
+      const [plansRes, seatsRes, cfRes, tplRes] = await Promise.all([
         api.get('/api/plans'),
         api.get('/api/seats?status=available'),
-        api.get('/api/custom-fields')
+        api.get('/api/custom-fields/all'),
+        api.get('/api/custom-fields/templates/active')
       ]);
       
-      if (plansRes.success && plansRes.data) {
+      if (plansRes?.success && plansRes.data) {
         plansRes.data.forEach(p => {
           const selected = (student && student.plan && (student.plan._id === p._id || student.plan === p._id)) ? 'selected' : '';
           plansOptions += `<option value="${p._id}" ${selected}>${escapeHTML(p.name)} - ₹${p.price} (${p.duration} ${p.durationType})</option>`;
         });
       }
       
-      if (seatsRes.success && seatsRes.data) {
+      if (seatsRes?.success && seatsRes.data) {
         seatsRes.data.forEach(s => {
           const selected = (student && student.seat && (student.seat._id === s._id || student.seat === s._id)) ? 'selected' : '';
           seatsOptions += `<option value="${s._id}" ${selected}>${escapeHTML(s.seatNumber)} (${escapeHTML(s.zone)} - ${escapeHTML(s.type)})</option>`;
         });
       }
-      // If editing and student already has a seat, add that seat to the options
       if (student && student.seat && typeof student.seat === 'object') {
         if (!seatsOptions.includes(student.seat._id)) {
           seatsOptions += `<option value="${student.seat._id}" selected>${escapeHTML(student.seat.seatNumber)} (Current)</option>`;
@@ -393,241 +393,286 @@ export async function render() {
       if (cfRes?.success && cfRes?.data) {
         customFields = cfRes.data;
       }
-    } catch (err) {
-      console.error('Error fetching plans/seats/custom-fields for student form:', err);
-    }
-
-    let customFieldsHtml = '';
-    if (customFields && customFields.length > 0) {
-      const systemFields = ['name', 'phone', 'email', 'gender', 'dateOfBirth', 'bloodGroup', 'photo', 'targetExams', 'occupation', 'address', 'city', 'state', 'pincode', 'signature', 'emergencyContactName', 'emergencyContactPhone', 'emergencyContactRelation', 'idProofType', 'idProofNumber', 'idProofImage', 'rfidCardNumber', 'biometricId'];
-      const filteredFields = customFields.filter(f => !systemFields.includes(f.fieldName));
-      
-      if (filteredFields.length > 0) {
-        // Group by section
-        const sections = {};
-        filteredFields.forEach(f => {
-          const sec = f.sectionLabel || 'Additional Information';
-          if (!sections[sec]) sections[sec] = [];
-          sections[sec].push(f);
-        });
-        
-        for (const [secName, fields] of Object.entries(sections)) {
-          customFieldsHtml += `
-            <div class="col-12 mt-2">
-              <h5 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; border-bottom: 1px solid var(--color-divider); padding-bottom: 4px;">📝 ${escapeHTML(secName)}</h5>
-            </div>
-          `;
-          
-          customFieldsHtml += fields.map(f => {
-            const val = student?.customFields?.[f.fieldName] !== undefined ? student.customFields[f.fieldName] : '';
-            if (f.type === 'textarea') {
-              return `
-                <div class="col-12">
-                  <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)} ${f.required ? '*' : ''}</label>
-                  <textarea class="form-control custom-field-input" data-field="${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''} placeholder="${escapeHTML(f.placeholder || '')}">${escapeHTML(val)}</textarea>
-                </div>
-              `;
-            } else if (f.type === 'select') {
-              return `
-                <div class="col-md-6">
-                  <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)} ${f.required ? '*' : ''}</label>
-                  <select class="form-select form-control custom-field-input" data-field="${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
-                    <option value="">-- Select --</option>
-                    ${(f.options || []).map(opt => `<option value="${escapeHTML(opt)}" ${val === opt ? 'selected' : ''}>${escapeHTML(opt)}</option>`).join('')}
-                  </select>
-                </div>
-              `;
-            } else if (f.type === 'photo_upload' || f.type === 'file') {
-              return `
-                <div class="col-md-6">
-                  <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)} ${f.required ? '*' : ''}</label>
-                  <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}" data-label="${escapeHTML(f.label)}" data-preset="${f.type === 'photo_upload' ? 'passport' : 'document'}"></div>
-                </div>
-              `;
-            } else if (f.type === 'checkbox') {
-              return `
-                <div class="col-md-6 d-flex align-items-center mt-2">
-                  <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500;">
-                    <input type="checkbox" class="form-checkbox custom-field-input" data-field="${escapeHTML(f.fieldName)}" ${(val === true || val === 'true') ? 'checked' : ''}>
-                    <span>${escapeHTML(f.label)}</span>
-                  </label>
-                </div>
-              `;
-            } else {
-              return `
-                <div class="col-md-6">
-                  <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)} ${f.required ? '*' : ''}</label>
-                  <input type="${escapeHTML(f.type || 'text')}" class="form-control custom-field-input" data-field="${escapeHTML(f.fieldName)}" value="${escapeHTML(val)}" ${f.required ? 'required' : ''} placeholder="${escapeHTML(f.placeholder || '')}">
-                </div>
-              `;
-            }
-          }).join('');
-        }
+      if (tplRes?.success && tplRes?.data) {
+        template = tplRes.data;
       }
+    } catch (err) {
+      console.error('Error fetching student modal dependencies:', err);
     }
 
-    const formHtml = `
-      <form id="studentForm">
-        <div class="row" style="row-gap: 14px;">
-          <div class="col-md-6">
-            <label class="form-label" style="font-weight: 500;">Full Name *</label>
-            <input type="text" class="form-control" name="name" value="${student ? escapeHTML(student.name) : ''}" required placeholder="e.g. Rahul Sharma">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" style="font-weight: 500;">Phone Number *</label>
-            <input type="tel" class="form-control" name="phone" value="${student ? escapeHTML(student.phone) : ''}" required placeholder="10 digit mobile">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" style="font-weight: 500;">Email Address</label>
-            <input type="email" class="form-control" name="email" value="${student && student.email ? escapeHTML(student.email) : ''}" placeholder="name@domain.com">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" style="font-weight: 500;">Gender</label>
-            <select class="form-select form-control" name="gender">
-              <option value="male" ${student && student.gender === 'male' ? 'selected' : ''}>Male</option>
-              <option value="female" ${student && student.gender === 'female' ? 'selected' : ''}>Female</option>
-              <option value="other" ${student && student.gender === 'other' ? 'selected' : ''}>Other</option>
-            </select>
-          </div>
-          
-          <div class="col-md-6">
-            <label class="form-label" style="font-weight: 500;">Membership Plan</label>
-            <select class="form-select form-control" name="plan">
-              ${plansOptions}
-            </select>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" style="font-weight: 500;">Assigned Seat</label>
-            <select class="form-select form-control" name="seat">
-              ${seatsOptions}
-            </select>
-          </div>
+    // Helper to extract student field values
+    function getVal(fieldName) {
+      if (!student) return '';
+      if (student[fieldName] !== undefined && student[fieldName] !== null) return student[fieldName];
+      if (fieldName === 'idProofType') return student.idProof?.type || 'Aadhaar Card';
+      if (fieldName === 'idProofNumber') return student.idProof?.number || '';
+      if (fieldName === 'idProofImage') return student.idProof?.image || '';
+      if (fieldName === 'emergencyContactName') return student.emergencyContact?.name || '';
+      if (fieldName === 'emergencyContactPhone') return student.emergencyContact?.phone || '';
+      if (fieldName === 'emergencyContactRelation') return student.emergencyContact?.relation || '';
+      if (fieldName === 'dateOfBirth' && student.dateOfBirth) {
+        const d = new Date(student.dateOfBirth);
+        return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+      }
+      if (student.customFields) {
+        if (student.customFields instanceof Map) return student.customFields.get(fieldName) || '';
+        if (typeof student.customFields === 'object') return student.customFields[fieldName] || '';
+      }
+      return '';
+    }
 
-          <div class="col-md-6">
-            <label class="form-label" style="font-weight: 500;">Date of Birth</label>
-            <input type="date" class="form-control" name="dateOfBirth" value="${(() => {
-              if (!student || !student.dateOfBirth) return '';
-              const d = new Date(student.dateOfBirth);
-              return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
-            })()}">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" style="font-weight: 500;">Status</label>
-            <select class="form-select form-control" name="status">
-              <option value="active" ${!student || student.status === 'active' ? 'selected' : ''}>Active</option>
-              <option value="inactive" ${student && student.status === 'inactive' ? 'selected' : ''}>Inactive</option>
-              <option value="suspended" ${student && student.status === 'suspended' ? 'selected' : ''}>Suspended</option>
-              <option value="expired" ${student && student.status === 'expired' ? 'selected' : ''}>Expired</option>
-            </select>
-          </div>
+    // 1. Group active fields by Form Builder configured sections
+    const configuredSections = (template.sections && template.sections.length > 0)
+      ? template.sections.filter(s => !s.isHidden).sort((a, b) => (a.order || 0) - (b.order || 0))
+      : [
+          { name: 'personal', label: 'Personal & Contact Details', icon: 'personal' },
+          { name: 'academic', label: 'Academic Goals & KYC Verification', icon: 'academic' },
+          { name: 'seat', label: 'Declaration & Signature', icon: 'seat' }
+        ];
 
-          <div class="col-md-6">
-            <label class="form-label" style="font-weight: 500;">Blood Group</label>
-            <select class="form-select form-control" name="bloodGroup">
-              <option value="">-- Select Blood Group --</option>
-              ${['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => `<option value="${bg}" ${student && student.bloodGroup === bg ? 'selected' : ''}>${bg}</option>`).join('')}
-            </select>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" style="font-weight: 500;">Occupation / College</label>
-            <input type="text" class="form-control" name="occupation" value="${student && student.occupation ? escapeHTML(student.occupation) : ''}" placeholder="e.g. Student / Software Engg">
-          </div>
+    const activeFields = (customFields || []).filter(f => f.isActive !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
 
-          <div class="col-md-6">
-            <label class="form-label" style="font-weight: 500;">🏷️ RFID Smart Card UID</label>
-            <input type="text" class="form-control" name="rfidCardNumber" value="${student && student.rfidCardNumber ? escapeHTML(student.rfidCardNumber) : ''}" placeholder="Scan card or enter Hex/DEC UID">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" style="font-weight: 500;">👤 Biometric / Machine ID</label>
-            <input type="text" class="form-control" name="biometricId" value="${student && student.biometricId ? escapeHTML(student.biometricId) : ''}" placeholder="e.g. BIO-101 / Finger ID">
-          </div>
+    const sectionsMap = new Map();
+    configuredSections.forEach(s => {
+      sectionsMap.set(s.name, {
+        key: s.name,
+        label: s.label,
+        icon: s.icon,
+        fields: []
+      });
+    });
 
-          <!-- Target Exam Multi-Select Chips -->
+    // Distribute fields to sections
+    activeFields.forEach(f => {
+      const secKey = f.section || 'personal';
+      if (sectionsMap.has(secKey)) {
+        sectionsMap.get(secKey).fields.push(f);
+      } else {
+        const firstSec = sectionsMap.values().next().value;
+        if (firstSec) firstSec.fields.push(f);
+      }
+    });
+
+    // 2. Render each field dynamically
+    function renderFieldInput(f) {
+      const val = getVal(f.fieldName);
+      const reqMark = f.required ? ' <span class="text-danger">*</span>' : '';
+      const colClass = f.type === 'textarea' || f.type === 'address_autocomplete' || f.type === 'aadhaar_pan' || f.type === 'exam_badge' || f.type === 'signature_pad' ? 'col-12' : 'col-md-6';
+
+      if (f.type === 'photo_upload') {
+        return `
           <div class="col-12 mt-2">
-            <label class="form-label" style="font-weight: 600;">🎯 Target Competitive Exams</label>
+            <label class="form-label" style="font-weight: 600;">📷 ${escapeHTML(f.label)}${reqMark}</label>
+            <div id="mount-student-photo" class="custom-media-mount" data-field="${escapeHTML(f.fieldName)}" data-preset="passport" data-label="${escapeHTML(f.label)}"></div>
+          </div>
+        `;
+      }
+
+      if (f.type === 'signature_pad') {
+        return `
+          <div class="col-12 mt-2">
+            <label class="form-label" style="font-weight: 600;">✍️ ${escapeHTML(f.label)}${reqMark}</label>
+            <div id="admission-signature-studio-mount"></div>
+          </div>
+        `;
+      }
+
+      if (f.type === 'aadhaar_pan') {
+        return `
+          <div class="col-12 mt-2">
+            <label class="form-label" style="font-weight: 600;">📑 ${escapeHTML(f.label)}${reqMark}</label>
+            <div class="row g-2 mb-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label class="form-label text-xs">ID Proof Type</label>
+                <select class="form-select form-control" name="idProof.type">
+                  <option value="Aadhaar Card" ${getVal('idProofType') === 'Aadhaar Card' ? 'selected' : ''}>Aadhaar Card</option>
+                  <option value="PAN Card" ${getVal('idProofType') === 'PAN Card' ? 'selected' : ''}>PAN Card</option>
+                  <option value="Driving License" ${getVal('idProofType') === 'Driving License' ? 'selected' : ''}>Driving License</option>
+                  <option value="Voter ID" ${getVal('idProofType') === 'Voter ID' ? 'selected' : ''}>Voter ID Card</option>
+                  <option value="College ID" ${getVal('idProofType') === 'College ID' ? 'selected' : ''}>College Student ID</option>
+                  <option value="Passport" ${getVal('idProofType') === 'Passport' ? 'selected' : ''}>Passport</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label text-xs">ID Proof Number</label>
+                <input type="text" class="form-control" name="idProof.number" value="${escapeHTML(getVal('idProofNumber'))}" placeholder="e.g. 1234 5678 9012">
+              </div>
+            </div>
+            <div id="mount-student-idproof" class="custom-media-mount" data-field="idProofImage" data-preset="document" data-label="ID Proof Document Upload"></div>
+          </div>
+        `;
+      }
+
+      if (f.type === 'exam_badge') {
+        const examsList = ['UPSC', 'MPSC', 'SSC CGL', 'Banking / IBPS', 'JEE', 'NEET', 'CA / CS', 'GATE', 'CAT / MBA', 'Law / CLAT', 'UGC NET', 'State PSC', 'Other'];
+        const selectedArr = Array.isArray(val) ? val : (typeof val === 'string' && val ? val.split(',') : []);
+        return `
+          <div class="col-12 mt-2">
+            <label class="form-label" style="font-weight: 600;">🎯 ${escapeHTML(f.label)}${reqMark}</label>
             <div id="exam-chips-container" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
-              ${['UPSC', 'MPSC', 'SSC CGL', 'Banking / IBPS', 'JEE', 'NEET', 'CA / CS', 'GATE', 'CAT / MBA', 'Law / CLAT', 'UGC NET', 'State PSC', 'Other'].map(ex => {
-                const isSelected = student && Array.isArray(student.targetExams) && student.targetExams.includes(ex);
+              ${examsList.map(ex => {
+                const isSel = selectedArr.includes(ex);
                 return `
-                  <button type="button" class="btn btn-sm exam-chip-btn ${isSelected ? 'btn-primary' : 'btn-outline-secondary'}" data-exam="${ex}" style="border-radius: 16px; font-size: 0.8rem; padding: 3px 10px;">
+                  <button type="button" class="btn btn-sm exam-chip-btn ${isSel ? 'btn-primary' : 'btn-outline-secondary'}" data-exam="${ex}" style="border-radius: 16px; font-size: 0.8rem; padding: 3px 10px;">
                     ${ex}
                   </button>
                 `;
               }).join('')}
             </div>
-            <input type="hidden" name="targetExams" id="selectedTargetExams" value="${student && Array.isArray(student.targetExams) ? escapeHTML(student.targetExams.join(',')) : ''}">
+            <input type="hidden" name="targetExams" id="selectedTargetExams" value="${escapeHTML(selectedArr.join(','))}">
           </div>
-          
-          <div class="col-12 mt-2">
-            <h5 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; border-bottom: 1px solid var(--color-divider); padding-bottom: 4px;">Address Details</h5>
+        `;
+      }
+
+      if (f.type === 'blood_group') {
+        const bgOptions = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+        return `
+          <div class="${colClass}">
+            <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
+            <select class="form-select form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
+              <option value="">-- Select Blood Group --</option>
+              ${bgOptions.map(bg => `<option value="${bg}" ${val === bg ? 'selected' : ''}>${bg}</option>`).join('')}
+            </select>
           </div>
+        `;
+      }
+
+      if (f.type === 'file') {
+        return `
+          <div class="col-md-6 mt-2">
+            <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
+            <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}" data-label="${escapeHTML(f.label)}" data-preset="document"></div>
+          </div>
+        `;
+      }
+
+      if (f.type === 'select') {
+        return `
+          <div class="${colClass}">
+            <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
+            <select class="form-select form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
+              <option value="">-- Select --</option>
+              ${(f.options || []).map(opt => `<option value="${escapeHTML(opt)}" ${val === opt ? 'selected' : ''}>${escapeHTML(opt)}</option>`).join('')}
+            </select>
+          </div>
+        `;
+      }
+
+      if (f.type === 'radio') {
+        return `
+          <div class="${colClass}">
+            <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px;">
+              ${(f.options || []).map(opt => `
+                <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.88rem; cursor: pointer;">
+                  <input type="radio" class="custom-dyn-radio" name="${escapeHTML(f.fieldName)}" data-field="${escapeHTML(f.fieldName)}" value="${escapeHTML(opt)}" ${val === opt ? 'checked' : ''}>
+                  ${escapeHTML(opt)}
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      if (f.type === 'checkbox' || f.type === 'terms_checkbox') {
+        const isChecked = val === true || val === 'true' || val === 'on';
+        return `
+          <div class="col-12 mt-1">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500;">
+              <input type="checkbox" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" ${isChecked ? 'checked' : ''} ${f.required ? 'required' : ''} style="width: 17px; height: 17px;">
+              <span>${escapeHTML(f.label)}${reqMark}</span>
+            </label>
+          </div>
+        `;
+      }
+
+      if (f.type === 'textarea') {
+        return `
           <div class="col-12">
-            <input type="text" class="form-control" name="address" value="${student && student.address ? escapeHTML(student.address) : ''}" placeholder="Street Address / Room No">
+            <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
+            <textarea class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" rows="2" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}>${escapeHTML(val)}</textarea>
           </div>
-          <div class="col-md-4">
-            <input type="text" class="form-control" name="city" value="${student && student.city ? escapeHTML(student.city) : ''}" placeholder="City">
-          </div>
-          <div class="col-md-4">
-            <input type="text" class="form-control" name="state" value="${student && student.state ? escapeHTML(student.state) : ''}" placeholder="State">
-          </div>
-          <div class="col-md-4">
-            <input type="text" class="form-control" name="pincode" value="${student && student.pincode ? escapeHTML(student.pincode) : ''}" placeholder="Pincode">
-          </div>
-          
-          <div class="col-12 mt-2">
-            <h5 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; border-bottom: 1px solid var(--color-divider); padding-bottom: 4px;">Emergency Contact</h5>
-          </div>
-          <div class="col-md-4">
-            <input type="text" class="form-control" name="emergencyContact.name" value="${student && student.emergencyContact && student.emergencyContact.name ? escapeHTML(student.emergencyContact.name) : ''}" placeholder="Contact Name">
-          </div>
-          <div class="col-md-4">
-            <input type="tel" class="form-control" name="emergencyContact.phone" value="${student && student.emergencyContact && student.emergencyContact.phone ? escapeHTML(student.emergencyContact.phone) : ''}" placeholder="Contact Phone">
-          </div>
-          <div class="col-md-4">
-            <input type="text" class="form-control" name="emergencyContact.relation" value="${student && student.emergencyContact && student.emergencyContact.relation ? escapeHTML(student.emergencyContact.relation) : ''}" placeholder="Relation (e.g. Father)">
-          </div>
+        `;
+      }
 
-          <!-- Student Passport Photo (Live Camera & Smart Crop) -->
-          <div class="col-12 mt-2">
-            <h5 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; border-bottom: 1px solid var(--color-divider); padding-bottom: 4px;">📷 Student Passport Photo</h5>
-            <div id="mount-student-photo"></div>
-          </div>
+      const inputType = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : (f.type === 'email' ? 'email' : (f.type === 'phone' ? 'tel' : 'text'))));
 
-          <!-- KYC Government ID Proof -->
-          <div class="col-12 mt-2">
-            <h5 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; border-bottom: 1px solid var(--color-divider); padding-bottom: 4px;">📑 KYC & Government ID Proof</h5>
-            <div class="row g-2 mb-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-              <div>
-                <label class="form-label" style="font-weight: 500;">ID Proof Type</label>
-                <select class="form-select form-control" name="idProof.type">
-                  <option value="Aadhaar Card" ${student?.idProof?.type === 'Aadhaar Card' ? 'selected' : ''}>Aadhaar Card</option>
-                  <option value="PAN Card" ${student?.idProof?.type === 'PAN Card' ? 'selected' : ''}>PAN Card</option>
-                  <option value="Driving License" ${student?.idProof?.type === 'Driving License' ? 'selected' : ''}>Driving License</option>
-                  <option value="Voter ID" ${student?.idProof?.type === 'Voter ID' ? 'selected' : ''}>Voter ID Card</option>
-                  <option value="College ID" ${student?.idProof?.type === 'College ID' ? 'selected' : ''}>College Student ID</option>
-                  <option value="Passport" ${student?.idProof?.type === 'Passport' ? 'selected' : ''}>Passport</option>
+      return `
+        <div class="${colClass}">
+          <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
+          <input type="${inputType}" class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" value="${escapeHTML(val)}" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}>
+        </div>
+      `;
+    }
+
+    // 3. Build Form Sections HTML dynamically
+    let dynamicSectionsHtml = '';
+    sectionsMap.forEach(sec => {
+      if (sec.fields.length === 0) return;
+      dynamicSectionsHtml += `
+        <div class="col-12 mt-3 mb-1" style="border-top: 1px solid var(--color-border); padding-top: 10px;">
+          <h5 style="font-size: 1rem; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <span>📝</span>
+            <span>${escapeHTML(sec.label)}</span>
+          </h5>
+        </div>
+        ${sec.fields.map(f => renderFieldInput(f)).join('')}
+      `;
+    });
+
+    const formHtml = `
+      <form id="studentForm">
+        <div class="row" style="row-gap: 12px;">
+          <!-- Dynamically Grouped Form Sections as Customized in Form Builder -->
+          ${dynamicSectionsHtml}
+
+          <!-- Administrative & Membership Allotment Section Card -->
+          <div class="col-12 mt-3" style="border-top: 2px dashed var(--color-primary); padding-top: 12px; background: rgba(108, 92, 231, 0.04); border-radius: var(--radius-md); padding: 14px;">
+            <h5 style="font-size: 1rem; font-weight: 700; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <span>🏛️</span>
+              <span>Administrative & Membership Allotment</span>
+            </h5>
+            
+            <div class="row" style="row-gap: 12px;">
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 600;">Membership Plan</label>
+                <select class="form-select form-control" name="plan">
+                  ${plansOptions}
                 </select>
               </div>
-              <div>
-                <label class="form-label" style="font-weight: 500;">ID Proof / Document Number</label>
-                <input type="text" class="form-control" name="idProof.number" value="${escapeHTML(student?.idProof?.number || '')}" placeholder="e.g. 1234 5678 9012">
+
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 600;">Assigned Study Desk / Seat</label>
+                <select class="form-select form-control" name="seat">
+                  ${seatsOptions}
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 600;">Membership Status</label>
+                <select class="form-select form-control" name="status">
+                  <option value="active" ${!student || student.status === 'active' ? 'selected' : ''}>🟢 Active</option>
+                  <option value="inactive" ${student && student.status === 'inactive' ? 'selected' : ''}>🔴 Inactive</option>
+                  <option value="suspended" ${student && student.status === 'suspended' ? 'selected' : ''}>🟡 Suspended</option>
+                  <option value="expired" ${student && student.status === 'expired' ? 'selected' : ''}>⚪ Expired</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 600;">🏷️ RFID Smart Card UID</label>
+                <input type="text" class="form-control" name="rfidCardNumber" value="${student && student.rfidCardNumber ? escapeHTML(student.rfidCardNumber) : ''}" placeholder="Scan card or enter Hex/DEC UID">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 600;">👤 Biometric / Machine ID</label>
+                <input type="text" class="form-control" name="biometricId" value="${student && student.biometricId ? escapeHTML(student.biometricId) : ''}" placeholder="e.g. BIO-101 / Finger ID">
+              </div>
+
+              <div class="col-12">
+                <label class="form-label" style="font-weight: 600;">Special Remarks / Admin Notes</label>
+                <textarea class="form-control" name="notes" rows="2" placeholder="Any health conditions, locker preference, discount notes, etc.">${student && student.notes ? escapeHTML(student.notes) : ''}</textarea>
               </div>
             </div>
-            <div id="mount-student-idproof"></div>
-          </div>
-
-          <!-- Smart Digital Signature Studio -->
-          <div class="col-12 mt-2">
-            <label class="form-label" style="font-weight: 600; margin-bottom: 6px; display: block;">✍️ Student / Guardian Signature</label>
-            <div id="admission-signature-studio-mount"></div>
-          </div>
-          
-          <!-- Custom Dynamic Fields -->
-          ${customFieldsHtml}
-
-          <div class="col-12 mt-2">
-            <label class="form-label" style="font-weight: 500;">Internal Notes</label>
-            <textarea class="form-control" name="notes" rows="2" placeholder="Any special notes or requirements...">${student && student.notes ? escapeHTML(student.notes) : ''}</textarea>
           </div>
         </div>
       </form>
@@ -662,9 +707,9 @@ export async function render() {
             const examsStr = data.targetExams || '';
             data.targetExams = examsStr ? examsStr.split(',').filter(Boolean) : [];
 
-            // Capture Custom Fields values
+            // Capture all custom dynamic fields
             data.customFields = {};
-            m.element.querySelectorAll('.custom-field-input').forEach(input => {
+            m.element.querySelectorAll('.custom-dyn-input').forEach(input => {
               const fName = input.dataset.field;
               if (fName) {
                 if (input.type === 'checkbox') {
@@ -675,12 +720,26 @@ export async function render() {
               }
             });
 
+            // Capture radio buttons
+            m.element.querySelectorAll('.custom-dyn-radio:checked').forEach(radio => {
+              const fName = radio.dataset.field;
+              if (fName) data.customFields[fName] = radio.value;
+            });
+
             // Capture custom media fields
-            modal.element.querySelectorAll('.custom-field-media-mount').forEach(mount => {
+            m.element.querySelectorAll('.custom-field-media-mount').forEach(mount => {
               const fName = mount.dataset.field;
               const val = mount.querySelector('.mfp-hidden-value')?.value || '';
               if (val) data.customFields[fName] = val;
             });
+
+            // Capture Passport Photo
+            const photoVal = m.element.querySelector('#mount-student-photo .mfp-hidden-value')?.value;
+            if (photoVal !== undefined) data.photo = photoVal;
+
+            // Capture KYC ID Proof image
+            const kycVal = m.element.querySelector('#mount-student-idproof .mfp-hidden-value')?.value;
+            if (kycVal !== undefined) data.idProofImage = kycVal;
 
             // Capture Signature from SignatureStudio
             if (sigStudio) {
@@ -697,21 +756,18 @@ export async function render() {
             data.idProof = {
               type: data['idProof.type'] || 'Aadhaar Card',
               number: data['idProof.number'] || '',
-              image: data.idProofImage || ''
+              image: data.idProofImage || student?.idProof?.image || ''
             };
             delete data['idProof.type'];
             delete data['idProof.number'];
             delete data.idProofImage;
 
-            // Reconstruct emergency contact
+            // Reconstruct emergency contact if present
             data.emergencyContact = {
-              name: data['emergencyContact.name'] || '',
-              phone: data['emergencyContact.phone'] || '',
-              relation: data['emergencyContact.relation'] || ''
+              name: data['emergencyContactName'] || data['emergencyContact.name'] || student?.emergencyContact?.name || '',
+              phone: data['emergencyContactPhone'] || data['emergencyContact.phone'] || student?.emergencyContact?.phone || '',
+              relation: data['emergencyContactRelation'] || data['emergencyContact.relation'] || student?.emergencyContact?.relation || ''
             };
-            delete data['emergencyContact.name'];
-            delete data['emergencyContact.phone'];
-            delete data['emergencyContact.relation'];
 
             try {
               let res;
@@ -803,6 +859,7 @@ export async function render() {
             chip.classList.remove('btn-outline-secondary');
             chip.classList.add('btn-primary');
           }
+          selectedExamsInput.value = Array.from(selectedSet).join(',');
         });
       });
     }
