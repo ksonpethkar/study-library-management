@@ -219,9 +219,24 @@ function renderSettingsUI(container, profile, settings) {
                   </div>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group mb-3">
                   <label class="form-label" for="setting-payment-instructions" style="font-weight: 600;">📝 Registration Payment Instructions Note</label>
                   <textarea id="setting-payment-instructions" class="form-control" rows="2" placeholder="Custom note for students during online admission payment...">${escapeHTML(profile.paymentInstructions || '')}</textarea>
+                </div>
+
+                <!-- Interactive Payment Options Control List -->
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                      <h5 style="margin: 0; font-weight: 700; font-size: 0.95rem;">🎛️ Active Payment Methods, ON/OFF Toggles & Display Sequence</h5>
+                      <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">Turn payment options ON/OFF, edit titles, modify instructions, and reorder display sequence on the admission form.</p>
+                    </div>
+                    <button type="button" id="btn-add-pm-option" class="btn btn-sm btn-outline-primary" style="font-weight: 600;">+ Add Custom Payment Option</button>
+                  </div>
+
+                  <div id="pm-options-list-container" style="display: flex; flex-direction: column; gap: 0.85rem;">
+                    <!-- Rendered dynamically -->
+                  </div>
                 </div>
               </div>
 
@@ -1429,6 +1444,125 @@ function renderSettingsUI(container, profile, settings) {
     }));
   }
 
+  // Payment Options Manager State
+  let activePaymentMethods = (Array.isArray(profile.paymentMethods) && profile.paymentMethods.length > 0) ? profile.paymentMethods : [
+    { key: 'upi', name: 'Dynamic UPI QR', subtitle: 'GPay / PhonePe / Paytm / BHIM', icon: '⚡', enabled: true, order: 1, instructions: 'Scan QR code and enter 12-digit UTR number', requiresRef: true, refLabel: 'UPI UTR / Reference Number *' },
+    { key: 'card', name: 'Debit / Credit Card', subtitle: 'Visa, Mastercard, RuPay', icon: '💳', enabled: true, order: 2, instructions: 'Enter cardholder name and card transaction reference', requiresRef: true, refLabel: 'Card Reference / Transaction ID *' },
+    { key: 'netbanking', name: 'NetBanking', subtitle: 'All major Indian banks', icon: '🏦', enabled: true, order: 3, instructions: 'Transfer fee to official bank account and enter bank UTR', requiresRef: true, refLabel: 'Bank Transaction Reference / UTR *' },
+    { key: 'desk', name: 'Pay Later at Desk', subtitle: 'Pay cash on arrival', icon: '💵', enabled: true, order: 4, instructions: 'Admission will be pre-reserved. Pay cash at front reception desk.', requiresRef: false, refLabel: '' }
+  ];
+
+  const renderPaymentMethodsManager = () => {
+    const listContainer = container.querySelector('#pm-options-list-container');
+    if (!listContainer) return;
+
+    activePaymentMethods.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    let html = '';
+    activePaymentMethods.forEach((pm, idx) => {
+      html += `
+        <div class="pm-setting-card" data-index="${idx}" style="background: var(--color-surface); border: 1.5px solid ${pm.enabled ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: var(--radius-md); padding: 1rem; opacity: ${pm.enabled ? '1' : '0.65'}; transition: all 0.2s;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+              <input type="text" class="form-control pm-input-icon" value="${escapeHTML(pm.icon || '💳')}" style="width: 44px; text-align: center; font-size: 1.1rem;" title="Emoji / Icon">
+              <input type="text" class="form-control pm-input-name" value="${escapeHTML(pm.name || '')}" placeholder="Payment Method Name" style="font-weight: 700; width: 180px;">
+              <input type="text" class="form-control pm-input-subtitle" value="${escapeHTML(pm.subtitle || '')}" placeholder="Subtitle (e.g. GPay / PhonePe)" style="font-size: 0.85rem; width: 180px;">
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700; font-size: 0.8rem; background: ${pm.enabled ? 'var(--color-primary-bg)' : 'var(--color-bg-secondary)'}; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--color-border);">
+                <input type="checkbox" class="pm-toggle-enabled" ${pm.enabled ? 'checked' : ''}>
+                <span style="color: ${pm.enabled ? 'var(--color-primary)' : 'var(--color-text-secondary)'};">${pm.enabled ? '🟢 ENABLED' : '🔴 DISABLED'}</span>
+              </label>
+
+              <button type="button" class="btn btn-xs btn-outline pm-move-up" title="Move Up" ${idx === 0 ? 'disabled' : ''}>⬆️</button>
+              <button type="button" class="btn btn-xs btn-outline pm-move-down" title="Move Down" ${idx === activePaymentMethods.length - 1 ? 'disabled' : ''}>⬇️</button>
+              <button type="button" class="btn btn-xs btn-ghost text-danger pm-delete-btn" title="Delete Option">🗑️</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem;">
+            <div>
+              <label class="form-label small mb-1" style="font-weight: 600;">Custom Instructions Note</label>
+              <input type="text" class="form-control form-control-sm pm-input-instructions" value="${escapeHTML(pm.instructions || '')}" placeholder="Note shown to student during payment...">
+            </div>
+            <div>
+              <label class="form-label small mb-1" style="font-weight: 600;">Reference Number Field Label</label>
+              <input type="text" class="form-control form-control-sm pm-input-reflabel" value="${escapeHTML(pm.refLabel || '')}" placeholder="e.g. 12-digit UTR / Reference Number *">
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    listContainer.innerHTML = html;
+
+    listContainer.querySelectorAll('.pm-setting-card').forEach((card, i) => {
+      card.querySelector('.pm-toggle-enabled')?.addEventListener('change', (e) => {
+        activePaymentMethods[i].enabled = e.target.checked;
+        renderPaymentMethodsManager();
+      });
+      card.querySelector('.pm-input-icon')?.addEventListener('input', (e) => {
+        activePaymentMethods[i].icon = e.target.value;
+      });
+      card.querySelector('.pm-input-name')?.addEventListener('input', (e) => {
+        activePaymentMethods[i].name = e.target.value;
+      });
+      card.querySelector('.pm-input-subtitle')?.addEventListener('input', (e) => {
+        activePaymentMethods[i].subtitle = e.target.value;
+      });
+      card.querySelector('.pm-input-instructions')?.addEventListener('input', (e) => {
+        activePaymentMethods[i].instructions = e.target.value;
+      });
+      card.querySelector('.pm-input-reflabel')?.addEventListener('input', (e) => {
+        activePaymentMethods[i].refLabel = e.target.value;
+      });
+
+      card.querySelector('.pm-move-up')?.addEventListener('click', () => {
+        if (i > 0) {
+          const temp = activePaymentMethods[i];
+          activePaymentMethods[i] = activePaymentMethods[i - 1];
+          activePaymentMethods[i - 1] = temp;
+          activePaymentMethods.forEach((m, idx) => m.order = idx + 1);
+          renderPaymentMethodsManager();
+        }
+      });
+
+      card.querySelector('.pm-move-down')?.addEventListener('click', () => {
+        if (i < activePaymentMethods.length - 1) {
+          const temp = activePaymentMethods[i];
+          activePaymentMethods[i] = activePaymentMethods[i + 1];
+          activePaymentMethods[i + 1] = temp;
+          activePaymentMethods.forEach((m, idx) => m.order = idx + 1);
+          renderPaymentMethodsManager();
+        }
+      });
+
+      card.querySelector('.pm-delete-btn')?.addEventListener('click', () => {
+        activePaymentMethods.splice(i, 1);
+        activePaymentMethods.forEach((m, idx) => m.order = idx + 1);
+        renderPaymentMethodsManager();
+      });
+    });
+  };
+
+  container.querySelector('#btn-add-pm-option')?.addEventListener('click', () => {
+    activePaymentMethods.push({
+      key: `custom_${Date.now()}`,
+      name: 'Custom Payment Method',
+      subtitle: 'Instant Online Transfer',
+      icon: '📱',
+      enabled: true,
+      order: activePaymentMethods.length + 1,
+      instructions: 'Please complete payment and enter your transaction ID',
+      requiresRef: true,
+      refLabel: 'Transaction Reference / UTR Number *'
+    });
+    renderPaymentMethodsManager();
+  });
+
+  renderPaymentMethodsManager();
+
   // Setup reminder days pill toggles
   const reminderContainer = container.querySelector('#reminder-days-container');
   reminderContainer?.querySelectorAll('.reminder-day-chip').forEach(btn => {
@@ -1671,6 +1805,7 @@ function renderSettingsUI(container, profile, settings) {
           branchName: container.querySelector('#setting-bank-branch')?.value?.trim() || ''
         },
         paymentInstructions: container.querySelector('#setting-payment-instructions')?.value?.trim() || '',
+        paymentMethods: activePaymentMethods,
         phone: container.querySelector('#setting-phone')?.value?.trim(),
         email: container.querySelector('#setting-email')?.value?.trim(),
         website: container.querySelector('#setting-website')?.value?.trim(),
@@ -1825,6 +1960,7 @@ function renderSettingsUI(container, profile, settings) {
           branchName: container.querySelector('#setting-bank-branch')?.value?.trim() || ''
         },
         paymentInstructions: container.querySelector('#setting-payment-instructions')?.value?.trim() || '',
+        paymentMethods: activePaymentMethods,
         phone: container.querySelector('#setting-phone')?.value?.trim(),
         email: container.querySelector('#setting-email')?.value?.trim(),
         website: container.querySelector('#setting-website')?.value?.trim(),

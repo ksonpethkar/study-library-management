@@ -127,6 +127,20 @@ router.put('/business-profile', roleCheck('owner'), validateBusinessProfile, asy
       };
     }
 
+    if (Array.isArray(req.body.paymentMethods)) {
+      profile.paymentMethods = req.body.paymentMethods.map((m, idx) => ({
+        key: m.key || `custom_${idx}`,
+        name: m.name || 'Payment Method',
+        subtitle: m.subtitle || '',
+        icon: m.icon || '💳',
+        enabled: m.enabled !== undefined ? Boolean(m.enabled) : true,
+        order: m.order !== undefined ? Number(m.order) : idx + 1,
+        instructions: m.instructions || '',
+        requiresRef: m.requiresRef !== undefined ? Boolean(m.requiresRef) : true,
+        refLabel: m.refLabel || 'Transaction Reference / UTR *'
+      }));
+    }
+
     if (req.body.socialLinks && typeof req.body.socialLinks === 'object') {
       profile.socialLinks = {
         facebook: req.body.socialLinks.facebook !== undefined ? req.body.socialLinks.facebook : profile.socialLinks?.facebook,
