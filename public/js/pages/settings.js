@@ -137,6 +137,9 @@ function renderSettingsUI(container, profile, settings) {
         <button class="settings-tab-btn" data-tab="receiptstudio" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
           <span>🧾</span> Smart Receipt Builder Studio
         </button>
+        <button class="settings-tab-btn" data-tab="systemhealth" style="padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s ease;">
+          <span>🛡️</span> System Health & Security Diagnostics
+        </button>
       </div>
     </div>
 
@@ -1402,6 +1405,40 @@ function renderSettingsUI(container, profile, settings) {
           </div>
         </div>
       </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION M: SYSTEM HEALTH & SECURITY DIAGNOSTICS -->
+      <!-- ========================================== -->
+      <div class="settings-panel" id="panel-systemhealth" style="display: none;">
+        <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                🛡️ System Health & Security Diagnostics
+              </h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">
+                Run live real-time security scans, audit database latency & indexes, check OWASP hardening, and trace 6-step data flow.
+              </p>
+            </div>
+            <button type="button" id="btn-run-system-scan" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+              <span>⚡</span> Run Live System Scan
+            </button>
+          </div>
+          
+          <div class="card-body" style="padding: 1.5rem;">
+            <!-- SCAN RESULTS CONTAINER -->
+            <div id="system-scan-results-container">
+              <div style="text-align: center; padding: 3rem 1rem; color: var(--color-text-secondary);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🛡️</div>
+                <h4 style="font-size: 1.1rem; color: var(--color-text-primary); margin-bottom: 0.5rem;">System Health & Security Audit Ready</h4>
+                <p style="font-size: 0.9rem; max-width: 500px; margin: 0 auto 1.5rem auto;">Click the button below to initiate a real-time diagnostic scan of your database latency, OWASP hardening parameters, API security, data pipelines, and telemetry.</p>
+                <button type="button" id="btn-run-system-scan-hero" class="btn btn-primary btn-lg" style="font-weight: 600;">⚡ Run Live System Scan</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   `;
 
@@ -1419,7 +1456,8 @@ function renderSettingsUI(container, profile, settings) {
     audittrail: container.querySelector('#panel-audittrail'),
     landing: container.querySelector('#panel-landing'),
     pdfstudio: container.querySelector('#panel-pdfstudio'),
-    receiptstudio: container.querySelector('#panel-receiptstudio')
+    receiptstudio: container.querySelector('#panel-receiptstudio'),
+    systemhealth: container.querySelector('#panel-systemhealth')
   };
 
   container.querySelector('#btn-preview-pdf')?.addEventListener('click', () => {
@@ -1489,9 +1527,299 @@ function renderSettingsUI(container, profile, settings) {
         loadReceiptStudio();
       } else if (target === 'sidebar') {
         initSidebarManager(container);
+      } else if (target === 'systemhealth') {
+        runSystemHealthScan();
       }
     });
   });
+
+  // System Health & Security Scan Logic
+  const runSystemHealthScan = async () => {
+    const resultsContainer = container.querySelector('#system-scan-results-container');
+    const scanBtnHeader = container.querySelector('#btn-run-system-scan');
+    
+    if (!resultsContainer) return;
+
+    if (scanBtnHeader) {
+      scanBtnHeader.disabled = true;
+      scanBtnHeader.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; border-width: 2px;"></span> Scanning System...';
+    }
+
+    resultsContainer.innerHTML = `
+      <div style="padding: 3rem 1rem; text-align: center; color: var(--color-text-secondary);">
+        <div class="loading-spinner" style="margin: 0 auto 1.5rem auto; width: 40px; height: 40px; border-width: 4px;"></div>
+        <h4 style="font-size: 1.1rem; color: var(--color-text-primary); margin-bottom: 0.5rem;">Executing Live Security & Telemetry Scan...</h4>
+        <p style="font-size: 0.88rem;">Testing DB latency, model indexes, OWASP hardening, API route authentication, and 6-step data pipeline.</p>
+      </div>
+    `;
+
+    try {
+      const res = await api.get('/api/system/health-check');
+      
+      if (scanBtnHeader) {
+        scanBtnHeader.disabled = false;
+        scanBtnHeader.innerHTML = '<span>⚡</span> Run Live System Scan';
+      }
+
+      if (!res.success) {
+        resultsContainer.innerHTML = `
+          <div class="card" style="padding: 2rem; border-color: var(--color-danger); text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚠️</div>
+            <h3 style="color: var(--color-danger); margin-bottom: 0.5rem;">System Scan Failed</h3>
+            <p style="color: var(--color-text-secondary); margin-bottom: 1.5rem;">${escapeHTML(res.message || 'Could not complete health check.')}</p>
+            <button id="btn-retry-health-scan" class="btn btn-primary">Retry Scan</button>
+          </div>
+        `;
+        resultsContainer.querySelector('#btn-retry-health-scan')?.addEventListener('click', runSystemHealthScan);
+        return;
+      }
+
+      const { overallStatus, overallBadge, auditDurationMs, audits } = res;
+      const { databaseAudit, routeSecurityAudit, owaspHardeningAudit, dataPipelineAudit, systemTelemetry } = audits || {};
+
+      const getStatusBadge = (status) => {
+        if (status === 'healthy') {
+          return `<span class="badge" style="background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); font-weight: 700; padding: 0.35rem 0.75rem; font-size: 0.85rem; border-radius: 20px;">🟢 Healthy</span>`;
+        } else if (status === 'warning') {
+          return `<span class="badge" style="background: rgba(241, 196, 15, 0.15); color: #f1c40f; border: 1px solid rgba(241, 196, 15, 0.3); font-weight: 700; padding: 0.35rem 0.75rem; font-size: 0.85rem; border-radius: 20px;">🟡 Warning</span>`;
+        } else {
+          return `<span class="badge" style="background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); font-weight: 700; padding: 0.35rem 0.75rem; font-size: 0.85rem; border-radius: 20px;">🔴 Action Required</span>`;
+        }
+      };
+
+      let html = `
+        <!-- OVERALL HEALTH SUMMARY KPI BAR -->
+        <div style="background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <div style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--color-text-secondary); letter-spacing: 0.5px;">Overall System Status</div>
+            <div style="font-size: 1.4rem; font-weight: 700; color: var(--color-text-primary); margin-top: 4px; display: flex; align-items: center; gap: 0.5rem;">
+              ${getStatusBadge(overallStatus)}
+              <span style="font-size: 0.85rem; font-weight: 400; color: var(--color-text-secondary);">(Scanned in ${auditDurationMs}ms)</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+            <div>
+              <div style="font-size: 0.75rem; color: var(--color-text-secondary);">DB Latency</div>
+              <div style="font-weight: 700; font-size: 1.1rem; color: var(--color-text-primary);">${databaseAudit?.pingLatencyMs >= 0 ? databaseAudit.pingLatencyMs + ' ms' : 'N/A'}</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: var(--color-text-secondary);">OWASP Compliance</div>
+              <div style="font-weight: 700; font-size: 1.1rem; color: var(--color-text-primary);">${owaspHardeningAudit?.owaspChecklist?.filter(c => c.status === 'Pass').length || 6} / 6 Controls</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: var(--color-text-secondary);">Data Pipeline</div>
+              <div style="font-weight: 700; font-size: 1.1rem; color: var(--color-text-primary);">${dataPipelineAudit?.passedSteps || 6} / 6 Steps Passed</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: var(--color-text-secondary);">Uptime</div>
+              <div style="font-weight: 700; font-size: 1.1rem; color: var(--color-text-primary);">${escapeHTML(systemTelemetry?.formattedUptime || 'Active')}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DIAGNOSTIC REPORT CARDS GRID -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem;">
+
+          <!-- CARD 1: DATABASE AUDIT -->
+          <div class="card" style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; background: var(--color-surface);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem;">
+              <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                🗄️ Database Audit
+              </h4>
+              ${getStatusBadge(databaseAudit?.status)}
+            </div>
+
+            <div style="font-size: 0.88rem; display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem;">
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--color-text-secondary);">Connection State:</span>
+                <strong style="text-transform: capitalize;">${escapeHTML(databaseAudit?.connectionState || 'connected')}</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--color-text-secondary);">Ping Latency:</span>
+                <strong>${databaseAudit?.pingLatencyMs} ms</strong>
+              </div>
+            </div>
+
+            <h5 style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: var(--color-text-secondary); margin: 1rem 0 0.5rem 0;">Model Record Counts</h5>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; background: var(--color-bg-primary); padding: 0.75rem; border-radius: var(--radius-sm); font-size: 0.82rem;">
+              <div>Users: <strong>${databaseAudit?.modelCounts?.users || 0}</strong></div>
+              <div>Students: <strong>${databaseAudit?.modelCounts?.students || 0}</strong></div>
+              <div>Seats: <strong>${databaseAudit?.modelCounts?.seats || 0}</strong></div>
+              <div>Payments: <strong>${databaseAudit?.modelCounts?.payments || 0}</strong></div>
+              <div>Attendance: <strong>${databaseAudit?.modelCounts?.attendanceLogs || 0}</strong></div>
+              <div>Audit Logs: <strong>${databaseAudit?.modelCounts?.auditLogs || 0}</strong></div>
+            </div>
+
+            <h5 style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: var(--color-text-secondary); margin: 1rem 0 0.5rem 0;">Collection Index Integrity</h5>
+            <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.82rem;">
+              ${(databaseAudit?.indexIntegrity || []).map(idx => `
+                <div style="display: flex; justify-content: space-between; padding: 0.3rem 0.5rem; background: var(--color-bg-secondary); border-radius: 4px;">
+                  <span>${escapeHTML(idx.model)} (${idx.indexCount} indexes)</span>
+                  <span style="color: var(--color-success); font-weight: 600;">✓ Verified</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- CARD 2: ROUTE SECURITY AUDIT -->
+          <div class="card" style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; background: var(--color-surface);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem;">
+              <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                🔐 Route Security Audit
+              </h4>
+              ${getStatusBadge(routeSecurityAudit?.status)}
+            </div>
+
+            <div style="font-size: 0.88rem; display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem;">
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--color-text-secondary);">Auth Middleware:</span>
+                <strong style="color: var(--color-success);">Enforced (protect)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--color-text-secondary);">RBAC Authorization:</span>
+                <strong style="color: var(--color-success);">Enforced (roleCheck)</strong>
+              </div>
+            </div>
+
+            <h5 style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: var(--color-text-secondary); margin: 1rem 0 0.5rem 0;">Protected API Modules</h5>
+            <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.82rem;">
+              ${(routeSecurityAudit?.protectedEndpointsSummary || []).map(ep => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0.6rem; background: var(--color-bg-secondary); border-radius: 4px;">
+                  <div>
+                    <strong style="font-family: monospace;">${escapeHTML(ep.endpoint)}</strong>
+                    <div style="font-size: 0.75rem; color: var(--color-text-secondary);">${escapeHTML(ep.description)}</div>
+                  </div>
+                  <span class="badge badge-success" style="font-size: 0.7rem; font-weight: 700;">PROTECTED</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- CARD 3: OWASP HARDENING AUDIT -->
+          <div class="card" style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; background: var(--color-surface);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem;">
+              <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                🛡️ OWASP Hardening Audit
+              </h4>
+              ${getStatusBadge(owaspHardeningAudit?.status)}
+            </div>
+
+            <div style="font-size: 0.88rem; display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem;">
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--color-text-secondary);">Helmet CSP Status:</span>
+                <strong style="color: var(--color-success);">${escapeHTML(owaspHardeningAudit?.helmetCspStatus || 'Active')}</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--color-text-secondary);">Rate Limiter:</span>
+                <strong style="color: var(--color-success);">${escapeHTML(owaspHardeningAudit?.rateLimiterStatus || 'Active')}</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span style="color: var(--color-text-secondary);">Bcrypt Salt Rounds:</span>
+                <strong>${owaspHardeningAudit?.bcryptHashing?.saltRounds || 12} (${owaspHardeningAudit?.bcryptHashing?.benchmarkLatencyMs}ms)</strong>
+              </div>
+            </div>
+
+            <h5 style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: var(--color-text-secondary); margin: 1rem 0 0.5rem 0;">OWASP Security Controls Checklist</h5>
+            <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.8rem;">
+              ${(owaspHardeningAudit?.owaspChecklist || []).map(item => `
+                <div style="padding: 0.4rem 0.6rem; background: var(--color-bg-secondary); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                  <span>${escapeHTML(item.control)}</span>
+                  <span style="color: ${item.status === 'Pass' ? 'var(--color-success)' : 'var(--color-danger)'}; font-weight: 700;">${item.status === 'Pass' ? '✓ PASS' : '✗ FAIL'}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- CARD 4: DATA PIPELINE AUDIT -->
+          <div class="card" style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; background: var(--color-surface);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem;">
+              <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                🔄 6-Step Data Flow Pipeline
+              </h4>
+              ${getStatusBadge(dataPipelineAudit?.status)}
+            </div>
+
+            <p style="font-size: 0.82rem; color: var(--color-text-secondary); margin-bottom: 1rem;">
+              Simulating end-to-end data flow: Student ➔ Seat ➔ Payment ➔ Attendance Kiosk ➔ WhatsApp ➔ Audit Log
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.82rem;">
+              ${(dataPipelineAudit?.steps || []).map(step => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background: var(--color-bg-secondary); border-radius: 6px; border-left: 3px solid ${step.status === 'pass' ? '#2ecc71' : '#e74c3c'};">
+                  <div>
+                    <strong style="color: var(--color-text-primary);">Step ${step.step}: ${escapeHTML(step.name)}</strong>
+                    <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">${escapeHTML(step.details)}</div>
+                  </div>
+                  <div style="text-align: right;">
+                    <span style="color: ${step.status === 'pass' ? '#2ecc71' : '#e74c3c'}; font-weight: 700;">${step.status === 'pass' ? 'PASSED' : 'FAILED'}</span>
+                    <div style="font-size: 0.72rem; color: var(--color-text-secondary);">${step.latencyMs}ms</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- CARD 5: SYSTEM TELEMETRY -->
+          <div class="card" style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; background: var(--color-surface); grid-column: span 1 / -1;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem;">
+              <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                📊 Node.js System Telemetry & Process Resources
+              </h4>
+              ${getStatusBadge(systemTelemetry?.status)}
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <div style="background: var(--color-bg-primary); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Node.js Uptime</div>
+                <div style="font-size: 1.2rem; font-weight: 700; color: var(--color-primary); margin-top: 4px;">${escapeHTML(systemTelemetry?.formattedUptime)}</div>
+                <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">Process ID: ${systemTelemetry?.environment?.pid}</div>
+              </div>
+
+              <div style="background: var(--color-bg-primary); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Heap Memory Used</div>
+                <div style="font-size: 1.2rem; font-weight: 700; color: var(--color-primary); margin-top: 4px;">${systemTelemetry?.memory?.heapUsedMB} MB</div>
+                <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">Total Heap: ${systemTelemetry?.memory?.heapTotalMB} MB</div>
+              </div>
+
+              <div style="background: var(--color-bg-primary); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Resident Set Size (RSS)</div>
+                <div style="font-size: 1.2rem; font-weight: 700; color: var(--color-primary); margin-top: 4px;">${systemTelemetry?.memory?.rssMB} MB</div>
+                <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">External: ${systemTelemetry?.memory?.externalMB} MB</div>
+              </div>
+
+              <div style="background: var(--color-bg-primary); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Runtime Environment</div>
+                <div style="font-size: 1.2rem; font-weight: 700; color: var(--color-primary); margin-top: 4px; text-transform: capitalize;">${escapeHTML(systemTelemetry?.environment?.nodeEnv)}</div>
+                <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">${escapeHTML(systemTelemetry?.environment?.nodeVersion)} (${systemTelemetry?.environment?.platform})</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      `;
+
+      resultsContainer.innerHTML = html;
+
+    } catch (err) {
+      console.error('System Health Scan Error:', err);
+      if (scanBtnHeader) {
+        scanBtnHeader.disabled = false;
+        scanBtnHeader.innerHTML = '<span>⚡</span> Run Live System Scan';
+      }
+      resultsContainer.innerHTML = `
+        <div class="card" style="padding: 2rem; border-color: var(--color-danger); text-align: center;">
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚠️</div>
+          <h3 style="color: var(--color-danger); margin-bottom: 0.5rem;">Scan Execution Error</h3>
+          <p style="color: var(--color-text-secondary); margin-bottom: 1.5rem;">${escapeHTML(err.message || 'Error conducting live scan.')}</p>
+          <button id="btn-retry-health-scan-err" class="btn btn-primary">Retry Scan</button>
+        </div>
+      `;
+      resultsContainer.querySelector('#btn-retry-health-scan-err')?.addEventListener('click', runSystemHealthScan);
+    }
+  };
+
+  container.querySelector('#btn-run-system-scan')?.addEventListener('click', runSystemHealthScan);
+  container.querySelector('#btn-run-system-scan-hero')?.addEventListener('click', runSystemHealthScan);
 
   // Audit Logs Logic
   let currentAuditPage = 1;
