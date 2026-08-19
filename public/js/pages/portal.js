@@ -652,16 +652,22 @@ function renderPortalUI(container, data, analytics = null) {
 
       modalContent.innerHTML = `
         <div style="font-family: var(--font-family);">
-          <!-- Student Card Header -->
+          <!-- Student Card Header with Photo Avatar Upload -->
           <div class="card p-3 mb-4" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.1), rgba(0, 184, 148, 0.06)); border: 1.5px solid var(--color-primary); border-radius: 12px;">
             <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-              ${student.photo ? `
-                <img src="${student.photo.startsWith('/') ? student.photo : '/' + student.photo}" style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid var(--color-primary); box-shadow: var(--shadow-sm);" onerror="this.src='/uploads/avatar.png'">
-              ` : `
-                <div style="width: 72px; height: 72px; border-radius: 50%; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; font-weight: 800;">
-                  ${escapeHTML(initials)}
+              
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                <div id="sp-avatar-container" style="width: 76px; height: 76px; border-radius: 50%; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; font-weight: 800; border: 3px solid var(--color-surface); box-shadow: var(--shadow-sm); overflow: hidden; position: relative;">
+                  <img id="sp-avatar-img" src="${student.photo ? (student.photo.startsWith('/') ? student.photo : '/' + student.photo) : ''}" style="width: 100%; height: 100%; object-fit: cover; display: ${student.photo ? 'block' : 'none'};" onerror="this.style.display='none'; document.getElementById('sp-avatar-initials').style.display='block';">
+                  <span id="sp-avatar-initials" style="display: ${student.photo ? 'none' : 'block'};">${escapeHTML(initials)}</span>
                 </div>
-              `}
+                <div style="display: flex; gap: 4px;">
+                  <button type="button" id="btn-sp-upload-photo" class="btn btn-xs btn-outline-primary" style="font-size: 0.7rem; padding: 2px 6px; font-weight: 600;" title="Upload Passport Photo">📁 Upload</button>
+                  <button type="button" id="btn-sp-selfie" class="btn btn-xs btn-primary" style="font-size: 0.7rem; padding: 2px 6px; font-weight: 600;" title="Take Live Selfie">📸 Selfie</button>
+                  <input type="file" id="input-sp-photo" accept="image/*" style="display: none;">
+                </div>
+              </div>
+
               <div style="flex-grow: 1;">
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                   <h3 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--color-text-primary);">${escapeHTML(student.name)}</h3>
@@ -675,6 +681,7 @@ function renderPortalUI(container, data, analytics = null) {
                   <span>Branch: <strong>${escapeHTML(student.branch?.name || business.businessName || 'Main Campus')}</strong></span>
                 </div>
               </div>
+
             </div>
           </div>
 
@@ -687,6 +694,61 @@ function renderPortalUI(container, data, analytics = null) {
           </div>
         </div>
       `;
+
+      const btnSpUpload = modalContent.querySelector('#btn-sp-upload-photo');
+      const btnSpSelfie = modalContent.querySelector('#btn-sp-selfie');
+      const inputSpPhoto = modalContent.querySelector('#input-sp-photo');
+      const spImg = modalContent.querySelector('#sp-avatar-img');
+      const spInitials = modalContent.querySelector('#sp-avatar-initials');
+
+      const saveStudentPhoto = async (dataUrl, btn) => {
+        try {
+          if (btn) Loading.button(btn, true);
+          const uploadRes = await api.post('/api/upload', { image: dataUrl });
+          if (uploadRes.success && uploadRes.url) {
+            const photoUrl = uploadRes.url;
+            await api.put('/api/student-portal/profile', { photo: photoUrl });
+            spImg.src = photoUrl;
+            spImg.style.display = 'block';
+            spInitials.style.display = 'none';
+            if (typeof window.updateProfileAvatar === 'function') {
+              window.updateProfileAvatar(photoUrl);
+            }
+            Toast.success('Passport photo updated & compressed successfully!');
+          } else {
+            Toast.error(uploadRes.message || 'Upload failed');
+          }
+        } catch (err) {
+          Toast.error(err.message || 'Failed to update photo');
+        } finally {
+          if (btn) Loading.button(btn, false);
+        }
+      };
+
+      btnSpUpload?.addEventListener('click', () => inputSpPhoto.click());
+      inputSpPhoto?.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          const compressed = await ImageCompressor.compress(file, { maxWidth: 300, maxHeight: 300, quality: 0.82 });
+          await saveStudentPhoto(compressed, btnSpUpload);
+        } catch (err) {
+          Toast.error(err.message || 'Image processing failed');
+        } finally {
+          inputSpPhoto.value = '';
+        }
+      });
+
+      btnSpSelfie?.addEventListener('click', async () => {
+        try {
+          const selfie = await ImageCompressor.captureWebcam({ maxWidth: 300, maxHeight: 300, quality: 0.82 });
+          await saveStudentPhoto(selfie, btnSpSelfie);
+        } catch (err) {
+          if (err.message !== 'Camera capture cancelled') {
+            Toast.error(err.message || 'Selfie capture failed');
+          }
+        }
+      });
 
       modalContent.querySelector('#btn-close-profile-modal')?.addEventListener('click', () => profileModal.close());
       modalContent.querySelector('#btn-modal-print-pdf')?.addEventListener('click', () => {

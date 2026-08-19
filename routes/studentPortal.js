@@ -549,4 +549,39 @@ router.post('/renewal-request', async (req, res) => {
   }
 });
 
+/**
+ * @route   PUT /api/student-portal/profile
+ * @desc    Update student profile photo or contact info
+ * @access  Private (Student)
+ */
+router.put('/profile', async (req, res) => {
+  try {
+    const student = await getStudentForUser(req.user, req);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student account record not found' });
+    }
+
+    const { photo, email, phone } = req.body;
+    if (photo !== undefined) student.photo = photo;
+    if (email) student.email = email.trim();
+    if (phone) student.phone = phone.trim();
+
+    await student.save({ validateBeforeSave: false });
+
+    // Also update User avatar if matching user exists
+    const User = require('../models/User');
+    if (req.user && photo !== undefined) {
+      await User.findByIdAndUpdate(req.user._id, { avatar: photo });
+    }
+
+    res.json({
+      success: true,
+      message: 'Student profile photo updated successfully',
+      data: student
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

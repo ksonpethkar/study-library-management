@@ -162,12 +162,12 @@ class Application {
       this._appEventsInit = true;
     }
 
-    // Update user avatar initials
-    if (store.user?.name) {
-      const initials = store.user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-      const avatar = document.getElementById('user-avatar');
-      if (avatar) avatar.textContent = initials;
-    }
+    // Update user avatar image or initials
+    this.updateUserAvatarHeader();
+    window.updateProfileAvatar = (newAvatarUrl) => {
+      if (store.user) store.user.avatar = newAvatarUrl;
+      this.updateUserAvatarHeader();
+    };
 
     // Adapt sidebar for role (Student vs Admin/Staff) & render database config
     await this.updateSidebarForRole();
@@ -182,6 +182,23 @@ class Application {
       this.initRouter();
     } else {
       this.router.start();
+    }
+  }
+
+  updateUserAvatarHeader() {
+    const avatarEl = document.getElementById('user-avatar');
+    if (!avatarEl) return;
+
+    const imgUrl = store.user?.avatar || store.user?.photo;
+    const name = store.user?.name || 'User';
+    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
+    if (imgUrl) {
+      avatarEl.style.overflow = 'hidden';
+      avatarEl.style.padding = '0';
+      avatarEl.innerHTML = `<img src="${imgUrl}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.remove(); document.getElementById('user-avatar').textContent='${initials}';">`;
+    } else {
+      avatarEl.textContent = initials;
     }
   }
 

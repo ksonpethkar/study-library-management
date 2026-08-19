@@ -100,10 +100,23 @@ function renderProfileUI(container, user) {
           <!-- Summary Row (Avatar + Key Meta) -->
           <div style="display: flex; align-items: center; gap: 1.5rem; padding-bottom: 1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--color-divider); flex-wrap: wrap;">
             
-            <div style="position: relative;">
-              <div id="profile-avatar-display" style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 700; box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3); overflow: hidden; border: 3px solid var(--color-surface);">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+              <div id="profile-avatar-display" style="width: 96px; height: 96px; border-radius: 50%; background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: 700; box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35); overflow: hidden; border: 3px solid var(--color-surface); position: relative;">
                 <img id="profile-avatar-img" src="${escapeHTML(user.avatar || '')}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; display: ${user.avatar ? 'block' : 'none'};" onerror="this.style.display='none'; document.getElementById('profile-avatar-initials').style.display='block';">
                 <span id="profile-avatar-initials" style="display: ${user.avatar ? 'none' : 'block'};">${escapeHTML(initials)}</span>
+              </div>
+
+              <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;">
+                <button type="button" id="btn-upload-avatar-file" class="btn btn-xs btn-outline-primary" style="font-weight: 600; padding: 4px 10px; font-size: 0.78rem;">
+                  📁 Upload Photo
+                </button>
+                <button type="button" id="btn-take-avatar-cam" class="btn btn-xs btn-primary" style="font-weight: 600; padding: 4px 10px; font-size: 0.78rem;">
+                  📸 Live Selfie
+                </button>
+                <button type="button" id="btn-remove-avatar" class="btn btn-xs btn-outline-danger" style="font-weight: 600; padding: 4px 10px; font-size: 0.78rem; display: ${user.avatar ? 'inline-flex' : 'none'};">
+                  🗑️ Remove
+                </button>
+                <input type="file" id="input-avatar-file" accept="image/*" style="display: none;">
               </div>
             </div>
 
@@ -127,6 +140,7 @@ function renderProfileUI(container, user) {
 
           <!-- Edit Profile Form -->
           <form id="form-edit-profile">
+            <input type="hidden" id="profile-avatar" value="${escapeHTML(user.avatar || '')}">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
               
               <div class="form-group">
@@ -248,21 +262,78 @@ function renderProfileUI(container, user) {
     </div>
   `;
 
-  // Setup live avatar preview on input
-  const avatarInput = container.querySelector('#profile-avatar');
+  // Avatar upload, live selfie & remove event handlers
+  const avatarHiddenInput = container.querySelector('#profile-avatar');
   const avatarImg = container.querySelector('#profile-avatar-img');
   const avatarInitials = container.querySelector('#profile-avatar-initials');
+  const btnUploadFile = container.querySelector('#btn-upload-avatar-file');
+  const btnTakeCam = container.querySelector('#btn-take-avatar-cam');
+  const btnRemoveAvatar = container.querySelector('#btn-remove-avatar');
+  const inputAvatarFile = container.querySelector('#input-avatar-file');
 
-  avatarInput?.addEventListener('input', () => {
-    const val = avatarInput.value.trim();
-    if (val) {
-      avatarImg.src = val;
+  const updateAvatarPreview = (url) => {
+    if (url) {
+      avatarHiddenInput.value = url;
+      avatarImg.src = url;
       avatarImg.style.display = 'block';
       avatarInitials.style.display = 'none';
+      btnRemoveAvatar.style.display = 'inline-flex';
     } else {
+      avatarHiddenInput.value = '';
       avatarImg.style.display = 'none';
       avatarInitials.style.display = 'block';
+      btnRemoveAvatar.style.display = 'none';
     }
+  };
+
+  btnUploadFile?.addEventListener('click', () => {
+    inputAvatarFile.click();
+  });
+
+  inputAvatarFile?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      Loading.button(btnUploadFile, true);
+      const compressedDataUrl = await ImageCompressor.compress(file, { maxWidth: 300, maxHeight: 300, quality: 0.82 });
+      const uploadRes = await api.post('/api/upload', { image: compressedDataUrl });
+      if (uploadRes.success && uploadRes.url) {
+        updateAvatarPreview(uploadRes.url);
+        Toast.success('Profile photo uploaded & compressed successfully!');
+      } else {
+        Toast.error(uploadRes.message || 'Upload failed');
+      }
+    } catch (err) {
+      Toast.error(err.message || 'Image processing failed');
+    } finally {
+      Loading.button(btnUploadFile, false);
+      inputAvatarFile.value = '';
+    }
+  });
+
+  btnTakeCam?.addEventListener('click', async () => {
+    try {
+      const selfieDataUrl = await ImageCompressor.captureWebcam({ maxWidth: 300, maxHeight: 300, quality: 0.82 });
+      Loading.button(btnTakeCam, true);
+      const uploadRes = await api.post('/api/upload', { image: selfieDataUrl });
+      if (uploadRes.success && uploadRes.url) {
+        updateAvatarPreview(uploadRes.url);
+        Toast.success('Live selfie captured & uploaded!');
+      } else {
+        Toast.error(uploadRes.message || 'Upload failed');
+      }
+    } catch (err) {
+      if (err.message !== 'Camera capture cancelled') {
+        Toast.error(err.message || 'Camera capture failed');
+      }
+    } finally {
+      Loading.button(btnTakeCam, false);
+    }
+  });
+
+  btnRemoveAvatar?.addEventListener('click', () => {
+    updateAvatarPreview('');
+    Toast.info('Profile picture removed');
   });
 
   // Password visibility toggle
@@ -343,16 +414,9 @@ function renderProfileUI(container, user) {
 
       const updated = res.data || {};
 
-      // Update header avatar initials or img
-      const headerAvatar = document.getElementById('user-avatar');
-      if (headerAvatar) {
-        const newInitials = (updated.name || name || 'AD')
-          .split(' ')
-          .map(w => w[0])
-          .join('')
-          .toUpperCase()
-          .slice(0, 2);
-        headerAvatar.textContent = newInitials;
+      // Update header & sidebar avatar dynamically
+      if (typeof window.updateProfileAvatar === 'function') {
+        window.updateProfileAvatar(updated.avatar || avatar);
       }
 
       // Update display text on profile card
