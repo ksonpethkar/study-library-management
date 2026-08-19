@@ -179,11 +179,39 @@ const landingPageSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Singleton Pattern
 landingPageSchema.statics.getPageConfig = async function() {
   let config = await this.findOne();
+  const defaults = this.getDefaults();
   if (!config) {
-    config = await this.create(this.getDefaults());
+    config = await this.create(defaults);
+  } else {
+    let needsSave = false;
+    if (!config.footer) {
+      config.footer = defaults.footer;
+      needsSave = true;
+    } else if (!Array.isArray(config.footer.quickLinks) || config.footer.quickLinks.length === 0) {
+      config.footer.quickLinks = defaults.footer.quickLinks;
+      needsSave = true;
+    }
+    if (!config.navbar) {
+      config.navbar = defaults.navbar;
+      needsSave = true;
+    }
+    if (!config.floatingActions) {
+      config.floatingActions = defaults.floatingActions;
+      needsSave = true;
+    }
+    if (!config.seo) {
+      config.seo = defaults.seo;
+      needsSave = true;
+    }
+    if (needsSave) {
+      try {
+        await config.save();
+      } catch (e) {
+        console.warn('Could not auto-save defaults to LandingPage:', e.message);
+      }
+    }
   }
   return config;
 };

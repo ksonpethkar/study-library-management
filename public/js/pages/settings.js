@@ -3161,13 +3161,16 @@ async function initLandingSettings(container) {
       const parent = listContainer.querySelector('#l-quicklinks-list');
       if (!parent) return;
       parent.innerHTML = '';
-      const links = config.footer?.quickLinks || [
-        { label: 'Online Admission', url: '/register', openInNewTab: false, isSystem: true },
-        { label: 'Student Portal', url: '/student-login', openInNewTab: false, isSystem: true },
-        { label: 'Gate Kiosk', url: '/kiosk', openInNewTab: false, isSystem: true },
-        { label: 'Staff & Owner Login', url: '/#/', openInNewTab: false, isSystem: true }
-      ];
-      if (!config.footer) config.footer = { quickLinks: links };
+      let links = config.footer?.quickLinks;
+      if (!Array.isArray(links) || links.length === 0) {
+        links = [
+          { label: 'Online Admission', url: '/register', openInNewTab: false, isSystem: true },
+          { label: 'Student Portal', url: '/student-login', openInNewTab: false, isSystem: true },
+          { label: 'Gate Kiosk', url: '/kiosk', openInNewTab: false, isSystem: true },
+          { label: 'Staff & Owner Login', url: '/#/', openInNewTab: false, isSystem: true }
+        ];
+      }
+      if (!config.footer) config.footer = {};
       config.footer.quickLinks = links;
 
       links.forEach((item, idx) => {
@@ -3216,7 +3219,7 @@ async function initLandingSettings(container) {
 
     listContainer.querySelector('#btn-add-quicklink')?.addEventListener('click', () => {
       if (!config.footer) config.footer = { quickLinks: [] };
-      if (!config.footer.quickLinks) config.footer.quickLinks = [];
+      if (!Array.isArray(config.footer.quickLinks)) config.footer.quickLinks = [];
       config.footer.quickLinks.push({ label: 'New Link', url: '/', openInNewTab: false });
       renderQuickLinks();
     });
