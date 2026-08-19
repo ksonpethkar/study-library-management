@@ -421,7 +421,7 @@ export async function render() {
       return '';
     }
 
-    // 1. Group active fields by Form Builder configured sections
+    // 1. Group active fields by Form Builder configured sections (Strict Deduplication)
     const configuredSections = (template.sections && template.sections.length > 0)
       ? template.sections.filter(s => !s.isHidden).sort((a, b) => (a.order || 0) - (b.order || 0))
       : [
@@ -430,7 +430,21 @@ export async function render() {
           { name: 'seat', label: 'Declaration & Signature', icon: 'seat' }
         ];
 
-    const activeFields = (customFields || []).filter(f => f.isActive !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
+    const seenFieldNames = new Set();
+    const adminFieldKeys = new Set(['plan', 'seat', 'status', 'notes', 'rfidCardNumber', 'biometricId']);
+    const activeFields = [];
+
+    (customFields || []).forEach(f => {
+      if (f.isActive === false) return;
+      const key = (f.fieldName || '').trim().toLowerCase();
+      if (!key) return;
+      // Skip if handled by admin allotment card or if already rendered once (no duplicates!)
+      if (adminFieldKeys.has(f.fieldName) || seenFieldNames.has(key)) return;
+      seenFieldNames.add(key);
+      activeFields.push(f);
+    });
+
+    activeFields.sort((a, b) => (a.order || 0) - (b.order || 0));
 
     const sectionsMap = new Map();
     configuredSections.forEach(s => {
@@ -442,7 +456,7 @@ export async function render() {
       });
     });
 
-    // Distribute fields to sections
+    // Distribute unique fields to sections
     activeFields.forEach(f => {
       const secKey = f.section || 'personal';
       if (sectionsMap.has(secKey)) {
