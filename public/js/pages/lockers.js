@@ -12,6 +12,9 @@ export async function render() {
         <p class="text-muted text-sm">Manage physical lockers, student allocations, and security deposits</p>
       </div>
       <div class="header-actions d-flex gap-2">
+        <button id="btn-block-manager" class="btn btn-outline">
+          🧱 Block Manager
+        </button>
         <button id="btn-bulk-lockers" class="btn btn-outline">
           ⚡ ${t('lockers.bulkGenerate', 'Bulk Generate')}
         </button>
@@ -48,6 +51,9 @@ export async function render() {
     <!-- Filter Bar -->
     <div class="card mb-4">
       <div class="card-body p-3 d-flex flex-wrap gap-3 align-center">
+        <div id="block-filters" class="d-flex gap-2 flex-wrap w-100 mb-2">
+          <!-- Block filters injected here -->
+        </div>
         <div style="flex: 1; min-width: 200px;">
           <input type="text" id="locker-search" class="form-control" placeholder="🔍 Search locker number...">
         </div>
@@ -79,6 +85,7 @@ export async function render() {
   // Attach event listeners
   document.getElementById('btn-add-locker').addEventListener('click', showAddLockerModal);
   document.getElementById('btn-bulk-lockers').addEventListener('click', showBulkGenerateModal);
+  document.getElementById('btn-block-manager').addEventListener('click', showBlockManagerModal);
   document.getElementById('locker-search').addEventListener('input', debounce(loadLockers, 300));
   document.getElementById('locker-status-filter').addEventListener('change', loadLockers);
   document.getElementById('locker-size-filter').addEventListener('change', loadLockers);
@@ -88,6 +95,8 @@ export async function render() {
 }
 
 let lockersData = [];
+let currentBlockFilter = 'all';
+let blocksList = [];
 
 async function loadLockers() {
   try {
@@ -96,6 +105,7 @@ async function loadLockers() {
     const size = document.getElementById('locker-size-filter')?.value || 'all';
 
     const res = await api.get(`/api/lockers?search=${encodeURIComponent(search)}&status=${status}&size=${size}`);
+    const blockRes = await api.get('/api/lockers/blocks');
     
     if (!res || !res.success) {
       Toast.error('Failed to load lockers');
@@ -103,20 +113,56 @@ async function loadLockers() {
     }
 
     lockersData = res.lockers || [];
+    blocksList = blockRes?.blocks || [];
     const stats = res.stats || {};
 
-    // Update KPI stats
-    document.getElementById('stat-total').textContent = stats.total || 0;
-    document.getElementById('stat-available').textContent = stats.available || 0;
-    document.getElementById('stat-occupied').textContent = stats.occupied || 0;
-    document.getElementById('stat-deposit').textContent = `₹${(stats.totalDeposit || 0).toLocaleString('en-IN')}`;
+    // Apply client side block filter
+    let filteredLockers = lockersData;
+    if (currentBlockFilter !== 'all') {
+      filteredLockers = lockersData.filter(l => (l.block || 'Block A') === currentBlockFilter);
+    }
 
-    // Render Grid
-    renderLockerGrid(lockersData);
+    // Update KPI stats based on filtered data if block is selected, or global if 'all'
+    if (currentBlockFilter !== 'all') {
+      const activeBlock = blocksList.find(b => b.block === currentBlockFilter) || { total: 0, available: 0, assigned: 0, totalRevenue: 0 };
+      document.getElementById('stat-total').textContent = activeBlock.total;
+      document.getElementById('stat-available').textContent = activeBlock.available;
+      document.getElementById('stat-occupied').textContent = activeBlock.assigned;
+      
+      const filteredDeposit = filteredLockers.reduce((acc, l) => acc + (l.isDepositPaid && !l.isDepositRefunded ? (l.depositAmount || 0) : 0), 0);
+      document.getElementById('stat-deposit').textContent = `₹${filteredDeposit.toLocaleString('en-IN')}`;
+    } else {
+      document.getElementById('stat-total').textContent = stats.total || 0;
+      document.getElementById('stat-available').textContent = stats.available || 0;
+      document.getElementById('stat-occupied').textContent = stats.occupied || 0;
+      document.getElementById('stat-deposit').textContent = `₹${(stats.totalDeposit || 0).toLocaleString('en-IN')}`;
+    }
+
+    renderBlockFilters();
+    renderLockerGrid(filteredLockers);
   } catch (err) {
     console.error(err);
     Toast.error('Error loading lockers');
   }
+}
+
+function renderBlockFilters() {
+  const container = document.getElementById('block-filters');
+  if (!container) return;
+  
+  let html = `<button class="btn btn-sm ${currentBlockFilter === 'all' ? 'btn-primary' : 'btn-outline'} block-filter-btn" data-block="all">All Blocks</button>`;
+  blocksList.forEach(b => {
+    const isActive = currentBlockFilter === b.block;
+    html += `<button class="btn btn-sm ${isActive ? 'btn-primary' : 'btn-outline'} block-filter-btn" data-block="${escapeHTML(b.block)}">${escapeHTML(b.block)} (${b.total})</button>`;
+  });
+  
+  container.innerHTML = html;
+  container.querySelectorAll('.block-filter-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      currentBlockFilter = e.target.dataset.block;
+      loadLockers();
+    });
+  });
 }
 
 function renderLockerGrid(lockers) {
@@ -451,4 +497,80 @@ function debounce(fn, ms) {
     clearTimeout(timeout);
     timeout = setTimeout(() => fn.apply(this, args), ms);
   };
+}
+
+// Block Manager Modal
+function showBlockManagerModal() {
+  let blockOptions = blocksList.map(b => `<option value="${escapeHTML(b.block)}">${escapeHTML(b.block)}</option>`).join('');
+  if (!blockOptions) {
+    blockOptions = `<option value="Block A">Block A</option>`;
+  }
+
+  const modal = new Modal({
+    title: '🧱 Locker Block & Pricing Manager',
+    content: `
+      <form id="block-manager-form">
+        <p class="text-sm text-muted mb-3">Update pricing and size for all lockers in a selected block.</p>
+        <div class="form-group mb-3">
+          <label class="form-label">Select Block *</label>
+          <select id="manage-block-name" class="form-control" required>
+            ${blockOptions}
+          </select>
+        </div>
+        <div class="d-grid grid-2 gap-3 mb-3">
+          <div class="form-group">
+            <label class="form-label">Monthly Rental Fee (₹)</label>
+            <input type="number" id="manage-monthly-fee" class="form-control" placeholder="e.g. 500" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Caution Deposit (₹)</label>
+            <input type="number" id="manage-deposit-fee" class="form-control" placeholder="e.g. 200" min="0">
+          </div>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label">Change Size (Optional)</label>
+          <select id="manage-block-size" class="form-control">
+            <option value="">-- No Change --</option>
+            <option value="small">Small</option>
+            <option value="medium">Medium</option>
+            <option value="large">Large</option>
+          </select>
+        </div>
+        <div class="d-flex justify-end gap-2 mt-4">
+          <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Apply Changes</button>
+        </div>
+      </form>
+    `
+  });
+  modal.show();
+
+  document.getElementById('block-manager-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        block: document.getElementById('manage-block-name').value
+      };
+      
+      const monthlyFee = document.getElementById('manage-monthly-fee').value;
+      if (monthlyFee) payload.monthlyFee = monthlyFee;
+      
+      const depositFee = document.getElementById('manage-deposit-fee').value;
+      if (depositFee) payload.depositFee = depositFee;
+      
+      const size = document.getElementById('manage-block-size').value;
+      if (size) payload.size = size;
+
+      const res = await api.put('/api/lockers/blocks/pricing', payload);
+      if (res && res.success) {
+        Toast.success(res.message || 'Block pricing updated');
+        Modal.closeAll();
+        loadLockers();
+      } else {
+        Toast.error(res?.message || 'Error updating block pricing');
+      }
+    } catch (err) {
+      Toast.error(err.message || 'Error updating block pricing');
+    }
+  });
 }

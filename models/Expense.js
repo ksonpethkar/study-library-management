@@ -3,22 +3,7 @@ const mongoose = require('mongoose');
 const expenseSchema = new mongoose.Schema({
   category: {
     type: String,
-    required: [true, 'Expense category is required'],
-    enum: [
-      'Rent',
-      'Electricity',
-      'Salaries & Staff',
-      'High-Speed Wi-Fi & Tech',
-      'RO Water & Dispenser',
-      'Cleaning & Housekeeping',
-      'Maintenance & Repairs',
-      'Stationery & Printing',
-      'Security & CCTV',
-      'Taxes & Legal',
-      'Marketing & Ads',
-      'Other'
-    ],
-    default: 'Other'
+    required: [true, 'Expense category is required']
   },
   title: {
     type: String,

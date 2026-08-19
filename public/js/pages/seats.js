@@ -52,6 +52,9 @@ export async function render() {
 
       <!-- Top Primary Action Controls -->
       <div class="module-actions">
+        <button id="btn-zone-customizer" class="btn btn-outline-info d-flex align-items-center gap-1" style="font-weight: 600;">
+          🎨 Zone Customizer
+        </button>
         <button id="btn-cross-transfer" class="btn btn-outline-secondary d-flex align-items-center gap-1" style="font-weight: 600;">
           🔄 Transfer Student
         </button>
@@ -520,7 +523,7 @@ function renderSeatsGrid(seats, container) {
           
           <!-- Select Checkbox (Top Left) -->
           <div style="position: absolute; top: 6px; left: 6px; z-index: 2;" onclick="event.stopPropagation();">
-            <input type="checkbox" class="seat-select-cb" data-id="${seat._id}" ${isSelected ? 'checked' : ''} style="cursor: pointer;">
+            <input type="checkbox" class="seat-select-cb" data-id="${seat._id}" ${isSelected ? 'checked' : ''} style="cursor: pointer; appearance: none; width: 20px; height: 20px; border-radius: 50%; border: 2px solid ${seat.zoneColor || '#6c5ce7'}; background-color: ${isSelected ? (seat.zoneColor || '#6c5ce7') : 'transparent'};">
           </div>
 
           <!-- Quick Action Dot Menu (Top Right) -->

@@ -189,8 +189,10 @@ router.post('/bulk', validate([
       seatsToCreate.push({
         seatNumber,
         zone: zone.trim(),
+        zoneColor: req.body.zoneColor || '#6c5ce7',
         floor: floor ? floor.trim() : '',
         type: type || 'regular',
+        seatType: req.body.seatType || 'standard',
         branch: branch || null,
         monthlyRate: parsedMonthlyRate,
         amenities: parsedAmenities,
@@ -314,6 +316,53 @@ router.delete('/:id', async (req, res) => {
     
     await seat.deleteOne();
     res.json({ success: true, data: {}, message: `Seat ${seat.seatNumber} deleted successfully` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+const roleCheck = (role) => (req, res, next) => {
+  if (req.user && req.user.role === role) {
+    next();
+  } else {
+    res.status(403).json({ success: false, message: `Access denied. Requires ${role} role.` });
+  }
+};
+
+// PUT /zones/update - Update zoneColor and seatType for all seats matching a zone name
+router.put('/zones/update', protect, roleCheck('owner'), async (req, res) => {
+  try {
+    const { zone, zoneColor, seatType } = req.body;
+    if (!zone) return res.status(400).json({ success: false, message: 'Zone name is required' });
+    
+    const updateObj = {};
+    if (zoneColor) updateObj.zoneColor = zoneColor;
+    if (seatType) updateObj.seatType = seatType;
+    
+    const result = await Seat.updateMany({ zone: zone.trim() }, { $set: updateObj });
+    res.json({ success: true, message: `Updated ${result.modifiedCount} seats successfully` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /reorder - Bulk update row/column coordinates for drag-and-drop seat grid reordering
+router.put('/reorder', protect, roleCheck('owner'), async (req, res) => {
+  try {
+    const { seats } = req.body; // Array of { id, row, column }
+    if (!Array.isArray(seats) || seats.length === 0) {
+      return res.status(400).json({ success: false, message: 'No seats provided' });
+    }
+
+    const bulkOps = seats.map(s => ({
+      updateOne: {
+        filter: { _id: s.id },
+        update: { $set: { row: s.row, column: s.column } }
+      }
+    }));
+
+    const result = await Seat.bulkWrite(bulkOps);
+    res.json({ success: true, message: `Reordered ${result.modifiedCount} seats successfully` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

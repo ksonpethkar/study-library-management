@@ -20,6 +20,21 @@ const seatSchema = new mongoose.Schema({
     enum: ['regular', 'premium', 'cabin'],
     default: 'regular'
   },
+  zoneColor: {
+    type: String,
+    default: '#6c5ce7'
+  },
+  row: {
+    type: Number
+  },
+  column: {
+    type: Number
+  },
+  seatType: {
+    type: String,
+    enum: ['standard', 'glass_cabin', 'corner_desk', 'premium', 'girls_only'],
+    default: 'standard'
+  },
   status: {
     type: String,
     enum: ['available', 'occupied', 'reserved', 'maintenance'],

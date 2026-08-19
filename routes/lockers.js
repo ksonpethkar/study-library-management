@@ -5,6 +5,50 @@ const Student = require('../models/Student');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
 
+// GET /api/lockers/blocks - Get aggregated statistics per block
+router.get('/blocks', protect, async (req, res) => {
+  try {
+    const lockers = await Locker.find().lean();
+    const blocksMap = {};
+
+    lockers.forEach(l => {
+      const b = l.block || 'Block A';
+      if (!blocksMap[b]) {
+        blocksMap[b] = { block: b, total: 0, assigned: 0, available: 0, totalRevenue: 0 };
+      }
+      blocksMap[b].total += 1;
+      if (l.status === 'occupied') {
+        blocksMap[b].assigned += 1;
+        blocksMap[b].totalRevenue += (l.monthlyFee || 0);
+      } else if (l.status === 'available') {
+        blocksMap[b].available += 1;
+      }
+    });
+
+    res.json({ success: true, blocks: Object.values(blocksMap) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /api/lockers/blocks/pricing - Update pricing for a block
+router.put('/blocks/pricing', protect, roleCheck('owner'), async (req, res) => {
+  try {
+    const { block, monthlyFee, depositFee, size } = req.body;
+    if (!block) return res.status(400).json({ success: false, message: 'Block is required' });
+
+    const updateFields = {};
+    if (monthlyFee !== undefined) updateFields.monthlyFee = Number(monthlyFee);
+    if (depositFee !== undefined) updateFields.depositFee = Number(depositFee);
+    if (size) updateFields.size = size;
+
+    await Locker.updateMany({ block }, { $set: updateFields });
+    res.json({ success: true, message: `Updated pricing for ${block}` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // GET /api/lockers - List all lockers with branch and status filters
 router.get('/', protect, async (req, res) => {
   try {

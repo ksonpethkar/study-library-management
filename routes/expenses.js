@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const Expense = require('../models/Expense');
+const ExpenseCategory = require('../models/ExpenseCategory');
 const Payment = require('../models/Payment');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
@@ -162,6 +163,102 @@ router.get('/summary', async (req, res) => {
   } catch (err) {
     console.error('Error fetching P&L summary:', err);
     res.status(500).json({ success: false, message: 'Failed to fetch financial summary' });
+  }
+});
+
+/**
+ * @route   GET /api/expenses/categories
+ * @desc    Get all active expense categories
+ */
+router.get('/categories', async (req, res) => {
+  try {
+    await ExpenseCategory.seedDefaultCategories();
+    const categories = await ExpenseCategory.find().sort({ isSystem: -1, name: 1 });
+    res.json({ success: true, data: categories });
+  } catch (err) {
+    console.error('Error fetching expense categories:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch categories' });
+  }
+});
+
+/**
+ * @route   POST /api/expenses/categories
+ * @desc    Create new expense category
+ */
+router.post(
+  '/categories',
+  roleCheck('owner'),
+  validate([
+    body('name').trim().notEmpty().withMessage('Category name is required')
+  ]),
+  async (req, res) => {
+    try {
+      const { name, icon, color, description } = req.body;
+      const exists = await ExpenseCategory.findOne({ name: new RegExp(`^${name}$`, 'i') });
+      if (exists) {
+        return res.status(400).json({ success: false, message: 'Category already exists' });
+      }
+      const category = new ExpenseCategory({ name, icon, color, description });
+      await category.save();
+      res.status(201).json({ success: true, message: 'Category created', data: category });
+    } catch (err) {
+      console.error('Error creating category:', err);
+      res.status(500).json({ success: false, message: 'Failed to create category' });
+    }
+  }
+);
+
+/**
+ * @route   PUT /api/expenses/categories/:id
+ * @desc    Edit expense category
+ */
+router.put(
+  '/categories/:id',
+  roleCheck('owner'),
+  validate([
+    body('name').optional().trim().notEmpty().withMessage('Category name cannot be empty')
+  ]),
+  async (req, res) => {
+    try {
+      const category = await ExpenseCategory.findById(req.params.id);
+      if (!category) {
+        return res.status(404).json({ success: false, message: 'Category not found' });
+      }
+      if (category.isSystem && req.body.name && req.body.name !== category.name) {
+        return res.status(400).json({ success: false, message: 'Cannot rename system categories' });
+      }
+      
+      const updated = await ExpenseCategory.findByIdAndUpdate(
+        req.params.id,
+        { ...req.body },
+        { new: true, runValidators: true }
+      );
+      res.json({ success: true, message: 'Category updated', data: updated });
+    } catch (err) {
+      console.error('Error updating category:', err);
+      res.status(500).json({ success: false, message: 'Failed to update category' });
+    }
+  }
+);
+
+/**
+ * @route   DELETE /api/expenses/categories/:id
+ * @desc    Delete custom expense category
+ */
+router.delete('/categories/:id', roleCheck('owner'), async (req, res) => {
+  try {
+    const category = await ExpenseCategory.findById(req.params.id);
+    if (!category) {
+      return res.status(404).json({ success: false, message: 'Category not found' });
+    }
+    if (category.isSystem) {
+      return res.status(400).json({ success: false, message: 'Cannot delete system categories' });
+    }
+    await ExpenseCategory.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Category deleted' });
+  } catch (err) {
+    console.error('Error deleting category:', err);
+    res.status(500).json({ success: false, message: 'Failed to delete category' });
   }
 });
 

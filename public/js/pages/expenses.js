@@ -20,20 +20,7 @@ function formatDate(d) {
   });
 }
 
-const CATEGORIES = [
-  'Rent',
-  'Electricity',
-  'Salaries & Staff',
-  'High-Speed Wi-Fi & Tech',
-  'RO Water & Dispenser',
-  'Cleaning & Housekeeping',
-  'Maintenance & Repairs',
-  'Stationery & Printing',
-  'Security & CCTV',
-  'Taxes & Legal',
-  'Marketing & Ads',
-  'Other'
-];
+let dynamicCategories = [];
 
 export async function render(container) {
   const currentYear = new Date().getFullYear();
@@ -48,6 +35,7 @@ export async function render(container) {
     limit: 15,
     summary: null,
     expenses: [],
+    categories: [],
     pagination: { page: 1, limit: 15, total: 0, pages: 1 }
   };
 
@@ -62,6 +50,9 @@ export async function render(container) {
         <p>Track operating costs, rent, electricity, salaries, vendor bills, and auto-calculate net business profit.</p>
       </div>
       <div class="module-actions">
+        <button class="btn btn-outline-secondary" id="btn-manage-categories" style="font-weight: 600;">
+          🏷️ Manage Expense Categories
+        </button>
         <button class="btn btn-outline-secondary" id="btn-export-expenses" style="font-weight: 600;">
           📥 Export CSV
         </button>
@@ -103,7 +94,7 @@ export async function render(container) {
           <label class="form-label mb-0 text-xs" style="font-weight: 700; color: var(--color-text-secondary);">CATEGORY:</label>
           <select id="expense-category-filter" class="form-select form-control form-control-sm" style="width: 160px; font-weight: 600;">
             <option value="all">All Categories</option>
-            ${CATEGORIES.map(c => `<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('')}
+            <!-- Categories will be populated dynamically -->
           </select>
           <input type="text" id="expense-search-input" class="form-control form-control-sm" placeholder="Search title, vendor..." style="width: 220px;">
         </div>
@@ -197,10 +188,17 @@ export async function render(container) {
   async function loadData() {
     try {
       const monthParam = state.selectedMonth === 'all' ? '' : `&month=${state.selectedMonth}`;
-      const [summaryRes, listRes] = await Promise.all([
+      const [catRes, summaryRes, listRes] = await Promise.all([
+        api.get('/api/expenses/categories'),
         api.get(`/api/expenses/summary?year=${state.selectedYear}${monthParam}`),
         api.get(`/api/expenses?page=${state.page}&limit=${state.limit}&year=${state.selectedYear}${monthParam}&category=${state.selectedCategory}&search=${encodeURIComponent(state.search)}`)
       ]);
+
+      if (catRes.success && catRes.data) {
+        state.categories = catRes.data;
+        dynamicCategories = catRes.data;
+        renderCategoryFilters();
+      }
 
       if (summaryRes.success && summaryRes.data) {
         state.summary = summaryRes.data;
@@ -217,6 +215,15 @@ export async function render(container) {
       console.error('Failed to load expenses:', err);
       Toast.error('Failed to load financial records');
     }
+  }
+
+  function renderCategoryFilters() {
+    const filter = page.querySelector('#expense-category-filter');
+    if (!filter) return;
+    const currentVal = filter.value;
+    filter.innerHTML = `<option value="all">All Categories</option>` +
+      state.categories.map(c => `<option value="${escapeHTML(c.name)}">${escapeHTML(c.icon)} ${escapeHTML(c.name)}</option>`).join('');
+    filter.value = currentVal || 'all';
   }
 
   function renderSummaryCards(data) {
@@ -379,7 +386,7 @@ export async function render(container) {
           <div>
             <label class="form-label" style="font-weight: 600;">Category *</label>
             <select id="exp-category" class="form-select" required>
-              ${CATEGORIES.map(c => `<option value="${escapeHTML(c)}" ${exp?.category === c ? 'selected' : ''}>${escapeHTML(c)}</option>`).join('')}
+              ${dynamicCategories.map(c => `<option value="${escapeHTML(c.name)}" ${exp?.category === c.name ? 'selected' : ''}>${escapeHTML(c.icon)} ${escapeHTML(c.name)}</option>`).join('')}
             </select>
           </div>
           <div>
@@ -489,6 +496,117 @@ export async function render(container) {
     };
   }
 
+  function showCategoryManager() {
+    const modalContent = document.createElement('div');
+    modalContent.innerHTML = `
+      <div class="mb-3 d-flex gap-2">
+        <input type="text" id="new-cat-name" class="form-control" placeholder="Category Name" style="flex: 1;">
+        <input type="text" id="new-cat-icon" class="form-control" placeholder="Icon (e.g. 🍔)" style="width: 100px;">
+        <input type="color" id="new-cat-color" class="form-control" value="#e74c3c" style="width: 60px; padding: 2px;">
+        <button class="btn btn-primary" id="btn-add-cat">Add</button>
+      </div>
+      <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table mb-0">
+          <thead>
+            <tr>
+              <th>Icon</th>
+              <th>Name</th>
+              <th class="text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="cat-list-body">
+            <tr><td colspan="3" class="text-center">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const renderCatList = () => {
+      const tbody = modalContent.querySelector('#cat-list-body');
+      tbody.innerHTML = dynamicCategories.map(c => `
+        <tr>
+          <td style="font-size: 1.2rem;">${escapeHTML(c.icon || '💸')}</td>
+          <td>
+            <div style="font-weight: 600; color: ${escapeHTML(c.color || '#333')}">${escapeHTML(c.name)}</div>
+            ${c.isSystem ? '<span class="badge bg-secondary text-xs">System</span>' : ''}
+          </td>
+          <td class="text-center">
+            ${!c.isSystem ? `
+              <button class="btn btn-sm btn-ghost text-primary btn-edit-cat" data-id="${c._id}" data-name="${escapeHTML(c.name)}" data-icon="${escapeHTML(c.icon || '')}" data-color="${escapeHTML(c.color || '#333')}" title="Edit">✏️</button>
+              <button class="btn btn-sm btn-ghost text-danger btn-delete-cat" data-id="${c._id}" title="Delete">🗑️</button>
+            ` : '-'}
+          </td>
+        </tr>
+      `).join('');
+
+      tbody.querySelectorAll('.btn-edit-cat').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const newName = prompt('Edit Category Name', btn.dataset.name);
+          if (newName === null) return;
+          const newIcon = prompt('Edit Category Icon', btn.dataset.icon) || '💸';
+          const newColor = prompt('Edit Category Color', btn.dataset.color) || '#e74c3c';
+          
+          if (!newName.trim()) return Toast.error('Name cannot be empty');
+
+          api.put(`/api/expenses/categories/${btn.dataset.id}`, {
+            name: newName.trim(),
+            icon: newIcon.trim(),
+            color: newColor.trim()
+          }).then(async () => {
+            Toast.success('Category updated');
+            await loadData();
+            renderCatList();
+          }).catch(err => {
+            Toast.error(err.message || 'Failed to update category');
+          });
+        });
+      });
+
+      tbody.querySelectorAll('.btn-delete-cat').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (await Confirm.show({ title: 'Delete Category', message: 'Delete this category?', danger: true })) {
+            try {
+              await api.delete(`/api/expenses/categories/${btn.dataset.id}`);
+              Toast.success('Category deleted');
+              await loadData();
+              renderCatList();
+            } catch (err) {
+              Toast.error(err.message || 'Failed to delete category');
+            }
+          }
+        });
+      });
+    };
+
+    const modal = new Modal({
+      title: '🏷️ Manage Expense Categories',
+      content: modalContent,
+      size: 'md'
+    });
+    modal.show();
+    
+    renderCatList();
+
+    modalContent.querySelector('#btn-add-cat').addEventListener('click', async () => {
+      const name = modalContent.querySelector('#new-cat-name').value.trim();
+      const icon = modalContent.querySelector('#new-cat-icon').value.trim() || '💸';
+      const color = modalContent.querySelector('#new-cat-color').value;
+
+      if (!name) return Toast.error('Name is required');
+
+      try {
+        await api.post('/api/expenses/categories', { name, icon, color });
+        Toast.success('Category added');
+        modalContent.querySelector('#new-cat-name').value = '';
+        modalContent.querySelector('#new-cat-icon').value = '';
+        await loadData();
+        renderCatList();
+      } catch (err) {
+        Toast.error(err.message || 'Failed to add category');
+      }
+    });
+  }
+
   // Filter event listeners
   page.querySelector('#expense-month-filter').addEventListener('change', (e) => {
     state.selectedMonth = e.target.value;
@@ -516,6 +634,10 @@ export async function render(container) {
     expenseSearchTimeout = setTimeout(() => {
       loadData();
     }, 300);
+  });
+
+  page.querySelector('#btn-manage-categories').addEventListener('click', () => {
+    showCategoryManager();
   });
 
   page.querySelector('#btn-add-expense').addEventListener('click', () => {

@@ -11,6 +11,22 @@ const lockerSchema = new mongoose.Schema({
     enum: ['small', 'medium', 'large'],
     default: 'medium'
   },
+  block: {
+    type: String,
+    default: 'Block A'
+  },
+  floor: {
+    type: String,
+    default: 'Ground Floor'
+  },
+  monthlyFee: {
+    type: Number,
+    default: 0
+  },
+  depositFee: {
+    type: Number,
+    default: 0
+  },
   status: {
     type: String,
     enum: ['available', 'occupied', 'maintenance'],
