@@ -890,7 +890,7 @@ export class MediaFieldPicker {
     const formatImgUrl = (val) => {
       if (!val || typeof val !== 'string') return '';
       let clean = val.trim();
-      if (!clean || clean === 'null' || clean === 'undefined') return '';
+      if (!clean || clean === 'null' || clean === 'undefined' || clean === 'false') return '';
       if (clean.startsWith('data:image')) {
         return clean;
       }
@@ -905,9 +905,22 @@ export class MediaFieldPicker {
 
     const renderPreview = (val) => {
       const cleanUrl = formatImgUrl(val);
-      if (!cleanUrl) return '<span style="font-size: 24px; opacity: 0.5;">📷</span>';
+      if (!cleanUrl) {
+        if (preset === 'qr_code') {
+          const upiString = `upi://pay?pa=thecozycorner@okaxis&pn=${encodeURIComponent('Study Library')}&am=0&cu=INR`;
+          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiString)}`;
+          return `<img src="${qrUrl}" style="width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 2px;" title="Dynamic UPI QR Preview">`;
+        }
+        return '<span style="font-size: 24px; opacity: 0.5;">📷</span>';
+      }
+
       const safeSrc = cleanUrl.startsWith('data:image') ? cleanUrl : escapeHTML(cleanUrl);
-      return `<img src="${safeSrc}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.style.display='none'; if(this.parentElement) this.parentElement.innerHTML='<span style=\\'font-size:11px; font-weight:700; color:var(--color-danger); text-align:center; padding:2px; display:block;\\'>⚠️ Broken Image<br><small style=\\'font-size:9px; color:var(--color-text-muted);\\'>Click Upload</small></span>';">`;
+      const fallbackQr = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=thecozycorner@okaxis`;
+      const fallbackMarkup = preset === 'qr_code'
+        ? `<img src="${fallbackQr}" style="width:100%;height:100%;object-fit:contain;background:#fff;padding:2px;" title="Dynamic QR Preview">`
+        : `<span style="font-size:11px;font-weight:700;color:var(--color-primary);text-align:center;padding:2px;display:block;">📷 Click Upload<br><small style="font-size:9px;color:var(--color-text-muted);">Select Image</small></span>`;
+
+      return `<img src="${safeSrc}" style="width: 100%; height: 100%; object-fit: contain; background: #fff;" onerror="this.onerror=null; this.style.display='none'; if(this.parentElement) this.parentElement.innerHTML='${fallbackMarkup.replace(/'/g, "\\'")}';">`;
     };
 
     wrapper.innerHTML = `
