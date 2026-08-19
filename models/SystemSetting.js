@@ -102,6 +102,8 @@ systemSettingSchema.statics.initDefaults = async function() {
     { category: 'notification', key: 'notification.balanceReminderDays', value: [7, 3, 1], type: 'array', label: 'Overdue Balance Reminder Days Intervals' },
     { category: 'notification', key: 'notification.enableAutoExpiryBot', value: true, type: 'boolean', label: 'Enable Automated Expiry WhatsApp Bot' },
     { category: 'notification', key: 'notification.enableAutoDuesBot', value: true, type: 'boolean', label: 'Enable Automated Balance Due WhatsApp Bot' },
+    { category: 'notification', key: 'notification.enableConversationalBot', value: true, type: 'boolean', label: 'Enable Interactive WhatsApp Conversational Bot' },
+
     
     // General Settings
     { category: 'general', key: 'general.currency', value: 'INR', type: 'string', label: 'Currency' },

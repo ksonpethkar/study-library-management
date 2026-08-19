@@ -189,6 +189,27 @@ export async function render(container) {
         </div>
       </div>
 
+      <!-- Tally & GST Accounting Exports Card -->
+      <div class="card mb-2" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-bottom: 1px solid var(--color-divider);">
+          <h3 style="margin: 0; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+            <span>📑</span> Tally & GST Accounting Exports
+          </h3>
+          <span class="badge badge-success" style="font-size: 0.75rem;">GSTR-1 & Tally Prime Ready</span>
+        </div>
+        <div class="card-body p-3">
+          <p class="small text-muted mb-3" style="margin-bottom: 12px;">Export fee collections and operational expense ledgers formatted for Tally Prime XML import or download GSTR-1 & GSTR-3B B2C tax compliance summaries.</p>
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <button class="btn btn-primary d-flex align-items-center gap-2" id="btnDownloadTallyXml" style="font-weight: 600;">
+              <span>📥</span> Download Tally XML Import File
+            </button>
+            <button class="btn btn-secondary d-flex align-items-center gap-2" id="btnDownloadGstReport" style="font-weight: 600;">
+              <span>📊</span> Download GST Sales Summary Report (CSV)
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Charts Section -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
         
@@ -459,6 +480,13 @@ export async function render(container) {
     if (btnQuickStudentsCsv) btnQuickStudentsCsv.onclick = () => downloadReport('students', 'csv');
     if (btnQuickPaymentsCsv) btnQuickPaymentsCsv.onclick = () => downloadReport('payments', 'csv');
     if (btnQuickAttendanceCsv) btnQuickAttendanceCsv.onclick = () => downloadReport('attendance', 'csv');
+
+    // Tally & GST Export card action buttons
+    const btnDownloadTallyXml = container.querySelector('#btnDownloadTallyXml');
+    const btnDownloadGstReport = container.querySelector('#btnDownloadGstReport');
+
+    if (btnDownloadTallyXml) btnDownloadTallyXml.onclick = () => downloadTallyXml();
+    if (btnDownloadGstReport) btnDownloadGstReport.onclick = () => downloadGstReport();
 
     // Print summary
     const btnPrintSummary = container.querySelector('#btnPrintReport') || container.querySelector('#btnPrintSummary');
@@ -1146,6 +1174,101 @@ export async function render(container) {
     } catch (err) {
       console.error('Download error:', err);
       Toast.error(`Export failed: ${err.message || 'Error occurred'}`);
+    }
+  }
+
+  /**
+   * Helper to download Tally Prime XML import file directly
+   */
+  async function downloadTallyXml() {
+    try {
+      Toast.info('Generating Tally Prime XML import file...');
+      const token = localStorage.getItem('sl_token');
+      const { startDate, endDate } = currentRange;
+
+      const params = new URLSearchParams();
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+
+      const url = `/api/reports/tally-xml?${params.toString()}`;
+      const response = await fetch(url, {
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to download Tally XML (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = `tally-import-${new Date().toISOString().split('T')[0]}.xml`;
+      if (disposition && disposition.includes('filename=')) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match && match[1]) filename = match[1];
+      }
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(downloadUrl);
+
+      Toast.success('Tally Prime XML import file downloaded successfully!');
+    } catch (err) {
+      console.error('Tally XML download error:', err);
+      Toast.error(`Tally export failed: ${err.message || 'Error occurred'}`);
+    }
+  }
+
+  /**
+   * Helper to download GST Sales Summary CSV directly
+   */
+  async function downloadGstReport() {
+    try {
+      Toast.info('Generating GST Sales Summary Report (CSV)...');
+      const token = localStorage.getItem('sl_token');
+      const { startDate, endDate } = currentRange;
+
+      const params = new URLSearchParams();
+      params.set('format', 'csv');
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+
+      const url = `/api/reports/gst-report?${params.toString()}`;
+      const response = await fetch(url, {
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to download GST Report (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = `gst-b2c-sales-summary-${new Date().toISOString().split('T')[0]}.csv`;
+      if (disposition && disposition.includes('filename=')) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match && match[1]) filename = match[1];
+      }
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(downloadUrl);
+
+      Toast.success('GST Sales Summary Report downloaded successfully!');
+    } catch (err) {
+      console.error('GST Report download error:', err);
+      Toast.error(`GST export failed: ${err.message || 'Error occurred'}`);
     }
   }
 

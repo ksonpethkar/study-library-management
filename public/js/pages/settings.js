@@ -621,7 +621,55 @@ function renderSettingsUI(container, profile, settings) {
                       <span class="switch-slider"></span>
                     </label>
                   </div>
+
+                  <!-- Interactive Conversational Bot Toggle -->
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                    <div style="padding-right: 0.75rem;">
+                      <div style="font-weight: 600; color: var(--color-text-primary); font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem;">
+                        <span>🤖</span> Enable Interactive WhatsApp Conversational Bot
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">
+                        Auto-replies to incoming student messages (!seat, !status, !renew, !help) via WhatsApp webhook.
+                      </div>
+                    </div>
+                    <label class="switch-label">
+                      <input type="checkbox" id="setting-enableConversationalBot" ${(notif['notification.enableConversationalBot'] ?? notif.enableConversationalBot) !== false ? 'checked' : ''}>
+                      <span class="switch-slider"></span>
+                    </label>
+                  </div>
                 </div>
+
+                <!-- Command Cheat-Sheet Card -->
+                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h5 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.4rem;">
+                      <span>📖</span> WhatsApp Bot Command Cheat-Sheet
+                    </h5>
+                    <code style="font-size: 0.75rem; background: var(--color-bg-primary); padding: 2px 8px; border-radius: 4px; color: var(--color-primary); border: 1px solid var(--color-border);">Webhook: POST /api/messages/webhook</code>
+                  </div>
+                  <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 0.85rem;">
+                    Students can text any of the following commands to your WhatsApp number for instant automated real-time replies:
+                  </p>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
+                    <div style="background: var(--color-bg-primary); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                      <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!seat</code>
+                      <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with student's active desk number, shift timing & branch.</div>
+                    </div>
+                    <div style="background: var(--color-bg-primary); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                      <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!status</code> / <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!expiry</code>
+                      <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with active plan name, validity end date & balance due.</div>
+                    </div>
+                    <div style="background: var(--color-bg-primary); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                      <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!renew</code>
+                      <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with pre-filled 1-tap UPI payment link & QR code for renewal.</div>
+                    </div>
+                    <div style="background: var(--color-bg-primary); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                      <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!help</code>
+                      <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with complete interactive command guide menu.</div>
+                    </div>
+                  </div>
+                </div>
+
 
                 <!-- Expiry Reminder Intervals Checkboxes -->
                 <div class="form-group" style="margin-bottom: 1.25rem;">
@@ -2687,7 +2735,9 @@ function renderSettingsUI(container, profile, settings) {
         balanceReminderDays: selectedBalanceDays,
         enableAutoExpiryBot: !!container.querySelector('#setting-enableAutoExpiryBot')?.checked,
         enableAutoDuesBot: !!container.querySelector('#setting-enableAutoDuesBot')?.checked,
+        enableConversationalBot: !!container.querySelector('#setting-enableConversationalBot')?.checked,
         enablePush: !!container.querySelector('#setting-enablePush')?.checked
+
       };
 
       const res = await api.put('/api/settings/system-settings', payload);

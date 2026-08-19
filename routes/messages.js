@@ -307,4 +307,66 @@ router.post('/run-cron-now', protect, roleCheck('owner'), async (req, res) => {
   }
 });
 
+// GET /api/messages/webhook - Meta WhatsApp Webhook challenge verification
+router.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode && token) {
+    if (mode === 'subscribe') {
+      console.log('WhatsApp Webhook verified successfully');
+      return res.status(200).send(challenge);
+    } else {
+      return res.sendStatus(403);
+    }
+  }
+  res.json({ success: true, message: 'WhatsApp Webhook Endpoint Ready' });
+});
+
+// POST /api/messages/webhook - Receive incoming WhatsApp Webhook payloads and auto-reply using WhatsAppBot.processIncomingCommand()
+router.post('/webhook', async (req, res) => {
+  try {
+    const SystemSetting = require('../models/SystemSetting');
+    const WhatsAppBot = require('../utils/whatsappBot');
+
+    const isBotEnabled = await SystemSetting.getSetting('notification.enableConversationalBot');
+    if (isBotEnabled === false) {
+      return res.status(200).json({
+        success: false,
+        message: 'WhatsApp Interactive Conversational Bot is currently disabled in settings.'
+      });
+    }
+
+    let phone = req.body.phone || req.body.from || req.body.From || req.body.sender;
+    let messageText = req.body.messageText || req.body.message || req.body.text || req.body.body || req.body.Body;
+
+    // Fallback: parse Meta WhatsApp Cloud API payload format
+    if (!phone && req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
+      const msgObj = req.body.entry[0].changes[0].value.messages[0];
+      phone = msgObj.from;
+      messageText = msgObj.text?.body || msgObj.caption || '';
+    }
+
+    if (!phone || !messageText) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing phone number or messageText payload'
+      });
+    }
+
+    const result = await WhatsAppBot.processIncomingCommand({ phone, messageText });
+
+    res.json({
+      success: result.success,
+      reply: result.reply,
+      data: result
+    });
+  } catch (error) {
+    console.error('WhatsApp Webhook processing error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
+

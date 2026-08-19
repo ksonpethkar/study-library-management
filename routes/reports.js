@@ -8,6 +8,7 @@ const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
 const Plan = require('../models/Plan');
 const Seat = require('../models/Seat');
+const Expense = require('../models/Expense');
 
 // Protect all report endpoints
 router.use(protect);
@@ -770,4 +771,263 @@ router.get('/eod-summary', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/reports/tally-xml
+ * Generates Tally Prime XML Sales & Receipt Voucher XML import file for fee collections and operational expenses
+ */
+router.get('/tally-xml', async (req, res) => {
+  try {
+    const { startDate: qStart, endDate: qEnd } = req.query;
+    const { startDate, endDate } = parseDateRange(qStart, qEnd, 30);
+
+    const [payments, expenses] = await Promise.all([
+      Payment.find({
+        paymentDate: { $gte: startDate, $lte: endDate },
+        status: 'paid'
+      })
+        .populate('student', 'name studentId phone')
+        .populate('plan', 'name')
+        .sort({ paymentDate: 1 })
+        .lean(),
+      Expense.find({
+        date: { $gte: startDate, $lte: endDate }
+      })
+        .sort({ date: 1 })
+        .lean()
+    ]);
+
+    function formatTallyDate(date) {
+      if (!date) return '';
+      const d = new Date(date);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}${month}${day}`;
+    }
+
+    function escapeXML(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+    }
+
+    let voucherXmls = '';
+
+    // Receipt Vouchers for Fee Collections
+    payments.forEach(p => {
+      const vDate = formatTallyDate(p.paymentDate);
+      const vNo = escapeXML(p.receiptNumber || `REC-${p._id}`);
+      const studentName = escapeXML(p.student?.name || 'Student Fee');
+      const planName = escapeXML(p.plan?.name || 'Library Membership');
+      const amount = Number(p.finalAmount || p.amount || 0);
+      const method = p.paymentMethod || 'cash';
+      const ledgerName = method === 'cash' ? 'Cash' : 'Bank Accounts';
+      const narration = escapeXML(`Fee Collection - ${studentName} (${planName}) - ${p.receiptNumber || ''}`);
+
+      voucherXmls += `
+        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+          <VOUCHER VCHTYPE="Receipt" ACTION="Create">
+            <DATE>${vDate}</DATE>
+            <VOUCHERTYPENAME>Receipt</VOUCHERTYPENAME>
+            <VOUCHERNUMBER>${vNo}</VOUCHERNUMBER>
+            <NARRATION>${narration}</NARRATION>
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>${ledgerName}</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>YES</ISDEEMEDPOSITIVE>
+              <AMOUNT>-${amount.toFixed(2)}</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>Fee Income</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>NO</ISDEEMEDPOSITIVE>
+              <AMOUNT>${amount.toFixed(2)}</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+          </VOUCHER>
+        </TALLYMESSAGE>`;
+    });
+
+    // Payment Vouchers for Operational Expenses
+    expenses.forEach(e => {
+      const vDate = formatTallyDate(e.date);
+      const vNo = escapeXML(`EXP-${e._id.toString().substring(18)}`);
+      const category = escapeXML(e.category || 'Indirect Expenses');
+      const title = escapeXML(e.title || 'Operational Expense');
+      const amount = Number(e.amount || 0);
+      const method = e.paymentMethod || 'cash';
+      const bankOrCash = method === 'cash' ? 'Cash' : 'Bank Accounts';
+      const narration = escapeXML(`Expense - ${category}: ${title} ${e.vendor ? '(' + e.vendor + ')' : ''}`);
+
+      voucherXmls += `
+        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+          <VOUCHER VCHTYPE="Payment" ACTION="Create">
+            <DATE>${vDate}</DATE>
+            <VOUCHERTYPENAME>Payment</VOUCHERTYPENAME>
+            <VOUCHERNUMBER>${vNo}</VOUCHERNUMBER>
+            <NARRATION>${narration}</NARRATION>
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>${category}</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>YES</ISDEEMEDPOSITIVE>
+              <AMOUNT>-${amount.toFixed(2)}</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+            <ALLLEDGERENTRIES.LIST>
+              <LEDGERNAME>${bankOrCash}</LEDGERNAME>
+              <ISDEEMEDPOSITIVE>NO</ISDEEMEDPOSITIVE>
+              <AMOUNT>${amount.toFixed(2)}</AMOUNT>
+            </ALLLEDGERENTRIES.LIST>
+          </VOUCHER>
+        </TALLYMESSAGE>`;
+    });
+
+    const tallyXml = `<?xml version="1.0" encoding="UTF-8"?>
+<ENVELOPE>
+  <HEADER>
+    <TALLYREQUEST>Import Data</TALLYREQUEST>
+  </HEADER>
+  <BODY>
+    <IMPORTDATA>
+      <REQUESTDESC>
+        <REPORTNAME>Vouchers</REPORTNAME>
+        <STATICVARIABLES>
+          <SVCURRENTCOMPANY>Library Management System</SVCURRENTCOMPANY>
+        </STATICVARIABLES>
+      </REQUESTDESC>
+      <REQUESTDATA>${voucherXmls}
+      </REQUESTDATA>
+    </IMPORTDATA>
+  </BODY>
+</ENVELOPE>`;
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    const filename = `tally-import-${startDateStr}-to-${endDateStr}.xml`;
+
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(tallyXml);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /api/reports/gst-report
+ * Generates GSTR-1 & GSTR-3B B2C sales summary (Taxable Value, CGST 9%, SGST 9%, Total GST 18%, Grand Total)
+ */
+router.get('/gst-report', async (req, res) => {
+  try {
+    const { startDate: qStart, endDate: qEnd, format = 'csv' } = req.query;
+    const { startDate, endDate } = parseDateRange(qStart, qEnd, 30);
+
+    const payments = await Payment.find({
+      paymentDate: { $gte: startDate, $lte: endDate },
+      status: 'paid'
+    })
+      .populate('student', 'name studentId phone state gstin')
+      .populate('plan', 'name price')
+      .sort({ paymentDate: 1 })
+      .lean();
+
+    let grandTotal = 0;
+    let totalTaxableValue = 0;
+    let totalCgst = 0;
+    let totalSgst = 0;
+    let totalGst = 0;
+
+    const rows = payments.map(p => {
+      const totalAmt = Number(p.finalAmount || p.amount || 0);
+      const taxable = Math.round((totalAmt / 1.18) * 100) / 100;
+      const gstAmt = Math.round((totalAmt - taxable) * 100) / 100;
+      const cgst = Math.round((gstAmt / 2) * 100) / 100;
+      const sgst = Math.round((gstAmt - cgst) * 100) / 100;
+
+      grandTotal += totalAmt;
+      totalTaxableValue += taxable;
+      totalCgst += cgst;
+      totalSgst += sgst;
+      totalGst += gstAmt;
+
+      return {
+        receiptNumber: p.receiptNumber || '',
+        paymentDate: p.paymentDate ? new Date(p.paymentDate).toLocaleDateString('en-IN') : '',
+        studentName: p.student?.name || 'B2C Customer',
+        studentId: p.student?.studentId || '',
+        planName: p.plan?.name || 'Subscription',
+        paymentMethod: (p.paymentMethod || 'cash').toUpperCase(),
+        taxableValue: taxable.toFixed(2),
+        cgst: cgst.toFixed(2),
+        sgst: sgst.toFixed(2),
+        totalGst: gstAmt.toFixed(2),
+        grandTotal: totalAmt.toFixed(2)
+      };
+    });
+
+    const summary = {
+      totalTransactions: payments.length,
+      taxableValue: Number(totalTaxableValue.toFixed(2)),
+      cgst9: Number(totalCgst.toFixed(2)),
+      sgst9: Number(totalSgst.toFixed(2)),
+      totalGst18: Number(totalGst.toFixed(2)),
+      grandTotal: Number(grandTotal.toFixed(2))
+    };
+
+    if (format === 'json') {
+      return res.json({
+        success: true,
+        data: {
+          summary,
+          items: rows,
+          period: {
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString()
+          }
+        },
+        message: 'GST Sales Summary report generated successfully'
+      });
+    }
+
+    const headers = [
+      { label: 'Receipt #', key: 'receiptNumber' },
+      { label: 'Payment Date', key: 'paymentDate' },
+      { label: 'Student Name', key: 'studentName' },
+      { label: 'Student ID', key: 'studentId' },
+      { label: 'Plan Name', key: 'planName' },
+      { label: 'Payment Method', key: 'paymentMethod' },
+      { label: 'Taxable Value (₹)', key: 'taxableValue' },
+      { label: 'CGST 9% (₹)', key: 'cgst' },
+      { label: 'SGST 9% (₹)', key: 'sgst' },
+      { label: 'Total GST 18% (₹)', key: 'totalGst' },
+      { label: 'Grand Total (₹)', key: 'grandTotal' }
+    ];
+
+    const csvRows = [...rows, {
+      receiptNumber: 'TOTAL SUMMARY',
+      paymentDate: '',
+      studentName: '',
+      studentId: '',
+      planName: '',
+      paymentMethod: '',
+      taxableValue: totalTaxableValue.toFixed(2),
+      cgst: totalCgst.toFixed(2),
+      sgst: totalSgst.toFixed(2),
+      totalGst: totalGst.toFixed(2),
+      grandTotal: grandTotal.toFixed(2)
+    }];
+
+    const csvData = generateCSV(headers, csvRows);
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    const filename = `gst-b2c-sales-summary-${startDateStr}-to-${endDateStr}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csvData);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
+

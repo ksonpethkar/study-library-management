@@ -60,13 +60,206 @@ async function getStudentForUser(user, req = null) {
   return null;
 }
 
+/**
+ * Helper to calculate attendance stats, streaks, and auto-award badges for a student
+ */
+async function calculateAndAwardBadges(studentId) {
+  try {
+    const studentDoc = await Student.findById(studentId);
+    if (!studentDoc) return null;
+
+    // Fetch all attendance records for the student
+    const records = await Attendance.find({ student: studentId }).sort({ date: 1 }).lean();
+
+    let earlyBirdCount = 0;
+    let nightOwlCount = 0;
+    let totalMinutes = 0;
+    const attendedDateStrs = new Set();
+
+    records.forEach(r => {
+      // Check-in time evaluation
+      if (r.checkIn) {
+        const checkInDate = new Date(r.checkIn);
+        const hours = checkInDate.getHours();
+        // Early bird: before 07:00 AM (hour < 7)
+        if (hours < 7) {
+          earlyBirdCount++;
+        }
+        // Night owl: after 08:00 PM (hour >= 20)
+        if (hours >= 20) {
+          nightOwlCount++;
+        }
+      }
+
+      // Total study duration
+      let mins = r.duration || 0;
+      if (!mins && r.checkIn && r.checkOut) {
+        mins = Math.max(0, Math.round((new Date(r.checkOut) - new Date(r.checkIn)) / 60000));
+      } else if (!mins && ['present', 'late', 'half_day'].includes(r.status)) {
+        mins = r.status === 'half_day' ? 180 : 300;
+      }
+      totalMinutes += mins;
+
+      // Track attended days for streak calculation
+      if (['present', 'late', 'half_day'].includes(r.status) || r.checkIn) {
+        const d = new Date(r.date);
+        if (!isNaN(d.getTime())) {
+          attendedDateStrs.add(d.toISOString().split('T')[0]);
+        }
+      }
+    });
+
+    const totalHours = Number((totalMinutes / 60).toFixed(1));
+
+    // Calculate streaks (consecutive calendar days)
+    const sortedDates = Array.from(attendedDateStrs).sort();
+    let currentStreak = 0;
+    let maxStreak = 0;
+    let tempStreak = 0;
+    let prevDate = null;
+
+    for (const dateStr of sortedDates) {
+      const curr = new Date(dateStr);
+      if (!prevDate) {
+        tempStreak = 1;
+      } else {
+        const diffDays = Math.round((curr - prevDate) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+          tempStreak++;
+        } else if (diffDays > 1) {
+          tempStreak = 1;
+        }
+      }
+      if (tempStreak > maxStreak) maxStreak = tempStreak;
+      prevDate = curr;
+    }
+
+    // Determine current active streak relative to today
+    const todayStr = new Date().toISOString().split('T')[0];
+    const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+    if (attendedDateStrs.has(todayStr) || attendedDateStrs.has(yesterdayStr)) {
+      let checkDate = attendedDateStrs.has(todayStr) ? new Date() : new Date(Date.now() - 86400000);
+      currentStreak = 0;
+      while (true) {
+        const dStr = checkDate.toISOString().split('T')[0];
+        if (attendedDateStrs.has(dStr)) {
+          currentStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+    } else {
+      currentStreak = 0;
+    }
+
+    // Update studyStreakDays counter on student
+    studentDoc.studyStreakDays = currentStreak;
+
+    // Auto-award badges list
+    const badgeDefs = [
+      {
+        badgeId: 'early_bird',
+        title: '🌅 Early Bird',
+        icon: '🌅',
+        description: 'Checked in before 07:00 AM 5+ times',
+        eligible: earlyBirdCount >= 5,
+        progress: earlyBirdCount,
+        target: 5
+      },
+      {
+        badgeId: 'study_warrior',
+        title: '⚔️ 100-Hour Study Warrior',
+        icon: '⚔️',
+        description: 'Total study hours >= 100',
+        eligible: totalHours >= 100,
+        progress: totalHours,
+        target: 100
+      },
+      {
+        badgeId: 'night_owl',
+        title: '🦉 Night Owl',
+        icon: '🦉',
+        description: 'Checked in after 08:00 PM 5+ times',
+        eligible: nightOwlCount >= 5,
+        progress: nightOwlCount,
+        target: 5
+      },
+      {
+        badgeId: 'streak_champion',
+        title: '🏆 30-Day Streak Champion',
+        icon: '🏆',
+        description: 'Consecutive attendance streak >= 30 days',
+        eligible: maxStreak >= 30 || currentStreak >= 30,
+        progress: Math.max(maxStreak, currentStreak),
+        target: 30
+      }
+    ];
+
+    if (!Array.isArray(studentDoc.badges)) {
+      studentDoc.badges = [];
+    }
+
+    const existingBadgeIds = new Set(studentDoc.badges.map(b => b.badgeId));
+
+    for (const def of badgeDefs) {
+      if (def.eligible && !existingBadgeIds.has(def.badgeId)) {
+        studentDoc.badges.push({
+          badgeId: def.badgeId,
+          title: def.title,
+          icon: def.icon,
+          description: def.description,
+          earnedAt: new Date()
+        });
+        existingBadgeIds.add(def.badgeId);
+      }
+    }
+
+    await studentDoc.save({ validateBeforeSave: false });
+
+    // Re-populate seat & plan for dashboard view consistency
+    const populatedStudent = await Student.findById(studentId)
+      .populate('plan')
+      .populate('seat')
+      .populate('branch')
+      .lean();
+
+    return {
+      student: populatedStudent || studentDoc.toObject(),
+      badgeProgress: badgeDefs.map(d => ({
+        badgeId: d.badgeId,
+        title: d.title,
+        icon: d.icon,
+        description: d.description,
+        progress: d.progress,
+        target: d.target,
+        earned: existingBadgeIds.has(d.badgeId)
+      })),
+      earlyBirdCount,
+      nightOwlCount,
+      totalHours,
+      currentStreak,
+      maxStreak
+    };
+  } catch (err) {
+    console.error('Badge calculation error:', err);
+    return null;
+  }
+}
+
 // @route   GET /api/student-portal/dashboard
 // @desc    Get student's live membership, seat, attendance, and payment details
 router.get('/dashboard', async (req, res) => {
   try {
-    const student = await getStudentForUser(req.user, req);
+    let student = await getStudentForUser(req.user, req);
     if (!student) {
       return res.status(404).json({ success: false, message: 'No student record associated with this account' });
+    }
+
+    const badgeResult = await calculateAndAwardBadges(student._id);
+    if (badgeResult && badgeResult.student) {
+      student = badgeResult.student;
     }
 
     const isAdmin = ['owner', 'branch_manager', 'staff', 'superadmin'].includes(req.user.role);
@@ -81,7 +274,7 @@ router.get('/dashboard', async (req, res) => {
       Payment.find({ student: student._id }).sort({ paymentDate: -1 }).limit(10).lean(),
       Attendance.find({ student: student._id }).sort({ date: -1 }).limit(30).lean(),
       Attendance.findOne({
-        student: student._id.lean(),
+        student: student._id,
         date: {
           $gte: new Date(new Date().setHours(0, 0, 0, 0)),
           $lte: new Date(new Date().setHours(23, 59, 59, 999))
@@ -98,7 +291,7 @@ router.get('/dashboard', async (req, res) => {
 
     // Calculate total hours studied
     const totalMinutes = attendanceRecords.reduce((sum, r) => sum + (r.duration || 0), 0);
-    const totalHours = (totalMinutes / 60).toFixed(1);
+    const totalHours = badgeResult ? badgeResult.totalHours : (totalMinutes / 60).toFixed(1);
 
     res.json({
       success: true,
@@ -111,7 +304,8 @@ router.get('/dashboard', async (req, res) => {
         payments,
         attendanceRecords,
         isAdmin,
-        allStudents
+        allStudents,
+        badgeProgress: badgeResult ? badgeResult.badgeProgress : []
       },
       message: 'Student dashboard loaded'
     });
@@ -151,6 +345,8 @@ router.post('/punch', async (req, res) => {
         status: 'present'
       });
 
+      await calculateAndAwardBadges(student._id);
+
       return res.json({
         success: true,
         data: att,
@@ -170,6 +366,8 @@ router.post('/punch', async (req, res) => {
       
       att.duration = Math.max(0, Math.floor((now.getTime() - inTime.getTime()) / 60000));
       await att.save();
+
+      await calculateAndAwardBadges(student._id);
 
       return res.json({
         success: true,

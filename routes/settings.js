@@ -231,6 +231,9 @@ const updateSystemSettingsHandler = async (req, res) => {
       'notification.enableAutoExpiryBot': { key: 'notification.enableAutoExpiryBot', category: 'notification', type: 'boolean', label: 'Enable Automated Expiry WhatsApp Bot' },
       'enableAutoDuesBot': { key: 'notification.enableAutoDuesBot', category: 'notification', type: 'boolean', label: 'Enable Automated Balance Due WhatsApp Bot' },
       'notification.enableAutoDuesBot': { key: 'notification.enableAutoDuesBot', category: 'notification', type: 'boolean', label: 'Enable Automated Balance Due WhatsApp Bot' },
+      'enableConversationalBot': { key: 'notification.enableConversationalBot', category: 'notification', type: 'boolean', label: 'Enable Interactive WhatsApp Conversational Bot' },
+      'notification.enableConversationalBot': { key: 'notification.enableConversationalBot', category: 'notification', type: 'boolean', label: 'Enable Interactive WhatsApp Conversational Bot' },
+
 
       // General Settings
       'currency': { key: 'general.currency', category: 'general', type: 'string', label: 'Currency' },

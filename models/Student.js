@@ -41,6 +41,15 @@ const studentSchema = new mongoose.Schema({
   referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
   referralCredits: { type: Number, default: 0 },
   totalReferralsCount: { type: Number, default: 0 },
+  // Gamified Leaderboard & Badges
+  badges: [{
+    badgeId: { type: String },
+    title: { type: String },
+    icon: { type: String },
+    description: { type: String },
+    earnedAt: { type: Date, default: Date.now }
+  }],
+  studyStreakDays: { type: Number, default: 0 },
   notes: { type: String },
   customFields: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
   branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
