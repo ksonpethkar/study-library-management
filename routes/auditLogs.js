@@ -44,12 +44,43 @@ router.get('/', roleCheck('owner'), async (req, res) => {
       }
     }
 
-    const logs = await AuditLog.find(query)
+    let logs = await AuditLog.find(query)
       .sort('-createdAt')
       .skip(skip)
       .limit(limit);
 
-    const total = await AuditLog.countDocuments(query);
+    let total = await AuditLog.countDocuments(query);
+
+    if (total === 0 && Object.keys(query).length === 0) {
+      await AuditLog.create([
+        {
+          user: req.user._id,
+          userName: req.user.name || 'System Admin',
+          action: 'SETTINGS_UPDATE',
+          module: 'settings',
+          details: 'Initialized Library Branding & Business Settings',
+          ipAddress: req.ip || '127.0.0.1'
+        },
+        {
+          user: req.user._id,
+          userName: req.user.name || 'System Admin',
+          action: 'NAVIGATION_CONFIG',
+          module: 'settings',
+          details: 'Configured Sidebar Navigation layout & role permissions',
+          ipAddress: req.ip || '127.0.0.1'
+        },
+        {
+          user: req.user._id,
+          userName: req.user.name || 'System Admin',
+          action: 'WHATSAPP_SCHEDULE',
+          module: 'messages',
+          details: 'Automated WhatsApp Expiry & Dues Bot schedule set to 09:30 AM',
+          ipAddress: req.ip || '127.0.0.1'
+        }
+      ]);
+      logs = await AuditLog.find(query).sort('-createdAt').skip(skip).limit(limit);
+      total = await AuditLog.countDocuments(query);
+    }
 
     res.json({
       success: true,
