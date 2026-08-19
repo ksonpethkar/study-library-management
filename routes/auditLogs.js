@@ -15,7 +15,7 @@ const roleCheck = (...roles) => {
 router.use(protect);
 
 // GET /api/audit-logs
-router.get('/', roleCheck('owner'), async (req, res) => {
+router.get('/', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 20;

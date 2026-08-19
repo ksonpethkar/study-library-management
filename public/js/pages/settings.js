@@ -1468,10 +1468,10 @@ function renderSettingsUI(container, profile, settings) {
   let currentAuditPage = 1;
   const loadAuditLogs = async () => {
     try {
-      const mod = container.querySelector('#audit-filter-module').value;
-      const act = container.querySelector('#audit-filter-action').value;
-      const start = container.querySelector('#audit-filter-start').value;
-      const end = container.querySelector('#audit-filter-end').value;
+      const mod = container.querySelector('#audit-filter-module')?.value || 'all';
+      const act = container.querySelector('#audit-filter-action')?.value || 'all';
+      const start = container.querySelector('#audit-filter-start')?.value || '';
+      const end = container.querySelector('#audit-filter-end')?.value || '';
       
       const res = await api.get('/api/audit-logs', { 
         module: mod, 
