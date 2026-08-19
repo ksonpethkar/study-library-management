@@ -739,7 +739,10 @@ function renderSettingsUI(container, profile, settings) {
                       <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Send payment receipts and welcome onboard emails to students.</div>
                     </div>
                   </div>
-                  <input type="checkbox" id="setting-enableEmail" class="form-toggle" ${(notif['notification.enableEmail'] ?? notif.enableEmail) !== false ? 'checked' : ''}>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="setting-enableEmail" ${(notif['notification.enableEmail'] ?? notif.enableEmail) !== false ? 'checked' : ''}>
+                    <span class="switch-slider"></span>
+                  </label>
                 </div>
 
                 <!-- In-App -->
@@ -751,7 +754,10 @@ function renderSettingsUI(container, profile, settings) {
                       <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Bell icon notifications on student & manager dashboard.</div>
                     </div>
                   </div>
-                  <input type="checkbox" id="setting-enableInApp" class="form-toggle" ${(notif['notification.enableInApp'] ?? notif.enableInApp) !== false ? 'checked' : ''}>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="setting-enableInApp" ${(notif['notification.enableInApp'] ?? notif.enableInApp) !== false ? 'checked' : ''}>
+                    <span class="switch-slider"></span>
+                  </label>
                 </div>
 
                 <!-- WhatsApp -->
@@ -766,7 +772,10 @@ function renderSettingsUI(container, profile, settings) {
                       <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Direct WhatsApp messaging for invoices and urgent reminders.</div>
                     </div>
                   </div>
-                  <input type="checkbox" id="setting-enableWhatsapp" class="form-toggle" ${(notif['notification.enableWhatsapp'] ?? notif.enableWhatsapp) ? 'checked' : ''}>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="setting-enableWhatsapp" ${(notif['notification.enableWhatsapp'] ?? notif.enableWhatsapp) ? 'checked' : ''}>
+                    <span class="switch-slider"></span>
+                  </label>
                 </div>
 
               </div>
