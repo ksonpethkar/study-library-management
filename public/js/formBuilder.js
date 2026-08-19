@@ -240,9 +240,11 @@ export class FormBuilder {
         .filter(f => (f.section || 'personal') === sec.name)
         .sort((a, b) => (a.order || 0) - (b.order || 0));
 
+      const isCoreSec = ['personal', 'plan', 'payment', 'seat'].includes(sec.name);
+
       return `
-        <div class="fb-sec-card" data-section="${sec.name}" style="background: var(--color-surface-hover); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden;">
-          <div style="padding: 12px 14px; background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+        <div class="fb-sec-card" data-section="${sec.name}" style="background: var(--color-surface-hover); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; margin-bottom: 12px;">
+          <div style="padding: 10px 14px; background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.92rem; color: var(--color-primary);">
               <span>${SECTION_ICONS[sec.icon] || '📁'}</span>
               <span>${escapeHTML(sec.label)}</span>
@@ -252,6 +254,8 @@ export class FormBuilder {
             <div style="display: flex; align-items: center; gap: 4px;">
               ${secIdx > 0 ? `<button type="button" class="btn btn-sm btn-ghost fb-sec-up" data-sec="${sec.name}" title="Move Section Up">⬆️</button>` : ''}
               ${secIdx < this.sections.length - 1 ? `<button type="button" class="btn btn-sm btn-ghost fb-sec-down" data-sec="${sec.name}" title="Move Section Down">⬇️</button>` : ''}
+              <button type="button" class="btn btn-sm btn-outline-primary fb-sec-add-field" data-sec="${sec.name}" title="Add Question to this Section" style="font-size: 0.75rem; padding: 2px 8px;">➕ Add Question</button>
+              ${!isCoreSec ? `<button type="button" class="btn btn-sm btn-ghost text-danger fb-sec-delete" data-sec="${sec.name}" title="Delete Section" style="font-size: 0.75rem; padding: 2px 6px;">🗑️ Delete</button>` : ''}
             </div>
           </div>
 
@@ -271,6 +275,14 @@ export class FormBuilder {
 
     container.querySelectorAll('.fb-sec-down').forEach(btn => {
       btn.addEventListener('click', () => this.moveSection(btn.dataset.sec, 1));
+    });
+
+    container.querySelectorAll('.fb-sec-add-field').forEach(btn => {
+      btn.addEventListener('click', () => this.openFieldEditor(null, btn.dataset.sec));
+    });
+
+    container.querySelectorAll('.fb-sec-delete').forEach(btn => {
+      btn.addEventListener('click', () => this.deleteSection(btn.dataset.sec));
     });
 
     container.querySelectorAll('.fb-field-edit').forEach(btn => {
@@ -442,11 +454,9 @@ export class FormBuilder {
             ✏️ Edit
           </button>
 
-          ${!field.isSystemField ? `
-            <button type="button" class="btn btn-sm btn-ghost text-danger fb-field-delete" data-id="${field._id}" title="Delete Question" style="font-size: 0.75rem;">
-              🗑️ Delete
-            </button>
-          ` : ''}
+          <button type="button" class="btn btn-sm btn-ghost text-danger fb-field-delete" data-id="${field._id}" title="Delete Question" style="font-size: 0.75rem;">
+            🗑️ Delete
+          </button>
         </div>
       </div>
     `;
@@ -602,56 +612,6 @@ export class FormBuilder {
           <div>
             <label class="form-label text-xs" style="font-weight:600;">State</label>
             <input type="text" class="form-control form-control-sm" placeholder="Auto-filled state">
-          </div>
-
-          ${secFields.map(f => this.renderPreviewInput(f)).join('')}
-        </div>
-      `;
-    }
-
-    // STEP 2: Academic Goals, Occupation & Emergency Contacts
-    if (secName === 'academic') {
-      return `
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">Target Competitive Exam</label>
-            <select class="form-select form-control-sm">
-              <option>UPSC Civil Services</option>
-              <option>MPSC / State PSC</option>
-              <option>IIT-JEE / NEET</option>
-              <option>CA / CS / CMA</option>
-              <option>Banking / SSC</option>
-              <option>Other Exam</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">Current Qualification / Occupation</label>
-            <input type="text" class="form-control form-control-sm" placeholder="e.g. Student / Graduation">
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">Emergency Contact Name</label>
-            <input type="text" class="form-control form-control-sm" placeholder="Parent / Guardian Name">
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">Emergency Contact Phone</label>
-            <input type="text" class="form-control form-control-sm" placeholder="10-digit mobile number">
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">ID Proof Type</label>
-            <select class="form-select form-control-sm">
-              <option>Aadhaar Card</option>
-              <option>PAN Card</option>
-              <option>Voter ID</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="form-label text-xs" style="font-weight:600;">ID Proof Document Number</label>
-            <input type="text" class="form-control form-control-sm" placeholder="e.g. XXXX-XXXX-1234">
           </div>
 
           ${secFields.map(f => this.renderPreviewInput(f)).join('')}
@@ -917,6 +877,26 @@ export class FormBuilder {
     }
   }
 
+  static async deleteSection(secName) {
+    const sec = this.sections.find(s => s.name === secName);
+    if (!sec) return;
+
+    if (!confirm(`Are you sure you want to delete section "${sec.label}"? Any questions inside will be moved to Personal Information.`)) return;
+
+    try {
+      await api.delete(`/api/custom-fields/sections/${secName}`);
+      Toast.success(`Section "${sec.label}" deleted`);
+      this.sections = this.sections.filter(s => s.name !== secName);
+      this.fields.forEach(f => {
+        if (f.section === secName) f.section = 'personal';
+      });
+      this.renderSections();
+      this.renderPreview();
+    } catch (err) {
+      Toast.error(err.message || 'Failed to delete section');
+    }
+  }
+
   static openAddSectionModal() {
     const modalContent = document.createElement('div');
     modalContent.innerHTML = `
@@ -1029,12 +1009,12 @@ export class FormBuilder {
     } catch (e) {}
   }
 
-  static openFieldEditor(fieldId) {
+  static openFieldEditor(fieldId, targetSection = null) {
     const field = this.fields.find(f => f._id === fieldId) || {
       label: '',
       fieldName: '',
       type: 'text',
-      section: 'personal',
+      section: targetSection || 'personal',
       required: false,
       placeholder: '',
       helpText: '',
