@@ -1437,6 +1437,11 @@ input[type="checkbox"].round-checkbox:checked::after {
 
 /* Modern Simple Green Switch Toggle Component (Matching Image 2) */
 .switch-label,
+/* ========================================================= */
+/* GLOBAL SYSTEM-WIDE EMERALD GREEN SLIDING TOGGLE SWITCH    */
+/* (Matching Image 2: Modern iOS / Material Design Standard) */
+/* ========================================================= */
+.switch-label,
 label.switch {
   position: relative;
   display: inline-flex;
@@ -1459,56 +1464,121 @@ label.switch input[type="checkbox"] {
   pointer-events: none;
 }
 
+.form-toggle,
+.smart-toggle,
+.toggle-switch,
+input[type="checkbox"].form-toggle,
+input[type="checkbox"].smart-toggle,
+input[type="checkbox"].toggle-switch,
 .switch-slider,
 .switch-track {
-  width: 44px;
-  height: 24px;
-  border-radius: 9999px;
-  background-color: #cbd5e1;
-  position: relative;
-  display: inline-block;
-  flex-shrink: 0;
-  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  width: 48px !important;
+  height: 24px !important;
+  min-width: 48px !important;
+  min-height: 24px !important;
+  max-width: 48px !important;
+  max-height: 24px !important;
+  aspect-ratio: auto !important;
+  border-radius: 9999px !important;
+  background-color: #cbd5e1 !important; /* Muted Light Gray for OFF */
+  position: relative !important;
+  cursor: pointer !important;
+  outline: none !important;
+  border: none !important;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12) !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
 }
 
+/* Sliding White Circular Knob */
+.form-toggle::before,
+.smart-toggle::before,
+.toggle-switch::before,
+input[type="checkbox"].form-toggle::before,
+input[type="checkbox"].smart-toggle::before,
+input[type="checkbox"].toggle-switch::before,
 .switch-slider::before,
 .switch-track::before {
-  content: "";
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background-color: #ffffff;
-  left: 3px;
-  top: 3px;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  content: "" !important;
+  position: absolute !important;
+  top: 3px !important;
+  left: 3px !important;
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 50% !important;
+  background-color: #ffffff !important;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25) !important;
+  display: block !important;
 }
 
-/* Checked ON State */
+/* Clear any content in ::after that distorts switch shape */
+.form-toggle::after,
+.smart-toggle::after,
+.toggle-switch::after,
+input[type="checkbox"].form-toggle::after,
+input[type="checkbox"].smart-toggle::after,
+input[type="checkbox"].toggle-switch::after,
+.switch-slider::after,
+.switch-track::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Checked State (ON - Emerald Green) */
+.form-toggle:checked,
+.smart-toggle:checked,
+.toggle-switch:checked,
+input[type="checkbox"].form-toggle:checked,
+input[type="checkbox"].smart-toggle:checked,
+input[type="checkbox"].toggle-switch:checked,
 .switch-label input[type="checkbox"]:checked + .switch-slider,
-.switch-label input[type="checkbox"]:checked + .switch-track,
 label.switch input[type="checkbox"]:checked + .switch-slider,
 label.switch input[type="checkbox"]:checked + .switch-track {
-  background-color: #10b981 !important;
+  background-color: #10b981 !important; /* Emerald Green */
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.35) !important;
 }
 
+/* Slide Knob Right (24px shift) */
+.form-toggle:checked::before,
+.smart-toggle:checked::before,
+.toggle-switch:checked::before,
+input[type="checkbox"].form-toggle:checked::before,
+input[type="checkbox"].smart-toggle:checked::before,
+input[type="checkbox"].toggle-switch:checked::before,
 .switch-label input[type="checkbox"]:checked + .switch-slider::before,
-.switch-label input[type="checkbox"]:checked + .switch-track::before,
 label.switch input[type="checkbox"]:checked + .switch-slider::before,
 label.switch input[type="checkbox"]:checked + .switch-track::before {
-  transform: translateX(20px);
+  transform: translateX(24px) !important;
 }
 
-/* Dark mode support */
+/* Dark Mode OFF State */
+[data-theme="dark"] .form-toggle,
+[data-theme="dark"] .smart-toggle,
+[data-theme="dark"] .toggle-switch,
+[data-theme="dark"] input[type="checkbox"].form-toggle,
+[data-theme="dark"] input[type="checkbox"].smart-toggle,
+[data-theme="dark"] input[type="checkbox"].toggle-switch,
 [data-theme="dark"] .switch-slider,
 [data-theme="dark"] .switch-track {
-  background-color: #475569;
+  background-color: #475569 !important;
 }
 
+[data-theme="dark"] .form-toggle:checked,
+[data-theme="dark"] .smart-toggle:checked,
+[data-theme="dark"] .toggle-switch:checked,
+[data-theme="dark"] input[type="checkbox"].form-toggle:checked,
+[data-theme="dark"] input[type="checkbox"].smart-toggle:checked,
+[data-theme="dark"] input[type="checkbox"].toggle-switch:checked,
 [data-theme="dark"] .switch-label input[type="checkbox"]:checked + .switch-slider,
-[data-theme="dark"] .switch-label input[type="checkbox"]:checked + .switch-track,
 [data-theme="dark"] label.switch input[type="checkbox"]:checked + .switch-slider,
 [data-theme="dark"] label.switch input[type="checkbox"]:checked + .switch-track {
   background-color: #10b981 !important;
