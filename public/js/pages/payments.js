@@ -202,7 +202,10 @@ export async function render(container) {
                     </td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary btn-view" data-id="${p._id}" style="padding: 3px 8px; font-size: 0.8rem;">View Receipt</button>
-                        ${p.status === 'partial' && p.balanceDue > 0 ? `<button class="btn btn-sm btn-warning btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px;">💰 Pay Balance</button>` : ''}
+                        ${p.status === 'partial' && p.balanceDue > 0 ? `
+                            <button class="btn btn-sm btn-warning btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px;">💰 Pay Balance</button>
+                            <button class="btn btn-sm btn-outline-success btn-remind-balance" data-id="${p._id}" data-student-id="${p.student?._id || p.student}" data-name="${escapeHTML(p.student?.name || 'Student')}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px;" title="Send WhatsApp Balance Reminder with 1-Tap UPI Link">📲 Send Balance Reminder</button>
+                        ` : ''}
                     </td>
                 </tr>
             `).join('');
@@ -217,6 +220,38 @@ export async function render(container) {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
                     showPayBalanceModal(btn.dataset.id, btn.dataset.balance);
+                });
+            });
+            tbody.querySelectorAll('.btn-remind-balance').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const studentId = btn.dataset.studentId;
+                    const balance = btn.dataset.balance;
+                    const studentName = btn.dataset.name;
+                    if (!studentId) {
+                        Toast.error('Student ID not associated with this payment record.');
+                        return;
+                    }
+                    try {
+                        Loading.show('Preparing WhatsApp balance reminder & UPI deep link...');
+                        const res = await api.post('/api/messages/send-reminder', {
+                            studentId,
+                            reminderType: 'partial_balance',
+                            customAmount: balance
+                        });
+                        Loading.hide();
+                        if (res.success && res.data) {
+                            if (res.data.whatsappUrl) {
+                                window.open(res.data.whatsappUrl, '_blank');
+                            }
+                            Toast.success(`Balance reminder sent/opened for ${studentName || res.data.studentName}!`);
+                        } else {
+                            Toast.error(res.message || 'Failed to dispatch reminder');
+                        }
+                    } catch (err) {
+                        Loading.hide();
+                        Toast.error(err.message || 'Failed to dispatch reminder');
+                    }
                 });
             });
         } catch (e) {
@@ -243,6 +278,7 @@ export async function render(container) {
                     <td><span style="color: var(--color-danger); font-weight: 600;">${formatDate(d.expiryDate)}</span></td>
                     <td>
                         <button class="btn btn-sm btn-success btn-collect-due" data-id="${d._id}" style="padding: 3px 8px; font-size: 0.8rem;">Collect Fee</button>
+                        <button class="btn btn-sm btn-outline-success btn-remind-due" data-id="${d._id}" data-name="${escapeHTML(d.name)}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px;" title="Send WhatsApp Expiry Reminder">📲 Remind</button>
                     </td>
                 </tr>
             `).join('');
@@ -250,6 +286,32 @@ export async function render(container) {
             tbody.querySelectorAll('.btn-collect-due').forEach(btn => {
                 btn.addEventListener('click', () => {
                     showCollectModal(btn.dataset.id);
+                });
+            });
+            tbody.querySelectorAll('.btn-remind-due').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const studentId = btn.dataset.id;
+                    const studentName = btn.dataset.name;
+                    try {
+                        Loading.show('Preparing WhatsApp reminder & UPI link...');
+                        const res = await api.post('/api/messages/send-reminder', {
+                            studentId,
+                            reminderType: 'expiry'
+                        });
+                        Loading.hide();
+                        if (res.success && res.data) {
+                            if (res.data.whatsappUrl) {
+                                window.open(res.data.whatsappUrl, '_blank');
+                            }
+                            Toast.success(`WhatsApp reminder prepared for ${studentName || res.data.studentName}!`);
+                        } else {
+                            Toast.error(res.message || 'Failed to dispatch reminder');
+                        }
+                    } catch (err) {
+                        Loading.hide();
+                        Toast.error(err.message || 'Failed to dispatch reminder');
+                    }
                 });
             });
         } catch (e) {

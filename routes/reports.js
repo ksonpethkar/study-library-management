@@ -131,7 +131,7 @@ router.get('/overview', async (req, res) => {
       // Total attendance logs
       Attendance.countDocuments(),
       // Today's attendance
-      Attendance.find({ date: { $gte: todayStart, $lte: todayEnd } }),
+      Attendance.find({ date: { $gte: todayStart, $lte: todayEnd } }).lean(),
       // Expiring in next 30 days
       Student.countDocuments({
         expiryDate: { $gte: todayStart, $lte: in30Days },
@@ -206,7 +206,8 @@ router.get('/revenue', async (req, res) => {
       .populate('student', 'name studentId phone email')
       .populate('plan', 'name price duration durationType')
       .populate('collectedBy', 'name')
-      .sort({ paymentDate: 1 });
+      .sort({ paymentDate: 1 })
+      .lean();
 
     // Grouping by date
     const dateMap = {};
@@ -278,7 +279,7 @@ router.get('/revenue', async (req, res) => {
     // Dues stats
     const duesStudents = await Student.find({
       expiryDate: { $lt: new Date() }
-    }).populate('plan', 'name price');
+    }).populate('plan', 'name price').lean();
 
     let estimatedPendingDues = 0;
     duesStudents.forEach(s => {
@@ -331,7 +332,8 @@ router.get('/attendance', async (req, res) => {
     const records = await Attendance.find(filter)
       .populate('student', 'name studentId phone')
       .populate('seat', 'seatNumber zone')
-      .sort({ date: 1, checkIn: 1 });
+      .sort({ date: 1, checkIn: 1 })
+      .lean();
 
     // Daily logs map
     const dailyMap = {};
@@ -486,7 +488,8 @@ router.get('/expiries', async (req, res) => {
     })
       .populate('plan', 'name price duration durationType')
       .populate('seat', 'seatNumber zone')
-      .sort({ expiryDate: 1 });
+      .sort({ expiryDate: 1 })
+      .lean();
 
     const next7Days = [];
     const next15Days = [];
@@ -575,7 +578,8 @@ router.get('/export/students', async (req, res) => {
     const students = await Student.find(filter)
       .populate('plan', 'name price duration durationType')
       .populate('seat', 'seatNumber zone')
-      .sort({ studentId: 1 });
+      .sort({ studentId: 1 })
+      .lean();
 
     if (format === 'json') {
       return res.json({
@@ -634,7 +638,8 @@ router.get('/export/payments', async (req, res) => {
       .populate('student', 'name studentId phone email')
       .populate('plan', 'name price duration')
       .populate('collectedBy', 'name')
-      .sort({ paymentDate: -1 });
+      .sort({ paymentDate: -1 })
+      .lean();
 
     if (format === 'json') {
       return res.json({
@@ -692,7 +697,8 @@ router.get('/export/attendance', async (req, res) => {
     const records = await Attendance.find(filter)
       .populate('student', 'name studentId phone')
       .populate('seat', 'seatNumber zone')
-      .sort({ date: -1, checkIn: -1 });
+      .sort({ date: -1, checkIn: -1 })
+      .lean();
 
     if (format === 'json') {
       return res.json({

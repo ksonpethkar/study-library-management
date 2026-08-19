@@ -111,4 +111,116 @@ router.post('/prepare-broadcast', protect, roleCheck('owner', 'branch_manager'),
   }
 });
 
+// POST /api/messages/send-reminder - 1-Click WhatsApp Reminder Dispatcher
+router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const { studentId, reminderType = 'expiry', customAmount } = req.body;
+    if (!studentId) {
+      return res.status(400).json({ success: false, message: 'Student ID is required' });
+    }
+
+    const student = await Student.findById(studentId).populate('seat').populate('plan');
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    const Payment = require('../models/Payment');
+    const Attendance = require('../models/Attendance');
+    const WhatsAppService = require('../utils/whatsappService');
+
+    const profile = await BusinessProfile.getProfile();
+    const upiId = profile?.upiId || '';
+    const bizName = profile?.businessName || 'Study Library';
+
+    let messageText = '';
+    let upiLink = '';
+
+    if (reminderType === 'expiry') {
+      const expDate = student.expiryDate || student.planExpiresAt;
+      let timeLeftStr = 'Soon';
+      if (expDate) {
+        const diffHours = Math.round((new Date(expDate).getTime() - Date.now()) / (1000 * 60 * 60));
+        const diffDays = Math.ceil((new Date(expDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 0) timeLeftStr = 'TODAY (Expired)';
+        else if (diffDays === 1 || diffHours <= 24) timeLeftStr = '24 hours';
+        else if (diffDays === 2 || diffHours <= 48) timeLeftStr = '48 hours';
+        else timeLeftStr = `${diffDays} days`;
+      }
+      const amount = customAmount !== undefined ? Number(customAmount) : (student.plan?.price || 0);
+      upiLink = upiId ? WhatsAppService.generateUpiDeepLink({
+        upiId,
+        businessName: bizName,
+        amount,
+        note: 'SubscriptionRenewal'
+      }) : '';
+
+      messageText = WhatsAppService.getExpiryReminderMessage(
+        student,
+        timeLeftStr,
+        bizName,
+        upiId,
+        amount,
+        upiLink
+      );
+    } else if (reminderType === 'partial_balance') {
+      const payment = await Payment.findOne({
+        student: student._id,
+        balanceDue: { $gt: 0 }
+      }).sort({ createdAt: -1 }) || await Payment.findOne({ student: student._id }).sort({ createdAt: -1 });
+
+      const balanceAmt = customAmount !== undefined ? Number(customAmount) : (payment?.balanceDue || student.pendingFine || 500);
+      upiLink = upiId ? WhatsAppService.generateUpiDeepLink({
+        upiId,
+        businessName: bizName,
+        amount: balanceAmt,
+        note: 'PartialPaymentBalance'
+      }) : '';
+
+      messageText = WhatsAppService.getPartialBalanceReminderMessage(
+        student,
+        payment || { balanceDue: balanceAmt, dueDate: new Date() },
+        bizName,
+        upiId,
+        upiLink
+      );
+    } else if (reminderType === 'attendance') {
+      const attendance = await Attendance.findOne({ student: student._id }).sort({ date: -1, createdAt: -1 });
+      const attendanceInfo = {
+        status: attendance?.status === 'present' ? 'Present / Active' : (attendance?.status || 'Active in Study Hall'),
+        time: attendance?.inTime ? new Date(attendance.inTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      };
+      messageText = WhatsAppService.getAttendanceAlertMessage(student, bizName, attendanceInfo);
+    } else {
+      return res.status(400).json({ success: false, message: `Unsupported reminder type: ${reminderType}` });
+    }
+
+    // Dispatch in-app notification & prepare click-to-chat URL
+    const result = await WhatsAppService.dispatchReminder({
+      student,
+      message: messageText,
+      type: reminderType,
+      link: reminderType === 'partial_balance' ? '#/payments' : '#/students'
+    });
+
+    const whatsappUrl = WhatsAppService.getClickToChatUrl(student.phone, messageText);
+
+    res.json({
+      success: true,
+      message: `${reminderType.replace('_', ' ').toUpperCase()} reminder generated successfully`,
+      data: {
+        studentId: student._id,
+        studentName: student.name,
+        phone: student.phone,
+        formattedPhone: WhatsAppService.formatPhone(student.phone),
+        reminderType,
+        messageText,
+        upiLink,
+        whatsappUrl
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

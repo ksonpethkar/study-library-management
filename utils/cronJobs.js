@@ -15,11 +15,17 @@ const WhatsAppService = require('./whatsappService');
 
 /**
  * Check student expiries, calculate late fees, and handle grace periods & seat releases
+ * Dispatches automated 24h & 48h expiry reminders & overdue partial payment alerts with 1-tap UPI deep links
  */
 async function checkStudentExpiries() {
   try {
     const now = new Date();
     const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+
+    // Fetch Business Profile for UPI deep links & library branding
+    const profile = await BusinessProfile.getProfile();
+    const upiId = profile?.upiId || '';
+    const bizName = profile?.businessName || 'Study Library';
 
     // Get system policy settings
     const graceDays = Number(await SystemSetting.getSetting('payment.gracePeriod') || 3);
@@ -30,13 +36,18 @@ async function checkStudentExpiries() {
     // Find all active or grace_period students with an expiry date
     const students = await Student.find({
       status: { $in: ['active', 'grace_period'] },
-      expiryDate: { $exists: true, $ne: null }
+      $or: [
+        { expiryDate: { $exists: true, $ne: null } },
+        { planExpiresAt: { $exists: true, $ne: null } }
+      ]
     }).populate('plan').populate('seat');
 
     for (const student of students) {
-      const exp = new Date(student.expiryDate);
+      const expDate = student.expiryDate || student.planExpiresAt;
+      const exp = new Date(expDate);
       const diffTime = exp.getTime() - now.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffHours = Math.round(diffTime / (1000 * 60 * 60));
 
       // Case A: Expired beyond Grace Period -> Release Seat & Apply Late Fine
       if (diffDays <= -graceDays) {
@@ -96,22 +107,99 @@ async function checkStudentExpiries() {
           });
         }
       }
-      // Case C: Expiring soon (1, 3, or 7 days prior)
-      else if ([1, 3, 7].includes(diffDays)) {
-        const title = `Membership Expiry Alert: ${student.name} (${diffDays}d left)`;
+      // Case C: Expiring soon (24 hours / 48 hours / 1, 2, 3, 7 days prior)
+      else if ([1, 2, 3, 7].includes(diffDays) || (diffHours > 0 && diffHours <= 48)) {
+        const timeLabel = diffDays === 1 || diffHours <= 24 ? '24 hours' : (diffDays === 2 || diffHours <= 48 ? '48 hours' : `${diffDays} days`);
+        const title = `Membership Expiry Alert: ${student.name} (${timeLabel} left)`;
+        
         const existingAlert = await Notification.findOne({
           title,
           createdAt: { $gte: todayStart }
         });
 
         if (!existingAlert) {
+          const renewalAmount = student.plan?.price || 0;
+          const upiLink = upiId ? WhatsAppService.generateUpiDeepLink({
+            upiId,
+            businessName: bizName,
+            amount: renewalAmount,
+            note: 'SubscriptionRenewal'
+          }) : '';
+
+          const waMessage = WhatsAppService.getExpiryReminderMessage(
+            student,
+            timeLabel,
+            bizName,
+            upiId,
+            renewalAmount,
+            upiLink
+          );
+
+          // Dispatch reminder via WhatsApp Service and Notification model
+          await WhatsAppService.dispatchReminder({
+            student,
+            message: waMessage,
+            type: 'expiry',
+            link: '#/students'
+          });
+
           await Notification.create({
             title,
-            message: `${student.name}'s ${student.plan?.name || 'study'} plan will expire in ${diffDays} day(s) on ${exp.toLocaleDateString('en-IN')}.`,
+            message: `${student.name}'s ${student.plan?.name || 'study'} plan will expire in ${timeLabel} on ${exp.toLocaleDateString('en-IN')}. Automated reminder dispatched.`,
             type: 'expiry',
             link: `#/payments`
           });
         }
+      }
+    }
+
+    // Check overdue partial payment balances (balanceDue > 0 and past dueDate)
+    const overduePayments = await Payment.find({
+      balanceDue: { $gt: 0 },
+      dueDate: { $lte: now },
+      status: { $in: ['partial', 'pending'] }
+    }).populate('student').populate('plan');
+
+    for (const p of overduePayments) {
+      if (!p.student) continue;
+      const student = p.student;
+      const balanceAmt = p.balanceDue;
+      const overdueTitle = `⚠️ Overdue Balance Alert: ${student.name} (₹${balanceAmt})`;
+
+      const existingDueNotif = await Notification.findOne({
+        title: overdueTitle,
+        createdAt: { $gte: todayStart }
+      });
+
+      if (!existingDueNotif) {
+        const upiLink = upiId ? WhatsAppService.generateUpiDeepLink({
+          upiId,
+          businessName: bizName,
+          amount: balanceAmt,
+          note: 'PartialPaymentBalance'
+        }) : '';
+
+        const waMsg = WhatsAppService.getPartialBalanceReminderMessage(
+          student,
+          p,
+          bizName,
+          upiId,
+          upiLink
+        );
+
+        await WhatsAppService.dispatchReminder({
+          student,
+          message: waMsg,
+          type: 'partial_balance',
+          link: '#/payments'
+        });
+
+        await Notification.create({
+          title: overdueTitle,
+          message: `${student.name} has an overdue balance of ₹${balanceAmt} (Due: ${new Date(p.dueDate).toLocaleDateString('en-IN')}). WhatsApp reminder link prepared.`,
+          type: 'payment',
+          link: '#/payments'
+        });
       }
     }
   } catch (error) {

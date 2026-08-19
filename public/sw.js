@@ -1,10 +1,10 @@
 /**
  * Study Library Management System — Service Worker (PWA)
- * Instant offline caching, network-first strategy, app shell optimization
+ * Stale-While-Revalidate caching strategy, offline support, instant app shell
  */
 
-const CACHE_NAME = 'studylib-pwa-v1';
-const ASSETS_TO_CACHE = [
+const CACHE_NAME = 'studylib-pwa-v2';
+const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/student-login',
@@ -16,21 +16,30 @@ const ASSETS_TO_CACHE = [
   '/kiosk',
   '/kiosk.html',
   '/manifest.json',
-  '/css/index.css',
+  '/css/variables.css',
+  '/css/base.css',
   '/css/layout.css',
   '/css/components.css',
+  '/css/print.css',
+  '/js/themeManager.js',
   '/js/app.js',
   '/js/auth.js',
   '/js/ui.js',
   '/js/api.js',
-  '/js/pdfGenerator.js'
+  '/js/router.js',
+  '/js/pdfGenerator.js',
+  '/js/signatureStudio.js',
+  '/js/mediaStudio.js'
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => self.skipWaiting())
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
+        console.warn('SW: pre-caching partial failure', err);
+      });
+    })
   );
 });
 
@@ -38,9 +47,9 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
+        cacheNames.map((name) => {
+          if (name !== CACHE_NAME) {
+            return caches.delete(name);
           }
         })
       );
@@ -50,32 +59,35 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+  const url = new URL(req.url);
 
-  // Skip non-GET requests and API calls from static caching
-  if (req.method !== 'GET' || req.url.includes('/api/')) {
+  // Bypass non-GET requests and all API endpoints
+  if (req.method !== 'GET' || url.pathname.startsWith('/api/')) {
     return;
   }
 
+  // Stale-While-Revalidate Strategy for all static assets, scripts, styles, images & fonts
   event.respondWith(
-    fetch(req)
-      .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(req, responseClone);
-          });
-        }
-        return networkResponse;
-      })
-      .catch(() => {
-        return caches.match(req).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cachedResponse = await cache.match(req);
+
+      const fetchPromise = fetch(req)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            cache.put(req, networkResponse.clone());
           }
-          if (req.headers.get('accept').includes('text/html')) {
-            return caches.match('/index.html');
+          return networkResponse;
+        })
+        .catch((err) => {
+          // If offline and requesting an HTML page, fallback to cached index.html
+          if (req.headers.get('accept')?.includes('text/html')) {
+            return cache.match('/index.html') || cachedResponse;
           }
+          return cachedResponse;
         });
-      })
+
+      // Return cached response immediately if available, while fetching update in background
+      return cachedResponse || fetchPromise;
+    })
   );
 });

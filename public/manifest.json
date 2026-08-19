@@ -1,16 +1,22 @@
 {
-  "name": "Study Library Management & Student Portal",
-  "short_name": "StudyLib",
+  "name": "Study Library Management System",
+  "short_name": "StudyLibrary",
   "description": "Smart Library Management System, Student 360° Portal, Desk Reservations & Attendance Kiosk",
-  "start_url": "/",
+  "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#6c5ce7",
   "orientation": "any",
   "icons": [
     {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='48' fill='%236c5ce7'/><path d='M96 45 L145 68 L96 90 L47 68 Z' fill='%23ffffff'/><path d='M60 80 V110 C60 122 75 132 96 132 C117 132 132 122 132 110 V80' fill='none' stroke='%23ffffff' stroke-width='9'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
       "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='128' fill='%236c5ce7'/><path d='M256 120 L380 180 L256 240 L132 180 Z' fill='%23ffffff'/><path d='M160 215 V290 C160 320 200 350 256 350 C312 350 352 320 352 290 V215' fill='none' stroke='%23ffffff' stroke-width='24'/></svg>",
-      "sizes": "192x192 512x512",
+      "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }

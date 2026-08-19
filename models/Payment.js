@@ -76,6 +76,8 @@ const paymentSchema = new mongoose.Schema({
 // Performance Database Indexes
 paymentSchema.index({ student: 1, paymentDate: -1 });
 paymentSchema.index({ branch: 1, paymentDate: -1 });
+paymentSchema.index({ branch: 1, status: 1 });
+paymentSchema.index({ branch: 1, createdAt: -1 });
 paymentSchema.index({ status: 1, paymentDate: -1 });
 
 paymentSchema.pre('save', async function() {

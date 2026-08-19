@@ -17,6 +17,8 @@ const attendanceSchema = new mongoose.Schema({
 });
 
 attendanceSchema.index({ student: 1, date: 1 }, { unique: true });
+attendanceSchema.index({ branch: 1, date: 1 });
+attendanceSchema.index({ date: 1, status: 1 });
 
 attendanceSchema.pre('save', async function() {
   if (this.checkIn && this.checkOut) {

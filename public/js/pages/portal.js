@@ -19,7 +19,15 @@ export async function render() {
     const res = await api.get('/api/student-portal/dashboard');
     if (!res.success || !res.data) throw new Error(res.message);
 
-    renderPortalUI(container, res.data);
+    let analytics = null;
+    try {
+      const aRes = await api.get(`/api/attendance/analytics/${res.data.student._id}`);
+      if (aRes.success) analytics = aRes.data;
+    } catch (e) {
+      console.warn('Analytics fetch error:', e);
+    }
+
+    renderPortalUI(container, res.data, analytics);
   } catch (error) {
     container.innerHTML = `
       <div class="card p-5 text-center" style="background: var(--color-surface); border: 1px solid var(--color-danger); border-radius: var(--radius-lg);">
@@ -36,7 +44,7 @@ export async function render() {
   return container;
 }
 
-function renderPortalUI(container, data) {
+function renderPortalUI(container, data, analytics = null) {
   const { student, business, daysRemaining, totalHours, todayAttendance, payments } = data;
 
   const initials = (student.name || 'S')
@@ -157,10 +165,84 @@ function renderPortalUI(container, data) {
           <span class="text-muted small">logged</span>
         </div>
         <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 6px;">
-          Consistency score: <strong>94% Present</strong> this month.
+          Consistency score: <strong>${analytics ? analytics.consistencyScore + '%' : '94%'}</strong> (${analytics ? analytics.totalDaysPresent + ' days' : 'Active'} this month)
         </div>
       </div>
 
+    </div>
+
+    <!-- 🧠 AI Study Analytics & Consistency Score Card -->
+    <div class="card mb-4 p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); position: relative;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.5rem;">🧠</span>
+          <div>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary);">
+              AI Study Analytics & Consistency Score
+            </h3>
+            <p style="margin: 0; font-size: 0.8rem; color: var(--color-text-secondary);">
+              90-day learning habits, peak study hours & attendance discipline
+            </p>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+          <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.8rem; padding: 5px 10px; border-radius: 6px;">
+            ${escapeHTML(analytics?.peakStudyHours?.badge || '🌅 Peak Time: 08:00 AM – 02:00 PM')}
+          </span>
+          <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--color-warning); font-weight: 700; font-size: 0.8rem; padding: 5px 10px; border-radius: 6px;">
+            🔥 ${analytics?.currentStreak || 0} Days Streak
+          </span>
+          <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--color-primary); font-weight: 700; font-size: 0.8rem; padding: 5px 10px; border-radius: 6px;">
+            🏆 Best: ${analytics?.longestStreak || 0} Days
+          </span>
+        </div>
+      </div>
+
+      <!-- Main Layout: Score Gauge + Heatmap + AI Recommendation -->
+      <div style="display: grid; grid-template-columns: minmax(130px, auto) 1fr; gap: 1.5rem; align-items: center;">
+        <!-- Circular / Gauge Consistency Score -->
+        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 10px 14px; background: var(--color-bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+          ${renderGaugeScoreSvg(analytics?.consistencyScore || 0)}
+          <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 4px;">
+            Avg: <strong>${escapeHTML(analytics?.averageDailyDuration?.formatted || '0m')}</strong> / day
+          </div>
+          <div style="font-size: 0.72rem; color: var(--color-text-muted);">
+            ${analytics?.totalDaysPresent || 0} / 30 days present
+          </div>
+        </div>
+
+        <!-- 30-Day Heatmap & AI Tip -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 0.85rem; font-weight: 700; color: var(--color-text-primary);">
+              📅 30-Day Attendance Heatmap
+            </span>
+            <span style="font-size: 0.75rem; color: var(--color-text-muted);">
+              Hover squares to inspect daily duration
+            </span>
+          </div>
+
+          ${renderHeatmapGridHtml(analytics?.heatmap || [])}
+
+          <!-- Dynamic AI Recommendation Note / Tip Pill -->
+          <div style="
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(16, 185, 129, 0.08));
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          ">
+            <span style="font-size: 1.25rem; flex-shrink: 0;">💡</span>
+            <div style="font-size: 0.85rem; color: var(--color-text-primary); line-height: 1.4;">
+              <strong>AI Study Tip:</strong> ${escapeHTML(analytics?.aiRecommendation || analytics?.aiStudyTip || 'Keep up regular study hours to maintain momentum!')}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Attendance Self-Puncher Card -->
@@ -717,4 +799,120 @@ function renderPortalUI(container, data) {
       Toast.error(err.message || 'Could not load renewal quote');
     }
   });
+}
+
+/**
+ * Render SVG Circular Gauge for Consistency Score
+ */
+export function renderGaugeScoreSvg(score) {
+  const safeScore = Math.max(0, Math.min(100, Math.round(score || 0)));
+  return `
+    <div style="position: relative; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <svg viewBox="0 0 36 36" style="width: 100px; height: 100px; transform: rotate(-90deg);">
+        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              fill="none"
+              stroke="rgba(148, 163, 184, 0.2)"
+              stroke-width="3.2" />
+        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              fill="none"
+              stroke="url(#portalScoreGaugeGrad)"
+              stroke-width="3.2"
+              stroke-dasharray="${safeScore}, 100"
+              stroke-linecap="round" />
+        <defs>
+          <linearGradient id="portalScoreGaugeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#10b981"/>
+            <stop offset="100%" stop-color="#6366f1"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <div style="position: absolute; text-align: center;">
+        <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-text-primary); line-height: 1;">${safeScore}%</div>
+        <div style="font-size: 0.6rem; color: var(--color-text-secondary); text-transform: uppercase; font-weight: 700; margin-top: 2px;">Consistency</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Render 30-Day GitHub-style Attendance Heatmap Grid
+ */
+export function renderHeatmapGridHtml(heatmapData) {
+  if (!heatmapData || heatmapData.length === 0) {
+    return `<div class="text-muted small text-center p-3">No attendance records found for the past 30 days.</div>`;
+  }
+
+  const squaresHtml = heatmapData.map(d => {
+    const mins = d.minutes || 0;
+    const hrs = (mins / 60).toFixed(1);
+    const dateObj = new Date(d.date);
+    const dateFormatted = isNaN(dateObj.getTime()) ? d.date : dateObj.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', weekday: 'short' });
+
+    let bg = 'rgba(148, 163, 184, 0.15)';
+    let border = 'rgba(148, 163, 184, 0.25)';
+    let statusText = 'Absent';
+
+    if (d.status === 'absent' || mins === 0) {
+      bg = 'rgba(148, 163, 184, 0.15)';
+      border = 'rgba(148, 163, 184, 0.25)';
+      statusText = 'Absent';
+    } else if (mins < 120) {
+      bg = '#0e4429';
+      border = '#006d32';
+      statusText = `${mins} mins (${d.status})`;
+    } else if (mins < 240) {
+      bg = '#006d32';
+      border = '#26a641';
+      statusText = `${hrs} hrs (${d.status})`;
+    } else if (mins < 360) {
+      bg = '#26a641';
+      border = '#39d353';
+      statusText = `${hrs} hrs (${d.status})`;
+    } else {
+      bg = '#39d353';
+      border = '#2ea043';
+      statusText = `${hrs} hrs (${d.status})`;
+    }
+
+    const title = `${dateFormatted}: ${statusText}${d.checkIn ? ` [${d.checkIn} - ${d.checkOut || 'Active'}]` : ''}`;
+
+    return `
+      <div
+        title="${title}"
+        style="
+          width: 22px;
+          height: 22px;
+          border-radius: 4px;
+          background: ${bg};
+          border: 1px solid ${border};
+          cursor: pointer;
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+          flex-shrink: 0;
+        "
+        onmouseover="this.style.transform='scale(1.35)'; this.style.zIndex='5'; this.style.boxShadow='0 0 8px rgba(57,211,83,0.6)';"
+        onmouseout="this.style.transform='scale(1)'; this.style.zIndex='1'; this.style.boxShadow='none';"
+      ></div>
+    `;
+  }).join('');
+
+  return `
+    <div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-start; padding: 4px 0;">
+        ${squaresHtml}
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 0.72rem; color: var(--color-text-muted);">
+        <span>30 Days Ago</span>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span>Less</span>
+          <span style="width: 12px; height: 12px; border-radius: 2px; background: rgba(148, 163, 184, 0.15); display: inline-block;"></span>
+          <span style="width: 12px; height: 12px; border-radius: 2px; background: #0e4429; display: inline-block;"></span>
+          <span style="width: 12px; height: 12px; border-radius: 2px; background: #006d32; display: inline-block;"></span>
+          <span style="width: 12px; height: 12px; border-radius: 2px; background: #26a641; display: inline-block;"></span>
+          <span style="width: 12px; height: 12px; border-radius: 2px; background: #39d353; display: inline-block;"></span>
+          <span>More</span>
+        </div>
+        <span>Today</span>
+      </div>
+    </div>
+  `;
 }

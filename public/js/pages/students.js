@@ -5,6 +5,7 @@ import { SignatureStudio } from '../signatureStudio.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
 import api from '../api.js';
 import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
+import { renderHeatmapGridHtml } from './portal.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -152,6 +153,7 @@ export async function render() {
           <td>
             <div class="d-flex gap-1">
               <button class="btn btn-sm btn-outline-secondary btn-view" data-id="${escapeHTML(s._id)}" title="View 360° Profile" style="padding: 3px 7px; font-size: 0.75rem;">👁️ View</button>
+              <button class="btn btn-sm btn-outline-success btn-wa-remind" data-id="${escapeHTML(s._id)}" title="Send WhatsApp Reminder with 1-Tap UPI Link" style="padding: 3px 7px; font-size: 0.75rem;">📲 Remind</button>
               <button class="btn btn-sm btn-outline-warning btn-pwdreset" data-id="${escapeHTML(s._id)}" title="Reset Student Portal Password / PIN" style="padding: 3px 7px; font-size: 0.75rem;">🔑 Key</button>
               <button class="btn btn-sm btn-outline-info btn-idcard" data-id="${escapeHTML(s._id)}" title="Print ID Card" style="padding: 3px 7px; font-size: 0.75rem;">🪪 ID</button>
               <button class="btn btn-sm btn-outline-success btn-pdfform" data-id="${escapeHTML(s._id)}" title="Download PDF Admission Form" style="padding: 3px 7px; font-size: 0.75rem;">📄 PDF</button>
@@ -993,6 +995,14 @@ export async function render() {
       return;
     }
 
+    const remindBtn = e.target.closest('.btn-wa-remind');
+    if (remindBtn) {
+      const id = remindBtn.getAttribute('data-id');
+      const student = state.students.find(s => s._id === id);
+      if (student) sendWhatsAppReminder(student);
+      return;
+    }
+
     const editBtn = e.target.closest('.btn-edit');
     if (editBtn) {
       const id = editBtn.getAttribute('data-id');
@@ -1107,11 +1117,33 @@ export async function render() {
           </div>
         </div>
 
+        <!-- 🧠 Study Consistency & Heatmap Analytics Widget -->
+        <div id="student-analytics-widget" style="background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex align-items-center gap-2">
+              <span style="font-size: 1.3rem;">🧠</span>
+              <h5 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--color-text-primary);">
+                Study Consistency & Attendance Heatmap
+              </h5>
+            </div>
+            <div id="student-analytics-badges" class="d-flex gap-2 align-items-center"></div>
+          </div>
+          <div id="student-analytics-content">
+            <div class="text-center p-3 text-muted">
+              <div class="loading-spinner mb-2" style="margin: 0 auto; width: 22px; height: 22px;"></div>
+              <small>Analyzing student attendance discipline & study patterns...</small>
+            </div>
+          </div>
+        </div>
+
         <!-- Action Buttons -->
-        <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+        <div class="d-flex justify-content-end gap-2 pt-3 border-top flex-wrap">
+          <button type="button" class="btn btn-outline-success btn-sm btn-profile-remind" style="font-weight: 700;">
+            📲 WhatsApp Reminder
+          </button>
           ${waUrl ? `
             <a href="${waUrl}" target="_blank" class="btn btn-outline-success btn-sm" style="font-weight: 600;">
-              📲 WhatsApp
+              💬 Chat
             </a>
           ` : ''}
           <button type="button" class="btn btn-outline-info btn-sm btn-profile-idcard">
@@ -1137,6 +1169,12 @@ export async function render() {
     });
     pModal.show();
 
+    loadStudentAnalyticsWidget(student._id, modalContent);
+
+    modalContent.querySelector('.btn-profile-remind')?.addEventListener('click', () => {
+      sendWhatsAppReminder(student, 'expiry');
+    });
+
     modalContent.querySelector('.btn-profile-idcard')?.addEventListener('click', () => {
       pModal.close();
       showStudentIdCard(student);
@@ -1150,6 +1188,102 @@ export async function render() {
       pModal.close();
       showStudentForm(student);
     });
+  }
+
+  async function sendWhatsAppReminder(student, reminderType = 'expiry') {
+    try {
+      Loading.show('Preparing WhatsApp reminder & UPI payment link...');
+      const res = await api.post('/api/messages/send-reminder', {
+        studentId: student._id,
+        reminderType
+      });
+      Loading.hide();
+      if (res.success && res.data) {
+        if (res.data.whatsappUrl) {
+          window.open(res.data.whatsappUrl, '_blank');
+        }
+        Toast.success(`WhatsApp reminder generated & opened for ${res.data.studentName}!`);
+      } else {
+        Toast.error(res.message || 'Failed to dispatch reminder');
+      }
+    } catch (err) {
+      Loading.hide();
+      Toast.error(err.message || 'Failed to trigger reminder');
+    }
+  }
+
+  async function loadStudentAnalyticsWidget(studentId, container) {
+    const contentEl = container.querySelector('#student-analytics-content');
+    const badgesEl = container.querySelector('#student-analytics-badges');
+    if (!contentEl) return;
+
+    try {
+      const res = await api.get(`/api/attendance/analytics/${studentId}`);
+      if (!res.success || !res.data) throw new Error(res.message || 'No data');
+      const a = res.data;
+
+      if (badgesEl) {
+        badgesEl.innerHTML = `
+          <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.75rem;">
+            ${escapeHTML(a.peakStudyHours?.badge || '🌅 Peak Time')}
+          </span>
+          <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--color-warning); font-weight: 700; font-size: 0.75rem;">
+            🔥 ${a.currentStreak || 0}d Streak
+          </span>
+        `;
+      }
+
+      const safeScore = Math.max(0, Math.min(100, Math.round(a.consistencyScore || 0)));
+
+      contentEl.innerHTML = `
+        <div style="display: grid; grid-template-columns: minmax(130px, auto) 1fr; gap: 16px; align-items: center;">
+          <!-- Consistency Gauge & Metrics -->
+          <div style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 10px; background: var(--color-surface); border-radius: 8px; border: 1px solid var(--color-border);">
+            <div style="position: relative; width: 84px; height: 84px; display: flex; align-items: center; justify-content: center;">
+              <svg viewBox="0 0 36 36" style="width: 84px; height: 84px; transform: rotate(-90deg);">
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none" stroke="rgba(148, 163, 184, 0.2)" stroke-width="3.2" />
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none" stroke="url(#adminScoreGaugeGrad)" stroke-width="3.2"
+                      stroke-dasharray="${safeScore}, 100" stroke-linecap="round" />
+                <defs>
+                  <linearGradient id="adminScoreGaugeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#10b981"/>
+                    <stop offset="100%" stop-color="#6366f1"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div style="position: absolute; text-align: center;">
+                <div style="font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary); line-height: 1;">${safeScore}%</div>
+                <div style="font-size: 0.55rem; color: var(--color-text-secondary); text-transform: uppercase; font-weight: 700; margin-top: 2px;">Consistency</div>
+              </div>
+            </div>
+            <div class="small mt-1" style="font-size: 0.75rem; color: var(--color-text-secondary);">
+              Avg: <strong>${escapeHTML(a.averageDailyDuration?.formatted || '0m')}</strong>/day
+            </div>
+            <div class="text-muted" style="font-size: 0.7rem;">
+              ${a.totalDaysPresent || 0}/30d present (Best: ${a.longestStreak || 0}d)
+            </div>
+          </div>
+
+          <!-- 30-Day Heatmap Grid -->
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 0.8rem;">
+              <strong style="color: var(--color-text-primary);">30-Day Attendance Grid</strong>
+              <span class="text-muted" style="font-size: 0.72rem;">${a.peakStudyHours?.slot || 'Peak Hours'}</span>
+            </div>
+
+            ${renderHeatmapGridHtml(a.heatmap || [])}
+
+            <div style="margin-top: 10px; padding: 8px 12px; background: var(--color-surface); border-radius: 6px; border: 1px solid var(--color-border); font-size: 0.8rem; line-height: 1.4; color: var(--color-text-secondary);">
+              <strong>🤖 AI Insight:</strong> ${escapeHTML(a.aiRecommendation || a.aiStudyTip || 'Regular attendance observed.')}
+            </div>
+          </div>
+        </div>
+      `;
+    } catch (err) {
+      contentEl.innerHTML = `<div class="text-muted small text-center p-2">Unable to load attendance analytics (${escapeHTML(err.message || 'No records')})</div>`;
+    }
   }
 
   async function showStudentIdCard(student) {

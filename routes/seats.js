@@ -230,7 +230,7 @@ router.post('/bulk-delete', async (req, res) => {
     }
 
     // Do not delete occupied seats
-    const occupied = await Seat.find({ _id: { $in: seatIds }, status: 'occupied' });
+    const occupied = await Seat.find({ _id: { $in: seatIds }, status: 'occupied' }).lean();
     if (occupied.length > 0) {
       return res.status(400).json({ 
         success: false, 

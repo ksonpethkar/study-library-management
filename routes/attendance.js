@@ -97,6 +97,261 @@ router.get('/student/:studentId', protect, async (req, res) => {
   }
 });
 
+// GET /analytics/:studentId - AI Study Habit & Attendance Analytics (90-day window)
+router.get('/analytics/:studentId', protect, async (req, res) => {
+  try {
+    const Student = require('../models/Student');
+    const mongoose = require('mongoose');
+    const paramId = req.params.studentId;
+    let student = null;
+
+    if (paramId === 'me') {
+      student = await Student.findOne({
+        $or: [
+          { email: req.user.email },
+          { phone: req.user.phone }
+        ]
+      });
+    } else if (mongoose.Types.ObjectId.isValid(paramId)) {
+      student = await Student.findById(paramId);
+      if (!student) {
+        student = await Student.findOne({ studentId: paramId });
+      }
+    } else {
+      student = await Student.findOne({ studentId: paramId });
+    }
+
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    // Past 90 Days Range
+    const now = new Date();
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const startOf90Days = new Date(now);
+    startOf90Days.setDate(startOf90Days.getDate() - 89);
+    startOf90Days.setHours(0, 0, 0, 0);
+
+    const records = await Attendance.find({
+      student: student._id,
+      date: { $gte: startOf90Days, $lte: endOfToday }
+    }).sort({ date: 1 });
+
+    // Map records by YYYY-MM-DD
+    const recordsByDate = {};
+    const hourDistribution = {};
+    for (let h = 0; h < 24; h++) hourDistribution[h] = 0;
+
+    let weekendPresent = 0;
+    let weekendTotal = 0;
+    let weekdayPresent = 0;
+    let weekdayTotal = 0;
+
+    records.forEach(r => {
+      const d = new Date(r.date);
+      const dateStr = d.toISOString().split('T')[0];
+      recordsByDate[dateStr] = r;
+
+      if (['present', 'late', 'half_day'].includes(r.status)) {
+        if (r.checkIn) {
+          const checkInHour = new Date(r.checkIn).getHours();
+          hourDistribution[checkInHour] = (hourDistribution[checkInHour] || 0) + 1;
+        }
+      }
+    });
+
+    // 90-day sequence for streak & consistency calculation
+    const allDays90 = [];
+    for (let i = 89; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayOfWeek = d.getDay(); // 0 = Sun, 6 = Sat
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const rec = recordsByDate[dateStr];
+      const isAttended = rec && ['present', 'late', 'half_day'].includes(rec.status);
+
+      if (isWeekend) {
+        weekendTotal++;
+        if (isAttended) weekendPresent++;
+      } else {
+        weekdayTotal++;
+        if (isAttended) weekdayPresent++;
+      }
+
+      allDays90.push({
+        date: dateStr,
+        dayOfWeek,
+        isAttended,
+        status: rec ? rec.status : 'absent'
+      });
+    }
+
+    // Calculate Streaks
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 0;
+
+    for (let i = 0; i < allDays90.length; i++) {
+      if (allDays90[i].isAttended) {
+        tempStreak++;
+        if (tempStreak > longestStreak) longestStreak = tempStreak;
+      } else {
+        tempStreak = 0;
+      }
+    }
+
+    // Current streak (backwards from today or yesterday)
+    const todayIndex = allDays90.length - 1;
+    let streakPointer = todayIndex;
+    if (!allDays90[todayIndex].isAttended && streakPointer > 0) {
+      streakPointer--;
+    }
+    while (streakPointer >= 0 && allDays90[streakPointer].isAttended) {
+      currentStreak++;
+      streakPointer--;
+    }
+
+    // 30-Day Heatmap Data (Array of { date, minutes, status })
+    const heatmap30 = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const rec = recordsByDate[dateStr];
+      let mins = 0;
+      let status = 'absent';
+
+      if (rec) {
+        status = rec.status;
+        mins = rec.duration || 0;
+        if (!mins && rec.checkIn && rec.checkOut) {
+          mins = Math.max(0, Math.round((new Date(rec.checkOut) - new Date(rec.checkIn)) / 60000));
+        } else if (!mins && ['present', 'late', 'half_day'].includes(rec.status)) {
+          mins = rec.status === 'half_day' ? 180 : 300;
+        }
+      }
+
+      heatmap30.push({
+        date: dateStr,
+        minutes: mins,
+        status: status,
+        checkIn: rec?.checkIn ? new Date(rec.checkIn).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : null,
+        checkOut: rec?.checkOut ? new Date(rec.checkOut).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : null
+      });
+    }
+
+    // Peak Study Hours Distribution
+    let peakHour = 8;
+    let maxHourCount = -1;
+    for (let h = 0; h < 24; h++) {
+      if (hourDistribution[h] > maxHourCount) {
+        maxHourCount = hourDistribution[h];
+        peakHour = h;
+      }
+    }
+
+    let peakSlotName = 'Morning';
+    let peakBadge = '🌅 Peak Time: 08:00 AM – 02:00 PM';
+    if (peakHour >= 5 && peakHour < 12) {
+      peakSlotName = 'Morning (07:00 AM – 12:00 PM)';
+      peakBadge = '🌅 Peak Time: 08:00 AM – 02:00 PM';
+    } else if (peakHour >= 12 && peakHour < 16) {
+      peakSlotName = 'Afternoon (12:00 PM – 04:00 PM)';
+      peakBadge = '☀️ Peak Time: 12:00 PM – 05:00 PM';
+    } else if (peakHour >= 16 && peakHour < 21) {
+      peakSlotName = 'Evening (04:00 PM – 08:00 PM)';
+      peakBadge = '🌆 Peak Time: 04:00 PM – 09:00 PM';
+    } else {
+      peakSlotName = 'Night / Late Shift (09:00 PM – 03:00 AM)';
+      peakBadge = '🌙 Peak Time: 09:00 PM – 03:00 AM';
+    }
+
+    // Average Daily Study Duration
+    const totalPresentDays30 = heatmap30.filter(d => ['present', 'late', 'half_day'].includes(d.status)).length;
+    const totalMinutes30 = heatmap30.reduce((acc, cur) => acc + cur.minutes, 0);
+    const avgMinutes = totalPresentDays30 > 0 ? Math.round(totalMinutes30 / totalPresentDays30) : 0;
+    const avgHoursNum = (avgMinutes / 60).toFixed(1);
+    const avgHours = Math.floor(avgMinutes / 60);
+    const avgRemMins = avgMinutes % 60;
+    const avgFormatted = avgHours > 0 ? `${avgHours}h ${avgRemMins}m` : `${avgRemMins}m`;
+
+    // Consistency Score (0–100%)
+    const daysAttended30 = totalPresentDays30;
+    const attendanceRatio = Math.min(1, daysAttended30 / 30);
+    const streakBonus = Math.min(1, currentStreak / 14);
+    const lateDays = heatmap30.filter(d => d.status === 'late').length;
+    const punctualityRatio = daysAttended30 > 0 ? (daysAttended30 - (lateDays * 0.5)) / daysAttended30 : 0;
+
+    let consistencyScore = Math.round((attendanceRatio * 70) + (streakBonus * 15) + (punctualityRatio * 15));
+    if (daysAttended30 === 0 && currentStreak === 0) consistencyScore = 0;
+    consistencyScore = Math.max(0, Math.min(100, consistencyScore));
+
+    // Dynamic AI Study Recommendation Note & Tip
+    let aiRecommendation = '';
+    let aiStudyTip = '';
+
+    const weekendRate = weekendTotal > 0 ? (weekendPresent / weekendTotal) : 1;
+    const weekdayRate = weekdayTotal > 0 ? (weekdayPresent / weekdayTotal) : 1;
+
+    if (consistencyScore >= 85) {
+      aiRecommendation = `🔥 Outstanding consistency! You've maintained ${consistencyScore}% attendance with a ${currentStreak}-day active streak. Keep up this unstoppable momentum!`;
+      aiStudyTip = `🔥 Outstanding consistency! You've maintained 85%+ attendance for 3 weeks.`;
+    } else if (weekendRate < 0.4 && weekdayRate >= 0.7) {
+      aiRecommendation = `⚠️ Attendance drop detected on weekends (${Math.round(weekendRate * 100)}% vs ${Math.round(weekdayRate * 100)}% on weekdays). Keep up regular study hours to maintain exam readiness!`;
+      aiStudyTip = `⚠️ Attendance drop detected on weekends. Keep up regular study hours!`;
+    } else if (consistencyScore >= 70) {
+      aiRecommendation = `⭐ Great focus! You are averaging ${avgFormatted}/day of focused study. Maintaining consistent check-in times will boost long-term retention.`;
+      aiStudyTip = `⭐ Great focus! Consistent study routine detected. Aim for morning sessions to boost retention.`;
+    } else if (currentStreak >= 5) {
+      aiRecommendation = `🚀 Great momentum! You are currently on a ${currentStreak}-day study streak. Aim to cross 10 days to solidify your study habit!`;
+      aiStudyTip = `🚀 ${currentStreak}-day study streak active! Keep going.`;
+    } else if (consistencyScore < 50) {
+      aiRecommendation = `💡 Consistency is the key to cracking competitive exams. Try starting with regular 3-4 hour study blocks every morning to build discipline!`;
+      aiStudyTip = `💡 Build momentum with regular study blocks. Consistency beats cramming!`;
+    } else {
+      aiRecommendation = `📈 Solid progress! Try tracking your daily study sessions regularly to improve your consistency score past 80%.`;
+      aiStudyTip = `📈 Set a fixed daily study slot to boost consistency.`;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        student: {
+          _id: student._id,
+          name: student.name,
+          studentId: student.studentId
+        },
+        consistencyScore,
+        currentStreak,
+        longestStreak,
+        totalDaysPresent: daysAttended30,
+        totalDaysAbsent: 30 - daysAttended30,
+        averageDailyDuration: {
+          minutes: avgMinutes,
+          hours: parseFloat(avgHoursNum),
+          formatted: avgFormatted
+        },
+        peakStudyHours: {
+          slot: peakSlotName,
+          badge: peakBadge,
+          peakHour,
+          distribution: hourDistribution
+        },
+        heatmap: heatmap30,
+        aiRecommendation,
+        aiStudyTip
+      },
+      message: 'Student study analytics fetched successfully'
+    });
+  } catch (error) {
+    console.error('Attendance analytics error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /check-in
 router.post('/check-in', protect, validate([
   body('studentId').notEmpty().withMessage('Student ID is required')

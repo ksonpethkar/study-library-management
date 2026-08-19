@@ -21,7 +21,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "https://api.postalpincode.in", "https://api.qrserver.com", "https://api.zippopotam.us"],
     }
   },
   crossOriginEmbedderPolicy: false,
@@ -39,6 +39,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Apply rate limiting
 app.use(generalLimiter);
+
+// Compression Middleware for optimized asset delivery & performance
+const compression = require('compression');
+app.use(compression());
 
 // Static folder
 app.use(express.static(path.join(__dirname, 'public')));
