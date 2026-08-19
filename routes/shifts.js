@@ -109,7 +109,7 @@ router.get('/stats', async (req, res) => {
       const capacity = s.maxCapacity || 0;
       const occupancyRate = capacity > 0 ? Math.min(100, Math.round((enrolled / capacity) * 100)) : null;
       return {
-        ...s.toObject(),
+        ...s,
         enrolledStudents: enrolled,
         occupancyRate
       };
