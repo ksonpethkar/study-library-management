@@ -873,7 +873,10 @@ function renderSettingsUI(container, profile, settings) {
                   </p>
                 </div>
                 <div>
-                  <input type="checkbox" id="setting-autoBackup" class="form-toggle" ${(gen['general.autoBackup'] ?? gen.autoBackup) !== false ? 'checked' : ''}>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="setting-autoBackup" ${(gen['general.autoBackup'] ?? gen.autoBackup) !== false ? 'checked' : ''}>
+                    <span class="switch-slider"></span>
+                  </label>
                 </div>
               </div>
 
