@@ -7,17 +7,18 @@ const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
 const { validate } = require('../middleware/validate');
 
-// GET / — List all active shifts (Public for registration & landing pages)
+// GET / — List shifts (supports ?active=true, ?active=false, ?all=true)
 router.get('/', async (req, res) => {
   try {
     await Shift.seedDefaults();
 
     let query = {};
-    if (req.query.active !== undefined && req.query.active !== '') {
-      query.isActive = req.query.active === 'true' || req.query.active === '1';
-    } else {
-      query.isActive = true; // Default to active for public
+    if (req.query.active === 'true' || req.query.active === '1') {
+      query.isActive = true;
+    } else if (req.query.active === 'false' || req.query.active === '0') {
+      query.isActive = false;
     }
+    // If active query parameter is not provided or is 'all', return all shifts
     if (req.query.search) {
       const searchRegex = new RegExp(req.query.search, 'i');
       query.$or = [

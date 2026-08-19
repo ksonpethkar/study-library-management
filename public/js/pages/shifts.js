@@ -268,7 +268,7 @@ async function loadShiftsAndStats() {
 
   try {
     const [shiftsRes, statsRes] = await Promise.all([
-      api.get('/api/shifts'),
+      api.get('/api/shifts?all=true'),
       api.get('/api/shifts/stats')
     ]);
 
