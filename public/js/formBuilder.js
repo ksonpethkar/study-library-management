@@ -918,7 +918,7 @@ export class FormBuilder {
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="Modal.closeAll()">Cancel</button>
+          <button type="button" class="btn btn-secondary btn-sm fb-cancel-modal-btn" data-modal-close="true">Cancel</button>
           <button type="submit" class="btn btn-primary btn-sm" style="font-weight: 700;">➕ Create Section</button>
         </div>
       </form>
@@ -930,6 +930,11 @@ export class FormBuilder {
       size: 'sm'
     });
     modal.show();
+
+    modalContent.querySelector('.fb-cancel-modal-btn')?.addEventListener('click', () => {
+      modal.close();
+      Modal.closeAll();
+    });
 
     modalContent.querySelector('#as-label')?.addEventListener('input', (e) => {
       const slug = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
@@ -1099,7 +1104,7 @@ export class FormBuilder {
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="Modal.closeAll()">Cancel</button>
+          <button type="button" class="btn btn-secondary btn-sm fb-cancel-modal-btn" data-modal-close="true">Cancel</button>
           <button type="submit" class="btn btn-primary btn-sm" style="font-weight: 700;">💾 Save Question Field</button>
         </div>
       </form>
@@ -1111,6 +1116,11 @@ export class FormBuilder {
       size: 'md'
     });
     modal.show();
+
+    modalContent.querySelector('.fb-cancel-modal-btn')?.addEventListener('click', () => {
+      modal.close();
+      Modal.closeAll();
+    });
 
     // Auto slugify field key on label input for new fields
     if (!isEdit) {

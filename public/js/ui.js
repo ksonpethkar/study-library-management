@@ -231,8 +231,16 @@ Modal.show = function(opts) {
 };
 
 Modal.close = function() {
-  const modal = document.getElementById('modal-container');
-  if (modal && modal.open) modal.close();
+  const dialogs = document.querySelectorAll('dialog, #modal-container, .modal-container, .modal');
+  dialogs.forEach(d => {
+    try {
+      if (typeof d.close === 'function' && d.open) {
+        d.close();
+      }
+      d.removeAttribute('open');
+      d.style.display = 'none';
+    } catch (e) {}
+  });
 };
 
 Modal.closeAll = function() {
@@ -243,9 +251,35 @@ Modal.hide = function() {
   Modal.close();
 };
 
-// Global fallback for any inline HTML onclick handlers
+// Global fallback for any inline HTML onclick handlers and window object
 if (typeof window !== 'undefined') {
   window.Modal = Modal;
+  window.Modal.closeAll = Modal.closeAll;
+  window.Modal.close = Modal.close;
+  window.Modal.hide = Modal.hide;
+
+  // Global capture click listener for all Cancel / Close buttons inside any modal
+  document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('[data-modal-close], [data-close-modal], .modal-close, .modal-close-btn, .modal-cancel, .btn-modal-close, .fb-cancel-modal-btn');
+    if (trigger) {
+      e.preventDefault();
+      e.stopPropagation();
+      Modal.closeAll();
+      return;
+    }
+
+    // Auto-detect any Cancel or Close button inside a dialog/modal container
+    if (e.target.tagName === 'BUTTON' && (e.target.type === 'button' || !e.target.type)) {
+      const txt = e.target.textContent.trim().toLowerCase();
+      if (['cancel', 'close', '✖ cancel', '❌ cancel', 'dismiss', 'back'].includes(txt)) {
+        if (e.target.closest('dialog, #modal-container, .modal, .modal-container')) {
+          e.preventDefault();
+          e.stopPropagation();
+          Modal.closeAll();
+        }
+      }
+    }
+  }, true);
 }
 
 /**
