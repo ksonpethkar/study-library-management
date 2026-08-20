@@ -1439,21 +1439,27 @@ function renderSettingsUI(container, profile, settings) {
       <!-- ========================================== -->
       <div class="settings-panel" id="panel-landing" style="display: none;">
         <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
-          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🌐 Public Landing Page & SEO</h3>
-              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Manage your public-facing website, hero banners, facilities, testimonials, and maps.</p>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                <span>🌐</span> Public Landing Page, CMS &amp; SEO Engine
+              </h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Manage your public-facing website, hero banners, facilities, testimonials, and maps with live split-screen preview.</p>
             </div>
-            <div style="display: flex; gap: 0.5rem;">
-              <a href="/landing" target="_blank" class="btn btn-outline btn-sm" style="font-weight: 600; display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
-                <span>👁️</span> View Public Landing Page
-              </a>
-              <button id="btn-save-landing" class="btn btn-primary btn-sm" style="font-weight: 600;">💾 Save Landing Page</button>
-            </div>
+            <a href="/landing" target="_blank" class="btn btn-outline-primary btn-sm" style="font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+              <span>👁️</span> Open Live Website ↗
+            </a>
           </div>
           <div class="card-body" style="padding: 1.5rem;">
             <div id="landing-settings-container">
               <div class="text-center p-4 text-muted">Loading landing page configuration...</div>
+            </div>
+
+            <!-- SINGLE CONSOLIDATED MASTER SAVE ACTION BUTTON -->
+            <div style="display: flex; justify-content: flex-end; padding-top: 1rem; margin-top: 1.5rem; border-top: 1px solid var(--color-divider);">
+              <button type="button" id="btn-save-landing" class="btn btn-primary" style="font-weight: 700; padding: 0.65rem 1.75rem;">
+                💾 Save Landing Page &amp; SEO Configuration
+              </button>
             </div>
           </div>
         </div>
