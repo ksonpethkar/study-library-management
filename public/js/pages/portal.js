@@ -1090,8 +1090,21 @@ function renderPortalUI(container, data, analytics = null) {
           <!-- Verified Section Tabs / Content -->
           ${sectionsHtml}
 
-          <div class="d-flex justify-content-end gap-2 mt-4 pt-3" style="border-top: 1px solid var(--color-border);">
-            <button type="button" class="btn btn-secondary" id="btn-close-profile-modal">Close</button>
+          <div class="d-flex justify-content-between align-items-center mt-4 pt-3 flex-wrap gap-2" style="border-top: 1px solid var(--color-border);">
+            <div>
+              ${(student.profileCompletion >= 100 || student.isProfileComplete) ? `
+                <button type="button" class="btn btn-outline-primary" id="btn-sp-download-pdf" style="font-weight: 700; font-size: 0.85rem;">
+                  📄 Download Official Admission Form (PDF)
+                </button>
+              ` : `
+                <button type="button" class="btn btn-outline-secondary" disabled style="font-size: 0.8rem; font-weight: 600; opacity: 0.7;" title="Complete photo selfie & Aadhaar KYC above to unlock PDF download">
+                  🔒 Complete Profile to Unlock Admission Form (PDF)
+                </button>
+              `}
+            </div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-secondary" id="btn-close-profile-modal">Close</button>
+            </div>
           </div>
         </div>
       `;
@@ -1215,6 +1228,9 @@ function renderPortalUI(container, data, analytics = null) {
       });
 
       modalContent.querySelector('#btn-close-profile-modal')?.addEventListener('click', () => profileModal.close());
+      modalContent.querySelector('#btn-sp-download-pdf')?.addEventListener('click', () => {
+        previewAdmissionFormPDF(student, { business });
+      });
       modalContent.querySelector('#btn-modal-print-pdf')?.addEventListener('click', () => {
         previewAdmissionFormPDF(student, { business });
       });
