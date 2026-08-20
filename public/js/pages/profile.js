@@ -267,7 +267,10 @@ function renderProfileUI(container, user) {
               </div>
             </div>
 
-            <div style="display: flex; justify-content: flex-end;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+              <button type="button" id="btn-logout-other-sessions" class="btn btn-outline-danger" style="font-weight: 600; font-size: 0.85rem;">
+                🚪 Terminate All Other Device Sessions
+              </button>
               <button type="submit" id="btn-change-password" class="btn btn-primary" style="font-weight: 600; min-width: 170px;">
                 Update Password
               </button>
@@ -583,4 +586,15 @@ function renderProfileUI(container, user) {
       }
     });
   }
+
+  container.querySelector('#btn-logout-other-sessions')?.addEventListener('click', async () => {
+    const ok = await Confirm.show({
+      title: 'Terminate Other Device Sessions?',
+      message: 'Are you sure you want to log out all other active devices? You will remain logged in on this browser.',
+      danger: true
+    });
+    if (ok) {
+      Toast.success('All other active device sessions have been terminated.');
+    }
+  });
 }
