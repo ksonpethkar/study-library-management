@@ -4295,9 +4295,9 @@ async function initLandingSettings(container) {
         </div>
       </div>
 
-      <div class="landing-editor-split" style="display: flex; gap: 1.25rem; align-items: flex-start; width: 100%;">
+      <div class="landing-editor-split" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; align-items: start; width: 100%;">
         <!-- Left: CMS Form Editor -->
-        <div class="cms-editor-panel" style="flex: 1 1 50%; min-width: 0; max-width: 50%; width: 50%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; background: var(--color-surface); height: calc(100vh - 240px); min-height: 600px; overflow-y: auto;">
+        <div class="cms-editor-panel" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; background: var(--color-surface); height: calc(100vh - 240px); min-height: 600px; overflow-y: auto; min-width: 0;">
           <div class="landing-tabs" style="display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border);">
             <button class="landing-tab-btn active" data-tab="hero" style="padding: 0.5rem 0.85rem; border: none; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 600; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap;">Hero & Branding</button>
             <button class="landing-tab-btn" data-tab="navbar" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Navbar & CTA</button>
@@ -4679,7 +4679,7 @@ async function initLandingSettings(container) {
       </div> <!-- .cms-editor-panel -->
         
       <!-- Right: Live Split-Screen Interactive Preview Canvas -->
-      <div class="cms-preview-panel" style="flex: 1 1 50%; min-width: 0; max-width: 50%; width: 50%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: var(--color-bg-secondary); position: sticky; top: 20px; height: calc(100vh - 240px); min-height: 600px; display: flex; flex-direction: column; overflow: hidden;">
+      <div class="cms-preview-panel" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: var(--color-bg-secondary); position: sticky; top: 20px; height: calc(100vh - 240px); min-height: 600px; display: flex; flex-direction: column; overflow: hidden; min-width: 0;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding: 0 0.25rem; flex-shrink: 0;">
             <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
               <span>🌐</span> Live Landing Page Viewport
@@ -4690,7 +4690,7 @@ async function initLandingSettings(container) {
           </div>
 
           <div id="pv-frame-shell" style="flex: 1; border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; background: #fff; box-shadow: var(--shadow-md); margin: 0 auto; transition: all 0.3s ease; width: 100%; position: relative;">
-            <iframe id="pv-landing-iframe" src="/landing?preview=true" style="width: 138.8%; height: 138.8%; border: none; transform: scale(0.72); transform-origin: top left;"></iframe>
+            <iframe id="pv-landing-iframe" src="/landing?preview=true" style="width: 100%; height: 100%; border: none;"></iframe>
           </div>
         </div>
       </div>
