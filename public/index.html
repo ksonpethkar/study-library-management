@@ -23,6 +23,22 @@
   <link rel="stylesheet" media="print" href="css/print.css">
 
   <script src="js/themeManager.js"></script>
+  <script>
+    (function() {
+      try {
+        const cached = localStorage.getItem('sl_public_profile_cache');
+        if (cached) {
+          const bp = JSON.parse(cached);
+          if (bp && bp.businessName) {
+            document.addEventListener('DOMContentLoaded', function() {
+              const el = document.getElementById('sidebar-org-name');
+              if (el) el.textContent = bp.businessName;
+            });
+          }
+        }
+      } catch(e) {}
+    })();
+  </script>
 </head>
 <body>
 

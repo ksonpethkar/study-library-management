@@ -16,6 +16,22 @@
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components.css">
   <script src="js/themeManager.js"></script>
+  <script>
+    (function() {
+      try {
+        const cached = localStorage.getItem('sl_public_profile_cache');
+        if (cached) {
+          const bp = JSON.parse(cached);
+          if (bp && bp.businessName) {
+            document.addEventListener('DOMContentLoaded', function() {
+              const el = document.getElementById('lib-name');
+              if (el) el.textContent = bp.businessName;
+            });
+          }
+        }
+      } catch(e) {}
+    })();
+  </script>
   <style>
     body {
       min-height: 100vh;

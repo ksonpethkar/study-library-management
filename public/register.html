@@ -27,6 +27,26 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/responsive.css">
   <script src="js/themeManager.js"></script>
+  <script>
+    (function() {
+      try {
+        const cached = localStorage.getItem('sl_public_profile_cache');
+        if (cached) {
+          const bp = JSON.parse(cached);
+          if (bp && bp.businessName) {
+            document.addEventListener('DOMContentLoaded', function() {
+              const el = document.getElementById('lib-title');
+              if (el) el.textContent = bp.businessName;
+              if (bp.tagline) {
+                const tagEl = document.getElementById('lib-tagline');
+                if (tagEl) tagEl.textContent = bp.tagline;
+              }
+            });
+          }
+        }
+      } catch(e) {}
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <style>
     body {
@@ -1437,6 +1457,7 @@
         const bp = landingRes?.data?.businessProfile || publicConfig?.businessProfile || {};
         businessProfileData = bp;
         if (bp?.businessName) {
+          try { localStorage.setItem('sl_public_profile_cache', JSON.stringify(bp)); } catch(e) {}
           libraryBusinessName = bp.businessName;
           document.getElementById('lib-title').textContent = bp.businessName;
           document.title = `Online Admission — ${bp.businessName}`;
