@@ -1317,7 +1317,13 @@
         if (landing.hero) {
           if (landing.hero.title) {
             const hTitle = document.getElementById('hero-title');
-            if (hTitle) hTitle.innerHTML = landing.hero.title;
+            if (hTitle) {
+              let t = landing.hero.title.replace(/Study Library|StudyLib/gi, brandName);
+              if (t.includes(brandName) && !t.includes(`<span>${brandName}</span>`)) {
+                t = t.replace(brandName, `<span>${brandName}</span>`);
+              }
+              hTitle.innerHTML = t;
+            }
           }
           if (landing.hero.subtitle) {
             const hSub = document.getElementById('hero-subtitle');
