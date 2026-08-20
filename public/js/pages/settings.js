@@ -3207,6 +3207,92 @@ function renderSettingsUI(container, profile, settings) {
   container.querySelector('#setting-autoBackup')?.addEventListener('change', updateGeneralPreview);
   updateGeneralPreview();
 
+  // Download Backup Action Handler
+  container.querySelector('#btn-download-db-backup')?.addEventListener('click', async () => {
+    const btn = container.querySelector('#btn-download-db-backup');
+    const logEl = container.querySelector('#backup-activity-log-container');
+    Loading.button(btn, true);
+
+    try {
+      const res = await fetch('/api/backup/export', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!res.ok) throw new Error('Backup export failed');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `study_library_backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      Toast.success('📥 Full system JSON backup downloaded successfully');
+      if (logEl) {
+        logEl.innerHTML = `
+          <div style="font-weight: 700; color: var(--color-success); margin-bottom: 0.4rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+            <span>🟢</span> Backup Downloaded Successfully
+          </div>
+          <div style="font-size: 0.85rem; color: var(--color-text-primary);">
+            File: <code>study_library_backup_${new Date().toISOString().split('T')[0]}.json</code>
+          </div>
+          <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Downloaded at: ${new Date().toLocaleString('en-IN')}</div>
+        `;
+      }
+    } catch (err) {
+      Toast.error(err.message || 'Failed to download backup snapshot');
+    } finally {
+      Loading.button(btn, false);
+    }
+  });
+
+  // Trigger File Input Click for Restore
+  const restoreBtn = container.querySelector('#btn-trigger-restore-file');
+  const restoreInput = container.querySelector('#db-restore-file-input');
+
+  restoreBtn?.addEventListener('click', () => {
+    restoreInput?.click();
+  });
+
+  restoreInput?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!confirm('⚠️ WARNING: Restoring a JSON backup will merge or overwrite existing records in MongoDB. Do you want to proceed?')) {
+      restoreInput.value = '';
+      return;
+    }
+
+    const logEl = container.querySelector('#backup-activity-log-container');
+    Loading.button(restoreBtn, true);
+
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+
+      const res = await api.post('/api/backup/restore', json);
+      Toast.success(res?.message || 'Database snapshot restored successfully');
+
+      if (logEl) {
+        logEl.innerHTML = `
+          <div style="font-weight: 700; color: var(--color-success); margin-bottom: 0.4rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+            <span>🟢</span> Database Snapshot Restored Successfully
+          </div>
+          <div style="font-size: 0.85rem; color: var(--color-text-primary);">
+            Restored File: <code>${escapeHTML(file.name)}</code>
+          </div>
+          <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Restored at: ${new Date().toLocaleString('en-IN')}</div>
+        `;
+      }
+    } catch (err) {
+      Toast.error(err.message || 'Failed to restore backup snapshot');
+    } finally {
+      Loading.button(restoreBtn, false);
+      restoreInput.value = '';
+    }
+  });
+
   // Save All Changes (Header Button)
   container.querySelector('#btn-save-all-settings')?.addEventListener('click', async () => {
     const saveAllBtn = container.querySelector('#btn-save-all-settings');
