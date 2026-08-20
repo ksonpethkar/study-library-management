@@ -435,90 +435,116 @@ function renderSettingsUI(container, profile, settings) {
           <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
             <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">💰 Fee Due Dates, Late Fines & Auto-Suspension</h3>
-                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Configure grace periods, calculation models, fine rates, and automatic student deactivations.</p>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>💰</span> Fee Due Dates, Late Fines &amp; Auto-Suspension Rules
+                </h3>
+                <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Configure grace windows, fine calculation modes, penalty amounts, and automatic seat suspension thresholds.</p>
               </div>
-              <button type="submit" id="btn-save-policies" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Policies</button>
+              <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+                Categorized Engine
+              </span>
             </div>
 
-            <div class="card-body" style="padding: 1.5rem;">
+            <div class="card-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
               
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
-                
-                <!-- Grace Period -->
-                <div class="form-group">
-                  <label class="form-label" for="setting-gracePeriod" style="font-weight: 600;">Grace Period (Days)</label>
-                  <div style="position: relative;">
-                    <input type="number" id="setting-gracePeriod" class="form-control" min="0" max="90" value="${pay['payment.gracePeriod'] ?? pay.gracePeriod ?? 5}" required>
-                  </div>
-                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
-                    Days after due date before late fees start calculating. Set 0 for immediate fines.
-                  </small>
-                </div>
+              <!-- CATEGORY 1: GRACE PERIOD & DUE DATES -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>⏱️</span> Category 1: Grace Period &amp; Due Date Rules
+                </h4>
 
-                <!-- Late Fee Calculation Type -->
-                <div class="form-group">
-                  <label class="form-label" style="font-weight: 600;">Late Fee Calculation Mode</label>
-                  <div style="display: flex; gap: 0.75rem; margin-top: 6px;">
-                    <label style="flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); cursor: pointer;">
-                      <input type="radio" name="lateFeeType" value="flat" ${(pay['payment.lateFeeType'] || pay.lateFeeType || 'flat') === 'flat' ? 'checked' : ''} style="cursor: pointer;">
-                      <div>
-                        <div style="font-weight: 600; font-size: 0.9rem;">Flat Rate</div>
-                        <div style="font-size: 0.75rem; color: var(--color-text-secondary);">One-time fixed fine</div>
-                      </div>
-                    </label>
-                    <label style="flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); cursor: pointer;">
-                      <input type="radio" name="lateFeeType" value="daily" ${(pay['payment.lateFeeType'] || pay.lateFeeType) === 'daily' || (pay['payment.lateFeeType'] || pay.lateFeeType) === 'per_day' ? 'checked' : ''} style="cursor: pointer;">
-                      <div>
-                        <div style="font-weight: 600; font-size: 0.9rem;">Per-Day Rate</div>
-                        <div style="font-size: 0.75rem; color: var(--color-text-secondary);">Accrues each overdue day</div>
-                      </div>
-                    </label>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                  <!-- Grace Period -->
+                  <div class="form-group">
+                    <label class="form-label" for="setting-gracePeriod" style="font-weight: 600;">Grace Window Period (Days) *</label>
+                    <div style="position: relative;">
+                      <input type="number" id="setting-gracePeriod" class="form-control" min="0" max="90" value="${pay['payment.gracePeriod'] ?? pay.gracePeriod ?? 5}" required>
+                    </div>
+                    <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                      Days after due date before late fine penalty starts calculating. Set 0 for immediate fine.
+                    </small>
                   </div>
                 </div>
-
               </div>
 
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
-                
-                <!-- Late Fee Amount -->
-                <div class="form-group">
-                  <label class="form-label" for="setting-lateFeeAmount" style="font-weight: 600;">Late Fee Amount (₹)</label>
-                  <div style="position: relative;">
-                    <input type="number" id="setting-lateFeeAmount" class="form-control" min="0" step="1" value="${pay['payment.lateFeeAmount'] ?? pay.lateFeeAmount ?? 50}" required>
-                  </div>
-                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
-                    Amount in currency charged either as flat penalty or daily rate.
-                  </small>
-                </div>
+              <!-- CATEGORY 2: LATE FINE PENALTY ENGINE -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>💸</span> Category 2: Late Fine Calculation Engine &amp; Penalty Rates
+                </h4>
 
-                <!-- Auto-Suspension Threshold -->
-                <div class="form-group">
-                  <label class="form-label" for="setting-autoSuspendDays" style="font-weight: 600;">Auto-Suspension Threshold (Days Overdue)</label>
-                  <div style="position: relative;">
-                    <input type="number" id="setting-autoSuspendDays" class="form-control" min="1" max="180" value="${pay['payment.autoSuspendDays'] ?? pay.autoSuspendDays ?? 15}" required>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                  <!-- Late Fee Calculation Mode -->
+                  <div class="form-group">
+                    <label class="form-label" style="font-weight: 600;">Late Fee Calculation Mode *</label>
+                    <div style="display: flex; gap: 0.75rem; margin-top: 4px;">
+                      <label style="flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer;">
+                        <input type="radio" name="lateFeeType" value="flat" ${(pay['payment.lateFeeType'] || pay.lateFeeType || 'flat') === 'flat' ? 'checked' : ''} style="cursor: pointer;">
+                        <div>
+                          <div style="font-weight: 700; font-size: 0.9rem;">Flat Rate</div>
+                          <div style="font-size: 0.75rem; color: var(--color-text-secondary);">One-time fixed penalty fine</div>
+                        </div>
+                      </label>
+                      <label style="flex: 1; display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer;">
+                        <input type="radio" name="lateFeeType" value="daily" ${(pay['payment.lateFeeType'] || pay.lateFeeType) === 'daily' || (pay['payment.lateFeeType'] || pay.lateFeeType) === 'per_day' ? 'checked' : ''} style="cursor: pointer;">
+                        <div>
+                          <div style="font-weight: 700; font-size: 0.9rem;">Per-Day Rate</div>
+                          <div style="font-size: 0.75rem; color: var(--color-text-secondary);">Accrues each overdue day</div>
+                        </div>
+                      </label>
+                    </div>
                   </div>
-                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
-                    After these days of overdue payment, the student's seat access is auto-suspended.
-                  </small>
-                </div>
 
+                  <!-- Late Fee Amount -->
+                  <div class="form-group">
+                    <label class="form-label" for="setting-lateFeeAmount" style="font-weight: 600;">Late Fine Penalty Amount (₹) *</label>
+                    <div style="position: relative;">
+                      <input type="number" id="setting-lateFeeAmount" class="form-control" min="0" step="1" value="${pay['payment.lateFeeAmount'] ?? pay.lateFeeAmount ?? 50}" required>
+                    </div>
+                    <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                      Amount in Rupees charged either as flat penalty or daily compounding fine rate.
+                    </small>
+                  </div>
+                </div>
               </div>
 
-              <!-- Interactive Policy Live Simulation Box -->
-              <div id="policy-simulation-card" style="background: var(--color-primary-bg); border: 1px solid var(--color-primary-light); border-radius: var(--radius-md); padding: 1.25rem; margin-top: 1rem;">
+              <!-- CATEGORY 3: AUTO-SUSPENSION & GATE LOCK -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>🔒</span> Category 3: Auto-Suspension &amp; Gate Kiosk Lock Threshold
+                </h4>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                  <!-- Auto-Suspension Threshold -->
+                  <div class="form-group">
+                    <label class="form-label" for="setting-autoSuspendDays" style="font-weight: 600;">Auto-Suspension Threshold (Overdue Days) *</label>
+                    <div style="position: relative;">
+                      <input type="number" id="setting-autoSuspendDays" class="form-control" min="1" max="180" value="${pay['payment.autoSuspendDays'] ?? pay.autoSuspendDays ?? 15}" required>
+                    </div>
+                    <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                      After these days of overdue payment, the student's seat reservation &amp; gate access are automatically locked.
+                    </small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CATEGORY 4: LIVE POLICY SIMULATION CARD -->
+              <div id="policy-simulation-card" style="background: var(--color-primary-bg); border: 1px solid var(--color-primary-light); border-radius: var(--radius-lg); padding: 1.25rem;">
                 <div style="font-weight: 700; color: var(--color-primary); font-size: 0.95rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                  <span>📋</span> Live Policy Rule Summary
+                  <span>📋</span> Category 4: Live Policy Rule Summary &amp; Simulation
                 </div>
                 <div id="policy-simulation-text" style="color: var(--color-text-primary); font-size: 0.9rem; line-height: 1.6;">
-                  <!-- Dynamically computed -->
+                  <!-- Dynamically computed in JS -->
                 </div>
               </div>
 
-            </div>
+              <!-- SINGLE CONSOLIDATED SAVE BUTTON AT BOTTOM -->
+              <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--color-divider);">
+                <button type="submit" id="btn-save-policies" class="btn btn-primary" style="font-weight: 700; padding: 0.65rem 1.75rem;">
+                  💾 Save Fee &amp; Late Fine Policies
+                </button>
+              </div>
 
-            <div class="card-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; background: var(--color-surface-hover);">
-              <button type="submit" id="btn-save-policies-bottom" class="btn btn-primary" style="font-weight: 600;">Save Policy Changes</button>
             </div>
           </div>
         </form>
