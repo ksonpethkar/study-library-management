@@ -259,6 +259,22 @@
     })
     .catch(() => {});
 
+  window.dismissSystemPreloader = function() {
+    const p = document.getElementById('system-preloader') || document.getElementById('landing-preloader') || document.getElementById('app-loading');
+    if (p && p.style.display !== 'none' && p.style.visibility !== 'hidden') {
+      p.style.opacity = '0';
+      p.style.visibility = 'hidden';
+      setTimeout(() => { p.style.display = 'none'; }, 350);
+    }
+  };
+
+  // Fail-safe auto-dismiss after 1.8 seconds max to guarantee no freeze
+  window.addEventListener('load', function() {
+    setTimeout(function() {
+      if (window.dismissSystemPreloader) window.dismissSystemPreloader();
+    }, 1800);
+  });
+
   window.ThemeManager = ThemeManager;
   window.getSystemTheme = () => ThemeManager.getEffectiveTheme();
   window.applySystemTheme = (theme) => ThemeManager.setThemeMode(theme);
