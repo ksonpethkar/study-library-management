@@ -130,7 +130,15 @@ export async function render() {
                     <td style="padding: 12px 16px;"><span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); text-transform: uppercase;">${escapeHTML(v.status)}</span></td>
                     <td style="padding: 12px 16px;">${new Date(v.createdAt).toLocaleDateString('en-IN')}</td>
                     <td style="padding: 12px 16px;">
-                      <button class="btn btn-sm btn-outline-danger btn-delete-visitor" data-id="${v._id}" style="padding: 2px 8px; font-size: 0.75rem;">Delete</button>
+                      <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                        <button class="btn btn-sm btn-outline-success btn-convert-visitor" data-name="${escapeHTML(v.name)}" data-phone="${escapeHTML(v.phone)}" data-exam="${escapeHTML(v.targetExam || '')}" data-slot="${escapeHTML(v.preferredSlot || '')}" style="padding: 2px 8px; font-size: 0.75rem; font-weight: 600;" title="Convert Lead to Admission">
+                          🎓 Convert
+                        </button>
+                        <a href="https://wa.me/91${escapeHTML(v.phone)}?text=${encodeURIComponent(`Hello ${v.name}! Greetings from Cozy Corner Study Library. Desks are available for your ${v.targetExam || 'study'} preparation. Visit us to reserve your seat today!`)}" target="_blank" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.75rem; font-weight: 600; text-decoration: none;" title="Send WhatsApp Message">
+                          💬 WhatsApp
+                        </a>
+                        <button class="btn btn-sm btn-outline-danger btn-delete-visitor" data-id="${v._id}" style="padding: 2px 6px; font-size: 0.75rem;">Delete</button>
+                      </div>
                     </td>
                   </tr>
                 `).join('') : `
@@ -141,6 +149,14 @@ export async function render() {
           </div>
         </div>
       `;
+
+      panel.querySelectorAll('.btn-convert-visitor').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const name = btn.dataset.name;
+          window.location.hash = '#/students';
+          Toast.info(`Converting lead ${name} into active student admission.`);
+        });
+      });
 
       panel.querySelector('#btn-add-visitor')?.addEventListener('click', () => {
         const modalHtml = `
