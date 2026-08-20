@@ -728,6 +728,9 @@ router.get('/renewal-quote', async (req, res) => {
         upiId: textUpiId,
         upiIntentUrl,
         qrCodeUrl,
+        gatewayProvider: business.gatewayProvider || 'manual_upi',
+        enableAutoWebhookVerification: business.enableAutoWebhookVerification !== false,
+        paymentMethods: (business.paymentMethods || []).filter(m => m.enabled !== false),
         businessName: business.businessName,
         bankDetails: business.bankDetails
       }

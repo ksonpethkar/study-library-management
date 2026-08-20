@@ -1474,14 +1474,16 @@ function renderPortalUI(container, data, analytics = null) {
         modalContent.innerHTML = `
           <div style="font-family: 'Outfit', sans-serif;">
             
-            <!-- Option A & Option B Dual Verification Engine -->
-            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 10px; padding: 6px; display: flex; gap: 6px; margin-bottom: 1rem;">
-              <div style="flex: 1; text-align: center; padding: 6px 10px; border-radius: 8px; background: var(--color-surface); font-size: 0.78rem; font-weight: 700; color: var(--color-primary); border: 1px solid var(--color-primary); box-shadow: var(--shadow-sm);">
-                🟢 Option A: Free UPI QR & UTR Check
+            <!-- Dynamic Admin Selected Verification Engine Header -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 10px; padding: 8px 12px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="badge" style="background: ${q.gatewayProvider === 'manual_upi' || !q.gatewayProvider ? 'rgba(0, 184, 148, 0.15)' : 'rgba(108, 92, 231, 0.15)'}; color: ${q.gatewayProvider === 'manual_upi' || !q.gatewayProvider ? 'var(--color-success)' : 'var(--color-primary)'}; font-weight: 800; font-size: 0.82rem; padding: 4px 10px;">
+                  ${q.gatewayProvider === 'manual_upi' || !q.gatewayProvider ? '🟢 Option A: Free Standard UPI QR & UTR Check' : '⚡ Option B: ' + (q.gatewayProvider || 'gateway').toUpperCase() + ' 0-Sec Auto-Verify'}
+                </span>
               </div>
-              <div style="flex: 1; text-align: center; padding: 6px 10px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); font-size: 0.78rem; font-weight: 700; color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
-                ⚡ Option B: 0-Sec Gateway Auto-Verify
-              </div>
+              <span style="font-size: 0.78rem; color: var(--color-text-secondary); font-weight: 600;">
+                Active Admin Mode
+              </span>
             </div>
 
             <!-- Plan & Shift Selection Engine -->
