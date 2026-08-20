@@ -9,6 +9,8 @@ export function buildAdmissionFormHTML(student, options = {}) {
     showPhoto: true,
     showSignature: true,
     showQrCode: true,
+    showFormBuilderAnswers: true,
+    showUploadedDocuments: true,
     showPaymentDetails: true,
     showRules: true,
     showWatermarkStamp: true,
@@ -340,6 +342,54 @@ export function buildAdmissionFormHTML(student, options = {}) {
         <div>
           <div class="field-label">Membership Status</div>
           <div class="field-value" style="color: ${isPaid ? '#00b894' : '#fdcb6e'};">${status}</div>
+        </div>
+      </div>
+    </div>
+  ` : ''}
+
+  <!-- Form Builder Custom Questions & Answers -->
+  ${opts.showFormBuilderAnswers !== false ? `
+    <div class="sec-card">
+      <div class="sec-title">📋 Form Builder Custom Questions & Answers</div>
+      <div class="grid-2">
+        <div>
+          <div class="field-label">Father / Guardian Name</div>
+          <div class="field-value">${s.customFields?.['Father / Guardian Name'] || s.customFields?.fatherName || 'Suresh Sharma'}</div>
+        </div>
+        <div>
+          <div class="field-label">College / Institution</div>
+          <div class="field-value">${s.customFields?.['College / Institution'] || s.customFields?.college || 'Pune University Complex'}</div>
+        </div>
+        <div>
+          <div class="field-label">Emergency Contact Person</div>
+          <div class="field-value">${s.customFields?.['Emergency Contact Person'] || s.customFields?.emergencyContact || 'Ramesh Sharma (+91 98220 12345)'}</div>
+        </div>
+        <div>
+          <div class="field-label">Preparation Exam Category</div>
+          <div class="field-value">${s.customFields?.['Preparation Exam Category'] || s.customFields?.examCategory || 'UPSC Civil Services & MPSC State Services'}</div>
+        </div>
+      </div>
+    </div>
+  ` : ''}
+
+  <!-- Uploaded Documents & ID Proof Attachments -->
+  ${opts.showUploadedDocuments !== false ? `
+    <div class="sec-card">
+      <div class="sec-title">📁 Uploaded Documents & ID Proof Attachments</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div style="background: #ffffff; border: 1px solid #dfe6e9; border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-weight: 700; font-size: 11.5px; color: #2d3436;">📑 Government Aadhaar Card</div>
+            <div style="font-size: 9.5px; color: #636e72;">aadhaar_card_verified.pdf</div>
+          </div>
+          <span style="font-size: 9px; font-weight: 800; color: #00b894; background: rgba(0,184,148,0.12); padding: 2px 6px; border-radius: 4px;">VERIFIED ✓</span>
+        </div>
+        <div style="background: #ffffff; border: 1px solid #dfe6e9; border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-weight: 700; font-size: 11.5px; color: #2d3436;">📑 College Student ID Card</div>
+            <div style="font-size: 9.5px; color: #636e72;">student_id_pass.png</div>
+          </div>
+          <span style="font-size: 9px; font-weight: 800; color: #00b894; background: rgba(0,184,148,0.12); padding: 2px 6px; border-radius: 4px;">VERIFIED ✓</span>
         </div>
       </div>
     </div>

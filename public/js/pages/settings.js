@@ -3579,6 +3579,60 @@ function renderSettingsUI(container, profile, settings) {
     observer.observe(panelAudit, { attributes: true, attributeFilter: ['style'] });
   }
 
+  // Live Sample PDF Preview Generator Listener
+  container.querySelector('#btn-preview-pdf')?.addEventListener('click', () => {
+    const activeTemplate = container.querySelector('#setting-pdf-template')?.value || 'modern_glass';
+    const stampText = container.querySelector('#setting-pdf-stamp')?.value?.trim() || 'PAID • ACTIVE STUDENT';
+    
+    const pdfOpts = {
+      template: activeTemplate,
+      stampText: stampText,
+      showPhoto: !!container.querySelector('#pdf-toggle-photo')?.checked,
+      showSignature: !!container.querySelector('#pdf-toggle-sig')?.checked,
+      showQrCode: !!container.querySelector('#pdf-toggle-qr')?.checked,
+      showFormBuilderAnswers: !!container.querySelector('#pdf-toggle-formbuilder-answers')?.checked,
+      showUploadedDocuments: !!container.querySelector('#pdf-toggle-documents')?.checked,
+      showPaymentDetails: !!container.querySelector('#pdf-toggle-payment')?.checked,
+      showRules: !!container.querySelector('#pdf-toggle-rules')?.checked,
+      showWatermarkStamp: !!container.querySelector('#pdf-toggle-stamp')?.checked
+    };
+
+    const sampleStudent = {
+      studentId: 'STU-2026-DEMO',
+      name: 'Rahul Sharma (Sample Student)',
+      phone: '9876543210',
+      email: 'rahul.sharma@example.com',
+      gender: 'Male',
+      dateOfBirth: '2001-05-15',
+      pincode: '411001',
+      city: 'Pune',
+      state: 'Maharashtra',
+      branchName: profile.businessName || 'Central Campus Branch',
+      seatNumber: 'Seat #18 (Premium Quiet Cabin)',
+      seatZone: 'Quiet Zone',
+      shiftName: 'MORNING SHIFT (7 AM - 5 PM)',
+      planName: 'Super Achiever 10-Hour Plan',
+      joinedDate: new Date().toISOString(),
+      expiryDate: new Date(Date.now() + 30 * 86400000).toISOString(),
+      status: 'ACTIVE',
+      paymentMethod: 'UPI (GPay / PhonePe)',
+      transactionId: '423456709012',
+      targetExams: ['UPSC Civil Services', 'MPSC State Services'],
+      customFields: {
+        'Father / Guardian Name': 'Suresh Sharma',
+        'College / Institution': 'Pune University Complex',
+        'Emergency Contact Person': 'Ramesh Sharma (+91 98220 12345)',
+        'Preparation Exam Category': 'UPSC Civil Services & MPSC State Services'
+      },
+      uploadedDocuments: [
+        { title: 'Aadhaar Card (Front & Back)', type: 'ID Proof', filename: 'aadhaar_card_verified.pdf', status: 'VERIFIED ✓' },
+        { title: 'College Student ID Card', type: 'Institution Proof', filename: 'student_id_pass.png', status: 'VERIFIED ✓' }
+      ]
+    };
+
+    previewAdmissionFormPDF(sampleStudent, pdfOpts);
+  });
+
   // Save PDF Studio Configuration Handler
   container.querySelector('#btn-save-pdfstudio-config')?.addEventListener('click', async () => {
     const btn = container.querySelector('#btn-save-pdfstudio-config');
