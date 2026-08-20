@@ -566,16 +566,35 @@
             <div id="public-signature-studio-mount"></div>
           </div>
 
-          <div class="form-group mb-4" style="background: var(--color-bg-secondary); padding: 12px 16px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-            <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.85rem; color: var(--color-text-secondary); margin: 0; line-height: 1.4;">
-              <input type="checkbox" id="reg-terms" required style="margin-top: 3px; width: 17px; height: 17px; accent-color: var(--color-primary);">
-              <span>I hereby agree to adhere to the <strong>Quiet Study Code Agreement</strong>, discipline rules, and timings of the study hall. <span style="color: var(--color-danger);">*</span></span>
+          <!-- Scrollable Library Rules & Code of Conduct Box -->
+          <div class="mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+            <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+              <span>📜 Library Rules & Code of Conduct Agreement</span>
+              <span style="font-size: 0.78rem; font-weight: 600; background: var(--color-primary-bg); color: var(--color-primary); padding: 3px 8px; border-radius: 4px;">Mandatory Review</span>
+            </div>
+            
+            <div id="reg-rules-scroll-box" style="max-height: 160px; overflow-y: auto; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; font-size: 0.85rem; line-height: 1.6; color: var(--color-text-secondary);">
+              <ol style="margin: 0; padding-left: 1.2rem;">
+                <li style="margin-bottom: 6px;"><strong>Pin-Drop Silence:</strong> Strict silence must be maintained inside reading halls at all times. Whispering or phone calls inside study zones is strictly forbidden.</li>
+                <li style="margin-bottom: 6px;"><strong>Mobile Phone Protocol:</strong> Phones must be switched to silent or flight mode. Attend urgent phone calls outside reading halls in designated corridors.</li>
+                <li style="margin-bottom: 6px;"><strong>Assigned Desk & Shift Protocol:</strong> Occupy only your allotted desk number and adhere strictly to your registered shift timing (Morning, Evening, or Full Day).</li>
+                <li style="margin-bottom: 6px;"><strong>Cleanliness & Socket Safety:</strong> Keep your study desk clean. Turn off personal desk lights, fans, and socket chargers when leaving your seat.</li>
+                <li style="margin-bottom: 6px;"><strong>ID Pass & Gate Access:</strong> Carry your Student ID / Registration Pass for barcode/QR kiosk scanner check-in at the entrance.</li>
+                <li style="margin-bottom: 6px;"><strong>Fee Policy & Non-Refundability:</strong> Membership fees once paid are non-refundable. Long-term plans (6M+) permit a 15-day membership pause for exams.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div class="form-group mb-4" style="background: var(--color-bg-secondary); padding: 14px 16px; border-radius: var(--radius-md); border: 1.5px solid var(--color-primary);">
+            <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; font-size: 0.88rem; color: var(--color-text-primary); margin: 0; line-height: 1.5; font-weight: 600;">
+              <input type="checkbox" id="reg-terms" required style="margin-top: 3px; width: 19px; height: 19px; accent-color: var(--color-primary); cursor: pointer;">
+              <span>I have read, understood, and agree to strictly abide by the <strong>Library Rules, Code of Conduct, and Payment Policies</strong>. <span style="color: var(--color-danger);">*</span></span>
             </label>
           </div>
 
           <div class="btn-nav">
             <button type="button" class="btn btn-secondary btn-prev" data-step="5">⬅️ Back</button>
-            <button type="submit" id="btn-submit-reg" class="btn btn-primary" style="font-size: 1.05rem; font-weight: 700; padding: 0.85rem;">🚀 Complete Admission & Payment</button>
+            <button type="submit" id="btn-submit-reg" class="btn btn-primary" style="font-size: 1.05rem; font-weight: 700; padding: 0.85rem;">🚀 Complete Registration & Get Admission Slip</button>
           </div>
         </div>
 
@@ -1593,9 +1612,19 @@
             } else if (m.key === 'desk') {
               subpanesHtml += `
                 <div id="pm-sub-desk" class="pm-sub-pane" style="display: ${isFirst ? 'block' : 'none'}; background: var(--color-bg-secondary); border: 1px dashed var(--color-primary); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem; text-align: center;">
-                  <div style="font-size: 1.5rem; margin-bottom: 4px;">💵</div>
-                  <div style="font-weight: 700; color: var(--color-primary);">${escapeHTML(m.name)}</div>
-                  <div class="text-muted small" style="margin-top: 4px;">${escapeHTML(m.instructions || 'Your admission & seat will be pre-reserved. Pay cash at front desk to activate.')}</div>
+                  <div style="font-size: 1.8rem; margin-bottom: 4px;">💵</div>
+                  <div style="font-weight: 800; color: var(--color-primary); font-size: 1.05rem;">${escapeHTML(m.name)} — Desk Payment Policy</div>
+                  
+                  <div style="background: var(--color-surface); padding: 14px; border-radius: 12px; border: 1px solid var(--color-border); margin: 12px 0; text-align: left; font-size: 0.88rem; line-height: 1.6; color: var(--color-text-primary);">
+                    📌 <strong>Pay at Desk Seat Allotment Rule:</strong>
+                    <ul style="margin: 6px 0 0 0; padding-left: 1.2rem; color: var(--color-text-secondary);">
+                      <li>Your registration application and desk selection will be saved in <strong>Pending Desk Payment</strong> status.</li>
+                      <li>Your chosen desk seat is <strong>held for 24 hours</strong> from registration.</li>
+                      <li>Please visit the library reception desk to pay your fee via Cash, UPI, or Card to activate your membership pass.</li>
+                      <li>If unpaid within 24 hours, the seat reservation automatically releases for other aspirants.</li>
+                    </ul>
+                  </div>
+                  <div class="text-muted small">${escapeHTML(m.instructions || 'You will receive an instant admission slip with QR code upon completing registration.')}</div>
                 </div>
               `;
             } else {
@@ -1782,6 +1811,17 @@
       e.preventDefault();
       const btn = document.getElementById('btn-submit-reg');
 
+      // 1. Validate Mandatory Terms & Code of Conduct Checkbox
+      const termsInp = document.getElementById('reg-terms');
+      if (!termsInp || !termsInp.checked) {
+        alert('Please review and check the box agreeing to the Library Rules & Code of Conduct Agreement to complete registration.');
+        currentStep = 5;
+        updateStepper();
+        termsInp?.focus();
+        return;
+      }
+
+      // 2. Validate Payment Mode Requirements
       const pmMode = document.querySelector('input[name="reg-payment-mode"]:checked')?.value || 'upi';
       const upiTxnId = document.getElementById('reg-upi-ref')?.value?.trim();
 
