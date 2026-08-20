@@ -21,6 +21,20 @@ body {
   overflow-x: hidden;
 }
 
+/* GPU Hardware Acceleration & 60fps Smooth Animation Tokens */
+.btn, .card, .modal-dialog, .seat-item, .nav-item, .g-filter, .tab-btn, .portal-card, .testimonial-card, .pricing-card, .badge {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Smooth Spring Micro-Interactions */
+.btn:active, .seat-item:active, .tab-btn:active, .g-filter:active, .pricing-card:active {
+  transform: scale(0.97) translateZ(0);
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 h1, h2, h3, h4, h5, h6 {
   color: var(--color-text-primary);
   font-weight: var(--font-weight-semibold);
