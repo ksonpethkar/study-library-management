@@ -610,24 +610,64 @@
 .badge-danger { background: var(--color-danger-bg); color: var(--color-danger); }
 .badge-ghost { background: var(--color-bg-secondary); color: var(--color-text-secondary); }
 
-/* Tables */
+/* Tables & Touch Scroll Ergonomics */
 .table-responsive {
-  overflow-x: auto;
-  width: 100%;
-  -webkit-overflow-scrolling: touch;
+  overflow-x: auto !important;
+  width: 100% !important;
+  display: block !important;
+  -webkit-overflow-scrolling: touch !important;
+  border-radius: var(--radius-md);
 }
-.data-table {
+.data-table, table, .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
 }
-.data-table th, .data-table td {
+.data-table th, .data-table td,
+table th, table td,
+.table th, .table td {
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-divider);
-  white-space: nowrap;
-  vertical-align: middle;
+  white-space: nowrap !important;
+  vertical-align: middle !important;
 }
-.data-table th {
+
+/* Data Table Column Width Constraints to Prevent Overlap & Wrapping */
+.col-student-id, .col-id, .col-studentid, [data-col="id"], [data-col="student-id"],
+.students-table-container th:nth-child(2), .students-table-container td:nth-child(2),
+.attendance-table th:nth-child(1), .attendance-table td:nth-child(1) {
+  min-width: 130px !important;
+}
+
+.col-name, [data-col="name"],
+.students-table-container th:nth-child(3), .students-table-container td:nth-child(3),
+.attendance-table th:nth-child(2), .attendance-table td:nth-child(2) {
+  min-width: 150px !important;
+}
+
+.col-phone, .col-mobile, [data-col="phone"],
+.students-table-container th:nth-child(4), .students-table-container td:nth-child(4) {
+  min-width: 140px !important;
+}
+
+.col-status, [data-col="status"],
+.students-table-container th:nth-child(8), .students-table-container td:nth-child(8),
+.attendance-table th:nth-child(6), .attendance-table td:nth-child(6) {
+  min-width: 110px !important;
+}
+
+/* Inline Copy Button Alignment */
+.btn-copy-text {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+  margin-left: 4px !important;
+}
+
+.data-table th, table th, .table th {
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
@@ -1233,11 +1273,12 @@ html.dark-theme .modal-content {
    RESPONSIVE AUTO-FIT & MOBILE COMPATIBILITY UTILITIES
    ======================================================== */
 .table-responsive {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  margin-bottom: var(--space-4);
+  overflow-x: auto !important;
+  width: 100% !important;
+  display: block !important;
+  -webkit-overflow-scrolling: touch !important;
   border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
 }
 
 .table-responsive table {
@@ -1260,6 +1301,52 @@ html.dark-theme .modal-content {
 
 /* Mobile Ergonomics (< 768px) */
 @media (max-width: 768px) {
+  /* Enforce max-width and box-sizing across cards, containers, inputs, and modals */
+  .card,
+  .card-body,
+  .page-content,
+  .container,
+  .form-control,
+  .form-select,
+  .form-group,
+  .modal-content {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Prevent horizontal page scrolling */
+  body,
+  .app-container,
+  #page-content {
+    overflow-x: hidden;
+  }
+
+  /* Override hardcoded inline min-width rules on mobile input fields and cards */
+  .card,
+  .stat-card,
+  .kpi-card,
+  .toolbar-card,
+  input,
+  select,
+  textarea,
+  .form-control,
+  .form-select,
+  .form-input {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Convert side-by-side flex toolbars to stack vertically */
+  .flex-between,
+  .header-actions,
+  .d-flex.gap-3,
+  .toolbar-card {
+    display: flex;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
   .modal-dialog {
     margin: 12px;
     width: calc(100% - 24px) !important;

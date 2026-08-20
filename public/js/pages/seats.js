@@ -135,22 +135,22 @@ export async function render() {
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
           
           <!-- Left: Branch Selector & Search -->
-          <div class="d-flex align-items-center gap-2 flex-wrap flex-1" style="min-width: 280px;">
-            <div style="min-width: 220px;">
+          <div class="d-flex align-items-center gap-2 flex-wrap flex-1 w-100">
+            <div class="w-100 w-md-auto">
               <label class="form-label text-xs mb-1" style="font-weight: 800; color: var(--color-text-secondary); letter-spacing: 0.5px;">🏢 SELECT BRANCH</label>
-              <select id="seat-branch-selector" class="form-select form-control form-control-sm" style="font-weight: 600;">
+              <select id="seat-branch-selector" class="form-select form-control form-control-sm w-100" style="font-weight: 600;">
                 <option value="all">🌐 All Branches</option>
               </select>
             </div>
 
-            <div style="min-width: 200px; flex: 1;">
+            <div class="w-100 flex-1">
               <label class="form-label text-xs mb-1" style="font-weight: 800; color: var(--color-text-secondary); letter-spacing: 0.5px;">🔍 SEARCH SEAT</label>
-              <input type="text" id="seat-search-input" class="form-control form-control-sm" placeholder="Search seat number (e.g. A-01, 14)...">
+              <input type="text" id="seat-search-input" class="form-control form-control-sm w-100" placeholder="Search seat number (e.g. A-01, 14)...">
             </div>
 
-            <div style="min-width: 150px;">
+            <div class="w-100 w-md-auto">
               <label class="form-label text-xs mb-1" style="font-weight: 800; color: var(--color-text-secondary); letter-spacing: 0.5px;">📌 STATUS FILTER</label>
-              <select id="seat-status-filter" class="form-select form-control form-control-sm">
+              <select id="seat-status-filter" class="form-select form-control form-control-sm w-100">
                 <option value="">All Statuses</option>
                 <option value="available">🟢 Available</option>
                 <option value="occupied">🔴 Occupied</option>

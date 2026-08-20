@@ -51,12 +51,12 @@ export async function render() {
   const filterRow = document.createElement('div');
   filterRow.className = 'card-header d-flex justify-content-between align-items-center flex-wrap gap-3';
   filterRow.innerHTML = `
-    <div class="search-box" style="flex: 1; max-width: 360px;">
-      <input type="text" id="studentSearch" class="form-control form-control-sm" placeholder="${t('Search by name, phone, student ID...')}" />
+    <div class="search-box w-100 w-md-auto" style="flex: 1; max-width: 360px;">
+      <input type="text" id="studentSearch" class="form-control form-control-sm w-100" placeholder="${t('Search by name, phone, student ID...')}" />
     </div>
-    <div class="filter-box d-flex gap-2 align-items-center">
+    <div class="filter-box d-flex gap-2 align-items-center w-100 w-md-auto">
       <label class="form-label mb-0 text-xs" style="font-weight: 700; color: var(--color-text-secondary);">STATUS:</label>
-      <select id="studentStatusFilter" class="form-select form-control form-control-sm" style="width: 160px; font-weight: 600;">
+      <select id="studentStatusFilter" class="form-select form-control form-control-sm w-100" style="max-width: 160px; font-weight: 600;">
         <option value="all">${t('All Status')}</option>
         <option value="active">🟢 ${t('Active')}</option>
         <option value="inactive">⚪ ${t('Inactive')}</option>
@@ -207,13 +207,13 @@ export async function render() {
               </span>
             </label>
           </td>
-          <td style="white-space: nowrap;"><span style="font-family: monospace; font-weight: 700; display: inline-block;">${escapeHTML(s.studentId || '-')}</span> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(s.studentId || '')}" style="padding: 2px 5px; font-size: 0.7rem; display: inline-flex; align-items: center; vertical-align: middle;" title="Copy Student ID">📋</button></td>
-          <td style="white-space: nowrap;"><strong>${escapeHTML(s.name || '-')}</strong></td>
-          <td style="white-space: nowrap;"><span style="display: inline-block;">${escapeHTML(SmartFormatters.phone(s.phone) || '-')}</span> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(s.phone || '')}" style="padding: 2px 5px; font-size: 0.7rem; display: inline-flex; align-items: center; vertical-align: middle;" title="Copy Phone">📋</button></td>
+          <td class="col-student-id" style="white-space: nowrap;"><span style="font-family: monospace; font-weight: 700; display: inline-block;">${escapeHTML(s.studentId || '-')}</span> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(s.studentId || '')}" style="padding: 2px 5px; font-size: 0.7rem; display: inline-flex; align-items: center; vertical-align: middle;" title="Copy Student ID">📋</button></td>
+          <td class="col-name" style="white-space: nowrap;"><strong>${escapeHTML(s.name || '-')}</strong></td>
+          <td class="col-phone" style="white-space: nowrap;"><span style="display: inline-block;">${escapeHTML(SmartFormatters.phone(s.phone) || '-')}</span> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(s.phone || '')}" style="padding: 2px 5px; font-size: 0.7rem; display: inline-flex; align-items: center; vertical-align: middle;" title="Copy Phone">📋</button></td>
           <td style="white-space: nowrap;"><span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary, #6c5ce7); font-weight: 600;">${escapeHTML(planName)}</span></td>
           <td style="white-space: nowrap;"><span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success, #00b894); font-weight: 600;">${escapeHTML(seatNum)}</span></td>
           <td style="white-space: nowrap;">${expiry} ${s.expiryDate ? `<small class="text-muted">(${SmartFormatters.timeAgo(s.expiryDate)})</small>` : ''}</td>
-          <td style="white-space: nowrap;"><span class="badge btn-toggle-student-status" data-id="${escapeHTML(s._id)}" style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; cursor: pointer;" title="Click to toggle status">${escapeHTML(s.status || 'active')}</span></td>
+          <td class="col-status" style="white-space: nowrap;"><span class="badge btn-toggle-student-status" data-id="${escapeHTML(s._id)}" style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; cursor: pointer;" title="Click to toggle status">${escapeHTML(s.status || 'active')}</span></td>
           <td style="white-space: nowrap;">
             <div class="d-inline-flex gap-1 align-items-center">
               <button class="btn btn-sm btn-outline-secondary btn-view" data-id="${escapeHTML(s._id)}" title="View 360° Profile" style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">👁️ View</button>
@@ -296,13 +296,13 @@ export async function render() {
                   </span>
                 </label>
               </th>
-              <th>Student ID</th>
-              <th>Name</th>
-              <th>Phone</th>
+              <th class="col-student-id">Student ID</th>
+              <th class="col-name">Name</th>
+              <th class="col-phone">Phone</th>
               <th>Plan</th>
               <th>Seat</th>
               <th>Expiry Date</th>
-              <th>Status</th>
+              <th class="col-status">Status</th>
               <th>Actions</th>
             </tr>
           </thead>

@@ -1109,16 +1109,18 @@ function renderSettingsUI(container, profile, settings) {
           </div>
           <div class="card-body" style="padding: 1.5rem;">
             <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
-              <select id="audit-filter-module" class="form-select" style="max-width: 150px;"><option value="">All Modules</option><option value="settings">Settings</option><option value="students">Students</option></select>
-              <input type="text" id="audit-filter-action" class="form-control" placeholder="Action..." style="max-width: 150px;">
-              <input type="date" id="audit-filter-start" class="form-control" style="max-width: 150px;">
-              <input type="date" id="audit-filter-end" class="form-control" style="max-width: 150px;">
-              <button id="btn-filter-audit" class="btn btn-primary">Filter</button>
+              <select id="audit-filter-module" class="form-select w-100 w-md-auto" style="max-width: 150px;"><option value="">All Modules</option><option value="settings">Settings</option><option value="students">Students</option></select>
+              <input type="text" id="audit-filter-action" class="form-control w-100 w-md-auto" placeholder="Action..." style="max-width: 150px;">
+              <input type="date" id="audit-filter-start" class="form-control w-100 w-md-auto" style="max-width: 150px;">
+              <input type="date" id="audit-filter-end" class="form-control w-100 w-md-auto" style="max-width: 150px;">
+              <button id="btn-filter-audit" class="btn btn-primary w-100 w-md-auto">Filter</button>
             </div>
-            <table class="table" style="width: 100%; border-collapse: collapse;">
-              <thead><tr style="border-bottom: 2px solid var(--color-border);"><th style="padding: 0.5rem;">Date</th><th>User</th><th>Action</th><th>Module</th><th>Details</th><th>IP</th></tr></thead>
-              <tbody id="audit-log-tbody"></tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="table" style="width: 100%; border-collapse: collapse;">
+                <thead><tr style="border-bottom: 2px solid var(--color-border);"><th style="padding: 0.5rem;">Date</th><th>User</th><th>Action</th><th>Module</th><th>Details</th><th>IP</th></tr></thead>
+                <tbody id="audit-log-tbody"></tbody>
+              </table>
+            </div>
             <div id="audit-pagination" style="margin-top: 1rem; text-align: center;"></div>
           </div>
         </div>
@@ -2373,21 +2375,23 @@ function renderSettingsUI(container, profile, settings) {
 
       <!-- Detailed Table -->
       <div style="overflow-x: auto; max-height: 280px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-          <thead>
-            <tr style="background: var(--color-bg-primary); border-bottom: 1px solid var(--color-border); font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase;">
-              <th style="padding: 8px 10px;">#</th>
-              <th style="padding: 8px 10px;">Student</th>
-              <th style="padding: 8px 10px;">Phone</th>
-              <th style="padding: 8px 10px;">Action / Type</th>
-              <th style="padding: 8px 10px;">Details</th>
-              <th style="padding: 8px 10px; text-align: right;">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${logRowsHtml}
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+              <tr style="background: var(--color-bg-primary); border-bottom: 1px solid var(--color-border); font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase;">
+                <th style="padding: 8px 10px;">#</th>
+                <th style="padding: 8px 10px;">Student</th>
+                <th style="padding: 8px 10px;">Phone</th>
+                <th style="padding: 8px 10px;">Action / Type</th>
+                <th style="padding: 8px 10px;">Details</th>
+                <th style="padding: 8px 10px; text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${logRowsHtml}
+            </tbody>
+          </table>
+        </div>
       </div>
     `;
 
@@ -2471,24 +2475,26 @@ function renderSettingsUI(container, profile, settings) {
         </div>
 
         <!-- Fee Summary -->
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-bottom: 16px;">
-          <thead>
-            <tr style="background: ${color}; color: #ffffff;">
-              <th style="padding: 8px; text-align: left;">Description</th>
-              <th style="padding: 8px; text-align: right;">Amount (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 8px;">Library Membership Fee (1 Month)</td>
-              <td style="padding: 8px; text-align: right; font-weight: 700;">₹1,500.00</td>
-            </tr>
-            <tr style="font-weight: 800; font-size: 0.92rem; background: #f1f5f9;">
-              <td style="padding: 8px;">Total Net Amount Paid</td>
-              <td style="padding: 8px; text-align: right; color: ${color};">₹1,500.00</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-bottom: 16px;">
+            <thead>
+              <tr style="background: ${color}; color: #ffffff;">
+                <th style="padding: 8px; text-align: left;">Description</th>
+                <th style="padding: 8px; text-align: right;">Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px;">Library Membership Fee (1 Month)</td>
+                <td style="padding: 8px; text-align: right; font-weight: 700;">₹1,500.00</td>
+              </tr>
+              <tr style="font-weight: 800; font-size: 0.92rem; background: #f1f5f9;">
+                <td style="padding: 8px;">Total Net Amount Paid</td>
+                <td style="padding: 8px; text-align: right; color: ${color};">₹1,500.00</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <!-- Footer -->
         <div style="font-size: 0.78rem; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px; display: flex; justify-content: space-between; align-items: flex-end;">

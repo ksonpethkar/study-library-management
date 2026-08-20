@@ -68,22 +68,22 @@ export async function render(container) {
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Recent Fee Payments</h3>
-                <div class="filters d-flex gap-2 align-items-center flex-wrap">
-                    <select id="filterMethod" class="form-select form-control form-control-sm" style="width: 140px; font-weight: 600;">
+                <div class="filters d-flex gap-2 align-items-center flex-wrap w-100 w-md-auto">
+                    <select id="filterMethod" class="form-select form-control form-control-sm w-100 w-md-auto" style="font-weight: 600;">
                         <option value="">All Methods</option>
                         <option value="cash">💵 Cash</option>
                         <option value="upi">📱 UPI / QR</option>
                         <option value="bank_transfer">🏦 Bank Transfer</option>
                         <option value="card">💳 Card</option>
                     </select>
-                    <select id="filterStatus" class="form-select form-control form-control-sm" style="width: 140px; font-weight: 600;">
+                    <select id="filterStatus" class="form-select form-control form-control-sm w-100 w-md-auto" style="font-weight: 600;">
                         <option value="">All Statuses</option>
                         <option value="paid">🟢 Paid</option>
                         <option value="pending">🟡 Pending</option>
                         <option value="partial">🟠 Partial</option>
                         <option value="refunded">🔴 Refunded</option>
                     </select>
-                    <button id="btnPendingInstallments" class="btn btn-sm btn-outline-warning" style="font-weight: 600;">⏳ Pending Balances</button>
+                    <button id="btnPendingInstallments" class="btn btn-sm btn-outline-warning w-100 w-md-auto" style="font-weight: 600;">⏳ Pending Balances</button>
                 </div>
             </div>
             <div class="card-body p-0">
@@ -834,48 +834,50 @@ export async function render(container) {
                             </div>
                         </div>
                         
-                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                            <thead>
-                                <tr style="background-color: #f8f9fa;">
-                                    <th style="padding: 10px; border: 1px solid #ddd; text-align: left; color: #333;">Description</th>
-                                    <th style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #333;">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="padding: 10px; border: 1px solid #ddd; color: #000;">
-                                        Fee Collection ${bdy.showPlanDetails && r.plan ? ` - ${escapeHTML(r.plan.name)}` : ''}
-                                        ${bdy.showPeriod && (r.billingPeriod?.startDate || r.billingPeriod?.endDate) ? `<br><small style="color: #666;">Period: ${formatDate(r.billingPeriod.startDate)} to ${formatDate(r.billingPeriod.endDate)}</small>` : ''}
-                                    </td>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">${formatCurrency(r.paymentDetails.amount)}</td>
-                                </tr>
-                                ${bdy.showDiscount && r.paymentDetails.discount > 0 ? `
-                                <tr>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">Discount</td>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #d32f2f;">- ${formatCurrency(r.paymentDetails.discount)}</td>
-                                </tr>` : ''}
-                                ${bdy.showLateFee && r.paymentDetails.lateFee > 0 ? `
-                                <tr>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">Late Fee</td>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">+ ${formatCurrency(r.paymentDetails.lateFee)}</td>
-                                </tr>` : ''}
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #000;">Total Amount</td>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 1.1em; color: #000;">${formatCurrency(r.paymentDetails.finalAmount)}</td>
-                                </tr>
-                                ${r.balanceDue > 0 || r.installments?.length > 0 ? `
-                                <tr>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #000;">Paid Amount</td>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 1.1em; color: #000;">${formatCurrency(r.paymentDetails.finalAmount - (r.balanceDue || 0))}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #d32f2f;">Balance Due</td>
-                                    <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 1.1em; color: #d32f2f;">${formatCurrency(r.balanceDue || 0)}</td>
-                                </tr>` : ''}
-                            </tfoot>
-                        </table>
+                        <div class="table-responsive">
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                                <thead>
+                                    <tr style="background-color: #f8f9fa;">
+                                        <th style="padding: 10px; border: 1px solid #ddd; text-align: left; color: #333;">Description</th>
+                                        <th style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #333;">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #ddd; color: #000;">
+                                            Fee Collection ${bdy.showPlanDetails && r.plan ? ` - ${escapeHTML(r.plan.name)}` : ''}
+                                            ${bdy.showPeriod && (r.billingPeriod?.startDate || r.billingPeriod?.endDate) ? `<br><small style="color: #666;">Period: ${formatDate(r.billingPeriod.startDate)} to ${formatDate(r.billingPeriod.endDate)}</small>` : ''}
+                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">${formatCurrency(r.paymentDetails.amount)}</td>
+                                    </tr>
+                                    ${bdy.showDiscount && r.paymentDetails.discount > 0 ? `
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">Discount</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #d32f2f;">- ${formatCurrency(r.paymentDetails.discount)}</td>
+                                    </tr>` : ''}
+                                    ${bdy.showLateFee && r.paymentDetails.lateFee > 0 ? `
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">Late Fee</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">+ ${formatCurrency(r.paymentDetails.lateFee)}</td>
+                                    </tr>` : ''}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #000;">Total Amount</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 1.1em; color: #000;">${formatCurrency(r.paymentDetails.finalAmount)}</td>
+                                    </tr>
+                                    ${r.balanceDue > 0 || r.installments?.length > 0 ? `
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #000;">Paid Amount</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 1.1em; color: #000;">${formatCurrency(r.paymentDetails.finalAmount - (r.balanceDue || 0))}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #d32f2f;">Balance Due</td>
+                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 1.1em; color: #d32f2f;">${formatCurrency(r.balanceDue || 0)}</td>
+                                    </tr>` : ''}
+                                </tfoot>
+                            </table>
+                        </div>
                         
                         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px;">
                             <div style="flex: 1; font-size: 0.85em; color: #666; padding-right: 15px;">
@@ -912,11 +914,13 @@ export async function render(container) {
                             <p style="margin: 2px 0;">Name: ${escapeHTML(r.student?.name || 'N/A')}</p>
                             ${bdy.showSeatNumber && (r.student?.seat?.seatNumber || r.student?.seatNumber) ? `<p style="margin: 2px 0;">Seat: ${escapeHTML(r.student?.seat?.seatNumber || r.student?.seatNumber)}</p>` : ''}
                         </div>
-                        <table style="width: 100%; font-size: 0.85em; margin-bottom: 10px; color: #000;">
-                            <tr><td style="padding-bottom: 5px;">Fee</td><td style="text-align: right; padding-bottom: 5px;">${formatCurrency(r.paymentDetails.amount)}</td></tr>
-                            ${bdy.showDiscount && r.paymentDetails.discount > 0 ? `<tr><td style="padding-bottom: 5px;">Disc</td><td style="text-align: right; padding-bottom: 5px;">-${formatCurrency(r.paymentDetails.discount)}</td></tr>` : ''}
-                            ${bdy.showLateFee && r.paymentDetails.lateFee > 0 ? `<tr><td style="padding-bottom: 5px;">Late</td><td style="text-align: right; padding-bottom: 5px;">+${formatCurrency(r.paymentDetails.lateFee)}</td></tr>` : ''}
-                        </table>
+                        <div class="table-responsive">
+                            <table style="width: 100%; font-size: 0.85em; margin-bottom: 10px; color: #000;">
+                                <tr><td style="padding-bottom: 5px;">Fee</td><td style="text-align: right; padding-bottom: 5px;">${formatCurrency(r.paymentDetails.amount)}</td></tr>
+                                ${bdy.showDiscount && r.paymentDetails.discount > 0 ? `<tr><td style="padding-bottom: 5px;">Disc</td><td style="text-align: right; padding-bottom: 5px;">-${formatCurrency(r.paymentDetails.discount)}</td></tr>` : ''}
+                                ${bdy.showLateFee && r.paymentDetails.lateFee > 0 ? `<tr><td style="padding-bottom: 5px;">Late</td><td style="text-align: right; padding-bottom: 5px;">+${formatCurrency(r.paymentDetails.lateFee)}</td></tr>` : ''}
+                            </table>
+                        </div>
                         <div style="border-top: 1px dashed #000; padding: 5px 0; text-align: right; font-size: 1.1em; font-weight: bold; margin-bottom: 10px; color: #000;">
                             Total: ${formatCurrency(r.paymentDetails.finalAmount)}
                             ${r.balanceDue > 0 || r.installments?.length > 0 ? `<br>Paid: ${formatCurrency(r.paymentDetails.finalAmount - (r.balanceDue || 0))}<br><span style="color:red;">Due: ${formatCurrency(r.balanceDue || 0)}</span>` : ''}
@@ -1042,51 +1046,55 @@ export async function render(container) {
                             </div>
                         </div>
                         
-                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.9em; color: #000;">
-                            <thead>
-                                <tr>
-                                    <th style="border: 1px solid #000; padding: 5px; text-align: left;">Description of Services</th>
-                                    <th style="border: 1px solid #000; padding: 5px; text-align: center;">HSN/SAC</th>
-                                    <th style="border: 1px solid #000; padding: 5px; text-align: right;">Taxable Value</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="border: 1px solid #000; padding: 10px 5px;">Library Membership Services ${r.plan ? `(${escapeHTML(r.plan.name)})` : ''}</td>
-                                    <td style="border: 1px solid #000; padding: 10px 5px; text-align: center;">${escapeHTML(gst.hsnCode || '9992')}</td>
-                                    <td style="border: 1px solid #000; padding: 10px 5px; text-align: right;">${formatCurrency(baseAmt)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <div class="table-responsive">
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.9em; color: #000;">
+                                <thead>
+                                    <tr>
+                                        <th style="border: 1px solid #000; padding: 5px; text-align: left;">Description of Services</th>
+                                        <th style="border: 1px solid #000; padding: 5px; text-align: center;">HSN/SAC</th>
+                                        <th style="border: 1px solid #000; padding: 5px; text-align: right;">Taxable Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 10px 5px;">Library Membership Services ${r.plan ? `(${escapeHTML(r.plan.name)})` : ''}</td>
+                                        <td style="border: 1px solid #000; padding: 10px 5px; text-align: center;">${escapeHTML(gst.hsnCode || '9992')}</td>
+                                        <td style="border: 1px solid #000; padding: 10px 5px; text-align: right;">${formatCurrency(baseAmt)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                         
                         <div style="display: flex; justify-content: flex-end; margin-bottom: 30px; font-size: 0.9em; color: #000;">
-                            <table style="width: 50%; border-collapse: collapse;">
-                                <tr>
-                                    <td style="padding: 3px 5px; text-align: right;">Total Taxable Value:</td>
-                                    <td style="padding: 3px 5px; text-align: right; border-bottom: 1px solid #000;">${formatCurrency(baseAmt)}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 3px 5px; text-align: right;">CGST @ ${taxRate/2}%:</td>
-                                    <td style="padding: 3px 5px; text-align: right;">${formatCurrency(cgst)}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 3px 5px; text-align: right;">SGST @ ${taxRate/2}%:</td>
-                                    <td style="padding: 3px 5px; text-align: right; border-bottom: 1px solid #000;">${formatCurrency(sgst)}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 5px; text-align: right; font-weight: bold;">Grand Total:</td>
-                                    <td style="padding: 5px; text-align: right; font-weight: bold; border-bottom: 2px solid #000;">${formatCurrency(amt)}</td>
-                                </tr>
-                                ${r.balanceDue > 0 || r.installments?.length > 0 ? `
-                                <tr>
-                                    <td style="padding: 5px; text-align: right; font-weight: bold;">Paid Amount:</td>
-                                    <td style="padding: 5px; text-align: right; font-weight: bold;">${formatCurrency(amt - (r.balanceDue || 0))}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 5px; text-align: right; font-weight: bold; color: #d32f2f;">Balance Due:</td>
-                                    <td style="padding: 5px; text-align: right; font-weight: bold; color: #d32f2f; border-bottom: 2px solid #000;">${formatCurrency(r.balanceDue || 0)}</td>
-                                </tr>` : ''}
-                            </table>
+                            <div class="table-responsive" style="width: 50%;">
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <tr>
+                                        <td style="padding: 3px 5px; text-align: right;">Total Taxable Value:</td>
+                                        <td style="padding: 3px 5px; text-align: right; border-bottom: 1px solid #000;">${formatCurrency(baseAmt)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 3px 5px; text-align: right;">CGST @ ${taxRate/2}%:</td>
+                                        <td style="padding: 3px 5px; text-align: right;">${formatCurrency(cgst)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 3px 5px; text-align: right;">SGST @ ${taxRate/2}%:</td>
+                                        <td style="padding: 3px 5px; text-align: right; border-bottom: 1px solid #000;">${formatCurrency(sgst)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px; text-align: right; font-weight: bold;">Grand Total:</td>
+                                        <td style="padding: 5px; text-align: right; font-weight: bold; border-bottom: 2px solid #000;">${formatCurrency(amt)}</td>
+                                    </tr>
+                                    ${r.balanceDue > 0 || r.installments?.length > 0 ? `
+                                    <tr>
+                                        <td style="padding: 5px; text-align: right; font-weight: bold;">Paid Amount:</td>
+                                        <td style="padding: 5px; text-align: right; font-weight: bold;">${formatCurrency(amt - (r.balanceDue || 0))}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 5px; text-align: right; font-weight: bold; color: #d32f2f;">Balance Due:</td>
+                                        <td style="padding: 5px; text-align: right; font-weight: bold; color: #d32f2f; border-bottom: 2px solid #000;">${formatCurrency(r.balanceDue || 0)}</td>
+                                    </tr>` : ''}
+                                </table>
+                            </div>
                         </div>
                         
                         <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.85em; color: #000;">
