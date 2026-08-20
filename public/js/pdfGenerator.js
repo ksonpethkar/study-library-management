@@ -58,8 +58,8 @@ export function buildAdmissionFormHTML(student, options = {}) {
     : 'General Competitive Exams & Self Study';
 
   // Photo & Signature & Stamp URLs
-  const photoUrl = s.photo || s.photoUrl || '';
-  const sigUrl = s.signature || s.signatureUrl || '';
+  const photoUrl = s.photo || s.photoUrl || s.customFields?.photo || s.customFields?.passport_photo || s.customFields?.idProofImage || s.avatar || '';
+  const sigUrl = s.signature || s.signatureUrl || s.customFields?.signature || '';
   const logoUrl = rcHeader.logoUrl || b.logo || b.logoUrl || '';
   const stampImageUrl = rcFooter.stampImage || b.stampImage || '';
   const managerSigUrl = rcFooter.signatureImage || '';
@@ -96,30 +96,30 @@ export function buildAdmissionFormHTML(student, options = {}) {
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
     body { background: #fff; color: #2d3436; font-size: 13px; line-height: 1.4; padding: 10px; position: relative; }
 
-    /* Watermark Stamp */
+    /* Watermark Stamp (Transparent Overlay) */
     .watermark-stamp {
       position: absolute;
-      top: 240px;
-      right: 40px;
+      top: 230px;
+      right: 50px;
       border: 3px dashed ${stampColor};
       color: ${stampColor};
-      padding: 8px 18px;
-      font-size: 1rem;
+      padding: 6px 16px;
+      font-size: 0.95rem;
       font-weight: 900;
       letter-spacing: 2px;
       text-transform: uppercase;
-      transform: rotate(-12deg);
-      opacity: 0.85;
+      transform: rotate(-8deg);
+      opacity: 0.22;
       border-radius: 8px;
       pointer-events: none;
-      z-index: 10;
+      z-index: 1;
     }
 
     /* Template Header */
     .mg-header {
       background: ${isClassic ? '#2c3e50' : isCompact ? '#0984e3' : 'linear-gradient(135deg, #6c5ce7, #00b894)'};
       color: #ffffff;
-      padding: 20px;
+      padding: 16px 20px;
       border-radius: ${isClassic ? '0' : '12px'};
       display: flex;
       justify-content: space-between;
@@ -127,8 +127,8 @@ export function buildAdmissionFormHTML(student, options = {}) {
       margin-bottom: 18px;
       border: ${isClassic ? '2px solid #1a252f' : 'none'};
     }
-    .mg-header h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
-    .mg-header p { font-size: 11.5px; opacity: 0.92; }
+    .mg-header h1 { font-size: 19px; font-weight: 800; letter-spacing: -0.5px; margin: 0; }
+    .mg-header p { font-size: 11px; opacity: 0.92; margin: 0; }
 
     /* Section Cards */
     .sec-card {
@@ -137,6 +137,8 @@ export function buildAdmissionFormHTML(student, options = {}) {
       padding: 14px;
       margin-bottom: 14px;
       background: #fcfcfc;
+      position: relative;
+      z-index: 2;
     }
     .sec-title {
       font-weight: 800;
@@ -213,10 +215,10 @@ export function buildAdmissionFormHTML(student, options = {}) {
         <p style="margin-top: 4px; font-size: 11px;">📍 ${b.address} • 📞 ${b.phone} ${gstNumber ? `• GSTIN/Tax: ${gstNumber}` : ''}</p>
       </div>
     </div>
-    <div style="text-align: right; background: rgba(255,255,255,0.2); padding: 8px 14px; border-radius: 8px;">
-      <div style="font-size: 10px; text-transform: uppercase;">Official Form Serial</div>
-      <div style="font-size: 16px; font-weight: 900; font-family: monospace;">${studentId}</div>
-      <div style="font-size: 11px; font-weight: 700;">Date: ${joinedDate}</div>
+    <div style="text-align: right; background: rgba(255,255,255,0.22); padding: 8px 14px; border-radius: 8px; min-width: 155px; white-space: nowrap; flex-shrink: 0;">
+      <div style="font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;">Official Form Serial</div>
+      <div style="font-size: 15px; font-weight: 900; font-family: monospace; white-space: nowrap; margin: 1px 0;">${studentId}</div>
+      <div style="font-size: 11px; font-weight: 700; white-space: nowrap;">Date: ${joinedDate}</div>
     </div>
   </div>
 
