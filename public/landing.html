@@ -774,18 +774,18 @@
     </div>
 
     <div class="gallery-filters" id="gallery-filters-bar">
-      <button type="button" class="g-filter active">All</button>
-      <button type="button" class="g-filter">Study Cabins</button>
-      <button type="button" class="g-filter">Reading Hall</button>
-      <button type="button" class="g-filter">Amenities</button>
+      <button type="button" class="g-filter active" data-category="all">All</button>
+      <button type="button" class="g-filter" data-category="cabins">Cabins</button>
+      <button type="button" class="g-filter" data-category="hall">Reading Hall</button>
+      <button type="button" class="g-filter" data-category="amenities">Amenities</button>
     </div>
 
     <div class="gallery-grid" id="gallery-container">
-      <div class="gallery-item" data-category="Study Cabins" onclick="openLightbox('https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=800', 'Premium Study Cabins')">
+      <div class="gallery-item" data-category="Cabins" onclick="openLightbox('https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=800', 'Premium Study Cabins')">
         <img src="https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=800" alt="Study Cabins" loading="lazy">
         <div class="gallery-caption">Premium Study Cabins</div>
       </div>
-      <div class="gallery-item" data-category="Reading Hall" onclick="openLightbox('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800', 'Silent Reading Hall')">
+      <div class="gallery-item" data-category="Hall" onclick="openLightbox('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800', 'Silent Reading Hall')">
         <img src="https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800" alt="Reading Hall" loading="lazy">
         <div class="gallery-caption">Silent Reading Hall</div>
       </div>
@@ -793,11 +793,11 @@
         <img src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=800" alt="Amenities" loading="lazy">
         <div class="gallery-caption">Discussion Zone & Amenities</div>
       </div>
-      <div class="gallery-item" data-category="Study Cabins" onclick="openLightbox('https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800', 'Orthopedic Ergonomic Desks')">
+      <div class="gallery-item" data-category="Cabins" onclick="openLightbox('https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800', 'Orthopedic Ergonomic Desks')">
         <img src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800" alt="Ergonomic Desks" loading="lazy">
         <div class="gallery-caption">Orthopedic Ergonomic Desks</div>
       </div>
-      <div class="gallery-item" data-category="Reading Hall" onclick="openLightbox('https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800', 'Air-Conditioned Silent Zone')">
+      <div class="gallery-item" data-category="Hall" onclick="openLightbox('https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800', 'Air-Conditioned Silent Zone')">
         <img src="https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800" alt="Air Conditioned Zone" loading="lazy">
         <div class="gallery-caption">Air-Conditioned Silent Zone</div>
       </div>
@@ -1057,11 +1057,11 @@
         btn.addEventListener('click', () => {
           filterBtns.forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
-          const filter = btn.textContent.trim().toLowerCase();
+          const filter = (btn.dataset.category || btn.textContent || '').trim().toLowerCase();
           const items = document.querySelectorAll('#gallery-container .gallery-item');
           items.forEach(item => {
-            const cat = (item.dataset.category || '').toLowerCase();
-            if (filter === 'all' || cat.includes(filter) || filter.includes(cat)) {
+            const cat = (item.dataset.category || '').trim().toLowerCase();
+            if (filter === 'all' || cat === filter || cat.includes(filter) || filter.includes(cat)) {
               item.style.display = 'block';
             } else {
               item.style.display = 'none';
