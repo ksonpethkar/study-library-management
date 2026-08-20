@@ -3407,6 +3407,108 @@ function renderSettingsUI(container, profile, settings) {
     }
   });
 
+  // Audit Trail Filter & CSV Export Handlers
+  let currentAuditLogs = [];
+
+  async function fetchAuditLogs(page = 1) {
+    const mod = container.querySelector('#audit-filter-module')?.value || '';
+    const act = container.querySelector('#audit-filter-action')?.value?.trim() || '';
+    const start = container.querySelector('#audit-filter-start')?.value || '';
+    const end = container.querySelector('#audit-filter-end')?.value || '';
+    const tbody = container.querySelector('#audit-log-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span> Loading audit logs...</td></tr>`;
+
+    try {
+      let query = `?page=${page}&limit=50`;
+      if (mod) query += `&module=${encodeURIComponent(mod)}`;
+      if (act) query += `&action=${encodeURIComponent(act)}`;
+      if (start) query += `&startDate=${encodeURIComponent(start)}`;
+      if (end) query += `&endDate=${encodeURIComponent(end)}`;
+
+      const res = await api.get(`/api/audit-logs${query}`);
+      const logs = res.data?.logs || res.logs || (Array.isArray(res.data) ? res.data : []);
+      currentAuditLogs = logs;
+
+      if (logs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-muted">No audit logs found matching the filter criteria.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = logs.map(l => `
+        <tr style="border-bottom: 1px solid var(--color-divider); font-size: 0.85rem;">
+          <td style="padding: 10px 14px; font-family: monospace; color: var(--color-text-secondary); white-space: nowrap;">
+            ${new Date(l.createdAt || l.timestamp).toLocaleString('en-IN')}
+          </td>
+          <td style="padding: 10px 14px; font-weight: 700; color: var(--color-text-primary);">
+            ${escapeHTML(l.userName || l.user?.name || 'System Admin')}
+            <div style="font-size: 0.75rem; color: var(--color-text-secondary); font-weight: normal;">(${escapeHTML(l.userRole || l.user?.role || 'owner')})</div>
+          </td>
+          <td style="padding: 10px 14px;">
+            <span class="badge ${l.action === 'delete' ? 'badge-danger' : l.action === 'create' ? 'badge-success' : 'badge-primary'}" style="text-transform: uppercase; font-size: 0.72rem;">
+              ${escapeHTML(l.action)}
+            </span>
+          </td>
+          <td style="padding: 10px 14px; font-weight: 600; color: var(--color-primary);">
+            ${escapeHTML(l.module)}
+          </td>
+          <td style="padding: 10px 14px; color: var(--color-text-primary); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHTML(l.details || '')}">
+            ${escapeHTML(l.details || '-')}
+          </td>
+          <td style="padding: 10px 14px; font-family: monospace; font-size: 0.78rem; color: var(--color-text-secondary);">
+            ${escapeHTML(l.ipAddress || l.ip || '127.0.0.1')}
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      console.error('Failed to load audit logs:', err);
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-danger">Failed to load audit logs: ${escapeHTML(err.message)}</td></tr>`;
+    }
+  }
+
+  container.querySelector('#btn-filter-audit')?.addEventListener('click', () => fetchAuditLogs(1));
+
+  container.querySelector('#btn-export-audit-csv')?.addEventListener('click', () => {
+    if (!currentAuditLogs || currentAuditLogs.length === 0) {
+      Toast.warning('No audit logs available to export');
+      return;
+    }
+    let csv = 'Timestamp,User,Role,Action,Module,Details,IP Address\n';
+    currentAuditLogs.forEach(l => {
+      const time = new Date(l.createdAt || l.timestamp).toISOString();
+      const user = `"${(l.userName || l.user?.name || 'System Admin').replace(/"/g, '""')}"`;
+      const role = l.userRole || l.user?.role || 'owner';
+      const action = l.action || '';
+      const mod = l.module || '';
+      const details = `"${(l.details || '').replace(/"/g, '""')}"`;
+      const ip = l.ipAddress || l.ip || '';
+      csv += `${time},${user},${role},${action},${mod},${details},${ip}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `activity_audit_log_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    Toast.success('📊 Audit trail exported to CSV successfully');
+  });
+
+  // Load audit logs automatically when tab is opened
+  const panelAudit = container.querySelector('#panel-audittrail');
+  if (panelAudit) {
+    const observer = new MutationObserver(() => {
+      if (panelAudit.style.display !== 'none') {
+        fetchAuditLogs(1);
+      }
+    });
+    observer.observe(panelAudit, { attributes: true, attributeFilter: ['style'] });
+  }
+
   // Save All Changes (Header Button)
   container.querySelector('#btn-save-all-settings')?.addEventListener('click', async () => {
     const saveAllBtn = container.querySelector('#btn-save-all-settings');
