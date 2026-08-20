@@ -1222,42 +1222,49 @@ function renderSettingsUI(container, profile, settings) {
       <!-- ========================================== -->
       <div class="settings-panel" id="panel-sidebar" style="display: none;">
         <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
-          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🧭 Sidebar & Navigation Manager</h3>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                <span>🧭</span> Sidebar &amp; Navigation Manager (Role-Based Access Control)
+              </h3>
               <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Manage sidebar items, icons, display names, order, active state, and role visibility permissions.</p>
             </div>
-            <div style="display: flex; gap: 0.5rem;">
-              <button id="btn-reset-sidebar-nav" class="btn btn-outline-danger btn-sm" style="font-weight: 600;">🔄 Reset to Default</button>
-              <button id="btn-save-sidebar-nav" class="btn btn-primary btn-sm" style="font-weight: 600;">💾 Save Navigation Layout</button>
-            </div>
+            <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+              RBAC Navigation Engine
+            </span>
           </div>
-          <div class="card-body" style="padding: 1.5rem;">
+
+          <div class="card-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
             
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0.75rem 1rem; background: var(--color-bg-primary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-              <div style="font-size: 0.85rem; color: var(--color-text-secondary);">
-                💡 <strong>Tip:</strong> Use ⬆️ / ⬇️ buttons or drag handle ☰ to reorder items. Uncheck role checkboxes to hide specific items from Owner, Branch Manager, or Staff.
+            <!-- CATEGORY 1 & 2: NAVIGATION ORDER & ROLE-BASED VISIBILITY MATRIX -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+                <div>
+                  <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                    <span>🧭</span> Category 1 &amp; 2: Navigation Order &amp; Role Visibility Matrix
+                  </h4>
+                  <p style="margin: 2px 0 0 0; font-size: 0.82rem; color: var(--color-text-secondary);">
+                    Use ⬆️ / ⬇️ buttons or drag handle ☰ to reorder sidebar modules. Uncheck role checkboxes to hide specific items from Owner, Branch Manager, or Staff.
+                  </p>
+                </div>
+              </div>
+
+              <div id="sidebar-manager-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div class="text-center p-4 text-muted">Loading navigation configuration...</div>
               </div>
             </div>
 
-            <div id="sidebar-manager-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
-              <div class="text-center p-4 text-muted">Loading navigation configuration...</div>
-            </div>
-
-            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
-              <button id="btn-reset-sidebar-nav-bottom" class="btn btn-outline-danger" style="font-weight: 600;">🔄 Reset to Default</button>
-              <button id="btn-save-sidebar-nav-bottom" class="btn btn-primary" style="font-weight: 600;">💾 Save Navigation Layout</button>
-            </div>
-
-            <!-- Student 360 Self-Service Portal Feature Switches -->
-            <div style="margin-top: 2rem; border-top: 1px solid var(--color-border); padding-top: 1.5rem;">
-              <h4 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700; color: var(--color-text-primary);">🎓 Student 360° Portal Feature Controls</h4>
+            <!-- CATEGORY 3: STUDENT 360 PORTAL FEATURE CONTROLS -->
+            <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+              <h4 style="margin: 0 0 4px 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                <span>🎓</span> Category 3: Student 360° Portal Feature Controls
+              </h4>
               <p style="margin: 0 0 1rem 0; font-size: 0.82rem; color: var(--color-text-secondary);">Toggle which self-service actions are available to enrolled students in their portal.</p>
               
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
                 <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
                   <div>
-                    <div style="font-weight: 600; font-size: 0.9rem;">🪑 Seat Transfer Requests</div>
+                    <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text-primary);">🪑 Seat Transfer Requests</div>
                     <div class="text-muted small">Allow student seat change requests</div>
                   </div>
                   <input type="checkbox" id="sp-toggle-seat-transfer" checked class="form-toggle">
@@ -1265,7 +1272,7 @@ function renderSettingsUI(container, profile, settings) {
 
                 <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
                   <div>
-                    <div style="font-weight: 600; font-size: 0.9rem;">🏖️ Leave Applications</div>
+                    <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text-primary);">🏖️ Leave Applications</div>
                     <div class="text-muted small">Allow online study leave submission</div>
                   </div>
                   <input type="checkbox" id="sp-toggle-leave-app" checked class="form-toggle">
@@ -1273,7 +1280,7 @@ function renderSettingsUI(container, profile, settings) {
 
                 <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
                   <div>
-                    <div style="font-weight: 600; font-size: 0.9rem;">💳 Online UPI Renewals</div>
+                    <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text-primary);">💳 Online UPI Renewals</div>
                     <div class="text-muted small">Allow online plan renewals via QR</div>
                   </div>
                   <input type="checkbox" id="sp-toggle-upi-renewal" checked class="form-toggle">
@@ -1281,13 +1288,24 @@ function renderSettingsUI(container, profile, settings) {
 
                 <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
                   <div>
-                    <div style="font-weight: 600; font-size: 0.9rem;">🪪 Digital ID Card Studio</div>
-                    <div class="text-muted small">Allow view & download ID card</div>
+                    <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text-primary);">🪪 Digital ID Card Studio</div>
+                    <div class="text-muted small">Allow view &amp; download ID card</div>
                   </div>
                   <input type="checkbox" id="sp-toggle-id-card" checked class="form-toggle">
                 </div>
               </div>
             </div>
+
+            <!-- CATEGORY 4: CONSOLIDATED MASTER SAVE & RESET CENTER -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid var(--color-divider); flex-wrap: wrap; gap: 1rem;">
+              <button type="button" id="btn-reset-sidebar-nav" class="btn btn-outline-danger" style="font-weight: 600;">
+                🔄 Reset Navigation to Default
+              </button>
+              <button type="button" id="btn-save-sidebar-nav" class="btn btn-primary" style="font-weight: 700; padding: 0.65rem 1.75rem;">
+                💾 Save Sidebar &amp; Navigation Configuration
+              </button>
+            </div>
+
           </div>
         </div>
       </div>
