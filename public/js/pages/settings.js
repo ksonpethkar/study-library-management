@@ -1677,21 +1677,35 @@ function renderSettingsUI(container, profile, settings) {
                   <!-- Stamp Customization -->
                   <div style="background: var(--color-surface); border: 1px solid var(--color-border); padding: 12px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                      <span style="font-weight: 700; font-size: 0.83rem;">🏷️ Official Paid Stamp Badge</span>
+                      <span style="font-weight: 700; font-size: 0.83rem;">🏷️ Official Paid Stamp / Seal</span>
                       <label class="switch-label" style="margin: 0;">
                         <input type="checkbox" id="rs-stamp-show" checked>
                         <span class="switch-slider"></span>
                       </label>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 90px; gap: 8px;">
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                       <div>
-                        <label class="form-label text-xs" style="font-weight: 600;">Stamp Text</label>
-                        <input type="text" id="rs-stamp-text" class="form-control form-control-sm" value="PAID • OFFICIAL RECEIPT">
+                        <label class="form-label text-xs" style="font-weight: 600;">Stamp Style</label>
+                        <select id="rs-stamp-type" class="form-select form-control-sm">
+                          <option value="badge" selected>🏷️ Dynamic Text Stamp Badge</option>
+                          <option value="image">🖼️ Custom Stamp / Seal Image</option>
+                        </select>
                       </div>
-                      <div>
+                      <div id="rs-stamp-color-wrap">
                         <label class="form-label text-xs" style="font-weight: 600;">Stamp Color</label>
                         <input type="color" id="rs-stamp-color" class="form-control form-control-sm" value="#059669" style="height: 32px; padding: 2px;">
                       </div>
+                    </div>
+
+                    <div id="rs-stamp-text-wrap">
+                      <label class="form-label text-xs" style="font-weight: 600;">Stamp Text</label>
+                      <input type="text" id="rs-stamp-text" class="form-control form-control-sm" value="PAID • OFFICIAL RECEIPT">
+                    </div>
+
+                    <div id="rs-stamp-image-wrap" style="display: none;">
+                      <label class="form-label text-xs" style="font-weight: 600;">Organization Stamp Image URL / File</label>
+                      <div id="mount-rs-stamp-image"></div>
                     </div>
                   </div>
 
@@ -2899,8 +2913,10 @@ function renderSettingsUI(container, profile, settings) {
 
     // Stamp & Watermark & Date/Time Options
     const showStamp = container.querySelector('#rs-stamp-show')?.checked;
+    const stampType = container.querySelector('#rs-stamp-type')?.value || 'badge';
     const stampText = container.querySelector('#rs-stamp-text')?.value || 'PAID • OFFICIAL RECEIPT';
     const stampColor = container.querySelector('#rs-stamp-color')?.value || '#059669';
+    const stampImg = container.querySelector('#rs-stamp-image-val')?.value || '';
 
     const showWatermark = container.querySelector('#rs-watermark-show')?.checked;
     const watermarkText = container.querySelector('#rs-watermark-text')?.value || 'PAID • OFFICIAL FEE RECEIPT';
@@ -2936,12 +2952,18 @@ function renderSettingsUI(container, profile, settings) {
           </div>
         ` : ''}
 
-        <!-- Official Stamp Badge -->
-        ${showStamp ? `
-          <div style="position: absolute; top: 18px; right: 18px; border: 2px dashed ${stampColor}; color: ${stampColor}; font-weight: 800; font-size: 0.76rem; padding: 4px 10px; border-radius: 4px; transform: rotate(-8deg); letter-spacing: 1px; z-index: 2; text-transform: uppercase; background: rgba(255,255,255,0.9);">
-            ${escapeHTML(stampText)}
-          </div>
-        ` : ''}
+        <!-- Official Stamp: Custom Image or Dynamic Badge -->
+        ${showStamp ? (
+          stampType === 'image' && stampImg ? `
+            <div style="position: absolute; top: 16px; right: 16px; z-index: 3; pointer-events: none; transform: rotate(-5deg);">
+              <img src="${stampImg}" style="max-height: ${isThermal ? '48px' : '64px'}; max-width: 120px; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));">
+            </div>
+          ` : `
+            <div style="position: absolute; top: 18px; right: 18px; border: 2px dashed ${stampColor}; color: ${stampColor}; font-weight: 800; font-size: 0.76rem; padding: 4px 10px; border-radius: 4px; transform: rotate(-8deg); letter-spacing: 1px; z-index: 2; text-transform: uppercase; background: rgba(255,255,255,0.9);">
+              ${escapeHTML(stampText)}
+            </div>
+          `
+        ) : ''}
 
         <!-- Header -->
         <div style="text-align: center; border-bottom: 2px solid ${color}; padding-bottom: 12px; margin-bottom: 16px; position: relative; z-index: 2;">
@@ -3021,6 +3043,23 @@ function renderSettingsUI(container, profile, settings) {
     `;
   };
 
+  // Switch Stamp Style UI (Badge vs Image)
+  const toggleStampStyleUI = () => {
+    const type = container.querySelector('#rs-stamp-type')?.value;
+    const isImg = type === 'image';
+    const textWrap = container.querySelector('#rs-stamp-text-wrap');
+    const colorWrap = container.querySelector('#rs-stamp-color-wrap');
+    const imgWrap = container.querySelector('#rs-stamp-image-wrap');
+    if (textWrap) textWrap.style.display = isImg ? 'none' : 'block';
+    if (colorWrap) colorWrap.style.display = isImg ? 'none' : 'block';
+    if (imgWrap) imgWrap.style.display = isImg ? 'block' : 'none';
+  };
+
+  container.querySelector('#rs-stamp-type')?.addEventListener('change', () => {
+    toggleStampStyleUI();
+    renderReceiptLivePreview();
+  });
+
   const loadReceiptStudio = async () => {
     try {
       const res = await api.get('/api/settings/receipt-config');
@@ -3039,8 +3078,43 @@ function renderSettingsUI(container, profile, settings) {
         // Category 1: Stamp, Watermark, Date/Time
         const st = config.stamp || {};
         setVal('rs-stamp-show', st.showStamp !== false);
+        setVal('rs-stamp-type', st.stampImage ? 'image' : 'badge');
         setVal('rs-stamp-text', st.stampText || 'PAID • OFFICIAL RECEIPT');
         setVal('rs-stamp-color', st.stampColor || '#059669');
+
+        // Mount Stamp Image uploader
+        const mountStamp = container.querySelector('#mount-rs-stamp-image');
+        if (mountStamp) {
+          mountStamp.innerHTML = `
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="text" id="rs-stamp-image-val" class="form-control form-control-sm" placeholder="https://example.com/stamp.png" value="${escapeHTML(st.stampImage || '')}">
+              <label class="btn btn-outline-secondary btn-sm" style="margin: 0; cursor: pointer; white-space: nowrap;">
+                📁 Upload File
+                <input type="file" id="file-rs-stamp-image" accept="image/*" style="display: none;">
+              </label>
+            </div>
+          `;
+
+          const fileInput = mountStamp.querySelector('#file-rs-stamp-image');
+          fileInput?.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (evt) => {
+                const valInput = mountStamp.querySelector('#rs-stamp-image-val');
+                if (valInput) {
+                  valInput.value = evt.target.result;
+                  renderReceiptLivePreview();
+                }
+              };
+              reader.readAsDataURL(file);
+            }
+          });
+
+          mountStamp.querySelector('#rs-stamp-image-val')?.addEventListener('input', renderReceiptLivePreview);
+        }
+
+        toggleStampStyleUI();
         
         setVal('rs-watermark-show', st.showWatermark !== false);
         setVal('rs-watermark-text', st.watermarkText || 'PAID • OFFICIAL FEE RECEIPT');
@@ -3100,10 +3174,14 @@ function renderSettingsUI(container, profile, settings) {
     const btn = container.querySelector('#btn-save-receipt-config');
     Loading.button(btn, true);
     try {
+      const stampType = container.querySelector('#rs-stamp-type')?.value;
+      const stampImage = stampType === 'image' ? container.querySelector('#rs-stamp-image-val')?.value?.trim() || '' : '';
+
       const payload = {
         activeTemplate: container.querySelector('#rs-activeTemplate')?.value,
         stamp: {
           showStamp: !!container.querySelector('#rs-stamp-show')?.checked,
+          stampImage: stampImage,
           stampText: container.querySelector('#rs-stamp-text')?.value?.trim() || 'PAID • OFFICIAL RECEIPT',
           stampColor: container.querySelector('#rs-stamp-color')?.value || '#059669',
           showWatermark: !!container.querySelector('#rs-watermark-show')?.checked,
