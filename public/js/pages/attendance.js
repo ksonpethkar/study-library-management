@@ -12,7 +12,7 @@ export function render() {
   container.innerHTML = `
     <div class="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
       <div>
-        <h2 style="margin: 0; font-size: 1.5rem; font-weight: 700;">${escapeHTML(t('attendance') || 'Attendance Tracking')}</h2>
+        <h2 style="margin: 0; font-size: 1.5rem; font-weight: 700;">📋 Attendance Tracking</h2>
         <p class="text-muted small mb-0" style="margin-top: 4px;">Daily check-in / check-out logs and occupancy tracking.</p>
       </div>
       <div class="actions d-flex align-items-center gap-2 flex-wrap">
