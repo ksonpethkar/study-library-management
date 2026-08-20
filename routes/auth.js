@@ -267,6 +267,21 @@ router.post('/public-register', authLimiter, async (req, res) => {
     // Generate Student ID
     const studentId = await generateStudentId({ branch: req.body.branch });
 
+    // Load Selected Plan Document & Compute Plan Expiry Date
+    const Plan = require('../models/Plan');
+    let selectedPlanDoc = null;
+    let calculatedExpiryDate = new Date();
+    calculatedExpiryDate.setMonth(calculatedExpiryDate.getMonth() + 1); // Default 1 month
+
+    if (plan && mongoose.Types.ObjectId.isValid(plan)) {
+      selectedPlanDoc = await Plan.findById(plan);
+      if (selectedPlanDoc && (selectedPlanDoc.durationInMonths || selectedPlanDoc.durationMonths)) {
+        const months = selectedPlanDoc.durationInMonths || selectedPlanDoc.durationMonths || 1;
+        calculatedExpiryDate = new Date();
+        calculatedExpiryDate.setMonth(calculatedExpiryDate.getMonth() + months);
+      }
+    }
+
     // Validate custom fields safely
     const activeFields = await CustomField.getActiveFields().catch(() => []);
     const missingFields = [];
