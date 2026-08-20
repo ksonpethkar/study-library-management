@@ -93,10 +93,14 @@ function renderSettingsUI(container, profile, settings) {
           Manage library profile, late fine formulas, auto-admission toggles, reminders, and currency.
         </p>
       </div>
-      <div style="display: flex; gap: 0.75rem;">
+      <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <button id="btn-quick-backup-header" class="btn btn-outline-success" style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>💾 Quick Backup</span>
+        </button>
         <button id="btn-save-all-settings" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-          Save All Changes
+          <span>Save All Changes</span>
         </button>
       </div>
     </div>
@@ -4777,6 +4781,30 @@ async function initLandingSettings(container) {
       Toast.error(err.message || 'Network error');
     } finally {
       Loading.button(btn, false);
+    }
+  });
+
+  container.querySelector('#btn-quick-backup-header')?.addEventListener('click', async () => {
+    try {
+      Loading.show('Generating full system database backup...');
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/backup/export', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      Loading.hide();
+      if (!res.ok) throw new Error('Backup failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `StudyLibrary_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      Toast.success('Database backup downloaded successfully!');
+    } catch (err) {
+      Loading.hide();
+      Toast.error(err.message || 'Backup failed');
     }
   });
 
