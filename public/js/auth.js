@@ -172,8 +172,10 @@ export function initLoginPage() {
   const quickBiometricBtn = document.getElementById('btn-quick-biometric-login');
   if (quickBiometricBtn) {
     BiometricAuth.isSupported().then(supported => {
-      if (supported && BiometricAuth.hasSavedCredentials()) {
-        quickBiometricBtn.style.display = 'flex';
+      if (supported) {
+        quickBiometricBtn.style.display = 'inline-flex';
+      } else {
+        quickBiometricBtn.style.display = 'none';
       }
     });
 
@@ -181,9 +183,13 @@ export function initLoginPage() {
       quickBiometricBtn.dataset.bound = 'true';
       quickBiometricBtn.addEventListener('click', async () => {
         try {
+          if (!BiometricAuth.hasSavedCredentials()) {
+            Toast.info('Please sign in with password once, then enable Biometric / Face ID in your Profile Settings!');
+            return;
+          }
           await BiometricAuth.login();
         } catch (err) {
-          // Handled inside BiometricAuth.login()
+          Toast.error(err.message || 'Biometric authentication failed.');
         }
       });
     }
