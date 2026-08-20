@@ -50,6 +50,9 @@ export async function render(container) {
         <p>Track operating costs, rent, electricity, salaries, vendor bills, and auto-calculate net business profit.</p>
       </div>
       <div class="module-actions">
+        <button class="btn btn-outline-info" id="btn-print-pnl" style="font-weight: 600;">
+          📄 Print P&L Statement
+        </button>
         <button class="btn btn-outline-secondary" id="btn-manage-categories" style="font-weight: 600;">
           🏷️ Manage Expense Categories
         </button>
@@ -66,6 +69,17 @@ export async function render(container) {
     <div style="background: rgba(108, 92, 231, 0.06); border: 1px solid rgba(108, 92, 231, 0.2); border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
       <span style="font-size: 1.1rem;">💡</span>
       <span><strong>Tip:</strong> Track library operational expenses, electricity bills, and rent to monitor net monthly profitability.</span>
+    </div>
+
+    <!-- Quick Recurring Presets Bar -->
+    <div class="card p-2 mb-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="text-xs text-muted" style="font-weight: 800; letter-spacing: 0.5px; margin-right: 4px;">⚡ QUICK RECURRING PRESETS:</span>
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-preset-expense" data-title="Monthly Property Rent" data-category="Rent & Infrastructure" data-mode="bank_transfer" style="font-weight: 600; border-radius: 20px;">🏢 Property Rent</button>
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-preset-expense" data-title="Electricity & AC Power Bill" data-category="Electricity & Utilities" data-mode="upi" style="font-weight: 600; border-radius: 20px;">⚡ Electricity Bill</button>
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-preset-expense" data-title="High Speed Fiber WiFi Bill" data-category="Internet & Technology" data-mode="upi" style="font-weight: 600; border-radius: 20px;">📶 Fiber WiFi</button>
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-preset-expense" data-title="Staff & Cleaning Monthly Salary" data-category="Staff Salaries" data-mode="bank_transfer" style="font-weight: 600; border-radius: 20px;">👨‍💼 Staff Salary</button>
+      </div>
     </div>
 
     <!-- Date & Category Filters Toolbar -->
@@ -640,6 +654,24 @@ export async function render(container) {
     expenseSearchTimeout = setTimeout(() => {
       loadData();
     }, 300);
+  });
+
+  page.querySelector('#btn-print-pnl')?.addEventListener('click', () => {
+    window.print();
+  });
+
+  page.querySelectorAll('.btn-preset-expense').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const title = btn.dataset.title;
+      const category = btn.dataset.category;
+      const method = btn.dataset.mode || 'cash';
+      showExpenseModal({
+        title,
+        category,
+        paymentMethod: method,
+        amount: ''
+      });
+    });
   });
 
   page.querySelector('#btn-manage-categories').addEventListener('click', () => {
