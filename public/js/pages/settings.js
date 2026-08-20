@@ -2918,6 +2918,48 @@ function renderSettingsUI(container, profile, settings) {
     saveAdmission(container.querySelector('#btn-save-admission'));
   });
 
+  // Live Dynamic Student ID Badge Preview Updater
+  function updateIdPreview() {
+    const prefix = container.querySelector('#setting-idPrefix')?.value?.trim() || 'STU';
+    const format = container.querySelector('#setting-idFormat')?.value || 'prefix-year-serial';
+    const digits = parseInt(container.querySelector('#setting-serialDigits')?.value, 10) || 4;
+    const startNum = parseInt(container.querySelector('#setting-startingSerial')?.value, 10) || 1;
+
+    const sampleNum = String(startNum).padStart(digits, '0');
+    const currentYear = new Date().getFullYear();
+    const currentMMYY = `${String(new Date().getMonth() + 1).padStart(2, '0')}${String(currentYear).slice(-2)}`;
+
+    let sampleId = `${prefix}-${currentYear}-${sampleNum}`;
+    if (format === 'prefix-serial') {
+      sampleId = `${prefix}-${sampleNum}`;
+    } else if (format === 'prefix-branch-serial') {
+      sampleId = `${prefix}-PUN-${currentYear}-${sampleNum}`;
+    } else if (format === 'prefix-month-serial') {
+      sampleId = `${prefix}-${currentMMYY}-${sampleNum}`;
+    }
+
+    const previewEl = container.querySelector('#sample-id-preview');
+    if (previewEl) {
+      previewEl.innerHTML = `<span style="opacity: 0.75; font-size: 0.95rem; font-weight: 500;">Sample ID:</span> ${escapeHTML(sampleId)}`;
+    }
+
+    // Also update auto-approve badge text
+    const isAuto = container.querySelector('#setting-autoApprove')?.checked;
+    const badgeEl = container.querySelector('#badge-auto-approve');
+    if (badgeEl) {
+      badgeEl.textContent = isAuto ? 'Enabled' : 'Manual Review';
+      badgeEl.style.background = isAuto ? 'var(--color-success-bg)' : 'var(--color-bg-secondary)';
+      badgeEl.style.color = isAuto ? 'var(--color-success)' : 'var(--color-text-secondary)';
+    }
+  }
+
+  container.querySelector('#setting-idPrefix')?.addEventListener('input', updateIdPreview);
+  container.querySelector('#setting-idFormat')?.addEventListener('change', updateIdPreview);
+  container.querySelector('#setting-serialDigits')?.addEventListener('change', updateIdPreview);
+  container.querySelector('#setting-startingSerial')?.addEventListener('input', updateIdPreview);
+  container.querySelector('#setting-autoApprove')?.addEventListener('change', updateIdPreview);
+  updateIdPreview();
+
   // 4. Save Notifications Handler
   async function saveNotifications(btn) {
     Loading.button(btn, true);
