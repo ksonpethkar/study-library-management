@@ -256,9 +256,18 @@
     // Credentials Recovery Helper
     window.requestCredentialsRecovery = async function(e) {
       if (e) e.preventDefault();
-      const existingId = document.getElementById('student-identifier')?.value?.trim();
-      const identifier = prompt('Enter your Registered Mobile Number, Student ID, or Email for password recovery:', existingId || '');
-      if (!identifier) return;
+      const inputEl = document.getElementById('student-identifier');
+      let identifier = inputEl?.value?.trim();
+
+      if (!identifier) {
+        identifier = prompt('Please enter your Registered Mobile Number, Student ID, or Email for password recovery:');
+        if (!identifier) {
+          if (inputEl) inputEl.focus();
+          return;
+        }
+      }
+
+      showToast('Preparing WhatsApp Recovery Link...', true);
 
       try {
         const res = await fetch('/api/auth/forgot-password', {
@@ -269,12 +278,11 @@
         const data = await res.json();
 
         if (data.success && data.data?.whatsappUrl) {
-          showToast(data.message || 'Recovery request prepared!', true);
-          setTimeout(() => {
-            window.open(data.data.whatsappUrl, '_blank');
-          }, 600);
+          showToast(data.message || 'Opening WhatsApp...', true);
+          // Open WhatsApp directly
+          window.location.href = data.data.whatsappUrl;
         } else {
-          showToast(data.message || 'Account recovery failed.', false);
+          showToast(data.message || 'Account recovery failed. Please check your Student ID / Mobile Number.', false);
         }
       } catch (err) {
         showToast('Network error during account recovery.', false);

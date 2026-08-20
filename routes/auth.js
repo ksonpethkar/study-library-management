@@ -1001,7 +1001,8 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
     const cleanPhone = identifier.replace(/[^0-9]/g, '').slice(-10);
 
     const businessProfile = await BusinessProfile.getProfile();
-    const ownerPhone = (businessProfile?.phone || process.env.BUSINESS_PHONE || '').replace(/[^0-9]/g, '').slice(-10);
+    const rawPhone = businessProfile?.phone || businessProfile?.whatsapp || process.env.BUSINESS_PHONE || '8625982248';
+    const ownerPhone = rawPhone.replace(/[^0-9]/g, '').slice(-10) || '8625982248';
 
     if (portalType === 'student') {
       const student = await Student.findOne({
@@ -1022,11 +1023,13 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
 
       // Generate 1-Click WhatsApp Support Link
       const waText = encodeURIComponent(
-        `Hello Support, I forgot my Student Portal password/PIN.\n` +
-        `Name: ${student.name}\n` +
-        `Student ID: ${student.studentId}\n` +
-        `Registered Mobile: ${student.phone}\n` +
-        `Please reset my portal password.`
+        `🔑 *STUDENT PORTAL PASSWORD RECOVERY REQUEST*\n\n` +
+        `Hello Support Team,\n` +
+        `I forgot my Student Portal password/PIN. Please assist me in resetting it.\n\n` +
+        `👤 *Name*: ${student.name}\n` +
+        `🆔 *Student ID*: ${student.studentId}\n` +
+        `📱 *Registered Phone*: ${student.phone}\n` +
+        `📧 *Email*: ${student.email || 'N/A'}`
       );
       const whatsappUrl = `https://wa.me/91${ownerPhone}?text=${waText}`;
 
