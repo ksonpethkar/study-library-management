@@ -44,40 +44,42 @@ export class FormBuilder {
     this.currentPreviewStep = 0;
 
     this.container.innerHTML = `
-      <div class="form-builder-studio" style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="form-builder-studio" style="display: flex; flex-direction: column; gap: 1.25rem;">
         
-        <!-- Studio Toolbar Header -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); flex-wrap: wrap; gap: 12px;">
-          <div>
-            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
-              🎨 Registration Form Customizer & Live Preview Studio
-            </h3>
-            <p style="margin: 2px 0 0 0; font-size: 0.82rem; color: var(--color-text-secondary);">
-              Full control over student registration header branding, section cards, system fields, and custom questions.
-            </p>
-          </div>
-
-          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <div class="btn-group" style="background: var(--color-bg-secondary); padding: 3px; border-radius: 8px; border: 1px solid var(--color-border);">
-              <button type="button" class="btn btn-sm ${this.previewDeviceMode === 'desktop' ? 'btn-primary' : 'btn-ghost'}" id="fb-view-desktop" style="font-weight: 600; font-size: 0.78rem;">
-                💻 Desktop Preview
-              </button>
-              <button type="button" class="btn btn-sm ${this.previewDeviceMode === 'mobile' ? 'btn-primary' : 'btn-ghost'}" id="fb-view-mobile" style="font-weight: 600; font-size: 0.78rem;">
-                📱 Mobile Preview
-              </button>
+        <!-- CATEGORY 1: STUDIO TOOLBAR & FORM CONTROLS -->
+        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                <span>🎨</span> Category 1: Registration Form Customizer &amp; Live Studio Controls
+              </h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">
+                Full control over student registration header branding, section cards, system fields, and custom questions.
+              </p>
             </div>
 
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="fb-toggle-branding-panel" style="font-weight: 600;">
-              🖼️ Header Branding
-            </button>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <div class="btn-group" style="background: var(--color-bg-secondary); padding: 3px; border-radius: 8px; border: 1px solid var(--color-border);">
+                <button type="button" class="btn btn-sm ${this.previewDeviceMode === 'desktop' ? 'btn-primary' : 'btn-ghost'}" id="fb-view-desktop" style="font-weight: 600; font-size: 0.78rem;">
+                  💻 Desktop Preview
+                </button>
+                <button type="button" class="btn btn-sm ${this.previewDeviceMode === 'mobile' ? 'btn-primary' : 'btn-ghost'}" id="fb-view-mobile" style="font-weight: 600; font-size: 0.78rem;">
+                  📱 Mobile Preview
+                </button>
+              </div>
 
-            <button type="button" class="btn btn-outline-primary btn-sm" id="fb-add-section-btn" style="font-weight: 600;">
-              📁 + Add Custom Section
-            </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="fb-toggle-branding-panel" style="font-weight: 600;">
+                🖼️ Header Branding
+              </button>
 
-            <button type="button" class="btn btn-primary btn-sm" id="fb-add-field-btn" style="font-weight: 700;">
-              ✨ + Add Question Field
-            </button>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="fb-add-section-btn" style="font-weight: 600;">
+                📁 + Add Custom Section
+              </button>
+
+              <button type="button" class="btn btn-primary btn-sm" id="fb-add-field-btn" style="font-weight: 700;">
+                ✨ + Add Question Field
+              </button>
+            </div>
           </div>
         </div>
 
@@ -128,11 +130,21 @@ export class FormBuilder {
           <!-- Left Pane: Form Structure & Question Controls -->
           <div class="fb-left-pane" style="display: flex; flex-direction: column; gap: 16px;">
             <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
-              <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                <span>📋 Registration Form Sections & Questions</span>
+              <h4 style="margin: 0 0 0.85rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; justify-content: space-between;">
+                <span>📋 Category 2: Registration Form Sections &amp; Questions</span>
                 <span style="color: var(--color-primary); font-size: 0.78rem;">Live Auto-Sync ⚡</span>
-              </div>
+              </h4>
               <div id="fb-sections-container" style="display: flex; flex-direction: column; gap: 14px;"></div>
+            </div>
+
+            <!-- CATEGORY 4: AUTO-SYNC & FORM ENGINE STATUS -->
+            <div style="background: var(--color-primary-bg); border: 2px dashed var(--color-primary-light); border-radius: var(--radius-lg); padding: 1.25rem; text-align: center;">
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-primary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <span>💾</span> Category 4: Dynamic Form Engine &amp; Auto-Sync Status
+              </div>
+              <div style="font-size: 0.85rem; color: var(--color-text-primary);">
+                Changes made to sections and custom question fields are <strong>automatically persisted</strong> to the MongoDB Template collection and reflect instantly on the public registration wizard.
+              </div>
             </div>
           </div>
 
@@ -140,8 +152,8 @@ export class FormBuilder {
           <div class="fb-right-pane" style="position: sticky; top: 80px;">
             <div class="card p-0" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-md);">
               <div class="card-header" style="padding: 10px 16px; background: var(--color-surface-hover); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 0.85rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 6px;">
-                  👁️ Real-Time Student Registration Preview (/register)
+                <span style="font-size: 0.88rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 6px;">
+                  <span>👁️</span> Category 3: Real-Time Student Registration Preview (/register)
                 </span>
                 <span class="badge badge-success" style="font-size: 0.7rem; font-weight: 700;">SYNCED LIVE</span>
               </div>
