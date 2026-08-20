@@ -1634,6 +1634,9 @@ function renderSettingsUI(container, profile, settings) {
       <!-- ========================================== -->
       <!-- SECTION J: SMART RECEIPT BUILDER STUDIO     -->
       <!-- ========================================== -->
+      <!-- ========================================== -->
+      <!-- SECTION J: SMART RECEIPT BUILDER STUDIO     -->
+      <!-- ========================================== -->
       <div class="settings-panel" id="panel-receiptstudio" style="display: none;">
         <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
           <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
@@ -1642,35 +1645,103 @@ function renderSettingsUI(container, profile, settings) {
                 🧾 Smart Payment Receipt Builder Studio & Presets
               </h3>
               <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">
-                Full customization over printable receipts, GST tax invoices, official paid stamps, branding, and thermal POS slips.
+                Full customization over printable receipts, GST tax invoices, official paid stamps, organization watermark, and thermal POS slips.
               </p>
             </div>
-            <button id="btn-save-receipt-config" class="btn btn-primary btn-sm" style="font-weight: 700;">
-              💾 Save Receipt Studio Config
-            </button>
+            <span class="badge badge-primary" style="font-size: 0.75rem; font-weight: 700;">Receipt Engine Studio</span>
           </div>
 
           <div class="card-body" style="padding: 1.5rem;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
               
-              <!-- Left Pane: Controls -->
+              <!-- Left Pane: 3 Categories of Controls -->
               <div style="display: flex; flex-direction: column; gap: 16px;">
                 
-                <!-- Presets -->
-                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md);">
-                  <label class="form-label text-xs" style="font-weight: 700;">Active Receipt Preset Template *</label>
-                  <select id="rs-activeTemplate" class="form-select form-control-sm" style="font-weight: 600;">
-                    <option value="standard_a4">📄 Standard A4 / A5 Official Fee Receipt</option>
-                    <option value="thermal_80">🧾 80mm Thermal POS Receipt (Standard Counter Printer)</option>
-                    <option value="thermal_58">🧾 58mm Thermal Mini Slip (Compact Mobile Bluetooth Printer)</option>
-                    <option value="modern_minimal">💎 Modern Glass Slate (Minimalist Invoice)</option>
-                    <option value="gst_invoice">🏛️ Official Tax / GST Invoice (Double Border with HSN/GSTIN)</option>
-                  </select>
+                <!-- CATEGORY 1: PRESETS, STAMP & WATERMARK -->
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 16px; border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 12px;">
+                  <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                    <span>🎨</span> Category 1: Printable Preset Template, Watermark &amp; Custom Stamp Studio
+                  </h4>
+
+                  <div>
+                    <label class="form-label text-xs" style="font-weight: 700;">Active Receipt Preset Template *</label>
+                    <select id="rs-activeTemplate" class="form-select form-control-sm" style="font-weight: 600;">
+                      <option value="standard_a4">📄 Standard A4 / A5 Official Fee Receipt</option>
+                      <option value="thermal_80">🧾 80mm Thermal POS Receipt (Standard Counter Printer)</option>
+                      <option value="thermal_58">🧾 58mm Thermal Mini Slip (Compact Mobile Bluetooth Printer)</option>
+                      <option value="modern_minimal">💎 Modern Glass Slate (Minimalist Invoice)</option>
+                      <option value="gst_invoice">🏛️ Official Tax / GST Invoice (Double Border with HSN/GSTIN)</option>
+                    </select>
+                  </div>
+
+                  <!-- Stamp Customization -->
+                  <div style="background: var(--color-surface); border: 1px solid var(--color-border); padding: 12px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span style="font-weight: 700; font-size: 0.83rem;">🏷️ Official Paid Stamp Badge</span>
+                      <label class="switch-label" style="margin: 0;">
+                        <input type="checkbox" id="rs-stamp-show" checked>
+                        <span class="switch-slider"></span>
+                      </label>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 90px; gap: 8px;">
+                      <div>
+                        <label class="form-label text-xs" style="font-weight: 600;">Stamp Text</label>
+                        <input type="text" id="rs-stamp-text" class="form-control form-control-sm" value="PAID • OFFICIAL RECEIPT">
+                      </div>
+                      <div>
+                        <label class="form-label text-xs" style="font-weight: 600;">Stamp Color</label>
+                        <input type="color" id="rs-stamp-color" class="form-control form-control-sm" value="#059669" style="height: 32px; padding: 2px;">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Watermark Customization -->
+                  <div style="background: var(--color-surface); border: 1px solid var(--color-border); padding: 12px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span style="font-weight: 700; font-size: 0.83rem;">🌊 Background Organization Watermark</span>
+                      <label class="switch-label" style="margin: 0;">
+                        <input type="checkbox" id="rs-watermark-show" checked>
+                        <span class="switch-slider"></span>
+                      </label>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 100px; gap: 8px;">
+                      <div>
+                        <label class="form-label text-xs" style="font-weight: 600;">Watermark Text</label>
+                        <input type="text" id="rs-watermark-text" class="form-control form-control-sm" value="PAID • OFFICIAL FEE RECEIPT">
+                      </div>
+                      <div>
+                        <label class="form-label text-xs" style="font-weight: 600;">Opacity</label>
+                        <select id="rs-watermark-opacity" class="form-select form-control-sm">
+                          <option value="0.08">Light (8%)</option>
+                          <option value="0.12" selected>Medium (12%)</option>
+                          <option value="0.20">Bold (20%)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Date & Time Format -->
+                  <div style="background: var(--color-surface); border: 1px solid var(--color-border); padding: 12px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span style="font-weight: 700; font-size: 0.83rem;">🕒 Date &amp; Time Stamp Format</span>
+                      <label class="switch-label" style="margin: 0;">
+                        <input type="checkbox" id="rs-dt-show" checked>
+                        <span class="switch-slider"></span>
+                      </label>
+                    </div>
+                    <select id="rs-dt-format" class="form-select form-control-sm">
+                      <option value="date_time_12h" selected>📅 Date + 12-Hour Time (DD/MM/YYYY hh:mm A)</option>
+                      <option value="date_time_24h">⏱️ Date + 24-Hour Time (DD/MM/YYYY HH:mm)</option>
+                      <option value="date_only">🗓️ Date Only (DD/MM/YYYY)</option>
+                    </select>
+                  </div>
                 </div>
 
-                <!-- Header Options -->
-                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px;">
-                  <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">🖼️ Header & Logo Branding</div>
+                <!-- CATEGORY 2: HEADER & FIELD VISIBILITY -->
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 16px; border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 12px;">
+                  <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                    <span>👁️</span> Category 2: Header, Logo Branding &amp; Full Receipt Fields Visibility Controls
+                  </h4>
                   
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div>
@@ -1710,12 +1781,11 @@ function renderSettingsUI(container, profile, settings) {
                       <span>Show GSTIN</span>
                     </label>
                   </div>
-                </div>
 
-                <!-- Body Field Toggles -->
-                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px;">
-                  <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">📋 Receipt Fields & Visibility</div>
-                  
+                  <div style="font-weight: 700; font-size: 0.83rem; color: var(--color-text-secondary); margin-top: 4px; border-top: 1px solid var(--color-border); padding-top: 8px;">
+                    Receipt Data Field Visibility Switches
+                  </div>
+
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
                       <input type="checkbox" id="rs-body-showStudentId" checked>
@@ -1757,42 +1827,41 @@ function renderSettingsUI(container, profile, settings) {
                       <span class="switch-slider"></span>
                       <span>Show Transaction UTR</span>
                     </label>
-                  </div>
-                </div>
-
-                <!-- GST Tax Invoicing -->
-                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">🏛️ GST Tax Invoice Options</div>
-                    <label class="switch-label" style="font-size: 0.8rem; font-weight: 700;">
-                      <input type="checkbox" id="rs-gst-enabled">
-                      <span class="switch-slider"></span>
-                      <span>Enable GST</span>
-                    </label>
-                  </div>
-                  
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div>
-                      <label class="form-label text-xs" style="font-weight: 600;">GST Rate %</label>
-                      <input type="number" id="rs-gst-gstRate" class="form-control form-control-sm" value="18">
-                    </div>
-                    <div>
-                      <label class="form-label text-xs" style="font-weight: 600;">HSN / SAC Code</label>
-                      <input type="text" id="rs-gst-hsnCode" class="form-control form-control-sm" value="9992">
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Footer, Stamps & Signatures -->
-                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 10px;">
-                  <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">✍️ Footer, Stamps & Legal Terms</div>
-                  
-                  <div style="display: flex; gap: 12px; flex-wrap: wrap;">
                     <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
-                      <input type="checkbox" id="rs-footer-showStamp" checked>
+                      <input type="checkbox" id="rs-footer-showUpiQr" checked>
                       <span class="switch-slider"></span>
-                      <span>Show Official Paid Stamp</span>
+                      <span>Show Verification QR</span>
                     </label>
+                  </div>
+                </div>
+
+                <!-- CATEGORY 3: GST INVOICING, TERMS & SIGNATURE -->
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 16px; border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 12px;">
+                  <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                    <span>🏛️</span> Category 3: GST Tax Invoicing, Footer Terms &amp; Signature Seal Studio
+                  </h4>
+                  
+                  <div style="background: var(--color-surface); border: 1px solid var(--color-border); padding: 12px; border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span style="font-weight: 700; font-size: 0.83rem;">🏛️ GST Tax Invoice Settings</span>
+                      <label class="switch-label" style="margin: 0;">
+                        <input type="checkbox" id="rs-gst-enabled">
+                        <span class="switch-slider"></span>
+                      </label>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                      <div>
+                        <label class="form-label text-xs" style="font-weight: 600;">GST Rate %</label>
+                        <input type="number" id="rs-gst-gstRate" class="form-control form-control-sm" value="18">
+                      </div>
+                      <div>
+                        <label class="form-label text-xs" style="font-weight: 600;">HSN / SAC Code</label>
+                        <input type="text" id="rs-gst-hsnCode" class="form-control form-control-sm" value="9992">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style="display: flex; gap: 12px; flex-wrap: wrap;">
                     <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
                       <input type="checkbox" id="rs-footer-showSignature" checked>
                       <span class="switch-slider"></span>
@@ -1806,26 +1875,33 @@ function renderSettingsUI(container, profile, settings) {
                   </div>
 
                   <div>
-                    <label class="form-label text-xs" style="font-weight: 600;">Terms & Conditions</label>
+                    <label class="form-label text-xs" style="font-weight: 600;">Terms &amp; Conditions</label>
                     <textarea id="rs-footer-termsText" class="form-control form-control-sm" rows="2">1. Fees paid are non-refundable. 2. Seat assignment is strictly non-transferable.</textarea>
                   </div>
                 </div>
 
               </div>
 
-              <!-- Right Pane: Real-Time Live Printable Receipt Preview -->
-              <div style="position: sticky; top: 80px;">
-                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm);">
-                  <div style="padding: 10px 14px; background: var(--color-surface-hover); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--color-text-primary);">
-                      👁️ Real-Time Receipt Preview
+              <!-- Right Pane: CATEGORY 4: REAL-TIME SIMULATOR & SINGLE MASTER SAVE ACTION -->
+              <div style="position: sticky; top: 80px; display: flex; flex-direction: column; gap: 14px;">
+                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
+                  <div style="padding: 12px 16px; background: var(--color-surface-hover); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.9rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 6px;">
+                      <span>👁️</span> Category 4: Real-Time Live Printable Receipt Simulator
                     </span>
-                    <span class="badge badge-success" style="font-size: 0.7rem; font-weight: 700;">LIVE PREVIEW</span>
+                    <span class="badge badge-success" style="font-size: 0.7rem; font-weight: 700;">0ms LIVE PREVIEW</span>
                   </div>
 
-                  <div id="rs-live-preview-box" style="padding: 20px; background: #ffffff; color: #000000; min-height: 400px; max-height: 600px; overflow-y: auto;">
+                  <div id="rs-live-preview-box" style="padding: 20px; background: #ffffff; color: #000000; min-height: 480px; max-height: 650px; overflow-y: auto;">
                     <!-- Rendered live preview -->
                   </div>
+                </div>
+
+                <!-- SINGLE CONSOLIDATED MASTER SAVE BUTTON -->
+                <div style="display: flex; justify-content: flex-end;">
+                  <button type="button" id="btn-save-receipt-config" class="btn btn-primary" style="font-weight: 700; width: 100%; padding: 0.75rem;">
+                    💾 Save Smart Receipt Configuration
+                  </button>
                 </div>
               </div>
 
@@ -2802,6 +2878,7 @@ function renderSettingsUI(container, profile, settings) {
     const box = container.querySelector('#rs-live-preview-box');
     if (!box) return;
 
+    const template = container.querySelector('#rs-activeTemplate')?.value || 'standard_a4';
     const sub = container.querySelector('#rs-header-subtitle')?.value || 'Official Fee Receipt';
     const color = container.querySelector('#rs-header-color')?.value || '#4f46e5';
     const showLogo = container.querySelector('#rs-header-showLogo')?.checked;
@@ -2811,29 +2888,67 @@ function renderSettingsUI(container, profile, settings) {
     const showGst = container.querySelector('#rs-header-showGst')?.checked;
 
     const showStuId = container.querySelector('#rs-body-showStudentId')?.checked;
+    const showPhoneField = container.querySelector('#rs-body-showStudentPhone')?.checked;
     const showPlan = container.querySelector('#rs-body-showPlanDetails')?.checked;
+    const showPeriod = container.querySelector('#rs-body-showPeriod')?.checked;
     const showSeat = container.querySelector('#rs-body-showSeatNumber')?.checked;
     const showShift = container.querySelector('#rs-body-showShift')?.checked;
     const showMode = container.querySelector('#rs-body-showPaymentMethod')?.checked;
+    const showTxn = container.querySelector('#rs-body-showTransactionId')?.checked;
+    const showQr = container.querySelector('#rs-footer-showUpiQr')?.checked;
 
-    const showStamp = container.querySelector('#rs-footer-showStamp')?.checked;
+    // Stamp & Watermark & Date/Time Options
+    const showStamp = container.querySelector('#rs-stamp-show')?.checked;
+    const stampText = container.querySelector('#rs-stamp-text')?.value || 'PAID • OFFICIAL RECEIPT';
+    const stampColor = container.querySelector('#rs-stamp-color')?.value || '#059669';
+
+    const showWatermark = container.querySelector('#rs-watermark-show')?.checked;
+    const watermarkText = container.querySelector('#rs-watermark-text')?.value || 'PAID • OFFICIAL FEE RECEIPT';
+    const watermarkOpacity = parseFloat(container.querySelector('#rs-watermark-opacity')?.value) || 0.12;
+
+    const showDt = container.querySelector('#rs-dt-show')?.checked;
+    const dtFormat = container.querySelector('#rs-dt-format')?.value || 'date_time_12h';
+
     const showSig = container.querySelector('#rs-footer-showSignature')?.checked;
     const customNote = container.querySelector('#rs-footer-customNote')?.value || '';
     const terms = container.querySelector('#rs-footer-termsText')?.value || '';
 
+    let formattedDate = new Date().toLocaleDateString('en-IN');
+    if (showDt) {
+      if (dtFormat === 'date_time_12h') {
+        formattedDate = `${new Date().toLocaleDateString('en-IN')} ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+      } else if (dtFormat === 'date_time_24h') {
+        formattedDate = `${new Date().toLocaleDateString('en-IN')} ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+      }
+    }
+
+    const isThermal = template === 'thermal_80' || template === 'thermal_58';
+    const isMinimal = template === 'modern_minimal';
+    const isGst = template === 'gst_invoice';
+
     box.innerHTML = `
-      <div style="border: 2px solid ${color}; border-radius: 8px; padding: 20px; font-family: sans-serif; position: relative;">
-        ${showStamp ? `
-          <div style="position: absolute; top: 20px; right: 20px; border: 3px double #059669; color: #059669; font-weight: 800; font-size: 0.82rem; padding: 5px 12px; border-radius: 6px; transform: rotate(-10deg); letter-spacing: 1px;">
-            PAID • OFFICIAL RECEIPT
+      <div style="border: ${isThermal ? '1px dashed #94a3b8' : isGst ? '2px double ' + color : '2px solid ' + color}; border-radius: ${isThermal ? '0' : '8px'}; padding: ${isThermal ? '12px' : '20px'}; font-family: ${isThermal ? 'monospace' : 'sans-serif'}; position: relative; max-width: ${template === 'thermal_58' ? '280px' : template === 'thermal_80' ? '360px' : '100%'}; margin: 0 auto; background: #ffffff; overflow: hidden;">
+        
+        <!-- Background Watermark Overlay -->
+        ${showWatermark ? `
+          <div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: ${isThermal ? '1.1rem' : '1.8rem'}; font-weight: 900; color: ${color}; opacity: ${watermarkOpacity}; pointer-events: none; text-align: center; width: 100%; white-space: nowrap; z-index: 1; letter-spacing: 2px; text-transform: uppercase;">
+            ${escapeHTML(watermarkText)}
           </div>
         ` : ''}
 
-        <div style="text-align: center; border-bottom: 2px solid ${color}; padding-bottom: 12px; margin-bottom: 16px;">
-          ${showLogo && profile.logo ? `<img src="${profile.logo}" style="height: 48px; margin-bottom: 6px;">` : ''}
-          ${showBiz ? `<h2 style="margin: 0; color: ${color}; font-weight: 800; font-size: 1.3rem;">${escapeHTML(profile.businessName || 'Study Library Management')}</h2>` : ''}
-          <div style="font-weight: 700; color: #555; margin-top: 2px; font-size: 0.9rem;">${escapeHTML(sub)}</div>
-          <div style="font-size: 0.8rem; color: #666; margin-top: 4px;">
+        <!-- Official Stamp Badge -->
+        ${showStamp ? `
+          <div style="position: absolute; top: 18px; right: 18px; border: 2px dashed ${stampColor}; color: ${stampColor}; font-weight: 800; font-size: 0.76rem; padding: 4px 10px; border-radius: 4px; transform: rotate(-8deg); letter-spacing: 1px; z-index: 2; text-transform: uppercase; background: rgba(255,255,255,0.9);">
+            ${escapeHTML(stampText)}
+          </div>
+        ` : ''}
+
+        <!-- Header -->
+        <div style="text-align: center; border-bottom: 2px solid ${color}; padding-bottom: 12px; margin-bottom: 16px; position: relative; z-index: 2;">
+          ${showLogo && profile.logo ? `<img src="${profile.logo}" style="height: ${isThermal ? '36px' : '46px'}; margin-bottom: 6px;">` : ''}
+          ${showBiz ? `<h2 style="margin: 0; color: ${color}; font-weight: 800; font-size: ${isThermal ? '1.1rem' : '1.3rem'};">${escapeHTML(profile.businessName || 'Study Library Management')}</h2>` : ''}
+          <div style="font-weight: 700; color: #555; margin-top: 2px; font-size: 0.88rem;">${escapeHTML(sub)}</div>
+          <div style="font-size: 0.78rem; color: #666; margin-top: 4px; line-height: 1.3;">
             ${showPhone ? `📞 ${escapeHTML(profile.phone || '+91 98765 43210')} ` : ''}
             ${showEmail ? `✉️ ${escapeHTML(profile.email || 'info@studylib.com')}` : ''}
             ${showGst ? `<br>GSTIN: 27AAAAA0000A1Z5` : ''}
@@ -2841,20 +2956,23 @@ function renderSettingsUI(container, profile, settings) {
         </div>
 
         <!-- Receipt Details Grid -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.83rem; margin-bottom: 16px; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+        <div style="display: grid; grid-template-columns: ${isThermal ? '1fr' : '1fr 1fr'}; gap: 8px; font-size: 0.82rem; margin-bottom: 16px; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0; position: relative; z-index: 2;">
           <div><strong>Receipt No:</strong> RCP-2026-0892</div>
-          <div><strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}</div>
+          ${showDt ? `<div><strong>Date &amp; Time:</strong> ${formattedDate}</div>` : ''}
           <div><strong>Student Name:</strong> Rahul Sharma</div>
+          ${showPhoneField ? `<div><strong>Mobile:</strong> 9876543210</div>` : ''}
           ${showStuId ? `<div><strong>Student ID:</strong> STU-2026-018</div>` : ''}
-          ${showPlan ? `<div><strong>Plan Name:</strong> Super Achiever 10-Hour Plan</div>` : ''}
+          ${showPlan ? `<div><strong>Plan:</strong> Super Achiever 10-Hour Plan</div>` : ''}
+          ${showPeriod ? `<div><strong>Validity:</strong> 21/08/2026 - 20/09/2026</div>` : ''}
           ${showSeat ? `<div><strong>Seat No:</strong> Desk #18 (Quiet Zone)</div>` : ''}
           ${showShift ? `<div><strong>Shift:</strong> Morning Shift (7 AM - 5 PM)</div>` : ''}
           ${showMode ? `<div><strong>Payment Mode:</strong> UPI (GPay / PhonePe)</div>` : ''}
+          ${showTxn ? `<div><strong>Transaction UTR:</strong> 423456709012</div>` : ''}
         </div>
 
-        <!-- Fee Summary -->
-        <div class="table-responsive">
-          <table style="width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-bottom: 16px;">
+        <!-- Fee Summary Table -->
+        <div class="table-responsive" style="position: relative; z-index: 2;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 16px;">
             <thead>
               <tr style="background: ${color}; color: #ffffff;">
                 <th style="padding: 8px; text-align: left;">Description</th>
@@ -2866,6 +2984,12 @@ function renderSettingsUI(container, profile, settings) {
                 <td style="padding: 8px;">Library Membership Fee (1 Month)</td>
                 <td style="padding: 8px; text-align: right; font-weight: 700;">₹1,500.00</td>
               </tr>
+              ${isGst ? `
+                <tr style="border-bottom: 1px solid #e2e8f0; font-size: 0.75rem; color: #64748b;">
+                  <td style="padding: 6px 8px;">CGST (9%) + SGST (9%) - HSN 9992</td>
+                  <td style="padding: 6px 8px; text-align: right;">₹270.00</td>
+                </tr>
+              ` : ''}
               <tr style="font-weight: 800; font-size: 0.92rem; background: #f1f5f9;">
                 <td style="padding: 8px;">Total Net Amount Paid</td>
                 <td style="padding: 8px; text-align: right; color: ${color};">₹1,500.00</td>
@@ -2875,15 +2999,21 @@ function renderSettingsUI(container, profile, settings) {
         </div>
 
         <!-- Footer -->
-        <div style="font-size: 0.78rem; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div style="font-size: 0.76rem; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 10px; display: flex; justify-content: space-between; align-items: flex-end; position: relative; z-index: 2; gap: 10px;">
           <div>
             ${customNote ? `<div style="font-weight: 700; color: #334155;">${escapeHTML(customNote)}</div>` : ''}
-            ${terms ? `<div style="margin-top: 4px; font-size: 0.72rem; white-space: pre-line;">${escapeHTML(terms)}</div>` : ''}
+            ${terms ? `<div style="margin-top: 4px; font-size: 0.7rem; white-space: pre-line;">${escapeHTML(terms)}</div>` : ''}
           </div>
+          ${showQr ? `
+            <div style="text-align: center; flex-shrink: 0; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; background: #fff;">
+              <div style="font-size: 0.65rem; font-weight: 700; color: #475569; margin-bottom: 2px;">VERIFY</div>
+              <div style="font-size: 1.1rem;">📱</div>
+            </div>
+          ` : ''}
           ${showSig ? `
-            <div style="text-align: center; margin-left: 20px; flex-shrink: 0;">
-              <div style="border-bottom: 1px solid #94a3b8; width: 120px; margin-bottom: 4px;"></div>
-              <div style="font-size: 0.75rem; font-weight: 700;">Authorized Signatory</div>
+            <div style="text-align: center; margin-left: 10px; flex-shrink: 0;">
+              <div style="border-bottom: 1px solid #94a3b8; width: 110px; margin-bottom: 4px;"></div>
+              <div style="font-size: 0.72rem; font-weight: 700;">Authorized Signatory</div>
             </div>
           ` : ''}
         </div>
@@ -2905,6 +3035,22 @@ function renderSettingsUI(container, profile, settings) {
         };
 
         setVal('rs-activeTemplate', config.activeTemplate || 'standard_a4');
+        
+        // Category 1: Stamp, Watermark, Date/Time
+        const st = config.stamp || {};
+        setVal('rs-stamp-show', st.showStamp !== false);
+        setVal('rs-stamp-text', st.stampText || 'PAID • OFFICIAL RECEIPT');
+        setVal('rs-stamp-color', st.stampColor || '#059669');
+        
+        setVal('rs-watermark-show', st.showWatermark !== false);
+        setVal('rs-watermark-text', st.watermarkText || 'PAID • OFFICIAL FEE RECEIPT');
+        setVal('rs-watermark-opacity', String(st.watermarkOpacity || 0.12));
+
+        const dt = config.dateTime || {};
+        setVal('rs-dt-show', dt.showTimestamp !== false);
+        setVal('rs-dt-format', dt.format || 'date_time_12h');
+
+        // Category 2: Header & Fields
         const h = config.header || {};
         setVal('rs-header-subtitle', h.subtitle || 'Official Fee Receipt');
         setVal('rs-header-color', h.headerColor || '#4f46e5');
@@ -2924,14 +3070,15 @@ function renderSettingsUI(container, profile, settings) {
         setVal('rs-body-showPaymentMethod', b.showPaymentMethod !== false);
         setVal('rs-body-showTransactionId', b.showTransactionId !== false);
 
+        // Category 3: GST & Footer
         const g = config.gst || {};
         setVal('rs-gst-enabled', !!g.enabled);
         setVal('rs-gst-gstRate', g.gstRate || 18);
         setVal('rs-gst-hsnCode', g.hsnCode || '9992');
 
         const f = config.footer || {};
-        setVal('rs-footer-showStamp', f.showStamp !== false);
         setVal('rs-footer-showSignature', f.showSignature !== false);
+        setVal('rs-footer-showUpiQr', f.showUpiQr !== false);
         setVal('rs-footer-customNote', f.customNote || 'Thank you for choosing our study library!');
         setVal('rs-footer-termsText', f.termsText || '1. Fees paid are non-refundable. 2. Seat assignment is strictly non-transferable.');
 
@@ -2955,40 +3102,53 @@ function renderSettingsUI(container, profile, settings) {
     try {
       const payload = {
         activeTemplate: container.querySelector('#rs-activeTemplate')?.value,
+        stamp: {
+          showStamp: !!container.querySelector('#rs-stamp-show')?.checked,
+          stampText: container.querySelector('#rs-stamp-text')?.value?.trim() || 'PAID • OFFICIAL RECEIPT',
+          stampColor: container.querySelector('#rs-stamp-color')?.value || '#059669',
+          showWatermark: !!container.querySelector('#rs-watermark-show')?.checked,
+          watermarkText: container.querySelector('#rs-watermark-text')?.value?.trim() || 'PAID • OFFICIAL FEE RECEIPT',
+          watermarkOpacity: parseFloat(container.querySelector('#rs-watermark-opacity')?.value) || 0.12
+        },
+        dateTime: {
+          showTimestamp: !!container.querySelector('#rs-dt-show')?.checked,
+          format: container.querySelector('#rs-dt-format')?.value || 'date_time_12h'
+        },
         header: {
           subtitle: container.querySelector('#rs-header-subtitle')?.value?.trim(),
           headerColor: container.querySelector('#rs-header-color')?.value,
-          showLogo: container.querySelector('#rs-header-showLogo')?.checked,
-          showBusinessName: container.querySelector('#rs-header-showBusinessName')?.checked,
-          showPhone: container.querySelector('#rs-header-showPhone')?.checked,
-          showEmail: container.querySelector('#rs-header-showEmail')?.checked,
-          showGst: container.querySelector('#rs-header-showGst')?.checked
+          showLogo: !!container.querySelector('#rs-header-showLogo')?.checked,
+          showBusinessName: !!container.querySelector('#rs-header-showBusinessName')?.checked,
+          showPhone: !!container.querySelector('#rs-header-showPhone')?.checked,
+          showEmail: !!container.querySelector('#rs-header-showEmail')?.checked,
+          showGst: !!container.querySelector('#rs-header-showGst')?.checked
         },
         body: {
-          showStudentId: container.querySelector('#rs-body-showStudentId')?.checked,
-          showStudentPhone: container.querySelector('#rs-body-showStudentPhone')?.checked,
-          showPlanDetails: container.querySelector('#rs-body-showPlanDetails')?.checked,
-          showPeriod: container.querySelector('#rs-body-showPeriod')?.checked,
-          showSeatNumber: container.querySelector('#rs-body-showSeatNumber')?.checked,
-          showShift: container.querySelector('#rs-body-showShift')?.checked,
-          showPaymentMethod: container.querySelector('#rs-body-showPaymentMethod')?.checked,
-          showTransactionId: container.querySelector('#rs-body-showTransactionId')?.checked
+          showStudentId: !!container.querySelector('#rs-body-showStudentId')?.checked,
+          showStudentPhone: !!container.querySelector('#rs-body-showStudentPhone')?.checked,
+          showPlanDetails: !!container.querySelector('#rs-body-showPlanDetails')?.checked,
+          showPeriod: !!container.querySelector('#rs-body-showPeriod')?.checked,
+          showSeatNumber: !!container.querySelector('#rs-body-showSeatNumber')?.checked,
+          showShift: !!container.querySelector('#rs-body-showShift')?.checked,
+          showPaymentMethod: !!container.querySelector('#rs-body-showPaymentMethod')?.checked,
+          showTransactionId: !!container.querySelector('#rs-body-showTransactionId')?.checked
         },
         gst: {
-          enabled: container.querySelector('#rs-gst-enabled')?.checked,
+          enabled: !!container.querySelector('#rs-gst-enabled')?.checked,
           gstRate: parseFloat(container.querySelector('#rs-gst-gstRate')?.value) || 18,
           hsnCode: container.querySelector('#rs-gst-hsnCode')?.value?.trim() || '9992'
         },
         footer: {
-          showStamp: container.querySelector('#rs-footer-showStamp')?.checked,
-          showSignature: container.querySelector('#rs-footer-showSignature')?.checked,
+          showSignature: !!container.querySelector('#rs-footer-showSignature')?.checked,
+          showUpiQr: !!container.querySelector('#rs-footer-showUpiQr')?.checked,
           customNote: container.querySelector('#rs-footer-customNote')?.value?.trim(),
-          termsText: container.querySelector('#rs-footer-termsText')?.value?.trim()
+          termsText: container.querySelector('#rs-footer-termsText')?.value?.trim(),
+          showTimestamp: !!container.querySelector('#rs-dt-show')?.checked
         }
       };
 
       const res = await api.put('/api/settings/receipt-config', payload);
-      Toast.success(res?.message || 'Receipt Studio configuration saved successfully!');
+      Toast.success(res?.message || 'Smart Receipt Studio configuration saved successfully!');
     } catch (err) {
       Toast.error(err.message || 'Failed to save receipt configuration');
     } finally {

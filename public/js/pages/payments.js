@@ -840,12 +840,23 @@ export async function render(container) {
                 const bdy = config.body || {};
                 const gst = config.gst || {};
                 const ftr = config.footer || {};
+                const stp = config.stamp || {};
+                const dt = config.dateTime || {};
                 const logoImg = head.logoUrl || bp.logo || '';
-                const stampImg = ftr.stampImage || bp.stampImage || '';
+                const stampImg = stp.stampImage || ftr.stampImage || bp.stampImage || '';
                 const sigImg = ftr.signatureImage || '';
                 const gstNo = head.gstNumber || bp.gstNumber || '';
                 const taxNo = head.taxNumber || bp.registrationNumber || '';
                 
+                let formattedDate = formatDate(r.date);
+                if (dt.showTimestamp !== false) {
+                    if (dt.format === 'date_time_12h') {
+                        formattedDate = `${formatDate(r.date)} ${new Date(r.date || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+                    } else if (dt.format === 'date_time_24h') {
+                        formattedDate = `${formatDate(r.date)} ${new Date(r.date || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+                    }
+                }
+
                 let html = '';
                 
                 if (templateId === 'standard_a4') {
@@ -853,9 +864,23 @@ export async function render(container) {
                     receiptBox.style.padding = '30px';
                     receiptBox.style.border = '1px solid #ddd';
                     receiptBox.style.fontFamily = 'inherit';
+                    receiptBox.style.position = 'relative';
+                    receiptBox.style.overflow = 'hidden';
                     
                     html = `
-                        <div style="text-align: ${head.logoPosition || 'center'}; border-bottom: 2px solid ${head.headerColor || '#4f46e5'}; padding-bottom: 15px; margin-bottom: 20px;">
+                        ${stp.showWatermark !== false ? `
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: 2.2rem; font-weight: 900; color: ${head.headerColor || '#4f46e5'}; opacity: ${stp.watermarkOpacity || 0.10}; pointer-events: none; text-align: center; width: 100%; white-space: nowrap; z-index: 1; letter-spacing: 2px; text-transform: uppercase;">
+                                ${escapeHTML(stp.watermarkText || 'PAID • OFFICIAL FEE RECEIPT')}
+                            </div>
+                        ` : ''}
+
+                        ${stp.showStamp !== false ? `
+                            <div style="position: absolute; top: 25px; right: 25px; border: 2px dashed ${stp.stampColor || '#059669'}; color: ${stp.stampColor || '#059669'}; font-weight: 800; font-size: 0.8rem; padding: 4px 12px; border-radius: 4px; transform: rotate(-8deg); letter-spacing: 1px; z-index: 3; text-transform: uppercase; background: rgba(255,255,255,0.92);">
+                                ${escapeHTML(stp.stampText || 'PAID • OFFICIAL RECEIPT')}
+                            </div>
+                        ` : ''}
+
+                        <div style="text-align: ${head.logoPosition || 'center'}; border-bottom: 2px solid ${head.headerColor || '#4f46e5'}; padding-bottom: 15px; margin-bottom: 20px; position: relative; z-index: 2;">
                             ${head.showLogo && logoImg ? `<img src="${logoImg}" style="max-height: 60px; margin-bottom: 10px;">` : ''}
                             ${head.showBusinessName ? `<h2 style="margin: 0; color: ${head.headerColor || '#4f46e5'};">${escapeHTML(bp.businessName || r.businessName || 'Library')}</h2>` : ''}
                             <p style="margin: 5px 0 0; color: #555;">${escapeHTML(head.subtitle || 'Official Fee Receipt')}</p>
@@ -868,8 +893,8 @@ export async function render(container) {
                             </div>
                         </div>
                         
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
-                            <div style="flex: 1; min-width: 220px; padding: 10px; border: 1px solid #eee; border-radius: 5px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; position: relative; z-index: 2;">
+                            <div style="flex: 1; min-width: 220px; padding: 10px; border: 1px solid #eee; border-radius: 5px; background: #fafafa;">
                                 <h4 style="margin: 0 0 10px; font-size: 1em; color: #333;">Student Details</h4>
                                 <p style="margin: 0 0 5px; color: #000;"><strong>Name:</strong> ${escapeHTML(r.student?.name || 'N/A')}</p>
                                 ${bdy.showStudentId ? `<p style="margin: 0 0 5px; color: #000;"><strong>ID:</strong> ${escapeHTML(r.student?.studentId || 'N/A')}</p>` : ''}
@@ -877,7 +902,14 @@ export async function render(container) {
                                 ${bdy.showSeatNumber && (r.student?.seat?.seatNumber || r.student?.seatNumber) ? `<p style="margin: 0 0 5px; color: #000;"><strong>Seat:</strong> ${escapeHTML(r.student?.seat?.seatNumber || r.student?.seatNumber)}</p>` : ''}
                                 ${bdy.showShift && (r.student?.shift?.name || r.plan?.shift) ? `<p style="margin: 0 0 5px; color: #000;"><strong>Shift:</strong> ${escapeHTML(r.student?.shift?.name || r.plan?.shift)}</p>` : ''}
                             </div>
-                            <div style="flex: 1; min-width: 220px; padding: 10px; border: 1px solid #eee; border-radius: 5px;">
+                            <div style="flex: 1; min-width: 220px; padding: 10px; border: 1px solid #eee; border-radius: 5px; background: #fafafa;">
+                                <h4 style="margin: 0 0 10px; font-size: 1em; color: #333;">Receipt Details</h4>
+                                <p style="margin: 0 0 5px; color: #000;"><strong>Receipt No:</strong> ${escapeHTML(r.receiptNumber)}</p>
+                                <p style="margin: 0 0 5px; color: #000;"><strong>Date:</strong> ${formattedDate}</p>
+                                ${bdy.showPaymentMethod ? `<p style="margin: 0 0 5px; color: #000;"><strong>Payment Mode:</strong> ${escapeHTML(r.paymentDetails?.method || 'CASH').toUpperCase()}</p>` : ''}
+                                ${bdy.showTransactionId && r.paymentDetails?.transactionId ? `<p style="margin: 0 0 5px; color: #000;"><strong>Ref / Txn ID:</strong> ${escapeHTML(r.paymentDetails.transactionId)}</p>` : ''}
+                            </div>
+                        </div>
                                 <h4 style="margin: 0 0 10px; font-size: 1em; color: #333;">Receipt Details</h4>
                                 <p style="margin: 0 0 5px; color: #000;"><strong>Receipt No:</strong> ${escapeHTML(r.receiptNumber)}</p>
                                 <p style="margin: 0 0 5px; color: #000;"><strong>Date:</strong> ${formatDate(r.date)}</p>

@@ -38,6 +38,23 @@ const receiptConfigSchema = new mongoose.Schema({
     showShift: { type: Boolean, default: false }
   },
   
+  // Stamp & Watermark customization
+  stamp: {
+    showStamp: { type: Boolean, default: true },
+    stampText: { type: String, default: 'PAID • OFFICIAL RECEIPT' },
+    stampColor: { type: String, default: '#059669' },
+    stampImage: { type: String, default: '' },
+    showWatermark: { type: Boolean, default: true },
+    watermarkText: { type: String, default: 'PAID • OFFICIAL FEE RECEIPT' },
+    watermarkOpacity: { type: Number, default: 0.12 }
+  },
+
+  // Date & Time formatting
+  dateTime: {
+    format: { type: String, enum: ['date_only', 'date_time_12h', 'date_time_24h'], default: 'date_time_12h' },
+    showTimestamp: { type: Boolean, default: true }
+  },
+  
   // GST Invoice fields
   gst: {
     enabled: { type: Boolean, default: false },
@@ -54,9 +71,9 @@ const receiptConfigSchema = new mongoose.Schema({
     showSignature: { type: Boolean, default: true },
     signatureImage: { type: String, default: '' },
     signatureLabel: { type: String, default: 'Authorized Signatory' },
-    showUpiQr: { type: Boolean, default: false },
-    termsText: { type: String, default: 'This is a computer-generated receipt and does not require a physical signature.' },
-    customNote: { type: String, default: 'Thank you for choosing our library!' },
+    showUpiQr: { type: Boolean, default: true },
+    termsText: { type: String, default: '1. Fees paid are non-refundable. 2. Seat assignment is strictly non-transferable.' },
+    customNote: { type: String, default: 'Thank you for choosing our study library!' },
     showTimestamp: { type: Boolean, default: true }
   }
 }, { timestamps: true });
