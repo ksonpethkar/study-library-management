@@ -3545,6 +3545,7 @@ async function initLandingSettings(container) {
             <button class="landing-tab-btn" data-tab="about" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">About & Stats</button>
             <button class="landing-tab-btn" data-tab="facilities" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Facilities</button>
             <button class="landing-tab-btn" data-tab="shifts" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Shifts</button>
+            <button class="landing-tab-btn" data-tab="pricing" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">💰 Pricing & Plans</button>
             <button class="landing-tab-btn" data-tab="rules" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Rules</button>
             <button class="landing-tab-btn" data-tab="gallery" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Gallery</button>
             <button class="landing-tab-btn" data-tab="faqs" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">FAQs</button>
@@ -3716,8 +3717,33 @@ async function initLandingSettings(container) {
               ℹ️ Live system shifts are automatically populated. Use the checkbox to show or hide any shift on the public landing page.
             </p>
             <div id="l-shifts-list" style="display: flex; flex-direction: column; gap: 0.85rem;"></div>
+          <!-- 5b. Pricing & Plans Header -->
+          <div class="landing-panel" id="l-panel-pricing" style="display: none;">
+            <h4 style="margin-bottom: 0.5rem;">Pricing & Membership Plans Section</h4>
+            <p class="text-muted" style="margin-bottom: 1rem; font-size: 0.85rem;">Customize pricing section header text and enable/disable pricing visibility. To add, edit, or delete individual membership plans, use <a href="#/plans" style="color: var(--color-primary); font-weight: 700;">Plans Studio (&rarr;)</a>.</p>
+            
+            <div class="form-group mb-3">
+              <label class="form-label" style="font-weight: 600;">Section Badge Tag</label>
+              <input type="text" id="l-pricing-badge" class="form-control" value="${escapeHTML(config.pricing?.badge || 'PRICING')}">
+            </div>
+            
+            <div class="form-group mb-3">
+              <label class="form-label" style="font-weight: 600;">Section Title</label>
+              <input type="text" id="l-pricing-title" class="form-control" value="${escapeHTML(config.pricing?.title || 'Transparent & Affordable Plans')}">
+            </div>
+            
+            <div class="form-group mb-3">
+              <label class="form-label" style="font-weight: 600;">Section Subtitle</label>
+              <input type="text" id="l-pricing-subtitle" class="form-control" value="${escapeHTML(config.pricing?.subtitle || 'Choose the perfect duration and secure your seat today.')}">
+            </div>
+
+            <div style="margin-top: 1.5rem; padding: 1rem; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary);">
+              <strong style="color: var(--color-primary);">💡 Quick Plan Management:</strong>
+              <p style="font-size: 0.85rem; margin-top: 4px; margin-bottom: 8px;">Individual plan cards (Prices, Discounts, Shift types, Amenities, Duration tabs) are live-managed in your Admin Plans Studio.</p>
+              <a href="#/plans" class="btn btn-sm btn-primary" style="font-weight: 700;">Go to Plans Studio &rarr;</a>
+            </div>
           </div>
-          
+
           <!-- 6. Rules -->
           <div class="landing-panel" id="l-panel-rules" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -4561,6 +4587,14 @@ async function initLandingSettings(container) {
       })).filter(s => s.name)
     };
     
+    // 5b. Pricing & Plans Section
+    payload.pricing = {
+      ...payload.pricing,
+      badge: listContainer.querySelector('#l-pricing-badge')?.value?.trim() || 'PRICING',
+      title: listContainer.querySelector('#l-pricing-title')?.value?.trim() || 'Transparent & Affordable Plans',
+      subtitle: listContainer.querySelector('#l-pricing-subtitle')?.value?.trim() || 'Choose the perfect duration and secure your seat today.'
+    };
+
     // 6. Rules
     payload.rules = {
       ...payload.rules,

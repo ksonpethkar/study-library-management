@@ -122,6 +122,14 @@ const landingPageSchema = new mongoose.Schema({
     successMessage: { type: String, default: 'Thank you! Your enquiry has been received. Our manager will contact you shortly.' }
   },
 
+  // Pricing / Membership Plans Section
+  pricing: {
+    enabled: { type: Boolean, default: true },
+    badge: { type: String, default: 'PRICING' },
+    title: { type: String, default: 'Transparent & Affordable Plans' },
+    subtitle: { type: String, default: 'Choose the perfect duration and secure your seat today.' }
+  },
+
   // Footer & Quick Links Customization
   footer: {
     enabled: { type: Boolean, default: true },

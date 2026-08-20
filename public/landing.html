@@ -1501,10 +1501,31 @@
           }
         }
 
-        // 7. Plans Injection
-        if (plans && plans.length > 0) {
-          allLandingPlans = plans;
-          renderPlansWithDuration(1, 0);
+        // 7. Plans Section & Injection
+        const plansSec = document.getElementById('plans');
+        if (plansSec) {
+          if (landing.pricing?.enabled === false) {
+            plansSec.style.display = 'none';
+          } else {
+            plansSec.style.display = 'block';
+            if (landing.pricing?.badge) {
+              const el = plansSec.querySelector('.section-tag');
+              if (el) el.textContent = landing.pricing.badge;
+            }
+            if (landing.pricing?.title) {
+              const el = plansSec.querySelector('.section-title');
+              if (el) el.textContent = landing.pricing.title;
+            }
+            if (landing.pricing?.subtitle) {
+              const el = plansSec.querySelector('.section-subtitle');
+              if (el) el.textContent = landing.pricing.subtitle;
+            }
+
+            if (plans && plans.length > 0) {
+              allLandingPlans = plans;
+              renderPlansWithDuration(1, 0);
+            }
+          }
         }
 
         // 8. Gallery Section
