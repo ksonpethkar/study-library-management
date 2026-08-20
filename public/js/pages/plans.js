@@ -51,6 +51,17 @@ export async function render() {
           ${t('Add Coupon')}
         </button>
       </div>
+    <!-- Interactive Coupon Test Sandbox -->
+    <div class="card p-3 mb-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+      <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-primary); margin-bottom: 8px;">
+        🧪 Interactive Coupon Calculator Sandbox
+      </div>
+      <div class="d-flex gap-2 flex-wrap align-items-center">
+        <input type="text" id="sandbox-coupon-code" class="form-control form-control-sm" placeholder="Enter coupon code (e.g. SUMMER50)..." style="max-width: 220px; text-transform: uppercase;">
+        <input type="number" id="sandbox-amount" class="form-control form-control-sm" placeholder="Plan Fee ₹ (e.g. 1000)" value="1000" style="max-width: 150px;">
+        <button type="button" id="btn-test-coupon-sandbox" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">⚡ Test Coupon Math</button>
+        <div id="sandbox-result-display" style="font-weight: 700; font-size: 0.9rem; margin-left: 8px;"></div>
+      </div>
     </div>
     
     <div class="card p-0 mb-5" style="overflow-x: auto;">
@@ -296,9 +307,43 @@ export async function render() {
     const saveBtn = container.querySelector('#btn-save-plan');
     if (saveBtn) saveBtn.addEventListener('click', savePlan);
     
+    // Coupon Calculator Sandbox
+    container.querySelector('#btn-test-coupon-sandbox')?.addEventListener('click', () => {
+      const code = container.querySelector('#sandbox-coupon-code')?.value?.trim()?.toUpperCase();
+      const amount = parseFloat(container.querySelector('#sandbox-amount')?.value) || 0;
+      const display = container.querySelector('#sandbox-result-display');
+      if (!code) {
+        display.innerHTML = '<span style="color: var(--color-danger);">Please enter a coupon code</span>';
+        return;
+      }
+      const coupon = coupons.find(c => c.code.toUpperCase() === code && c.isActive);
+      if (!coupon) {
+        display.innerHTML = '<span style="color: var(--color-danger);">❌ Invalid or Inactive Coupon Code</span>';
+        return;
+      }
+      if (coupon.minAmount && amount < coupon.minAmount) {
+        display.innerHTML = `<span style="color: #f59e0b;">⚠️ Min order value of ₹${coupon.minAmount} required</span>`;
+        return;
+      }
+      let discount = 0;
+      if (coupon.discountType === 'percentage') {
+        discount = (amount * coupon.discountValue) / 100;
+      } else {
+        discount = coupon.discountValue;
+      }
+      const finalPayable = Math.max(0, amount - discount);
+      display.innerHTML = `<span style="color: var(--color-success);">🟢 Valid Coupon! Discount: ₹${discount.toFixed(0)} • Final Payable: ₹${finalPayable.toFixed(0)}</span>`;
+    });
+
     const grid = container.querySelector('#plans-grid');
     if (grid) {
       grid.addEventListener('click', (e) => {
+        const cloneBtn = e.target.closest('.btn-clone');
+        if (cloneBtn) {
+          const id = cloneBtn.dataset.id;
+          clonePlan(id);
+        }
+
         const editBtn = e.target.closest('.btn-edit');
         if (editBtn) {
           const id = editBtn.dataset.id;
@@ -401,7 +446,10 @@ function renderPlansGrid(plansList) {
         <div>
           <div class="mb-2">
             <h3 style="margin: 0; font-size: 1.3rem; font-weight: 700; color: var(--color-text-primary);">${escapeHTML(plan.name)}</h3>
-            <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--color-primary); font-size: 0.75rem; font-weight: 700; margin-top: 4px;">${escapeHTML(plan.seatType || 'any')} &bull; ${escapeHTML(plan.shift || 'any')}</span>
+            <div class="d-flex gap-1 flex-wrap mt-1">
+              <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--color-primary); font-size: 0.75rem; font-weight: 700;">${escapeHTML(plan.seatType || 'any')} &bull; ${escapeHTML(plan.shift || 'any')}</span>
+              <span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); font-size: 0.75rem; font-weight: 700;">👥 ${plan.activeMembersCount || 0} Active Members</span>
+            </div>
           </div>
 
           <div class="mb-3">
@@ -424,7 +472,8 @@ function renderPlansGrid(plansList) {
             <input type="checkbox" class="plan-active-toggle" data-id="${plan._id}" ${plan.isActive ? 'checked' : ''} style="cursor: pointer;">
             <label class="small text-muted" style="margin: 0; font-weight: 600;">Active</label>
           </div>
-          <div class="d-flex gap-2">
+          <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-secondary btn-clone" data-id="${plan._id}" style="font-weight: 600;" title="Clone Plan">📋 Clone</button>
             <button class="btn btn-sm btn-outline-primary btn-edit" data-id="${plan._id}" style="font-weight: 600;">✏️ Edit</button>
             <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${plan._id}" style="font-weight: 600;">🗑️ Delete</button>
           </div>
@@ -434,6 +483,26 @@ function renderPlansGrid(plansList) {
   });
   
   grid.innerHTML = html;
+}
+
+function clonePlan(id) {
+  const plan = plans.find(p => p._id === id);
+  if (!plan) return;
+  
+  document.getElementById('plan-id').value = '';
+  document.getElementById('plan-name').value = `${plan.name} (Copy)`;
+  document.getElementById('plan-price').value = plan.price;
+  document.getElementById('plan-discount').value = plan.discount || 0;
+  document.getElementById('plan-duration').value = plan.duration;
+  document.getElementById('plan-durationType').value = plan.durationType || 'days';
+  document.getElementById('plan-seatType').value = plan.seatType || 'any';
+  document.getElementById('plan-shift').value = plan.shift || 'any';
+  document.getElementById('plan-description').value = plan.description || '';
+  document.getElementById('plan-features').value = plan.features ? plan.features.join(', ') : '';
+  document.getElementById('plan-isActive').checked = true;
+  
+  document.getElementById('planModalTitle').textContent = t('Clone & Create Plan');
+  showPlanModal();
 }
 
 function openEditModal(id) {

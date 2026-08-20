@@ -33,11 +33,15 @@ function validate(validations) {
 // GET / — List active plans (Public for registration & landing page)
 router.get('/', async (req, res) => {
   try {
-    const plans = await Plan.find({ isActive: true })
-      .sort('displayOrder')
-      .populate('enrolledCount')
-      .lean();
-    res.json({ success: true, data: plans, message: 'Active plans retrieved successfully' });
+    const Student = require('../models/Student');
+    const plans = await Plan.find({ isActive: true }).sort('displayOrder').lean();
+    
+    const enriched = await Promise.all(plans.map(async p => {
+      const activeCount = await Student.countDocuments({ plan: p._id, status: 'active' });
+      return { ...p, activeMembersCount: activeCount };
+    }));
+
+    res.json({ success: true, data: enriched, message: 'Active plans retrieved successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -48,10 +52,15 @@ router.use(protect);
 
 router.get('/all', async (req, res) => {
   try {
-    const plans = await Plan.find()
-      .sort('displayOrder')
-      .populate('enrolledCount').lean();
-    res.json({ success: true, data: plans, message: 'All plans retrieved successfully' });
+    const Student = require('../models/Student');
+    const plans = await Plan.find().sort('displayOrder').lean();
+
+    const enriched = await Promise.all(plans.map(async p => {
+      const activeCount = await Student.countDocuments({ plan: p._id, status: 'active' });
+      return { ...p, activeMembersCount: activeCount };
+    }));
+
+    res.json({ success: true, data: enriched, message: 'All plans retrieved successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
