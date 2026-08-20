@@ -765,4 +765,69 @@ router.put('/dashboard-widgets/reset', roleCheck('owner', 'branch_manager'), asy
   }
 });
 
+// GET /api/settings/pdf-config - Get PDF Admission Form Configuration
+router.get('/pdf-config', roleCheck('owner', 'branch_manager', 'staff'), async (req, res) => {
+  try {
+    const setting = await SystemSetting.findOne({ key: 'pdf.admissionConfig' });
+    const defaultConfig = {
+      pdfTemplate: 'modern_glass',
+      watermarkStamp: 'PAID • ACTIVE STUDENT',
+      showSelfiePhoto: true,
+      showDigitalSignature: true,
+      showGateQrCode: true,
+      showFormBuilderAnswers: true,
+      showUploadedDocuments: true,
+      showPaymentBreakdown: true,
+      showDisciplineRules: true,
+      showStatusWatermark: true
+    };
+    res.json({
+      success: true,
+      data: setting ? { ...defaultConfig, ...setting.value } : defaultConfig
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/settings/pdf-config - Update PDF Admission Form Configuration
+router.put('/pdf-config', roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const sanitized = {
+      pdfTemplate: payload.pdfTemplate || 'modern_glass',
+      watermarkStamp: String(payload.watermarkStamp || 'PAID • ACTIVE STUDENT').trim(),
+      showSelfiePhoto: Boolean(payload.showSelfiePhoto !== false),
+      showDigitalSignature: Boolean(payload.showDigitalSignature !== false),
+      showGateQrCode: Boolean(payload.showGateQrCode !== false),
+      showFormBuilderAnswers: Boolean(payload.showFormBuilderAnswers !== false),
+      showUploadedDocuments: Boolean(payload.showUploadedDocuments !== false),
+      showPaymentBreakdown: Boolean(payload.showPaymentBreakdown !== false),
+      showDisciplineRules: Boolean(payload.showDisciplineRules !== false),
+      showStatusWatermark: Boolean(payload.showStatusWatermark !== false)
+    };
+
+    const setting = await SystemSetting.findOneAndUpdate(
+      { key: 'pdf.admissionConfig' },
+      {
+        category: 'pdf',
+        key: 'pdf.admissionConfig',
+        value: sanitized,
+        label: 'PDF Admission Form Configuration',
+        type: 'object',
+        isEditable: true
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    res.json({
+      success: true,
+      data: setting.value,
+      message: 'PDF Admission Form configuration saved successfully'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
