@@ -902,38 +902,192 @@ function renderPortalUI(container, data, analytics = null) {
         <div style="font-family: var(--font-family);">
           <!-- Student Card Header with Photo Avatar Upload -->
           <div class="card p-3 mb-4" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.1), rgba(0, 184, 148, 0.06)); border: 1.5px solid var(--color-primary); border-radius: 12px;">
-            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
               
-              <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
-                <div id="sp-avatar-container" style="width: 76px; height: 76px; border-radius: 50%; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; font-weight: 800; border: 3px solid var(--color-surface); box-shadow: var(--shadow-sm); overflow: hidden; position: relative;">
-                  <img id="sp-avatar-img" src="${student.photo ? (student.photo.startsWith('/') ? student.photo : '/' + student.photo) : ''}" style="width: 100%; height: 100%; object-fit: cover; display: ${student.photo ? 'block' : 'none'};" onerror="this.style.display='none'; document.getElementById('sp-avatar-initials').style.display='block';">
-                  <span id="sp-avatar-initials" style="display: ${student.photo ? 'none' : 'block'};">${escapeHTML(initials)}</span>
+              <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                  <div id="sp-avatar-container" style="width: 76px; height: 76px; border-radius: 50%; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; font-weight: 800; border: 3px solid var(--color-surface); box-shadow: var(--shadow-sm); overflow: hidden; position: relative;">
+                    <img id="sp-avatar-img" src="${student.photo ? (student.photo.startsWith('/') ? student.photo : '/' + student.photo) : ''}" style="width: 100%; height: 100%; object-fit: cover; display: ${student.photo ? 'block' : 'none'};" onerror="this.style.display='none'; document.getElementById('sp-avatar-initials').style.display='block';">
+                    <span id="sp-avatar-initials" style="display: ${student.photo ? 'none' : 'block'};">${escapeHTML(initials)}</span>
+                  </div>
+                  <div style="display: flex; gap: 4px;">
+                    <button type="button" id="btn-sp-upload-photo" class="btn btn-xs btn-outline-primary" style="font-size: 0.7rem; padding: 2px 6px; font-weight: 600;" title="Upload Passport Photo">📁 Upload</button>
+                    <button type="button" id="btn-sp-selfie" class="btn btn-xs btn-primary" style="font-size: 0.7rem; padding: 2px 6px; font-weight: 600;" title="Take Live Selfie">📸 Selfie</button>
+                    <input type="file" id="input-sp-photo" accept="image/*" style="display: none;">
+                  </div>
                 </div>
-                <div style="display: flex; gap: 4px;">
-                  <button type="button" id="btn-sp-upload-photo" class="btn btn-xs btn-outline-primary" style="font-size: 0.7rem; padding: 2px 6px; font-weight: 600;" title="Upload Passport Photo">📁 Upload</button>
-                  <button type="button" id="btn-sp-selfie" class="btn btn-xs btn-primary" style="font-size: 0.7rem; padding: 2px 6px; font-weight: 600;" title="Take Live Selfie">📸 Selfie</button>
-                  <input type="file" id="input-sp-photo" accept="image/*" style="display: none;">
+
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <h3 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--color-text-primary);">${escapeHTML(student.name)}</h3>
+                    <span class="badge ${student.status === 'active' ? 'badge-success' : 'badge-warning'}" style="text-transform: uppercase;">
+                      ${escapeHTML(student.status || 'Active')}
+                    </span>
+                  </div>
+                  <div style="display: flex; gap: 14px; font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 4px; flex-wrap: wrap;">
+                    <span>Student ID: <strong style="font-family: monospace; color: var(--color-primary); font-size: 0.95rem;">${escapeHTML(student.studentId || 'N/A')}</strong></span>
+                    <span>Desk: <strong>${seatTitle}</strong></span>
+                    <span>Branch: <strong>${escapeHTML(student.branch?.name || business.businessName || 'Main Campus')}</strong></span>
+                  </div>
                 </div>
               </div>
 
-              <div style="flex-grow: 1;">
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                  <h3 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--color-text-primary);">${escapeHTML(student.name)}</h3>
-                  <span class="badge ${student.status === 'active' ? 'badge-success' : 'badge-warning'}" style="text-transform: uppercase;">
-                    ${escapeHTML(student.status || 'Active')}
+              <!-- Profile Lock Status Badge -->
+              <div style="text-align: right;">
+                ${(student.profileCompletion >= 100 || student.isProfileComplete) ? `
+                  <span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border: 1px solid rgba(0, 184, 148, 0.3);">
+                    🔒 100% Profile Verified & Locked
                   </span>
-                </div>
-                <div style="display: flex; gap: 14px; font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 4px; flex-wrap: wrap;">
-                  <span>Student ID: <strong style="font-family: monospace; color: var(--color-primary); font-size: 0.95rem;">${escapeHTML(student.studentId || 'N/A')}</strong></span>
-                  <span>Desk: <strong>${seatTitle}</strong></span>
-                  <span>Branch: <strong>${escapeHTML(student.branch?.name || business.businessName || 'Main Campus')}</strong></span>
-                </div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">
+                    Contact Admin to modify details
+                  </div>
+                ` : `
+                  <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border: 1px solid rgba(245, 158, 11, 0.3);">
+                    🟡 ${student.profileCompletion || 60}% KYC Pending
+                  </span>
+                  <div style="font-size: 0.72rem; color: #f59e0b; margin-top: 4px; font-weight: 600;">
+                    Complete profile below
+                  </div>
+                `}
               </div>
 
             </div>
           </div>
 
-          <!-- Section Tabs / Content -->
+          <!-- If Profile Incomplete: Show Interactive KYC Completion Form -->
+          ${(student.profileCompletion < 100 || !student.isProfileComplete) ? `
+            <form id="form-student-kyc-complete" class="mb-4">
+              <div class="alert alert-warning mb-3 p-3" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px;">
+                <div style="font-weight: 700; color: #d97706; margin-bottom: 2px;">⚠️ Complete Admission Profile & KYC Upload</div>
+                <div style="font-size: 0.82rem; color: var(--color-text-secondary);">
+                  Admin pre-filled your admission info! Please complete your DOB, Address, Parent Contact, and Aadhaar KYC scan to unlock your Digital Offline ID Card Pass.
+                </div>
+              </div>
+
+              <!-- Section 1: 👤 Personal & Identification Details -->
+              <div class="card p-3 mb-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-primary); margin-bottom: 10px;">
+                  <span>👤</span> Personal & Identification Details
+                </div>
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <label class="form-label small font-weight-bold">Full Name (Admin Pre-filled)</label>
+                    <input type="text" class="form-control form-control-sm" value="${escapeHTML(student.name)}" disabled style="background: rgba(255,255,255,0.05); font-weight: 600;">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small font-weight-bold">Mobile Phone (WhatsApp) (Admin Pre-filled)</label>
+                    <input type="text" class="form-control form-control-sm" value="${escapeHTML(student.phone)}" disabled style="background: rgba(255,255,255,0.05); font-weight: 600;">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small font-weight-bold">Email Address</label>
+                    <input type="email" id="kyc-email" name="email" class="form-control form-control-sm" value="${escapeHTML(student.email || '')}" placeholder="student@example.com">
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label small font-weight-bold">Gender</label>
+                    <select id="kyc-gender" name="gender" class="form-select form-select-sm">
+                      <option value="male" ${student.gender === 'male' ? 'selected' : ''}>Male</option>
+                      <option value="female" ${student.gender === 'female' ? 'selected' : ''}>Female</option>
+                      <option value="other" ${student.gender === 'other' ? 'selected' : ''}>Other</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label small font-weight-bold">Date of Birth *</label>
+                    <input type="date" id="kyc-dob" name="dob" class="form-control form-control-sm" value="${student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : (student.dob ? new Date(student.dob).toISOString().split('T')[0] : '')}" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small font-weight-bold">Blood Group</label>
+                    <select id="kyc-bloodGroup" name="bloodGroup" class="form-select form-select-sm">
+                      <option value="">-- Select Blood Group --</option>
+                      ${['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => `<option value="${bg}" ${student.bloodGroup === bg ? 'selected' : ''}>${bg}</option>`).join('')}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section 2: 🎯 Academic Goals & Preparation -->
+              <div class="card p-3 mb-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-primary); margin-bottom: 10px;">
+                  <span>🎯</span> Academic Goals & Preparation
+                </div>
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <label class="form-label small font-weight-bold">Target Competitive Exams</label>
+                    <input type="text" id="kyc-targetExams" name="targetExams" class="form-control form-control-sm" value="${escapeHTML(Array.isArray(student.targetExams) ? student.targetExams.join(', ') : (student.targetExams || ''))}" placeholder="e.g. UPSC, MPSC, SSC, Banking, NEET">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small font-weight-bold">College / Coaching Institute / Company</label>
+                    <input type="text" id="kyc-collegeOrCompany" name="collegeOrCompany" class="form-control form-control-sm" value="${escapeHTML(student.collegeOrCompany || '')}" placeholder="e.g. Fergusson College / Self Study">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section 3: 📍 Address & Emergency Contacts -->
+              <div class="card p-3 mb-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-primary); margin-bottom: 10px;">
+                  <span>📍</span> Address & Emergency Contacts
+                </div>
+                <div class="row g-2">
+                  <div class="col-12">
+                    <label class="form-label small font-weight-bold">Residential Address / Hostel Room No. *</label>
+                    <input type="text" id="kyc-address" name="address" class="form-control form-control-sm" value="${escapeHTML(student.address || '')}" placeholder="Full residential address" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small font-weight-bold">Pincode ⚡</label>
+                    <input type="text" id="kyc-pincode" name="pincode" class="form-control form-control-sm" value="${escapeHTML(student.pincode || '')}" placeholder="6-digit pincode" maxlength="6">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small font-weight-bold">City</label>
+                    <input type="text" id="kyc-city" name="city" class="form-control form-control-sm" value="${escapeHTML(student.city || '')}">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small font-weight-bold">State</label>
+                    <input type="text" id="kyc-state" name="state" class="form-control form-control-sm" value="${escapeHTML(student.state || '')}">
+                  </div>
+                  <div class="col-md-5">
+                    <label class="form-label small font-weight-bold">Parent / Guardian Name *</label>
+                    <input type="text" id="kyc-emergencyContactName" name="emergencyContactName" class="form-control form-control-sm" value="${escapeHTML(student.emergencyContact?.name || '')}" placeholder="e.g. Ramesh Sharma" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small font-weight-bold">Parent / Guardian Phone *</label>
+                    <input type="tel" id="kyc-emergencyContactPhone" name="emergencyContactPhone" class="form-control form-control-sm" value="${escapeHTML(student.emergencyContact?.phone || '')}" placeholder="10-digit mobile" required>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label small font-weight-bold">Relation</label>
+                    <input type="text" id="kyc-emergencyContactRelation" name="emergencyContactRelation" class="form-control form-control-sm" value="${escapeHTML(student.emergencyContact?.relation || 'Parent')}" placeholder="Father / Mother">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section 4: 🪪 KYC & Identity Verification -->
+              <div class="card p-3 mb-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-primary); margin-bottom: 10px;">
+                  <span>🪪</span> KYC & Identity Verification
+                </div>
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <label class="form-label small font-weight-bold">Government ID Proof Type *</label>
+                    <select id="kyc-idProofType" name="idProofType" class="form-select form-select-sm">
+                      <option value="Aadhaar Card" ${student.idProof?.type === 'Aadhaar Card' ? 'selected' : ''}>Aadhaar Card</option>
+                      <option value="PAN Card" ${student.idProof?.type === 'PAN Card' ? 'selected' : ''}>PAN Card</option>
+                      <option value="Driving License" ${student.idProof?.type === 'Driving License' ? 'selected' : ''}>Driving License</option>
+                      <option value="Passport" ${student.idProof?.type === 'Passport' ? 'selected' : ''}>Passport</option>
+                      <option value="Voter ID" ${student.idProof?.type === 'Voter ID' ? 'selected' : ''}>Voter ID</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small font-weight-bold">ID Proof Document Number *</label>
+                    <input type="text" id="kyc-idProofNumber" name="idProofNumber" class="form-control form-control-sm" value="${escapeHTML(student.idProof?.number || '')}" placeholder="12-digit Aadhaar / ID number" required>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-end gap-2">
+                <button type="submit" class="btn btn-success btn-sm" id="btn-save-kyc-profile-submit" style="font-weight: 700; padding: 8px 18px;">💾 Save & Complete Profile</button>
+              </div>
+            </form>
+          ` : ''}
+
+          <!-- Verified Section Tabs / Content -->
           ${sectionsHtml}
 
           <div class="d-flex justify-content-end gap-2 mt-4 pt-3" style="border-top: 1px solid var(--color-border);">
@@ -1003,6 +1157,60 @@ function renderPortalUI(container, data, analytics = null) {
           if (err.message !== 'Camera capture cancelled') {
             Toast.error(err.message || 'Selfie capture failed');
           }
+        }
+      });
+
+      // Pincode Auto-Fill for KYC Form
+      modalContent.querySelector('#kyc-pincode')?.addEventListener('input', async (e) => {
+        const val = e.target.value.trim();
+        if (val.length === 6) {
+          const res = await SmartIntelligence.lookupPincode(val);
+          if (res && res.city) {
+            const cityEl = modalContent.querySelector('#kyc-city');
+            const stateEl = modalContent.querySelector('#kyc-state');
+            if (cityEl) cityEl.value = res.city;
+            if (stateEl) stateEl.value = res.state;
+          }
+        }
+      });
+
+      // Submit Profile KYC Completion Form
+      modalContent.querySelector('#form-student-kyc-complete')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btnSave = modalContent.querySelector('#btn-save-kyc-profile-submit');
+        UI.buttonLoading(btnSave, true, 'Saving...');
+        try {
+          const payload = {
+            email: modalContent.querySelector('#kyc-email')?.value?.trim(),
+            gender: modalContent.querySelector('#kyc-gender')?.value,
+            dob: modalContent.querySelector('#kyc-dob')?.value,
+            bloodGroup: modalContent.querySelector('#kyc-bloodGroup')?.value,
+            targetExams: modalContent.querySelector('#kyc-targetExams')?.value?.trim(),
+            collegeOrCompany: modalContent.querySelector('#kyc-collegeOrCompany')?.value?.trim(),
+            address: modalContent.querySelector('#kyc-address')?.value?.trim(),
+            pincode: modalContent.querySelector('#kyc-pincode')?.value?.trim(),
+            city: modalContent.querySelector('#kyc-city')?.value?.trim(),
+            state: modalContent.querySelector('#kyc-state')?.value?.trim(),
+            emergencyContactName: modalContent.querySelector('#kyc-emergencyContactName')?.value?.trim(),
+            emergencyContactPhone: modalContent.querySelector('#kyc-emergencyContactPhone')?.value?.trim(),
+            emergencyContactRelation: modalContent.querySelector('#kyc-emergencyContactRelation')?.value?.trim(),
+            idProofType: modalContent.querySelector('#kyc-idProofType')?.value,
+            idProofNumber: modalContent.querySelector('#kyc-idProofNumber')?.value?.trim()
+          };
+
+          const res = await api.put('/api/student-portal/profile', payload);
+          if (res.success) {
+            Toast.success('Profile & KYC details updated successfully! Profile is now 100% verified.');
+            profileModal.close();
+            // Reload Portal Dashboard to reflect 100% completion & unlock Digital ID Card Pass
+            renderPortalPage();
+          } else {
+            Toast.error(res.message || 'Failed to update profile');
+          }
+        } catch (err) {
+          Toast.error(err.message || 'Failed to update profile');
+        } finally {
+          UI.buttonLoading(btnSave, false);
         }
       });
 

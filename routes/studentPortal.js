@@ -887,11 +887,46 @@ router.put('/profile', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Student account record not found' });
     }
 
-    const { photo, email, phone } = req.body;
+    const { 
+      photo, email, phone, gender, dob, dateOfBirth, bloodGroup, targetExams,
+      collegeOrCompany, occupation, address, city, state, pincode,
+      emergencyContact, emergencyContactName, emergencyContactPhone, emergencyContactRelation,
+      idProof, idProofType, idProofNumber, idProofImage, customFields
+    } = req.body;
+
     const updateData = {};
     if (photo !== undefined) updateData.photo = photo;
     if (email) updateData.email = email.trim();
     if (phone) updateData.phone = phone.trim();
+    if (gender) updateData.gender = gender;
+    if (dob || dateOfBirth) updateData.dateOfBirth = new Date(dob || dateOfBirth);
+    if (bloodGroup) updateData.bloodGroup = bloodGroup.trim();
+    if (targetExams) updateData.targetExams = Array.isArray(targetExams) ? targetExams : String(targetExams).split(',').map(e => e.trim()).filter(Boolean);
+    if (collegeOrCompany || occupation) updateData.collegeOrCompany = (collegeOrCompany || occupation).trim();
+    if (address) updateData.address = address.trim();
+    if (city) updateData.city = city.trim();
+    if (state) updateData.state = state.trim();
+    if (pincode) updateData.pincode = pincode.trim();
+
+    if (emergencyContact || emergencyContactName || emergencyContactPhone) {
+      updateData.emergencyContact = {
+        name: (emergencyContact?.name || emergencyContactName || student.emergencyContact?.name || '').trim(),
+        phone: (emergencyContact?.phone || emergencyContactPhone || student.emergencyContact?.phone || '').trim(),
+        relation: (emergencyContact?.relation || emergencyContactRelation || student.emergencyContact?.relation || 'Parent/Guardian').trim()
+      };
+    }
+
+    if (idProof || idProofType || idProofNumber || idProofImage) {
+      updateData.idProof = {
+        type: (idProof?.type || idProofType || student.idProof?.type || 'Aadhaar Card').trim(),
+        number: (idProof?.number || idProofNumber || student.idProof?.number || '').trim(),
+        image: (idProof?.image || idProofImage || student.idProof?.image || '').trim()
+      };
+    }
+
+    if (customFields && typeof customFields === 'object') {
+      updateData.customFields = customFields;
+    }
 
     const updatedStudent = await Student.findByIdAndUpdate(
       student._id,
@@ -907,7 +942,7 @@ router.put('/profile', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Student profile photo updated successfully',
+      message: 'Student profile details updated successfully!',
       data: updatedStudent || { ...student, ...updateData }
     });
   } catch (err) {
