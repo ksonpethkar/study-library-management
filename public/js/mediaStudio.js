@@ -1008,7 +1008,7 @@ export class MediaFieldPicker {
       reader.onload = async (evt) => {
         const rawDataUrl = evt.target.result;
         await updateImageValue(rawDataUrl);
-        Toast.success('Image ready! Click "Save Branding Settings" to apply permanently.');
+        Toast.success(`${label || 'Image'} uploaded & ready!`);
       };
       reader.readAsDataURL(file);
     });
