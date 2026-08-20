@@ -693,43 +693,42 @@ function renderSettingsUI(container, profile, settings) {
           <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
             <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
               <div>
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🔔 Notifications, WhatsApp Schedules & Automated Bots</h3>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>🔔</span> Notifications, WhatsApp Schedules &amp; Automated Bots Engine
+                </h3>
                 <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Configure automated bot dispatch times, reminder day intervals, WhatsApp Meta API integration, and trigger instant live audits.</p>
               </div>
-              <button type="submit" id="btn-save-notifications" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Preferences</button>
+              <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+                Categorized Bot Engine
+              </span>
             </div>
 
-            <div class="card-body" style="padding: 1.5rem;">
+            <div class="card-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
 
-              <!-- ==================================================== -->
-              <!-- SUBSECTION 1: AUTOMATED WHATSAPP SCHEDULE & DISPATCH -->
-              <!-- ==================================================== -->
-              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.75rem;">
+              <!-- CATEGORY 1: AUTOMATED WHATSAPP BOT ENGINE & SCHEDULE -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-                  <div>
-                    <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-                      <span>⏰</span> Automated Dispatch Schedule & WhatsApp Bot Engine
-                    </h4>
-                    <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">The cron service scans registered students daily and dispatches WhatsApp alerts with 1-tap UPI payment links.</p>
-                  </div>
+                  <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                    <span>🤖</span> Category 1: Automated Dispatch Schedule &amp; WhatsApp Bot Engine
+                  </h4>
                   <span class="badge badge-success" style="font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; font-weight: 600;">Active Cron Engine</span>
                 </div>
 
                 <!-- Daily Schedule Time Picker -->
                 <div style="margin-bottom: 1.25rem;">
                   <label class="form-label" for="setting-whatsappScheduleTime" style="font-weight: 600; font-size: 0.9rem;">
-                    ⏰ Automated Dispatch Schedule Time (24-Hour Format)
+                    ⏰ Automated Dispatch Schedule Time (24-Hour Format) *
                   </label>
                   <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
                     <input type="time" id="setting-whatsappScheduleTime" class="form-control" style="font-size: 1.1rem; font-weight: 700; max-width: 180px; text-align: center; color: var(--color-primary);" value="${escapeHTML(notif['notification.whatsappScheduleTime'] || notif.whatsappScheduleTime || '09:30')}" required>
                     <span style="font-size: 0.85rem; color: var(--color-text-secondary);">
-                      Default: <code>09:30 AM</code> IST. The server automatically triggers reminder scans and dispatches WhatsApp messages daily at this exact time.
+                      Default: <code>09:30 AM</code> IST. Server automatically triggers reminder scans and dispatches WhatsApp messages daily.
                     </span>
                   </div>
                 </div>
 
                 <!-- Auto Bots Enable/Disable Toggles Grid -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
                   <!-- Expiry Bot Toggle -->
                   <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
                     <div style="padding-right: 0.75rem;">
@@ -737,7 +736,7 @@ function renderSettingsUI(container, profile, settings) {
                         <span>🤖</span> Enable Automated Expiry WhatsApp Bot
                       </div>
                       <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">
-                        Sends renewal notices with seat info & 1-tap UPI deep links to students whose plans are expiring.
+                        Sends renewal notices with seat info &amp; 1-tap UPI deep links to students whose plans are expiring.
                       </div>
                     </div>
                     <label class="switch-label">
@@ -766,7 +765,7 @@ function renderSettingsUI(container, profile, settings) {
                   <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
                     <div style="padding-right: 0.75rem;">
                       <div style="font-weight: 600; color: var(--color-text-primary); font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem;">
-                        <span>🤖</span> Enable Interactive WhatsApp Conversational Bot
+                        <span>💬</span> Enable Interactive WhatsApp Conversational Bot
                       </div>
                       <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 2px;">
                         Auto-replies to incoming student messages (!seat, !status, !renew, !help) via WhatsApp webhook.
@@ -778,38 +777,44 @@ function renderSettingsUI(container, profile, settings) {
                     </label>
                   </div>
                 </div>
+              </div>
 
-                <!-- Command Cheat-Sheet Card -->
-                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
-                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
-                    <h5 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.4rem;">
-                      <span>📖</span> WhatsApp Bot Command Cheat-Sheet
-                    </h5>
-                    <code style="font-size: 0.75rem; background: var(--color-bg-primary); padding: 2px 8px; border-radius: 4px; color: var(--color-primary); border: 1px solid var(--color-border);">Webhook: POST /api/messages/webhook</code>
+              <!-- CATEGORY 2: BOT COMMAND CHEAT-SHEET -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                  <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                    <span>📖</span> Category 2: WhatsApp Bot Command Cheat-Sheet
+                  </h4>
+                  <code style="font-size: 0.75rem; background: var(--color-surface); padding: 2px 8px; border-radius: 4px; color: var(--color-primary); border: 1px solid var(--color-border);">Webhook: POST /api/messages/webhook</code>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 0.85rem;">
+                  Students can text any of the following commands to your WhatsApp number for instant automated real-time replies:
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
+                  <div style="background: var(--color-surface); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                    <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!seat</code>
+                    <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with student's active desk number, shift timing &amp; branch.</div>
                   </div>
-                  <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 0.85rem;">
-                    Students can text any of the following commands to your WhatsApp number for instant automated real-time replies:
-                  </p>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
-                    <div style="background: var(--color-bg-primary); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-                      <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!seat</code>
-                      <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with student's active desk number, shift timing & branch.</div>
-                    </div>
-                    <div style="background: var(--color-bg-primary); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-                      <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!status</code> / <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!expiry</code>
-                      <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with active plan name, validity end date & balance due.</div>
-                    </div>
-                    <div style="background: var(--color-bg-primary); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-                      <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!renew</code>
-                      <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with pre-filled 1-tap UPI payment link & QR code for renewal.</div>
-                    </div>
-                    <div style="background: var(--color-bg-primary); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-                      <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!help</code>
-                      <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with complete interactive command guide menu.</div>
-                    </div>
+                  <div style="background: var(--color-surface); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                    <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!status</code> / <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!expiry</code>
+                    <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with active plan name, validity end date &amp; balance due.</div>
+                  </div>
+                  <div style="background: var(--color-surface); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                    <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!renew</code>
+                    <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with pre-filled 1-tap UPI payment link &amp; QR code for renewal.</div>
+                  </div>
+                  <div style="background: var(--color-surface); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                    <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!help</code>
+                    <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with complete interactive command guide menu.</div>
                   </div>
                 </div>
+              </div>
 
+              <!-- CATEGORY 3: REMINDER INTERVALS & DISPATCH CHANNELS -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>📅</span> Category 3: Reminder Intervals &amp; Dispatch Channels
+                </h4>
 
                 <!-- Expiry Reminder Intervals Checkboxes -->
                 <div class="form-group" style="margin-bottom: 1.25rem;">
@@ -862,18 +867,101 @@ function renderSettingsUI(container, profile, settings) {
                   </div>
                 </div>
 
-                <!-- Action Button: Run Expiry & Dues Bot Now -->
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.15rem 1.25rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.12)); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: var(--radius-md); margin-top: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+                <!-- Delivery Channels Toggles -->
+                <h5 style="font-size: 0.9rem; font-weight: 700; color: var(--color-text-primary); margin: 1.25rem 0 0.75rem 0; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.4rem;">
+                  📡 Active Delivery Channels
+                </h5>
+
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                  <!-- Email -->
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                      <div style="font-size: 1.3rem;">✉️</div>
+                      <div>
+                        <div style="font-weight: 600; color: var(--color-text-primary); font-size: 0.88rem;">Email Notifications</div>
+                        <div style="font-size: 0.78rem; color: var(--color-text-secondary);">Send payment receipts and welcome onboard emails to students.</div>
+                      </div>
+                    </div>
+                    <label class="switch-label" style="margin: 0;">
+                      <input type="checkbox" id="setting-enableEmail" ${(notif['notification.enableEmail'] ?? notif.enableEmail) !== false ? 'checked' : ''}>
+                      <span class="switch-slider"></span>
+                    </label>
+                  </div>
+
+                  <!-- In-App -->
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                      <div style="font-size: 1.3rem;">📱</div>
+                      <div>
+                        <div style="font-weight: 600; color: var(--color-text-primary); font-size: 0.88rem;">In-App Realtime Alerts</div>
+                        <div style="font-size: 0.78rem; color: var(--color-text-secondary);">Bell icon notifications on student &amp; manager dashboard.</div>
+                      </div>
+                    </div>
+                    <label class="switch-label" style="margin: 0;">
+                      <input type="checkbox" id="setting-enableInApp" ${(notif['notification.enableInApp'] ?? notif.enableInApp) !== false ? 'checked' : ''}>
+                      <span class="switch-slider"></span>
+                    </label>
+                  </div>
+
+                  <!-- WhatsApp -->
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                      <div style="font-size: 1.3rem;">💬</div>
+                      <div>
+                        <div style="font-weight: 600; color: var(--color-text-primary); font-size: 0.88rem; display: flex; align-items: center; gap: 0.5rem;">
+                          WhatsApp Cloud Integration
+                          <span class="badge badge-primary" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;">Meta Cloud API</span>
+                        </div>
+                        <div style="font-size: 0.78rem; color: var(--color-text-secondary);">Direct WhatsApp messaging for invoices and urgent reminders.</div>
+                      </div>
+                    </div>
+                    <label class="switch-label" style="margin: 0;">
+                      <input type="checkbox" id="setting-enableWhatsapp" ${(notif['notification.enableWhatsapp'] ?? notif.enableWhatsapp) ? 'checked' : ''}>
+                      <span class="switch-slider"></span>
+                    </label>
+                  </div>
+
+                  <!-- Native Push -->
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                      <div style="font-size: 1.3rem;">🔔</div>
+                      <div>
+                        <div style="font-weight: 600; color: var(--color-text-primary); font-size: 0.88rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                          <span>Native Mobile Push Notifications</span>
+                          <span id="push-permission-badge-settings" class="badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; border: 1px solid currentColor;">
+                            Checking...
+                          </span>
+                        </div>
+                        <div style="font-size: 0.78rem; color: var(--color-text-secondary);">
+                          Receive OS lock screen push notifications for fee dues, plan expiry, and announcements.
+                        </div>
+                      </div>
+                    </div>
+                    <label class="switch-label" style="margin: 0;">
+                      <input type="checkbox" id="setting-enablePush" ${(notif['notification.enablePush'] ?? notif.enablePush) ? 'checked' : ''}>
+                      <span class="switch-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CATEGORY 4: INSTANT BOT EXECUTION & AUDIT -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>⚡</span> Category 4: Instant Bot Execution &amp; Dispatch Audit
+                </h4>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.15rem 1.25rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.12)); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: var(--radius-md); flex-wrap: wrap; gap: 1rem;">
                   <div>
                     <h5 style="margin: 0 0 3px 0; font-size: 0.95rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.4rem;">
-                      <span>⚡</span> Instant Bot Execution & Dispatch Audit
+                      <span>⚡</span> Instant Bot Execution &amp; Dispatch Audit
                     </h5>
                     <p style="margin: 0; font-size: 0.8rem; color: var(--color-text-secondary);">
-                      Immediately runs the subscription expiry & balance due check and prepares 1-tap WhatsApp notifications.
+                      Immediately runs the subscription expiry &amp; balance due check and prepares 1-tap WhatsApp notifications.
                     </p>
                   </div>
                   <button type="button" id="btn-run-bot-now" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; background: linear-gradient(135deg, #4f46e5, #7c3aed); border: none; padding: 0.6rem 1.25rem; box-shadow: var(--shadow-sm); cursor: pointer;">
-                    <span>⚡ Run Expiry & Dues Bot Now</span>
+                    <span>⚡ Run Expiry &amp; Dues Bot Now</span>
                   </button>
                 </div>
 
@@ -881,129 +969,15 @@ function renderSettingsUI(container, profile, settings) {
                 <div id="bot-execution-log-container" style="display: none; margin-top: 1.25rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); padding: 1.25rem;">
                   <!-- Rendered dynamically -->
                 </div>
-
               </div>
 
-              <!-- ==================================================== -->
-              <!-- SUBSECTION 2: STANDARD NOTIFICATIONS & CHANNELS      -->
-              <!-- ==================================================== -->
-              <!-- Payment Reminder Schedule Pills -->
-              <div class="form-group" style="margin-bottom: 2rem;">
-                <label class="form-label" style="font-weight: 600;">
-                  Payment Reminder Schedule (Days Before Due Date)
-                </label>
-                <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 0.75rem;">
-                  Click to toggle reminder days. Students receive reminder notifications before their monthly fee is due.
-                </div>
-                
-                <div id="reminder-days-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                  ${[15, 7, 5, 3, 2, 1, 0].map(d => {
-                    const isSelected = selectedReminderDays.includes(d);
-                    return `
-                      <button type="button" class="reminder-day-chip ${isSelected ? 'active' : ''}" data-day="${d}" style="padding: 0.5rem 1rem; border-radius: var(--radius-md); font-weight: 600; font-size: 0.9rem; cursor: pointer; border: 1px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}; background: ${isSelected ? 'var(--color-primary)' : 'var(--color-bg-primary)'}; color: ${isSelected ? '#fff' : 'var(--color-text-primary)'}; transition: all 0.15s ease;">
-                        ${d === 0 ? 'Due Day (0d)' : `${d} Days Before`}
-                      </button>
-                    `;
-                  }).join('')}
-                </div>
+              <!-- SINGLE CONSOLIDATED SAVE BUTTON AT BOTTOM -->
+              <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--color-divider);">
+                <button type="submit" id="btn-save-notifications" class="btn btn-primary" style="font-weight: 700; padding: 0.65rem 1.75rem;">
+                  💾 Save Notification &amp; WhatsApp Preferences
+                </button>
               </div>
 
-              <!-- Expiry Alert -->
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-                <div class="form-group">
-                  <label class="form-label" for="setting-expiryReminder" style="font-weight: 600;">
-                    Plan Expiry Reminder (Days Before)
-                  </label>
-                  <input type="number" id="setting-expiryReminder" class="form-control" min="1" max="30" value="${notif['notification.expiryReminder'] ?? notif.expiryReminder ?? 7}" required>
-                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
-                    Send student an alert to renew their seat booking before their plan finishes.
-                  </small>
-                </div>
-              </div>
-
-              <!-- Delivery Channels Toggles -->
-              <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--color-text-primary); margin: 1.5rem 0 1rem 0; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem;">
-                📡 Active Dispatch Channels
-              </h4>
-
-              <div style="display: flex; flex-direction: column; gap: 1rem;">
-                
-                <!-- Email -->
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-                  <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div style="font-size: 1.5rem;">✉️</div>
-                    <div>
-                      <div style="font-weight: 600; color: var(--color-text-primary);">Email Notifications</div>
-                      <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Send payment receipts and welcome onboard emails to students.</div>
-                    </div>
-                  </div>
-                  <label class="switch-label" style="margin: 0;">
-                    <input type="checkbox" id="setting-enableEmail" ${(notif['notification.enableEmail'] ?? notif.enableEmail) !== false ? 'checked' : ''}>
-                    <span class="switch-slider"></span>
-                  </label>
-                </div>
-
-                <!-- In-App -->
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-                  <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div style="font-size: 1.5rem;">📱</div>
-                    <div>
-                      <div style="font-weight: 600; color: var(--color-text-primary);">In-App Realtime Alerts</div>
-                      <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Bell icon notifications on student & manager dashboard.</div>
-                    </div>
-                  </div>
-                  <label class="switch-label" style="margin: 0;">
-                    <input type="checkbox" id="setting-enableInApp" ${(notif['notification.enableInApp'] ?? notif.enableInApp) !== false ? 'checked' : ''}>
-                    <span class="switch-slider"></span>
-                  </label>
-                </div>
-
-                <!-- WhatsApp -->
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-                  <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div style="font-size: 1.5rem;">💬</div>
-                    <div>
-                      <div style="font-weight: 600; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-                        WhatsApp Cloud Integration
-                        <span class="badge badge-primary" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;">Meta Cloud API</span>
-                      </div>
-                      <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Direct WhatsApp messaging for invoices and urgent reminders.</div>
-                    </div>
-                  </div>
-                  <label class="switch-label" style="margin: 0;">
-                    <input type="checkbox" id="setting-enableWhatsapp" ${(notif['notification.enableWhatsapp'] ?? notif.enableWhatsapp) ? 'checked' : ''}>
-                    <span class="switch-slider"></span>
-                  </label>
-                </div>
-
-                <!-- Native Mobile Push Notifications -->
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-                  <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <div style="font-size: 1.5rem;">🔔</div>
-                    <div>
-                      <div style="font-weight: 600; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                        <span>🔔 Enable Native Mobile Push Notifications</span>
-                        <span id="push-permission-badge-settings" class="badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; border: 1px solid currentColor;">
-                          Checking...
-                        </span>
-                      </div>
-                      <div style="font-size: 0.8rem; color: var(--color-text-secondary);">
-                        Receive OS lock screen push notifications for fee dues, plan expiry, and announcements.
-                      </div>
-                    </div>
-                  </div>
-                  <label class="switch-label" style="margin: 0;">
-                    <input type="checkbox" id="setting-enablePush" ${(notif['notification.enablePush'] ?? notif.enablePush) ? 'checked' : ''}>
-                    <span class="switch-slider"></span>
-                  </label>
-                </div>
-
-              </div>
-
-            </div>
-
-            <div class="card-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; background: var(--color-surface-hover);">
-              <button type="submit" id="btn-save-notifications-bottom" class="btn btn-primary" style="font-weight: 600;">Save Preferences</button>
             </div>
           </div>
         </form>
