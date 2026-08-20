@@ -1659,49 +1659,57 @@ function renderPortalUI(container, data, analytics = null) {
         if (shiftSelect) shiftSelect.addEventListener('change', onSelectionChange);
         if (walletCheckbox) walletCheckbox.addEventListener('change', onSelectionChange);
 
-        modalContent.querySelector('#portal-renewal-submit-form').onsubmit = async (e) => {
-          e.preventDefault();
-          const utrNumber = modalContent.querySelector('#renewal-utr-input').value.trim();
-          const selectedPlanId = planSelect ? planSelect.value : q.selectedPlanId;
-          const selectedShiftId = shiftSelect ? shiftSelect.value : q.selectedShiftId;
-          const applyWallet = walletCheckbox ? walletCheckbox.checked : q.isWalletApplied;
+        const renewalSubmitForm = modalContent.querySelector('#portal-renewal-submit-form');
+        if (renewalSubmitForm) {
+          renewalSubmitForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const utrInput = modalContent.querySelector('#renewal-utr-input');
+            const utrNumber = utrInput ? utrInput.value.trim() : '';
+            const selectedPlanId = planSelect ? planSelect.value : q.selectedPlanId;
+            const selectedShiftId = shiftSelect ? shiftSelect.value : q.selectedShiftId;
+            const applyWallet = walletCheckbox ? walletCheckbox.checked : q.isWalletApplied;
 
-          const btn = modalContent.querySelector('#btn-submit-renewal-utr');
-          Loading.button(btn, true);
+            const btn = modalContent.querySelector('#btn-submit-renewal-utr');
+            Loading.button(btn, true);
 
-          try {
-            const renewRes = await api.post('/api/student-portal/renewal-request', {
-              utrNumber,
-              planId: selectedPlanId,
-              shiftId: selectedShiftId,
-              amountPaid: q.totalPayable,
-              applyWallet,
-              paymentMode: 'upi'
-            });
+            try {
+              const renewRes = await api.post('/api/student-portal/renewal-request', {
+                utrNumber,
+                planId: selectedPlanId,
+                shiftId: selectedShiftId,
+                amountPaid: q.totalPayable,
+                applyWallet,
+                paymentMode: 'upi'
+              });
 
-            if (!renewRes.success) throw new Error(renewRes.message);
+              if (!renewRes.success) throw new Error(renewRes.message);
 
-            Toast.success('🎉 Membership renewed successfully!');
-            Modal.closeAll();
-            // Reload portal with fresh dashboard and analytics
-            const freshDash = await api.get('/api/student-portal/dashboard');
-            if (freshDash.success && freshDash.data) {
-              let freshAnalytics = null;
-              try {
-                const aRes = await api.get(`/api/attendance/analytics/${freshDash.data.student._id}`);
-                if (aRes.success) freshAnalytics = aRes.data;
-              } catch (e) {}
-              renderPortalUI(container, freshDash.data, freshAnalytics);
+              Toast.success('🎉 Membership renewed successfully!');
+              Modal.closeAll();
+              // Reload portal with fresh dashboard and analytics
+              const freshDash = await api.get('/api/student-portal/dashboard');
+              if (freshDash.success && freshDash.data) {
+                let freshAnalytics = null;
+                try {
+                  const aRes = await api.get(`/api/attendance/analytics/${freshDash.data.student._id}`);
+                  if (aRes.success) freshAnalytics = aRes.data;
+                } catch (e) {}
+                renderPortalUI(container, freshDash.data, freshAnalytics);
+              }
+            } catch (err) {
+              Toast.error(err.message || 'Renewal failed. Please check UTR.');
+            } finally {
+              Loading.button(btn, false);
             }
-          } catch (err) {
-            Toast.error(err.message || 'Renewal failed. Please check UTR.');
-          } finally {
-            Loading.button(btn, false);
-          }
-        };
+          };
+        }
       }
 
       updateModalBody();
+
+      if (q.allMethodsDisabled || (q.paymentMethods || []).length === 0) {
+        Toast.info('Online payment is currently disabled by library management. Please contact reception to renew.');
+      }
 
       const renewModal = new Modal({ title: '💳 Membership Self-Renewal', content: modalContent, size: 'md' });
       renewModal.show();
