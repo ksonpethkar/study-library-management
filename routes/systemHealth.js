@@ -134,7 +134,7 @@ router.get('/health-check', protect, roleCheck('owner', 'branch_manager'), async
     let dbAuditStatus = 'healthy';
     if (!dbPingSuccess || dbState !== 'connected') {
       dbAuditStatus = 'action_required';
-    } else if (dbPingLatencyMs > 150) {
+    } else if (dbPingLatencyMs > 350) {
       dbAuditStatus = 'warning';
     }
 
