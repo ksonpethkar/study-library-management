@@ -348,59 +348,60 @@ function renderPortalUI(container, data, analytics = null) {
 
       <!-- 4 Badges & Progress Bars Grid -->
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
-        ${[
-          { badgeId: 'early_bird', title: '🌅 Early Bird', icon: '🌅', description: 'Checked in before 07:00 AM 5+ times', target: 5, unit: 'check-ins' },
-          { badgeId: 'study_warrior', title: '⚔️ 100-Hour Study Warrior', icon: '⚔️', description: 'Total study hours >= 100', target: 100, unit: 'hrs' },
-          { badgeId: 'night_owl', title: '🦉 Night Owl', icon: '🦉', description: 'Checked in after 08:00 PM 5+ times', target: 5, unit: 'check-ins' },
-          { badgeId: 'streak_champion', title: '🏆 30-Day Streak Champion', icon: '🏆', description: 'Consecutive attendance streak >= 30 days', target: 30, unit: 'days' }
-        ].map(b => {
-          const earnedBadge = (student.badges || []).find(eb => eb.badgeId === b.badgeId);
-          const isEarned = !!earnedBadge;
-          
-          let progVal = 0;
-          if (badgeProgress && Array.isArray(badgeProgress)) {
-            const bp = badgeProgress.find(p => p.badgeId === b.badgeId);
-            if (bp) progVal = bp.progress || 0;
-          }
-          if (isEarned) progVal = Math.max(progVal, b.target);
+        ${(() => {
+          const badgeProgress = data?.badgeProgress || analytics?.badgeProgress || [];
+          return [
+            { badgeId: 'early_bird', title: '🌅 Early Bird', icon: '🌅', description: 'Checked in before 07:00 AM 5+ times', target: 5, unit: 'check-ins' },
+            { badgeId: 'study_warrior', title: '⚔️ 100-Hour Study Warrior', icon: '⚔️', description: 'Total study hours >= 100', target: 100, unit: 'hrs' },
+            { badgeId: 'night_owl', title: '🦉 Night Owl', icon: '🦉', description: 'Checked in after 08:00 PM 5+ times', target: 5, unit: 'check-ins' },
+            { badgeId: 'streak_champion', title: '🏆 30-Day Streak Champion', icon: '🏆', description: 'Consecutive attendance streak >= 30 days', target: 30, unit: 'days' }
+          ].map(b => {
+            const earnedBadge = (student.badges || []).find(eb => eb.badgeId === b.badgeId);
+            const isEarned = !!earnedBadge;
+            
+            let progVal = 0;
+            if (badgeProgress && Array.isArray(badgeProgress)) {
+              const bp = badgeProgress.find(p => p.badgeId === b.badgeId);
+              if (bp) progVal = bp.progress || 0;
+            }
+            if (isEarned) progVal = Math.max(progVal, b.target);
 
-          const percent = Math.min(100, Math.round((progVal / b.target) * 100));
+            const percent = Math.min(100, Math.round((progVal / b.target) * 100));
 
-          return `
-            <div style="background: var(--color-bg-secondary); border: 1px solid ${isEarned ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
-              ${isEarned ? `
-                <div style="position: absolute; top: 8px; right: 8px; background: var(--color-success); color: white; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 10px; text-transform: uppercase;">
-                  Unlocked
-                </div>
-              ` : ''}
-              <div>
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-                  <span style="font-size: 1.8rem; opacity: ${isEarned ? '1' : '0.6'};">${b.icon}</span>
-                  <div>
-                    <div style="font-weight: 700; font-size: 0.95rem; color: ${isEarned ? 'var(--color-primary)' : 'var(--color-text-primary)'};">
-                      ${escapeHTML(b.title)}
-                    </div>
-                    <div style="font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.3;">
-                      ${escapeHTML(b.description)}
+            return `
+              <div style="background: var(--color-bg-secondary); border: 1px solid ${isEarned ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+                ${isEarned ? `
+                  <div style="position: absolute; top: 8px; right: 8px; background: var(--color-success); color: white; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 10px; text-transform: uppercase;">
+                    Unlocked
+                  </div>
+                ` : ''}
+                <div>
+                  <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                    <span style="font-size: 1.8rem; opacity: ${isEarned ? '1' : '0.6'};">${b.icon}</span>
+                    <div>
+                      <div style="font-weight: 700; font-size: 0.95rem; color: ${isEarned ? 'var(--color-primary)' : 'var(--color-text-primary)'};">
+                        ${escapeHTML(b.title)}
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--color-text-secondary);">
+                        ${escapeHTML(b.description)}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div style="margin-top: 12px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; margin-bottom: 4px; font-weight: 600;">
-                  <span style="color: var(--color-text-secondary);">Progress</span>
-                  <span style="color: ${isEarned ? 'var(--color-success)' : 'var(--color-text-primary)'};">
-                    ${isEarned ? `100% (${b.target}/${b.target} ${b.unit})` : `${progVal} / ${b.target} ${b.unit}`}
-                  </span>
-                </div>
-                <div style="height: 8px; width: 100%; background: var(--color-border); border-radius: 4px; overflow: hidden;">
-                  <div style="height: 100%; width: ${percent}%; background: ${isEarned ? 'linear-gradient(90deg, var(--color-success), var(--color-primary))' : 'var(--color-primary)'}; border-radius: 4px; transition: width 0.3s ease;"></div>
+                <div style="margin-top: 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; margin-bottom: 4px; font-weight: 600;">
+                    <span style="color: var(--color-text-muted);">Progress</span>
+                    <span style="color: ${isEarned ? 'var(--color-success)' : 'var(--color-primary)'};">${progVal} / ${b.target} ${b.unit} (${percent}%)</span>
+                  </div>
+                  <div style="height: 6px; background: var(--color-surface); border-radius: 4px; overflow: hidden;">
+                    <div style="width: ${percent}%; height: 100%; background: ${isEarned ? 'var(--color-success)' : 'var(--color-primary)'}; border-radius: 4px; transition: width 0.4s ease;"></div>
+                  </div>
                 </div>
               </div>
-            </div>
-          `;
-        }).join('')}
+            `;
+          }).join('');
+        })()}
       </div>
     </div>
 
