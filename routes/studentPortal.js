@@ -526,7 +526,7 @@ router.get('/referral-stats', async (req, res) => {
     if (!student.referralCode) {
       const cleanName = (student.name || 'STUDENT').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 5) || 'STUDY';
       student.referralCode = `${cleanName}${Math.floor(100 + Math.random() * 900)}`;
-      await student.save();
+      await Student.findByIdAndUpdate(student._id, { referralCode: student.referralCode });
     }
 
     res.json({
@@ -565,8 +565,7 @@ router.put('/custom-referral-code', async (req, res) => {
       return res.status(400).json({ success: false, message: 'This referral code is already taken. Please choose another one.' });
     }
 
-    student.referralCode = code;
-    await student.save();
+    await Student.findByIdAndUpdate(student._id, { referralCode: code });
 
     res.json({ success: true, message: `Your custom referral code is now ${code}!`, data: { referralCode: code } });
   } catch (err) {
@@ -720,10 +719,11 @@ router.post('/renewal-request', async (req, res) => {
     await payment.save();
 
     // Extend student expiry date & clear fines
-    student.expiryDate = validUntil;
-    student.status = 'active';
-    student.pendingFine = 0;
-    await student.save({ validateBeforeSave: false });
+    await Student.findByIdAndUpdate(student._id, {
+      expiryDate: validUntil,
+      status: 'active',
+      pendingFine: 0
+    });
 
     // Notify Library Admins
     await Notification.create({
@@ -738,7 +738,7 @@ router.post('/renewal-request', async (req, res) => {
       message: 'Membership renewed successfully! Your new expiry date has been updated.',
       data: {
         receiptNumber: payment.receiptNumber,
-        newExpiryDate: student.expiryDate,
+        newExpiryDate: validUntil,
         amount: payment.finalAmount || payAmount
       }
     });
@@ -760,11 +760,16 @@ router.put('/profile', async (req, res) => {
     }
 
     const { photo, email, phone } = req.body;
-    if (photo !== undefined) student.photo = photo;
-    if (email) student.email = email.trim();
-    if (phone) student.phone = phone.trim();
+    const updateData = {};
+    if (photo !== undefined) updateData.photo = photo;
+    if (email) updateData.email = email.trim();
+    if (phone) updateData.phone = phone.trim();
 
-    await student.save({ validateBeforeSave: false });
+    const updatedStudent = await Student.findByIdAndUpdate(
+      student._id,
+      { $set: updateData },
+      { new: true, runValidators: false }
+    );
 
     // Also update User avatar if matching user exists
     const User = require('../models/User');
@@ -775,7 +780,7 @@ router.put('/profile', async (req, res) => {
     res.json({
       success: true,
       message: 'Student profile photo updated successfully',
-      data: student
+      data: updatedStudent || { ...student, ...updateData }
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
