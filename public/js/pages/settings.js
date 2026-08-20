@@ -162,6 +162,9 @@ function renderSettingsUI(container, profile, settings) {
       <!-- ========================================== -->
       <!-- SECTION A: LIBRARY BRANDING & INFO -->
       <!-- ========================================== -->
+      <!-- ========================================== -->
+      <!-- SECTION A: LIBRARY BRANDING & INFO -->
+      <!-- ========================================== -->
       <div class="settings-panel" id="panel-branding" style="display: block;">
         <form id="form-branding">
           
@@ -175,12 +178,250 @@ function renderSettingsUI(container, profile, settings) {
                 <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Categorized master settings affecting ID cards, invoices, receipts, portals, and payment gateways.</p>
               </div>
               <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); font-weight: 700; padding: 6px 12px; border-radius: 20px;">
-                Categorized & Structured
+                Categorized &amp; Structured
               </span>
             </div>
             
-            <div class="card-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; background: var(--color-surface-hover);">
-              <button type="submit" id="btn-save-branding-bottom" class="btn btn-primary" style="font-weight: 600;">Save Branding Changes</button>
+            <div class="card-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.75rem;">
+              
+              <!-- CATEGORY 1: CORE IDENTITY & SLOGAN -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>🏛️</span> Category 1: Core Library Identity &amp; Registration
+                </h4>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                  <div class="form-group">
+                    <label class="form-label" for="setting-businessName" style="font-weight: 600;">Business / Library Name *</label>
+                    <input type="text" id="setting-businessName" class="form-control" required value="${escapeHTML(profile.businessName || 'The Cozy Corner Centre')}" placeholder="e.g. The Cozy Corner Centre">
+                  </div>
+                  
+                  <div class="form-group">
+                    <label class="form-label" for="setting-tagline" style="font-weight: 600;">Tagline / Slogan</label>
+                    <input type="text" id="setting-tagline" class="form-control" value="${escapeHTML(profile.tagline || '')}" placeholder="e.g. Silence, Focus & Success">
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="setting-gstNumber" style="font-weight: 600;">GSTIN / Tax Registration Number</label>
+                    <input type="text" id="setting-gstNumber" class="form-control" value="${escapeHTML(profile.gstNumber || '')}" placeholder="e.g. 27AAAAA0000A1Z5">
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="setting-registrationNumber" style="font-weight: 600;">Registration / Shop Act License No.</label>
+                    <input type="text" id="setting-registrationNumber" class="form-control" value="${escapeHTML(profile.registrationNumber || '')}" placeholder="e.g. REG/2026/982">
+                  </div>
+                </div>
+              </div>
+
+              <!-- CATEGORY 2: VISUAL MEDIA ASSETS & LOGOS -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>🎨</span> Category 2: Visual Media Assets &amp; Brand Logos
+                </h4>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; padding: 1rem; background: var(--color-surface); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                  <!-- Logo -->
+                  <div id="mount-setting-logo"></div>
+
+                  <!-- Favicon -->
+                  <div id="mount-setting-favicon"></div>
+
+                  <!-- UPI QR Code -->
+                  <div id="mount-setting-qr"></div>
+                </div>
+              </div>
+
+              <!-- CATEGORY 3: ACCEPTED PAYMENT METHODS & GATEWAYS -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;">
+                  <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                    <span>💳</span> Category 3: Accepted Payment Gateways &amp; Banking Details
+                  </h4>
+                  <span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.75rem;">Simplified Mode</span>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                  
+                  <!-- Option 1: UPI Payments -->
+                  <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;">
+                      <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.5rem;">⚡</span>
+                        <div>
+                          <h5 style="margin: 0; font-weight: 700; font-size: 0.98rem; color: var(--color-text-primary);">1. UPI Payments (GPay, PhonePe, Paytm, Dynamic QR)</h5>
+                          <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">Generates dynamic QR codes and mobile 1-tap deep links for students.</p>
+                        </div>
+                      </div>
+                      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 0.85rem; background: var(--color-bg-secondary); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--color-border);">
+                        <input type="checkbox" id="setting-pm-upi-enable" ${isUpiEnabled ? 'checked' : ''} style="width: 18px; height: 18px;">
+                        <span id="label-pm-upi-status" style="color: ${isUpiEnabled ? 'var(--color-success)' : 'var(--color-danger)'};">${isUpiEnabled ? '🟢 ENABLED' : '🔴 DISABLED'}</span>
+                      </label>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+                      <div class="form-group">
+                        <label class="form-label" for="setting-upiId" style="font-weight: 600;">⚡ Official Library UPI ID (VPA) *</label>
+                        <input type="text" id="setting-upiId" class="form-control" value="${escapeHTML(profile.upiId || '')}" placeholder="e.g. 7276969070@upi">
+                      </div>
+                      <div class="form-group" style="display: flex; align-items: center; margin-top: 1.6rem;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; font-size: 0.85rem; margin: 0;">
+                          <input type="checkbox" id="setting-enableUpiDeepLinks" ${profile.enableUpiDeepLinks !== false ? 'checked' : ''}>
+                          <span>📱 Enable 1-Tap Mobile App Intent Buttons (GPay/PhonePe)</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Option 2: Direct Bank Transfer -->
+                  <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;">
+                      <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.5rem;">🏦</span>
+                        <div>
+                          <h5 style="margin: 0; font-weight: 700; font-size: 0.98rem; color: var(--color-text-primary);">2. Direct Bank Account Transfer (IMPS / NEFT)</h5>
+                          <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">Displays bank account &amp; IFSC details for direct bank transfers.</p>
+                        </div>
+                      </div>
+                      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 0.85rem; background: var(--color-bg-secondary); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--color-border);">
+                        <input type="checkbox" id="setting-pm-bank-enable" ${isBankEnabled ? 'checked' : ''} style="width: 18px; height: 18px;">
+                        <span id="label-pm-bank-status" style="color: ${isBankEnabled ? 'var(--color-success)' : 'var(--color-danger)'};">${isBankEnabled ? '🟢 ENABLED' : '🔴 DISABLED'}</span>
+                      </label>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                      <div class="form-group">
+                        <label class="form-label" for="setting-bank-name" style="font-weight: 600;">Bank Name</label>
+                        <input type="text" id="setting-bank-name" class="form-control" value="${escapeHTML(profile.bankDetails?.bankName || '')}" placeholder="e.g. State Bank of India">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" for="setting-bank-accName" style="font-weight: 600;">Account Holder Name</label>
+                        <input type="text" id="setting-bank-accName" class="form-control" value="${escapeHTML(profile.bankDetails?.accountName || '')}" placeholder="e.g. The Cozy Corner Centre">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" for="setting-bank-accNum" style="font-weight: 600;">Account Number</label>
+                        <input type="text" id="setting-bank-accNum" class="form-control" value="${escapeHTML(profile.bankDetails?.accountNumber || '')}" placeholder="e.g. 50100234567890">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" for="setting-bank-ifsc" style="font-weight: 600;">IFSC Code</label>
+                        <input type="text" id="setting-bank-ifsc" class="form-control" value="${escapeHTML(profile.bankDetails?.ifscCode || '')}" placeholder="e.g. SBIN0001234">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Option 3: Pay Cash at Reception -->
+                  <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                      <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.5rem;">💵</span>
+                        <div>
+                          <h5 style="margin: 0; font-weight: 700; font-size: 0.98rem; color: var(--color-text-primary);">3. Pay Cash at Library Reception Desk</h5>
+                          <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">Pre-reserves student seat for 24 hours while student pays cash on arrival.</p>
+                        </div>
+                      </div>
+                      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 0.85rem; background: var(--color-bg-secondary); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--color-border);">
+                        <input type="checkbox" id="setting-pm-desk-enable" ${isDeskEnabled ? 'checked' : ''} style="width: 18px; height: 18px;">
+                        <span id="label-pm-desk-status" style="color: ${isDeskEnabled ? 'var(--color-success)' : 'var(--color-danger)'};">${isDeskEnabled ? '🟢 ENABLED' : '🔴 DISABLED'}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Collapsible Advanced Gateway Options -->
+                  <details style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 16px;">
+                    <summary style="cursor: pointer; font-weight: 700; font-size: 0.9rem; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                      ⚡ Advanced Gateway Auto-Verification (Optional - Razorpay / PhonePe / Cashfree)
+                    </summary>
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+                        <div class="form-group">
+                          <label class="form-label" for="setting-gatewayProvider" style="font-weight: 600;">Verification Engine</label>
+                          <select id="setting-gatewayProvider" class="form-select" style="font-weight: 700;">
+                            <option value="manual_upi" ${profile.gatewayProvider === 'manual_upi' || !profile.gatewayProvider ? 'selected' : ''}>Option A: Free Standard UPI QR + Anti-Duplicate Check</option>
+                            <option value="razorpay" ${profile.gatewayProvider === 'razorpay' ? 'selected' : ''}>Option B: Razorpay PG Auto-Webhooks</option>
+                            <option value="phonepe" ${profile.gatewayProvider === 'phonepe' ? 'selected' : ''}>Option B: PhonePe Business PG Webhooks</option>
+                            <option value="cashfree" ${profile.gatewayProvider === 'cashfree' ? 'selected' : ''}>Option B: Cashfree Auto-Collect Webhooks</option>
+                          </select>
+                        </div>
+                        <div class="form-group">
+                          <label class="form-label" for="setting-razorpayKeyId" style="font-weight: 600;">Gateway Key ID / App ID</label>
+                          <input type="text" id="setting-razorpayKeyId" class="form-control" value="${escapeHTML(profile.razorpayKeyId || '')}">
+                        </div>
+                        <div class="form-group">
+                          <label class="form-label" for="setting-razorpaySecret" style="font-weight: 600;">Gateway Secret Key</label>
+                          <input type="password" id="setting-razorpaySecret" class="form-control" value="${escapeHTML(profile.razorpaySecret || '')}">
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+
+                </div>
+              </div>
+
+              <!-- CATEGORY 4: OFFICIAL CONTACT & LOCATION DETAILS -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>📍</span> Category 4: Official Contact &amp; Physical Location Details
+                </h4>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                  <div class="form-group">
+                    <label class="form-label" for="setting-phone" style="font-weight: 500;">Phone / WhatsApp Support *</label>
+                    <input type="text" id="setting-phone" class="form-control" value="${escapeHTML(profile.phone || '')}" placeholder="+91 98765 43210">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="setting-email" style="font-weight: 500;">Official Email Address *</label>
+                    <input type="email" id="setting-email" class="form-control" value="${escapeHTML(profile.email || '')}" placeholder="support@studylib.com">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="setting-website" style="font-weight: 500;">Website URL</label>
+                    <input type="url" id="setting-website" class="form-control" value="${escapeHTML(profile.website || '')}" placeholder="https://www.studylibrary.com">
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.25rem;">
+                  <label class="form-label" for="setting-address" style="font-weight: 500;">Full Street Address</label>
+                  <input type="text" id="setting-address" class="form-control" value="${escapeHTML(profile.address || '')}" placeholder="Plot 42, Knowledge Park III, Near Metro Station">
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                  <div class="form-group">
+                    <label class="form-label" for="setting-city" style="font-weight: 500;">City</label>
+                    <input type="text" id="setting-city" class="form-control" value="${escapeHTML(profile.city || '')}" placeholder="e.g. Pune / Delhi">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="setting-state" style="font-weight: 500;">State</label>
+                    <input type="text" id="setting-state" class="form-control" value="${escapeHTML(profile.state || '')}" placeholder="e.g. Maharashtra">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="setting-pincode" style="font-weight: 500;">Pincode</label>
+                    <input type="text" id="setting-pincode" class="form-control" value="${escapeHTML(profile.pincode || '')}" placeholder="e.g. 411001">
+                  </div>
+                </div>
+
+                <!-- Social Links -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                  <div class="form-group">
+                    <label class="form-label" for="setting-social-whatsapp" style="font-weight: 500;">WhatsApp Support Group Link</label>
+                    <input type="text" id="setting-social-whatsapp" class="form-control" value="${escapeHTML(profile.socialLinks?.whatsapp || '')}" placeholder="https://chat.whatsapp.com/...">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="setting-social-instagram" style="font-weight: 500;">Instagram Handle</label>
+                    <input type="text" id="setting-social-instagram" class="form-control" value="${escapeHTML(profile.socialLinks?.instagram || '')}" placeholder="@studylibrary">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="setting-social-facebook" style="font-weight: 500;">Facebook Page</label>
+                    <input type="text" id="setting-social-facebook" class="form-control" value="${escapeHTML(profile.socialLinks?.facebook || '')}" placeholder="facebook.com/...">
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- SINGLE CONSOLIDATED SAVE BUTTON AT BOTTOM -->
+              <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--color-divider);">
+                <button type="submit" id="btn-save-branding" class="btn btn-primary" style="font-weight: 700; padding: 0.65rem 1.75rem;">
+                  💾 Save Branding &amp; Master Business Settings
+                </button>
+              </div>
+
             </div>
           </div>
         </form>
