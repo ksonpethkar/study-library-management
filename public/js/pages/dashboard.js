@@ -535,6 +535,9 @@ export async function render(container) {
         <p class="text-muted small mb-0" style="margin-top: 4px;">Welcome back, ${escapeHTML(user.name)}! Here is your study library live overview.</p>
       </div>
       <div class="d-flex gap-2 flex-wrap">
+        <button id="btn-refresh-dashboard" class="btn btn-outline-secondary d-flex align-items-center gap-2" style="font-weight: 600;">
+          🔄 Refresh
+        </button>
         ${canCustomize ? `
           <button id="btn-customize-dashboard" class="btn btn-primary d-flex align-items-center gap-2" style="font-weight: 600;">
             ⚙️ Customize Dashboard Widgets
@@ -594,6 +597,14 @@ export async function render(container) {
 
   // Attach Customize click handlers
   const attachCustomizeHandlers = () => {
+    const refreshBtn = document.getElementById('btn-refresh-dashboard');
+    if (refreshBtn) {
+      refreshBtn.onclick = () => {
+        Toast.info('Refreshing live dashboard telemetry...');
+        render(container);
+      };
+    }
+
     const custBtn = document.getElementById('btn-customize-dashboard');
     if (custBtn) {
       custBtn.onclick = () => openCustomizeModal((newConfig) => {
