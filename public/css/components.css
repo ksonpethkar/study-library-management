@@ -1927,6 +1927,42 @@ html.dark-theme .bottom-sheet {
   transform: translateX(-50%) translateY(0);
 }
 
+/* Split-Screen Interactive Preview Layout for Landing CMS */
+.landing-editor-split {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 1.25rem !important;
+  align-items: flex-start !important;
+  width: 100% !important;
+}
+
+.cms-editor-panel {
+  flex: 1 1 50% !important;
+  min-width: 0 !important;
+  max-width: 50% !important;
+  width: 50% !important;
+}
+
+.cms-preview-panel {
+  flex: 1 1 50% !important;
+  min-width: 0 !important;
+  max-width: 50% !important;
+  width: 50% !important;
+  position: sticky !important;
+  top: 20px !important;
+}
+
+@media (max-width: 992px) {
+  .landing-editor-split {
+    flex-direction: column !important;
+  }
+  .cms-editor-panel,
+  .cms-preview-panel {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+
 
 
 
