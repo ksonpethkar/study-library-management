@@ -793,10 +793,96 @@ export async function render() {
       `;
     });
 
-    const formHtml = `
+    const formHtml = !isEdit ? `
       <form id="studentForm">
         <div class="row" style="row-gap: 12px;">
-          <!-- Dynamically Grouped Form Sections as Customized in Form Builder -->
+          
+          <!-- 🚀 10-Second Express Walk-in Card (Placed Right at Top for Instant Admission) -->
+          <div class="col-12" style="background: rgba(108, 92, 231, 0.08); border: 1.5px solid var(--color-primary); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: var(--shadow-xs);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;">
+              <h5 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                <span>🚀</span> 10-Second Express Walk-in Admission
+              </h5>
+              <span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.75rem;">Fast Entry Mode</span>
+            </div>
+
+            <div class="row" style="row-gap: 12px;">
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 700;">Full Student Name *</label>
+                <input type="text" class="form-control custom-dyn-input" name="name" data-field="name" value="${escapeHTML(getVal('name'))}" placeholder="e.g. Rahul Sharma" required style="font-weight: 600;">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 700;">Mobile Number (WhatsApp) *</label>
+                <input type="tel" class="form-control custom-dyn-input" name="phone" data-field="phone" value="${escapeHTML(getVal('phone'))}" placeholder="10-digit mobile (e.g. 9876543210)" required style="font-weight: 600;">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 700;">Select Membership Plan *</label>
+                <select class="form-select form-control" name="plan" style="font-weight: 600;">
+                  ${plansOptions}
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 700;">Select Reserved Study Desk / Seat</label>
+                <select class="form-select form-control" name="seat" style="font-weight: 600;">
+                  ${seatsOptions}
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 700;">Membership Status</label>
+                <select class="form-select form-control" name="status" style="font-weight: 600;">
+                  <option value="active" selected>🟢 Active (Instant Access)</option>
+                  <option value="pending_payment">🟡 Pending Cash Payment</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 700;">Payment Mode Collected</label>
+                <select class="form-select form-control" name="paymentMode" style="font-weight: 600;">
+                  <option value="cash" selected>💵 Cash at Reception Desk</option>
+                  <option value="upi">⚡ Direct UPI / GPay / PhonePe</option>
+                  <option value="card">💳 Debit / Credit Card</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Collapsible Accordion: Optional Extended Details (KYC Photo, Guardian Contact, Address & RFID) -->
+          <div class="col-12 mt-2">
+            <details style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 12px 16px;">
+              <summary style="cursor: pointer; font-weight: 700; font-size: 0.9rem; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                <span>➕ Optional Extended Details (KYC Photo, Guardian Contact, Address & RFID)</span>
+              </summary>
+              <div class="row mt-3" style="row-gap: 12px;">
+                ${dynamicSectionsHtml}
+
+                <div class="col-md-6">
+                  <label class="form-label" style="font-weight: 600;">🏷️ RFID Smart Card UID</label>
+                  <input type="text" class="form-control" name="rfidCardNumber" value="${student && student.rfidCardNumber ? escapeHTML(student.rfidCardNumber) : ''}" placeholder="Scan card or enter Hex/DEC UID">
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label" style="font-weight: 600;">👤 Biometric / Machine ID</label>
+                  <input type="text" class="form-control" name="biometricId" value="${student && student.biometricId ? escapeHTML(student.biometricId) : ''}" placeholder="e.g. BIO-101 / Finger ID">
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label" style="font-weight: 600;">Special Remarks / Admin Notes</label>
+                  <textarea class="form-control" name="notes" rows="2" placeholder="Any health conditions, locker preference, discount notes, etc.">${student && student.notes ? escapeHTML(student.notes) : ''}</textarea>
+                </div>
+              </div>
+            </details>
+          </div>
+
+        </div>
+      </form>
+    ` : `
+      <form id="studentForm">
+        <div class="row" style="row-gap: 12px;">
+          <!-- Dynamically Grouped Form Sections -->
           ${dynamicSectionsHtml}
 
           <!-- Administrative & Membership Allotment Section Card -->
