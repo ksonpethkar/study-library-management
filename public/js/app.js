@@ -414,21 +414,46 @@ class Application {
   getStore() { return store; }
 
   /**
-   * Transition to a page with animation
+   * Transition to a page with animation and page-specific loading screen
    */
   showPage(pageId, renderFn) {
     const content = document.getElementById('page-content');
     if (!content) return;
 
+    const pageTitles = {
+      dashboard: { name: 'Admin Operations Dashboard', icon: '📊', sub: 'Loading real-time revenue & occupancy analytics...' },
+      students: { name: 'Student Master Directory', icon: '👨‍🎓', sub: 'Loading student profiles & fee ledgers...' },
+      seats: { name: 'Live Seating Grid Matrix', icon: '💺', sub: 'Loading real-time seat availability & shift assignments...' },
+      lockers: { name: 'Smart Locker Storage Manager', icon: '🔐', sub: 'Loading locker assignments & availability...' },
+      plans: { name: 'Membership Plans & Pricing', icon: '🏷️', sub: 'Loading tier rates & discount rules...' },
+      payments: { name: 'Fee Collection & Receipt Studio', icon: '💳', sub: 'Loading payment logs & revenue receipts...' },
+      attendance: { name: 'Attendance & Gate Check-in Ledger', icon: '⏱️', sub: 'Loading check-in logs & active hours...' },
+      shifts: { name: 'Study Shift & Slot Schedule', icon: '🕒', sub: 'Loading shift timings & seat quotas...' },
+      branches: { name: 'Multi-Branch Centre Management', icon: '🏢', sub: 'Loading branch locations & capacity status...' },
+      reports: { name: 'Financial P&L & GST Analytics', icon: '📈', sub: 'Loading executive reports & Tally exports...' },
+      expenses: { name: 'Operational Expense Manager', icon: '💸', sub: 'Loading expense vouchers & profit ledgers...' },
+      operations: { name: 'Seat Transfer & Request Desk', icon: '🔄', sub: 'Loading operational requests...' },
+      settings: { name: 'System Settings & Branding Control', icon: '⚙️', sub: 'Loading system configurations...' },
+      portal: { name: 'Student Self-Service Portal', icon: '🎓', sub: 'Loading study analytics, ID pass & desk info...' },
+      profile: { name: 'My Account & Security Profile', icon: '👤', sub: 'Loading security settings & profile details...' }
+    };
+
+    const pInfo = pageTitles[pageId] || { name: `${pageId.charAt(0).toUpperCase() + pageId.slice(1)} Module`, icon: '⚡', sub: 'Preparing workspace...' };
+
+    Loading.showPage(pInfo.name, pInfo.sub, pInfo.icon);
+
     // Update active nav links
     this.updateActiveNav(pageId);
 
     const doRender = async () => {
-      const result = await renderFn(content);
-      // If render returns a DOM element different from content, append it
-      if (result instanceof HTMLElement && result !== content) {
-        content.innerHTML = '';
-        content.appendChild(result);
+      try {
+        const result = await renderFn(content);
+        if (result instanceof HTMLElement && result !== content) {
+          content.innerHTML = '';
+          content.appendChild(result);
+        }
+      } finally {
+        Loading.hidePage();
       }
     };
 

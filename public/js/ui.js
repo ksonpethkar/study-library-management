@@ -499,6 +499,40 @@ Confirm.show = async function(opts) {
 };
 
 export const Loading = {
+  showPage(pageName = 'Loading Workspace...', subtitle = 'Preparing page contents...', icon = '⚡') {
+    let overlay = document.getElementById('global-page-loader');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'global-page-loader';
+      overlay.className = 'global-page-loader-overlay';
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `
+      <div class="page-loader-card">
+        <div class="page-loader-ring">
+          <span class="page-loader-icon">${icon}</span>
+        </div>
+        <h3 class="page-loader-title">${escapeHTML(pageName)}</h3>
+        <p class="page-loader-subtitle">${escapeHTML(subtitle)}</p>
+        <div class="page-loader-bar">
+          <div class="page-loader-progress"></div>
+        </div>
+      </div>
+    `;
+    overlay.style.opacity = '1';
+    overlay.style.visibility = 'visible';
+    overlay.style.display = 'flex';
+  },
+  hidePage() {
+    const overlay = document.getElementById('global-page-loader');
+    if (overlay) {
+      overlay.style.opacity = '0';
+      overlay.style.visibility = 'hidden';
+      setTimeout(() => {
+        if (overlay && overlay.parentNode) overlay.remove();
+      }, 250);
+    }
+  },
   show(target) {
     if (!target) {
       let overlay = document.getElementById('global-loading-overlay');
@@ -550,6 +584,7 @@ export const Loading = {
     if (!target) {
       const overlay = document.getElementById('global-loading-overlay');
       if (overlay) overlay.remove();
+      this.hidePage();
       return;
     }
 
