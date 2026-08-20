@@ -192,6 +192,22 @@ async function sendHydratedHTML(res, htmlPath) {
       html = html.replace(/(<section id="gallery"[\s\S]*?<h2 class="section-title">)[\s\S]*?(<\/h2>)/g, `$1${landing.gallery.title}$2`);
     }
 
+    // 4. Pre-hydrate Gallery Items & Filters
+    if (Array.isArray(landing?.gallery?.images) && landing.gallery.images.length > 0) {
+      const categories = Array.from(new Set(landing.gallery.images.map(img => img.category || 'Hall'))).filter(Boolean);
+      const filterBtns = `<button type="button" class="g-filter active" data-category="all">All</button>` + 
+        categories.map(c => `<button type="button" class="g-filter" data-category="${c.toLowerCase()}">${c}</button>`).join('');
+      html = html.replace(/<div class="gallery-filters" id="gallery-filters-bar">[\s\S]*?<\/div>/g, `<div class="gallery-filters" id="gallery-filters-bar">${filterBtns}</div>`);
+
+      const galleryCards = landing.gallery.images.map(img => `
+        <div class="gallery-item" data-category="${img.category || 'Hall'}" onclick="openLightbox('${img.url}', '${img.caption || ''}')">
+          <img src="${img.url}" alt="${img.caption || 'Gallery Image'}" loading="lazy">
+          <div class="gallery-caption">${img.caption || ''}</div>
+        </div>
+      `).join('');
+      html = html.replace(/<div class="gallery-grid" id="gallery-container">[\s\S]*?<\/div>/g, `<div class="gallery-grid" id="gallery-container">${galleryCards}</div>`);
+    }
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.send(html);
   } catch (err) {
