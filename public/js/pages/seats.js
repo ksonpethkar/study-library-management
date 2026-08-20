@@ -175,6 +175,18 @@ export async function render() {
             <!-- Dynamically loaded zone badge buttons -->
           </div>
         </div>
+
+        <!-- Horizontal Scrollable Shift Filter Pills -->
+        <div class="mt-2 pt-2 border-top">
+          <label class="form-label text-xs mb-2" style="font-weight: 800; color: var(--color-text-secondary); letter-spacing: 0.5px; display: block;">⏰ FILTER BY STUDY SHIFT</label>
+          <div id="shift-pills-container" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin;">
+            <button type="button" class="btn btn-xs btn-primary shift-pill-btn active" data-shift="" style="font-weight: 700; border-radius: 20px; padding: 4px 12px;">🌐 All Shifts</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary shift-pill-btn" data-shift="morning" style="font-weight: 600; border-radius: 20px; padding: 4px 12px;">🌅 Morning Shift</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary shift-pill-btn" data-shift="evening" style="font-weight: 600; border-radius: 20px; padding: 4px 12px;">🌆 Evening Shift</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary shift-pill-btn" data-shift="night" style="font-weight: 600; border-radius: 20px; padding: 4px 12px;">🌃 Night Shift</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary shift-pill-btn" data-shift="fullday" style="font-weight: 600; border-radius: 20px; padding: 4px 12px;">☀️ Full Day Shift</button>
+          </div>
+        </div>
       </div>
 
       <!-- Floating Bulk Actions Bar -->
@@ -297,6 +309,19 @@ function bindHubEvents(container) {
   container.querySelector('#seat-status-filter')?.addEventListener('change', (e) => {
     currentStatus = e.target.value;
     loadSeats(container);
+  });
+
+  // Shift filter pills click
+  container.querySelectorAll('.shift-pill-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.shift-pill-btn').forEach(b => {
+        b.classList.remove('btn-primary', 'active');
+        b.classList.add('btn-outline-secondary');
+      });
+      btn.classList.add('btn-primary', 'active');
+      btn.classList.remove('btn-outline-secondary');
+      loadSeats(container);
+    });
   });
 
   // Search input with debounce
@@ -532,6 +557,138 @@ function getStatusColor(status) {
   }
 }
 
+function open360DeskDetailsModal(seat, container) {
+  const statusColor = getStatusColor(seat.status);
+  const student = seat.currentStudent;
+  const branchName = seat.branch ? (typeof seat.branch === 'object' ? seat.branch.name : seat.branch) : 'Main Branch';
+
+  const modalContent = document.createElement('div');
+  modalContent.innerHTML = `
+    <div style="font-family: 'Outfit', sans-serif;">
+      <!-- Header Banner -->
+      <div style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(0, 184, 148, 0.08)); border: 1.5px solid var(--color-primary); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h3 style="margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--color-text-primary);">
+              💺 Desk ${escapeHTML(seat.seatNumber)}
+            </h3>
+            <span class="badge" style="background-color: ${statusColor}; color: #fff; font-weight: 800; font-size: 0.8rem; text-transform: uppercase; padding: 4px 10px;">
+              ${escapeHTML(seat.status)}
+            </span>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 4px;">
+            Zone: <strong>${escapeHTML(seat.zone)}</strong> • Type: <strong style="text-transform: capitalize;">${escapeHTML(seat.type || 'Regular')}</strong> • Branch: <strong>${escapeHTML(branchName)}</strong>
+          </div>
+        </div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: var(--color-primary);">
+          ₹${seat.monthlyRate || 1000} <span style="font-size: 0.75rem; color: var(--color-text-secondary); font-weight: 500;">/ mo</span>
+        </div>
+      </div>
+
+      <!-- Occupant / Assignment Card -->
+      ${(seat.status === 'occupied' || seat.currentStudent) && student ? `
+        <div class="card p-3 mb-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-primary); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+            <span>👤 Active Desk Occupant</span>
+            <button type="button" class="btn btn-xs btn-outline-success btn-wa-direct" data-phone="${escapeHTML(student.phone || '')}" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
+              📲 WhatsApp Occupant
+            </button>
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <div style="width: 50px; height: 50px; border-radius: 50%; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem; flex-shrink: 0; overflow: hidden;">
+              ${student.photo ? `<img src="${student.photo.startsWith('/') ? student.photo : '/' + student.photo}" style="width:100%; height:100%; object-fit:cover;">` : (student.name ? student.name.charAt(0).toUpperCase() : 'S')}
+            </div>
+            <div>
+              <div style="font-weight: 800; font-size: 1.05rem; color: var(--color-text-primary);">${escapeHTML(student.name)}</div>
+              <div style="font-size: 0.82rem; color: var(--color-text-secondary);">
+                ID: <strong style="font-family: monospace; color: var(--color-primary);">${escapeHTML(student.studentId || 'N/A')}</strong> • Phone: <strong>${escapeHTML(student.phone || 'N/A')}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : `
+        <div class="card p-3 mb-3 text-center" style="background: rgba(0, 184, 148, 0.05); border: 1px dashed var(--color-success); border-radius: var(--radius-md);">
+          <div style="font-weight: 700; color: var(--color-success); margin-bottom: 4px;">🟢 Desk Available for Immediate Allotment</div>
+          <div style="font-size: 0.82rem; color: var(--color-text-secondary);">Assign this desk to a new or walk-in student member.</div>
+        </div>
+      `}
+
+      <!-- Quick Action Buttons Grid -->
+      <div class="d-flex gap-2 flex-wrap justify-content-end mt-4 pt-3" style="border-top: 1px solid var(--color-border);">
+        <button type="button" class="btn btn-outline-warning btn-sm btn-action-maint" style="font-weight: 600;">
+          ${seat.status === 'maintenance' ? '🟢 Mark Available' : '🛠️ Mark Maintenance'}
+        </button>
+        <button type="button" class="btn btn-outline-primary btn-sm btn-action-edit" style="font-weight: 600;">
+          ✏️ Edit Desk Config
+        </button>
+        <button type="button" class="btn btn-outline-danger btn-sm btn-action-delete" style="font-weight: 600;">
+          🗑️ Delete Desk
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="Modal.closeAll()">Close</button>
+      </div>
+    </div>
+  `;
+
+  const m = new Modal({
+    title: `Desk ${seat.seatNumber} Details`,
+    content: modalContent,
+    size: 'md'
+  });
+  m.show();
+
+  // Direct WhatsApp Occupant
+  modalContent.querySelector('.btn-wa-direct')?.addEventListener('click', (e) => {
+    const ph = e.currentTarget.dataset.phone;
+    if (ph) {
+      const cleanPhone = ph.replace(/\D/g, '');
+      const url = `https://wa.me/${cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone}?text=${encodeURIComponent(`Hello! Library Admin checking in regarding Desk ${seat.seatNumber}.`)}`;
+      window.open(url, '_blank');
+    }
+  });
+
+  // Maintenance Toggle
+  modalContent.querySelector('.btn-action-maint')?.addEventListener('click', async () => {
+    const nextStatus = seat.status === 'maintenance' ? 'available' : 'maintenance';
+    try {
+      await api.put(`/api/seats/${seat._id}`, { status: nextStatus });
+      Toast.success(`Desk ${seat.seatNumber} status updated to ${nextStatus}!`);
+      m.close();
+      await IDBStorage.clear('seats');
+      loadSeats(container);
+      loadStats(container);
+    } catch (err) {
+      Toast.error(err.message || 'Failed to update status');
+    }
+  });
+
+  // Edit Config
+  modalContent.querySelector('.btn-action-edit')?.addEventListener('click', () => {
+    m.close();
+    showSingleSeatModal(seat, container);
+  });
+
+  // Delete
+  modalContent.querySelector('.btn-action-delete')?.addEventListener('click', async () => {
+    const ok = await Confirm.show({
+      title: `Delete Desk ${seat.seatNumber}?`,
+      message: 'Are you sure you want to permanently remove this desk?',
+      danger: true
+    });
+    if (ok) {
+      try {
+        await api.delete(`/api/seats/${seat._id}`);
+        Toast.success(`Desk ${seat.seatNumber} deleted!`);
+        m.close();
+        await IDBStorage.clear('seats');
+        loadSeats(container);
+        loadStats(container);
+      } catch (err) {
+        Toast.error(err.message || 'Delete failed');
+      }
+    }
+  });
+}
+
 function renderSeatsGrid(seats, container) {
   const c = container || document.querySelector('.centers-seats-hub-page') || document;
   const grid = c.querySelector('#seatsGrid');
@@ -553,7 +710,7 @@ function renderSeatsGrid(seats, container) {
     const color = getStatusColor(seat.status);
     const studentName = seat.currentStudent ? seat.currentStudent.name : '';
     const isSelected = selectedSeatIds.has(seat._id);
-    const branchName = seat.branch ? seat.branch.name : '';
+    const branchName = seat.branch ? (typeof seat.branch === 'object' ? seat.branch.name : seat.branch) : '';
     
     html += `
       <div class="seat-card-wrapper" style="position: relative;">
@@ -571,8 +728,8 @@ function renderSeatsGrid(seats, container) {
 
           <!-- Quick Action Dot Menu (Top Right) -->
           <div style="position: absolute; top: 4px; right: 6px; z-index: 2;" onclick="event.stopPropagation();">
-            <button type="button" class="btn btn-ghost btn-sm btn-seat-quick-edit" data-id="${seat._id}" title="Edit Seat" style="padding: 2px 4px; font-size: 0.75rem; opacity: 0.7;">
-              ✏️
+            <button type="button" class="btn btn-ghost btn-sm btn-seat-quick-edit" data-id="${seat._id}" title="Desk Details & Actions" style="padding: 2px 4px; font-size: 0.75rem; opacity: 0.7;">
+              👁️
             </button>
           </div>
 
@@ -617,7 +774,7 @@ function renderSeatsGrid(seats, container) {
   
   grid.innerHTML = html;
   
-  // Bind Card Click (Select) & Double-Click (Details)
+  // Bind Card Click & Quick Actions
   grid.querySelectorAll('.seat-card').forEach(card => {
     card.addEventListener('mouseenter', () => {
       card.style.transform = 'translateY(-3px)';
@@ -631,35 +788,21 @@ function renderSeatsGrid(seats, container) {
         card.style.boxShadow = '';
       }
     });
-    
-    // Single click = toggle selection
-    card.addEventListener('click', (e) => {
-      // Don't interfere with checkbox or edit button clicks
-      if (e.target.closest('.seat-select-cb') || e.target.closest('.btn-seat-quick-edit')) return;
-      
+
+    // Quick Edit Eye Button click -> Open 360° Modal
+    card.querySelector('.btn-seat-quick-edit')?.addEventListener('click', (e) => {
+      e.stopPropagation();
       const seatId = card.getAttribute('data-id');
-      const cb = card.querySelector('.seat-select-cb');
-      
-      if (selectedSeatIds.has(seatId)) {
-        selectedSeatIds.delete(seatId);
-        card.style.boxShadow = '';
-        card.style.background = 'var(--color-surface)';
-        if (cb) cb.checked = false;
-      } else {
-        selectedSeatIds.add(seatId);
-        card.style.boxShadow = '0 0 0 2.5px var(--color-primary)';
-        card.style.background = 'var(--color-primary-bg)';
-        if (cb) cb.checked = true;
-      }
-      updateBulkActionBar(container);
+      const seat = seatsData.find(s => s._id === seatId);
+      if (seat) open360DeskDetailsModal(seat, container);
     });
     
-    // Double click = open detail modal
-    card.addEventListener('dblclick', (e) => {
+    // Card Click -> Open 360° Desk Details Modal
+    card.addEventListener('click', (e) => {
       if (e.target.closest('.seat-select-cb') || e.target.closest('.btn-seat-quick-edit')) return;
       const seatId = card.getAttribute('data-id');
       const seat = seatsData.find(s => s._id === seatId);
-      if (seat) showSeatDetailModal(seat, container);
+      if (seat) open360DeskDetailsModal(seat, container);
     });
   });
 
