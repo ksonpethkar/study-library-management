@@ -16,6 +16,9 @@ export function render() {
         <p class="text-muted small mb-0" style="margin-top: 4px;">Daily check-in / check-out logs and occupancy tracking.</p>
       </div>
       <div class="actions d-flex align-items-center gap-2 flex-wrap">
+        <a href="/kiosk.html" target="_blank" class="btn btn-outline-info btn-sm d-inline-flex align-items-center gap-1" style="font-weight: 600;">
+          🖥️ Launch Kiosk Gate
+        </a>
         <button id="btn-biometric-simulator" class="btn btn-outline-primary btn-sm" style="font-weight: 600;">
           🏷️ Biometric / RFID Turnstile
         </button>
@@ -55,9 +58,13 @@ export function render() {
 
     <!-- Today's Log -->
     <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <h5 style="margin: 0; font-size: 1.1rem; font-weight: 600;">📋 Attendance Log</h5>
-        <button id="refreshAttendanceBtn" class="btn btn-sm btn-outline-secondary">Refresh</button>
+        <div class="d-flex gap-2 flex-wrap">
+          <button id="btn-export-attendance-csv" class="btn btn-sm btn-outline-success" style="font-weight: 600;">📥 Export CSV</button>
+          <button id="btn-checkout-all" class="btn btn-sm btn-outline-danger" style="font-weight: 600;">🚪 Check Out All</button>
+          <button id="refreshAttendanceBtn" class="btn btn-sm btn-outline-secondary">Refresh</button>
+        </div>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
@@ -99,6 +106,68 @@ async function init(container) {
   if (refreshBtn) {
     refreshBtn.addEventListener('click', () => loadData(dateInput.value));
   }
+
+  // Export Attendance CSV
+  container.querySelector('#btn-export-attendance-csv')?.addEventListener('click', async () => {
+    try {
+      const selectedDate = dateInput?.value || new Date().toISOString().split('T')[0];
+      Loading.show('Exporting attendance CSV...');
+      const res = await api.get(`/api/attendance?date=${selectedDate}&limit=1000`);
+      Loading.hide();
+
+      const records = res.data?.records || [];
+      if (records.length === 0) {
+        Toast.error('No attendance records found for ' + selectedDate);
+        return;
+      }
+
+      let csv = 'Student ID,Name,Phone,Check In,Check Out,Duration (Mins),Status,Date\n';
+      records.forEach(r => {
+        const sId = r.student?.studentId || 'N/A';
+        const name = (r.student?.name || 'Student').replace(/,/g, '');
+        const phone = r.student?.phone || '';
+        const cIn = r.checkIn ? new Date(r.checkIn).toLocaleTimeString('en-IN') : '-';
+        const cOut = r.checkOut ? new Date(r.checkOut).toLocaleTimeString('en-IN') : '-';
+        const duration = r.checkIn && r.checkOut ? Math.round((new Date(r.checkOut) - new Date(r.checkIn)) / 60000) : '-';
+        const status = r.status || (r.checkOut ? 'checked_out' : 'in_hall');
+        csv += `"${sId}","${name}","${phone}","${cIn}","${cOut}","${duration}","${status}","${selectedDate}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const urlBlob = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = urlBlob;
+      link.setAttribute('download', `Attendance_Log_${selectedDate}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      Toast.success('Attendance CSV exported successfully!');
+    } catch (err) {
+      Loading.hide();
+      Toast.error(err.message || 'Export failed');
+    }
+  });
+
+  // Bulk Check Out All In Hall
+  container.querySelector('#btn-checkout-all')?.addEventListener('click', async () => {
+    const ok = await Confirm.show({
+      title: 'Check Out All Active Members?',
+      message: 'Are you sure you want to check out all students currently inside the reading hall?',
+      danger: true
+    });
+    if (ok) {
+      try {
+        Loading.show('Checking out active members...');
+        const res = await api.post('/api/attendance/check-out-all');
+        Loading.hide();
+        Toast.success(res.message || 'All members checked out successfully!');
+        loadData(dateInput?.value);
+      } catch (err) {
+        Loading.hide();
+        Toast.error(err.message || 'Check-out failed');
+      }
+    }
+  });
   
   if (searchInput) {
     searchInput.addEventListener('input', debounce((e) => {

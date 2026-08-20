@@ -432,6 +432,29 @@ router.post('/check-out', protect, validate([
   }
 });
 
+// POST /check-out-all - Bulk check-out all active in hall
+router.post('/check-out-all', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const now = new Date();
+    const result = await Attendance.updateMany(
+      { date: { $gte: startOfDay, $lte: endOfDay }, checkIn: { $exists: true }, checkOut: null },
+      { $set: { checkOut: now } }
+    );
+
+    res.json({
+      success: true,
+      message: `Successfully checked out ${result.modifiedCount || 0} active members from reading hall.`
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /mark - Manual mark
 router.post('/mark', protect, roleCheck('owner', 'branch_manager'), validate([
   body('studentId').notEmpty().withMessage('Student ID is required'),
