@@ -37,6 +37,16 @@ const businessProfileSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  // Payment Gateway Settings (Option B - Razorpay / Cashfree / PhonePe Webhooks)
+  gatewayProvider: { type: String, enum: ['manual_upi', 'razorpay', 'cashfree', 'phonepe'], default: 'manual_upi' },
+  razorpayKeyId: { type: String, default: '' },
+  razorpaySecret: { type: String, default: '' },
+  razorpayWebhookSecret: { type: String, default: '' },
+  cashfreeAppId: { type: String, default: '' },
+  cashfreeSecret: { type: String, default: '' },
+  phonepeMerchantId: { type: String, default: '' },
+  phonepeSaltKey: { type: String, default: '' },
+  enableAutoWebhookVerification: { type: Boolean, default: true },
   paymentMethods: [
     {
       key: { type: String, default: 'upi' },

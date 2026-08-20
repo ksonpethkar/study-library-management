@@ -1474,6 +1474,16 @@ function renderPortalUI(container, data, analytics = null) {
         modalContent.innerHTML = `
           <div style="font-family: 'Outfit', sans-serif;">
             
+            <!-- Option A & Option B Dual Verification Engine -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 10px; padding: 6px; display: flex; gap: 6px; margin-bottom: 1rem;">
+              <div style="flex: 1; text-align: center; padding: 6px 10px; border-radius: 8px; background: var(--color-surface); font-size: 0.78rem; font-weight: 700; color: var(--color-primary); border: 1px solid var(--color-primary); box-shadow: var(--shadow-sm);">
+                🟢 Option A: Free UPI QR & UTR Check
+              </div>
+              <div style="flex: 1; text-align: center; padding: 6px 10px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); font-size: 0.78rem; font-weight: 700; color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+                ⚡ Option B: 0-Sec Gateway Auto-Verify
+              </div>
+            </div>
+
             <!-- Plan & Shift Selection Engine -->
             <div class="row g-2 mb-3">
               <div class="col-md-6">
