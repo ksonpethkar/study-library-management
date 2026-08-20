@@ -704,6 +704,12 @@ router.get('/renewal-quote', async (req, res) => {
 
     let qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiIntentUrl)}`;
 
+    const allPaymentMethods = Array.isArray(business.paymentMethods) ? business.paymentMethods : [
+      { key: 'upi', enabled: true }, { key: 'card', enabled: true }, { key: 'netbanking', enabled: true }, { key: 'desk', enabled: true }
+    ];
+    const activePaymentMethods = allPaymentMethods.filter(m => m.enabled === true || m.enabled === 'true' || m.enabled === 1 || m.enabled === '1');
+    const isOnlinePaymentEnabled = activePaymentMethods.length > 0;
+
     res.json({
       success: true,
       data: {
@@ -730,7 +736,9 @@ router.get('/renewal-quote', async (req, res) => {
         qrCodeUrl,
         gatewayProvider: business.gatewayProvider || 'manual_upi',
         enableAutoWebhookVerification: business.enableAutoWebhookVerification !== false,
-        paymentMethods: (business.paymentMethods || []).filter(m => m.enabled !== false),
+        paymentMethods: activePaymentMethods,
+        isOnlinePaymentEnabled,
+        allMethodsDisabled: !isOnlinePaymentEnabled,
         businessName: business.businessName,
         bankDetails: business.bankDetails
       }

@@ -1585,34 +1585,50 @@ function renderPortalUI(container, data, analytics = null) {
               </div>
             </div>
 
-            <!-- Dynamic UPI QR Section -->
-            <div style="text-align: center; margin-bottom: 1rem; background: #ffffff; padding: 14px; border-radius: 12px; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);">
-              <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
-                Scan & Pay via GPay / PhonePe / Paytm / BHIM
+            ${q.allMethodsDisabled || (q.paymentMethods || []).length === 0 ? `
+              <!-- Disabled Payment Banner when Admin turns off all online payment methods -->
+              <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 1.25rem; text-align: center; margin-bottom: 1rem;">
+                <div style="font-size: 2.2rem; margin-bottom: 6px;">🚫</div>
+                <h4 style="margin: 0 0 6px 0; font-size: 1.05rem; font-weight: 800; color: var(--color-danger);">
+                  Online Self-Renewal Currently Disabled
+                </h4>
+                <p style="margin: 0 0 1rem 0; font-size: 0.85rem; color: var(--color-text-secondary); line-height: 1.5;">
+                  Online self-renewal payments have been turned OFF by the administration. Please contact the library manager or visit the front reception desk to renew your membership.
+                </p>
+                <div>
+                  <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Close Window</button>
+                </div>
               </div>
-              <img id="renewal-qr-img" src="${q.qrCodeUrl}" alt="UPI QR Code" style="width: 170px; height: 170px; margin: 0 auto; border-radius: 8px; display: block;">
-              <div style="margin-top: 6px; font-size: 0.85rem; font-weight: 700; color: #1e293b;">
-                UPI ID: <span style="font-family: monospace; color: #6c5ce7;">${escapeHTML(q.upiId)}</span>
+            ` : `
+              <!-- Dynamic UPI QR Section -->
+              <div style="text-align: center; margin-bottom: 1rem; background: #ffffff; padding: 14px; border-radius: 12px; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);">
+                <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
+                  Scan & Pay via GPay / PhonePe / Paytm / BHIM
+                </div>
+                <img id="renewal-qr-img" src="${q.qrCodeUrl}" alt="UPI QR Code" style="width: 170px; height: 170px; margin: 0 auto; border-radius: 8px; display: block;">
+                <div style="margin-top: 6px; font-size: 0.85rem; font-weight: 700; color: #1e293b;">
+                  UPI ID: <span style="font-family: monospace; color: #6c5ce7;">${escapeHTML(q.upiId)}</span>
+                </div>
+                <a id="renewal-upi-link" href="${q.upiIntentUrl}" class="btn btn-sm btn-outline-primary mt-2" style="font-size: 0.8rem; display: inline-block;">
+                  📲 Click to Pay directly on Mobile App (₹${q.totalPayable.toLocaleString('en-IN')})
+                </a>
               </div>
-              <a id="renewal-upi-link" href="${q.upiIntentUrl}" class="btn btn-sm btn-outline-primary mt-2" style="font-size: 0.8rem; display: inline-block;">
-                📲 Click to Pay directly on Mobile App (₹${q.totalPayable.toLocaleString('en-IN')})
-              </a>
-            </div>
 
-            <!-- Submit UTR Form -->
-            <form id="portal-renewal-submit-form">
-              <div class="form-group mb-3">
-                <label class="form-label" style="font-weight: 700;">Enter UPI UTR / Transaction Reference No. *</label>
-                <input type="text" id="renewal-utr-input" class="form-control" placeholder="12-digit UTR No. (e.g. 423456789012)" required style="letter-spacing: 1px; font-weight: 600;">
-                <small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 4px;">Found in your payment app receipt under 'UPI Ref No / Transaction ID'.</small>
-              </div>
-              <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
-                <button type="submit" class="btn btn-primary" id="btn-submit-renewal-utr" style="font-weight: 700;">
-                  ✅ Submit Payment & Renew
-                </button>
-              </div>
-            </form>
+              <!-- Submit UTR Form -->
+              <form id="portal-renewal-submit-form">
+                <div class="form-group mb-3">
+                  <label class="form-label" style="font-weight: 700;">Enter UPI UTR / Transaction Reference No. *</label>
+                  <input type="text" id="renewal-utr-input" class="form-control" placeholder="12-digit UTR No. (e.g. 423456789012)" required style="letter-spacing: 1px; font-weight: 600;">
+                  <small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 4px;">Found in your payment app receipt under 'UPI Ref No / Transaction ID'.</small>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                  <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
+                  <button type="submit" class="btn btn-primary" id="btn-submit-renewal-utr" style="font-weight: 700;">
+                    ✅ Submit Payment & Renew
+                  </button>
+                </div>
+              </form>
+            `}
           </div>
         `;
 
