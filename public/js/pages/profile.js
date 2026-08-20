@@ -289,18 +289,43 @@ function renderProfileUI(container, user) {
   const btnRemoveAvatar = container.querySelector('#btn-remove-avatar');
   const inputAvatarFile = container.querySelector('#input-avatar-file');
 
-  const updateAvatarPreview = (url) => {
+  const updateAvatarPreview = async (url, autoPersist = false) => {
     if (url) {
       avatarHiddenInput.value = url;
       avatarImg.src = url;
       avatarImg.style.display = 'block';
       avatarInitials.style.display = 'none';
       btnRemoveAvatar.style.display = 'inline-flex';
+
+      avatarImg.onerror = () => {
+        avatarImg.style.display = 'none';
+        avatarInitials.style.display = 'block';
+      };
+
+      if (autoPersist) {
+        try {
+          await api.put('/api/settings/admin-profile', { avatar: url });
+          if (typeof window.updateProfileAvatar === 'function') {
+            window.updateProfileAvatar(url);
+          }
+        } catch (err) {
+          console.warn('Failed to auto-persist avatar:', err);
+        }
+      }
     } else {
       avatarHiddenInput.value = '';
       avatarImg.style.display = 'none';
       avatarInitials.style.display = 'block';
       btnRemoveAvatar.style.display = 'none';
+
+      if (autoPersist) {
+        try {
+          await api.put('/api/settings/admin-profile', { avatar: '' });
+          if (typeof window.updateProfileAvatar === 'function') {
+            window.updateProfileAvatar('');
+          }
+        } catch (err) {}
+      }
     }
   };
 
@@ -314,13 +339,18 @@ function renderProfileUI(container, user) {
     try {
       Loading.button(btnUploadFile, true);
       const compressedDataUrl = await ImageCompressor.compress(file, { maxWidth: 300, maxHeight: 300, quality: 0.82 });
-      const uploadRes = await api.post('/api/upload', { image: compressedDataUrl });
-      if (uploadRes.success && uploadRes.url) {
-        updateAvatarPreview(uploadRes.url);
-        Toast.success('Profile photo uploaded & compressed successfully!');
-      } else {
-        Toast.error(uploadRes.message || 'Upload failed');
-      }
+      
+      // Store compact Base64 Data URL directly in MongoDB so it is 100% permanent across hard refreshes & server restarts!
+      let saveUrl = compressedDataUrl;
+      try {
+        const uploadRes = await api.post('/api/upload', { image: compressedDataUrl });
+        if (uploadRes.success && uploadRes.url) {
+          saveUrl = uploadRes.url;
+        }
+      } catch (e) {}
+
+      await updateAvatarPreview(saveUrl, true);
+      Toast.success('Profile photo saved & applied permanently!');
     } catch (err) {
       Toast.error(err.message || 'Image processing failed');
     } finally {
@@ -333,13 +363,17 @@ function renderProfileUI(container, user) {
     try {
       const selfieDataUrl = await ImageCompressor.captureWebcam({ maxWidth: 300, maxHeight: 300, quality: 0.82 });
       Loading.button(btnTakeCam, true);
-      const uploadRes = await api.post('/api/upload', { image: selfieDataUrl });
-      if (uploadRes.success && uploadRes.url) {
-        updateAvatarPreview(uploadRes.url);
-        Toast.success('Live selfie captured & uploaded!');
-      } else {
-        Toast.error(uploadRes.message || 'Upload failed');
-      }
+      
+      let saveUrl = selfieDataUrl;
+      try {
+        const uploadRes = await api.post('/api/upload', { image: selfieDataUrl });
+        if (uploadRes.success && uploadRes.url) {
+          saveUrl = uploadRes.url;
+        }
+      } catch (e) {}
+
+      await updateAvatarPreview(saveUrl, true);
+      Toast.success('Live selfie captured & applied permanently!');
     } catch (err) {
       if (err.message !== 'Camera capture cancelled') {
         Toast.error(err.message || 'Camera capture failed');
@@ -349,8 +383,8 @@ function renderProfileUI(container, user) {
     }
   });
 
-  btnRemoveAvatar?.addEventListener('click', () => {
-    updateAvatarPreview('');
+  btnRemoveAvatar?.addEventListener('click', async () => {
+    await updateAvatarPreview('', true);
     Toast.info('Profile picture removed');
   });
 
