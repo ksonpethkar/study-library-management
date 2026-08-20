@@ -129,9 +129,9 @@ function renderPortalUI(container, data, analytics = null) {
             width: 68px; height: 68px; border-radius: 50%;
             background: var(--color-primary-bg); color: var(--color-primary);
             font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; justify-content: center;
-            border: 2px solid var(--color-primary); flex-shrink: 0;
+            border: 2px solid var(--color-primary); flex-shrink: 0; overflow: hidden;
           ">
-            ${initials}
+            ${(student.photo || user?.avatar) ? `<img src="${escapeHTML(student.photo || user.avatar)}" alt="${escapeHTML(student.name)}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
           </div>
           <div>
             <h2 style="margin: 0 0 4px 0; font-size: 1.4rem; font-weight: 700; color: var(--color-text-primary);">
@@ -165,9 +165,6 @@ function renderPortalUI(container, data, analytics = null) {
           </button>
           <button id="btn-portal-idcard" class="btn btn-outline-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
             🪪 Digital ID
-          </button>
-          <button id="btn-portal-download-pdf" class="btn btn-outline-success btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
-            📄 PDF Form
           </button>
           <button id="btn-portal-renew" class="btn btn-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
             ⚡ Renew Plan
@@ -906,7 +903,6 @@ function renderPortalUI(container, data, analytics = null) {
 
           <div class="d-flex justify-content-end gap-2 mt-4 pt-3" style="border-top: 1px solid var(--color-border);">
             <button type="button" class="btn btn-secondary" id="btn-close-profile-modal">Close</button>
-            <button type="button" class="btn btn-primary" id="btn-modal-print-pdf">📄 Download Admission Slip PDF</button>
           </div>
         </div>
       `;
@@ -927,6 +923,15 @@ function renderPortalUI(container, data, analytics = null) {
             spImg.src = photoUrl;
             spImg.style.display = 'block';
             spInitials.style.display = 'none';
+            
+            // Sync with active auth session & update global header
+            const u = auth.getUser();
+            if (u) {
+              u.avatar = photoUrl;
+              auth.setUser(u);
+            }
+            window.dispatchEvent(new CustomEvent('user-updated'));
+            
             if (typeof window.updateProfileAvatar === 'function') {
               window.updateProfileAvatar(photoUrl);
             }

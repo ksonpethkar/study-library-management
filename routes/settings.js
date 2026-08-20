@@ -366,7 +366,18 @@ router.put('/admin-profile', validateAdminProfile, async (req, res) => {
 
     if (name !== undefined) user.name = name;
     if (phone !== undefined) user.phone = phone;
-    if (avatar !== undefined) user.avatar = avatar;
+    if (avatar !== undefined) {
+      user.avatar = avatar;
+      try {
+        const Student = require('../models/Student');
+        await Student.updateMany(
+          { $or: [{ user: user._id }, { email: user.email }, { phone: user.phone }] },
+          { $set: { photo: avatar } }
+        );
+      } catch (e) {
+        console.warn('Could not sync student photo:', e);
+      }
+    }
 
     await user.save({ validateBeforeSave: false });
 

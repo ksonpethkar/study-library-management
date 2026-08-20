@@ -293,6 +293,10 @@ router.get('/dashboard', async (req, res) => {
     const totalMinutes = attendanceRecords.reduce((sum, r) => sum + (r.duration || 0), 0);
     const totalHours = badgeResult ? badgeResult.totalHours : (totalMinutes / 60).toFixed(1);
 
+    if (!student.photo && req.user?.avatar) {
+      student.photo = req.user.avatar;
+    }
+
     res.json({
       success: true,
       data: {
