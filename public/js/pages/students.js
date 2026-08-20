@@ -1018,6 +1018,11 @@ export async function render() {
       }));
     });
 
+    // Bind Dynamic ID Proof Type & Number Validation
+    if (window.SmartIntelligence && typeof window.SmartIntelligence.bindDynamicIDProofValidation === 'function') {
+      window.SmartIntelligence.bindDynamicIDProofValidation(modal.element);
+    }
+
     // Initialize Smart Signature Studio
     const sigMount = modal.element.querySelector('#admission-signature-studio-mount');
     if (sigMount) {

@@ -1461,6 +1461,11 @@
       });
 
       evaluateLogic();
+
+      // Bind Dynamic ID Proof Type & Number Validation
+      if (window.SmartIntelligence && typeof window.SmartIntelligence.bindDynamicIDProofValidation === 'function') {
+        window.SmartIntelligence.bindDynamicIDProofValidation(document);
+      }
     }
 
     // Load Initial Public Config

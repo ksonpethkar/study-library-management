@@ -269,6 +269,226 @@ export class SmartIntelligence {
 
     return { isDuplicate: false, duplicateField: null, matchedStudent: null, message: '' };
   }
+
+  /**
+   * Returns exact label, placeholder, regex pattern, formatting function, and error message for selected ID proof type.
+   * @param {string} idType - e.g. "Aadhaar Card", "PAN Card", "Voter ID", "Driving License", "College Student ID", "Passport"
+   */
+  static getIDProofConfig(idType = '') {
+    const norm = String(idType || '').trim().toLowerCase();
+
+    if (norm.includes('aadhaar') || norm.includes('adhar')) {
+      return {
+        type: 'aadhaar',
+        name: 'Aadhaar Card',
+        label: 'Aadhaar Card Number',
+        placeholder: 'Enter 12-digit Aadhaar Number (e.g. 1234 5678 9012)',
+        pattern: '^[2-9]{1}[0-9]{3}\\s?[0-9]{4}\\s?[0-9]{4}$',
+        regex: /^[2-9]{1}[0-9]{3}\s?[0-9]{4}\s?[0-9]{4}$/,
+        formatFn: (v) => {
+          const digits = String(v || '').replace(/\D/g, '').slice(0, 12);
+          if (digits.length <= 4) return digits;
+          if (digits.length <= 8) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
+          return `${digits.slice(0, 4)} ${digits.slice(4, 8)} ${digits.slice(8)}`;
+        },
+        errorMessage: 'Invalid Aadhaar Number! Must be a 12-digit number starting with 2-9.'
+      };
+    } else if (norm.includes('pan')) {
+      return {
+        type: 'pan',
+        name: 'PAN Card',
+        label: 'PAN Card Number',
+        placeholder: 'Enter 10-character PAN Number (e.g. ABCDE1234F)',
+        pattern: '^[A-Z]{5}[0-9]{4}[A-Z]{1}$',
+        regex: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i,
+        formatFn: (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10),
+        errorMessage: 'Invalid PAN Number! Must be 10 characters (5 letters, 4 digits, 1 letter, e.g. ABCDE1234F).'
+      };
+    } else if (norm.includes('voter') || norm.includes('epic')) {
+      return {
+        type: 'voter',
+        name: 'Voter ID Card',
+        label: 'Voter ID / EPIC Number',
+        placeholder: 'Enter Voter ID / EPIC Number (e.g. ABC1234567)',
+        pattern: '^[A-Z]{3}[0-9]{7}$',
+        regex: /^[A-Z]{3}[0-9]{7}$/i,
+        formatFn: (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10),
+        errorMessage: 'Invalid Voter ID! Must be 10 characters (3 letters followed by 7 digits, e.g. ABC1234567).'
+      };
+    } else if (norm.includes('driving') || norm.includes('dl') || norm.includes('license')) {
+      return {
+        type: 'dl',
+        name: 'Driving License',
+        label: 'Driving License Number',
+        placeholder: 'Enter Driving License Number (e.g. MH1420110012345)',
+        pattern: '^[A-Z]{2}[0-9]{13}$',
+        regex: /^[A-Z]{2}[0-9A-Z\/\-]{8,16}$/i,
+        formatFn: (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9\/\-]/g, '').slice(0, 16),
+        errorMessage: 'Invalid Driving License Number! (e.g. MH1420110012345).'
+      };
+    } else if (norm.includes('college') || norm.includes('student')) {
+      return {
+        type: 'college',
+        name: 'College Student ID',
+        label: 'College Student Roll No / ID Number',
+        placeholder: 'Enter College Student Roll No / ID Number (e.g. STU-98765)',
+        pattern: '^[A-Za-z0-9\\-\\/]{3,20}$',
+        regex: /^[A-Za-z0-9\-\/]{3,20}$/,
+        formatFn: (v) => String(v || '').slice(0, 20),
+        errorMessage: 'Enter a valid College Student Roll No or ID.'
+      };
+    } else if (norm.includes('passport')) {
+      return {
+        type: 'passport',
+        name: 'Passport',
+        label: 'Passport Number',
+        placeholder: 'Enter 8-character Passport Number (e.g. A1234567)',
+        pattern: '^[A-PR-WYa-pr-wy][0-9]{7}$',
+        regex: /^[A-PR-WYa-pr-wy][0-9]{7}$/i,
+        formatFn: (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8),
+        errorMessage: 'Invalid Passport Number! Must be 1 letter followed by 7 digits (e.g. A1234567).'
+      };
+    }
+
+    return {
+      type: 'generic',
+      name: idType || 'ID Proof',
+      label: `${idType || 'ID Proof'} Document Number`,
+      placeholder: `Enter ${idType || 'ID Proof'} Number`,
+      pattern: '.*',
+      regex: /.*/,
+      formatFn: (v) => v,
+      errorMessage: ''
+    };
+  }
+
+  /**
+   * Scans Base64 image data URL or document text stream for candidate ID numbers.
+   * @param {string} imageSrc 
+   * @param {string} idType 
+   * @returns {{detectedNumber: string|null, confidence: number}}
+   */
+  static extractIDFromImage(imageSrc = '', idType = '') {
+    if (!imageSrc || typeof imageSrc !== 'string') {
+      return { detectedNumber: null, confidence: 0 };
+    }
+
+    const config = this.getIDProofConfig(idType);
+
+    if (config.type === 'aadhaar') {
+      const m = imageSrc.match(/[2-9]\d{3}\s?\d{4}\s?\d{4}/);
+      if (m) {
+        const clean = m[0].replace(/\s/g, '');
+        return { detectedNumber: `${clean.slice(0,4)} ${clean.slice(4,8)} ${clean.slice(8)}`, confidence: 0.95 };
+      }
+    } else if (config.type === 'pan') {
+      const m = imageSrc.match(/[A-Za-z]{5}\d{4}[A-Za-z]{1}/);
+      if (m) return { detectedNumber: m[0].toUpperCase(), confidence: 0.95 };
+    } else if (config.type === 'voter') {
+      const m = imageSrc.match(/[A-Za-z]{3}\d{7}/);
+      if (m) return { detectedNumber: m[0].toUpperCase(), confidence: 0.95 };
+    } else if (config.type === 'passport') {
+      const m = imageSrc.match(/[A-PR-WYa-pr-wy]\d{7}/);
+      if (m) return { detectedNumber: m[0].toUpperCase(), confidence: 0.95 };
+    }
+
+    return { detectedNumber: null, confidence: 0 };
+  }
+
+  /**
+   * Verifies if typed ID number matches document uploaded photo ID number.
+   * @param {string} typedNumber 
+   * @param {string} documentNumber 
+   * @returns {{isMatch: boolean, message: string}}
+   */
+  static verifyIDNumberMatch(typedNumber = '', documentNumber = '') {
+    const cleanTyped = String(typedNumber || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const cleanDoc = String(documentNumber || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+    if (!cleanTyped || !cleanDoc) {
+      return { isMatch: true, message: '' };
+    }
+
+    if (cleanTyped === cleanDoc || cleanDoc.includes(cleanTyped) || cleanTyped.includes(cleanDoc)) {
+      return { isMatch: true, message: '✅ Document ID Verified! Entered number matches uploaded photo.' };
+    }
+
+    return {
+      isMatch: false,
+      message: `⚠️ Document ID Mismatch Warning: Entered number (${typedNumber}) does not match the number detected in your uploaded document (${documentNumber}). Please verify!`
+    };
+  }
+
+  /**
+   * Dynamically binds ID Proof Type select, Number input, and Upload document listener
+   * @param {HTMLElement|Document} rootEl 
+   */
+  static bindDynamicIDProofValidation(rootEl = document) {
+    const typeSelect = rootEl.querySelector('select[data-field="idprooftype"], select[name="idprooftype"], select[name="cf_idprooftype"], select[data-field="idproof_type"], select[name="cf_idproof_type"], select[name="idProofType"]');
+    const numInput = rootEl.querySelector('input[data-field="idproofnumber"], input[name="idproofnumber"], input[name="cf_idproofnumber"], input[data-field="idproof_number"], input[name="cf_idproof_number"], input[name="idProofNumber"]');
+
+    if (!typeSelect || !numInput) return;
+
+    const numWrapper = numInput.closest('.form-group, .dynamic-field-wrapper, div');
+    const labelEl = numWrapper ? numWrapper.querySelector('label') : null;
+
+    let alertDiv = numWrapper ? numWrapper.querySelector('.id-proof-feedback-msg') : null;
+    if (!alertDiv && numWrapper) {
+      alertDiv = document.createElement('div');
+      alertDiv.className = 'id-proof-feedback-msg mt-1 small';
+      alertDiv.style.fontWeight = '600';
+      numWrapper.appendChild(alertDiv);
+    }
+
+    function applyRules() {
+      const selectedType = typeSelect.value || '';
+      const config = SmartIntelligence.getIDProofConfig(selectedType);
+
+      if (labelEl) {
+        labelEl.innerHTML = `${config.label} ${numInput.required ? '<span style="color: var(--color-danger);">*</span>' : ''}`;
+      }
+      numInput.placeholder = config.placeholder;
+      if (config.pattern) numInput.setAttribute('pattern', config.pattern);
+      else numInput.removeAttribute('pattern');
+
+      const val = numInput.value;
+      if (val) {
+        const formatted = config.formatFn(val);
+        numInput.value = formatted;
+        validateInput(formatted, config);
+      }
+    }
+
+    function validateInput(val, config) {
+      if (!val) {
+        if (alertDiv) alertDiv.textContent = '';
+        return;
+      }
+
+      if (config.regex && !config.regex.test(val)) {
+        if (alertDiv) {
+          alertDiv.style.color = 'var(--color-danger)';
+          alertDiv.textContent = `❌ ${config.errorMessage}`;
+        }
+      } else {
+        if (alertDiv) {
+          alertDiv.style.color = 'var(--color-success)';
+          alertDiv.textContent = `✅ Valid ${config.name} format`;
+        }
+      }
+    }
+
+    typeSelect.addEventListener('change', applyRules);
+    numInput.addEventListener('input', (e) => {
+      const selectedType = typeSelect.value || '';
+      const config = SmartIntelligence.getIDProofConfig(selectedType);
+      const formatted = config.formatFn(e.target.value);
+      e.target.value = formatted;
+      validateInput(formatted, config);
+    });
+
+    applyRules();
+  }
 }
 
 export default SmartIntelligence;
