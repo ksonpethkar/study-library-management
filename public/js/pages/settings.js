@@ -2836,6 +2836,34 @@ function renderSettingsUI(container, profile, settings) {
     savePolicies(container.querySelector('#btn-save-policies'));
   });
 
+  // Live Policy Simulation Updater
+  function updatePolicySimulation() {
+    const grace = parseInt(container.querySelector('#setting-gracePeriod')?.value, 10) || 0;
+    const fineType = container.querySelector('input[name="lateFeeType"]:checked')?.value || 'flat';
+    const amount = parseFloat(container.querySelector('#setting-lateFeeAmount')?.value) || 0;
+    const suspend = parseInt(container.querySelector('#setting-autoSuspendDays')?.value, 10) || 15;
+
+    const simText = container.querySelector('#policy-simulation-text');
+    if (!simText) return;
+
+    const modeLabel = fineType === 'flat' ? `one-time flat late fee of ₹${amount}` : `daily compounding fine rate of ₹${amount}/day`;
+
+    simText.innerHTML = `
+      <strong>Example: For a fee due on 1st of the month:</strong>
+      <ul style="margin: 0.5rem 0 0 0; padding-left: 1.25rem;">
+        <li><strong>Grace Window (Days 1 to ${grace}):</strong> Student can pay normal fee with <strong>₹0 penalty</strong>.</li>
+        <li><strong>Overdue Fine Period (After Day ${grace}):</strong> System applies a <strong>${modeLabel}</strong>.</li>
+        <li><strong>Auto-Suspension (Day ${suspend}):</strong> If payment remains unpaid, student account, biometric scanner &amp; seat access are <strong>automatically locked</strong>.</li>
+      </ul>
+    `;
+  }
+
+  container.querySelector('#setting-gracePeriod')?.addEventListener('input', updatePolicySimulation);
+  container.querySelector('#setting-lateFeeAmount')?.addEventListener('input', updatePolicySimulation);
+  container.querySelector('#setting-autoSuspendDays')?.addEventListener('input', updatePolicySimulation);
+  container.querySelectorAll('input[name="lateFeeType"]').forEach(r => r.addEventListener('change', updatePolicySimulation));
+  updatePolicySimulation();
+
   // 3. Save Admission Handler
   async function saveAdmission(btn) {
     Loading.button(btn, true);
