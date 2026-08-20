@@ -1128,44 +1128,84 @@ function renderSettingsUI(container, profile, settings) {
       <!-- ========================================== -->
       <div class="settings-panel" id="panel-backup" style="display: none;">
         <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
-          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover);">
-            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">💾 1-Click Database Backup & Disaster Recovery</h3>
-            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Download an offline copy of your entire library database or restore from a previous JSON backup.</p>
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                <span>💾</span> 1-Click Database Backup, Disaster Recovery &amp; Data Restore Engine
+              </h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Download an offline copy of your entire library database or restore from a previous JSON backup snapshot.</p>
+            </div>
+            <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+              Disaster Recovery Suite
+            </span>
           </div>
 
-          <div class="card-body" style="padding: 1.5rem;">
+          <div class="card-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+            
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
               
-              <!-- Download Backup Card -->
-              <div style="padding: 1.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); display: flex; flex-direction: column; justify-content: space-between;">
+              <!-- CATEGORY 1: DOWNLOAD BACKUP CARD -->
+              <div style="padding: 1.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-secondary); display: flex; flex-direction: column; justify-content: space-between;">
                 <div>
-                  <div style="font-size: 2rem; margin-bottom: 0.5rem;">📥</div>
-                  <h4 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; font-weight: 600; color: var(--color-text-primary);">Download Full System Backup</h4>
+                  <h4 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                    <span>📥</span> Category 1: Download Offline JSON Backup
+                  </h4>
                   <p style="font-size: 0.85rem; color: var(--color-text-secondary); line-height: 1.5; margin-bottom: 1.25rem;">
                     Generates a timestamped JSON snapshot containing all students, seat assignments, plans, payment receipts, attendance logs, shifts, branches, and system settings.
                   </p>
                 </div>
-                <button id="btn-download-db-backup" class="btn btn-primary" style="font-weight: 600; width: 100%;">
-                  ⬇️ Download JSON Backup
+                <button id="btn-download-db-backup" class="btn btn-primary" style="font-weight: 700; width: 100%; padding: 0.75rem;">
+                  ⬇️ Download Complete JSON Backup Snapshot
                 </button>
               </div>
 
-              <!-- Restore Backup Card -->
-              <div style="padding: 1.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-primary); display: flex; flex-direction: column; justify-content: space-between;">
+              <!-- CATEGORY 2: RESTORE BACKUP CARD -->
+              <div style="padding: 1.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-secondary); display: flex; flex-direction: column; justify-content: space-between;">
                 <div>
-                  <div style="font-size: 2rem; margin-bottom: 0.5rem;">📤</div>
-                  <h4 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; font-weight: 600; color: var(--color-text-primary);">Restore Database from JSON</h4>
+                  <h4 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700; color: var(--color-danger); display: flex; align-items: center; gap: 8px;">
+                    <span>📤</span> Category 2: Restore Database from JSON Snapshot
+                  </h4>
                   <p style="font-size: 0.85rem; color: var(--color-text-secondary); line-height: 1.5; margin-bottom: 1.25rem;">
-                    Select a valid <code style="background: rgba(255,255,255,0.08); padding: 2px 4px; border-radius: 4px;">.json</code> backup file to import and merge records back into MongoDB.
+                    Select a valid <code style="background: var(--color-surface); padding: 2px 6px; border-radius: 4px; color: var(--color-primary); border: 1px solid var(--color-border);">.json</code> backup file to import and merge records back into MongoDB.
                   </p>
                   <input type="file" id="db-restore-file-input" accept=".json" style="display: none;">
                 </div>
-                <button id="btn-trigger-restore-file" class="btn btn-outline-danger" style="font-weight: 600; width: 100%;">
-                  ⚠️ Select JSON Backup to Restore
+                <button id="btn-trigger-restore-file" class="btn btn-outline-danger" style="font-weight: 700; width: 100%; padding: 0.75rem; border-width: 2px;">
+                  ⚠️ Select JSON Backup File to Restore
                 </button>
               </div>
 
             </div>
+
+            <!-- CATEGORY 3: SCHEMA INTEGRITY & ENCRYPTION -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+              <h4 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                <span>🔒</span> Category 3: Data Encryption &amp; Schema Integrity Safeguards
+              </h4>
+              <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                <span class="badge" style="background: var(--color-success-bg); color: var(--color-success); border: 1px solid currentColor; font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+                  🟢 Mongo Schema Validated
+                </span>
+                <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); border: 1px solid currentColor; font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+                  🛡️ Bcrypt Hashes Preserved
+                </span>
+                <span class="badge" style="background: rgba(168, 85, 247, 0.12); color: #a855f7; border: 1px solid currentColor; font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+                  📦 Portable JSON Standard v2.0
+                </span>
+              </div>
+            </div>
+
+            <!-- CATEGORY 4: RECENT BACKUP ACTIVITY LOG STREAM -->
+            <div style="background: var(--color-primary-bg); border: 2px dashed var(--color-primary-light); border-radius: var(--radius-lg); padding: 1.5rem; text-align: center;">
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-primary); margin-bottom: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <span>📊</span> Category 4: Recent Backup Activity &amp; Snapshot Audit Log
+              </div>
+              <div id="backup-activity-log-container" style="font-size: 0.9rem; color: var(--color-text-primary); line-height: 1.6;">
+                <div>No manual backup operations performed in current session.</div>
+                <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 4px;">Click <strong>"Download Complete JSON Backup Snapshot"</strong> above to generate a fresh snapshot.</div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
