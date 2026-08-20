@@ -991,93 +991,133 @@ function renderSettingsUI(container, profile, settings) {
           <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
             <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🌍 Regional, Currency & Backup Configuration</h3>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>🌍</span> General System Configuration &amp; Global Locale Engine
+                </h3>
                 <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">System locale, timezone calculations, database backups, and inactivity timers.</p>
               </div>
-              <button type="submit" id="btn-save-general" class="btn btn-primary btn-sm" style="font-weight: 600;">Save Configuration</button>
+              <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+                Categorized Config
+              </span>
             </div>
 
-            <div class="card-body" style="padding: 1.5rem;">
+            <div class="card-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
               
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
-                
-                <!-- Currency Symbol -->
-                <div class="form-group">
-                  <label class="form-label" for="setting-currencySymbol" style="font-weight: 600;">Currency Symbol</label>
-                  <input type="text" id="setting-currencySymbol" class="form-control" value="${escapeHTML(gen['general.currencySymbol'] || gen.currencySymbol || '₹')}" required>
-                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">e.g. ₹, $, €, £</small>
-                </div>
+              <!-- CATEGORY 1: CURRENCY & LOCALIZATION -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>💱</span> Category 1: Currency &amp; Regional Localization Standards
+                </h4>
 
-                <!-- Currency Code -->
-                <div class="form-group">
-                  <label class="form-label" for="setting-currency" style="font-weight: 600;">Currency ISO Code</label>
-                  <select id="setting-currency" class="form-select">
-                    <option value="INR" ${(gen['general.currency'] || gen.currency || 'INR') === 'INR' ? 'selected' : ''}>INR — Indian Rupee</option>
-                    <option value="USD" ${(gen['general.currency'] || gen.currency) === 'USD' ? 'selected' : ''}>USD — US Dollar</option>
-                    <option value="EUR" ${(gen['general.currency'] || gen.currency) === 'EUR' ? 'selected' : ''}>EUR — Euro</option>
-                    <option value="GBP" ${(gen['general.currency'] || gen.currency) === 'GBP' ? 'selected' : ''}>GBP — British Pound</option>
-                    <option value="AED" ${(gen['general.currency'] || gen.currency) === 'AED' ? 'selected' : ''}>AED — UAE Dirham</option>
-                  </select>
-                </div>
-
-                <!-- Date Format -->
-                <div class="form-group">
-                  <label class="form-label" for="setting-dateFormat" style="font-weight: 600;">Date Display Format</label>
-                  <select id="setting-dateFormat" class="form-select">
-                    <option value="DD/MM/YYYY" ${(gen['general.dateFormat'] || gen.dateFormat || 'DD/MM/YYYY') === 'DD/MM/YYYY' ? 'selected' : ''}>DD/MM/YYYY (e.g. 14/08/2026)</option>
-                    <option value="YYYY-MM-DD" ${(gen['general.dateFormat'] || gen.dateFormat) === 'YYYY-MM-DD' ? 'selected' : ''}>YYYY-MM-DD (e.g. 2026-08-14)</option>
-                    <option value="MM/DD/YYYY" ${(gen['general.dateFormat'] || gen.dateFormat) === 'MM/DD/YYYY' ? 'selected' : ''}>MM/DD/YYYY (e.g. 08/14/2026)</option>
-                  </select>
-                </div>
-
-              </div>
-
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
-                
-                <!-- Timezone -->
-                <div class="form-group">
-                  <label class="form-label" for="setting-timezone" style="font-weight: 600;">Timezone</label>
-                  <select id="setting-timezone" class="form-select">
-                    <option value="Asia/Kolkata" ${(gen['general.timezone'] || gen.timezone || 'Asia/Kolkata') === 'Asia/Kolkata' ? 'selected' : ''}>Asia/Kolkata (IST +5:30)</option>
-                    <option value="UTC" ${(gen['general.timezone'] || gen.timezone) === 'UTC' ? 'selected' : ''}>UTC (Coordinated Universal Time)</option>
-                    <option value="America/New_York" ${(gen['general.timezone'] || gen.timezone) === 'America/New_York' ? 'selected' : ''}>America/New_York (EST -5:00)</option>
-                    <option value="Europe/London" ${(gen['general.timezone'] || gen.timezone) === 'Europe/London' ? 'selected' : ''}>Europe/London (GMT/BST)</option>
-                    <option value="Asia/Dubai" ${(gen['general.timezone'] || gen.timezone) === 'Asia/Dubai' ? 'selected' : ''}>Asia/Dubai (GST +4:00)</option>
-                    <option value="Asia/Singapore" ${(gen['general.timezone'] || gen.timezone) === 'Asia/Singapore' ? 'selected' : ''}>Asia/Singapore (SGT +8:00)</option>
-                  </select>
-                </div>
-
-                <!-- Inactivity Timeout -->
-                <div class="form-group">
-                  <label class="form-label" for="setting-inactivityTimeout" style="font-weight: 600;">Session Inactivity Timeout (Minutes)</label>
-                  <input type="number" id="setting-inactivityTimeout" class="form-control" min="5" max="480" value="${gen['general.inactivityTimeout'] ?? gen.inactivityTimeout ?? 30}">
-                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">Auto-lock workstation after idle time.</small>
-                </div>
-
-              </div>
-
-              <!-- Automated Backups Toggle -->
-              <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem; background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md); gap: 1rem; flex-wrap: wrap;">
-                <div>
-                  <div style="font-weight: 600; font-size: 1rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-                    <span>💾</span> Automated Daily Database Backups
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem;">
+                  <!-- Currency Symbol -->
+                  <div class="form-group">
+                    <label class="form-label" for="setting-currencySymbol" style="font-weight: 600;">Currency Symbol *</label>
+                    <input type="text" id="setting-currencySymbol" class="form-control" value="${escapeHTML(gen['general.currencySymbol'] || gen.currencySymbol || '₹')}" required>
+                    <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">e.g. ₹, $, €, £</small>
                   </div>
-                  <p style="color: var(--color-text-secondary); font-size: 0.85rem; margin: 4px 0 0 0;">
-                    Generates automated night snapshots of student registrations, seat assignments, and payment logs.
-                  </p>
-                </div>
-                <div>
-                  <label class="switch-label" style="margin: 0;">
-                    <input type="checkbox" id="setting-autoBackup" ${(gen['general.autoBackup'] ?? gen.autoBackup) !== false ? 'checked' : ''}>
-                    <span class="switch-slider"></span>
-                  </label>
+
+                  <!-- Currency Code -->
+                  <div class="form-group">
+                    <label class="form-label" for="setting-currency" style="font-weight: 600;">Currency ISO Code *</label>
+                    <select id="setting-currency" class="form-select" style="font-weight: 700;">
+                      <option value="INR" ${(gen['general.currency'] || gen.currency || 'INR') === 'INR' ? 'selected' : ''}>INR — Indian Rupee</option>
+                      <option value="USD" ${(gen['general.currency'] || gen.currency) === 'USD' ? 'selected' : ''}>USD — US Dollar</option>
+                      <option value="EUR" ${(gen['general.currency'] || gen.currency) === 'EUR' ? 'selected' : ''}>EUR — Euro</option>
+                      <option value="GBP" ${(gen['general.currency'] || gen.currency) === 'GBP' ? 'selected' : ''}>GBP — British Pound</option>
+                      <option value="AED" ${(gen['general.currency'] || gen.currency) === 'AED' ? 'selected' : ''}>AED — UAE Dirham</option>
+                    </select>
+                  </div>
+
+                  <!-- Date Format -->
+                  <div class="form-group">
+                    <label class="form-label" for="setting-dateFormat" style="font-weight: 600;">Date Display Format *</label>
+                    <select id="setting-dateFormat" class="form-select" style="font-weight: 700;">
+                      <option value="DD/MM/YYYY" ${(gen['general.dateFormat'] || gen.dateFormat || 'DD/MM/YYYY') === 'DD/MM/YYYY' ? 'selected' : ''}>DD/MM/YYYY (e.g. 14/08/2026)</option>
+                      <option value="YYYY-MM-DD" ${(gen['general.dateFormat'] || gen.dateFormat) === 'YYYY-MM-DD' ? 'selected' : ''}>YYYY-MM-DD (e.g. 2026-08-14)</option>
+                      <option value="MM/DD/YYYY" ${(gen['general.dateFormat'] || gen.dateFormat) === 'MM/DD/YYYY' ? 'selected' : ''}>MM/DD/YYYY (e.g. 08/14/2026)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-            </div>
+              <!-- CATEGORY 2: TIMEZONE & SESSION SECURITY -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>🕒</span> Category 2: System Timezone &amp; Session Security Safeguards
+                </h4>
 
-            <div class="card-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; background: var(--color-surface-hover);">
-              <button type="submit" id="btn-save-general-bottom" class="btn btn-primary" style="font-weight: 600;">Save General Settings</button>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem;">
+                  <!-- Timezone -->
+                  <div class="form-group">
+                    <label class="form-label" for="setting-timezone" style="font-weight: 600;">System Timezone *</label>
+                    <select id="setting-timezone" class="form-select" style="font-weight: 700;">
+                      <option value="Asia/Kolkata" ${(gen['general.timezone'] || gen.timezone || 'Asia/Kolkata') === 'Asia/Kolkata' ? 'selected' : ''}>Asia/Kolkata (IST +5:30)</option>
+                      <option value="UTC" ${(gen['general.timezone'] || gen.timezone) === 'UTC' ? 'selected' : ''}>UTC (Coordinated Universal Time)</option>
+                      <option value="America/New_York" ${(gen['general.timezone'] || gen.timezone) === 'America/New_York' ? 'selected' : ''}>America/New_York (EST -5:00)</option>
+                      <option value="Europe/London" ${(gen['general.timezone'] || gen.timezone) === 'Europe/London' ? 'selected' : ''}>Europe/London (GMT/BST)</option>
+                      <option value="Asia/Dubai" ${(gen['general.timezone'] || gen.timezone) === 'Asia/Dubai' ? 'selected' : ''}>Asia/Dubai (GST +4:00)</option>
+                      <option value="Asia/Singapore" ${(gen['general.timezone'] || gen.timezone) === 'Asia/Singapore' ? 'selected' : ''}>Asia/Singapore (SGT +8:00)</option>
+                    </select>
+                  </div>
+
+                  <!-- Inactivity Timeout -->
+                  <div class="form-group">
+                    <label class="form-label" for="setting-inactivityTimeout" style="font-weight: 600;">Session Inactivity Timeout (Minutes) *</label>
+                    <input type="number" id="setting-inactivityTimeout" class="form-control" min="5" max="480" value="${gen['general.inactivityTimeout'] ?? gen.inactivityTimeout ?? 30}">
+                    <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">Auto-lock workstation after idle time.</small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CATEGORY 3: AUTOMATED DATABASE BACKUPS -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>💾</span> Category 3: Automated Database Backups &amp; Data Governance
+                </h4>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); gap: 1rem; flex-wrap: wrap;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.98rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                      <span>💾</span> Automated Daily Database Backups
+                      <span id="badge-auto-backup" class="badge ${(gen['general.autoBackup'] ?? gen.autoBackup) !== false ? 'badge-success' : 'badge-secondary'}" style="margin-left: 0.5rem; font-size: 0.75rem; padding: 2px 10px; border-radius: 12px; background: ${(gen['general.autoBackup'] ?? gen.autoBackup) !== false ? 'var(--color-success-bg)' : 'var(--color-bg-secondary)'}; color: ${(gen['general.autoBackup'] ?? gen.autoBackup) !== false ? 'var(--color-success)' : 'var(--color-text-secondary)'}; border: 1px solid currentColor;">
+                        ${(gen['general.autoBackup'] ?? gen.autoBackup) !== false ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                    <p style="color: var(--color-text-secondary); font-size: 0.83rem; margin: 4px 0 0 0;">
+                      Generates automated night snapshots of student registrations, seat assignments, and payment logs.
+                    </p>
+                  </div>
+                  <div>
+                    <label class="switch-label" style="margin: 0;">
+                      <input type="checkbox" id="setting-autoBackup" ${(gen['general.autoBackup'] ?? gen.autoBackup) !== false ? 'checked' : ''}>
+                      <span class="switch-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CATEGORY 4: LIVE LOCALE & TELEMETRY SUMMARY -->
+              <div style="background: var(--color-primary-bg); border: 2px dashed var(--color-primary-light); border-radius: var(--radius-lg); padding: 1.5rem; text-align: center;">
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-primary); margin-bottom: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <span>📊</span> Category 4: Live Locale &amp; System Telemetry Summary
+                </div>
+                <div id="general-config-preview" style="font-size: 1.1rem; font-weight: 700; color: var(--color-primary); display: inline-flex; align-items: center; justify-content: center; gap: 1rem; padding: 0.75rem 1.75rem; background: var(--color-surface); border-radius: var(--radius-md); border: 1px solid var(--color-primary); box-shadow: var(--shadow-sm); flex-wrap: wrap;">
+                  <span>Sample Amount: <strong id="preview-sample-currency">₹1,500.00</strong></span>
+                  <span style="opacity: 0.4;">|</span>
+                  <span>Sample Date: <strong id="preview-sample-date">20/08/2026</strong></span>
+                  <span style="opacity: 0.4;">|</span>
+                  <span>Zone: <strong id="preview-sample-tz">Asia/Kolkata</strong></span>
+                </div>
+              </div>
+
+              <!-- SINGLE CONSOLIDATED SAVE BUTTON AT BOTTOM -->
+              <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--color-divider);">
+                <button type="submit" id="btn-save-general" class="btn btn-primary" style="font-weight: 700; padding: 0.65rem 1.75rem;">
+                  💾 Save General System Configuration
+                </button>
+              </div>
+
             </div>
           </div>
         </form>
