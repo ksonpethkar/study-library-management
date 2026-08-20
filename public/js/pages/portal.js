@@ -8,7 +8,7 @@ import { PushNotifications } from '../utils/pushNotifications.js';
 export async function render() {
   const container = document.createElement('div');
   container.className = 'page-container';
-  container.style.cssText = 'max-width: 1100px; margin: 0 auto; padding-bottom: 3rem;';
+  container.style.cssText = 'width: 100%; max-width: 100%; box-sizing: border-box; padding-bottom: 3rem;';
 
   container.innerHTML = `
     <div class="card p-5 text-center" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">

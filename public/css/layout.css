@@ -361,26 +361,32 @@ html.dark-theme .main-header {
   pointer-events: none;
 }
 
-/* Page Content & Fluid Universal Containers */
-.page-content {
-  padding: 1.5rem 2rem;
-  flex: 1;
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
-  box-sizing: border-box;
+/* Universal 100% Fluid Screen-Fit & Flexible Auto-Adjust System Tokens */
+.page-content, .page-container, #page-content, .app-main, .main-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  flex: 1 1 auto !important;
   will-change: transform, opacity;
   transform: translate3d(0, 0, 0);
 }
 
+.page-content {
+  padding: 1.5rem 2rem;
+}
+
 .page-container {
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
   padding: 0;
+}
+
+/* Fluid Auto-Adjusting Responsive Grid Layouts */
+.grid-responsive, .fluid-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+  width: 100%;
   box-sizing: border-box;
-  will-change: transform, opacity;
-  transform: translate3d(0, 0, 0);
 }
 
 /* GPU Hardware-Accelerated 120fps Transitions & View Transitions API */
