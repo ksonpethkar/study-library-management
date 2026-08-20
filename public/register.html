@@ -1479,7 +1479,9 @@
           { key: 'desk', name: 'Pay Later at Front Desk', subtitle: 'Pay cash on arrival', icon: '💵', enabled: true, order: 4, instructions: 'Admission will be pre-reserved. Pay cash at front reception desk on arrival.', requiresRef: false, refLabel: '' }
         ];
 
-        const activeMethods = paymentMethods.filter(m => m.enabled !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
+        const activeMethods = paymentMethods
+          .filter(m => m.enabled === true || m.enabled === 'true' || m.enabled === 1 || m.enabled === '1')
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
         const radioGrid = document.getElementById('payment-methods-radio-grid');
         const subpanesContainer = document.getElementById('payment-methods-subpanes-container');
 
@@ -1680,9 +1682,9 @@
           document.getElementById('bi-seats-badge').textContent = `🟢 ${b.availableSeats || 0} Available / ${b.totalSeats || 50} Total Seats`;
         }
 
-        // Shifts Dropdown & Multiplier
         // Shifts Dropdown & Multiplier with Capacity Indicators
-        const shifts = Array.isArray(shiftsRes?.data) ? shiftsRes.data : [];
+        const rawShifts = Array.isArray(shiftsRes?.data) ? shiftsRes.data : [];
+        const shifts = rawShifts.filter(s => s.isActive !== false && s.isActive !== 'false');
         const shiftWrapper = document.getElementById('reg-shift-wrapper');
         const shiftDropdown = document.getElementById('reg-shift');
         if (shifts.length > 0 && shiftDropdown && shiftWrapper) {
@@ -1702,7 +1704,8 @@
         }
 
         // Plans dropdown with Shift Capacity Indicators
-        const plans = Array.isArray(plansRes?.data) ? plansRes.data : (landingRes?.data?.plans || []);
+        const rawPlans = Array.isArray(plansRes?.data) ? plansRes.data : (landingRes?.data?.plans || []);
+        const plans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false');
         if (plans && plans.length > 0 && planSelect) {
           planSelect.innerHTML = '<option value="">-- Choose Study Shift & Plan --</option>';
           plans.forEach(p => {
