@@ -745,8 +745,19 @@ router.post('/renewal-request', async (req, res) => {
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
     const { utrNumber, planId, shiftId, amountPaid, applyWallet, paymentMode = 'upi', notes } = req.body;
-    if (!utrNumber) {
+    if (!utrNumber || !utrNumber.trim()) {
       return res.status(400).json({ success: false, message: 'UPI UTR / Transaction reference number is required' });
+    }
+
+    const cleanUtr = utrNumber.trim();
+
+    // Check for duplicate UTR submitted anywhere in system (Anti-Replay Fraud Protection)
+    const existingPayment = await Payment.findOne({ transactionId: cleanUtr }).lean();
+    if (existingPayment) {
+      return res.status(400).json({
+        success: false,
+        message: `This UTR / Transaction ID (${cleanUtr}) has already been registered! Fraudulent or re-used UTR reference numbers cannot be processed.`
+      });
     }
 
     const business = await BusinessProfile.getProfile();
