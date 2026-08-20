@@ -4572,8 +4572,8 @@ async function initLandingSettings(container) {
     // 7. Gallery
     payload.gallery = {
       ...payload.gallery,
-      title: listContainer.querySelector('#l-gal-title')?.value || 'Library Hall & Facilities Gallery',
-      subtitle: listContainer.querySelector('#l-gal-subtitle')?.value || 'A glimpse into our state-of-the-art reading halls and study infrastructure.',
+      title: listContainer.querySelector('#l-gal-title')?.value || 'Our Study Space & Ambience',
+      subtitle: listContainer.querySelector('#l-gal-subtitle')?.value || 'Take a virtual tour of our modern reading rooms and student facilities.',
       images: Array.from(listContainer.querySelectorAll('#l-gallery-list > div')).map(div => ({
         url: div.querySelector('.l-gal-url')?.value.trim() || '',
         category: div.querySelector('.l-gal-cat')?.value || 'Hall',
