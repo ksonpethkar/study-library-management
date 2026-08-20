@@ -639,16 +639,45 @@ router.get('/referrals', async (req, res) => {
 });
 
 // @route   GET /api/student-portal/renewal-quote
-// @desc    Calculate renewal price, apply earned referral credits, pending dues, and generate dynamic UPI string
+// @desc    Calculate renewal price for selected plan/shift, apply earned referral credits, pending dues, and generate dynamic UPI QR
 router.get('/renewal-quote', async (req, res) => {
   try {
     const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
-    const business = await BusinessProfile.getProfile();
-    const plan = student.plan || (await Plan.findOne({ isActive: true }).lean());
-    const basePrice = plan ? plan.price : 1000;
-    const discount = plan?.discount ? (basePrice * plan.discount / 100) : 0;
+    const Shift = require('../models/Shift');
+    const [business, allPlans, allShifts] = await Promise.all([
+      BusinessProfile.getProfile(),
+      Plan.find({ isActive: { $ne: false } }).lean(),
+      Shift.find({ isActive: { $ne: false } }).lean()
+    ]);
+
+    const { planId, shiftId } = req.query;
+
+    let selectedPlan = null;
+    if (planId) {
+      selectedPlan = allPlans.find(p => String(p._id) === String(planId));
+    }
+    if (!selectedPlan && student.plan) {
+      selectedPlan = typeof student.plan === 'object' ? student.plan : allPlans.find(p => String(p._id) === String(student.plan));
+    }
+    if (!selectedPlan && allPlans.length > 0) {
+      selectedPlan = allPlans[0];
+    }
+
+    let selectedShift = null;
+    if (shiftId) {
+      selectedShift = allShifts.find(s => String(s._id) === String(shiftId));
+    }
+    if (!selectedShift && student.shift) {
+      selectedShift = typeof student.shift === 'object' ? student.shift : allShifts.find(s => String(s._id) === String(student.shift));
+    }
+    if (!selectedShift && allShifts.length > 0) {
+      selectedShift = allShifts[0];
+    }
+
+    const basePrice = selectedPlan ? Number(selectedPlan.price || 1000) : 1000;
+    const discount = selectedPlan?.discount ? Math.round(basePrice * selectedPlan.discount / 100) : 0;
     
     // Automatically apply available referral wallet credits
     const availableReferralCredits = student.referralCredits || 0;
@@ -665,12 +694,7 @@ router.get('/renewal-quote', async (req, res) => {
     const note = encodeURIComponent(`Renewal_${student.studentId}_${(student.name || '').replace(/\s+/g, '')}`);
     const upiIntentUrl = `upi://pay?pa=${textUpiId}&pn=${cleanPayee}&am=${totalPayable}&cu=INR&tn=${note}`;
 
-    let qrCodeUrl = '';
-    if (business.upiQrCode && typeof business.upiQrCode === 'string' && business.upiQrCode.trim().length > 10) {
-      qrCodeUrl = business.upiQrCode;
-    } else {
-      qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiIntentUrl)}`;
-    }
+    let qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiIntentUrl)}`;
 
     res.json({
       success: true,
@@ -678,8 +702,12 @@ router.get('/renewal-quote', async (req, res) => {
         studentId: student.studentId,
         studentName: student.name,
         currentExpiryDate: student.expiryDate,
-        planName: plan?.name || 'Standard Study Plan',
-        durationDays: plan?.duration || 30,
+        allPlans,
+        allShifts,
+        selectedPlanId: selectedPlan?._id || '',
+        selectedShiftId: selectedShift?._id || '',
+        planName: selectedPlan?.name || 'Standard Study Plan',
+        durationDays: selectedPlan?.duration || 30,
         basePrice,
         discount,
         referralCredits: availableReferralCredits,
@@ -705,21 +733,31 @@ router.post('/renewal-request', async (req, res) => {
     const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
-    const { utrNumber, amountPaid, paymentMode = 'upi', notes } = req.body;
+    const { utrNumber, planId, shiftId, amountPaid, paymentMode = 'upi', notes } = req.body;
     if (!utrNumber) {
       return res.status(400).json({ success: false, message: 'UPI UTR / Transaction reference number is required' });
     }
 
     const business = await BusinessProfile.getProfile();
 
-    const payAmount = Number(amountPaid) || 1000;
+    let targetPlan = null;
+    if (planId) {
+      targetPlan = await Plan.findById(planId).lean();
+    }
+    if (!targetPlan) {
+      targetPlan = typeof student.plan === 'object' ? student.plan : await Plan.findById(student.plan).lean();
+    }
+
+    const durationDays = targetPlan?.duration || 30;
+    const payAmount = Number(amountPaid) || targetPlan?.price || 1000;
+    
     const validFrom = student.expiryDate && new Date(student.expiryDate) > new Date() ? new Date(student.expiryDate) : new Date();
-    const validUntil = new Date(validFrom.getTime() + (student.plan?.duration || 30) * 24 * 60 * 60 * 1000);
+    const validUntil = new Date(validFrom.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
     // Create payment log conforming to Payment schema
     const payment = new Payment({
       student: student._id,
-      plan: student.plan?._id || student.plan || null,
+      plan: targetPlan?._id || student.plan?._id || student.plan || null,
       amount: payAmount,
       finalAmount: payAmount,
       paymentMethod: 'upi',
@@ -733,12 +771,16 @@ router.post('/renewal-request', async (req, res) => {
 
     await payment.save();
 
-    // Extend student expiry date & clear fines
-    await Student.findByIdAndUpdate(student._id, {
+    // Extend student expiry date, update selected plan/shift & clear fines
+    const updateFields = {
       expiryDate: validUntil,
       status: 'active',
       pendingFine: 0
-    });
+    };
+    if (planId) updateFields.plan = planId;
+    if (shiftId) updateFields.shift = shiftId;
+
+    await Student.findByIdAndUpdate(student._id, updateFields);
 
     // Notify Library Admins
     await Notification.create({

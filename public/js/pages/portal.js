@@ -1456,117 +1456,184 @@ function renderPortalUI(container, data, analytics = null) {
     });
   });
 
-  // Renew Membership Plan with Dynamic UPI QR Code
+  // Renew Membership Plan with Dynamic UPI QR Code & Plan/Shift Selection
   container.querySelector('#btn-portal-renew')?.addEventListener('click', async () => {
     try {
       const quoteRes = await api.get('/api/student-portal/renewal-quote');
       if (!quoteRes.success) throw new Error(quoteRes.message);
-      const q = quoteRes.data;
+      let q = quoteRes.data;
 
       const modalContent = document.createElement('div');
-      modalContent.innerHTML = `
-        <div style="font-family: 'Outfit', sans-serif;">
-          <div style="text-align: center; margin-bottom: 1.25rem;">
-            <span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary); font-weight: 700; font-size: 0.85rem; padding: 4px 12px;">
-              ⚡ Instant 1-Month Self-Renewal
-            </span>
-            <h3 style="margin: 8px 0 4px 0; font-size: 1.3rem; font-weight: 800; color: var(--color-text-primary);">
-              ${escapeHTML(q.planName)}
-            </h3>
-            <p class="text-muted small" style="margin: 0;">Extends membership by ${q.durationDays} days from expiry.</p>
-          </div>
 
-          <!-- Fee Calculation Table -->
-          <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 1.25rem;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px;">
-              <span class="text-muted">Plan Base Fee:</span>
-              <span style="font-weight: 600;">₹${q.basePrice.toLocaleString('en-IN')}</span>
-            </div>
-            ${q.discount > 0 ? `
-              <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; color: var(--color-success);">
-                <span>Special Discount:</span>
-                <span style="font-weight: 600;">- ₹${q.discount.toLocaleString('en-IN')}</span>
+      function updateModalBody() {
+        modalContent.innerHTML = `
+          <div style="font-family: 'Outfit', sans-serif;">
+            
+            <!-- Plan & Shift Selection Engine -->
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Select Membership Plan *</label>
+                <select id="renewal-plan-select" class="form-select" style="font-weight: 600;">
+                  ${(q.allPlans || []).map(p => `
+                    <option value="${p._id}" ${String(p._id) === String(q.selectedPlanId) ? 'selected' : ''}>
+                      ${escapeHTML(p.name)} — ₹${Number(p.price || 0).toLocaleString('en-IN')} (${p.duration || 30} Days)
+                    </option>
+                  `).join('')}
+                </select>
               </div>
-            ` : ''}
-            ${q.pendingFine > 0 ? `
-              <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; color: var(--color-danger);">
-                <span>Late Fee / Grace Due:</span>
-                <span style="font-weight: 600;">+ ₹${q.pendingFine.toLocaleString('en-IN')}</span>
+
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Select Preferred Study Shift *</label>
+                <select id="renewal-shift-select" class="form-select" style="font-weight: 600;">
+                  ${(q.allShifts || []).map(s => `
+                    <option value="${s._id}" ${String(s._id) === String(q.selectedShiftId) ? 'selected' : ''}>
+                      ${escapeHTML(s.name)} (${escapeHTML(s.startTime || '')} - ${escapeHTML(s.endTime || '')})
+                    </option>
+                  `).join('')}
+                </select>
               </div>
-            ` : ''}
-            <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 800; border-top: 1px dashed var(--color-border); padding-top: 8px; margin-top: 4px; color: var(--color-primary);">
-              <span>Total Amount Payable:</span>
-              <span>₹${q.totalPayable.toLocaleString('en-IN')}</span>
             </div>
-          </div>
 
-          <!-- Dynamic UPI QR Section -->
-          <div style="text-align: center; margin-bottom: 1.25rem; background: #ffffff; padding: 14px; border-radius: 12px; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);">
-            <div style="font-size: 0.8rem; font-weight: 700; color: #64748b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-              Scan & Pay via GPay / PhonePe / Paytm / BHIM
+            <!-- Dynamic Renewal Summary Card -->
+            <div style="text-align: center; margin-bottom: 1rem; background: rgba(108, 92, 231, 0.06); padding: 10px; border-radius: 10px; border: 1px solid rgba(108, 92, 231, 0.2);">
+              <span class="badge" style="background: rgba(108, 92, 231, 0.2); color: var(--color-primary); font-weight: 700; font-size: 0.8rem; padding: 4px 10px;">
+                ⚡ Instant Self-Renewal
+              </span>
+              <h4 style="margin: 6px 0 2px 0; font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary);">
+                ${escapeHTML(q.planName)}
+              </h4>
+              <p class="text-muted small" style="margin: 0; font-size: 0.8rem;">Extends membership by ${q.durationDays} days from expiry.</p>
             </div>
-            <img src="${q.qrCodeUrl}" alt="UPI QR Code" style="width: 180px; height: 180px; margin: 0 auto; border-radius: 8px; display: block;">
-            <div style="margin-top: 8px; font-size: 0.85rem; font-weight: 700; color: #1e293b;">
-              UPI ID: <span style="font-family: monospace; color: #6c5ce7;">${escapeHTML(q.upiId)}</span>
-            </div>
-            <a href="${q.upiIntentUrl}" class="btn btn-sm btn-outline-primary mt-2" style="font-size: 0.8rem; display: inline-block;">
-              📲 Click to Pay directly on Mobile App
-            </a>
-          </div>
 
-          <!-- Submit UTR Form -->
-          <form id="portal-renewal-submit-form">
-            <div class="form-group mb-3">
-              <label class="form-label" style="font-weight: 700;">Enter UPI UTR / Transaction Reference No. *</label>
-              <input type="text" id="renewal-utr-input" class="form-control" placeholder="12-digit UTR No. (e.g. 423456789012)" required style="letter-spacing: 1px; font-weight: 600;">
-              <small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 4px;">Found in your payment app receipt under 'UPI Ref No / Transaction ID'.</small>
+            <!-- Fee Calculation Table -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 1rem;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px;">
+                <span class="text-muted">Plan Base Fee:</span>
+                <span style="font-weight: 600;">₹${q.basePrice.toLocaleString('en-IN')}</span>
+              </div>
+              ${q.discount > 0 ? `
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; color: var(--color-success);">
+                  <span>Special Discount:</span>
+                  <span style="font-weight: 600;">- ₹${q.discount.toLocaleString('en-IN')}</span>
+                </div>
+              ` : ''}
+              ${q.referralDiscount > 0 ? `
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; color: var(--color-success);">
+                  <span>Referral Rewards Discount:</span>
+                  <span style="font-weight: 600;">- ₹${q.referralDiscount.toLocaleString('en-IN')}</span>
+                </div>
+              ` : ''}
+              ${q.pendingFine > 0 ? `
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; color: var(--color-danger);">
+                  <span>Late Fee / Grace Due:</span>
+                  <span style="font-weight: 600;">+ ₹${q.pendingFine.toLocaleString('en-IN')}</span>
+                </div>
+              ` : ''}
+              <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 800; border-top: 1px dashed var(--color-border); padding-top: 8px; margin-top: 4px; color: var(--color-primary);">
+                <span>Total Amount Payable:</span>
+                <span>₹${q.totalPayable.toLocaleString('en-IN')}</span>
+              </div>
             </div>
-            <div style="display: flex; gap: 8px; justify-content: flex-end;">
-              <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
-              <button type="submit" class="btn btn-primary" id="btn-submit-renewal-utr">
-                ✅ Submit Payment & Renew
-              </button>
+
+            <!-- Dynamic UPI QR Section -->
+            <div style="text-align: center; margin-bottom: 1rem; background: #ffffff; padding: 14px; border-radius: 12px; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);">
+              <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
+                Scan & Pay via GPay / PhonePe / Paytm / BHIM
+              </div>
+              <img id="renewal-qr-img" src="${q.qrCodeUrl}" alt="UPI QR Code" style="width: 170px; height: 170px; margin: 0 auto; border-radius: 8px; display: block;">
+              <div style="margin-top: 6px; font-size: 0.85rem; font-weight: 700; color: #1e293b;">
+                UPI ID: <span style="font-family: monospace; color: #6c5ce7;">${escapeHTML(q.upiId)}</span>
+              </div>
+              <a id="renewal-upi-link" href="${q.upiIntentUrl}" class="btn btn-sm btn-outline-primary mt-2" style="font-size: 0.8rem; display: inline-block;">
+                📲 Click to Pay directly on Mobile App (₹${q.totalPayable.toLocaleString('en-IN')})
+              </a>
             </div>
-          </form>
-        </div>
-      `;
+
+            <!-- Submit UTR Form -->
+            <form id="portal-renewal-submit-form">
+              <div class="form-group mb-3">
+                <label class="form-label" style="font-weight: 700;">Enter UPI UTR / Transaction Reference No. *</label>
+                <input type="text" id="renewal-utr-input" class="form-control" placeholder="12-digit UTR No. (e.g. 423456789012)" required style="letter-spacing: 1px; font-weight: 600;">
+                <small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 4px;">Found in your payment app receipt under 'UPI Ref No / Transaction ID'.</small>
+              </div>
+              <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="btn-submit-renewal-utr" style="font-weight: 700;">
+                  ✅ Submit Payment & Renew
+                </button>
+              </div>
+            </form>
+          </div>
+        `;
+
+        bindEvents();
+      }
+
+      function bindEvents() {
+        const planSelect = modalContent.querySelector('#renewal-plan-select');
+        const shiftSelect = modalContent.querySelector('#renewal-shift-select');
+
+        async function onSelectionChange() {
+          const selectedPlanId = planSelect.value;
+          const selectedShiftId = shiftSelect.value;
+          try {
+            const freshQuote = await api.get(`/api/student-portal/renewal-quote?planId=${selectedPlanId}&shiftId=${selectedShiftId}`);
+            if (freshQuote.success && freshQuote.data) {
+              q = freshQuote.data;
+              updateModalBody();
+            }
+          } catch (e) {
+            console.warn('Failed to calculate renewal quote:', e);
+          }
+        }
+
+        if (planSelect) planSelect.addEventListener('change', onSelectionChange);
+        if (shiftSelect) shiftSelect.addEventListener('change', onSelectionChange);
+
+        modalContent.querySelector('#portal-renewal-submit-form').onsubmit = async (e) => {
+          e.preventDefault();
+          const utrNumber = modalContent.querySelector('#renewal-utr-input').value.trim();
+          const selectedPlanId = planSelect ? planSelect.value : q.selectedPlanId;
+          const selectedShiftId = shiftSelect ? shiftSelect.value : q.selectedShiftId;
+
+          const btn = modalContent.querySelector('#btn-submit-renewal-utr');
+          Loading.button(btn, true);
+
+          try {
+            const renewRes = await api.post('/api/student-portal/renewal-request', {
+              utrNumber,
+              planId: selectedPlanId,
+              shiftId: selectedShiftId,
+              amountPaid: q.totalPayable,
+              paymentMode: 'upi'
+            });
+
+            if (!renewRes.success) throw new Error(renewRes.message);
+
+            Toast.success('🎉 Membership renewed successfully!');
+            Modal.closeAll();
+            // Reload portal with fresh dashboard and analytics
+            const freshDash = await api.get('/api/student-portal/dashboard');
+            if (freshDash.success && freshDash.data) {
+              let freshAnalytics = null;
+              try {
+                const aRes = await api.get(`/api/attendance/analytics/${freshDash.data.student._id}`);
+                if (aRes.success) freshAnalytics = aRes.data;
+              } catch (e) {}
+              renderPortalUI(container, freshDash.data, freshAnalytics);
+            }
+          } catch (err) {
+            Toast.error(err.message || 'Renewal failed. Please check UTR.');
+          } finally {
+            Loading.button(btn, false);
+          }
+        };
+      }
+
+      updateModalBody();
 
       const renewModal = new Modal({ title: '💳 Membership Self-Renewal', content: modalContent, size: 'md' });
       renewModal.show();
-
-      modalContent.querySelector('#portal-renewal-submit-form').onsubmit = async (e) => {
-        e.preventDefault();
-        const utrNumber = modalContent.querySelector('#renewal-utr-input').value.trim();
-        const btn = modalContent.querySelector('#btn-submit-renewal-utr');
-        Loading.button(btn, true);
-
-        try {
-          const renewRes = await api.post('/api/student-portal/renewal-request', {
-            utrNumber,
-            amountPaid: q.totalPayable,
-            paymentMode: 'upi'
-          });
-
-          if (!renewRes.success) throw new Error(renewRes.message);
-
-          Toast.success('🎉 Membership renewed successfully!');
-          Modal.closeAll();
-          // Reload portal with fresh dashboard and analytics
-          const freshDash = await api.get('/api/student-portal/dashboard');
-          if (freshDash.success && freshDash.data) {
-            let freshAnalytics = null;
-            try {
-              const aRes = await api.get(`/api/attendance/analytics/${freshDash.data.student._id}`);
-              if (aRes.success) freshAnalytics = aRes.data;
-            } catch (e) {}
-            renderPortalUI(container, freshDash.data, freshAnalytics);
-          }
-        } catch (err) {
-          Toast.error(err.message || 'Renewal failed. Please check UTR.');
-        } finally {
-          Loading.button(btn, false);
-        }
-      };
 
     } catch (err) {
       Toast.error(err.message || 'Could not load renewal quote');
