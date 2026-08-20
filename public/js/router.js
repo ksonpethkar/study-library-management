@@ -31,8 +31,9 @@ export default class Router {
       if (typeof document !== 'undefined' && document.startViewTransition) {
         try {
           const transition = document.startViewTransition(() => fn());
-          if (transition && transition.finished) {
-            transition.finished.catch(() => {});
+          if (transition) {
+            if (transition.finished) transition.finished.catch(() => {});
+            if (transition.ready) transition.ready.catch(() => {});
           }
         } catch (e) {
           fn();

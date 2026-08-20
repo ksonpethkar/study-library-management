@@ -150,26 +150,26 @@ function renderPortalUI(container, data, analytics = null) {
         </div>
 
         <!-- Quick Action Buttons Grid -->
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-          <button id="btn-portal-profile" class="btn btn-outline-primary btn-sm" style="font-weight: 600;">
-            👤 View Profile
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-start;">
+          <button id="btn-portal-profile" class="btn btn-outline-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
+            👤 Profile
           </button>
-          <button id="btn-portal-leave" class="btn btn-outline-secondary btn-sm" style="font-weight: 600;">
-            🌴 Request Leave
+          <button id="btn-portal-leave" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
+            🌴 Leave
           </button>
-          <button id="btn-portal-seat-change" class="btn btn-outline-secondary btn-sm" style="font-weight: 600;">
+          <button id="btn-portal-seat-change" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
             💺 Change Seat
           </button>
-          <button id="btn-portal-referral" class="btn btn-outline-secondary btn-sm" style="font-weight: 600;">
-            🎁 Refer Friend
+          <button id="btn-portal-referral" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
+            🎁 Refer
           </button>
-          <button id="btn-portal-idcard" class="btn btn-outline-primary btn-sm" style="font-weight: 600;">
+          <button id="btn-portal-idcard" class="btn btn-outline-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
             🪪 Digital ID
           </button>
-          <button id="btn-portal-download-pdf" class="btn btn-outline-success btn-sm" style="font-weight: 600;">
-            📄 Download PDF Form
+          <button id="btn-portal-download-pdf" class="btn btn-outline-success btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
+            📄 PDF Form
           </button>
-          <button id="btn-portal-renew" class="btn btn-primary btn-sm" style="font-weight: 600;">
+          <button id="btn-portal-renew" class="btn btn-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
             ⚡ Renew Plan
           </button>
         </div>
