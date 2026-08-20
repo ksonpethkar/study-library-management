@@ -193,6 +193,49 @@ function renderSettingsUI(container, profile, settings) {
               </h4>
               
               <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;">
+                
+                <!-- Option A / Option B Gateway Provider Settings -->
+                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 1.25rem; box-shadow: var(--shadow-xs);">
+                  <h5 style="margin: 0 0 10px 0; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+                    <span>⚡</span> Payment Verification Architecture (Option A vs Option B)
+                  </h5>
+
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                      <label class="form-label" for="setting-gatewayProvider" style="font-weight: 600;">Active Payment Verification Engine</label>
+                      <select id="setting-gatewayProvider" class="form-select" style="font-weight: 700;">
+                        <option value="manual_upi" ${profile.gatewayProvider === 'manual_upi' || !profile.gatewayProvider ? 'selected' : ''}>
+                          🟢 Option A: Free Standard UPI QR + Anti-Duplicate UTR Protection (100% FREE - ₹0 MDR)
+                        </option>
+                        <option value="razorpay" ${profile.gatewayProvider === 'razorpay' ? 'selected' : ''}>
+                          ⚡ Option B: Razorpay PG Auto-Webhooks (0-Sec Auto Verification)
+                        </option>
+                        <option value="cashfree" ${profile.gatewayProvider === 'cashfree' ? 'selected' : ''}>
+                          ⚡ Option B: Cashfree Auto-Collect Webhooks (0-Sec Auto Verification)
+                        </option>
+                        <option value="phonepe" ${profile.gatewayProvider === 'phonepe' ? 'selected' : ''}>
+                          ⚡ Option B: PhonePe Business PG Webhooks (0-Sec Auto Verification)
+                        </option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label" for="setting-razorpayKeyId" style="font-weight: 600;">Gateway API Key ID / App ID</label>
+                      <input type="text" id="setting-razorpayKeyId" class="form-control" value="${escapeHTML(profile.razorpayKeyId || '')}" placeholder="rzp_live_xxxxxxxxxxxxxx">
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label" for="setting-razorpaySecret" style="font-weight: 600;">Gateway Secret Key</label>
+                      <input type="password" id="setting-razorpaySecret" class="form-control" value="${escapeHTML(profile.razorpaySecret || '')}" placeholder="••••••••••••••••">
+                    </div>
+                  </div>
+
+                  <div style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; font-size: 0.85rem; color: var(--color-success);">
+                    <input type="checkbox" id="setting-enableAutoWebhookVerification" ${profile.enableAutoWebhookVerification !== false ? 'checked' : ''} style="width: 18px; height: 18px;">
+                    <span>⚡ Enable 0-Second Instant Webhook Payment Auto-Approval & Expiry Extension</span>
+                  </div>
+                </div>
+
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
                   <div class="form-group">
                     <label class="form-label" for="setting-upiId" style="font-weight: 600;">⚡ Official Library UPI ID (VPA)</label>
@@ -2642,6 +2685,10 @@ function renderSettingsUI(container, profile, settings) {
         },
         paymentInstructions: container.querySelector('#setting-payment-instructions')?.value?.trim() || '',
         enableUpiDeepLinks: container.querySelector('#setting-enableUpiDeepLinks')?.checked ?? true,
+        gatewayProvider: container.querySelector('#setting-gatewayProvider')?.value || 'manual_upi',
+        razorpayKeyId: container.querySelector('#setting-razorpayKeyId')?.value?.trim() || '',
+        razorpaySecret: container.querySelector('#setting-razorpaySecret')?.value?.trim() || '',
+        enableAutoWebhookVerification: container.querySelector('#setting-enableAutoWebhookVerification')?.checked ?? true,
         paymentMethods: activePaymentMethods,
         phone: container.querySelector('#setting-phone')?.value?.trim(),
         email: container.querySelector('#setting-email')?.value?.trim(),

@@ -118,7 +118,10 @@ router.put('/business-profile', roleCheck('owner'), validateBusinessProfile, asy
     const fields = [
       'businessName', 'tagline', 'logo', 'favicon', 'address', 'city', 'state', 'pincode',
       'phone', 'email', 'website', 'gstNumber', 'registrationNumber', 'upiQrCode', 'upiId',
-      'paymentInstructions', 'enableUpiDeepLinks', 'stampImage'
+      'paymentInstructions', 'enableUpiDeepLinks', 'stampImage',
+      'gatewayProvider', 'razorpayKeyId', 'razorpaySecret', 'razorpayWebhookSecret',
+      'cashfreeAppId', 'cashfreeSecret', 'phonepeMerchantId', 'phonepeSaltKey',
+      'enableAutoWebhookVerification'
     ];
 
     fields.forEach(field => {
