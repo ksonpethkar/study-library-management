@@ -608,10 +608,10 @@ router.post('/student-login', authLimiter, async (req, res) => {
     // Check corresponding User record if password was provided
     let user = null;
     if (student.email) {
-      user = await User.findOne({ email: student.email.toLowerCase() });
+      user = await User.findOne({ email: student.email.toLowerCase() }).select('+password');
     }
     if (!user && student.phone) {
-      user = await User.findOne({ phone: student.phone });
+      user = await User.findOne({ phone: student.phone }).select('+password');
     }
 
     // If student user exists and password is provided, verify password
@@ -619,9 +619,14 @@ router.post('/student-login', authLimiter, async (req, res) => {
       if (!password) {
         return res.status(400).json({ success: false, message: 'Password is required' });
       }
-      const isMatch = await user.comparePassword(password);
-      if (!isMatch) {
-        return res.status(401).json({ success: false, message: 'Invalid password. If you forgot, please contact library front desk.' });
+      if (!user.password) {
+        user.password = password;
+        await user.save();
+      } else {
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
+          return res.status(401).json({ success: false, message: 'Invalid password / PIN. Please verify your credentials or contact desk.' });
+        }
       }
     }
 

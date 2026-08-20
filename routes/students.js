@@ -414,10 +414,10 @@ router.post('/:id/reset-password', roleCheck('owner', 'branch_manager'), async (
     // Find or create matching User account
     let user = await User.findOne({
       $or: [
-        ...(student.email ? [{ email: student.email }] : []),
+        ...(student.email ? [{ email: student.email.toLowerCase() }] : []),
         ...(student.phone ? [{ phone: student.phone }] : [])
       ]
-    });
+    }).select('+password');
 
     if (!user) {
       user = new User({
