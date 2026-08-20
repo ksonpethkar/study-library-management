@@ -3132,6 +3132,41 @@ function renderSettingsUI(container, profile, settings) {
     saveGeneral(container.querySelector('#btn-save-general'));
   });
 
+  // Live General System Config Telemetry & Locale Preview Updater
+  function updateGeneralPreview() {
+    const symbol = container.querySelector('#setting-currencySymbol')?.value?.trim() || '₹';
+    const dateFormat = container.querySelector('#setting-dateFormat')?.value || 'DD/MM/YYYY';
+    const tz = container.querySelector('#setting-timezone')?.value || 'Asia/Kolkata';
+    const isBackupAuto = container.querySelector('#setting-autoBackup')?.checked;
+
+    const symEl = container.querySelector('#preview-sample-currency');
+    if (symEl) symEl.textContent = `${symbol}1,500.00`;
+
+    const dateEl = container.querySelector('#preview-sample-date');
+    if (dateEl) {
+      if (dateFormat === 'YYYY-MM-DD') dateEl.textContent = '2026-08-20';
+      else if (dateFormat === 'MM/DD/YYYY') dateEl.textContent = '08/20/2026';
+      else dateEl.textContent = '20/08/2026';
+    }
+
+    const tzEl = container.querySelector('#preview-sample-tz');
+    if (tzEl) tzEl.textContent = tz;
+
+    // Update backup status badge
+    const badgeEl = container.querySelector('#badge-auto-backup');
+    if (badgeEl) {
+      badgeEl.textContent = isBackupAuto !== false ? 'Enabled' : 'Disabled';
+      badgeEl.style.background = isBackupAuto !== false ? 'var(--color-success-bg)' : 'var(--color-bg-secondary)';
+      badgeEl.style.color = isBackupAuto !== false ? 'var(--color-success)' : 'var(--color-text-secondary)';
+    }
+  }
+
+  container.querySelector('#setting-currencySymbol')?.addEventListener('input', updateGeneralPreview);
+  container.querySelector('#setting-dateFormat')?.addEventListener('change', updateGeneralPreview);
+  container.querySelector('#setting-timezone')?.addEventListener('change', updateGeneralPreview);
+  container.querySelector('#setting-autoBackup')?.addEventListener('change', updateGeneralPreview);
+  updateGeneralPreview();
+
   // Save All Changes (Header Button)
   container.querySelector('#btn-save-all-settings')?.addEventListener('click', async () => {
     const saveAllBtn = container.querySelector('#btn-save-all-settings');
