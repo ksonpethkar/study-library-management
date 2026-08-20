@@ -106,10 +106,10 @@ const landingPageSchema = new mongoose.Schema({
   // Contact & Location Details
   contact: {
     enabled: { type: Boolean, default: true },
-    phone: { type: String, default: '+91 9876543210' },
-    whatsapp: { type: String, default: '+91 9876543210' },
-    email: { type: String, default: 'info@studylibrary.com' },
-    address: { type: String, default: '2nd Floor, Sai Complex, Near Metro Station, Pune, Maharashtra 411001' },
+    phone: { type: String, default: '' },
+    whatsapp: { type: String, default: '' },
+    email: { type: String, default: '' },
+    address: { type: String, default: '' },
     googleMapEmbedUrl: { type: String, default: '' },
     openingHours: { type: String, default: 'Open Daily: 06:00 AM – 11:00 PM (365 Days)' }
   },

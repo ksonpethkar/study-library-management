@@ -20,7 +20,7 @@ const businessProfileSchema = new mongoose.Schema({
   upiQrCode: String,
   upiId: {
     type: String,
-    default: 'thecozycorner@okaxis'
+    default: ''
   },
   bankDetails: {
     accountName: { type: String, default: '' },

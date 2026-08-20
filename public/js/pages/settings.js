@@ -196,7 +196,7 @@ function renderSettingsUI(container, profile, settings) {
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
                   <div class="form-group">
                     <label class="form-label" for="setting-upiId" style="font-weight: 600;">⚡ Official Library UPI ID (VPA)</label>
-                    <input type="text" id="setting-upiId" class="form-control" value="${escapeHTML(profile.upiId || 'thecozycorner@okaxis')}" placeholder="e.g. libraryname@upi or 9876543210@paytm">
+                    <input type="text" id="setting-upiId" class="form-control" value="${escapeHTML(profile.upiId || '')}" placeholder="e.g. libraryname@upi or 9876543210@paytm">
                     <small class="text-muted">Used for dynamic UPI QR generation and instant UPI payments</small>
                   </div>
 
