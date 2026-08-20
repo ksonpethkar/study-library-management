@@ -1470,100 +1470,164 @@ function renderSettingsUI(container, profile, settings) {
       <!-- ========================================== -->
       <div class="settings-panel" id="panel-pdfstudio" style="display: none;">
         <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
-          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">📄 PDF Admission Form Studio & Field Controls</h3>
-              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Customize printable preset templates and choose what details appear on student & admin PDF downloads.</p>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                <span>📄</span> Printable PDF Admission Form Studio &amp; Field Customizer
+              </h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Customize printable preset templates and control what sections, field answers, selfie photos, signatures, and documents appear on PDF downloads.</p>
             </div>
-            <button id="btn-preview-pdf" class="btn btn-outline-primary btn-sm" style="font-weight: 600;">👁️ Test Sample PDF Form</button>
+            <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+              Standard Admission Document Studio
+            </span>
           </div>
-          <div class="card-body" style="padding: 1.5rem;">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
-              
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Active Printable PDF Preset Template</label>
-                <select id="setting-pdf-template" class="form-select" style="font-weight: 600;">
-                  <option value="modern_glass">💎 Modern Glassmorphic Slate (Recommended)</option>
-                  <option value="classic_formal">🏛️ Classic Formal Indian Govt / University Style</option>
-                  <option value="compact_card">🪪 Compact 1-Page Gate Pass Slip</option>
-                </select>
-              </div>
 
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Official Stamp Watermark Text</label>
-                <input type="text" id="setting-pdf-stamp" class="form-control" value="PAID • ACTIVE STUDENT" placeholder="Watermark text">
-              </div>
-            </div>
-
-            <h4 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">👁️ PDF Field Visibility Controls (Choose What Students & Admins Can View)</h4>
+          <div class="card-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
             
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
-              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-weight: 600; font-size: 0.9rem;">📷 Passport Selfie Photo</div>
-                  <div class="text-muted small">Show student webcam photo</div>
+            <!-- CATEGORY 1: PRESET TEMPLATE & WATERMARK SELECTOR -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+              <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                <span>🎨</span> Category 1: Printable Layout Preset &amp; Official Watermark Stamp
+              </h4>
+              
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem;">
+                <div class="form-group">
+                  <label class="form-label" style="font-weight: 700;">Active Printable PDF Preset Template *</label>
+                  <select id="setting-pdf-template" class="form-select form-control" style="font-weight: 600;">
+                    <option value="modern_glass">💎 Modern Glassmorphic Slate (Recommended)</option>
+                    <option value="classic_formal">🏛️ Classic Formal Indian Govt / University Standard</option>
+                    <option value="compact_card">🪪 Compact 1-Page Gate Pass Slip</option>
+                  </select>
                 </div>
-                <label class="switch-label" style="margin: 0;">
-                  <input type="checkbox" id="pdf-toggle-photo" checked>
-                  <span class="switch-slider"></span>
-                </label>
-              </div>
 
-              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-weight: 600; font-size: 0.9rem;">✍️ Digital Signature</div>
-                  <div class="text-muted small">Show student digital signature</div>
+                <div class="form-group">
+                  <label class="form-label" style="font-weight: 700;">Official Stamp Watermark Text *</label>
+                  <input type="text" id="setting-pdf-stamp" class="form-control" value="PAID • ACTIVE STUDENT" placeholder="Watermark text" style="font-weight: 600;">
                 </div>
-                <label class="switch-label" style="margin: 0;">
-                  <input type="checkbox" id="pdf-toggle-sig" checked>
-                  <span class="switch-slider"></span>
-                </label>
-              </div>
-
-              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-weight: 600; font-size: 0.9rem;">🏁 Gate Entry Barcode / QR</div>
-                  <div class="text-muted small">Show barcode for kiosk scanner</div>
-                </div>
-                <label class="switch-label" style="margin: 0;">
-                  <input type="checkbox" id="pdf-toggle-qr" checked>
-                  <span class="switch-slider"></span>
-                </label>
-              </div>
-
-              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-weight: 600; font-size: 0.9rem;">💰 Fee & Payment Breakdown</div>
-                  <div class="text-muted small">Show plan price, discount & UTR</div>
-                </div>
-                <label class="switch-label" style="margin: 0;">
-                  <input type="checkbox" id="pdf-toggle-payment" checked>
-                  <span class="switch-slider"></span>
-                </label>
-              </div>
-
-              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-weight: 600; font-size: 0.9rem;">📜 Discipline Code & Rules</div>
-                  <div class="text-muted small">Show quiet study rules list</div>
-                </div>
-                <label class="switch-label" style="margin: 0;">
-                  <input type="checkbox" id="pdf-toggle-rules" checked>
-                  <span class="switch-slider"></span>
-                </label>
-              </div>
-
-              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-weight: 600; font-size: 0.9rem;">🏷️ Official Status Watermark</div>
-                  <div class="text-muted small">Show PAID / PENDING stamp</div>
-                </div>
-                <label class="switch-label" style="margin: 0;">
-                  <input type="checkbox" id="pdf-toggle-stamp" checked>
-                  <span class="switch-slider"></span>
-                </label>
               </div>
             </div>
+
+            <!-- CATEGORY 2: FULL DETAILED FIELD & CUSTOM SECTIONS VISIBILITY CONTROLS -->
+            <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+              <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                <span>👁️</span> Category 2: Full Detailed Section &amp; Field Answers Visibility Controls
+              </h4>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-text-primary);">📷 Passport Selfie Photo</div>
+                    <div class="text-muted small">Show student webcam photo</div>
+                  </div>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="pdf-toggle-photo" checked>
+                    <span class="switch-slider"></span>
+                  </label>
+                </div>
+
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-text-primary);">✍️ Digital Signature</div>
+                    <div class="text-muted small">Show student digital signature</div>
+                  </div>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="pdf-toggle-sig" checked>
+                    <span class="switch-slider"></span>
+                  </label>
+                </div>
+
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-text-primary);">🏁 Gate Entry Barcode / QR</div>
+                    <div class="text-muted small">Show barcode for kiosk scanner</div>
+                  </div>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="pdf-toggle-qr" checked>
+                    <span class="switch-slider"></span>
+                  </label>
+                </div>
+
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-text-primary);">📋 Form Builder Custom Answers</div>
+                    <div class="text-muted small">Render section-wise questions &amp; answers</div>
+                  </div>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="pdf-toggle-formbuilder-answers" checked>
+                    <span class="switch-slider"></span>
+                  </label>
+                </div>
+
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-text-primary);">📁 Uploaded Documents &amp; ID Proofs</div>
+                    <div class="text-muted small">Render Aadhaar &amp; ID proof thumbnails</div>
+                  </div>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="pdf-toggle-documents" checked>
+                    <span class="switch-slider"></span>
+                  </label>
+                </div>
+
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-text-primary);">💰 Fee &amp; Payment Breakdown</div>
+                    <div class="text-muted small">Show plan price, discount &amp; UTR</div>
+                  </div>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="pdf-toggle-payment" checked>
+                    <span class="switch-slider"></span>
+                  </label>
+                </div>
+
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-text-primary);">📜 Discipline Code &amp; Rules</div>
+                    <div class="text-muted small">Show quiet study rules list</div>
+                  </div>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="pdf-toggle-rules" checked>
+                    <span class="switch-slider"></span>
+                  </label>
+                </div>
+
+                <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-text-primary);">🏷️ Official Status Watermark</div>
+                    <div class="text-muted small">Show PAID / PENDING stamp</div>
+                  </div>
+                  <label class="switch-label" style="margin: 0;">
+                    <input type="checkbox" id="pdf-toggle-stamp" checked>
+                    <span class="switch-slider"></span>
+                  </label>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- CATEGORY 3: LIVE TEST PREVIEW STUDIO -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+              <div>
+                <h4 style="margin: 0 0 4px 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>🛠️</span> Category 3: Live Test Sample PDF Form Generator
+                </h4>
+                <p style="margin: 0; font-size: 0.85rem; color: var(--color-text-secondary);">
+                  Generates an instant test PDF admission slip using sample student data &amp; current visibility rules.
+                </p>
+              </div>
+              <button id="btn-preview-pdf" class="btn btn-outline-primary" style="font-weight: 700;">
+                👁️ Test Sample PDF Form
+              </button>
+            </div>
+
+            <!-- CATEGORY 4: SINGLE CONSOLIDATED MASTER SAVE BUTTON -->
+            <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--color-divider);">
+              <button type="button" id="btn-save-pdfstudio-config" class="btn btn-primary" style="font-weight: 700; padding: 0.65rem 1.75rem;">
+                💾 Save PDF Admission Form Configuration
+              </button>
+            </div>
+
           </div>
         </div>
       </div>
@@ -3514,6 +3578,34 @@ function renderSettingsUI(container, profile, settings) {
     });
     observer.observe(panelAudit, { attributes: true, attributeFilter: ['style'] });
   }
+
+  // Save PDF Studio Configuration Handler
+  container.querySelector('#btn-save-pdfstudio-config')?.addEventListener('click', async () => {
+    const btn = container.querySelector('#btn-save-pdfstudio-config');
+    Loading.button(btn, true);
+
+    try {
+      const payload = {
+        pdfTemplate: container.querySelector('#setting-pdf-template')?.value || 'modern_glass',
+        watermarkStamp: container.querySelector('#setting-pdf-stamp')?.value?.trim() || 'PAID • ACTIVE STUDENT',
+        showSelfiePhoto: !!container.querySelector('#pdf-toggle-photo')?.checked,
+        showDigitalSignature: !!container.querySelector('#pdf-toggle-sig')?.checked,
+        showGateQrCode: !!container.querySelector('#pdf-toggle-qr')?.checked,
+        showFormBuilderAnswers: !!container.querySelector('#pdf-toggle-formbuilder-answers')?.checked,
+        showUploadedDocuments: !!container.querySelector('#pdf-toggle-documents')?.checked,
+        showPaymentBreakdown: !!container.querySelector('#pdf-toggle-payment')?.checked,
+        showDisciplineRules: !!container.querySelector('#pdf-toggle-rules')?.checked,
+        showStatusWatermark: !!container.querySelector('#pdf-toggle-stamp')?.checked
+      };
+
+      const res = await api.put('/api/settings/pdf-config', payload);
+      Toast.success(res?.message || 'PDF Admission Form configuration saved successfully');
+    } catch (err) {
+      Toast.error(err.message || 'Failed to save PDF configuration');
+    } finally {
+      Loading.button(btn, false);
+    }
+  });
 
   // Save All Changes (Header Button)
   container.querySelector('#btn-save-all-settings')?.addEventListener('click', async () => {
