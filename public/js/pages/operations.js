@@ -1180,23 +1180,35 @@ export async function render() {
         let studentsList = [];
         try {
           const sRes = await api.get('/api/students?limit=500');
-          studentsList = sRes.data?.students || sRes.data || [];
-        } catch (e) {}
+          const raw = sRes?.data?.students || sRes?.students || sRes?.data || sRes;
+          studentsList = Array.isArray(raw) ? raw : [];
+        } catch (e) {
+          console.error('Error loading students list for referral modal:', e);
+        }
 
         const modalContent = document.createElement('div');
         modalContent.innerHTML = `
           <form id="form-manual-referral" style="display: flex; flex-direction: column; gap: 16px;">
+            
             <div class="form-group">
-              <label class="form-label" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 6px; display: block;">
-                Referring Student (Existing Member) *
-              </label>
-              <select id="man-student-id" class="form-select form-control" required style="font-weight: 600; padding: 0.65rem 0.85rem; border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); border: 1.5px solid var(--color-border);">
-                <option value="" style="background: var(--color-surface); color: var(--color-text-primary);">-- Select Referring Student --</option>
-                ${studentsList.map(s => `
-                  <option value="${s._id}" style="background: var(--color-surface); color: var(--color-text-primary); padding: 8px;">
-                    ${escapeHTML(s.name)} (${s.studentId || s.phone || 'N/A'}) ${s.referralCode ? '[Code: ' + s.referralCode + ']' : ''}
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary); margin: 0;">
+                  Referring Student (Existing Member) *
+                </label>
+                <span class="badge badge-secondary" style="font-size: 0.72rem;">${studentsList.length} Members Loaded</span>
+              </div>
+
+              <input type="text" id="man-student-search" class="form-control mb-2" placeholder="🔍 Type to filter student by name, phone, or ID..." style="font-size: 0.85rem; padding: 6px 10px; border-radius: 6px;">
+
+              <select id="man-student-id" class="form-select form-control" required size="5" style="font-weight: 600; padding: 6px; border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); border: 1.5px solid var(--color-border); max-height: 140px; overflow-y: auto;">
+                <option value="" style="background: var(--color-surface); color: var(--color-text-secondary); font-style: italic;" disabled selected>-- Select Referring Student Below --</option>
+                ${studentsList.length > 0 ? studentsList.map(s => `
+                  <option value="${s._id}" data-search="${escapeHTML((s.name + ' ' + (s.studentId||'') + ' ' + (s.phone||'') + ' ' + (s.referralCode||'')).toLowerCase())}" style="background: var(--color-surface); color: var(--color-text-primary); padding: 8px 10px; border-bottom: 1px solid var(--color-divider); cursor: pointer;">
+                    👤 ${escapeHTML(s.name)} • 📱 ${escapeHTML(s.phone || s.studentId || 'N/A')} ${s.referralCode ? ' • [Code: ' + escapeHTML(s.referralCode) + ']' : ''}
                   </option>
-                `).join('')}
+                `).join('') : `
+                  <option value="" disabled style="padding: 10px; color: var(--color-text-secondary);">No registered students found in database</option>
+                `}
               </select>
             </div>
 
@@ -1236,6 +1248,20 @@ export async function render() {
 
         const modal = new Modal({ title: '🎁 Record Manual Referral Lead', content: modalContent, size: 'md' });
         modal.show();
+
+        // Live Student Search Filter Listener
+        const searchInput = modalContent.querySelector('#man-student-search');
+        const selectEl = modalContent.querySelector('#man-student-id');
+        if (searchInput && selectEl) {
+          searchInput.focus();
+          searchInput.addEventListener('input', (e) => {
+            const q = e.target.value.toLowerCase().trim();
+            Array.from(selectEl.options).forEach(opt => {
+              if (!opt.dataset.search) return;
+              opt.style.display = opt.dataset.search.includes(q) ? 'block' : 'none';
+            });
+          });
+        }
 
         modalContent.querySelector('#form-manual-referral').onsubmit = async (e) => {
           e.preventDefault();
