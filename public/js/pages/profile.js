@@ -165,7 +165,7 @@ function renderProfileUI(container, user) {
 
               <div class="form-group">
                 <label class="form-label" for="profile-avatar" style="font-weight: 600;">Avatar Image URL</label>
-                <input type="url" id="profile-avatar" class="form-control" value="${escapeHTML(user.avatar || '')}" placeholder="Paste image URL or upload photo above">
+                <input type="text" id="profile-avatar" class="form-control" value="${escapeHTML(user.avatar || '')}" placeholder="Paste image URL or upload photo above">
                 <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">Upload photo/selfie above or paste a custom image URL (leave blank for initials).</small>
               </div>
 
