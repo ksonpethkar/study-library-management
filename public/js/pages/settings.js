@@ -558,102 +558,128 @@ function renderSettingsUI(container, profile, settings) {
           <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
             <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">🎓 Admission Rules & Student ID Generator</h3>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>🎓</span> Admission Rules &amp; Student ID Generator Master Engine
+                </h3>
                 <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Configure prefix, dynamic serial formats, padding digits, starting roll numbers, and auto-admission policies.</p>
               </div>
-              <button type="submit" id="btn-save-admission" class="btn btn-primary btn-sm" style="font-weight: 600;">💾 Save Student ID Rules</button>
+              <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+                Categorized Generator
+              </span>
             </div>
 
-            <div class="card-body" style="padding: 1.5rem;">
+            <div class="card-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
               
-              <!-- Auto-Approve Switch Card -->
-              <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem; background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;">
-                <div>
-                  <div style="font-weight: 600; font-size: 1rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-                    <span>⚡</span> Auto-Approve New Student Admissions
-                    <span id="badge-auto-approve" class="badge ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'badge-success' : 'badge-secondary'}" style="margin-left: 0.5rem; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; background: ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'var(--color-success-bg)' : 'var(--color-bg-secondary)'}; color: ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'var(--color-success)' : 'var(--color-text-secondary)'}; border: 1px solid currentColor;">
-                      ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'Enabled' : 'Manual Review'}
-                    </span>
+              <!-- CATEGORY 1: AUTOMATED ADMISSION APPROVALS -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>⚡</span> Category 1: Automated Admission Approvals &amp; Access Controls
+                </h4>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); gap: 1rem; flex-wrap: wrap;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.98rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                      <span>⚡</span> Auto-Approve New Student Self-Registrations
+                      <span id="badge-auto-approve" class="badge ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'badge-success' : 'badge-secondary'}" style="margin-left: 0.5rem; font-size: 0.75rem; padding: 2px 10px; border-radius: 12px; background: ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'var(--color-success-bg)' : 'var(--color-bg-secondary)'}; color: ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'var(--color-success)' : 'var(--color-text-secondary)'}; border: 1px solid currentColor;">
+                        ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'Enabled' : 'Manual Review'}
+                      </span>
+                    </div>
+                    <p style="color: var(--color-text-secondary); font-size: 0.83rem; margin: 4px 0 0 0;">
+                      When enabled, self-registering students are automatically granted active status without waiting for manual admin approval.
+                    </p>
                   </div>
-                  <p style="color: var(--color-text-secondary); font-size: 0.85rem; margin: 4px 0 0 0;">
-                    When enabled, self-registering students are automatically granted active status without waiting for manual admin approval.
-                  </p>
-                </div>
-                <div>
-                  <label class="switch-label" style="margin: 0;">
-                    <input type="checkbox" id="setting-autoApprove" ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'checked' : ''}>
-                    <span class="switch-slider"></span>
-                  </label>
+                  <div>
+                    <label class="switch-label" style="margin: 0;">
+                      <input type="checkbox" id="setting-autoApprove" ${(adm['admission.autoApprove'] ?? adm.autoApprove) ? 'checked' : ''}>
+                      <span class="switch-slider"></span>
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              <!-- ID Formatting Configuration Grid -->
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
-                
-                <!-- 1. Prefix Input -->
-                <div class="form-group">
-                  <label class="form-label" for="setting-idPrefix" style="font-weight: 600;">Student ID Prefix</label>
-                  <input type="text" id="setting-idPrefix" class="form-control" value="${escapeHTML(adm['admission.idPrefix'] || adm.idPrefix || 'STU')}" placeholder="e.g. STU, LIB, CCC, PARLI" maxlength="12" required>
-                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
-                    Short alphabetic code placed at start (e.g. STU, LIB, CCC, PARLI).
-                  </small>
-                </div>
+              <!-- CATEGORY 2: ID PREFIX & SEQUENCE COUNTER -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>🏷️</span> Category 2: Student ID Prefix &amp; Sequence Baseline Counter
+                </h4>
 
-                <!-- 2. Format Dropdown -->
-                <div class="form-group">
-                  <label class="form-label" for="setting-idFormat" style="font-weight: 600;">Student ID Format Pattern</label>
-                  <select id="setting-idFormat" class="form-select">
-                    <option value="prefix-year-serial" ${(adm['admission.idFormat'] || adm.idFormat || 'prefix-year-serial') === 'prefix-year-serial' ? 'selected' : ''}>STU-2026-001 (Prefix + Year + Serial)</option>
-                    <option value="prefix-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'prefix-serial' ? 'selected' : ''}>STU-001 (Prefix + Serial)</option>
-                    <option value="prefix-branch-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'prefix-branch-serial' ? 'selected' : ''}>LIB-PUN-2026-001 (Prefix + Branch + Year + Serial)</option>
-                    <option value="prefix-month-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'prefix-month-serial' ? 'selected' : ''}>STU-0826-001 (Prefix + Month/Year + Serial)</option>
-                  </select>
-                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
-                    Dynamic structural template for roll numbers.
-                  </small>
-                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                  <!-- Prefix -->
+                  <div class="form-group">
+                    <label class="form-label" for="setting-idPrefix" style="font-weight: 600;">Student ID Prefix Code *</label>
+                    <input type="text" id="setting-idPrefix" class="form-control" value="${escapeHTML(adm['admission.idPrefix'] || adm.idPrefix || 'STU')}" placeholder="e.g. STU, LIB, CCC, PARLI" maxlength="12" required>
+                    <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                      Short alphabetic code placed at start (e.g. STU, LIB, CCC, PARLI).
+                    </small>
+                  </div>
 
-                <!-- 3. Serial Digits Selector -->
-                <div class="form-group">
-                  <label class="form-label" for="setting-serialDigits" style="font-weight: 600;">Serial Digits Zero-Padding</label>
-                  <select id="setting-serialDigits" class="form-select">
-                    <option value="3" ${Number(adm['admission.serialDigits'] || adm.serialDigits || 3) === 3 ? 'selected' : ''}>3 Digits (001)</option>
-                    <option value="4" ${Number(adm['admission.serialDigits'] || adm.serialDigits) === 4 ? 'selected' : ''}>4 Digits (0001)</option>
-                    <option value="5" ${Number(adm['admission.serialDigits'] || adm.serialDigits) === 5 ? 'selected' : ''}>5 Digits (00001)</option>
-                  </select>
-                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
-                    Number of zero-padded digits for sequential roll counter.
-                  </small>
+                  <!-- Starting Sequence -->
+                  <div class="form-group">
+                    <label class="form-label" for="setting-startingSerial" style="font-weight: 600;">Starting Roll Sequence Number *</label>
+                    <input type="number" id="setting-startingSerial" class="form-control" value="${escapeHTML(String(adm['admission.startingSerial'] || adm.startingSerial || 1))}" min="1" step="1" placeholder="e.g. 1 or 101" required>
+                    <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                      Initial baseline counter for student ID numbers (e.g. 1 or 101).
+                    </small>
+                  </div>
                 </div>
-
-                <!-- 4. Starting Number Input -->
-                <div class="form-group">
-                  <label class="form-label" for="setting-startingSerial" style="font-weight: 600;">Starting Roll Sequence Number</label>
-                  <input type="number" id="setting-startingSerial" class="form-control" value="${escapeHTML(String(adm['admission.startingSerial'] || adm.startingSerial || 1))}" min="1" step="1" placeholder="e.g. 1 or 101" required>
-                  <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
-                    Initial baseline counter for student ID numbers (e.g. 1 or 101).
-                  </small>
-                </div>
-
               </div>
 
-              <!-- Live Dynamic ID Badge Preview -->
-              <div style="background: var(--color-surface); border: 2px dashed var(--color-border); border-radius: var(--radius-md); padding: 1.5rem; text-align: center; margin-top: 1rem;">
-                <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                  ⚡ Live Dynamic Preview Badge
+              <!-- CATEGORY 3: STRUCTURAL FORMATTING & ZERO-PADDING -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>📐</span> Category 3: Structural Formatting &amp; Zero-Padding Rules
+                </h4>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                  <!-- Format Dropdown -->
+                  <div class="form-group">
+                    <label class="form-label" for="setting-idFormat" style="font-weight: 600;">Student ID Format Pattern *</label>
+                    <select id="setting-idFormat" class="form-select" style="font-weight: 700;">
+                      <option value="prefix-year-serial" ${(adm['admission.idFormat'] || adm.idFormat || 'prefix-year-serial') === 'prefix-year-serial' ? 'selected' : ''}>STU-2026-001 (Prefix + Year + Serial)</option>
+                      <option value="prefix-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'prefix-serial' ? 'selected' : ''}>STU-001 (Prefix + Serial)</option>
+                      <option value="prefix-branch-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'prefix-branch-serial' ? 'selected' : ''}>LIB-PUN-2026-001 (Prefix + Branch + Year + Serial)</option>
+                      <option value="prefix-month-serial" ${(adm['admission.idFormat'] || adm.idFormat) === 'prefix-month-serial' ? 'selected' : ''}>STU-0826-001 (Prefix + Month/Year + Serial)</option>
+                    </select>
+                    <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                      Dynamic structural template for roll numbers.
+                    </small>
+                  </div>
+
+                  <!-- Zero Padding Selector -->
+                  <div class="form-group">
+                    <label class="form-label" for="setting-serialDigits" style="font-weight: 600;">Serial Digits Zero-Padding *</label>
+                    <select id="setting-serialDigits" class="form-select" style="font-weight: 700;">
+                      <option value="3" ${Number(adm['admission.serialDigits'] || adm.serialDigits || 3) === 3 ? 'selected' : ''}>3 Digits (001)</option>
+                      <option value="4" ${Number(adm['admission.serialDigits'] || adm.serialDigits) === 4 ? 'selected' : ''}>4 Digits (0001)</option>
+                      <option value="5" ${Number(adm['admission.serialDigits'] || adm.serialDigits) === 5 ? 'selected' : ''}>5 Digits (00001)</option>
+                    </select>
+                    <small style="color: var(--color-text-secondary); display: block; margin-top: 4px;">
+                      Number of zero-padded digits for sequential roll counter.
+                    </small>
+                  </div>
                 </div>
-                <div id="sample-id-preview" style="font-size: 1.5rem; font-weight: 700; font-family: monospace; color: var(--color-primary); display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 1.5rem; background: var(--color-primary-bg); border-radius: var(--radius-md); border: 1px solid var(--color-primary-light); box-shadow: var(--shadow-sm);">
-                  <span style="opacity: 0.75; font-size: 0.95rem; font-weight: 500;">Sample ID:</span> STU-2026-001
+              </div>
+
+              <!-- CATEGORY 4: LIVE DYNAMIC ID BADGE PREVIEW -->
+              <div style="background: var(--color-primary-bg); border: 2px dashed var(--color-primary-light); border-radius: var(--radius-lg); padding: 1.5rem; text-align: center;">
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-primary); margin-bottom: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <span>🪪</span> Category 4: Live Dynamic ID Badge Preview
+                </div>
+                <div id="sample-id-preview" style="font-size: 1.5rem; font-weight: 700; font-family: monospace; color: var(--color-primary); display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.6rem 1.5rem; background: var(--color-surface); border-radius: var(--radius-md); border: 1px solid var(--color-primary); box-shadow: var(--shadow-sm);">
+                  <span style="opacity: 0.75; font-size: 0.95rem; font-weight: 500;">Sample ID:</span> STU-2026-0001
                 </div>
                 <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 0.5rem;">
                   Updates in real-time as you modify prefix, format, padding, or starting sequence.
                 </div>
               </div>
 
-            </div>
+              <!-- SINGLE CONSOLIDATED SAVE BUTTON AT BOTTOM -->
+              <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--color-divider);">
+                <button type="submit" id="btn-save-admission" class="btn btn-primary" style="font-weight: 700; padding: 0.65rem 1.75rem;">
+                  💾 Save Student ID Rules &amp; Admission Config
+                </button>
+              </div>
 
-            <div class="card-footer" style="padding: 1rem 1.5rem; display: flex; justify-content: flex-end; background: var(--color-surface-hover);">
-              <button type="submit" id="btn-save-admission-bottom" class="btn btn-primary" style="font-weight: 600;">💾 Save Student ID Rules</button>
             </div>
           </div>
         </form>
