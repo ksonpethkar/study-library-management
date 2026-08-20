@@ -111,7 +111,12 @@ export async function render(container) {
               <span>Export Data</span>
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
-            <div class="dropdown-menu" id="exportMenu" style="right: 0; left: auto; min-width: 220px;">
+            <div class="dropdown-menu" id="exportMenu" style="right: 0; left: auto; min-width: 240px;">
+              <a href="#" class="dropdown-item" id="exportPdfExecutiveSummary" style="font-weight: 700; color: var(--color-primary);">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <span>📄 Executive Summary (PDF Print)</span>
+              </a>
+              <div class="dropdown-divider" style="border-top: 1px solid var(--color-border); margin: 4px 0;"></div>
               <a href="#" class="dropdown-item" id="exportStudentsCsv">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
                 <span>Students List (.CSV)</span>
@@ -463,6 +468,7 @@ export async function render(container) {
     }
 
     // Export Actions
+    const exportPdfExecutiveSummary = container.querySelector('#exportPdfExecutiveSummary');
     const exportStudentsCsv = container.querySelector('#exportStudentsCsv');
     const exportPaymentsCsv = container.querySelector('#exportPaymentsCsv');
     const exportAttendanceCsv = container.querySelector('#exportAttendanceCsv');
@@ -472,6 +478,7 @@ export async function render(container) {
     const btnQuickPaymentsCsv = container.querySelector('#btnQuickPaymentsCsv');
     const btnQuickAttendanceCsv = container.querySelector('#btnQuickAttendanceCsv');
 
+    if (exportPdfExecutiveSummary) exportPdfExecutiveSummary.onclick = (e) => { e.preventDefault(); window.print(); };
     if (exportStudentsCsv) exportStudentsCsv.onclick = (e) => { e.preventDefault(); downloadReport('students', 'csv'); };
     if (exportPaymentsCsv) exportPaymentsCsv.onclick = (e) => { e.preventDefault(); downloadReport('payments', 'csv'); };
     if (exportAttendanceCsv) exportAttendanceCsv.onclick = (e) => { e.preventDefault(); downloadReport('attendance', 'csv'); };
