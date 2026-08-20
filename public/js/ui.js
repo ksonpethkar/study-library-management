@@ -500,6 +500,18 @@ Confirm.show = async function(opts) {
 
 export const Loading = {
   showPage(pageName = 'Loading Workspace...', subtitle = 'Preparing page contents...', icon = '⚡') {
+    // Check if initial system-preloader exists
+    const sysPreloader = document.getElementById('system-preloader');
+    if (sysPreloader && sysPreloader.style.display !== 'none') {
+      const iconEl = document.getElementById('sys-preloader-icon');
+      const titleEl = document.getElementById('sys-preloader-name');
+      const subEl = document.getElementById('sys-preloader-sub');
+      if (iconEl) iconEl.textContent = icon;
+      if (titleEl) titleEl.textContent = pageName;
+      if (subEl) subEl.textContent = subtitle;
+      return;
+    }
+
     let overlay = document.getElementById('global-page-loader');
     if (!overlay) {
       overlay = document.createElement('div');
@@ -524,6 +536,15 @@ export const Loading = {
     overlay.style.display = 'flex';
   },
   hidePage() {
+    const sysPreloader = document.getElementById('system-preloader');
+    if (sysPreloader && sysPreloader.style.display !== 'none') {
+      sysPreloader.style.opacity = '0';
+      sysPreloader.style.visibility = 'hidden';
+      setTimeout(() => {
+        if (sysPreloader) sysPreloader.style.display = 'none';
+      }, 300);
+    }
+
     const overlay = document.getElementById('global-page-loader');
     if (overlay) {
       overlay.style.opacity = '0';

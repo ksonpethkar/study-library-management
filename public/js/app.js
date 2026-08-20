@@ -141,10 +141,6 @@ class Application {
       Toast.error('Cannot connect to server. Make sure the backend is running.');
       this.showLogin();
     }
-
-    // Hide initial loading spinner
-    const loadingEl = document.getElementById('app-loading');
-    if (loadingEl) loadingEl.style.display = 'none';
   }
 
   /**
@@ -227,6 +223,7 @@ class Application {
   showSetup() {
     this._show('setup-wizard');
     initSetupWizard();
+    Loading.hidePage();
   }
 
   /**
@@ -235,6 +232,7 @@ class Application {
   showLogin() {
     this._show('login-page');
     initLoginPage();
+    Loading.hidePage();
   }
 
   /**
