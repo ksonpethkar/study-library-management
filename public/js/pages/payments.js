@@ -84,6 +84,7 @@ export async function render(container) {
                         <option value="refunded">🔴 Refunded</option>
                     </select>
                     <button id="btnPendingInstallments" class="btn btn-sm btn-outline-warning w-100 w-md-auto" style="font-weight: 600;">⏳ Pending Balances</button>
+                    <button id="btnExportPaymentsCSV" class="btn btn-sm btn-outline-success w-100 w-md-auto" style="font-weight: 600;">📥 Export CSV</button>
                 </div>
             </div>
             <div class="card-body p-0">
@@ -153,7 +154,58 @@ export async function render(container) {
             if (statusSelect) statusSelect.value = 'partial';
             loadPayments();
         });
+
+        const btnExport = container.querySelector('#btnExportPaymentsCSV');
+        if (btnExport) btnExport.addEventListener('click', exportPaymentsCSV);
     }, 0);
+
+    async function exportPaymentsCSV() {
+        try {
+            Loading.show('Preparing CSV export...');
+            const method = document.getElementById('filterMethod')?.value || '';
+            const status = document.getElementById('filterStatus')?.value || '';
+            let url = '/api/payments?limit=1000';
+            if (method) url += `&method=${method}`;
+            if (status) url += `&status=${status}`;
+
+            const res = await api.get(url);
+            Loading.hide();
+
+            if (!res.success || !res.data || res.data.length === 0) {
+                Toast.error('No payment records to export');
+                return;
+            }
+
+            const payments = res.data;
+            let csvContent = 'Receipt No,Student Name,Student Phone,Amount (INR),Payment Method,Transaction UTR,Date,Status\n';
+
+            payments.forEach(p => {
+                const receiptNo = p.receiptNumber || p._id;
+                const studentName = (p.student?.name || p.studentName || 'Student').replace(/,/g, '');
+                const phone = p.student?.phone || p.phone || '';
+                const amount = p.finalAmount || p.amount || 0;
+                const pMethod = p.paymentMethod || 'cash';
+                const utr = p.transactionId || 'N/A';
+                const date = p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN') : '';
+                const pStatus = p.status || 'paid';
+
+                csvContent += `"${receiptNo}","${studentName}","${phone}",${amount},"${pMethod}","${utr}","${date}","${pStatus}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const urlBlob = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = urlBlob;
+            link.setAttribute('download', `Payments_Ledger_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            Toast.success('Payments CSV downloaded successfully!');
+        } catch (err) {
+            Loading.hide();
+            Toast.error('Failed to export CSV: ' + err.message);
+        }
+    }
 
     async function loadStats() {
         try {
