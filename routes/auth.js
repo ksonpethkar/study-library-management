@@ -957,7 +957,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
     const cleanPhone = identifier.replace(/[^0-9]/g, '').slice(-10);
 
     const businessProfile = await BusinessProfile.getProfile();
-    const ownerPhone = (businessProfile?.phone || process.env.BUSINESS_PHONE || '').replace(/[^0-9]/g, '').slice(-10) || '919876543210';
+    const ownerPhone = (businessProfile?.phone || process.env.BUSINESS_PHONE || '').replace(/[^0-9]/g, '').slice(-10);
 
     if (portalType === 'student') {
       const student = await Student.findOne({
