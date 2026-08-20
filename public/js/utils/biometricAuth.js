@@ -125,13 +125,15 @@ export const BiometricAuth = {
       };
 
       // Send to server registration endpoint
-      const res = await api.post('/api/auth/biometric/register', payload);
+      const isStudentSession = !!(localStorage.getItem('student_token') || window.location.pathname.includes('student') || window.location.hash.includes('portal'));
+      const registerEndpoint = isStudentSession ? '/api/student-portal/biometric/register' : '/api/auth/biometric/register';
+      const res = await api.post(registerEndpoint, payload);
 
       if (res.success) {
         localStorage.setItem('sl_biometric_registered', 'true');
         localStorage.setItem('sl_biometric_cred_id', credential.id || rawIdBase64);
-        if (currentUser.email) {
-          localStorage.setItem('sl_biometric_user_email', currentUser.email);
+        if (currentUser.email || currentUser.phone) {
+          localStorage.setItem('sl_biometric_user_email', currentUser.email || currentUser.phone || currentUser.studentId || '');
         }
         Toast.success('👆 Biometric / Face ID Login successfully enabled on this device!');
       } else {
@@ -153,48 +155,53 @@ export const BiometricAuth = {
   /**
    * Prompts user for biometric authentication and logs in without password.
    * Sends assertion to POST /api/auth/biometric/login.
-   * @returns {Promise<Object>} Login result data
    */
   async login() {
-    const supported = await this.isSupported();
-    if (!supported) {
-      Toast.error('Biometric authentication is not supported on this device.');
-      throw new Error('WebAuthn biometrics not supported');
-    }
-
     try {
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
-
-      const savedCredId = localStorage.getItem('sl_biometric_cred_id');
-      const allowCredentials = savedCredId ? [{
-        id: base64URLToArrayBuffer(savedCredId),
-        type: 'public-key'
-      }] : [];
-
-      const publicKeyCredentialRequestOptions = {
-        challenge,
-        timeout: 60000,
-        userVerification: 'preferred',
-        allowCredentials,
-        rpId: window.location.hostname || 'localhost'
-      };
-
-      const assertion = await navigator.credentials.get({
-        publicKey: publicKeyCredentialRequestOptions
-      });
-
-      if (!assertion) {
-        throw new Error('Biometric authentication prompt failed or was dismissed.');
+      const supported = await this.isSupported();
+      if (!supported) {
+        throw new Error('WebAuthn biometrics not supported on this browser/device');
       }
 
-      const credentialId = assertion.id || arrayBufferToBase64URL(assertion.rawId);
-      const authenticatorData = arrayBufferToBase64URL(assertion.response.authenticatorData);
-      const clientDataJSON = arrayBufferToBase64URL(assertion.response.clientDataJSON);
-      const signature = arrayBufferToBase64URL(assertion.response.signature);
+      const savedCredId = localStorage.getItem('sl_biometric_cred_id');
+      const challengeBytes = new Uint8Array(32);
+      window.crypto.getRandomValues(challengeBytes);
+
+      const allowCredentials = [];
+      if (savedCredId) {
+        try {
+          const rawId = Uint8Array.from(atob(savedCredId.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+          allowCredentials.push({
+            id: rawId,
+            type: 'public-key'
+          });
+        } catch (e) {}
+      }
+
+      const options = {
+        publicKey: {
+          challenge: challengeBytes,
+          timeout: 60000,
+          userVerification: 'preferred'
+        }
+      };
+
+      if (allowCredentials.length > 0) {
+        options.publicKey.allowCredentials = allowCredentials;
+      }
+
+      const credential = await navigator.credentials.get(options);
+      if (!credential) {
+        throw new Error('Biometric assertion failed');
+      }
+
+      const rawIdBase64 = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+      const clientDataJSON = btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON)));
+      const authenticatorData = btoa(String.fromCharCode(...new Uint8Array(credential.response.authenticatorData)));
+      const signature = btoa(String.fromCharCode(...new Uint8Array(credential.response.signature)));
 
       const payload = {
-        credentialId,
+        credentialId: credential.id || rawIdBase64,
         authenticatorData,
         clientDataJSON,
         signature,
@@ -204,18 +211,27 @@ export const BiometricAuth = {
       const res = await api.post('/api/auth/biometric/login', payload);
 
       if (res.success && res.data?.token) {
-        localStorage.setItem('sl_token', res.data.token);
         localStorage.setItem('sl_biometric_registered', 'true');
-        Toast.success(`👆 Biometric Verified! Welcome back, ${res.data.user?.name || 'User'}.`);
 
-        // Dynamically re-initialize App
-        const { App } = await import('../app.js');
-        App.init();
+        if (res.data.isStudent || res.data.student) {
+          localStorage.setItem('student_token', res.data.token);
+          if (res.data.student) {
+            localStorage.setItem('sl_student_user', JSON.stringify(res.data.student));
+          }
+          Toast.success(`🎓 Student Biometric Verified! Welcome back, ${res.data.student?.name || 'Student'}.`);
+          setTimeout(() => {
+            window.location.href = '/student-login#dashboard';
+            window.location.reload();
+          }, 400);
+        } else {
+          localStorage.setItem('sl_token', res.data.token);
+          Toast.success(`👆 Biometric Verified! Welcome back, ${res.data.user?.name || 'User'}.`);
+          const { App } = await import('../app.js');
+          App.init();
+        }
       } else {
         Toast.error(res.message || 'Biometric login failed.');
       }
-
-      return res;
     } catch (err) {
       console.error('Biometric login error:', err);
       if (err.name !== 'NotAllowedError') {

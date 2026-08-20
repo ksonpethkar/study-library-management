@@ -897,7 +897,7 @@ router.post('/biometric/register', protect, async (req, res) => {
 });
 
 // @route   POST /api/auth/biometric/login
-// @desc    Authenticate user via native WebAuthn biometric assertion
+// @desc    Authenticate User (Admin/Staff) or Student via native WebAuthn biometric assertion
 router.post('/biometric/login', authLimiter, async (req, res) => {
   try {
     const { credentialId, savedEmail } = req.body;
@@ -906,17 +906,56 @@ router.post('/biometric/login', authLimiter, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Biometric Credential ID is required' });
     }
 
+    const Student = require('../models/Student');
     let user = await User.findOne({ 'biometricCredentials.credentialId': credentialId });
+    let student = null;
 
-    if (!user && savedEmail) {
+    if (!user) {
+      student = await Student.findOne({ 'biometricCredentials.credentialId': credentialId });
+    }
+
+    if (!user && !student && savedEmail) {
       const candidateUser = await User.findOne({ email: savedEmail.toLowerCase() });
       if (candidateUser && candidateUser.biometricCredentials && candidateUser.biometricCredentials.length > 0) {
         user = candidateUser;
+      } else {
+        student = await Student.findOne({
+          $or: [
+            { email: savedEmail.toLowerCase() },
+            { phone: savedEmail },
+            { studentId: savedEmail }
+          ]
+        });
       }
     }
 
+    // Student Authentication Success Branch
+    if (student) {
+      if (student.status !== 'active') {
+        return res.status(403).json({ success: false, message: 'Student account is inactive or expired.' });
+      }
+      const jwt = require('jsonwebtoken');
+      const token = jwt.sign(
+        { id: student._id, studentId: student.studentId, phone: student.phone, role: 'student' },
+        process.env.JWT_SECRET || 'fallback_jwt_secret',
+        { expiresIn: '30d' }
+      );
+      const businessProfile = await BusinessProfile.getProfile();
+      return res.json({
+        success: true,
+        data: {
+          token,
+          isStudent: true,
+          student: { id: student._id, studentId: student.studentId, name: student.name, phone: student.phone, email: student.email },
+          businessProfile
+        },
+        message: `🎓 Student Biometric login successful! Welcome back, ${student.name}.`
+      });
+    }
+
+    // Admin/Staff Authentication Success Branch
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Biometric credential not recognized or not registered.' });
+      return res.status(401).json({ success: false, message: 'Biometric credential not recognized or not registered. Please log in with password once, then enable Biometrics.' });
     }
 
     if (!user.isActive) {

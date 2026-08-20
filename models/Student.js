@@ -29,8 +29,14 @@ const studentSchema = new mongoose.Schema({
   bloodGroup: { type: String, trim: true },
   occupation: { type: String, trim: true },
   collegeOrCompany: { type: String, trim: true },
-  rfidCardNumber: { type: String, trim: true, index: true },
-  biometricId: { type: String, trim: true, index: true },
+  biometricCardNumber: { type: String, trim: true, index: true },
+  biometricCredentials: [{
+    credentialId: { type: String, required: true },
+    publicKey: { type: String, required: true },
+    counter: { type: Number, default: 0 },
+    transports: [{ type: String }],
+    createdAt: { type: Date, default: Date.now }
+  }],
   emergencyContact: {
     name: { type: String },
     phone: { type: String },
