@@ -133,28 +133,61 @@ app.get('/api/system/public-config', async (req, res) => {
   }
 });
 
-// Server-side HTML Pre-hydration Renderer (Eliminates text swapping on initial HTTP response)
+// Server-Side HTML Pre-hydration Engine (Admin Changes Are Final & Served Directly From MongoDB)
 async function sendHydratedHTML(res, htmlPath) {
   try {
     let html = fs.readFileSync(htmlPath, 'utf8');
     const BusinessProfile = require('./models/BusinessProfile');
-    const profile = await BusinessProfile.getProfile();
+    const LandingPage = require('./models/LandingPage');
 
-    if (profile && profile.businessName) {
-      const bName = profile.businessName;
-      const bLogo = profile.logo || '';
-      
+    const [profile, landing] = await Promise.all([
+      BusinessProfile.getProfile().catch(() => ({})),
+      LandingPage.getPageConfig().catch(() => ({}))
+    ]);
+
+    const bName = landing?.navbar?.brandName || profile?.businessName || 'The Cozy Corner Centre';
+    const bLogo = landing?.navbar?.brandLogo || profile?.logo || '';
+    const tagline = landing?.footer?.tagline || profile?.tagline || '';
+
+    // 1. Pre-hydrate Brand Name & Logos
+    if (bName) {
       html = html.replace(/<span id="nav-brand-name">.*?<\/span>/g, `<span id="nav-brand-name">${bName}</span>`);
       html = html.replace(/<span id="drawer-brand-name">.*?<\/span>/g, `<span id="drawer-brand-name">${bName}</span>`);
       html = html.replace(/<h1 id="lib-title">.*?<\/h1>/g, `<h1 id="lib-title">${bName}</h1>`);
       html = html.replace(/<span id="sidebar-org-name">.*?<\/span>/g, `<span id="sidebar-org-name">${bName}</span>`);
       html = html.replace(/<h1 id="lib-name">.*?<\/h1>/g, `<h1 id="lib-name">${bName}</h1>`);
-
-      if (bLogo) {
-        const logoImg = `<img src="${bLogo}" alt="Logo" style="height: 36px; width: auto; object-fit: contain; border-radius: 6px;">`;
-        html = html.replace(/<span class="nav-logo" id="nav-logo-icon">.*?<\/span>/g, `<span class="nav-logo" id="nav-logo-icon">${logoImg}</span>`);
-      }
+      html = html.replace(/<h3 class="footer-title" id="footer-org-name">.*?<\/h3>/g, `<h3 class="footer-title" id="footer-org-name">${bName}</h3>`);
+      html = html.replace(/<span id="footer-copy-name">.*?<\/span>/g, `<span id="footer-copy-name">${bName}</span>`);
+      html = html.replace(/<title>.*?<\/title>/g, `<title>${bName} — Premier Self-Study Space</title>`);
     }
+
+    if (bLogo) {
+      const logoImg = `<img src="${bLogo}" alt="Logo" style="height: 36px; width: auto; object-fit: contain; border-radius: 6px;">`;
+      html = html.replace(/<span class="nav-logo" id="nav-logo-icon">.*?<\/span>/g, `<span class="nav-logo" id="nav-logo-icon">${logoImg}</span>`);
+    }
+
+    // 2. Pre-hydrate Hero Customizations
+    if (landing?.hero?.title) {
+      html = html.replace(/<h1 class="hero-title" id="hero-title">[\s\S]*?<\/h1>/g, `<h1 class="hero-title" id="hero-title">${landing.hero.title}</h1>`);
+    }
+    if (landing?.hero?.subtitle) {
+      html = html.replace(/<p class="hero-subtitle" id="hero-subtitle">[\s\S]*?<\/p>/g, `<p class="hero-subtitle" id="hero-subtitle">${landing.hero.subtitle}</p>`);
+    }
+    if (landing?.hero?.tickerText) {
+      html = html.replace(/<span id="ticker-text">[\s\S]*?<\/span>/g, `<span id="ticker-text">${landing.hero.tickerText}</span>`);
+    }
+
+    // 3. Pre-hydrate Section Headers
+    if (landing?.pricing?.title) {
+      html = html.replace(/(<section id="plans"[\s\S]*?<h2 class="section-title">)[\s\S]*?(<\/h2>)/g, `$1${landing.pricing.title}$2`);
+    }
+    if (landing?.about?.title) {
+      html = html.replace(/(<section id="about"[\s\S]*?<h2 class="section-title">)[\s\S]*?(<\/h2>)/g, `$1${landing.about.title}$2`);
+    }
+    if (landing?.gallery?.title) {
+      html = html.replace(/(<section id="gallery"[\s\S]*?<h2 class="section-title">)[\s\S]*?(<\/h2>)/g, `$1${landing.gallery.title}$2`);
+    }
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.send(html);
   } catch (err) {
