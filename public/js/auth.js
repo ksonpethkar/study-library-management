@@ -389,7 +389,7 @@ export async function updateNotificationBadge() {
       const count = res.data.unreadCount || 0;
       if (count > 0) {
         badge.textContent = count > 99 ? '99+' : count;
-        badge.style.display = 'inline-block';
+        badge.style.display = 'inline-flex';
       } else {
         badge.style.display = 'none';
       }
