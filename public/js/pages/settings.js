@@ -59,6 +59,15 @@ export async function render() {
 function renderSettingsUI(container, profile, settings) {
   const { gen, pay, adm, notif } = settings;
 
+  const pMethods = Array.isArray(profile.paymentMethods) ? profile.paymentMethods : [];
+  const getEnabled = (k) => {
+    const found = pMethods.find(m => m.key === k);
+    return found ? (found.enabled === true || found.enabled === 'true' || found.enabled === 1 || found.enabled === '1') : true;
+  };
+  const isUpiEnabled = getEnabled('upi');
+  const isBankEnabled = getEnabled('netbanking');
+  const isDeskEnabled = getEnabled('desk');
+
   // Selected reminder days
   let selectedReminderDays = Array.isArray(notif['payment.paymentReminder'] || notif.paymentReminder)
     ? (notif['payment.paymentReminder'] || notif.paymentReminder)
@@ -187,119 +196,125 @@ function renderSettingsUI(container, profile, settings) {
                 <div id="mount-setting-qr"></div>
               </div>
 
-              <!-- Payment & Banking Configuration Section -->
-              <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--color-text-primary); margin: 1.5rem 0 1rem 0; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem;">
-                💳 Payment Gateway, UPI & Bank Account Customizations
+              <!-- Payment & Banking Configuration Section (Simplified Architecture) -->
+              <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--color-text-primary); margin: 1.5rem 0 1rem 0; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+                <span>💳 Accepted Payment Methods & Configuration</span>
+                <span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.75rem;">Simplified Mode</span>
               </h4>
               
-              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;">
+              <div style="display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 1.5rem;">
                 
-                <!-- Option A / Option B Gateway Provider Settings -->
-                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 1.25rem; box-shadow: var(--shadow-xs);">
-                  <h5 style="margin: 0 0 10px 0; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
-                    <span>⚡</span> Payment Verification Architecture (Option A vs Option B)
-                  </h5>
-
-                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-                    <div class="form-group">
-                      <label class="form-label" for="setting-gatewayProvider" style="font-weight: 600;">Active Payment Verification Engine</label>
-                      <select id="setting-gatewayProvider" class="form-select" style="font-weight: 700;">
-                        <option value="manual_upi" ${profile.gatewayProvider === 'manual_upi' || !profile.gatewayProvider ? 'selected' : ''}>
-                          🟢 Option A: Free Standard UPI QR + Anti-Duplicate UTR Protection (100% FREE - ₹0 MDR)
-                        </option>
-                        <option value="razorpay" ${profile.gatewayProvider === 'razorpay' ? 'selected' : ''}>
-                          ⚡ Option B: Razorpay PG Auto-Webhooks (0-Sec Auto Verification)
-                        </option>
-                        <option value="cashfree" ${profile.gatewayProvider === 'cashfree' ? 'selected' : ''}>
-                          ⚡ Option B: Cashfree Auto-Collect Webhooks (0-Sec Auto Verification)
-                        </option>
-                        <option value="phonepe" ${profile.gatewayProvider === 'phonepe' ? 'selected' : ''}>
-                          ⚡ Option B: PhonePe Business PG Webhooks (0-Sec Auto Verification)
-                        </option>
-                      </select>
+                <!-- Category 1: UPI Payments -->
+                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: var(--shadow-xs);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <span style="font-size: 1.5rem;">⚡</span>
+                      <div>
+                        <h5 style="margin: 0; font-weight: 700; font-size: 1rem; color: var(--color-text-primary);">1. UPI Payments (GPay, PhonePe, Paytm, Dynamic QR)</h5>
+                        <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">Generates dynamic QR codes and mobile 1-tap deep links for students.</p>
+                      </div>
                     </div>
-
-                    <div class="form-group">
-                      <label class="form-label" for="setting-razorpayKeyId" style="font-weight: 600;">Gateway API Key ID / App ID</label>
-                      <input type="text" id="setting-razorpayKeyId" class="form-control" value="${escapeHTML(profile.razorpayKeyId || '')}" placeholder="rzp_live_xxxxxxxxxxxxxx">
-                    </div>
-
-                    <div class="form-group">
-                      <label class="form-label" for="setting-razorpaySecret" style="font-weight: 600;">Gateway Secret Key</label>
-                      <input type="password" id="setting-razorpaySecret" class="form-control" value="${escapeHTML(profile.razorpaySecret || '')}" placeholder="••••••••••••••••">
-                    </div>
-                  </div>
-
-                  <div style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; font-size: 0.85rem; color: var(--color-success);">
-                    <input type="checkbox" id="setting-enableAutoWebhookVerification" ${profile.enableAutoWebhookVerification !== false ? 'checked' : ''} style="width: 18px; height: 18px;">
-                    <span>⚡ Enable 0-Second Instant Webhook Payment Auto-Approval & Expiry Extension</span>
-                  </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-                  <div class="form-group">
-                    <label class="form-label" for="setting-upiId" style="font-weight: 600;">⚡ Official Library UPI ID (VPA)</label>
-                    <input type="text" id="setting-upiId" class="form-control" value="${escapeHTML(profile.upiId || '')}" placeholder="e.g. libraryname@upi or 9876543210@paytm">
-                    <small class="text-muted">Used for dynamic UPI QR generation and instant UPI payments</small>
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label" for="setting-bank-name" style="font-weight: 600;">🏦 Bank Name</label>
-                    <input type="text" id="setting-bank-name" class="form-control" value="${escapeHTML(profile.bankDetails?.bankName || '')}" placeholder="e.g. State Bank of India / HDFC Bank">
-                  </div>
-
-                  <div class="form-group" style="grid-column: 1 / -1; background: var(--color-surface); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; font-size: 0.9rem; margin: 0;">
-                      <input type="checkbox" id="setting-enableUpiDeepLinks" ${profile.enableUpiDeepLinks !== false ? 'checked' : ''}>
-                      <span>📱 Enable Mobile UPI App Intent Direct Deep-Links (GPay, PhonePe, Paytm, BHIM buttons)</span>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 0.88rem; background: var(--color-bg-secondary); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--color-border);">
+                      <input type="checkbox" id="setting-pm-upi-enable" ${isUpiEnabled ? 'checked' : ''} style="width: 18px; height: 18px;">
+                      <span id="label-pm-upi-status" style="color: ${isUpiEnabled ? 'var(--color-success)' : 'var(--color-danger)'};">${isUpiEnabled ? '🟢 ENABLED' : '🔴 DISABLED'}</span>
                     </label>
-                    <small class="text-muted" style="margin-left: 26px; display: block; margin-top: 2px;">
-                      When enabled on mobile devices, students see direct tap-to-pay app buttons that open GPay/PhonePe/Paytm directly and verify payment status automatically upon return.
-                    </small>
-                  </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-                  <div class="form-group">
-                    <label class="form-label" for="setting-bank-accName" style="font-weight: 600;">👤 Account Holder Name</label>
-                    <input type="text" id="setting-bank-accName" class="form-control" value="${escapeHTML(profile.bankDetails?.accountName || '')}" placeholder="e.g. The Cozy Corner Centre">
                   </div>
 
-                  <div class="form-group">
-                    <label class="form-label" for="setting-bank-accNum" style="font-weight: 600;">🔢 Account Number</label>
-                    <input type="text" id="setting-bank-accNum" class="form-control" value="${escapeHTML(profile.bankDetails?.accountNumber || '')}" placeholder="e.g. 50100234567890">
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label" for="setting-bank-ifsc" style="font-weight: 600;">🔤 IFSC Code</label>
-                    <input type="text" id="setting-bank-ifsc" class="form-control" value="${escapeHTML(profile.bankDetails?.ifscCode || '')}" placeholder="e.g. SBIN0001234">
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label" for="setting-bank-branch" style="font-weight: 600;">📍 Branch Name</label>
-                    <input type="text" id="setting-bank-branch" class="form-control" value="${escapeHTML(profile.bankDetails?.branchName || '')}" placeholder="e.g. Main Branch, City Center">
-                  </div>
-                </div>
-
-                <div class="form-group mb-3">
-                  <label class="form-label" for="setting-payment-instructions" style="font-weight: 600;">📝 Registration Payment Instructions Note</label>
-                  <textarea id="setting-payment-instructions" class="form-control" rows="2" placeholder="Custom note for students during online admission payment...">${escapeHTML(profile.paymentInstructions || '')}</textarea>
-                </div>
-
-                <!-- Interactive Payment Options Control List -->
-                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
-                    <div>
-                      <h5 style="margin: 0; font-weight: 700; font-size: 0.95rem;">🎛️ Active Payment Methods, ON/OFF Toggles & Display Sequence</h5>
-                      <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">Turn payment options ON/OFF, edit titles, modify instructions, and reorder display sequence on the admission form.</p>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+                    <div class="form-group">
+                      <label class="form-label" for="setting-upiId" style="font-weight: 600;">⚡ Official Library UPI ID (VPA) *</label>
+                      <input type="text" id="setting-upiId" class="form-control" value="${escapeHTML(profile.upiId || '')}" placeholder="e.g. 7276969070@up1 or library@ybl">
                     </div>
-                    <button type="button" id="btn-add-pm-option" class="btn btn-sm btn-outline-primary" style="font-weight: 600;">+ Add Custom Payment Option</button>
-                  </div>
-
-                  <div id="pm-options-list-container" style="display: flex; flex-direction: column; gap: 0.85rem;">
-                    <!-- Rendered dynamically -->
+                    <div class="form-group" style="display: flex; align-items: center; margin-top: 1.6rem;">
+                      <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; font-size: 0.85rem; margin: 0;">
+                        <input type="checkbox" id="setting-enableUpiDeepLinks" ${profile.enableUpiDeepLinks !== false ? 'checked' : ''}>
+                        <span>📱 Enable 1-Tap Mobile App Intent Buttons (GPay/PhonePe)</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
+
+                <!-- Category 2: Direct Bank Account Transfer -->
+                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: var(--shadow-xs);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <span style="font-size: 1.5rem;">🏦</span>
+                      <div>
+                        <h5 style="margin: 0; font-weight: 700; font-size: 1rem; color: var(--color-text-primary);">2. Direct Bank Account Transfer (IMPS / NEFT)</h5>
+                        <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">Displays bank account & IFSC details for direct bank transfers.</p>
+                      </div>
+                    </div>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 0.88rem; background: var(--color-bg-secondary); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--color-border);">
+                      <input type="checkbox" id="setting-pm-bank-enable" ${isBankEnabled ? 'checked' : ''} style="width: 18px; height: 18px;">
+                      <span id="label-pm-bank-status" style="color: ${isBankEnabled ? 'var(--color-success)' : 'var(--color-danger)'};">${isBankEnabled ? '🟢 ENABLED' : '🔴 DISABLED'}</span>
+                    </label>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div class="form-group">
+                      <label class="form-label" for="setting-bank-name" style="font-weight: 600;">Bank Name</label>
+                      <input type="text" id="setting-bank-name" class="form-control" value="${escapeHTML(profile.bankDetails?.bankName || '')}" placeholder="e.g. State Bank of India">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="setting-bank-accName" style="font-weight: 600;">Account Holder Name</label>
+                      <input type="text" id="setting-bank-accName" class="form-control" value="${escapeHTML(profile.bankDetails?.accountName || '')}" placeholder="e.g. The Cozy Corner Centre">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="setting-bank-accNum" style="font-weight: 600;">Account Number</label>
+                      <input type="text" id="setting-bank-accNum" class="form-control" value="${escapeHTML(profile.bankDetails?.accountNumber || '')}" placeholder="e.g. 50100234567890">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="setting-bank-ifsc" style="font-weight: 600;">IFSC Code</label>
+                      <input type="text" id="setting-bank-ifsc" class="form-control" value="${escapeHTML(profile.bankDetails?.ifscCode || '')}" placeholder="e.g. SBIN0001234">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Category 3: Pay Cash at Desk -->
+                <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; box-shadow: var(--shadow-xs);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <span style="font-size: 1.5rem;">💵</span>
+                      <div>
+                        <h5 style="margin: 0; font-weight: 700; font-size: 1rem; color: var(--color-text-primary);">3. Pay Cash at Library Reception Desk</h5>
+                        <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">Pre-reserves student seat for 24 hours while student pays cash on arrival.</p>
+                      </div>
+                    </div>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 0.88rem; background: var(--color-bg-secondary); padding: 6px 14px; border-radius: 20px; border: 1px solid var(--color-border);">
+                      <input type="checkbox" id="setting-pm-desk-enable" ${isDeskEnabled ? 'checked' : ''} style="width: 18px; height: 18px;">
+                      <span id="label-pm-desk-status" style="color: ${isDeskEnabled ? 'var(--color-success)' : 'var(--color-danger)'};">${isDeskEnabled ? '🟢 ENABLED' : '🔴 DISABLED'}</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Collapsible Advanced Gateway Options -->
+                <details style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 12px 16px;">
+                  <summary style="cursor: pointer; font-weight: 700; font-size: 0.9rem; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                    ⚡ Advanced Gateway Auto-Verification (Optional - Razorpay / PhonePe / Cashfree)
+                  </summary>
+                  <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                      <div class="form-group">
+                        <label class="form-label" for="setting-gatewayProvider" style="font-weight: 600;">Verification Engine</label>
+                        <select id="setting-gatewayProvider" class="form-select" style="font-weight: 700;">
+                          <option value="manual_upi" ${profile.gatewayProvider === 'manual_upi' || !profile.gatewayProvider ? 'selected' : ''}>Option A: Free Standard UPI QR + Anti-Duplicate Check</option>
+                          <option value="razorpay" ${profile.gatewayProvider === 'razorpay' ? 'selected' : ''}>Option B: Razorpay PG Auto-Webhooks</option>
+                          <option value="phonepe" ${profile.gatewayProvider === 'phonepe' ? 'selected' : ''}>Option B: PhonePe Business PG Webhooks</option>
+                          <option value="cashfree" ${profile.gatewayProvider === 'cashfree' ? 'selected' : ''}>Option B: Cashfree Auto-Collect Webhooks</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" for="setting-razorpayKeyId" style="font-weight: 600;">Gateway Key ID / App ID</label>
+                        <input type="text" id="setting-razorpayKeyId" class="form-control" value="${escapeHTML(profile.razorpayKeyId || '')}">
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" for="setting-razorpaySecret" style="font-weight: 600;">Gateway Secret Key</label>
+                        <input type="password" id="setting-razorpaySecret" class="form-control" value="${escapeHTML(profile.razorpaySecret || '')}">
+                      </div>
+                    </div>
+                  </div>
+                </details>
+
               </div>
 
 
@@ -2669,6 +2684,16 @@ function renderSettingsUI(container, profile, settings) {
   async function saveBranding(btn) {
     Loading.button(btn, true);
     try {
+      const isUpiOn = container.querySelector('#setting-pm-upi-enable')?.checked ?? true;
+      const isBankOn = container.querySelector('#setting-pm-bank-enable')?.checked ?? true;
+      const isDeskOn = container.querySelector('#setting-pm-desk-enable')?.checked ?? true;
+
+      const paymentMethodsPayload = [
+        { key: 'upi', name: 'Dynamic UPI QR', subtitle: 'GPay / PhonePe / Paytm / BHIM', icon: '⚡', enabled: isUpiOn, order: 1, instructions: 'Scan QR code and enter 12-digit UTR number', requiresRef: true, refLabel: 'UPI UTR / Reference Number *' },
+        { key: 'netbanking', name: 'NetBanking / Bank Transfer', subtitle: 'IMPS, NEFT, RTGS', icon: '🏦', enabled: isBankOn, order: 2, instructions: 'Transfer fee to official bank account and enter bank UTR', requiresRef: true, refLabel: 'Bank Transaction Reference / UTR *' },
+        { key: 'desk', name: 'Pay Later at Front Desk', subtitle: 'Pay cash on arrival', icon: '💵', enabled: isDeskOn, order: 3, instructions: 'Admission will be pre-reserved. Pay cash at front reception desk on arrival.', requiresRef: false, refLabel: '' }
+      ];
+
       const payload = {
         businessName: container.querySelector('#setting-businessName')?.value?.trim(),
         tagline: container.querySelector('#setting-tagline')?.value?.trim(),
@@ -2689,7 +2714,7 @@ function renderSettingsUI(container, profile, settings) {
         razorpayKeyId: container.querySelector('#setting-razorpayKeyId')?.value?.trim() || '',
         razorpaySecret: container.querySelector('#setting-razorpaySecret')?.value?.trim() || '',
         enableAutoWebhookVerification: container.querySelector('#setting-enableAutoWebhookVerification')?.checked ?? true,
-        paymentMethods: activePaymentMethods,
+        paymentMethods: paymentMethodsPayload,
         phone: container.querySelector('#setting-phone')?.value?.trim(),
         email: container.querySelector('#setting-email')?.value?.trim(),
         website: container.querySelector('#setting-website')?.value?.trim(),
@@ -2718,6 +2743,16 @@ function renderSettingsUI(container, profile, settings) {
   container.querySelector('#form-branding')?.addEventListener('submit', (e) => {
     e.preventDefault();
     saveBranding(container.querySelector('#btn-save-branding'));
+  });
+
+  ['upi', 'bank', 'desk'].forEach(key => {
+    container.querySelector(`#setting-pm-${key}-enable`)?.addEventListener('change', (e) => {
+      const lbl = container.querySelector(`#label-pm-${key}-status`);
+      if (lbl) {
+        lbl.textContent = e.target.checked ? '🟢 ENABLED' : '🔴 DISABLED';
+        lbl.style.color = e.target.checked ? 'var(--color-success)' : 'var(--color-danger)';
+      }
+    });
   });
 
   // 2. Save Policies Handler
