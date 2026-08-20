@@ -297,6 +297,16 @@ router.get('/dashboard', async (req, res) => {
       student.photo = req.user.avatar;
     }
 
+    let completionScore = 0;
+    if (student.name) completionScore += 15;
+    if (student.phone) completionScore += 15;
+    if (student.plan) completionScore += 15;
+    if (student.seat) completionScore += 15;
+    if (student.photo) completionScore += 25;
+    if (student.idProof && (student.idProof.number || student.idProof.image)) completionScore += 15;
+    student.profileCompletion = Math.min(100, completionScore);
+    student.isProfileComplete = completionScore >= 100;
+
     res.json({
       success: true,
       data: {

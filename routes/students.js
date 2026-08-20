@@ -75,12 +75,26 @@ router.get('/', async (req, res) => {
       .limit(limit)
       .lean();
 
-    const total = await Student.countDocuments(query);
+    const enrichedStudents = students.map(s => {
+      let score = 0;
+      if (s.name) score += 15;
+      if (s.phone) score += 15;
+      if (s.plan) score += 15;
+      if (s.seat) score += 15;
+      if (s.photo) score += 25;
+      if (s.idProof && (s.idProof.number || s.idProof.image)) score += 15;
+      const isComplete = score >= 100;
+      return {
+        ...s,
+        profileCompletion: Math.min(100, score),
+        isProfileComplete: isComplete
+      };
+    });
 
     res.json({
       success: true,
       data: {
-        students,
+        students: enrichedStudents,
         pagination: {
           page,
           limit,

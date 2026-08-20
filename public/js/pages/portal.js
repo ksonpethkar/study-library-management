@@ -173,6 +173,31 @@ function renderPortalUI(container, data, analytics = null) {
       </div>
     </div>
 
+    <!-- ⚠️ Mandatory Profile & KYC Completion Card (Rendered when profile < 100%) -->
+    ${(student.profileCompletion < 100 || !student.isProfileComplete) ? `
+      <div class="card mb-4 p-4" style="background: rgba(245, 158, 11, 0.08); border: 1.5px solid rgba(245, 158, 11, 0.35); border-radius: var(--radius-lg);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div style="display: flex; align-items: center; gap: 12px; max-width: 650px;">
+            <div style="font-size: 2.2rem;">⚠️</div>
+            <div>
+              <h4 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 800; color: #f59e0b;">
+                Action Required: Complete Your Student Profile & KYC Upload (${student.profileCompletion || 60}% Complete)
+              </h4>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--color-text-secondary); line-height: 1.4;">
+                Your walk-in admission is pre-active! Please upload your Profile Photo Selfie and Aadhaar KYC proof to unlock your official Digital Offline ID Card Pass.
+              </p>
+              <div style="margin-top: 8px; width: 100%; max-width: 380px; height: 6px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; width: ${student.profileCompletion || 60}%; background: linear-gradient(90deg, #f59e0b, #00b894); border-radius: 4px;"></div>
+              </div>
+            </div>
+          </div>
+          <button id="btn-portal-complete-kyc" class="btn btn-warning" style="font-weight: 700; font-size: 0.85rem; padding: 8px 16px;">
+            ✏️ Upload Photo & Complete KYC Now
+          </button>
+        </div>
+      </div>
+    ` : ''}
+
     <!-- 3 Stat Widgets Grid (Auto-Fit & Responsive) -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
       
@@ -612,6 +637,12 @@ function renderPortalUI(container, data, analytics = null) {
 
   // Attach ID Card Handler
   container.querySelector('#btn-portal-idcard')?.addEventListener('click', () => {
+    if (student.profileCompletion < 100 || !student.isProfileComplete) {
+      Toast.warning('🔒 Digital ID Card is locked! Please upload your Profile Photo Selfie & Aadhaar KYC first.');
+      container.querySelector('#btn-portal-profile')?.click();
+      return;
+    }
+
     const qrData = JSON.stringify({
       type: 'STUDENT_ID',
       id: student.studentId,
@@ -689,6 +720,10 @@ function renderPortalUI(container, data, analytics = null) {
   });
 
 
+
+  container.querySelector('#btn-portal-complete-kyc')?.addEventListener('click', () => {
+    container.querySelector('#btn-portal-profile')?.click();
+  });
 
   // Attach Student Profile View Modal
   container.querySelector('#btn-portal-profile')?.addEventListener('click', async () => {

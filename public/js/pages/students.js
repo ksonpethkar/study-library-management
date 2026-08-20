@@ -215,6 +215,16 @@ export async function render() {
           <td style="white-space: nowrap;">${expiry} ${s.expiryDate ? `<small class="text-muted">(${SmartFormatters.timeAgo(s.expiryDate)})</small>` : ''}</td>
           <td class="col-status" style="white-space: nowrap;"><span class="badge btn-toggle-student-status" data-id="${escapeHTML(s._id)}" style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; cursor: pointer;" title="Click to toggle status">${escapeHTML(s.status || 'active')}</span></td>
           <td style="white-space: nowrap;">
+            <div style="width: 85px;" title="KYC Profile Completion: ${s.profileCompletion || 60}%">
+              <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.72rem; font-weight: 800; color: ${s.profileCompletion >= 100 ? 'var(--color-success)' : '#f59e0b'}; margin-bottom: 2px;">
+                <span>${s.profileCompletion >= 100 ? '🟢 100%' : `🟡 ${s.profileCompletion || 60}%`}</span>
+              </div>
+              <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; width: ${s.profileCompletion || 60}%; background: ${s.profileCompletion >= 100 ? '#00b894' : 'linear-gradient(90deg, #f59e0b, #00b894)'}; border-radius: 4px;"></div>
+              </div>
+            </div>
+          </td>
+          <td style="white-space: nowrap;">
             <div class="d-inline-flex gap-1 align-items-center">
               <button class="btn btn-sm btn-outline-secondary btn-view" data-id="${escapeHTML(s._id)}" title="View 360° Profile" style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">👁️ View</button>
               <button class="btn btn-sm btn-outline-success btn-wa-remind" data-id="${escapeHTML(s._id)}" title="Send WhatsApp Reminder" style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">📲 WhatsApp</button>
@@ -303,6 +313,7 @@ export async function render() {
               <th>Seat</th>
               <th>Expiry Date</th>
               <th class="col-status">Status</th>
+              <th>Profile KYC</th>
               <th>Actions</th>
             </tr>
           </thead>
