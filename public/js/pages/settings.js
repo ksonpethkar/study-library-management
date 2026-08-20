@@ -2968,6 +2968,42 @@ function renderSettingsUI(container, profile, settings) {
     saveNotifications(container.querySelector('#btn-save-notifications'));
   });
 
+  // Instant Bot Execution Listener
+  container.querySelector('#btn-run-bot-now')?.addEventListener('click', async () => {
+    const btn = container.querySelector('#btn-run-bot-now');
+    const logContainer = container.querySelector('#bot-execution-log-container');
+    Loading.button(btn, true);
+
+    if (logContainer) {
+      logContainer.style.display = 'block';
+      logContainer.innerHTML = `<div class="text-muted" style="font-size: 0.85rem;"><span class="spinner-border spinner-border-sm me-2"></span> Running automated subscription expiry &amp; balance due bot scan...</div>`;
+    }
+
+    try {
+      const res = await api.post('/api/messages/run-cron-now');
+      Toast.success(res?.message || 'Automated WhatsApp Bot execution completed successfully');
+      if (logContainer) {
+        logContainer.innerHTML = `
+          <div style="font-weight: 700; color: var(--color-success); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span>🟢</span> ${escapeHTML(res?.message || 'Bot Scan & Execution Completed')}
+          </div>
+          <div style="font-size: 0.85rem; color: var(--color-text-primary);">
+            <div><strong>Processed Students:</strong> ${res?.processedCount ?? res?.count ?? 0}</div>
+            <div><strong>Reminders Prepared:</strong> ${res?.preparedCount ?? res?.remindersCount ?? 0}</div>
+            <div style="margin-top: 6px; font-size: 0.78rem; color: var(--color-text-secondary);">Triggered at: ${new Date().toLocaleString('en-IN')}</div>
+          </div>
+        `;
+      }
+    } catch (err) {
+      Toast.error(err.message || 'Failed to run bot scan');
+      if (logContainer) {
+        logContainer.innerHTML = `<div style="color: var(--color-danger); font-size: 0.85rem;"><strong>Error running bot:</strong> ${escapeHTML(err.message)}</div>`;
+      }
+    } finally {
+      Loading.button(btn, false);
+    }
+  });
+
   // Push Notifications Toggle & Status Badge Logic
   const pushToggleSettings = container.querySelector('#setting-enablePush');
   const pushBadgeSettings = container.querySelector('#push-permission-badge-settings');
