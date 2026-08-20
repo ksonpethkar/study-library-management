@@ -1874,7 +1874,7 @@ export async function render() {
         </div>
 
         <!-- Dispatch Options Toggles -->
-        <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem;">
           <label style="font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
             <input type="checkbox" id="reset-toggle-wa" class="form-toggle" checked> 📲 Open Pre-filled WhatsApp Credential Link
           </label>
@@ -1882,45 +1882,73 @@ export async function render() {
             <input type="checkbox" id="reset-toggle-email" class="form-toggle" ${student.email ? 'checked' : ''}> 📧 Send Credentials Notification via Email
           </label>
         </div>
+
+        <!-- Prominent In-Modal Primary Save Button -->
+        <div>
+          <button type="button" id="btn-save-reset-password" class="btn btn-primary btn-lg" style="width: 100%; font-weight: 800; font-size: 1rem; padding: 12px; justify-content: center; display: flex; align-items: center; gap: 8px; border-radius: 10px;">
+            💾 Save & Update Password
+          </button>
+        </div>
       </div>
     `;
 
-    Modal.show({
+    const executeSavePassword = async (modalInstance) => {
+      const pwdInput = document.getElementById('reset-pwd-input');
+      const newPassword = pwdInput?.value?.trim();
+      const sendEmail = document.getElementById('reset-toggle-email')?.checked;
+      const sendWa = document.getElementById('reset-toggle-wa')?.checked;
+
+      if (!newPassword || newPassword.length < 4) {
+        Toast.error('Password must be at least 4 characters long');
+        return false;
+      }
+
+      const saveBtn = document.getElementById('btn-save-reset-password');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving & Updating Password...';
+      }
+
+      try {
+        const res = await api.post(`/api/students/${student._id}/reset-password`, {
+          newPassword,
+          sendEmail
+        });
+
+        if (res.success) {
+          Toast.success(`Password updated for ${student.name}!`);
+          if (sendWa && res.data?.whatsappUrl) {
+            window.open(res.data.whatsappUrl, '_blank');
+          }
+          if (modalInstance && typeof modalInstance.close === 'function') {
+            modalInstance.close();
+          }
+          return true;
+        } else {
+          Toast.error(res.message || 'Failed to update password');
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = '💾 Save & Update Password';
+          }
+          return false;
+        }
+      } catch (err) {
+        Toast.error(err.message || 'Password update failed');
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = '💾 Save & Update Password';
+        }
+        return false;
+      }
+    };
+
+    const modal = Modal.show({
       title: '🔑 Reset Student Portal Password',
       content: contentHtml,
       confirmText: '💾 Save & Update Password',
       confirmClass: 'btn-primary',
-      onConfirm: async () => {
-        const pwdInput = document.getElementById('reset-pwd-input');
-        const newPassword = pwdInput?.value?.trim();
-        const sendEmail = document.getElementById('reset-toggle-email')?.checked;
-        const sendWa = document.getElementById('reset-toggle-wa')?.checked;
-
-        if (!newPassword || newPassword.length < 4) {
-          Toast.error('Password must be at least 4 characters long');
-          return false;
-        }
-
-        try {
-          const res = await api.post(`/api/students/${student._id}/reset-password`, {
-            newPassword,
-            sendEmail
-          });
-
-          if (res.success) {
-            Toast.success(`Password updated for ${student.name}!`);
-            if (sendWa && res.data?.whatsappUrl) {
-              window.open(res.data.whatsappUrl, '_blank');
-            }
-            return true;
-          } else {
-            Toast.error(res.message || 'Failed to update password');
-            return false;
-          }
-        } catch (err) {
-          Toast.error(err.message || 'Password update failed');
-          return false;
-        }
+      onConfirm: async (m) => {
+        return await executeSavePassword(m);
       }
     });
 
@@ -1938,6 +1966,9 @@ export async function render() {
       });
       document.getElementById('btn-toggle-reset-eye')?.addEventListener('click', () => {
         if (input) input.type = input.type === 'password' ? 'text' : 'password';
+      });
+      document.getElementById('btn-save-reset-password')?.addEventListener('click', () => {
+        executeSavePassword(modal);
       });
     }, 100);
   }

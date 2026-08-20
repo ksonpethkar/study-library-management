@@ -254,6 +254,31 @@ Modal.show = function(opts) {
       };
       footerContainer.appendChild(b);
     });
+  } else if (opts && (opts.onConfirm || opts.confirmText)) {
+    footerContainer.style.display = 'flex';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.textContent = opts.cancelText || 'Cancel';
+    cancelBtn.onclick = () => modalWrapper.close();
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = `btn ${opts.confirmClass || 'btn-primary'}`;
+    confirmBtn.textContent = opts.confirmText || 'Save & Confirm';
+    confirmBtn.onclick = async () => {
+      if (typeof opts.onConfirm === 'function') {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Saving...';
+        const res = await opts.onConfirm(modalWrapper);
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = opts.confirmText || 'Save & Confirm';
+        if (res !== false) modalWrapper.close();
+      } else {
+        modalWrapper.close();
+      }
+    };
+
+    footerContainer.appendChild(cancelBtn);
+    footerContainer.appendChild(confirmBtn);
   } else if (actions) {
     footerContainer.style.display = 'flex';
     footerContainer.innerHTML = actions;
