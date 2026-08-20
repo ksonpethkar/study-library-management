@@ -1059,23 +1059,48 @@ function renderPortalUI(container, data, analytics = null) {
     const modalContent = document.createElement('div');
     modalContent.innerHTML = `
       <form id="portal-sc-form" class="p-1 mb-4">
+        
+        <!-- Target Library Branch / Centre Dropdown -->
+        <div class="form-group mb-3">
+          <label class="form-label" style="font-weight: 600;">Target Library Branch / Centre *</label>
+          <select id="sc-branch" class="form-select" required>
+            <option value="">-- Select Target Library Centre --</option>
+          </select>
+        </div>
+
+        <!-- Real-Time Vacant Seat Selector -->
+        <div class="form-group mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label" style="font-weight: 600; margin: 0;">Specific Desk / Seat (Optional Preference)</label>
+            <span id="sc-vacant-badge" class="badge badge-success" style="font-size: 0.72rem; display: none;">🟢 0 Desks Vacant</span>
+          </div>
+          <select id="sc-target-seat" class="form-select">
+            <option value="">-- Select Specific Available Desk (or Any Vacant) --</option>
+          </select>
+          <small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 3px;">
+            Choose a specific desk or leave as "Any Vacant Desk" to let management auto-allot.
+          </small>
+        </div>
+
         <div class="form-group mb-3">
           <label class="form-label" style="font-weight: 600;">Preferred Seat Zone *</label>
           <select id="sc-zone" class="form-select" required>
-            <option value="AC Zone">AC Zone (Quiet Cabin)</option>
-            <option value="Non-AC Zone">Non-AC Zone</option>
-            <option value="Private Cabins">Private Cabins</option>
+            <option value="AC Zone (Quiet Cabin)">AC Zone (Quiet Cabin)</option>
+            <option value="Non-AC Reading Zone">Non-AC Reading Zone</option>
+            <option value="Private Cabin Desk">Private Cabin Desk</option>
             <option value="Open Hall">Open Hall</option>
-            <option value="Ladies Reserved">Ladies Reserved Zone</option>
-            <option value="Laptop Desks">Laptop Desk (Extra Power Plugs)</option>
+            <option value="Ladies Reserved Zone">Ladies Reserved Zone</option>
+            <option value="Laptop Desk (Extra Power Plugs)">Laptop Desk (Extra Power Plugs)</option>
           </select>
         </div>
+
         <div class="form-group mb-3">
           <label class="form-label" style="font-weight: 600;">Reason for Seat Transfer *</label>
-          <textarea id="sc-reason" class="form-control" rows="2" placeholder="e.g. Need AC cabin with direct charging port for laptop" required></textarea>
+          <textarea id="sc-reason" class="form-control" rows="2" placeholder="e.g. Requesting transfer to Main Centre AC cabin desk with laptop charging outlet." required></textarea>
         </div>
+
         <div class="d-flex justify-content-end gap-2">
-          <button type="submit" class="btn btn-primary" id="btn-submit-sc">Submit Transfer Request</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-sc" style="font-weight: 700; width: 100%;">⚡ Submit Transfer Request</button>
         </div>
       </form>
 
@@ -1087,6 +1112,66 @@ function renderPortalUI(container, data, analytics = null) {
 
     const scModal = new Modal({ title: '💺 Request Desk / Seat Transfer', content: modalContent, size: 'md' });
     scModal.show();
+
+    const branchSelect = modalContent.querySelector('#sc-branch');
+    const seatSelect = modalContent.querySelector('#sc-target-seat');
+    const vacantBadge = modalContent.querySelector('#sc-vacant-badge');
+
+    let allBranches = [];
+    let allSeats = [];
+
+    // Load Branches & Vacant Desks
+    try {
+      const [bRes, sRes] = await Promise.all([
+        api.get('/api/branches').catch(() => ({ data: [] })),
+        api.get('/api/seats').catch(() => ({ data: [] }))
+      ]);
+
+      allBranches = Array.isArray(bRes.data) ? bRes.data : (bRes.data?.branches || []);
+      allSeats = Array.isArray(sRes.data) ? sRes.data : (sRes.data?.seats || []);
+
+      if (allBranches.length > 0) {
+        branchSelect.innerHTML = allBranches.map(b => `
+          <option value="${b._id}" ${String(b._id) === String(student.branch?._id || student.branch) ? 'selected' : ''}>
+            ${escapeHTML(b.name)} ${b.city ? '(' + b.city + ')' : ''}
+          </option>
+        `).join('');
+      } else {
+        branchSelect.innerHTML = `<option value="">${escapeHTML(business.businessName || 'Main Centre')}</option>`;
+      }
+
+      populateVacantSeats();
+    } catch (err) {
+      console.warn('Failed to load branches/seats:', err);
+    }
+
+    function populateVacantSeats() {
+      const selectedBranchId = branchSelect.value;
+      const vacant = allSeats.filter(s => {
+        if (s.status !== 'vacant') return false;
+        if (!selectedBranchId) return true;
+        const bId = s.branch?._id || s.branch;
+        return String(bId) === String(selectedBranchId);
+      });
+
+      if (vacantBadge) {
+        vacantBadge.style.display = 'inline-block';
+        vacantBadge.textContent = `🟢 ${vacant.length} Desks Vacant`;
+      }
+
+      if (vacant.length > 0) {
+        seatSelect.innerHTML = `<option value="">-- Any Available Vacant Desk --</option>` +
+          vacant.map(s => `
+            <option value="${s._id}" data-num="${escapeHTML(s.seatNumber)}">
+              Desk ${escapeHTML(s.seatNumber)} — ${escapeHTML(s.zone || 'General')} (Vacant)
+            </option>
+          `).join('');
+      } else {
+        seatSelect.innerHTML = `<option value="">No specific vacant desks listed (Management will allot)</option>`;
+      }
+    }
+
+    branchSelect.addEventListener('change', populateVacantSeats);
 
     async function loadScHistory() {
       const histContainer = modalContent.querySelector('#portal-sc-history');
@@ -1100,7 +1185,7 @@ function renderPortalUI(container, data, analytics = null) {
         histContainer.innerHTML = list.map(s => `
           <div class="p-2 mb-2" style="background: var(--color-bg-primary); border-radius: 6px; border: 1px solid var(--color-border); font-size: 0.85rem;">
             <div class="d-flex justify-content-between align-items-center mb-1">
-              <strong>Requested: ${escapeHTML(s.preferredZone)}</strong>
+              <strong>Requested: ${escapeHTML(s.targetSeatNumber ? 'Desk ' + s.targetSeatNumber : s.preferredZone)} ${s.targetBranchName ? '(' + escapeHTML(s.targetBranchName) + ')' : ''}</strong>
               <span class="badge ${s.status === 'approved' ? 'badge-success' : s.status === 'rejected' ? 'badge-danger' : 'badge-warning'}" style="text-transform: uppercase; font-size: 0.7rem;">
                 ${s.status}
               </span>
@@ -1116,12 +1201,27 @@ function renderPortalUI(container, data, analytics = null) {
 
     modalContent.querySelector('#portal-sc-form').onsubmit = async (e) => {
       e.preventDefault();
+      const targetBranch = branchSelect.value;
+      const selectedBranchObj = allBranches.find(b => String(b._id) === String(targetBranch));
+      const targetBranchName = selectedBranchObj ? selectedBranchObj.name : '';
+
+      const targetSeat = seatSelect.value;
+      const selectedSeatOpt = seatSelect.options[seatSelect.selectedIndex];
+      const targetSeatNumber = selectedSeatOpt ? (selectedSeatOpt.dataset?.num || '') : '';
+
       const preferredZone = modalContent.querySelector('#sc-zone').value;
       const reason = modalContent.querySelector('#sc-reason').value.trim();
 
       try {
-        await api.post('/api/student-portal/seat-change', { preferredZone, reason });
-        Toast.success('Transfer request submitted to manager!');
+        await api.post('/api/student-portal/seat-change', {
+          targetBranch,
+          targetBranchName,
+          targetSeat,
+          targetSeatNumber,
+          preferredZone,
+          reason
+        });
+        Toast.success('Seat transfer request submitted to branch manager!');
         modalContent.querySelector('#sc-reason').value = '';
         loadScHistory();
       } catch (err) {

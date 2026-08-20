@@ -469,9 +469,9 @@ router.post('/seat-change', async (req, res) => {
     const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
-    const { preferredZone, reason } = req.body;
-    if (!preferredZone || !reason) {
-      return res.status(400).json({ success: false, message: 'Preferred zone and reason are required' });
+    const { targetBranch, targetBranchName, targetSeat, targetSeatNumber, preferredZone, reason } = req.body;
+    if (!reason) {
+      return res.status(400).json({ success: false, message: 'Reason for seat transfer is required' });
     }
 
     const sc = new SeatChangeRequest({
@@ -480,20 +480,26 @@ router.post('/seat-change', async (req, res) => {
       studentPhone: student.phone,
       currentSeat: student.seat?._id || student.seat || null,
       currentSeatNumber: student.seat?.seatNumber || 'Unassigned',
-      preferredZone,
+      targetBranch: targetBranch || null,
+      targetBranchName: targetBranchName || '',
+      targetSeat: targetSeat || null,
+      targetSeatNumber: targetSeatNumber || '',
+      preferredZone: preferredZone || 'General Zone',
       reason
     });
 
     await sc.save();
 
+    const targetDesc = targetSeatNumber ? `Desk ${targetSeatNumber} (${targetBranchName || preferredZone})` : `${preferredZone} (${targetBranchName || 'Current Branch'})`;
+
     await Notification.create({
-      title: `💺 Seat Change Request: ${student.name}`,
-      message: `Current: ${sc.currentSeatNumber} ➔ Requested: ${preferredZone} (${reason})`,
+      title: `💺 Seat Transfer Request: ${student.name}`,
+      message: `Current: ${sc.currentSeatNumber} ➔ Requested: ${targetDesc} • Reason: ${reason}`,
       type: 'seat',
       link: '#/operations'
     });
 
-    res.status(201).json({ success: true, message: 'Seat transfer request submitted', data: sc });
+    res.status(201).json({ success: true, message: 'Seat transfer request submitted successfully!', data: sc });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
