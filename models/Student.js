@@ -42,10 +42,11 @@ const studentSchema = new mongoose.Schema({
     phone: { type: String },
     relation: { type: String }
   },
-  // Referral Program Fields
+  // Referral Program & Wallet Balance Fields
   referralCode: { type: String, uppercase: true, trim: true, sparse: true, index: true },
   referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
   referralCredits: { type: Number, default: 0 },
+  walletBalance: { type: Number, default: 0 },
   totalReferralsCount: { type: Number, default: 0 },
   // Gamified Leaderboard & Badges
   badges: [{

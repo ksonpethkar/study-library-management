@@ -656,7 +656,7 @@ router.get('/renewal-quote', async (req, res) => {
       Shift.find({ isActive: { $ne: false } }).lean()
     ]);
 
-    const { planId, shiftId } = req.query;
+    const { planId, shiftId, applyWallet } = req.query;
 
     let selectedPlan = null;
     if (planId) {
@@ -683,12 +683,16 @@ router.get('/renewal-quote', async (req, res) => {
     const basePrice = selectedPlan ? Number(selectedPlan.price || 1000) : 1000;
     const discount = selectedPlan?.discount ? Math.round(basePrice * selectedPlan.discount / 100) : 0;
     
-    // Automatically apply available referral wallet credits
-    const availableReferralCredits = student.referralCredits || 0;
-    const referralDiscount = Math.min(availableReferralCredits, Math.max(0, basePrice - discount));
+    // Wallet & Referral Credit Balance Calculation
+    const availableWalletBalance = Math.max(0, (student.walletBalance || 0) + (student.referralCredits || 0));
+    const isWalletRequested = applyWallet === undefined || applyWallet === 'true' || applyWallet === true;
+    
+    const appliedWalletDiscount = isWalletRequested 
+      ? Math.min(availableWalletBalance, Math.max(0, basePrice - discount)) 
+      : 0;
 
     const pendingFine = student.pendingFine || 0;
-    const totalPayable = Math.max(0, Math.round(basePrice - discount - referralDiscount + pendingFine));
+    const totalPayable = Math.max(0, Math.round(basePrice - discount - appliedWalletDiscount + pendingFine));
 
     const textUpiId = (business.upiId && typeof business.upiId === 'string' && !business.upiId.startsWith('data:image'))
       ? business.upiId.trim()
@@ -714,8 +718,11 @@ router.get('/renewal-quote', async (req, res) => {
         durationDays: selectedPlan?.duration || 30,
         basePrice,
         discount,
-        referralCredits: availableReferralCredits,
-        referralDiscount,
+        availableWalletBalance,
+        appliedWalletDiscount,
+        isWalletApplied: isWalletRequested && appliedWalletDiscount > 0,
+        referralCredits: student.referralCredits || 0,
+        referralDiscount: appliedWalletDiscount,
         pendingFine,
         totalPayable,
         upiId: textUpiId,
@@ -737,7 +744,7 @@ router.post('/renewal-request', async (req, res) => {
     const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
-    const { utrNumber, planId, shiftId, amountPaid, paymentMode = 'upi', notes } = req.body;
+    const { utrNumber, planId, shiftId, amountPaid, applyWallet, paymentMode = 'upi', notes } = req.body;
     if (!utrNumber) {
       return res.status(400).json({ success: false, message: 'UPI UTR / Transaction reference number is required' });
     }
@@ -753,7 +760,20 @@ router.post('/renewal-request', async (req, res) => {
     }
 
     const durationDays = targetPlan?.duration || 30;
-    const payAmount = Number(amountPaid) || targetPlan?.price || 1000;
+    const basePrice = targetPlan?.price || 1000;
+    const planDiscount = targetPlan?.discount ? Math.round(basePrice * targetPlan.discount / 100) : 0;
+    
+    // Deduct Wallet Balance if applied
+    let walletDeduction = 0;
+    const currentRefCredits = student.referralCredits || 0;
+    const currentWalletBal = student.walletBalance || 0;
+    const totalWalletAvail = currentRefCredits + currentWalletBal;
+
+    if (applyWallet && totalWalletAvail > 0) {
+      walletDeduction = Math.min(totalWalletAvail, Math.max(0, basePrice - planDiscount));
+    }
+
+    const payAmount = Number(amountPaid) || Math.max(0, basePrice - planDiscount - walletDeduction + (student.pendingFine || 0));
     
     const validFrom = student.expiryDate && new Date(student.expiryDate) > new Date() ? new Date(student.expiryDate) : new Date();
     const validUntil = new Date(validFrom.getTime() + durationDays * 24 * 60 * 60 * 1000);
@@ -770,16 +790,31 @@ router.post('/renewal-request', async (req, res) => {
       paymentDate: new Date(),
       periodStart: validFrom,
       periodEnd: validUntil,
-      notes: `Online Student Self-Renewal (UTR: ${utrNumber})`
+      notes: `Online Student Self-Renewal (UTR: ${utrNumber}${walletDeduction > 0 ? ` • Wallet Discount Used: ₹${walletDeduction}` : ''})`
     });
 
     await payment.save();
 
-    // Extend student expiry date, update selected plan/shift & clear fines
+    // Deduct used wallet balance & extend student expiry date
+    let newRefCredits = currentRefCredits;
+    let newWalletBal = currentWalletBal;
+
+    if (walletDeduction > 0) {
+      if (currentRefCredits >= walletDeduction) {
+        newRefCredits -= walletDeduction;
+      } else {
+        const rem = walletDeduction - currentRefCredits;
+        newRefCredits = 0;
+        newWalletBal = Math.max(0, currentWalletBal - rem);
+      }
+    }
+
     const updateFields = {
       expiryDate: validUntil,
       status: 'active',
-      pendingFine: 0
+      pendingFine: 0,
+      referralCredits: newRefCredits,
+      walletBalance: newWalletBal
     };
     if (planId) updateFields.plan = planId;
     if (shiftId) updateFields.shift = shiftId;
