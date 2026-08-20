@@ -1185,47 +1185,51 @@ export async function render() {
 
         const modalContent = document.createElement('div');
         modalContent.innerHTML = `
-          <form id="form-manual-referral" style="display: flex; flex-direction: column; gap: 12px;">
+          <form id="form-manual-referral" style="display: flex; flex-direction: column; gap: 16px;">
             <div class="form-group">
-              <label class="form-label" style="font-weight: 700;">Referring Student (Existing Member) *</label>
-              <select id="man-student-id" class="form-select form-control" required>
-                <option value="">-- Select Student --</option>
+              <label class="form-label" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 6px; display: block;">
+                Referring Student (Existing Member) *
+              </label>
+              <select id="man-student-id" class="form-select form-control" required style="font-weight: 600; padding: 0.65rem 0.85rem; border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); border: 1.5px solid var(--color-border);">
+                <option value="" style="background: var(--color-surface); color: var(--color-text-primary);">-- Select Referring Student --</option>
                 ${studentsList.map(s => `
-                  <option value="${s._id}">${escapeHTML(s.name)} (${s.studentId || s.phone}) [Code: ${s.referralCode || 'N/A'}]</option>
+                  <option value="${s._id}" style="background: var(--color-surface); color: var(--color-text-primary); padding: 8px;">
+                    ${escapeHTML(s.name)} (${s.studentId || s.phone || 'N/A'}) ${s.referralCode ? '[Code: ' + s.referralCode + ']' : ''}
+                  </option>
                 `).join('')}
               </select>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
               <div class="form-group">
-                <label class="form-label" style="font-weight: 700;">Friend / Referee Name *</label>
-                <input type="text" id="man-referee-name" class="form-control" placeholder="e.g. Rahul Sharma" required>
+                <label class="form-label" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 6px; display: block;">Friend / Referee Name *</label>
+                <input type="text" id="man-referee-name" class="form-control" placeholder="e.g. Rahul Sharma" required style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md);">
               </div>
               <div class="form-group">
-                <label class="form-label" style="font-weight: 700;">Friend Phone *</label>
-                <input type="tel" id="man-referee-phone" class="form-control" placeholder="10-digit mobile" required>
+                <label class="form-label" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 6px; display: block;">Friend Phone *</label>
+                <input type="tel" id="man-referee-phone" class="form-control" placeholder="10-digit mobile" required style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md);">
               </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
               <div class="form-group">
-                <label class="form-label" style="font-weight: 700;">Course / Target Exam</label>
-                <input type="text" id="man-target-exam" class="form-control" placeholder="e.g. UPSC, CA, NEET">
+                <label class="form-label" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 6px; display: block;">Course / Target Exam</label>
+                <input type="text" id="man-target-exam" class="form-control" placeholder="e.g. UPSC, CA, NEET" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md);">
               </div>
               <div class="form-group">
-                <label class="form-label" style="font-weight: 700;">Reward Credit Amount (₹)</label>
-                <input type="number" id="man-reward-amt" class="form-control" value="100" min="0">
+                <label class="form-label" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 6px; display: block;">Reward Credit Amount (₹)</label>
+                <input type="number" id="man-reward-amt" class="form-control" value="100" min="0" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md); font-weight: 700; color: var(--color-success);">
               </div>
             </div>
 
             <div class="form-group">
-              <label class="form-label" style="font-weight: 700;">Notes / Follow-up Details</label>
-              <textarea id="man-notes" class="form-control" rows="2" placeholder="Friend visited library for trial..."></textarea>
+              <label class="form-label" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 6px; display: block;">Notes / Follow-up Details</label>
+              <textarea id="man-notes" class="form-control" rows="2" placeholder="Friend visited library for trial..." style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md);"></textarea>
             </div>
 
-            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
-              <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
-              <button type="submit" class="btn btn-primary" style="font-weight: 700;">➕ Record Referral</button>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--color-divider);">
+              <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()" style="font-weight: 600; padding: 0.6rem 1.25rem;">Cancel</button>
+              <button type="submit" class="btn btn-primary" style="font-weight: 700; padding: 0.6rem 1.5rem;">Record Referral</button>
             </div>
           </form>
         `;
