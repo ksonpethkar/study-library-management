@@ -133,29 +133,45 @@ app.get('/api/system/public-config', async (req, res) => {
   }
 });
 
+// Server-side HTML Pre-hydration Renderer (Eliminates text swapping on initial HTTP response)
+async function sendHydratedHTML(res, htmlPath) {
+  try {
+    let html = fs.readFileSync(htmlPath, 'utf8');
+    const BusinessProfile = require('./models/BusinessProfile');
+    const profile = await BusinessProfile.getProfile();
+
+    if (profile && profile.businessName) {
+      const bName = profile.businessName;
+      const bLogo = profile.logo || '';
+      
+      html = html.replace(/<span id="nav-brand-name">.*?<\/span>/g, `<span id="nav-brand-name">${bName}</span>`);
+      html = html.replace(/<span id="drawer-brand-name">.*?<\/span>/g, `<span id="drawer-brand-name">${bName}</span>`);
+      html = html.replace(/<h1 id="lib-title">.*?<\/h1>/g, `<h1 id="lib-title">${bName}</h1>`);
+      html = html.replace(/<span id="sidebar-org-name">.*?<\/span>/g, `<span id="sidebar-org-name">${bName}</span>`);
+      html = html.replace(/<h1 id="lib-name">.*?<\/h1>/g, `<h1 id="lib-name">${bName}</h1>`);
+
+      if (bLogo) {
+        const logoImg = `<img src="${bLogo}" alt="Logo" style="height: 36px; width: auto; object-fit: contain; border-radius: 6px;">`;
+        html = html.replace(/<span class="nav-logo" id="nav-logo-icon">.*?<\/span>/g, `<span class="nav-logo" id="nav-logo-icon">${logoImg}</span>`);
+      }
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(html);
+  } catch (err) {
+    return res.sendFile(htmlPath);
+  }
+}
+
 // Public Landing Page & Registration Routes
-app.get('/landing', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'landing.html'));
-});
-
-app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'register.html'));
-});
-
-// Dedicated Student Portal Login Route
-app.get(['/student-login', '/portal-login'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'student-login.html'));
-});
-
-// Self-Service Kiosk / Gate Scanner Route
-app.get('/kiosk', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'kiosk.html'));
-});
+app.get('/landing', (req, res) => sendHydratedHTML(res, path.join(__dirname, 'public', 'landing.html')));
+app.get('/register', (req, res) => sendHydratedHTML(res, path.join(__dirname, 'public', 'register.html')));
+app.get(['/student-login', '/portal-login'], (req, res) => sendHydratedHTML(res, path.join(__dirname, 'public', 'student-login.html')));
+app.get('/kiosk', (req, res) => sendHydratedHTML(res, path.join(__dirname, 'public', 'kiosk.html')));
 
 // SPA fallback — only for non-API GET requests
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api')) {
-    return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    return sendHydratedHTML(res, path.join(__dirname, 'public', 'index.html'));
   }
   next();
 });
