@@ -657,11 +657,20 @@ router.get('/renewal-quote', async (req, res) => {
     const pendingFine = student.pendingFine || 0;
     const totalPayable = Math.max(0, Math.round(basePrice - discount - referralDiscount + pendingFine));
 
-    const upiId = business.upiQrCode || 'studylibrary@upi';
+    const textUpiId = (business.upiId && typeof business.upiId === 'string' && !business.upiId.startsWith('data:image'))
+      ? business.upiId.trim()
+      : (business.phone ? `${business.phone.replace(/\D/g, '').slice(-10)}@ybl` : 'studylibrary@upi');
+
     const cleanPayee = encodeURIComponent(business.businessName || 'Study Library');
-    const note = encodeURIComponent(`Renewal_${student.studentId}_${student.name.replace(/\s+/g, '')}`);
-    const upiIntentUrl = `upi://pay?pa=${upiId}&pn=${cleanPayee}&am=${totalPayable}&cu=INR&tn=${note}`;
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiIntentUrl)}`;
+    const note = encodeURIComponent(`Renewal_${student.studentId}_${(student.name || '').replace(/\s+/g, '')}`);
+    const upiIntentUrl = `upi://pay?pa=${textUpiId}&pn=${cleanPayee}&am=${totalPayable}&cu=INR&tn=${note}`;
+
+    let qrCodeUrl = '';
+    if (business.upiQrCode && typeof business.upiQrCode === 'string' && business.upiQrCode.trim().length > 10) {
+      qrCodeUrl = business.upiQrCode;
+    } else {
+      qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiIntentUrl)}`;
+    }
 
     res.json({
       success: true,
@@ -677,7 +686,7 @@ router.get('/renewal-quote', async (req, res) => {
         referralDiscount,
         pendingFine,
         totalPayable,
-        upiId,
+        upiId: textUpiId,
         upiIntentUrl,
         qrCodeUrl,
         businessName: business.businessName,
