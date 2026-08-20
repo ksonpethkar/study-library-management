@@ -223,6 +223,14 @@ async function initShiftsPage(container) {
   const grid = container.querySelector('#shifts-grid');
   if (grid) {
     grid.addEventListener('click', (e) => {
+      const cloneBtn = e.target.closest('.btn-clone-shift');
+      if (cloneBtn) {
+        const id = cloneBtn.dataset.id;
+        const shift = shifts.find(s => s._id === id);
+        if (shift) cloneShift(shift);
+        return;
+      }
+
       const editBtn = e.target.closest('.btn-edit-shift');
       if (editBtn) {
         const id = editBtn.dataset.id;
@@ -469,16 +477,22 @@ function renderShiftsGrid() {
           </div>
 
           <!-- Action Buttons -->
-          <div style="display: flex; gap: 6px;">
-            <button type="button" class="btn btn-sm btn-outline btn-edit-shift" data-id="${shift._id}" title="Edit Shift" style="padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px;">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+            <a href="#/seats" class="btn btn-sm btn-outline-info" style="padding: 4px 8px; font-weight: 600; font-size: 0.78rem; text-decoration: none;" title="Filter Seats Matrix by this shift">
+              💺 View Seats
+            </a>
+            <button type="button" class="btn btn-sm btn-outline btn-clone-shift" data-id="${shift._id}" title="Clone Shift Configuration" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 600;">
+              📋 Clone
+            </button>
+            <button type="button" class="btn btn-sm btn-outline btn-edit-shift" data-id="${shift._id}" title="Edit Shift" style="padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 0.78rem; font-weight: 600;">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
               </svg>
               <span>Edit</span>
             </button>
-            <button type="button" class="btn btn-sm btn-outline btn-delete-shift" data-id="${shift._id}" title="Deactivate Shift" style="padding: 4px 8px; color: var(--color-danger); border-color: rgba(214, 48, 49, 0.3);">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" class="btn btn-sm btn-outline btn-delete-shift" data-id="${shift._id}" title="Deactivate Shift" style="padding: 4px 6px; color: var(--color-danger); border-color: rgba(214, 48, 49, 0.3);">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="3 6 5 6 21 6"></polyline>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
               </svg>
@@ -490,6 +504,16 @@ function renderShiftsGrid() {
   });
 
   grid.innerHTML = html;
+}
+
+function cloneShift(shift) {
+  const cloned = {
+    ...shift,
+    _id: null,
+    name: `${shift.name} (Copy)`,
+    code: `${shift.code}_COPY`
+  };
+  openShiftModal(cloned);
 }
 
 /**
