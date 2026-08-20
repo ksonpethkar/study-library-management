@@ -1315,25 +1315,121 @@ function renderSettingsUI(container, profile, settings) {
       <!-- ========================================== -->
       <div class="settings-panel" id="panel-audittrail" style="display: none;">
         <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
-          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover);">
-            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary);">📋 Activity Audit Trail</h3>
-            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Review all administrative actions taken in the system.</p>
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                <span>📋</span> Activity Audit Trail &amp; System Forensics Ledger
+              </h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Review all administrative actions, password resets, configuration edits, and user access events.</p>
+            </div>
+            <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+              System Forensics Suite
+            </span>
           </div>
-          <div class="card-body" style="padding: 1.5rem;">
-            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
-              <select id="audit-filter-module" class="form-select w-100 w-md-auto" style="max-width: 150px;"><option value="">All Modules</option><option value="settings">Settings</option><option value="students">Students</option></select>
-              <input type="text" id="audit-filter-action" class="form-control w-100 w-md-auto" placeholder="Action..." style="max-width: 150px;">
-              <input type="date" id="audit-filter-start" class="form-control w-100 w-md-auto" style="max-width: 150px;">
-              <input type="date" id="audit-filter-end" class="form-control w-100 w-md-auto" style="max-width: 150px;">
-              <button id="btn-filter-audit" class="btn btn-primary w-100 w-md-auto">Filter</button>
+
+          <div class="card-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+            
+            <!-- CATEGORY 1: AUDIT FILTER & FORENSIC SEARCH STUDIO -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+              <h4 style="margin: 0 0 0.85rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                <span>🔍</span> Category 1: Audit Filter &amp; Forensic Search Studio
+              </h4>
+              
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: flex-end;">
+                <div>
+                  <label class="form-label text-xs" style="font-weight: 700; display: block; margin-bottom: 4px;">System Module</label>
+                  <select id="audit-filter-module" class="form-select form-control" style="font-weight: 600;">
+                    <option value="">All System Modules</option>
+                    <option value="settings">⚙️ Settings</option>
+                    <option value="students">👤 Students</option>
+                    <option value="seats">💺 Seats</option>
+                    <option value="payments">💳 Payments</option>
+                    <option value="auth">🔒 Authentication</option>
+                    <option value="messages">💬 Notifications</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="form-label text-xs" style="font-weight: 700; display: block; margin-bottom: 4px;">Action Keyword</label>
+                  <input type="text" id="audit-filter-action" class="form-control" placeholder="e.g. update, reset..." style="font-weight: 600;">
+                </div>
+
+                <div>
+                  <label class="form-label text-xs" style="font-weight: 700; display: block; margin-bottom: 4px;">Start Date</label>
+                  <input type="date" id="audit-filter-start" class="form-control" style="font-weight: 600;">
+                </div>
+
+                <div>
+                  <label class="form-label text-xs" style="font-weight: 700; display: block; margin-bottom: 4px;">End Date</label>
+                  <input type="date" id="audit-filter-end" class="form-control" style="font-weight: 600;">
+                </div>
+
+                <div style="display: flex; gap: 8px;">
+                  <button id="btn-filter-audit" class="btn btn-primary" style="font-weight: 700; flex: 1;">
+                    🔍 Filter Logs
+                  </button>
+                  <button id="btn-export-audit-csv" class="btn btn-outline-secondary" title="Export Audit Log to CSV" style="font-weight: 700;">
+                    📊 CSV
+                  </button>
+                </div>
+              </div>
             </div>
-            <div class="table-responsive">
-              <table class="table" style="width: 100%; border-collapse: collapse;">
-                <thead><tr style="border-bottom: 2px solid var(--color-border);"><th style="padding: 0.5rem;">Date</th><th>User</th><th>Action</th><th>Module</th><th>Details</th><th>IP</th></tr></thead>
-                <tbody id="audit-log-tbody"></tbody>
-              </table>
+
+            <!-- CATEGORY 2: REAL-TIME AUDIT TRAIL DATA TABLE -->
+            <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
+              <div style="padding: 1rem 1.25rem; background: var(--color-surface-hover); border-bottom: 1px solid var(--color-divider); display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>📋</span> Category 2: Real-Time Administrative Activity Ledger
+                </h4>
+                <span class="badge badge-primary" style="font-weight: 700;">Live Audit Log</span>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table" style="width: 100%; border-collapse: collapse; margin: 0;">
+                  <thead>
+                    <tr style="border-bottom: 2px solid var(--color-border); background: var(--color-bg-primary); font-size: 0.82rem; color: var(--color-text-secondary); text-transform: uppercase;">
+                      <th style="padding: 0.85rem 1rem;">Date &amp; Time</th>
+                      <th style="padding: 0.85rem 1rem;">User Name &amp; Role</th>
+                      <th style="padding: 0.85rem 1rem;">Action</th>
+                      <th style="padding: 0.85rem 1rem;">Module</th>
+                      <th style="padding: 0.85rem 1rem;">Activity Details</th>
+                      <th style="padding: 0.85rem 1rem;">Origin IP</th>
+                    </tr>
+                  </thead>
+                  <tbody id="audit-log-tbody"></tbody>
+                </table>
+              </div>
+              <div id="audit-pagination" style="padding: 1rem; text-align: center; border-top: 1px solid var(--color-divider);"></div>
             </div>
-            <div id="audit-pagination" style="margin-top: 1rem; text-align: center;"></div>
+
+            <!-- CATEGORY 3: SECURITY SAFEGUARDS -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+              <h4 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                <span>🔒</span> Category 3: System Forensics &amp; Security Safeguards
+              </h4>
+              <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                <span class="badge" style="background: var(--color-success-bg); color: var(--color-success); border: 1px solid currentColor; font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+                  🟢 Immutable Audit Logger
+                </span>
+                <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); border: 1px solid currentColor; font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+                  🛡️ Real-Time IP Tracking
+                </span>
+                <span class="badge" style="background: rgba(168, 85, 247, 0.12); color: #a855f7; border: 1px solid currentColor; font-weight: 700; padding: 6px 12px; border-radius: 20px;">
+                  📦 365-Day Log Retention
+                </span>
+              </div>
+            </div>
+
+            <!-- CATEGORY 4: TELEMETRY & LOG SUMMARY -->
+            <div style="background: var(--color-primary-bg); border: 2px dashed var(--color-primary-light); border-radius: var(--radius-lg); padding: 1.25rem; text-align: center;">
+              <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-primary); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <span>📊</span> Category 4: Audit Telemetry &amp; Compliance Status
+              </div>
+              <div style="font-size: 0.85rem; color: var(--color-text-primary);">
+                All administrative updates, login attempts, password changes, and configuration mutations are <strong>automatically recorded with IP provenance</strong> for compliance and forensic auditing.
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
