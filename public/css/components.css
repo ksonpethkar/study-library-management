@@ -2474,3 +2474,124 @@ html.dark-theme .bottom-sheet {
   align-items: flex-start;
 }
 
+
+/* ============================================================
+   PHASE 3 — ID Card Studio, Module Colors, Sidebar Mode
+   ============================================================ */
+
+/* ── ID Card Studio ─────────────────────────────────────────── */
+.id-card-studio {
+  font-family: 'Outfit', sans-serif;
+}
+#printable-id-card {
+  transition: transform 0.4s ease, box-shadow 0.2s ease;
+  perspective: 1000px;
+}
+#id-card-preview-wrap {
+  overflow-x: auto;
+  padding: 8px 0;
+}
+#btn-id-flip {
+  transition: transform 0.2s ease;
+}
+#btn-id-flip:active {
+  transform: rotate(180deg);
+}
+#btn-download-id-png {
+  background: linear-gradient(135deg, #6c5ce7, #a29bfe) !important;
+  border: none !important;
+  font-weight: 700 !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+#btn-download-id-png:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(108,92,231,0.4) !important;
+}
+#id-card-photo {
+  transition: border-color 0.3s ease;
+}
+
+/* ── Receipt Stamp Free-Drag indicator ─────────────────────── */
+#rs-live-preview-box [style*="position: absolute"] {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#rs-live-preview-box [style*="position: absolute"]:active {
+  cursor: grabbing;
+}
+
+/* ── Sidebar Order Mode Badge ───────────────────────────────── */
+#sidebar-order-mode-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  opacity: 0.65;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.05);
+  transition: opacity 0.2s;
+}
+#sidebar-order-mode-badge:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.1);
+}
+
+/* ── Module Color CSS Variable hooks ────────────────────────── */
+/* Each module reads its own --module-color-{module} CSS var */
+/* Set by module color settings and applied via JS :root style */
+.page-container[data-module="students"]  { --module-accent: var(--module-color-students,  #6366f1); }
+.page-container[data-module="payments"]  { --module-accent: var(--module-color-payments,  #00b894); }
+.page-container[data-module="seats"]     { --module-accent: var(--module-color-seats,     #fd79a8); }
+.page-container[data-module="attendance"]{ --module-accent: var(--module-color-attendance, #0984e3); }
+.page-container[data-module="reports"]   { --module-accent: var(--module-color-reports,   #fdcb6e); }
+.page-container[data-module="settings"]  { --module-accent: var(--module-color-settings,  #a29bfe); }
+
+/* Module header uses the accent */
+.module-header {
+  border-left: 3px solid var(--module-accent, var(--color-primary));
+}
+.page-container .page-title,
+.page-container h1.section-title {
+  color: var(--module-accent, var(--color-text-primary));
+}
+
+/* ── PWA Install Nudge Toast (override) ─────────────────────── */
+.toast-action-btn {
+  background: linear-gradient(135deg, #25D366, #128C7E);
+  color: #fff !important;
+  border: none;
+  border-radius: 14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  margin-left: 8px;
+}
+.toast-action-btn:hover { opacity: 0.85; }
+
+/* ── Module Color Settings Panel ────────────────────────────── */
+#module-colors-section .mc-module-color {
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  transition: transform 0.15s ease;
+}
+#module-colors-section .mc-module-color:hover {
+  transform: scale(1.2);
+}
+
+/* ── ID Card print override ─────────────────────────────────── */
+@media print {
+  body * { visibility: hidden !important; }
+  #printable-id-card, #printable-id-card * { visibility: visible !important; }
+  #printable-id-card {
+    position: fixed !important;
+    left: 50% !important;
+    top: 20px !important;
+    transform: translateX(-50%) !important;
+    width: 340px !important;
+    box-shadow: none !important;
+  }
+}
+

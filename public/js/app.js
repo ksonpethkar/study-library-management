@@ -262,7 +262,10 @@ class Application {
     // Enable sidebar drag-to-reorder (admin/staff only)
     if (store.user?.role !== 'student') {
       // Small delay to ensure sidebar DOM is fully rendered
-      setTimeout(() => SidebarSortable.init(), 300);
+      setTimeout(() => SidebarSortable.init({
+        mode: 'personal',          // each user has own sidebar order
+        userId: store.user?._id || store.user?.id || null
+      }), 300);
     }
 
     // Render mobile bottom navigation bar based on user role
@@ -294,6 +297,46 @@ class Application {
       this.initRouter();
     } else {
       this.router.start();
+    }
+
+    // ── Phase 3: Apply saved module colors on startup ─────────────────────
+    try {
+      const savedMC = JSON.parse(localStorage.getItem('sl_module_colors') || '{}');
+      if (Object.keys(savedMC).length > 0) {
+        const root = document.documentElement;
+        const unified = savedMC.unified;
+        const brand = savedMC.brandColor || '#6c5ce7';
+        if (unified) {
+          ['students','payments','seats','attendance','reports','settings'].forEach(m => {
+            root.style.setProperty(`--module-color-${m}`, brand);
+          });
+          root.style.setProperty('--color-primary', brand);
+        } else {
+          Object.entries(savedMC).forEach(([k, v]) => {
+            if (k !== 'unified' && k !== 'brandColor' && v && typeof v === 'string' && v.startsWith('#')) {
+              root.style.setProperty(`--module-color-${k}`, v);
+            }
+          });
+        }
+      }
+    } catch (e) {}
+
+    // ── Phase 3: PWA Install Nudge for mobile students ────────────────────
+    // Show once per session after 5s if on mobile and not already installed
+    if (!this._pwaPrompted && store.user?.role === 'student') {
+      this._pwaPrompted = true;
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+      const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+      const dismissed = sessionStorage.getItem('sl_pwa_nudge_dismissed');
+      if (!isStandalone && isMobile && !dismissed) {
+        setTimeout(() => {
+          Toast.info('📲 Install this app on your phone for offline access!', {
+            duration: 8000,
+            action: { label: '⬇️ Install', callback: () => promptPWAInstall() },
+            onDismiss: () => sessionStorage.setItem('sl_pwa_nudge_dismissed', '1')
+          });
+        }, 5000);
+      }
     }
   }
 

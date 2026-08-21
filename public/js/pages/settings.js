@@ -1111,6 +1111,62 @@ function renderSettingsUI(container, profile, settings) {
                 </div>
               </div>
 
+              <!-- CATEGORY 5: MODULE COLORS & THEME (Phase 3) -->
+              <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;" id="module-colors-section">
+                <h4 style="margin: 0 0 1rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                  <span>🎨</span> Category 5: Module Colors &amp; Brand Theme
+                </h4>
+                <p style="font-size: 0.83rem; color: var(--color-text-secondary); margin: 0 0 1rem 0;">
+                  Set per-module header gradient colors or apply a unified brand color. Changes apply instantly across the app. Organisation can decide what looks best.
+                </p>
+
+                <!-- Global Brand Mode Toggle -->
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--color-surface); border-radius: 8px; border: 1px solid var(--color-border); margin-bottom: 12px;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.88rem;">🔗 Use Unified Brand Color (All Modules Same)</div>
+                    <div style="font-size: 0.75rem; color: var(--color-text-secondary);">When ON, all modules use Brand Color below. When OFF, each module has its own color.</div>
+                  </div>
+                  <label class="switch-label" style="margin:0;">
+                    <input type="checkbox" id="mc-unified-mode">
+                    <span class="switch-slider"></span>
+                  </label>
+                </div>
+
+                <!-- Brand / Global Color -->
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 10px 14px; background: var(--color-surface); border-radius: 8px; border: 1px solid var(--color-border);">
+                  <input type="color" id="mc-brand-color" value="#6c5ce7" style="width: 44px; height: 36px; border: none; padding: 0; cursor: pointer; border-radius: 6px; flex-shrink: 0;">
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.85rem;">🏷️ Global Brand Color</div>
+                    <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Used as primary color in unified mode. Default: Library Purple #6c5ce7</div>
+                  </div>
+                </div>
+
+                <!-- Per-Module Color Grid -->
+                <div id="mc-per-module-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                  ${[
+                    { key: 'students', label: '👥 Students', def: '#6366f1' },
+                    { key: 'payments', label: '💰 Payments', def: '#00b894' },
+                    { key: 'seats', label: '💺 Seats', def: '#fd79a8' },
+                    { key: 'attendance', label: '📅 Attendance', def: '#0984e3' },
+                    { key: 'reports', label: '📊 Reports', def: '#fdcb6e' },
+                    { key: 'settings', label: '⚙️ Settings', def: '#a29bfe' }
+                  ].map(m => `
+                    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--color-surface);border-radius:6px;border:1px solid var(--color-border);">
+                      <input type="color" class="mc-module-color" data-module="${m.key}" value="${m.def}" style="width:34px;height:28px;border:none;padding:0;cursor:pointer;border-radius:4px;flex-shrink:0;">
+                      <span style="font-size:0.8rem;font-weight:600;">${m.label}</span>
+                    </div>`).join('')}
+                </div>
+
+                <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                  <button type="button" id="btn-save-module-colors" class="btn btn-primary btn-sm" style="font-weight:700;">
+                    💾 Save Module Colors
+                  </button>
+                  <button type="button" id="btn-reset-module-colors" class="btn btn-outline-secondary btn-sm">
+                    🔄 Reset Defaults
+                  </button>
+                </div>
+              </div>
+
               <!-- SINGLE CONSOLIDATED SAVE BUTTON AT BOTTOM -->
               <div style="display: flex; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--color-divider);">
                 <button type="submit" id="btn-save-general" class="btn btn-primary" style="font-weight: 700; padding: 0.65rem 1.75rem;">
@@ -3041,6 +3097,79 @@ function renderSettingsUI(container, profile, settings) {
         </div>
       </div>
     `;
+
+    // ── Phase 3: Make stamp freely draggable ───────────────────────────────
+    // After HTML renders, find the stamp element and enable free-drag via pointer events
+    requestAnimationFrame(() => {
+      const previewWrap = box.querySelector('div[style*="position: relative"]') || box.firstElementChild;
+      if (!previewWrap) return;
+
+      // Make container position:relative so we can absolutely position stamp
+      previewWrap.style.position = 'relative';
+
+      const stampEl = previewWrap.querySelector('div[style*="position: absolute"][style*="z-index"]');
+      if (!stampEl) return;
+
+      // Restore saved position
+      const savedPos = window._receiptStampPos;
+      if (savedPos) {
+        stampEl.style.left = savedPos.left;
+        stampEl.style.top = savedPos.top;
+        stampEl.style.right = 'auto';
+        stampEl.style.bottom = 'auto';
+      }
+
+      stampEl.style.cursor = 'grab';
+      stampEl.title = '↔ Drag stamp anywhere on receipt';
+
+      // Add drag hint tooltip
+      const hint = document.createElement('div');
+      hint.style.cssText = 'position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:0.6rem;background:rgba(0,0,0,0.6);color:#fff;padding:2px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.2s;';
+      hint.textContent = '↔ Drag stamp freely';
+      stampEl.appendChild(hint);
+      stampEl.addEventListener('mouseenter', () => { hint.style.opacity = '1'; });
+      stampEl.addEventListener('mouseleave', () => { hint.style.opacity = '0'; });
+
+      let isDragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+      stampEl.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        isDragging = true;
+        stampEl.style.cursor = 'grabbing';
+        stampEl.setPointerCapture(e.pointerId);
+
+        const rect = previewWrap.getBoundingClientRect();
+        const stampRect = stampEl.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = stampRect.left - rect.left;
+        startTop = stampRect.top - rect.top;
+        stampEl.style.left = startLeft + 'px';
+        stampEl.style.top = startTop + 'px';
+        stampEl.style.right = 'auto';
+        stampEl.style.bottom = 'auto';
+      });
+
+      stampEl.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const newLeft = Math.max(0, startLeft + dx);
+        const newTop = Math.max(0, startTop + dy);
+        stampEl.style.left = newLeft + 'px';
+        stampEl.style.top = newTop + 'px';
+      });
+
+      const onDragEnd = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        stampEl.style.cursor = 'grab';
+        // Save position so it survives re-renders
+        window._receiptStampPos = { left: stampEl.style.left, top: stampEl.style.top };
+      };
+      stampEl.addEventListener('pointerup', onDragEnd);
+      stampEl.addEventListener('pointercancel', onDragEnd);
+    });
   };
 
   // Switch Stamp Style UI (Badge vs Image)
@@ -3594,7 +3723,67 @@ function renderSettingsUI(container, profile, settings) {
     saveGeneral(container.querySelector('#btn-save-general'));
   });
 
-  // Live General System Config Telemetry & Locale Preview Updater
+  // ── Phase 3: Module Colors & Theme handlers ──────────────────────────────
+  const MODULE_COLOR_DEFAULTS = {
+    students: '#6366f1', payments: '#00b894', seats: '#fd79a8',
+    attendance: '#0984e3', reports: '#fdcb6e', settings: '#a29bfe'
+  };
+
+  // Load saved module colors from localStorage on page open
+  const _savedMC = (() => { try { return JSON.parse(localStorage.getItem('sl_module_colors') || '{}'); } catch { return {}; } })();
+  if (_savedMC.brandColor) container.querySelector('#mc-brand-color')?.setAttribute('value', _savedMC.brandColor);
+  if (_savedMC.unified) { const el = container.querySelector('#mc-unified-mode'); if (el) el.checked = true; }
+  container.querySelectorAll('.mc-module-color').forEach(inp => {
+    const mod = inp.dataset.module;
+    if (_savedMC[mod]) inp.value = _savedMC[mod];
+  });
+
+  // Apply saved colors to CSS immediately
+  function applyModuleColors(colors) {
+    const root = document.documentElement;
+    const unified = colors.unified;
+    const brand = colors.brandColor || '#6c5ce7';
+    if (unified) {
+      ['students','payments','seats','attendance','reports','settings'].forEach(m => {
+        root.style.setProperty(`--module-color-${m}`, brand);
+      });
+      root.style.setProperty('--color-primary', brand);
+    } else {
+      Object.entries(colors).forEach(([k, v]) => {
+        if (k !== 'unified' && k !== 'brandColor' && v && v.startsWith('#')) {
+          root.style.setProperty(`--module-color-${k}`, v);
+        }
+      });
+    }
+  }
+  applyModuleColors(_savedMC);
+
+  container.querySelector('#btn-save-module-colors')?.addEventListener('click', () => {
+    const unified = container.querySelector('#mc-unified-mode')?.checked;
+    const brandColor = container.querySelector('#mc-brand-color')?.value || '#6c5ce7';
+    const colors = { unified, brandColor };
+    container.querySelectorAll('.mc-module-color').forEach(inp => {
+      colors[inp.dataset.module] = inp.value;
+    });
+    try { localStorage.setItem('sl_module_colors', JSON.stringify(colors)); } catch (e) {}
+    applyModuleColors(colors);
+    if (window.Toast) Toast.success('🎨 Module colors saved & applied!');
+  });
+
+  container.querySelector('#btn-reset-module-colors')?.addEventListener('click', () => {
+    container.querySelector('#mc-unified-mode').checked = false;
+    container.querySelector('#mc-brand-color').value = '#6c5ce7';
+    container.querySelectorAll('.mc-module-color').forEach(inp => {
+      inp.value = MODULE_COLOR_DEFAULTS[inp.dataset.module] || '#6c5ce7';
+    });
+    try { localStorage.removeItem('sl_module_colors'); } catch (e) {}
+    // Reset CSS variables
+    const root = document.documentElement;
+    Object.entries(MODULE_COLOR_DEFAULTS).forEach(([k, v]) => root.style.setProperty(`--module-color-${k}`, v));
+    if (window.Toast) Toast.success('Module colors reset to defaults');
+  });
+
+  // Live Locale / Telemetry preview
   function updateGeneralPreview() {
     const symbol = container.querySelector('#setting-currencySymbol')?.value?.trim() || '₹';
     const dateFormat = container.querySelector('#setting-dateFormat')?.value || 'DD/MM/YYYY';

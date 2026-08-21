@@ -62,44 +62,85 @@ export class DragDropList {
   destroy() { this.disable(); }
 }
 
-// 2. SidebarSortable - Reorder sidebar nav, save to API + localStorage
+// 2. SidebarSortable - Reorder sidebar nav
+//    Dual-mode: 'personal' (per-user key) + 'global' (API + shared key)
+//    Mode is set via SidebarSortable.init({ mode: 'personal' | 'global' })
+//    Default: 'personal' — each user has their own sidebar order stored by user ID.
 export const SidebarSortable = {
   _instance: null,
+  _mode: 'personal',     // 'personal' | 'global'
+  _userId: null,
 
-  init() {
+  _getStorageKey() {
+    if (this._mode === 'global') return 'sl_sidebar_order_global';
+    // Per-user key: includes user ID so each user has own order
+    const uid = this._userId || localStorage.getItem('sl_user_id') || 'default';
+    return `sl_sidebar_order_${uid}`;
+  },
+
+  init(opts = {}) {
     const Sortable = getSortable();
-    const nav = document.querySelector("nav.sidebar-nav");
+    const nav = document.querySelector('nav.sidebar-nav');
     if (!Sortable || !nav) return;
+
+    // Resolve options
+    this._mode = opts.mode || this._mode || 'personal';
+    this._userId = opts.userId || localStorage.getItem('sl_user_id') || null;
+
     this._restoreOrder(nav);
     if (this._instance) { try { this._instance.destroy(); } catch (e) {} }
+
     this._instance = Sortable.create(nav, {
-      animation: 200,
-      ghostClass: "sortable-ghost",
-      chosenClass: "sortable-chosen",
+      animation: 220,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      dragoverBubble: false,
       onEnd: () => this._saveOrder(nav)
     });
+
+    // Show mode indicator in sidebar footer if present
+    const modeEl = document.getElementById('sidebar-order-mode-badge');
+    if (modeEl) {
+      modeEl.textContent = this._mode === 'global' ? '🌐 Global Order' : '👤 Personal Order';
+      modeEl.title = this._mode === 'global'
+        ? 'This sidebar order applies to all users'
+        : 'This sidebar order is personal to you';
+    }
+  },
+
+  setMode(mode, userId) {
+    this._mode = mode;
+    if (userId) this._userId = userId;
+    const nav = document.querySelector('nav.sidebar-nav');
+    if (nav) { this._restoreOrder(nav); }
+    if (window.Toast) window.Toast.info(`Sidebar mode: ${mode === 'global' ? '🌐 Global' : '👤 Personal'}`);
   },
 
   _getNavOrder(nav) {
-    return Array.from(nav.querySelectorAll(".nav-item"))
-      .map(el => el.getAttribute("href") || el.getAttribute("data-href") || "")
+    return Array.from(nav.querySelectorAll('.nav-item'))
+      .map(el => el.getAttribute('href') || el.getAttribute('data-href') || '')
       .filter(Boolean);
   },
 
   _restoreOrder(nav) {
     try {
-      const saved = localStorage.getItem("sl_sidebar_order");
+      // Try personal key first, then global fallback
+      let saved = localStorage.getItem(this._getStorageKey());
+      if (!saved && this._mode === 'personal') {
+        saved = localStorage.getItem('sl_sidebar_order_global');
+      }
+      if (!saved) saved = localStorage.getItem('sl_sidebar_order'); // legacy
       if (!saved) return;
       const order = JSON.parse(saved);
       if (!Array.isArray(order) || !order.length) return;
-      const items = Array.from(nav.querySelectorAll(".nav-item"));
+      const items = Array.from(nav.querySelectorAll('.nav-item'));
       const frag = document.createDocumentFragment();
       order.forEach(href => {
-        const el = items.find(i => i.getAttribute("href") === href || i.getAttribute("data-href") === href);
+        const el = items.find(i => i.getAttribute('href') === href || i.getAttribute('data-href') === href);
         if (el) frag.appendChild(el);
       });
       items.forEach(el => {
-        const href = el.getAttribute("href") || el.getAttribute("data-href") || "";
+        const href = el.getAttribute('href') || el.getAttribute('data-href') || '';
         if (!order.includes(href)) frag.appendChild(el);
       });
       nav.appendChild(frag);
@@ -108,22 +149,30 @@ export const SidebarSortable = {
 
   async _saveOrder(nav) {
     const order = this._getNavOrder(nav);
-    try { localStorage.setItem("sl_sidebar_order", JSON.stringify(order)); } catch (e) {}
-    try {
-      const token = localStorage.getItem("sl_token") || "";
-      const res = await fetch("/api/settings/sidebar-config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-        body: JSON.stringify({ navOrder: order })
-      });
-      if (res.ok && window.Toast) window.Toast.success("Sidebar order saved");
-    } catch (e) {}
+    const key = this._getStorageKey();
+    try { localStorage.setItem(key, JSON.stringify(order)); } catch (e) {}
+
+    if (this._mode === 'global') {
+      // Global: persist to API so all users see same order
+      try {
+        const token = localStorage.getItem('sl_token') || '';
+        const res = await fetch('/api/settings/sidebar-config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ navOrder: order, scope: 'global' })
+        });
+        if (res.ok && window.Toast) window.Toast.success('🌐 Global sidebar order saved for all users');
+      } catch (e) {}
+    } else {
+      if (window.Toast) window.Toast.success('👤 Personal sidebar order saved');
+    }
   },
 
   destroy() {
     if (this._instance) { try { this._instance.destroy(); } catch (e) {} this._instance = null; }
   }
 };
+
 
 // 3. DashboardSortable - Reorder dashboard widgets, save to localStorage
 export const DashboardSortable = {

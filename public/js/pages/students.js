@@ -1967,175 +1967,229 @@ export async function render() {
   }
 
   async function showStudentIdCard(student) {
-    let business = { businessName: 'Study Library', tagline: 'Self Study & Reading Room', phone: '', address: '' };
+    let business = { businessName: 'Study Library', tagline: 'Self Study & Reading Room', phone: '', address: '', logo: '' };
     try {
       const bRes = await api.get('/api/settings');
-      if (bRes.success && bRes.data?.businessProfile) {
-        business = bRes.data.businessProfile;
-      }
+      if (bRes.success && bRes.data?.businessProfile) business = { ...business, ...bRes.data.businessProfile };
     } catch (e) {}
 
-    const initials = (student.name || 'S')
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-
     const planName = student.plan?.name || 'Standard Access';
-    const seatNumber = student.seat?.seatNumber || 'Floating / Any';
-    const admissionDate = student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-IN') : '-';
+    const seatNumber = student.seat?.seatNumber || 'Floating';
+    const shiftName = student.shift?.name || '';
     const expiryDate = student.expiryDate ? new Date(student.expiryDate).toLocaleDateString('en-IN') : '-';
+    const admissionDate = student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-IN') : '-';
+    const phone = student.phone || '-';
+    const initials = (student.name||'S').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
 
-    const qrData = JSON.stringify({
-      type: 'STUDENT_ID',
-      id: student.studentId,
-      name: student.name,
-      phone: student.phone
-    });
-    const qrCodeURL = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}&margin=4`;
+    // QR Code — encodes student ID + name + phone
+    const qrPayload = encodeURIComponent(JSON.stringify({ id: student.studentId, name: student.name, phone: student.phone, seat: seatNumber }));
+    const qrCodeURL = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${qrPayload}&margin=4&bgcolor=ffffff`;
 
     const cardContent = document.createElement('div');
     cardContent.innerHTML = `
-      <div class="id-card-modal-wrapper text-center">
-        <!-- Printable Physical ID Card Box -->
-        <div id="printable-id-card" style="
-          width: 320px;
-          margin: 0 auto;
-          background: #ffffff;
-          color: #1a1a2e;
-          border-radius: 12px;
-          border: 2px solid #6c5ce7;
-          overflow: hidden;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-          font-family: 'Outfit', sans-serif;
-          position: relative;
-          text-align: left;
-        ">
-          <!-- Card Header Banner -->
-          <div style="background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; padding: 14px 16px; text-align: center;">
-            <div style="font-weight: 800; font-size: 1.15rem; letter-spacing: 0.5px; text-transform: uppercase;">
-              ${escapeHTML(business.businessName || 'Study Library')}
-            </div>
-            <div style="font-size: 0.75rem; opacity: 0.9; margin-top: 2px;">
-              ${escapeHTML(business.tagline || 'Student Membership Card')}
-            </div>
-          </div>
+      <div class="id-card-studio" style="font-family:'Outfit',sans-serif;">
 
-          <!-- Card Body -->
-          <div style="padding: 16px;">
-            <!-- Avatar & ID Badge -->
-            <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 14px;">
-              <div style="
-                width: 68px;
-                height: 68px;
-                border-radius: 50%;
-                background: #f0f2f5;
-                color: #6c5ce7;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 1.4rem;
-                font-weight: 800;
-                border: 3px solid #6c5ce7;
-                flex-shrink: 0;
-              ">
-                ${initials}
+        <!-- Live Card Preview -->
+        <div style="display:flex;justify-content:center;margin-bottom:18px;" id="id-card-preview-wrap">
+          <div id="printable-id-card" style="
+            width:340px;min-height:210px;background:linear-gradient(145deg,#ffffff 60%,#f0eeff 100%);
+            color:#1a1a2e;border-radius:14px;border:2.5px solid #6c5ce7;overflow:hidden;
+            box-shadow:0 12px 32px rgba(108,92,231,0.22);font-family:'Outfit',sans-serif;
+            position:relative;user-select:none;
+          ">
+            <!-- Header Bar -->
+            <div style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;">
+              ${business.logo ? `<img src="${business.logo}" style="height:34px;width:34px;border-radius:6px;object-fit:cover;background:#fff;flex-shrink:0;">` : `<div style="width:34px;height:34px;border-radius:6px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">📚</div>`}
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:800;font-size:0.95rem;letter-spacing:0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(business.businessName)}</div>
+                <div style="font-size:0.68rem;opacity:0.88;margin-top:1px;">${escapeHTML(business.tagline || 'Student Membership Card')}</div>
               </div>
-              <div>
-                <h4 style="margin: 0 0 4px 0; font-size: 1.1rem; font-weight: 700; color: #2d3436;">
-                  ${escapeHTML(student.name)}
-                </h4>
-                <div style="font-size: 0.8rem; background: #eef2ff; color: #4338ca; padding: 2px 8px; border-radius: 4px; display: inline-block; font-weight: 700; font-family: monospace;">
-                  ${escapeHTML(student.studentId || 'STU-MEMBER')}
+              <div style="font-size:0.62rem;opacity:0.8;text-align:right;flex-shrink:0;">STUDENT ID</div>
+            </div>
+
+            <!-- Card Body -->
+            <div style="padding:12px 14px;display:flex;gap:12px;align-items:flex-start;">
+              <!-- Photo -->
+              <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <div style="width:68px;height:68px;border-radius:8px;background:#eef2ff;color:#6c5ce7;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;border:2px solid #6c5ce7;overflow:hidden;" id="id-card-photo">
+                  ${student.photo ? `<img src="${student.photo}" style="width:100%;height:100%;object-fit:cover;">` : initials}
+                </div>
+                <img src="${qrCodeURL}" alt="QR" style="width:60px;height:60px;border-radius:4px;border:1px solid #e2e8f0;">
+              </div>
+
+              <!-- Fields -->
+              <div style="flex:1;min-width:0;">
+                <!-- Name -->
+                <div style="font-weight:800;font-size:1.05rem;color:#2d3436;margin-bottom:4px;line-height:1.2;">${escapeHTML(student.name)}</div>
+                <!-- Roll No / Student ID -->
+                <div style="background:#eef2ff;color:#4338ca;padding:2px 8px;border-radius:4px;display:inline-block;font-weight:700;font-size:0.72rem;font-family:monospace;margin-bottom:8px;">${escapeHTML(student.studentId || 'STU-MEMBER')}</div>
+
+                <!-- Info Grid -->
+                <div style="font-size:0.75rem;color:#4a5568;display:grid;grid-template-columns:auto 1fr;row-gap:2px;column-gap:6px;">
+                  <span style="font-weight:700;color:#718096;">Seat</span><span style="font-weight:700;color:#6c5ce7;">${escapeHTML(seatNumber)}</span>
+                  <span style="font-weight:700;color:#718096;">Plan</span><span>${escapeHTML(planName)}</span>
+                  <span style="font-weight:700;color:#718096;">Phone</span><span>${escapeHTML(phone)}</span>
+                  <span style="font-weight:700;color:#718096;">Valid Till</span><span style="font-weight:700;color:#e53e3e;">${escapeHTML(expiryDate)}</span>
+                  ${shiftName ? `<span style="font-weight:700;color:#718096;">Shift</span><span>${escapeHTML(shiftName)}</span>` : ''}
                 </div>
               </div>
             </div>
 
-            <!-- Details List -->
-            <div style="font-size: 0.82rem; line-height: 1.6; border-top: 1px dashed #e2e8f0; padding-top: 10px; color: #4a5568;">
-              <div style="display: flex; justify-content: space-between;">
-                <strong>Assigned Seat:</strong>
-                <span style="font-weight: 700; color: #6c5ce7;">${escapeHTML(seatNumber)}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between;">
-                <strong>Plan:</strong>
-                <span>${escapeHTML(planName)}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between;">
-                <strong>Phone:</strong>
-                <span>${escapeHTML(student.phone || '-')}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between;">
-                <strong>Issued On:</strong>
-                <span>${admissionDate}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between;">
-                <strong>Valid Till:</strong>
-                <span style="font-weight: 700; color: #e53e3e;">${expiryDate}</span>
-              </div>
+            <!-- Footer -->
+            <div style="background:#f7fafc;border-top:1px dashed #e2e8f0;padding:5px 14px;display:flex;justify-content:space-between;align-items:center;font-size:0.62rem;color:#718096;">
+              <span>Issued: ${escapeHTML(admissionDate)}</span>
+              <span style="font-weight:700;letter-spacing:0.5px;">NON-TRANSFERABLE</span>
+              <span>${escapeHTML(business.phone || '')}</span>
             </div>
-
-            <!-- QR Code -->
-            <div style="text-align: center; margin: 8px 0;">
-              <img src="${qrCodeURL}" alt="Student QR" style="width: 90px; height: 90px; border-radius: 4px;">
-              <div style="font-size: 0.65rem; color: #718096; letter-spacing: 1px; margin-top: 2px;">
-                ${escapeHTML(student.studentId || '')}
-              </div>
-            </div>
-          </div>
-
-          <!-- Card Footer Banner -->
-          <div style="background: #f7fafc; border-top: 1px solid #edf2f7; padding: 6px 12px; font-size: 0.65rem; color: #718096; text-align: center;">
-            ${escapeHTML(business.phone ? 'Helpdesk: ' + business.phone : 'Non-Transferable • Carry Daily')}
           </div>
         </div>
 
-        <div style="margin-top: 16px; font-size: 0.85rem; color: var(--color-text-secondary); text-align: left; padding: 0 16px;" class="d-print-none">
-          <div style="font-weight: 600; margin-bottom: 4px; color: var(--color-text-primary);">Smart ID Options</div>
-          <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
-            <li>QR Code (Active)</li>
-            <li>RFID: ${student.rfidCardNumber ? `<span style="font-family: monospace;">${escapeHTML(student.rfidCardNumber)}</span>` : 'Not Assigned'}</li>
-            <li>Biometric: ${student.biometricId ? `<span style="font-family: monospace;">${escapeHTML(student.biometricId)}</span>` : 'Not Assigned'}</li>
-          </ul>
+        <!-- Card Style Controls -->
+        <div style="background:var(--color-bg-secondary,rgba(0,0,0,0.04));border-radius:10px;padding:12px 14px;margin-bottom:14px;border:1px solid var(--color-border);">
+          <div style="font-weight:700;font-size:0.82rem;margin-bottom:10px;color:var(--color-text-primary);">🎨 Card Theme & Style</div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+            <div>
+              <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:3px;">Primary Color</label>
+              <input type="color" id="id-card-color" value="#6c5ce7" style="width:40px;height:32px;border:none;padding:0;cursor:pointer;border-radius:6px;">
+            </div>
+            <div>
+              <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:3px;">Card Style</label>
+              <select id="id-card-style" class="form-select form-control-sm" style="font-size:0.78rem;min-width:120px;">
+                <option value="gradient">Gradient Purple</option>
+                <option value="dark">Dark Pro</option>
+                <option value="minimal">Minimal White</option>
+                <option value="colorful">Colorful Bright</option>
+              </select>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:8px;">
+              <button class="btn btn-sm btn-outline-secondary" id="btn-id-flip" title="Show Back Side">🔄 Flip</button>
+            </div>
+          </div>
         </div>
 
         <!-- Action Controls -->
-        <div class="d-flex justify-content-center gap-3 mt-4">
-          <button class="btn btn-primary" id="btn-print-id-card">
-            🖨️ Print Student ID Card
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+          <button class="btn btn-primary" id="btn-download-id-png">
+            📥 Download PNG
           </button>
-          <button class="btn btn-secondary modal-close-btn" onclick="Modal.close()">
-            Close
+          <button class="btn btn-outline-secondary" id="btn-print-id-card">
+            🖨️ Print
           </button>
+          <button class="btn btn-secondary" onclick="Modal.closeAll()">Close</button>
         </div>
-      </div>
 
-      <style>
-        @media print {
-          body * { visibility: hidden; }
-          #printable-id-card, #printable-id-card * { visibility: visible; }
-          #printable-id-card {
-            position: absolute;
-            left: 50%;
-            top: 20px;
-            transform: translateX(-50%);
-            box-shadow: none !important;
-            border: 2px solid #000 !important;
+        <style>
+          @media print {
+            body * { visibility: hidden; }
+            #printable-id-card, #printable-id-card * { visibility: visible; }
+            #printable-id-card { position: absolute; left: 50%; top: 20px; transform: translateX(-50%); box-shadow: none !important; }
           }
-        }
-      </style>
-    `;
+        </style>
+      </div>`;
 
-    const idModal = new Modal({
-      title: `Student ID Card: ${escapeHTML(student.name)}`,
-      content: cardContent,
-      size: 'md'
-    });
+    const idModal = new Modal({ title: `🪪 Student ID Card: ${escapeHTML(student.name)}`, content: cardContent, size: 'md' });
     idModal.show();
 
-    cardContent.querySelector('#btn-print-id-card')?.addEventListener('click', () => {
-      window.print();
+    // Print button
+    cardContent.querySelector('#btn-print-id-card')?.addEventListener('click', () => window.print());
+
+    // Download PNG via html2canvas CDN (lazy-loaded)
+    cardContent.querySelector('#btn-download-id-png')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.textContent = '⏳ Generating...';
+      btn.disabled = true;
+      try {
+        // Dynamically load html2canvas
+        if (!window.html2canvas) {
+          await new Promise((res, rej) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+            s.onload = res; s.onerror = rej;
+            document.head.appendChild(s);
+          });
+        }
+        const cardEl = cardContent.querySelector('#printable-id-card');
+        const canvas = await window.html2canvas(cardEl, { scale: 3, useCORS: true, backgroundColor: null });
+        const link = document.createElement('a');
+        link.download = `ID_${(student.studentId||student.name||'student').replace(/\s+/g,'_')}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        Toast.success('ID Card downloaded as PNG!');
+      } catch (err) {
+        Toast.error('PNG download requires internet (html2canvas CDN). Try Print instead.');
+      } finally {
+        btn.textContent = '📥 Download PNG';
+        btn.disabled = false;
+      }
+    });
+
+    // Theme color picker
+    cardContent.querySelector('#id-card-color')?.addEventListener('input', (e) => {
+      const color = e.target.value;
+      const card = cardContent.querySelector('#printable-id-card');
+      if (!card) return;
+      card.style.borderColor = color;
+      const header = card.querySelector('div[style*="linear-gradient"]');
+      if (header) header.style.background = `linear-gradient(135deg, ${color}, ${color}bb)`;
+      const rollBadge = card.querySelector('div[style*="eef2ff"]');
+      if (rollBadge) { rollBadge.style.background = color + '22'; rollBadge.style.color = color; }
+      const seatVal = card.querySelector('span[style*="#6c5ce7"]');
+      if (seatVal) seatVal.style.color = color;
+      card.style.boxShadow = `0 12px 32px ${color}44`;
+    });
+
+    // Style presets
+    cardContent.querySelector('#id-card-style')?.addEventListener('change', (e) => {
+      const card = cardContent.querySelector('#printable-id-card');
+      if (!card) return;
+      const styles = {
+        gradient: 'linear-gradient(145deg,#ffffff 60%,#f0eeff 100%)',
+        dark: 'linear-gradient(145deg,#1a1a2e,#16213e)',
+        minimal: '#ffffff',
+        colorful: 'linear-gradient(145deg,#fff9f0,#f0fff4)'
+      };
+      card.style.background = styles[e.target.value] || styles.gradient;
+      if (e.target.value === 'dark') {
+        card.style.color = '#f0f0f0';
+      } else {
+        card.style.color = '#1a1a2e';
+      }
+    });
+
+    // Flip to show back side
+    let showingBack = false;
+    cardContent.querySelector('#btn-id-flip')?.addEventListener('click', () => {
+      const card = cardContent.querySelector('#printable-id-card');
+      if (!card) return;
+      showingBack = !showingBack;
+      if (showingBack) {
+        card.style.transform = 'rotateY(180deg)';
+        card.style.transition = 'transform 0.5s ease';
+        setTimeout(() => {
+          card.innerHTML = `
+            <div style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff;padding:12px 16px;text-align:center;">
+              <div style="font-weight:800;font-size:1rem;">${escapeHTML(business.businessName)}</div>
+              <div style="font-size:0.7rem;opacity:0.85;">Student Terms & Conditions</div>
+            </div>
+            <div style="padding:14px;font-size:0.75rem;color:#4a5568;line-height:1.7;">
+              <ul style="margin:0;padding-left:16px;">
+                <li>This card is non-transferable and must be carried daily.</li>
+                <li>Lost card must be reported immediately to the admin.</li>
+                <li>Membership is valid only till the date shown on front.</li>
+                <li>Entry after expiry is not permitted without renewal.</li>
+                <li>Damage to library property will attract fines.</li>
+              </ul>
+            </div>
+            <div style="text-align:center;padding:8px;border-top:1px dashed #e2e8f0;font-size:0.65rem;color:#718096;">
+              ${escapeHTML(business.phone || '')} • ${escapeHTML(business.address || '')}
+            </div>`;
+          card.style.transform = 'rotateY(0)';
+        }, 250);
+      } else {
+        // Re-render front side by re-calling
+        idModal.close();
+        setTimeout(() => showStudentIdCard(student), 100);
+      }
     });
   }
 
