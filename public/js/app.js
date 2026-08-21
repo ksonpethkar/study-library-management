@@ -338,6 +338,12 @@ class Application {
         }, 5000);
       }
     }
+
+    // ── Phase 7: Notification Center ──────────────────────────────────────
+    if (store.user?.role !== 'student' && !this._notifInit) {
+      this._notifInit = true;
+      initNotificationCenter();
+    }
   }
 
   updateUserAvatarHeader() {
@@ -606,3 +612,334 @@ window.reloadSidebar = () => App.updateSidebarForRole();
 document.addEventListener('DOMContentLoaded', () => {
   App.init();
 });
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PHASE 7 — Notification Center, Confetti, Swipe Row Actions
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ── 1. Notification Center ────────────────────────────────────────────────
+function initNotificationCenter() {
+  const btn   = document.getElementById('notif-btn');
+  const badge = document.getElementById('notif-badge');
+  if (!btn) return;
+
+  // Inject dropdown panel into header area once
+  if (!document.getElementById('notif-panel')) {
+    const panel = document.createElement('div');
+    panel.id = 'notif-panel';
+    panel.style.cssText = `
+      display:none; position:fixed; top:60px; right:12px; z-index:9999;
+      width:340px; max-width:calc(100vw - 24px);
+      background:#1e293b; border:1px solid rgba(255,255,255,0.1);
+      border-radius:16px; box-shadow:0 16px 48px rgba(0,0,0,0.5);
+      overflow:hidden; animation:paletteSlideIn 0.18s ease;
+    `;
+    panel.innerHTML = `
+      <div style="padding:14px 16px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between;">
+        <span style="font-weight:700; font-size:0.95rem;">🔔 Notifications</span>
+        <div style="display:flex;gap:8px;">
+          <button id="notif-mark-all" style="font-size:0.72rem;padding:3px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:#94a3b8;cursor:pointer;font-weight:600;">Mark all read</button>
+          <button id="notif-clear-read" style="font-size:0.72rem;padding:3px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:#94a3b8;cursor:pointer;font-weight:600;">Clear read</button>
+        </div>
+      </div>
+      <div id="notif-list" style="max-height:360px;overflow-y:auto;"></div>
+      <div style="padding:10px 16px;border-top:1px solid rgba(255,255,255,0.08);font-size:0.72rem;color:#64748b;text-align:center;">
+        Showing last 30 notifications
+      </div>
+    `;
+    document.body.appendChild(panel);
+  }
+
+  const panel = document.getElementById('notif-panel');
+  const list  = document.getElementById('notif-list');
+
+  // Type → emoji/color map
+  const typeMap = {
+    expiry:    { emoji: '⏰', color: '#e17055' },
+    payment:   { emoji: '💳', color: '#00b894' },
+    admission: { emoji: '🎓', color: '#6c5ce7' },
+    seat:      { emoji: '🪑', color: '#fd79a8' },
+    student:   { emoji: '👤', color: '#0984e3' },
+    system:    { emoji: '⚙️', color: '#74b9ff' },
+    general:   { emoji: '📢', color: '#a29bfe' },
+  };
+
+  function timeAgo(date) {
+    const diff = Date.now() - new Date(date).getTime();
+    const mins  = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days  = Math.floor(diff / 86400000);
+    if (mins < 1)   return 'just now';
+    if (mins < 60)  return `${mins}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  }
+
+  async function loadNotifications() {
+    try {
+      const res = await api.get('/api/notifications');
+      if (!res.success) return;
+      const { notifications, unreadCount } = res.data;
+
+      // Update badge
+      if (badge) {
+        badge.textContent = unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : '';
+        badge.style.display = unreadCount > 0 ? 'flex' : 'none';
+      }
+
+      // Render list
+      if (!notifications || notifications.length === 0) {
+        list.innerHTML = `<div style="padding:32px;text-align:center;color:#64748b;">
+          <div style="font-size:2rem;margin-bottom:8px;">🔔</div>
+          <div>No notifications yet</div>
+        </div>`;
+        return;
+      }
+
+      list.innerHTML = notifications.map(n => {
+        const t = typeMap[n.type] || typeMap.general;
+        const bg = n.isRead ? 'transparent' : 'rgba(108,92,231,0.07)';
+        const dot = n.isRead ? '' : `<span style="width:7px;height:7px;border-radius:50%;background:#6c5ce7;flex-shrink:0;margin-top:4px;"></span>`;
+        return `
+          <div class="notif-item" data-id="${n._id}" data-link="${n.link || ''}" style="
+            display:flex;gap:12px;align-items:flex-start;
+            padding:12px 16px;cursor:pointer;
+            background:${bg};border-bottom:1px solid rgba(255,255,255,0.05);
+            transition:background 0.15s ease;
+          " onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background='${bg}'">
+            <div style="font-size:1.3rem;flex-shrink:0;">${t.emoji}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:${n.isRead ? 500 : 700};font-size:0.85rem;color:#e2e8f0;line-height:1.3;">${n.title}</div>
+              <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;line-height:1.4;">${n.message}</div>
+              <div style="font-size:0.7rem;color:#64748b;margin-top:4px;">${timeAgo(n.createdAt)}</div>
+            </div>
+            ${dot}
+          </div>`;
+      }).join('');
+
+      // Wire row clicks
+      list.querySelectorAll('.notif-item').forEach(item => {
+        item.addEventListener('click', async () => {
+          const id = item.dataset.id;
+          const link = item.dataset.link;
+          // Mark as read
+          await api.put(`/api/notifications/${id}/read`).catch(() => {});
+          item.style.background = 'transparent';
+          item.querySelector('span[style*="border-radius:50%"]')?.remove();
+          // Update badge
+          const cur = parseInt(badge.textContent) || 0;
+          if (cur > 0) {
+            badge.textContent = cur - 1 || '';
+            badge.style.display = cur - 1 > 0 ? 'flex' : 'none';
+          }
+          // Navigate
+          if (link) { window.location.hash = link; closePanel(); }
+        });
+      });
+    } catch (e) {}
+  }
+
+  function closePanel() {
+    panel.style.display = 'none';
+  }
+
+  // Toggle on bell click
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = panel.style.display === 'block';
+    panel.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) loadNotifications();
+  });
+
+  // Mark all read
+  document.getElementById('notif-mark-all')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await api.put('/api/notifications/read-all').catch(() => {});
+    if (badge) { badge.textContent = ''; badge.style.display = 'none'; }
+    await loadNotifications();
+  });
+
+  // Clear read
+  document.getElementById('notif-clear-read')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await api.delete('/api/notifications/clear-read').catch(() => {});
+    await loadNotifications();
+  });
+
+  // Close on outside click
+  document.addEventListener('click', (e) => {
+    if (!panel.contains(e.target) && e.target !== btn) closePanel();
+  });
+
+  // Initial load + poll every 60s
+  loadNotifications();
+  setInterval(loadNotifications, 60000);
+
+  // Expose for external callers (e.g. after creating new admission)
+  window.refreshNotifications = loadNotifications;
+}
+
+// ── 2. Confetti Celebration ───────────────────────────────────────────────
+export function confettiCelebrate(opts = {}) {
+  const { duration = 2000, colors = ['#6c5ce7','#a29bfe','#00b894','#fdcb6e','#fd79a8','#e17055'] } = opts;
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;pointer-events:none;';
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const pieces = Array.from({ length: 120 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height - canvas.height,
+    r: Math.random() * 7 + 3,
+    d: Math.random() * 120 + 40,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    tilt: Math.random() * 10 - 10,
+    tiltAngle: 0,
+    tiltSpeed: Math.random() * 0.1 + 0.05,
+    vx: Math.random() * 2 - 1,
+    vy: Math.random() * 3 + 2
+  }));
+
+  let start = null;
+  function draw(ts) {
+    if (!start) start = ts;
+    const elapsed = ts - start;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      p.tiltAngle += p.tiltSpeed;
+      p.y += p.vy;
+      p.x += p.vx;
+      p.tilt = Math.sin(p.tiltAngle) * 15;
+      if (p.y > canvas.height) { p.y = -10; p.x = Math.random() * canvas.width; }
+      ctx.beginPath();
+      ctx.lineWidth = p.r;
+      ctx.strokeStyle = p.color;
+      ctx.moveTo(p.x + p.tilt + p.r / 2, p.y);
+      ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 2);
+      ctx.stroke();
+    });
+    if (elapsed < duration) requestAnimationFrame(draw);
+    else canvas.remove();
+  }
+  requestAnimationFrame(draw);
+}
+window.confettiCelebrate = confettiCelebrate;
+
+// ── 3. SwipeRow — Touch swipe-left to reveal action buttons on list rows ──
+export class SwipeRow {
+  /**
+   * @param {HTMLElement} row      - The <tr> or <div> row element
+   * @param {Array} actions        - [{ label, color, icon, onClick }]
+   * @param {Object} opts          - { threshold: 72 }
+   */
+  constructor(row, actions = [], opts = {}) {
+    this.row = row;
+    this.actions = actions;
+    this.threshold = opts.threshold || 72;
+    this._startX = 0;
+    this._currentX = 0;
+    this._dragging = false;
+    this._actionsEl = null;
+    this._init();
+  }
+
+  _init() {
+    this.row.style.position = 'relative';
+    this.row.style.overflow = 'hidden';
+    this.row.style.transition = 'transform 0.2s ease';
+    this.row.style.touchAction = 'pan-y';
+
+    // Build hidden actions panel
+    const panel = document.createElement('div');
+    panel.className = 'swipe-row-actions';
+    panel.style.cssText = `
+      position:absolute;right:0;top:0;height:100%;
+      display:flex;align-items:stretch;
+      transform:translateX(100%);transition:transform 0.2s ease;
+      z-index:2;
+    `;
+    this.actions.forEach(action => {
+      const btn = document.createElement('button');
+      btn.style.cssText = `
+        background:${action.color || '#e17055'};color:#fff;border:none;
+        padding:0 18px;font-size:0.82rem;font-weight:700;cursor:pointer;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+        min-width:64px;
+      `;
+      btn.innerHTML = `<span style="font-size:1.2rem;">${action.icon || '⚡'}</span><span>${action.label || ''}</span>`;
+      btn.addEventListener('click', (e) => { e.stopPropagation(); this.close(); action.onClick?.(); });
+      panel.appendChild(btn);
+    });
+    this.row.appendChild(panel);
+    this._actionsEl = panel;
+
+    // Touch events
+    this.row.addEventListener('touchstart', this._onStart.bind(this), { passive: true });
+    this.row.addEventListener('touchmove',  this._onMove.bind(this),  { passive: false });
+    this.row.addEventListener('touchend',   this._onEnd.bind(this));
+  }
+
+  _onStart(e) {
+    this._startX  = e.touches[0].clientX;
+    this._dragging = true;
+  }
+
+  _onMove(e) {
+    if (!this._dragging) return;
+    this._currentX = e.touches[0].clientX - this._startX;
+    // Only swipe left
+    if (this._currentX < 0) {
+      e.preventDefault();
+      const offset = Math.max(this._currentX, -this._actionsEl.offsetWidth);
+      this.row.style.transform = `translateX(${offset}px)`;
+    }
+  }
+
+  _onEnd() {
+    this._dragging = false;
+    if (this._currentX < -this.threshold) {
+      this.open();
+    } else {
+      this.close();
+    }
+    this._currentX = 0;
+  }
+
+  open() {
+    const w = this._actionsEl.offsetWidth;
+    this.row.style.transform = `translateX(-${w}px)`;
+    this._actionsEl.style.transform = 'translateX(0)';
+    // Close on outside click
+    setTimeout(() => {
+      document.addEventListener('click', () => this.close(), { once: true });
+    }, 50);
+  }
+
+  close() {
+    this.row.style.transform = 'translateX(0)';
+    this._actionsEl.style.transform = 'translateX(100%)';
+  }
+
+  /** Convenience: attach to all rows in a tbody */
+  static attachToTable(tbody, getActions) {
+    if (!tbody) return;
+    tbody.querySelectorAll('tr').forEach(row => {
+      if (!row._swipeRow) {
+        row._swipeRow = new SwipeRow(row, getActions(row));
+      }
+    });
+    // Re-attach when tbody changes
+    const obs = new MutationObserver(() => {
+      tbody.querySelectorAll('tr').forEach(row => {
+        if (!row._swipeRow) {
+          row._swipeRow = new SwipeRow(row, getActions(row));
+        }
+      });
+    });
+    obs.observe(tbody, { childList: true });
+    return obs;
+  }
+}
+window.SwipeRow = SwipeRow;

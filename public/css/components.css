@@ -2769,3 +2769,79 @@ html.dark-theme .bottom-sheet {
   transition: transform 0.15s ease;
 }
 
+
+/* ============================================================
+   PHASE 7 — Notification Center, SwipeRow, Confetti, Charts
+   ============================================================ */
+
+/* ── Notification Bell Badge ────────────────────────────────── */
+#notif-btn {
+  position: relative;
+}
+.notif-badge {
+  position: absolute;
+  top: 2px; right: 2px;
+  min-width: 16px; height: 16px;
+  background: #e17055;
+  color: #fff;
+  font-size: 0.6rem; font-weight: 800;
+  border-radius: 99px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+  border: 2px solid var(--color-bg, #0f172a);
+  pointer-events: none;
+}
+
+/* ── Notification Panel ─────────────────────────────────────── */
+#notif-panel {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+#notif-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+#notif-list::-webkit-scrollbar { width: 4px; }
+#notif-list::-webkit-scrollbar-track { background: transparent; }
+#notif-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+#notif-mark-all:hover,
+#notif-clear-read:hover {
+  background: rgba(255,255,255,0.08) !important;
+  color: #e2e8f0 !important;
+}
+
+.notif-item {
+  transition: background 0.12s ease;
+}
+
+/* ── SwipeRow Action Buttons ─────────────────────────────────── */
+.swipe-row-actions button {
+  transition: filter 0.1s ease;
+}
+.swipe-row-actions button:hover {
+  filter: brightness(1.15);
+}
+.swipe-row-actions button:active {
+  filter: brightness(0.9);
+}
+
+/* ── Confetti Canvas overlay (pointer-events:none set inline) ── */
+/* no extra CSS needed — canvas is self-removing after duration */
+
+/* ── Chart containers consistent sizing ─────────────────────── */
+canvas[id$="Chart"],
+canvas[id$="chart"] {
+  display: block;
+  max-height: 220px;
+}
+
+/* ── Sparkline inline canvas ─────────────────────────────────── */
+canvas.sparkline {
+  display: inline-block;
+  vertical-align: middle;
+}
+

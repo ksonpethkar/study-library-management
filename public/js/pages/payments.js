@@ -730,6 +730,11 @@ export async function render(container) {
                 if (res.success) {
                     modal.hide();
                     Toast.success('Payment collected successfully!');
+                    // 🎉 Phase 7: Confetti on payment success (green/teal theme)
+                    if (typeof window.confettiCelebrate === 'function') {
+                      window.confettiCelebrate({ duration: 1800, colors: ['#00b894','#00cec9','#55efc4','#6c5ce7','#fdcb6e'] });
+                    }
+                    if (typeof window.refreshNotifications === 'function') window.refreshNotifications();
                     await IDBStorage.clear('payments');
                     loadStats();
                     loadPayments();

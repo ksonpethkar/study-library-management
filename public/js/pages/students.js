@@ -1050,6 +1050,12 @@ export async function render() {
                 apiCall: () => isEdit ? api.put(`/api/students/${student._id}`, data) : api.post('/api/students', data),
                 onSuccess: async (res) => {
                   Toast.success(res.message || 'Student saved successfully');
+                  // 🎉 Phase 7: Confetti celebration on new admission
+                  if (!isEdit && typeof window.confettiCelebrate === 'function') {
+                    window.confettiCelebrate({ duration: 2500 });
+                  }
+                  // Refresh notification bell badge
+                  if (typeof window.refreshNotifications === 'function') window.refreshNotifications();
                   m.close();
                   await IDBStorage.clear('students');
                   loadStats();
