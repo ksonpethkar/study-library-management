@@ -1411,3 +1411,262 @@ nav.header {
 
 /* ── END PHASE C ────────────────────────────────────────────────────────*/
 
+
+/* ╔══════════════════════════════════════════════════════════════════════╗
+   ║  PHASE D — Final Polish                                             ║
+   ║  Performance, UX micro-details, PWA, accessibility                 ║
+   ╚══════════════════════════════════════════════════════════════════════╝ */
+
+/* ── 1. Tap Highlight: remove blue flash on tap (all interactive) ─────────*/
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Restore for actual text/links where selection matters */
+a, a * {
+  -webkit-tap-highlight-color: rgba(108, 92, 231, 0.12);
+}
+
+/* ── 2. Overscroll Behavior: prevent body rubber-band from bubbling ───────*/
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Modal / bottom-sheet: allow their own scroll, not body */
+.modal-backdrop,
+.custom-modal,
+.bottom-sheet,
+#notif-panel {
+  overscroll-behavior: contain;
+}
+
+/* ── 3. GPU-accelerated cards for 60fps scrolling ────────────────────────*/
+.card {
+  contain: layout style;
+  transform: translateZ(0);
+  will-change: auto;
+}
+
+/* Cards that animate (hover): enable GPU */
+.card:hover,
+.student-row:hover,
+.payment-row:hover,
+.plan-card:hover,
+.shift-card:hover {
+  will-change: transform, box-shadow;
+}
+
+/* ── 4. Smooth scrolling in all scrollable containers ────────────────────*/
+.sidebar,
+.page-content,
+#page-content,
+.modal-body,
+.bottom-sheet,
+#notif-panel,
+.table-responsive,
+.settings-tab-list {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* ── 5. Scrollbar styling — thin on mobile ───────────────────────────────*/
+@media (max-width: 768px) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 9999px;
+  }
+}
+
+/* ── 6. Loading skeleton — mobile height adjustment ──────────────────────*/
+.global-page-loader-overlay {
+  padding-bottom: max(80px, env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* ── 7. Bottom nav: smooth hide/show animation (keyboard detection) ──────*/
+.mobile-bottom-nav {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.mobile-bottom-nav[style*="display: none"] {
+  transform: translateY(100%) !important;
+  opacity: 0 !important;
+}
+
+/* ── 8. Bottom nav active indicator dot ─────────────────────────────────*/
+.mobile-tab-item.active::after {
+  content: '';
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-primary, #6366f1);
+  margin: 2px auto 0 auto;
+}
+
+/* ── 9. Page transitions: reduce motion for accessibility ────────────────*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── 10. Long press prevention on images / cards ────────────────────────*/
+@media (max-width: 768px) {
+  img,
+  .card,
+  .seat-box,
+  .plan-card {
+    -webkit-user-drag: none;
+    user-drag: none;
+  }
+}
+
+/* ── 11. Momentum-scrolling for all containers ───────────────────────────*/
+@media (max-width: 768px) {
+  .sidebar-nav {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    max-height: calc(100vh - 130px);
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+}
+
+/* ── 12. Status bar safe area — header height includes notch ─────────────*/
+@supports (padding-top: env(safe-area-inset-top)) {
+  .header,
+  .app-header {
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+}
+
+/* ── 13. Bottom nav text: don't clip on tiny phones (<360px) ────────────*/
+@media (max-width: 360px) {
+  .mobile-tab-item {
+    font-size: 0.62rem !important;
+    gap: 2px !important;
+  }
+
+  .mobile-tab-item svg,
+  .mobile-tab-item .tab-icon {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .mobile-bottom-nav {
+    height: 56px !important;
+  }
+}
+
+/* ── 14. Page content top: don't overlap header ──────────────────────────*/
+@media (max-width: 768px) {
+  #page-content,
+  .page-content {
+    scroll-padding-top: 60px; /* for anchor links / in-page nav */
+  }
+}
+
+/* ── 15. Button press feedback: scale down on active ────────────────────*/
+@media (max-width: 768px) {
+  .btn:active:not(:disabled) {
+    transform: scale(0.96);
+    transition: transform 0.08s ease;
+  }
+
+  /* Don't scale nav items (has its own scale) */
+  .mobile-tab-item:active {
+    transform: scale(0.88) !important;
+  }
+}
+
+/* ── 16. Toast notifications: position above bottom nav on mobile ─────────*/
+@media (max-width: 768px) {
+  .toast-container,
+  #toast-container,
+  .toast-wrap {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 12px !important;
+    right: 12px !important;
+    top: auto !important;
+    width: auto !important;
+  }
+}
+
+/* ── 17. Notification badge: proper positioning on mobile ────────────────*/
+@media (max-width: 768px) {
+  #notif-btn {
+    position: relative;
+  }
+
+  #notif-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    font-size: 0.65rem;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    line-height: 18px;
+  }
+}
+
+/* ── 18. Heatmap: responsive on mobile ───────────────────────────────────*/
+@media (max-width: 640px) {
+  .heatmap-wrap,
+  .attendance-heatmap,
+  [id*="heatmap"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .heatmap-wrap svg,
+  .attendance-heatmap svg {
+    min-width: 320px; /* keep readable, allow scroll */
+  }
+}
+
+/* ── 19. WhatsApp blast modal: recipient list scrollable ─────────────────*/
+@media (max-width: 640px) {
+  #wa-blast-recipient-list,
+  .wa-recipient-list {
+    max-height: 180px !important;
+    overflow-y: auto;
+  }
+}
+
+/* ── 20. Final: remove outline on tap (iOS blue ring) — keep for keyboard ─*/
+@media (hover: none) and (pointer: coarse) {
+  /* Touch device: no focus outline (we have our own styles) */
+  :focus:not(:focus-visible) {
+    outline: none !important;
+  }
+
+  /* But keep visible for keyboard/tab navigation */
+  :focus-visible {
+    outline: 2px solid var(--color-primary, #6366f1) !important;
+    outline-offset: 2px !important;
+  }
+}
+
+/* ── END PHASE D ─────────────────────────────────────────────────────────*/
+

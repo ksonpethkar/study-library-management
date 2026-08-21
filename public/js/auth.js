@@ -268,6 +268,44 @@ export async function initAppEvents() {
     document.getElementById('sidebar-overlay')?.classList.remove('visible');
   });
 
+  // ── Phase D: Swipe-right from left edge to open sidebar (native app feel) ──
+  // Swipe left on open sidebar to close it
+  (() => {
+    let touchStartX = 0, touchStartY = 0;
+    const EDGE_ZONE = 28;       // px from left edge to begin swipe detection
+    const MIN_SWIPE = 55;       // minimum horizontal distance to trigger open
+    const MAX_VERT  = 60;       // max vertical drift allowed (not a scroll)
+
+    document.addEventListener('touchstart', (e) => {
+      if (!e.touches || e.touches.length !== 1) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      if (!e.changedTouches || e.changedTouches.length !== 1) return;
+      if (window.innerWidth > 768) return; // desktop: do nothing
+
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+      const sidebar  = document.getElementById('sidebar');
+      const overlay  = document.getElementById('sidebar-overlay');
+
+      // Swipe RIGHT from left edge → open sidebar
+      if (touchStartX <= EDGE_ZONE && dx > MIN_SWIPE && dy < MAX_VERT) {
+        sidebar?.classList.add('mobile-open');
+        overlay?.classList.add('visible');
+        return;
+      }
+
+      // Swipe LEFT on open sidebar → close it
+      if (sidebar?.classList.contains('mobile-open') && dx < -MIN_SWIPE && dy < MAX_VERT) {
+        sidebar.classList.remove('mobile-open');
+        overlay?.classList.remove('visible');
+      }
+    }, { passive: true });
+  })();
+
   // Logout button
   document.getElementById('logout-btn')?.addEventListener('click', async () => {
     const App = await getApp();

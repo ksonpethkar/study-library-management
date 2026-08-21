@@ -9,7 +9,7 @@
   "display_override": ["window-controls-overlay", "standalone", "browser"],
   "background_color": "#0f172a",
   "theme_color": "#6c5ce7",
-  "orientation": "any",
+  "orientation": "portrait-primary",
   "lang": "en",
   "categories": ["education", "productivity", "utilities"],
   "icons": [

@@ -282,7 +282,83 @@ class Application {
       initPullToRefresh();
     }
 
-    // Wire up voice search button
+    // ── Phase D: Virtual Keyboard Detection ────────────────────────────────
+    // Hide bottom nav when soft keyboard opens so inputs stay accessible
+    if (!this._keyboardInit) {
+      this._keyboardInit = true;
+      const bottomNav = document.querySelector('.mobile-bottom-nav');
+      if (bottomNav) {
+        const hideNav = () => { bottomNav.style.display = 'none'; };
+        const showNav = () => { bottomNav.style.removeProperty('display'); };
+
+        if (window.visualViewport) {
+          // Modern API — fires when viewport shrinks (keyboard open)
+          const initialH = window.visualViewport.height;
+          window.visualViewport.addEventListener('resize', () => {
+            const shrunk = window.visualViewport.height < initialH * 0.8;
+            shrunk ? hideNav() : showNav();
+          });
+        } else {
+          // Fallback: listen to focus/blur on inputs
+          document.addEventListener('focusin', (e) => {
+            if (e.target.matches('input, textarea, select')) {
+              if (window.innerWidth <= 768) hideNav();
+            }
+          });
+          document.addEventListener('focusout', () => {
+            setTimeout(showNav, 150);
+          });
+        }
+      }
+    }
+
+    // ── Phase D: Mobile Keyboard Input Enhancement ─────────────────────────
+    // Adds inputmode + enterkeyhint to inputs dynamically — works in modals too
+    if (!this._inputEnhanceInit) {
+      this._inputEnhanceInit = true;
+      const enhanceInputs = (root = document) => {
+        root.querySelectorAll('input:not([inputmode]), textarea:not([inputmode])').forEach(inp => {
+          const id = (inp.id || '').toLowerCase();
+          const name = (inp.name || '').toLowerCase();
+          const placeholder = (inp.placeholder || '').toLowerCase();
+          const type = inp.type || 'text';
+          const key = `${id} ${name} ${placeholder}`;
+
+          if (type === 'tel' || /phone|mobile|whatsapp|contact/.test(key)) {
+            inp.setAttribute('inputmode', 'tel');
+            inp.setAttribute('enterkeyhint', 'next');
+          } else if (type === 'email' || /email|mail/.test(key)) {
+            inp.setAttribute('inputmode', 'email');
+            inp.setAttribute('enterkeyhint', 'next');
+            inp.setAttribute('autocomplete', 'email');
+          } else if (type === 'number' || /amount|fee|price|cost|balance|pincode|pin/.test(key)) {
+            inp.setAttribute('inputmode', 'numeric');
+            inp.setAttribute('enterkeyhint', 'next');
+          } else if (/search|query|find|lookup/.test(key)) {
+            inp.setAttribute('inputmode', 'search');
+            inp.setAttribute('enterkeyhint', 'search');
+          } else if (/url|link|website|avatar/.test(key)) {
+            inp.setAttribute('inputmode', 'url');
+          } else if (type === 'text') {
+            inp.setAttribute('enterkeyhint', 'next');
+          }
+
+          if (/name|full.name/.test(key)) inp.setAttribute('autocomplete', 'name');
+          if (/city|town/.test(key))      inp.setAttribute('autocomplete', 'address-level2');
+          if (/state|province/.test(key)) inp.setAttribute('autocomplete', 'address-level1');
+        });
+      };
+
+      // Run on boot + observe DOM mutations (modals, dynamic forms)
+      enhanceInputs();
+      const obs = new MutationObserver((muts) => {
+        muts.forEach(m => m.addedNodes.forEach(n => {
+          if (n.nodeType === 1) enhanceInputs(n.querySelectorAll ? n : document);
+        }));
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+    }
+
     const voiceBtn = document.getElementById('voice-search-btn');
     if (voiceBtn && !voiceBtn._voiceInit) {
       voiceBtn._voiceInit = true;

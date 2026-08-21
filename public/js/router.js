@@ -60,6 +60,15 @@ export default class Router {
 
     this.updateSidebarActive(basePath);
 
+    // ── Phase D: Close mobile sidebar on every navigation ──────────────────
+    // Catches programmatic nav (FAB, card clicks) not just sidebar link clicks
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar?.classList.contains('mobile-open')) {
+      sidebar.classList.remove('mobile-open');
+      overlay?.classList.remove('visible');
+    }
+
     // ── Phase B: Scroll to top on every route change ──────────────────────
     // Critical for mobile — prevents arriving at new page mid-scroll
     const mainEl = document.getElementById('page-content') ||
