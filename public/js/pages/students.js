@@ -627,7 +627,7 @@ export async function render() {
         return `
           <div class="col-12 mt-2 dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 600;">📑 ${escapeHTML(f.label)}${reqMark}</label>
-            <div class="row g-2 mb-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="row g-2 mb-2" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
               <div>
                 <label class="form-label text-xs">ID Proof Type</label>
                 <select class="form-select form-control" name="idProof.type">
@@ -1536,7 +1536,7 @@ export async function render() {
         </div>
 
         <!-- 360 Degree Info Grid -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; margin-bottom: 20px;">
           <!-- Membership Info -->
           <div style="background: var(--color-bg-primary); padding: 14px; border-radius: 10px; border: 1px solid var(--color-border);">
             <h5 style="margin: 0 0 10px 0; font-size: 0.9rem; font-weight: 700; color: var(--color-primary);">💺 Membership & Seat</h5>

@@ -240,7 +240,7 @@ export async function render(container) {
             <span class="badge badge-ghost" id="methodBreakdownTotal">Total ₹0</span>
           </div>
           <div class="card-body" style="padding: 16px; display: flex; flex-direction: column; align-items: center;">
-            <canvas id="paymentMethodChart" style="width: 180px; height: 180px; max-height: 180px; margin-bottom: 12px;"></canvas>
+            <canvas id="paymentMethodChart" style="width: min(180px, 100%); height: min(180px, 50vw); max-height: 180px; margin-bottom: 12px;"></canvas>
             <div id="paymentMethodLegend" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; font-size: 0.8rem;"></div>
           </div>
         </div>
@@ -644,7 +644,7 @@ export async function render(container) {
             <span class="badge ${b.isActive ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.7rem;">${b.isActive ? 'Active' : 'Inactive'}</span>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.82rem; margin-bottom: 10px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 8px; font-size: 0.82rem; margin-bottom: 10px;">
             <div><span class="text-muted d-block small">Occupancy</span><strong style="color: var(--color-primary);">${b.occupiedSeats || 0} / ${b.effectiveCapacity || b.totalSeats || 50}</strong></div>
             <div><span class="text-muted d-block small">Active Members</span><strong>${b.activeStudents || 0}</strong></div>
           </div>
@@ -1309,7 +1309,7 @@ export async function render(container) {
 
             <!-- Student Info -->
             <div style="background: var(--color-bg-secondary); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px;">
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 8px;">
                 <div>
                   <span class="text-muted small">Student Name:</span>
                   <div style="font-weight: 600; color: var(--color-text-primary);">${escapeHTML(r.student?.name || 'Unknown')}</div>
@@ -1435,7 +1435,7 @@ export async function render(container) {
             </select>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--space-3);">
             <div class="form-group mb-0">
               <label class="form-label">Amount (₹) *</label>
               <input type="number" id="modalAmount" class="form-control" value="${defaultPrice}" required min="0" />
@@ -1447,7 +1447,7 @@ export async function render(container) {
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--space-3);">
             <div class="form-group mb-0">
               <label class="form-label">Payment Method</label>
               <select id="modalMethod" class="form-select form-control">

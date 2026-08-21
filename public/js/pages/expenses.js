@@ -402,7 +402,7 @@ export async function render(container) {
           <input type="text" id="exp-title" class="form-control" placeholder="e.g., Office Rent, Power Bill, Wi-Fi 300Mbps" value="${escapeHTML(exp?.title || '')}" required>
         </div>
 
-        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 0.75rem;">
           <div>
             <label class="form-label" style="font-weight: 600;">Category *</label>
             <select id="exp-category" class="form-select" required>
@@ -415,7 +415,7 @@ export async function render(container) {
           </div>
         </div>
 
-        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 0.75rem;">
           <div>
             <label class="form-label" style="font-weight: 600;">Expense Date *</label>
             <input type="date" id="exp-date" class="form-control" value="${exp?.date ? new Date(exp.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}" required>

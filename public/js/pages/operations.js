@@ -1562,7 +1562,7 @@ export async function render() {
                 </select>
               </div>
 
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
                 <div class="form-group">
                   <label class="form-label" style="font-weight: 700;">Study Shift</label>
                   <select id="conv-shift-id" class="form-select form-control">
@@ -1715,7 +1715,7 @@ export async function render() {
               <input type="text" id="wl-name" class="form-control" placeholder="Full name" required>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
               <div class="form-group">
                 <label class="form-label" style="font-weight: 700;">Mobile Phone *</label>
                 <input type="tel" id="wl-phone" class="form-control" placeholder="10-digit mobile" required>
@@ -1726,7 +1726,7 @@ export async function render() {
               </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
               <div class="form-group">
                 <label class="form-label" style="font-weight: 700;">Preferred Study Shift</label>
                 <select id="wl-shift" class="form-select form-control">

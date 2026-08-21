@@ -1708,7 +1708,7 @@ function renderSettingsUI(container, profile, settings) {
           </div>
 
           <div class="card-body" style="padding: 1.5rem;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 24px; align-items: start;">
               
               <!-- Left Pane: 3 Categories of Controls -->
               <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -1740,7 +1740,7 @@ function renderSettingsUI(container, profile, settings) {
                       </label>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 8px;">
                       <div>
                         <label class="form-label text-xs" style="font-weight: 600;">Stamp Style</label>
                         <select id="rs-stamp-type" class="form-select form-control-sm">
@@ -1813,7 +1813,7 @@ function renderSettingsUI(container, profile, settings) {
                     <span>👁️</span> Category 2: Header, Logo Branding &amp; Full Receipt Fields Visibility Controls
                   </h4>
                   
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
                     <div>
                       <label class="form-label text-xs" style="font-weight: 600;">Header Subtitle</label>
                       <input type="text" id="rs-header-subtitle" class="form-control form-control-sm" value="Official Fee Receipt">
@@ -1856,7 +1856,7 @@ function renderSettingsUI(container, profile, settings) {
                     Receipt Data Field Visibility Switches
                   </div>
 
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
                     <label class="switch-label" style="font-size: 0.8rem; font-weight: 600;">
                       <input type="checkbox" id="rs-body-showStudentId" checked>
                       <span class="switch-slider"></span>
@@ -1919,7 +1919,7 @@ function renderSettingsUI(container, profile, settings) {
                         <span class="switch-slider"></span>
                       </label>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
                       <div>
                         <label class="form-label text-xs" style="font-weight: 600;">GST Rate %</label>
                         <input type="number" id="rs-gst-gstRate" class="form-control form-control-sm" value="18">
@@ -4361,7 +4361,7 @@ function renderSettingsUI(container, profile, settings) {
           <input type="text" id="cf-label" class="form-control" placeholder="e.g. Father's Occupation, College Name, Target Exam" value="${escapeHTML(field?.label || '')}" required>
         </div>
 
-        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 0.75rem;">
           <div>
             <label class="form-label" style="font-weight: 600;">Input Type Category *</label>
             <select id="cf-type" class="form-select">
@@ -4408,7 +4408,7 @@ function renderSettingsUI(container, profile, settings) {
           <input type="text" id="cf-placeholder" class="form-control" placeholder="Optional helper text shown inside input box" value="${escapeHTML(field?.placeholder || '')}">
         </div>
 
-        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 0.75rem;">
           <div>
             <label class="form-label" style="font-weight: 600;">Custom Section Header Label</label>
             <input type="text" id="cf-section-label" class="form-control" placeholder="e.g. Hostel Details" value="${escapeHTML(field?.sectionLabel || '')}">
@@ -4816,7 +4816,7 @@ async function initLandingSettings(container) {
               <label>Banner Image URL</label>
               <input type="text" id="l-hero-banner" class="form-control" placeholder="https://.../banner.jpg" value="${escapeHTML(config.hero?.bannerImage || '')}">
             </div>
-            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
               <div>
                 <label>Primary CTA Button Text</label>
                 <input type="text" id="l-hero-ctaPrimaryText" class="form-control" value="${escapeHTML(config.hero?.ctaPrimaryText || 'Book Your Seat / Register Now')}">
@@ -4826,7 +4826,7 @@ async function initLandingSettings(container) {
                 <input type="text" id="l-hero-ctaPrimaryLink" class="form-control" value="${escapeHTML(config.hero?.ctaPrimaryLink || '/register')}">
               </div>
             </div>
-            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
               <div>
                 <label>Secondary CTA Button Text</label>
                 <input type="text" id="l-hero-ctaSecondaryText" class="form-control" value="${escapeHTML(config.hero?.ctaSecondaryText || 'Send Quick Enquiry')}">
@@ -4869,7 +4869,7 @@ async function initLandingSettings(container) {
               <label>Brand Logo Image URL</label>
               <input type="text" id="l-nav-brandLogo" class="form-control" placeholder="https://.../logo.png" value="${escapeHTML(config.navbar?.brandLogo || '')}">
             </div>
-            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
               <div>
                 <label>Primary CTA Text</label>
                 <input type="text" id="l-nav-ctaPrimaryText" class="form-control" value="${escapeHTML(config.navbar?.ctaPrimaryText || 'Register Now')}">
@@ -4879,7 +4879,7 @@ async function initLandingSettings(container) {
                 <input type="text" id="l-nav-ctaPrimaryLink" class="form-control" value="${escapeHTML(config.navbar?.ctaPrimaryLink || '/register')}">
               </div>
             </div>
-            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
               <div>
                 <label>Secondary CTA Text</label>
                 <input type="text" id="l-nav-ctaSecondaryText" class="form-control" value="${escapeHTML(config.navbar?.ctaSecondaryText || 'Student Portal')}">
@@ -5045,7 +5045,7 @@ async function initLandingSettings(container) {
               <label>Section Title</label>
               <input type="text" id="l-test-title" class="form-control" value="${escapeHTML(config.testimonials?.title || 'What Our Students Say')}">
             </div>
-            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
               <div>
                 <label>Google Rating (e.g. 4.9)</label>
                 <input type="text" id="l-test-googleRating" class="form-control" value="${escapeHTML(config.testimonials?.googleRating || '4.9')}">

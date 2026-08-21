@@ -1272,7 +1272,7 @@ function renderPortalUI(container, data, analytics = null) {
     const modalContent = document.createElement('div');
     modalContent.innerHTML = `
       <form id="portal-leave-form" class="p-1 mb-4">
-        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 0.75rem;">
           <div>
             <label class="form-label" style="font-weight: 600;">Start Date *</label>
             <input type="date" id="leave-start" class="form-control" value="${new Date().toISOString().split('T')[0]}" required>
@@ -1607,7 +1607,7 @@ function renderPortalUI(container, data, analytics = null) {
               📨 Or Submit Friend's Details Directly
             </h5>
             <form id="portal-ref-form">
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 8px; margin-bottom: 8px;">
                 <div>
                   <input type="text" id="ref-name" class="form-control form-control-sm" placeholder="Friend's Full Name *" required>
                 </div>
@@ -1721,7 +1721,7 @@ function renderPortalUI(container, data, analytics = null) {
               <p style="font-size: 12px; color: #666;">Phone: ${escapeHTML(business.phone || '')}</p>
               <div style="font-size: 14px; font-weight: 700; color: #6366f1; margin-top: 6px;">FEE PAYMENT RECEIPT</div>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; margin-bottom: 14px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 8px; font-size: 13px; margin-bottom: 14px;">
               <div><strong>Receipt #:</strong> ${escapeHTML(p.receiptNumber || 'REC')}</div>
               <div style="text-align: right;"><strong>Date:</strong> ${new Date(p.paymentDate).toLocaleDateString('en-IN')}</div>
               <div><strong>Student:</strong> ${escapeHTML(student.name)} (${student.studentId})</div>

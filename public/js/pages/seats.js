@@ -1111,7 +1111,7 @@ function showCrossTransferModal(container) {
       </div>
 
       <!-- Step 2: Target Branch & Seat -->
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">2. Destination Branch *</label>
           <select id="transfer-target-branch" class="form-select form-control">
@@ -1276,7 +1276,7 @@ function showBranchModal(branch = null, container) {
 
   content.innerHTML = `
     <form id="branchModalForm" class="p-1">
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Branch / Center Name *</label>
           <input type="text" class="form-control" name="name" required value="${escapeHTML(branch?.name || '')}" placeholder="e.g. South Extension Campus">
@@ -1294,7 +1294,7 @@ function showBranchModal(branch = null, container) {
         </select>
       </div>
 
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Contact Mobile</label>
           <input type="tel" class="form-control" name="phone" value="${escapeHTML(branch?.phone || '')}" placeholder="+91 98765 43210">
@@ -1310,7 +1310,7 @@ function showBranchModal(branch = null, container) {
         <input type="text" class="form-control" name="address" value="${escapeHTML(branch?.address || '')}" placeholder="Building name, street, metro pillar...">
       </div>
 
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">City</label>
           <input type="text" class="form-control" name="city" value="${escapeHTML(branch?.city || '')}" placeholder="City">
@@ -1454,7 +1454,7 @@ function showSeatDetailModal(seat, container) {
       `}
 
       <!-- Seat Specifications -->
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px;">
         <div style="background: var(--color-bg-primary); padding: 10px; border-radius: 6px; border: 1px solid var(--color-border);">
           <div class="text-xs text-muted">Monthly Rate</div>
           <div style="font-weight: 700; font-size: 1rem; color: var(--color-text-primary);">
@@ -1557,7 +1557,7 @@ function showEditSeatModal(seat, container) {
 
   content.innerHTML = `
     <form id="editSeatForm" class="p-1">
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Seat Number *</label>
           <input type="text" class="form-control" name="seatNumber" value="${escapeHTML(seat.seatNumber)}" required placeholder="e.g. A-01">
@@ -1571,7 +1571,7 @@ function showEditSeatModal(seat, container) {
         </div>
       </div>
 
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Study Zone *</label>
           <input type="text" class="form-control" name="zone" value="${escapeHTML(seat.zone)}" required placeholder="e.g. Zone A (AC), Boys Hall">
@@ -1582,7 +1582,7 @@ function showEditSeatModal(seat, container) {
         </div>
       </div>
 
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Seat Type</label>
           <select class="form-select form-control" name="type">
@@ -1602,7 +1602,7 @@ function showEditSeatModal(seat, container) {
         </div>
       </div>
 
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Monthly Fee (₹)</label>
           <input type="number" class="form-control" name="monthlyRate" value="${seat.monthlyRate || ''}" placeholder="e.g. 1200">
@@ -1682,7 +1682,7 @@ function showAddSingleSeatModal(container) {
 
   content.innerHTML = `
     <form id="addSingleSeatForm" class="p-1">
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Seat Number *</label>
           <input type="text" class="form-control" name="seatNumber" required placeholder="e.g. A-01 or 105">
@@ -1696,7 +1696,7 @@ function showAddSingleSeatModal(container) {
         </div>
       </div>
 
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Study Zone *</label>
           <input type="text" class="form-control" name="zone" value="${escapeHTML(currentZone || 'Zone A')}" required placeholder="e.g. Zone A (AC)">
@@ -1707,7 +1707,7 @@ function showAddSingleSeatModal(container) {
         </div>
       </div>
 
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Seat Type</label>
           <select class="form-select form-control" name="type">
@@ -1781,7 +1781,7 @@ function showAddSeatsModal(container) {
 
   content.innerHTML = `
     <form id="bulkAddSeatsForm" class="p-1">
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Target Branch Location</label>
           <select class="form-select form-control" name="branch">
@@ -1795,7 +1795,7 @@ function showAddSeatsModal(container) {
         </div>
       </div>
 
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Floor / Wing</label>
           <input type="text" name="floor" class="form-control" placeholder="e.g. Ground Floor">
@@ -1825,7 +1825,7 @@ function showAddSeatsModal(container) {
         </div>
       </div>
 
-      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Monthly Fee (₹)</label>
           <input type="number" name="monthlyRate" class="form-control" placeholder="e.g. 1200">

@@ -559,7 +559,7 @@ function openShiftModal(shift = null) {
       </div>
 
       <!-- Start Time & End Time -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1rem;">
         <div>
           <label for="shift-modal-start" class="form-label" style="font-weight: 600; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 4px;">
             ${t('Start Time')} <span style="color: var(--color-danger);">*</span>
@@ -575,7 +575,7 @@ function openShiftModal(shift = null) {
       </div>
 
       <!-- Capacity & Price Multiplier -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1rem;">
         <div>
           <label for="shift-modal-capacity" class="form-label" style="font-weight: 600; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 4px;">
             ${t('Max Capacity')}
