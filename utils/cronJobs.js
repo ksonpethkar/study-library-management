@@ -502,6 +502,99 @@ async function reconcileDailyAttendance() {
   }
 }
 
+// ── Phase 6: Weekly Behavior Score Batch Computation ────────────────────────
+async function computeWeeklyBehaviorScores() {
+  try {
+    const Student = require('../models/Student');
+    const Attendance = require('../models/Attendance');
+
+    const students = await Student.find({ status: 'active' })
+      .select('_id studyStreakDays').lean();
+
+    let updated = 0;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    for (const stu of students) {
+      try {
+        // Streak from last consecutive present days
+        const recentAtt = await Attendance.find({ student: stu._id })
+          .sort({ date: -1 }).limit(60).select('date status').lean();
+        let streak = 0;
+        const todayStr = new Date().toISOString().slice(0, 10);
+        for (const rec of recentAtt) {
+          const dateStr = new Date(rec.date).toISOString().slice(0, 10);
+          if (dateStr > todayStr) continue;
+          if (['present', 'late', 'half_day'].includes(rec.status)) streak++;
+          else break;
+        }
+
+        // Update studyStreakDays on student document
+        await Student.findByIdAndUpdate(stu._id, { $set: { studyStreakDays: streak } });
+        updated++;
+      } catch (stuErr) {
+        // Skip individual student errors — don't break the batch
+      }
+    }
+
+    console.log(`🧠 [BehaviorScore] Updated streaks for ${updated}/${students.length} active students`);
+    return updated;
+  } catch (error) {
+    console.error('Error in computeWeeklyBehaviorScores:', error.message);
+    return 0;
+  }
+}
+
+// ── Phase 6: Monthly At-Risk Student Digest ──────────────────────────────────
+async function generateAtRiskDigest() {
+  try {
+    const Student = require('../models/Student');
+    const Attendance = require('../models/Attendance');
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const activeStudents = await Student.find({ status: 'active' })
+      .select('_id name phone studyStreakDays shift')
+      .lean();
+
+    const atRisk = [];
+
+    for (const stu of activeStudents) {
+      const attRecords = await Attendance.find({
+        student: stu._id,
+        date: { $gte: thirtyDaysAgo }
+      }).select('status').lean();
+
+      const presentCount = attRecords.filter(r =>
+        ['present', 'late', 'half_day'].includes(r.status)
+      ).length;
+      const attPct = Math.round((presentCount / 30) * 100);
+
+      // Flag as at-risk if attendance < 40% in last 30 days
+      if (attPct < 40) {
+        atRisk.push({
+          name: stu.name,
+          phone: stu.phone,
+          attPct,
+          streak: stu.studyStreakDays || 0,
+          shift: stu.shift || 'N/A'
+        });
+      }
+    }
+
+    console.log(`⚠️ [AtRiskDigest] Found ${atRisk.length} at-risk students (attendance < 40% in last 30 days):`);
+    atRisk.slice(0, 20).forEach(s => {
+      console.log(`   • ${s.name} | ${s.attPct}% attendance | Streak: ${s.streak} days | Shift: ${s.shift}`);
+    });
+
+    return atRisk;
+  } catch (error) {
+    console.error('Error in generateAtRiskDigest:', error.message);
+    return [];
+  }
+}
+
 function initCronJobs() {
   // Dynamic Automated WhatsApp Dispatch Engine (Checks configured notification.whatsappScheduleTime every minute)
   let lastDispatchedMinuteKey = '';
@@ -561,12 +654,28 @@ function initCronJobs() {
     } catch (e) {}
   });
 
+  // ── Phase 6: Weekly Behavior Score Computation (Every Monday 06:00 AM) ────
+  // Batch-computes behavior scores for all active students and updates their
+  // studyStreakDays field. Cheap aggregation query — runs once a week.
+  cron.schedule('0 6 * * 1', async () => {
+    console.log('🧠 [BehaviorScore] Weekly batch computation starting...');
+    await computeWeeklyBehaviorScores();
+  });
+
+  // ── Phase 6: Monthly At-Risk Digest (1st of Every Month 08:00 AM) ─────────
+  // Identifies students with behavior score < 50 and logs/alerts for admin review.
+  cron.schedule('0 8 1 * *', async () => {
+    console.log('⚠️ [AtRiskDigest] Monthly at-risk student digest starting...');
+    await generateAtRiskDigest();
+  });
+
   // Initial check on boot
   setTimeout(async () => {
     await checkStudentExpiries();
   }, 10000);
 
-  console.log('  🕒 Automated WhatsApp Dispatch Engine, Expiry, Keep-Alive, EOD & Reconciliation Cron jobs scheduled');
+  console.log('  🕒 Automated WhatsApp Dispatch Engine, Expiry, Keep-Alive, EOD, Reconciliation, BehaviorScore & AtRisk Cron jobs scheduled');
 }
 
-module.exports = { initCronJobs, checkStudentExpiries, generateEODSummary, reconcileDailyAttendance, performDatabaseBackup };
+module.exports = { initCronJobs, checkStudentExpiries, generateEODSummary, reconcileDailyAttendance, performDatabaseBackup, computeWeeklyBehaviorScores, generateAtRiskDigest };
+

@@ -98,6 +98,168 @@ router.get('/student/:studentId', protect, async (req, res) => {
   }
 });
 
+// ── GET /year-heatmap/:studentId/:year ─────────────────────────────────────
+// Returns 365 days of attendance data for a given year (GitHub-style heatmap)
+// Used by: attendanceHeatmap.js, portal.js, kiosk success card
+router.get('/year-heatmap/:studentId/:year', protect, async (req, res) => {
+  try {
+    const Student = require('../models/Student');
+    const mongoose = require('mongoose');
+    const { studentId, year } = req.params;
+    const yr = parseInt(year, 10);
+    if (isNaN(yr) || yr < 2000 || yr > 2099) {
+      return res.status(400).json({ success: false, message: 'Invalid year' });
+    }
+
+    // Resolve 'me' alias for student portal
+    let resolvedId = studentId;
+    if (studentId === 'me') {
+      const stu = await Student.findOne({
+        $or: [{ email: req.user.email }, { phone: req.user.phone }]
+      }).select('_id').lean();
+      if (!stu) return res.status(404).json({ success: false, message: 'Student not found' });
+      resolvedId = stu._id.toString();
+    }
+
+    const startDate = new Date(`${yr}-01-01T00:00:00.000Z`);
+    const endDate   = new Date(`${yr}-12-31T23:59:59.999Z`);
+
+    const records = await Attendance.find({
+      student: new mongoose.Types.ObjectId(resolvedId),
+      date: { $gte: startDate, $lte: endDate }
+    }).select('date status duration checkIn checkOut').lean();
+
+    // Build a map by date string YYYY-MM-DD
+    const byDate = {};
+    records.forEach(r => {
+      const key = new Date(r.date).toISOString().slice(0, 10);
+      byDate[key] = {
+        status: r.status || 'present',
+        duration: r.duration || 0,
+        checkIn:  r.checkIn ? new Date(r.checkIn).toTimeString().slice(0,5) : null,
+        checkOut: r.checkOut ? new Date(r.checkOut).toTimeString().slice(0,5) : null
+      };
+    });
+
+    // Build full-year array (365/366 days)
+    const days = [];
+    const cur = new Date(startDate);
+    while (cur <= endDate) {
+      const key = cur.toISOString().slice(0, 10);
+      days.push({
+        date: key,
+        ...(byDate[key] || { status: 'absent', duration: 0, checkIn: null, checkOut: null })
+      });
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+
+    // Summary stats
+    const presentDays  = days.filter(d => ['present','late','half_day'].includes(d.status)).length;
+    const absentDays   = days.filter(d => d.status === 'absent').length;
+    const lateDays     = days.filter(d => d.status === 'late').length;
+    const totalMinutes = days.reduce((acc, d) => acc + (d.duration || 0), 0);
+
+    // Current streak (counting backwards from today or Dec 31)
+    const today = new Date().toISOString().slice(0, 10);
+    let streak = 0;
+    for (let i = days.length - 1; i >= 0; i--) {
+      if (days[i].date > today) continue;
+      if (['present','late','half_day'].includes(days[i].status)) streak++;
+      else break;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        year: yr,
+        days,
+        summary: { presentDays, absentDays, lateDays, totalMinutes, currentStreak: streak }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ── GET /behavior-score/:studentId ──────────────────────────────────────────
+// Computes a 0–100 composite Behavior Score from attendance%, payment% & streak
+// Returns score, label (Excellent/Good/Fair/At Risk), breakdown, and badge color
+router.get('/behavior-score/:studentId', protect, async (req, res) => {
+  try {
+    const Student = require('../models/Student');
+    const Payment = require('../models/Payment');
+    const mongoose = require('mongoose');
+    const { studentId } = req.params;
+
+    let resolvedId = studentId;
+    if (studentId === 'me') {
+      const stu = await Student.findOne({
+        $or: [{ email: req.user.email }, { phone: req.user.phone }]
+      }).select('_id membershipExpiry').lean();
+      if (!stu) return res.status(404).json({ success: false, message: 'Student not found' });
+      resolvedId = stu._id.toString();
+    }
+
+    const student = await Student.findById(resolvedId)
+      .select('studyStreakDays membershipExpiry status')
+      .lean();
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+    // Last 30 days attendance
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const attRecords = await Attendance.find({
+      student: new mongoose.Types.ObjectId(resolvedId),
+      date: { $gte: thirtyDaysAgo }
+    }).select('status').lean();
+
+    const presentCount = attRecords.filter(r => ['present','late','half_day'].includes(r.status)).length;
+    const attPct = Math.min(100, Math.round((presentCount / 30) * 100));
+
+    // Payment on-time score (last 3 payments)
+    const lastPayments = await Payment.find({ student: resolvedId })
+      .sort({ paymentDate: -1 }).limit(3).select('status dueDate paymentDate').lean();
+    let payScore = 100;
+    if (lastPayments.length > 0) {
+      const onTime = lastPayments.filter(p => p.status === 'paid').length;
+      payScore = Math.round((onTime / lastPayments.length) * 100);
+    }
+
+    // Streak bonus (max 15 pts for 30+ day streak)
+    const streak = student.studyStreakDays || 0;
+    const streakBonus = Math.min(15, Math.round((streak / 30) * 15));
+
+    // Composite score: 55% attendance + 30% payment + 15% streak
+    const rawScore = Math.round((attPct * 0.55) + (payScore * 0.30) + streakBonus);
+    const score = Math.max(0, Math.min(100, rawScore));
+
+    // Label & color
+    let label, color, emoji;
+    if (score >= 85)      { label = 'Excellent'; color = '#00b894'; emoji = '⭐'; }
+    else if (score >= 70) { label = 'Good';      color = '#0984e3'; emoji = '👍'; }
+    else if (score >= 50) { label = 'Fair';      color = '#fdcb6e'; emoji = '📊'; }
+    else                  { label = 'At Risk';   color = '#e17055'; emoji = '⚠️'; }
+
+    res.json({
+      success: true,
+      data: {
+        score,
+        label,
+        color,
+        emoji,
+        breakdown: {
+          attendancePct: attPct,
+          paymentPct: payScore,
+          streakDays: streak,
+          streakBonus
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // GET /analytics/:studentId - AI Study Habit & Attendance Analytics (90-day window)
 router.get('/analytics/:studentId', protect, async (req, res) => {
   try {
