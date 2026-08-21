@@ -151,7 +151,7 @@ function renderPortalUI(container, data, analytics = null) {
       padding: 1.5rem;
     ">
       <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.25rem;">
-        <div style="display: flex; align-items: center; gap: 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; min-width: 0; flex: 1;">
           <div style="
             width: 68px; height: 68px; border-radius: 50%;
             background: var(--color-primary-bg); color: var(--color-primary);
@@ -160,9 +160,9 @@ function renderPortalUI(container, data, analytics = null) {
           ">
             ${(student.photo || user?.avatar) ? `<img src="${escapeHTML(student.photo || user.avatar)}" alt="${escapeHTML(student.name)}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
           </div>
-          <div>
-            <h2 style="margin: 0 0 4px 0; font-size: 1.4rem; font-weight: 700; color: var(--color-text-primary);">
-              Welcome back, ${escapeHTML(student.name)}!
+          <div style="min-width: 0; flex: 1;">
+            <h2 style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); word-break: break-word; overflow-wrap: break-word; text-transform: capitalize;">
+              Welcome back, ${escapeHTML((student.name || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()))}!
             </h2>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
               <span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); font-family: monospace; font-weight: 700; font-size: 0.85rem;">

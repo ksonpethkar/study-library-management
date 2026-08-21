@@ -2845,3 +2845,160 @@ canvas.sparkline {
   vertical-align: middle;
 }
 
+
+/* ============================================================
+   MOBILE RESPONSIVE FIXES — Profile, Payments, Portal
+   ============================================================ */
+
+/* ── Global: prevent any page from causing horizontal scroll ── */
+#page-content,
+.main-content,
+.page-container {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* ── Profile Page (profile.js) ────────────────────────────── */
+@media (max-width: 640px) {
+  /* Hide the Security card subtitle so it doesn't overflow */
+  #page-content .card-header span[style*="text-secondary"] {
+    display: none;
+  }
+
+  /* Enable biometric button shouldn't overflow */
+  #page-content button[id*="biometric"],
+  #page-content button[id*="webauthn"] {
+    white-space: normal;
+    word-break: break-word;
+    text-align: left;
+  }
+
+  /* All forms inside cards: full width, no overflow */
+  .card-body input,
+  .card-body textarea,
+  .card-body select {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* ── Payments Table: MOBILE CARD VIEW (< 640px) ───────────── */
+@media (max-width: 640px) {
+
+  /* Hide the desktop table entirely */
+  #paymentsTableBody tr,
+  #paymentsTableBody { display: block; }
+
+  /* Hide the thead on mobile */
+  .data-table thead {
+    display: none !important;
+  }
+
+  /* Turn each table row into a card */
+  .data-table tbody .payment-row {
+    display: block !important;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    margin: 0 0 10px 0;
+    padding: 12px 14px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .data-table tbody .payment-row td {
+    display: none !important;
+  }
+
+  /* Show only: Student name/phone (td:nth-child(3)), Amount (td:4), Status (td:7), Actions (td:8) */
+  .data-table tbody .payment-row td:nth-child(3),
+  .data-table tbody .payment-row td:nth-child(4),
+  .data-table tbody .payment-row td:nth-child(7),
+  .data-table tbody .payment-row td:nth-child(8) {
+    display: block !important;
+    border: none;
+    padding: 3px 0;
+  }
+
+  /* Receipt number: shown inline using the data attribute */
+  .data-table tbody .payment-row::before {
+    content: attr(data-receipt);
+    display: block;
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: var(--color-primary, #6c5ce7);
+    margin-bottom: 6px;
+  }
+
+  /* Amount: make it prominent */
+  .data-table tbody .payment-row td:nth-child(4) strong {
+    font-size: 1.15rem;
+    color: var(--color-text-primary);
+  }
+
+  /* Actions: horizontal scroll on mobile if needed */
+  .data-table tbody .payment-row td:nth-child(8) {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border) !important;
+  }
+
+  .data-table tbody .payment-row td:nth-child(8) .btn {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    flex: 1;
+    text-align: center;
+  }
+
+  /* Hide the checkbox td on mobile (bulk bar is desktop-only) */
+  .data-table tbody .payment-row td:nth-child(1),
+  .data-table tbody .payment-row td:nth-child(2),
+  .data-table tbody .payment-row td:nth-child(5),
+  .data-table tbody .payment-row td:nth-child(6) {
+    display: none !important;
+  }
+
+  /* Bulk action bar - hide on mobile */
+  #payments-bulk-bar {
+    display: none !important;
+  }
+
+  /* Pending Dues table: same card treatment */
+  #duesTableBody tr { display: block; }
+  #duesTableBody table,
+  #duesTableBody thead { display: none !important; }
+}
+
+/* ── Student Portal: fix long all-caps names ─────────────── */
+.portal-welcome-name,
+#sp-hero-name,
+[id*="portal"] h1,
+[id*="portal"] h2 {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  text-transform: capitalize !important;
+}
+
+/* ── Student portal pay renewal page table ──────────────── */
+@media (max-width: 640px) {
+  /* Make pay renewal page payment list scrollable */
+  #pay-renewal-list .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* General mobile: ensure no element escapes viewport */
+  * {
+    max-width: 100vw;
+  }
+  body {
+    overflow-x: hidden;
+  }
+}
+

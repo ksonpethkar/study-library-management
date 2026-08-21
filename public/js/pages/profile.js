@@ -81,7 +81,7 @@ function renderProfileUI(container, user) {
       </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.25rem; align-items: start;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 1.25rem; align-items: start;">
       
       <!-- ========================================== -->
       <!-- CARD 1: ADMIN PROFILE OVERVIEW & EDIT -->
@@ -121,11 +121,11 @@ function renderProfileUI(container, user) {
               </div>
             </div>
 
-            <div style="flex: 1; min-width: 240px;">
+            <div style="flex: 1; min-width: 0; word-break: break-word;">
               <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                <h3 id="display-user-name" style="margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--color-text-primary);">${escapeHTML(user.name || 'Administrator')}</h3>
+                <h3 id="display-user-name" style="margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--color-text-primary); word-break: break-word;">${escapeHTML(user.name || 'Administrator')}</h3>
               </div>
-              <div id="display-user-email" style="color: var(--color-text-secondary); font-size: 0.95rem; margin-top: 2px;">${escapeHTML(user.email || '')}</div>
+              <div id="display-user-email" style="color: var(--color-text-secondary); font-size: 0.9rem; margin-top: 2px; word-break: break-all;">${escapeHTML(user.email || '')}</div>
               
               <div style="display: flex; gap: 1.25rem; margin-top: 0.75rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--color-text-secondary);">
                 <div style="display: flex; align-items: center; gap: 0.35rem;">
@@ -171,8 +171,8 @@ function renderProfileUI(container, user) {
 
             </div>
 
-            <div style="display: flex; justify-content: flex-end;">
-              <button type="submit" id="btn-save-profile" class="btn btn-primary" style="font-weight: 600; min-width: 140px;">
+            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+              <button type="submit" id="btn-save-profile" class="btn btn-primary" style="font-weight: 600; min-width: 140px; flex: 1; max-width: 200px;">
                 Save Profile
               </button>
             </div>
@@ -185,9 +185,9 @@ function renderProfileUI(container, user) {
       <!-- CARD 2: SECURITY & PASSWORD CHANGE -->
       <!-- ========================================== -->
       <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
-        <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
+        <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
           <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
-            <span>🔒</span> Security & Password
+            <span>🔒</span> Security &amp; Password
           </h3>
           <span style="font-size: 0.8rem; color: var(--color-text-secondary);">Protect your admin session</span>
         </div>
