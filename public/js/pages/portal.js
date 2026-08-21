@@ -226,7 +226,7 @@ function renderPortalUI(container, data, analytics = null) {
     ` : ''}
 
     <!-- 3 Stat Widgets Grid (Auto-Fit & Responsive) -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
       
       <!-- Seat Card -->
       <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; flex-direction: column; justify-content: space-between;">
@@ -305,7 +305,7 @@ function renderPortalUI(container, data, analytics = null) {
       </div>
 
       <!-- Main Layout: Score Gauge + Heatmap + AI Recommendation -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem; align-items: center;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.5rem; align-items: center;">
         <!-- Circular / Gauge Consistency Score -->
         <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 12px 14px; background: var(--color-bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
           ${renderGaugeScoreSvg(analytics?.consistencyScore || 0)}
@@ -396,7 +396,7 @@ function renderPortalUI(container, data, analytics = null) {
       ` : ''}
 
       <!-- 4 Badges & Progress Bars Grid -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1rem;">
         ${(() => {
           const badgeProgress = data?.badgeProgress || analytics?.badgeProgress || [];
           return [
@@ -844,7 +844,7 @@ function renderPortalUI(container, data, analytics = null) {
           <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
             <span>👤</span> Personal & Identification Details
           </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.88rem;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; font-size: 0.88rem;">
             <div><span class="text-muted d-block small">Full Name</span><strong>${escapeHTML(student.name)}</strong></div>
             <div><span class="text-muted d-block small">Mobile Phone (WhatsApp)</span><strong>${escapeHTML(SmartFormatters.phone(student.phone))}</strong> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(student.phone || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">📋</button></div>
             <div><span class="text-muted d-block small">Email Address</span><strong>${escapeHTML(student.email || 'N/A')}</strong></div>
@@ -864,7 +864,7 @@ function renderPortalUI(container, data, analytics = null) {
           <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
             <span>🎯</span> Academic Goals & Identity Verification
           </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.88rem;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; font-size: 0.88rem;">
             <div>
               <span class="text-muted d-block small">Target Exams</span>
               <div>${examsList.length > 0 ? examsList.map(e => `<span class="badge badge-primary me-1 mb-1">${escapeHTML(e)}</span>`).join('') : '<span class="text-muted small">None selected</span>'}</div>
@@ -898,7 +898,7 @@ function renderPortalUI(container, data, analytics = null) {
             <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
               <span>${sec.icon || '📝'}</span> ${escapeHTML(sec.label)}
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; font-size: 0.88rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; font-size: 0.88rem;">
               ${sec.fields.map(f => `
                 <div style="${(f.colSpan === 12 || f.colSpan === 2 || f.type === 'textarea') ? 'grid-column: 1 / -1;' : ''}">
                   <span class="text-muted d-block small" style="margin-bottom: 2px;">${escapeHTML(f.label)}</span>

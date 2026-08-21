@@ -86,7 +86,7 @@ export async function render() {
     </div>
 
     <!-- Stats Summary Cards -->
-    <div id="shifts-stats-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.75rem;">
+    <div id="shifts-stats-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 1.25rem; margin-bottom: 1.75rem;">
       <div class="card stat-card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; display: flex; align-items: center; gap: 1rem; box-shadow: var(--shadow-sm);">
         <div class="stat-icon" style="width: 48px; height: 48px; border-radius: var(--radius-md); background: var(--color-primary-bg); color: var(--color-primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -172,7 +172,7 @@ export async function render() {
     </div>
 
     <!-- Shifts Cards Grid -->
-    <div id="shifts-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem;">
+    <div id="shifts-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 1.5rem;">
       <!-- Shift cards rendered dynamically -->
     </div>
   `;

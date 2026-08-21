@@ -207,7 +207,10 @@ Modal.show = function(opts) {
   `;
 
   const widthMap = { sm: '420px', md: '640px', lg: '850px', xl: '1050px' };
-  modal.style.width = widthMap[size] || widthMap.md;
+  // Clamp to viewport — prevents modal overflow on mobile phones
+  const rawW = widthMap[size] || widthMap.md;
+  modal.style.width = `min(${rawW}, 95vw)`;
+  modal.style.maxWidth = '95vw';
 
   modal.innerHTML = `
     <div class="modal-header" style="padding: 16px 20px; border-bottom: 1px solid var(--color-divider, rgba(255,255,255,0.08)); display: flex; justify-content: space-between; align-items: center;">

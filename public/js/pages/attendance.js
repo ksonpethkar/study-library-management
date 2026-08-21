@@ -28,7 +28,7 @@ export function render() {
     </div>
 
     <!-- Stats Grid -->
-    <div class="stats-grid mb-4" id="attendance-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+    <div class="stats-grid mb-4" id="attendance-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 1rem;">
       <div class="stat-card card p-3" style="border-left: 4px solid var(--color-success, #00b894);">
         <div class="text-muted small">Present Today</div>
         <h3 id="stat-present" style="margin: 4px 0 0 0; font-size: 1.6rem; font-weight: 700; color: var(--color-success, #00b894);">-</h3>

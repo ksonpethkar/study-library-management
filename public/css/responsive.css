@@ -525,3 +525,298 @@ table th, table td,
 
 
 
+
+/* ╔══════════════════════════════════════════════════════════════════════╗
+   ║  PHASE A — CRITICAL MOBILE FIXES                                    ║
+   ║  1. iOS zoom prevention  2. Touch targets  3. Global overflow guard  ║
+   ║  4. Grid responsive CSS fallback  5. Attendance mobile card view    ║
+   ╚══════════════════════════════════════════════════════════════════════╝ */
+
+/* ── 1. iOS Zoom-on-Focus Prevention ─────────────────────────────────────
+   Any input with font-size < 16px causes iOS Safari to auto-zoom on tap.
+   This single rule eliminates that across the entire app. */
+@media (max-width: 768px) {
+  input,
+  select,
+  textarea,
+  .form-control,
+  .form-select {
+    font-size: max(16px, 1rem) !important;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* ── 2. Touch Target Sizes (min 44×44px per Apple/Google HIG) ───────────*/
+@media (max-width: 768px) {
+  /* Small copy/action buttons — make tappable */
+  .btn-xs,
+  .btn-copy-text {
+    min-height: 36px !important;
+    min-width: 36px !important;
+    padding: 6px 10px !important;
+    font-size: 0.8rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Checkboxes — larger tap area */
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    cursor: pointer;
+  }
+
+  /* Table row checkboxes */
+  .payment-row-check,
+  .student-row-check,
+  .seat-row-check {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
+
+/* ── 3. Global Overflow Guard ────────────────────────────────────────────
+   Prevent ANY element from causing horizontal scroll on the page */
+body {
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  #app,
+  .app-container,
+  .main-content,
+  .page-content,
+  .page-container,
+  #page-content {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+
+  /* Images/canvas/iframes never exceed viewport */
+  img, canvas, iframe, video {
+    max-width: 100% !important;
+  }
+
+  /* Pre/code blocks scroll horizontally instead of breaking layout */
+  pre, code {
+    overflow-x: auto;
+    max-width: 100%;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+/* ── 4. Grid Overflow CSS Fallback ───────────────────────────────────────
+   Belt-and-suspenders: even if a JS file still has old minmax values,
+   this CSS overrides the grid to be single-column on phones */
+@media (max-width: 640px) {
+  /* Any CSS grid with auto-fit/auto-fill collapses to 1 column */
+  [style*="repeat(auto-fit"],
+  [style*="repeat(auto-fill"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Explicit named grids */
+  .charts-grid,
+  .plans-grid,
+  .shifts-grid,
+  .stats-grid,
+  .kpi-grid,
+  .widget-grid,
+  .card-grid,
+  #plans-grid,
+  #shifts-grid,
+  #branches-cards-grid,
+  #operations-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+}
+
+/* ── 5. Attendance Table — Mobile Card View ──────────────────────────────
+   9-column table (Date, Student, Shift, Seat, Check-In, Check-Out,
+   Duration, Status, Actions) — unreadable on mobile. Convert to cards. */
+@media (max-width: 640px) {
+  .attendance-table thead,
+  table.attendance-table thead {
+    display: none !important;
+  }
+
+  .attendance-table tbody tr,
+  table.attendance-table tbody tr {
+    display: block !important;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    padding: 12px 14px;
+    position: relative;
+  }
+
+  .attendance-table tbody td {
+    display: block !important;
+    border: none !important;
+    padding: 2px 0 !important;
+    font-size: 0.85rem;
+  }
+
+  /* Hide less important columns: Duration, Shift */
+  .attendance-table td:nth-child(3),
+  .attendance-table td:nth-child(7) {
+    display: none !important;
+  }
+
+  /* Date — show as label prefix */
+  .attendance-table td:nth-child(1)::before { content: "📅 "; }
+  .attendance-table td:nth-child(2)::before { content: "👤 "; font-weight: 700; }
+  .attendance-table td:nth-child(4)::before { content: "🪑 "; }
+  .attendance-table td:nth-child(5)::before { content: "🟢 In: "; }
+  .attendance-table td:nth-child(6)::before { content: "🔴 Out: "; }
+}
+
+/* ── 6. Operations & Plans Tables — Mobile Card View ────────────────────*/
+@media (max-width: 640px) {
+  /* Make operations tables scrollable with fixed-top header */
+  #operations-content .table-responsive,
+  #plans-content .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+    /* Shadow hint that table scrolls */
+    background:
+      linear-gradient(to right, var(--color-surface) 20px, transparent),
+      linear-gradient(to right, transparent, var(--color-surface) 20px) 100% 0,
+      linear-gradient(to right, rgba(0,0,0,0.1), transparent),
+      linear-gradient(to right, transparent, rgba(0,0,0,0.1)) 100% 0;
+    background-repeat: no-repeat;
+    background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+}
+
+/* ── 7. Reports Charts — Responsive ─────────────────────────────────────*/
+@media (max-width: 640px) {
+  canvas[id*="Chart"],
+  canvas[id*="chart"],
+  canvas.sparkline,
+  #revenueTrendChart,
+  #paymentMethodChart {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 200px !important;
+  }
+
+  /* Charts grid in reports */
+  .reports-charts,
+  [id*="reports"] .card {
+    overflow: hidden;
+  }
+}
+
+/* ── 8. FAB Bottom Offset — clear bottom nav + iPhone home bar ──────────*/
+@media (max-width: 768px) {
+  .fab-container,
+  [id*="fab"],
+  [class*="fab-"] {
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* ── 9. Floating Bulk Action Bars — stay above bottom nav ───────────────*/
+@media (max-width: 768px) {
+  .floating-action-bar,
+  #payments-bulk-bar,
+  #seats-bulk-bar {
+    bottom: calc(66px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* ── 10. Card Headers — prevent flex children overflowing ───────────────*/
+@media (max-width: 640px) {
+  .card-header {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .card-header h1,
+  .card-header h2,
+  .card-header h3,
+  .card-header h4,
+  .card-header h5 {
+    font-size: clamp(0.95rem, 4vw, 1.2rem) !important;
+    word-break: break-word;
+  }
+
+  /* Module header action buttons stack vertically */
+  .module-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .module-header .btn,
+  .module-header button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* ── 11. Settings Page — sub-panel grids ────────────────────────────────*/
+@media (max-width: 640px) {
+  /* Receipt studio canvas container */
+  #receipt-preview-wrap,
+  #receiptPreviewWrap,
+  .receipt-preview-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden;
+  }
+
+  /* ID Card container */
+  #id-card-wrap,
+  .id-card-container {
+    width: 100% !important;
+    transform-origin: top left;
+    overflow: hidden;
+  }
+
+  /* Settings form grids */
+  .settings-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── 12. Notification Panel — mobile position ───────────────────────────*/
+@media (max-width: 640px) {
+  #notif-panel {
+    top: 56px !important;
+    right: 4px !important;
+    left: 4px !important;
+    width: calc(100vw - 8px) !important;
+    max-width: calc(100vw - 8px) !important;
+  }
+}
+
+/* ── 13. Word-break utilities for long text ─────────────────────────────*/
+@media (max-width: 640px) {
+  td, th {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Student names, emails in tables */
+  .student-name,
+  [data-col="name"],
+  [data-col="email"],
+  [data-col="phone"] {
+    min-width: 0 !important;
+    word-break: break-word;
+  }
+}
+
+/* ── END PHASE A ────────────────────────────────────────────────────────*/
+

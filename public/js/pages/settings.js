@@ -190,7 +190,7 @@ function renderSettingsUI(container, profile, settings) {
                   <span>🏛️</span> Category 1: Core Library Identity &amp; Registration
                 </h4>
                 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.25rem;">
                   <div class="form-group">
                     <label class="form-label" for="setting-businessName" style="font-weight: 600;">Business / Library Name *</label>
                     <input type="text" id="setting-businessName" class="form-control" required value="${escapeHTML(profile.businessName || 'The Cozy Corner Centre')}" placeholder="e.g. The Cozy Corner Centre">
@@ -219,7 +219,7 @@ function renderSettingsUI(container, profile, settings) {
                   <span>🎨</span> Category 2: Visual Media Assets &amp; Brand Logos
                 </h4>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; padding: 1rem; background: var(--color-surface); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.25rem; padding: 1rem; background: var(--color-surface); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
                   <!-- Logo -->
                   <div id="mount-setting-logo"></div>
 
@@ -258,7 +258,7 @@ function renderSettingsUI(container, profile, settings) {
                       </label>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1rem;">
                       <div class="form-group">
                         <label class="form-label" for="setting-upiId" style="font-weight: 600;">⚡ Official Library UPI ID (VPA) *</label>
                         <input type="text" id="setting-upiId" class="form-control" value="${escapeHTML(profile.upiId || '')}" placeholder="e.g. 7276969070@upi">
@@ -288,7 +288,7 @@ function renderSettingsUI(container, profile, settings) {
                       </label>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 1rem;">
                       <div class="form-group">
                         <label class="form-label" for="setting-bank-name" style="font-weight: 600;">Bank Name</label>
                         <input type="text" id="setting-bank-name" class="form-control" value="${escapeHTML(profile.bankDetails?.bankName || '')}" placeholder="e.g. State Bank of India">
@@ -331,7 +331,7 @@ function renderSettingsUI(container, profile, settings) {
                       ⚡ Advanced Gateway Auto-Verification (Optional - Razorpay / PhonePe / Cashfree)
                     </summary>
                     <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-border);">
-                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1rem;">
                         <div class="form-group">
                           <label class="form-label" for="setting-gatewayProvider" style="font-weight: 600;">Verification Engine</label>
                           <select id="setting-gatewayProvider" class="form-select" style="font-weight: 700;">
@@ -362,7 +362,7 @@ function renderSettingsUI(container, profile, settings) {
                   <span>📍</span> Category 4: Official Contact &amp; Physical Location Details
                 </h4>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
                   <div class="form-group">
                     <label class="form-label" for="setting-phone" style="font-weight: 500;">Phone / WhatsApp Support *</label>
                     <input type="text" id="setting-phone" class="form-control" value="${escapeHTML(profile.phone || '')}" placeholder="+91 98765 43210">
@@ -382,7 +382,7 @@ function renderSettingsUI(container, profile, settings) {
                   <input type="text" id="setting-address" class="form-control" value="${escapeHTML(profile.address || '')}" placeholder="Plot 42, Knowledge Park III, Near Metro Station">
                 </div>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
                   <div class="form-group">
                     <label class="form-label" for="setting-city" style="font-weight: 500;">City</label>
                     <input type="text" id="setting-city" class="form-control" value="${escapeHTML(profile.city || '')}" placeholder="e.g. Pune / Delhi">
@@ -398,7 +398,7 @@ function renderSettingsUI(container, profile, settings) {
                 </div>
 
                 <!-- Social Links -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 1rem;">
                   <div class="form-group">
                     <label class="form-label" for="setting-social-whatsapp" style="font-weight: 500;">WhatsApp Support Group Link</label>
                     <input type="text" id="setting-social-whatsapp" class="form-control" value="${escapeHTML(profile.socialLinks?.whatsapp || '')}" placeholder="https://chat.whatsapp.com/...">
@@ -453,7 +453,7 @@ function renderSettingsUI(container, profile, settings) {
                   <span>⏱️</span> Category 1: Grace Period &amp; Due Date Rules
                 </h4>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.25rem;">
                   <!-- Grace Period -->
                   <div class="form-group">
                     <label class="form-label" for="setting-gracePeriod" style="font-weight: 600;">Grace Window Period (Days) *</label>
@@ -473,7 +473,7 @@ function renderSettingsUI(container, profile, settings) {
                   <span>💸</span> Category 2: Late Fine Calculation Engine &amp; Penalty Rates
                 </h4>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.25rem;">
                   <!-- Late Fee Calculation Mode -->
                   <div class="form-group">
                     <label class="form-label" style="font-weight: 600;">Late Fee Calculation Mode *</label>
@@ -514,7 +514,7 @@ function renderSettingsUI(container, profile, settings) {
                   <span>🔒</span> Category 3: Auto-Suspension &amp; Gate Kiosk Lock Threshold
                 </h4>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.25rem;">
                   <!-- Auto-Suspension Threshold -->
                   <div class="form-group">
                     <label class="form-label" for="setting-autoSuspendDays" style="font-weight: 600;">Auto-Suspension Threshold (Overdue Days) *</label>
@@ -603,7 +603,7 @@ function renderSettingsUI(container, profile, settings) {
                   <span>🏷️</span> Category 2: Student ID Prefix &amp; Sequence Baseline Counter
                 </h4>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.25rem;">
                   <!-- Prefix -->
                   <div class="form-group">
                     <label class="form-label" for="setting-idPrefix" style="font-weight: 600;">Student ID Prefix Code *</label>
@@ -630,7 +630,7 @@ function renderSettingsUI(container, profile, settings) {
                   <span>📐</span> Category 3: Structural Formatting &amp; Zero-Padding Rules
                 </h4>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.25rem;">
                   <!-- Format Dropdown -->
                   <div class="form-group">
                     <label class="form-label" for="setting-idFormat" style="font-weight: 600;">Student ID Format Pattern *</label>
@@ -728,7 +728,7 @@ function renderSettingsUI(container, profile, settings) {
                 </div>
 
                 <!-- Auto Bots Enable/Disable Toggles Grid -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 1rem;">
                   <!-- Expiry Bot Toggle -->
                   <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
                     <div style="padding-right: 0.75rem;">
@@ -790,7 +790,7 @@ function renderSettingsUI(container, profile, settings) {
                 <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 0.85rem;">
                   Students can text any of the following commands to your WhatsApp number for instant automated real-time replies:
                 </p>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 0.75rem;">
                   <div style="background: var(--color-surface); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
                     <code style="font-size: 0.9rem; color: var(--color-primary); font-weight: 700;">!seat</code>
                     <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-top: 4px;">Replies with student's active desk number, shift timing &amp; branch.</div>
@@ -1009,7 +1009,7 @@ function renderSettingsUI(container, profile, settings) {
                   <span>💱</span> Category 1: Currency &amp; Regional Localization Standards
                 </h4>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1.25rem;">
                   <!-- Currency Symbol -->
                   <div class="form-group">
                     <label class="form-label" for="setting-currencySymbol" style="font-weight: 600;">Currency Symbol *</label>
@@ -1047,7 +1047,7 @@ function renderSettingsUI(container, profile, settings) {
                   <span>🕒</span> Category 2: System Timezone &amp; Session Security Safeguards
                 </h4>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1.25rem;">
                   <!-- Timezone -->
                   <div class="form-group">
                     <label class="form-label" for="setting-timezone" style="font-weight: 600;">System Timezone *</label>
@@ -1142,7 +1142,7 @@ function renderSettingsUI(container, profile, settings) {
                 </div>
 
                 <!-- Per-Module Color Grid -->
-                <div id="mc-per-module-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                <div id="mc-per-module-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px;">
                   ${[
                     { key: 'students', label: '👥 Students', def: '#6366f1' },
                     { key: 'payments', label: '💰 Payments', def: '#00b894' },
@@ -1198,7 +1198,7 @@ function renderSettingsUI(container, profile, settings) {
 
           <div class="card-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
             
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1.5rem;">
               
               <!-- CATEGORY 1: DOWNLOAD BACKUP CARD -->
               <div style="padding: 1.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-secondary); display: flex; flex-direction: column; justify-content: space-between;">
@@ -1317,7 +1317,7 @@ function renderSettingsUI(container, profile, settings) {
               </h4>
               <p style="margin: 0 0 1rem 0; font-size: 0.82rem; color: var(--color-text-secondary);">Toggle which self-service actions are available to enrolled students in their portal.</p>
               
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1rem;">
                 <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
                   <div>
                     <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-text-primary);">🪑 Seat Transfer Requests</div>
@@ -1391,7 +1391,7 @@ function renderSettingsUI(container, profile, settings) {
                 <span>🔍</span> Category 1: Audit Filter &amp; Forensic Search Studio
               </h4>
               
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: flex-end;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; align-items: flex-end;">
                 <div>
                   <label class="form-label text-xs" style="font-weight: 700; display: block; margin-bottom: 4px;">System Module</label>
                   <select id="audit-filter-module" class="form-select form-control" style="font-weight: 600;">
@@ -1546,7 +1546,7 @@ function renderSettingsUI(container, profile, settings) {
                 <span>🎨</span> Category 1: Printable Layout Preset &amp; Official Watermark Stamp
               </h4>
               
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 1.25rem;">
                 <div class="form-group">
                   <label class="form-label" style="font-weight: 700;">Active Printable PDF Preset Template *</label>
                   <select id="setting-pdf-template" class="form-select form-control" style="font-weight: 600;">
@@ -1569,7 +1569,7 @@ function renderSettingsUI(container, profile, settings) {
                 <span>👁️</span> Category 2: Full Detailed Section &amp; Field Answers Visibility Controls
               </h4>
 
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 1rem;">
                 
                 <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
                   <div>
@@ -2192,7 +2192,7 @@ function renderSettingsUI(container, profile, settings) {
         </div>
 
         <!-- DIAGNOSTIC REPORT CARDS GRID -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 1.5rem;">
 
           <!-- CARD 1: DATABASE AUDIT -->
           <div class="card" style="border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; background: var(--color-surface);">
@@ -2342,7 +2342,7 @@ function renderSettingsUI(container, profile, settings) {
               ${getStatusBadge(systemTelemetry?.status)}
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 1rem;">
               <div style="background: var(--color-bg-primary); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
                 <div style="font-size: 0.8rem; color: var(--color-text-secondary);">Node.js Uptime</div>
                 <div style="font-size: 1.2rem; font-weight: 700; color: var(--color-primary); margin-top: 4px;">${escapeHTML(systemTelemetry?.formattedUptime)}</div>
@@ -2686,7 +2686,7 @@ function renderSettingsUI(container, profile, settings) {
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 0.75rem;">
             <div>
               <label class="form-label small mb-1" style="font-weight: 600;">Custom Instructions Note</label>
               <input type="text" class="form-control form-control-sm pm-input-instructions" value="${escapeHTML(pm.instructions || '')}" placeholder="Note shown to student during payment...">
@@ -2874,7 +2874,7 @@ function renderSettingsUI(container, profile, settings) {
       </div>
 
       <!-- Metric Badges Row -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr)); gap: 0.75rem; margin-bottom: 1.25rem;">
         <div style="background: var(--color-bg-primary); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--color-border); text-align: center;">
           <div style="font-size: 0.75rem; color: var(--color-text-secondary); text-transform: uppercase;">Students Scanned</div>
           <div style="font-size: 1.3rem; font-weight: 700; color: var(--color-text-primary);">${data.totalStudentsScanned ?? 0}</div>

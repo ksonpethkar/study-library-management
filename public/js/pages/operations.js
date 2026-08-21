@@ -108,7 +108,7 @@ export async function render() {
         </div>
         <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
           <div style="overflow-x: auto;">
-            <table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
+            <div class="table-responsive"><table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
               <thead>
                 <tr style="border-bottom: 1px solid var(--color-divider); color: var(--color-text-muted); font-size: 0.85rem; text-align: left;">
                   <th style="padding: 12px 16px;">Visitor Name</th>
@@ -145,7 +145,7 @@ export async function render() {
                   <tr><td colspan="7" class="p-4 text-center text-muted">No visitors logged yet. Click "+ Log New Visitor" to record walk-in leads.</td></tr>
                 `}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </div>
       `;
@@ -250,7 +250,7 @@ export async function render() {
           <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600;">📢 Digital Notice Board (${notices.length})</h3>
           <button id="btn-add-notice" class="btn btn-primary btn-sm">+ Post New Notice</button>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 1.25rem;">
           ${notices.length > 0 ? notices.map(n => `
             <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); position: relative;">
               <div class="d-flex justify-content-between align-items-start mb-2">
@@ -364,7 +364,7 @@ export async function render() {
         </div>
         <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
           <div style="overflow-x: auto;">
-            <table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
+            <div class="table-responsive"><table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
               <thead>
                 <tr style="border-bottom: 1px solid var(--color-divider); color: var(--color-text-muted); font-size: 0.85rem; text-align: left;">
                   <th style="padding: 12px 16px;">Holiday / Event</th>
@@ -395,7 +395,7 @@ export async function render() {
                   <tr><td colspan="6" class="p-4 text-center text-muted">No scheduled holidays.</td></tr>
                 `}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </div>
       `;
@@ -494,7 +494,7 @@ export async function render() {
         </div>
         <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
           <div style="overflow-x: auto;">
-            <table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
+            <div class="table-responsive"><table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
               <thead>
                 <tr style="border-bottom: 1px solid var(--color-divider); color: var(--color-text-muted); font-size: 0.85rem; text-align: left;">
                   <th style="padding: 12px 16px;">Item Name</th>
@@ -528,7 +528,7 @@ export async function render() {
                   <tr><td colspan="7" class="p-4 text-center text-muted">No items in the lost & found register.</td></tr>
                 `}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </div>
       `;
@@ -641,7 +641,7 @@ export async function render() {
           <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600;">💬 Student Feedback & Complaints (${feedbacks.length})</h3>
           <button id="btn-add-feedback" class="btn btn-primary btn-sm">+ Submit Feedback</button>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 1.25rem;">
           ${feedbacks.length > 0 ? feedbacks.map(fb => `
             <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
               <div class="d-flex justify-content-between align-items-start mb-2">
@@ -763,7 +763,7 @@ export async function render() {
         </div>
         <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
           <div style="overflow-x: auto;">
-            <table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
+            <div class="table-responsive"><table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
               <thead>
                 <tr style="border-bottom: 1px solid var(--color-divider); color: var(--color-text-muted); font-size: 0.85rem; text-align: left;">
                   <th style="padding: 12px 16px;">Student</th>
@@ -804,7 +804,7 @@ export async function render() {
                   <tr><td colspan="6" class="p-4 text-center text-muted">No leave applications submitted yet.</td></tr>
                 `}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </div>
       `;
@@ -844,7 +844,7 @@ export async function render() {
         </div>
         <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
           <div style="overflow-x: auto;">
-            <table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
+            <div class="table-responsive"><table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
               <thead>
                 <tr style="border-bottom: 1px solid var(--color-divider); color: var(--color-text-muted); font-size: 0.85rem; text-align: left;">
                   <th style="padding: 12px 16px;">Student</th>
@@ -885,7 +885,7 @@ export async function render() {
                   <tr><td colspan="6" class="p-4 text-center text-muted">No seat transfer requests submitted.</td></tr>
                 `}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </div>
       `;
@@ -993,7 +993,7 @@ export async function render() {
           </div>
 
           <!-- Configuration Controls Form -->
-          <form id="referral-config-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; align-items: flex-end; background: var(--color-surface); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+          <form id="referral-config-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 14px; align-items: flex-end; background: var(--color-surface); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
             <div>
               <label class="form-label text-xs" style="font-weight: 700;">Program Master Status</label>
               <select id="cfg-enabled" class="form-select form-control" style="font-weight: 600;">
@@ -1051,7 +1051,7 @@ export async function render() {
           </div>
 
           <div style="overflow-x: auto;">
-            <table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
+            <div class="table-responsive"><table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
               <thead>
                 <tr style="border-bottom: 1px solid var(--color-divider); color: var(--color-text-muted); font-size: 0.85rem; text-align: left;">
                   <th style="padding: 12px 16px;">Referrer Student</th>
@@ -1121,7 +1121,7 @@ export async function render() {
                   <tr><td colspan="7" class="p-5 text-center text-muted">No student referrals recorded yet. Friends who use student referral codes on registration will appear here automatically!</td></tr>
                 `}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </div>
       `;
@@ -1212,7 +1212,7 @@ export async function render() {
               </select>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px;">
               <div class="form-group">
                 <label class="form-label" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 6px; display: block;">Friend / Referee Name *</label>
                 <input type="text" id="man-referee-name" class="form-control" placeholder="e.g. Rahul Sharma" required style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md);">
@@ -1223,7 +1223,7 @@ export async function render() {
               </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px;">
               <div class="form-group">
                 <label class="form-label" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 6px; display: block;">Course / Target Exam</label>
                 <input type="text" id="man-target-exam" class="form-control" placeholder="e.g. UPSC, CA, NEET" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-md);">
@@ -1385,7 +1385,7 @@ export async function render() {
 
       panel.innerHTML = `
         <!-- Top Metrics Cards -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; margin-bottom: 1.5rem;">
           <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; align-items: center; gap: 14px;">
             <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
               ⏳
@@ -1435,7 +1435,7 @@ export async function render() {
         <!-- Waiting Queue Table -->
         <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
           <div style="overflow-x: auto;">
-            <table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
+            <div class="table-responsive"><table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
               <thead>
                 <tr style="border-bottom: 1px solid var(--color-divider); color: var(--color-text-muted); font-size: 0.85rem; text-align: left;">
                   <th style="padding: 12px 16px;">Priority</th>
@@ -1512,7 +1512,7 @@ export async function render() {
                   <tr><td colspan="8" class="p-5 text-center text-muted">No students currently in waiting queue. When a shift reaches maximum capacity, applicants will appear here automatically!</td></tr>
                 `}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </div>
       `;

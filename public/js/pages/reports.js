@@ -188,7 +188,7 @@ export async function render(container) {
           <span class="badge badge-primary" id="branchAnalyticsCount">0 Branches</span>
         </div>
         <div class="card-body p-3">
-          <div id="multiBranchGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+          <div id="multiBranchGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1rem;">
             <div class="text-muted small text-center p-3">Loading branch analytics...</div>
           </div>
         </div>
@@ -216,7 +216,7 @@ export async function render(container) {
       </div>
 
       <!-- Charts Section -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1.25rem;">
         
         <!-- Revenue Trend Chart -->
         <div class="card" style="background: var(--color-surface);">

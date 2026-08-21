@@ -34,7 +34,7 @@ export async function render() {
       <span class="text-muted text-xs">Manage seat access permissions per plan</span>
     </div>
     
-    <div id="plans-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem;">
+    <div id="plans-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 1.25rem;">
       <!-- Plans will be rendered here -->
     </div>
     
@@ -65,7 +65,7 @@ export async function render() {
     </div>
     
     <div class="card p-0 mb-5" style="overflow-x: auto;">
-      <table class="table" style="width: 100%; border-collapse: collapse;">
+      <div class="table-responsive"><table class="table" style="width: 100%; border-collapse: collapse;">
         <thead style="background: var(--color-surface); border-bottom: 2px solid var(--color-border);">
           <tr>
             <th style="padding: 12px 16px; text-align: left;">Code</th>
@@ -79,7 +79,7 @@ export async function render() {
         <tbody id="coupons-tbody">
           <tr><td colspan="6" class="text-center text-muted p-4">Loading coupons...</td></tr>
         </tbody>
-      </table>
+      </table></div>
     </div>
 
     <!-- Coupon Modal -->

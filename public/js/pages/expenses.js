@@ -146,7 +146,7 @@ export async function render(container) {
     </div>
 
     <!-- Charts Row -->
-    <div class="row mb-4 g-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
+    <div class="row mb-4 g-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1.25rem;">
       <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
         <h6 style="font-weight: 700; margin-bottom: 1rem;">📊 Expense Breakdown by Category</h6>
         <div style="position: relative; height: 220px; width: 100%;">

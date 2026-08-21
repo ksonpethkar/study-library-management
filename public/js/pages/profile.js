@@ -142,7 +142,7 @@ function renderProfileUI(container, user) {
           <!-- Edit Profile Form -->
           <form id="form-edit-profile">
             <input type="hidden" id="profile-avatar" value="${escapeHTML(user.avatar || '')}">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
               
               <div class="form-group">
                 <label class="form-label" for="profile-name" style="font-weight: 600;">Full Name *</label>
@@ -156,7 +156,7 @@ function renderProfileUI(container, user) {
 
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
               
               <div class="form-group">
                 <label class="form-label" for="profile-phone" style="font-weight: 600;">Phone Number</label>
@@ -212,7 +212,7 @@ function renderProfileUI(container, user) {
 
           <form id="form-change-password">
             
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
               
               <!-- Current Password -->
               <div class="form-group">
@@ -254,7 +254,7 @@ function renderProfileUI(container, user) {
               <div style="font-size: 0.85rem; font-weight: 600; color: var(--color-text-primary); margin-bottom: 0.5rem;">
                 Password Security Checklist
               </div>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; font-size: 0.85rem;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 0.5rem; font-size: 0.85rem;">
                 <div id="rule-len" style="display: flex; align-items: center; gap: 0.4rem; color: var(--color-text-muted);">
                   <span class="rule-icon">⚪</span> At least 6 characters
                 </div>

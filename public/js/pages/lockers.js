@@ -78,7 +78,7 @@ export async function render() {
     </div>
 
     <!-- Locker Grid -->
-    <div id="lockers-grid" class="d-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;">
+    <div id="lockers-grid" class="d-grid" style="grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 16px;">
       <div class="text-center p-4 text-muted" style="grid-column: 1 / -1;">Loading lockers...</div>
     </div>
   `;

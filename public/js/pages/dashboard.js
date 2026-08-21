@@ -328,9 +328,9 @@ function buildDashboardLayoutHTML(widgets) {
   const flushGroup = () => {
     if (currentGroupHTML.length === 0) return;
     if (currentGroupCategory === 'kpi') {
-      html += `<div class="stats-grid mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem;">${currentGroupHTML.join('')}</div>`;
+      html += `<div class="stats-grid mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 1rem;">${currentGroupHTML.join('')}</div>`;
     } else if (currentGroupCategory === 'chart') {
-      html += `<div class="charts-grid mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem;">${currentGroupHTML.join('')}</div>`;
+      html += `<div class="charts-grid mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 1.5rem;">${currentGroupHTML.join('')}</div>`;
     } else {
       html += currentGroupHTML.join('');
     }
@@ -614,7 +614,7 @@ export async function render(container) {
     </div>
 
     <!-- Live Attendance Overview & Expiring Soon Secondary Row -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
       
       <!-- Live Overview & Hourly Activity -->
       <div class="card">

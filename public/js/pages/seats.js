@@ -205,7 +205,7 @@ export async function render() {
       </div>
 
       <!-- Seats Grid -->
-      <div class="seats-grid" id="seatsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 1rem;">
+      <div class="seats-grid" id="seatsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 135px), 1fr)); gap: 1rem;">
         <!-- Seats loaded here -->
       </div>
     </div>
@@ -220,7 +220,7 @@ export async function render() {
       </div>
 
       <!-- Branch Cards Grid -->
-      <div id="branches-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.5rem;">
+      <div id="branches-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 1.5rem;">
         <div class="text-center p-4 text-muted col-span-full">Loading branches...</div>
       </div>
     </div>
