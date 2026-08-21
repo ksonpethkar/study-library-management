@@ -2681,3 +2681,91 @@ html.dark-theme .bottom-sheet {
   .btn-pwa-install { display: none !important; }
 }
 
+
+/* ============================================================
+   PHASE 5 — Bulk Operations Bars (Payments + Seats)
+   ============================================================ */
+
+/* ── Bulk bar slide-in animation (used by both modules) ─────── */
+@keyframes bulkBarSlideIn {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Payments bulk bar ───────────────────────────────────────── */
+#payments-bulk-bar {
+  transition: all 0.2s ease;
+}
+#payments-bulk-bar .btn {
+  font-size: 0.8rem !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+#payments-bulk-bar .btn:hover {
+  transform: translateY(-1px);
+}
+#payments-bulk-bar .btn:active {
+  transform: translateY(0);
+}
+
+/* Selected payment row highlight */
+.payment-row {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.payment-row:hover {
+  background: rgba(108, 92, 231, 0.05) !important;
+}
+
+/* Checkbox accent color */
+.payment-row-check,
+.seat-row-check {
+  accent-color: #6c5ce7;
+  cursor: pointer;
+}
+
+/* Indeterminate state styling for header checkboxes */
+#payments-check-all:indeterminate,
+#seats-check-all:indeterminate {
+  opacity: 0.7;
+}
+
+/* ── Seats bulk bar (already exists in HTML, enhance styles) ── */
+#bulk-action-bar {
+  animation: bulkBarSlideIn 0.2s ease;
+  transition: all 0.2s ease;
+}
+#bulk-action-bar .btn {
+  font-size: 0.8rem;
+  transition: transform 0.12s ease;
+}
+#bulk-action-bar .btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Seat cards — selected state */
+.seat-card.selected {
+  outline: 2px solid #6c5ce7 !important;
+  outline-offset: 2px;
+  background: rgba(108, 92, 231, 0.08) !important;
+  transform: scale(1.02);
+  transition: outline 0.15s ease, transform 0.15s ease, background 0.15s ease;
+}
+
+/* Select All button in table header */
+#payments-toggle-select-all {
+  font-size: 0.72rem !important;
+  padding: 2px 8px !important;
+  border-radius: 10px !important;
+  transition: all 0.15s ease;
+}
+#payments-toggle-select-all:hover {
+  background: rgba(108, 92, 231, 0.15) !important;
+  border-color: rgba(108, 92, 231, 0.5) !important;
+}
+
+/* Bulk count badge pulse when selections increase */
+#payments-bulk-count,
+#bulk-selected-count {
+  transition: transform 0.15s ease;
+}
+

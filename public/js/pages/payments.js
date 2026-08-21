@@ -64,10 +64,56 @@ export async function render(container) {
             </div>
         </div>
         
+        <!-- ── Phase 5: Payments Bulk Operations Bar ─────────────────── -->
+        <div id="payments-bulk-bar" style="
+          display: none; position: sticky; top: 64px; z-index: 98;
+          margin-bottom: 1rem;
+          background: linear-gradient(135deg, #1e293b, #0f172a);
+          color: #fff; padding: 10px 16px; border-radius: 12px;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+          align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+          border: 1px solid rgba(108,92,231,0.35);
+          animation: bulkBarSlideIn 0.2s ease;
+        ">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span id="payments-bulk-count" style="
+              background: rgba(108,92,231,0.25); color: #a29bfe;
+              font-weight: 700; font-size: 0.85rem; padding: 4px 10px;
+              border-radius: 20px; border: 1px solid rgba(108,92,231,0.4);
+            ">0 Selected</span>
+            <span style="font-size: 0.8rem; opacity: 0.7;">Actions on selected payments:</span>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+            <button type="button" id="payments-bulk-mark-paid" class="btn btn-sm btn-outline-success" style="font-weight: 600; border-radius: 8px;">
+              ✅ Mark Paid
+            </button>
+            <button type="button" id="payments-bulk-mark-pending" class="btn btn-sm btn-outline-warning" style="font-weight: 600; border-radius: 8px;">
+              ⏳ Mark Pending
+            </button>
+            <button type="button" id="payments-bulk-wa-remind" class="btn btn-sm" style="font-weight: 600; border-radius: 8px; background: #25D366; color: #fff; border: none;">
+              📲 WA Reminders
+            </button>
+            <button type="button" id="payments-bulk-export-csv" class="btn btn-sm btn-outline-info" style="font-weight: 600; border-radius: 8px;">
+              📥 Export Selected
+            </button>
+            <button type="button" id="payments-bulk-delete" class="btn btn-sm btn-danger" style="font-weight: 600; border-radius: 8px;">
+              🗑️ Delete
+            </button>
+            <button type="button" id="payments-bulk-cancel" class="btn btn-sm" style="font-weight: 600; border-radius: 8px; background: rgba(255,255,255,0.08); color: #94a3b8; border: 1px solid rgba(255,255,255,0.12);">
+              ✕ Cancel
+            </button>
+          </div>
+        </div>
+
         <!-- Recent Payments Table Card -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Recent Fee Payments</h3>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Recent Fee Payments</h3>
+                  <button type="button" id="payments-toggle-select-all" class="btn btn-xs btn-outline-secondary" style="font-size: 0.75rem; padding: 3px 10px; border-radius: 12px; font-weight: 600;" title="Toggle select all rows">
+                    ☑️ Select All
+                  </button>
+                </div>
                 <div class="filters d-flex gap-2 align-items-center flex-wrap w-100 w-md-auto">
                     <select id="filterMethod" class="form-select form-control form-control-sm w-100 w-md-auto" style="font-weight: 600;">
                         <option value="">All Methods</option>
@@ -92,6 +138,9 @@ export async function render(container) {
                     <table class="table data-table mb-0">
                         <thead>
                             <tr>
+                                <th style="width: 36px; padding: 8px 10px;">
+                                  <input type="checkbox" id="payments-check-all" title="Select all" style="cursor: pointer; width: 16px; height: 16px;">
+                                </th>
                                 <th>Receipt #</th>
                                 <th>Student</th>
                                 <th>Amount</th>
@@ -102,7 +151,7 @@ export async function render(container) {
                             </tr>
                         </thead>
                         <tbody id="paymentsTableBody">
-                            <tr><td colspan="7" class="text-center p-4">Loading payments...</td></tr>
+                            <tr><td colspan="8" class="text-center p-4">Loading payments...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -255,7 +304,10 @@ export async function render(container) {
         }
 
         tbody.innerHTML = payments.map(p => `
-            <tr>
+            <tr class="payment-row" data-id="${p._id}" data-status="${p.status}" data-amount="${p.finalAmount}" data-student-name="${escapeHTML(p.student?.name || '')}" data-student-phone="${escapeHTML(p.student?.phone || '')}" data-receipt="${escapeHTML(p.receiptNumber || '')}">
+                <td style="width: 36px; padding: 8px 10px; text-align: center;">
+                  <input type="checkbox" class="payment-row-check" data-id="${p._id}" style="cursor: pointer; width: 16px; height: 16px; accent-color: #6c5ce7;">
+                </td>
                 <td>
                     <a href="#" class="receipt-link" data-id="${p._id}" style="font-family: monospace; font-weight: 700; color: var(--color-primary, #6c5ce7);">${escapeHTML(p.receiptNumber || 'N/A')}</a>
                     <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(p.receiptNumber || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Receipt Number">📋</button>
@@ -1279,6 +1331,230 @@ export async function render(container) {
             Toast.error('An error occurred while loading receipt');
         }
     }
+
+    // ── Phase 5: Payments Bulk Operations Engine ───────────────────────────
+    const selectedPaymentIds = new Set();
+
+    function updatePaymentsBulkBar() {
+      const bar = container.querySelector('#payments-bulk-bar');
+      const countEl = container.querySelector('#payments-bulk-count');
+      const checkAll = container.querySelector('#payments-check-all');
+      if (!bar) return;
+      const count = selectedPaymentIds.size;
+      if (count > 0) {
+        bar.style.display = 'flex';
+      } else {
+        bar.style.display = 'none';
+      }
+      if (countEl) countEl.textContent = `${count} Selected`;
+      // Highlight selected rows
+      container.querySelectorAll('.payment-row').forEach(row => {
+        const isSelected = selectedPaymentIds.has(row.dataset.id);
+        row.style.background = isSelected ? 'rgba(108,92,231,0.1)' : '';
+        row.style.transition = 'background 0.15s ease';
+        const cb = row.querySelector('.payment-row-check');
+        if (cb) cb.checked = isSelected;
+      });
+      // Header checkbox indeterminate state
+      if (checkAll) {
+        const total = container.querySelectorAll('.payment-row-check').length;
+        checkAll.checked = count > 0 && count === total;
+        checkAll.indeterminate = count > 0 && count < total;
+      }
+    }
+
+    // Wire row checkboxes — runs after each renderPaymentsTableRows call
+    function wirePaymentRowCheckboxes() {
+      container.querySelectorAll('.payment-row-check').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const id = cb.dataset.id;
+          if (cb.checked) selectedPaymentIds.add(id);
+          else selectedPaymentIds.delete(id);
+          updatePaymentsBulkBar();
+        });
+      });
+      // Also allow clicking the row itself (but not buttons inside) to toggle
+      container.querySelectorAll('.payment-row').forEach(row => {
+        row.addEventListener('click', (e) => {
+          if (e.target.closest('button, a, input, select')) return;
+          const id = row.dataset.id;
+          if (selectedPaymentIds.has(id)) { selectedPaymentIds.delete(id); }
+          else { selectedPaymentIds.add(id); }
+          updatePaymentsBulkBar();
+        });
+      });
+    }
+
+    // Patch renderPaymentsTableRows to wire checkboxes after render
+    const _origRender = renderPaymentsTableRows;
+    // Re-wire checkboxes whenever tbody changes via MutationObserver
+    const paymentsObserver = new MutationObserver(() => {
+      wirePaymentRowCheckboxes();
+    });
+    const paymentsTableBody = container.querySelector('#paymentsTableBody');
+    if (paymentsTableBody) paymentsObserver.observe(paymentsTableBody, { childList: true });
+
+    // Check-all header checkbox
+    container.querySelector('#payments-check-all')?.addEventListener('change', (e) => {
+      const checked = e.target.checked;
+      container.querySelectorAll('.payment-row-check').forEach(cb => {
+        const id = cb.dataset.id;
+        if (checked) selectedPaymentIds.add(id);
+        else selectedPaymentIds.delete(id);
+      });
+      updatePaymentsBulkBar();
+    });
+
+    // Select All button (header)
+    container.querySelector('#payments-toggle-select-all')?.addEventListener('click', () => {
+      const allChecks = container.querySelectorAll('.payment-row-check');
+      const allSelected = allChecks.length > 0 && allChecks.length === selectedPaymentIds.size;
+      allChecks.forEach(cb => {
+        if (allSelected) selectedPaymentIds.delete(cb.dataset.id);
+        else selectedPaymentIds.add(cb.dataset.id);
+      });
+      updatePaymentsBulkBar();
+    });
+
+    // ── Cancel ─────────────────────────────────────────────────────────────
+    container.querySelector('#payments-bulk-cancel')?.addEventListener('click', () => {
+      selectedPaymentIds.clear();
+      updatePaymentsBulkBar();
+    });
+
+    // ── Bulk Mark Paid ──────────────────────────────────────────────────────
+    container.querySelector('#payments-bulk-mark-paid')?.addEventListener('click', async () => {
+      if (!selectedPaymentIds.size) return;
+      const btn = container.querySelector('#payments-bulk-mark-paid');
+      btn.disabled = true; btn.textContent = '⏳ Updating…';
+      let updated = 0;
+      for (const id of selectedPaymentIds) {
+        try {
+          const r = await api.put(`/api/payments/${id}/status`, { status: 'paid' });
+          if (r.success) {
+            updated++;
+            const row = container.querySelector(`.payment-row[data-id="${id}"]`);
+            if (row) {
+              const badge = row.querySelector('.btn-toggle-payment-status');
+              if (badge) { badge.textContent = 'paid'; badge.dataset.status = 'paid'; badge.style.background = 'rgba(0,184,148,0.2)'; badge.style.color = 'var(--color-success)'; }
+            }
+          }
+        } catch (e) {}
+      }
+      btn.disabled = false; btn.textContent = '✅ Mark Paid';
+      Toast.success(`✅ ${updated} payment(s) marked as Paid`);
+      selectedPaymentIds.clear();
+      updatePaymentsBulkBar();
+    });
+
+    // ── Bulk Mark Pending ────────────────────────────────────────────────────
+    container.querySelector('#payments-bulk-mark-pending')?.addEventListener('click', async () => {
+      if (!selectedPaymentIds.size) return;
+      const btn = container.querySelector('#payments-bulk-mark-pending');
+      btn.disabled = true; btn.textContent = '⏳ Updating…';
+      let updated = 0;
+      for (const id of selectedPaymentIds) {
+        try {
+          const r = await api.put(`/api/payments/${id}/status`, { status: 'pending' });
+          if (r.success) {
+            updated++;
+            const row = container.querySelector(`.payment-row[data-id="${id}"]`);
+            if (row) {
+              const badge = row.querySelector('.btn-toggle-payment-status');
+              if (badge) { badge.textContent = 'pending'; badge.dataset.status = 'pending'; badge.style.background = 'rgba(214,48,49,0.2)'; badge.style.color = 'var(--color-danger)'; }
+            }
+          }
+        } catch (e) {}
+      }
+      btn.disabled = false; btn.textContent = '⏳ Mark Pending';
+      Toast.success(`⏳ ${updated} payment(s) marked as Pending`);
+      selectedPaymentIds.clear();
+      updatePaymentsBulkBar();
+    });
+
+    // ── Bulk WhatsApp Reminders ──────────────────────────────────────────────
+    container.querySelector('#payments-bulk-wa-remind')?.addEventListener('click', () => {
+      if (!selectedPaymentIds.size) { Toast.warning('Select payments first'); return; }
+      const rows = Array.from(selectedPaymentIds).map(id =>
+        container.querySelector(`.payment-row[data-id="${id}"]`)
+      ).filter(Boolean);
+      if (!rows.length) return;
+
+      const libName = window.store?.settings?.businessName || 'The Cozy Corner Centre';
+      let sentCount = 0;
+      rows.forEach((row, i) => {
+        const phone = row.dataset.studentPhone;
+        const name  = row.dataset.studentName || 'Student';
+        const amt   = row.dataset.amount;
+        const receipt = row.dataset.receipt;
+        const status  = row.dataset.status;
+        if (!phone) return;
+        const cleanPhone = phone.replace(/[^0-9]/g, '');
+        const waPhone = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
+        const msg = status === 'pending' || status === 'partial'
+          ? `Hi ${name}! 🙏 Your fee payment of ₹${amt} (Receipt: ${receipt}) at *${libName}* is pending. Please pay at your earliest. Thank you!`
+          : `Hi ${name}! ✅ Your payment of ₹${amt} (Receipt: ${receipt}) at *${libName}* has been received. Thank you for studying with us! 📚`;
+        setTimeout(() => {
+          window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+          sentCount++;
+        }, i * 800);
+      });
+      Toast.success(`📲 Opening WhatsApp for ${rows.length} student(s)…`);
+    });
+
+    // ── Bulk Export CSV ─────────────────────────────────────────────────────
+    container.querySelector('#payments-bulk-export-csv')?.addEventListener('click', () => {
+      if (!selectedPaymentIds.size) { Toast.warning('Select payments first'); return; }
+      const rows = Array.from(selectedPaymentIds).map(id =>
+        container.querySelector(`.payment-row[data-id="${id}"]`)
+      ).filter(Boolean);
+
+      const headers = ['Receipt No','Student Name','Phone','Amount','Status'];
+      const csvData = rows.map(row => [
+        `"${row.dataset.receipt}"`,
+        `"${row.dataset.studentName}"`,
+        `"${row.dataset.studentPhone}"`,
+        `"${row.dataset.amount}"`,
+        `"${row.dataset.status}"`
+      ].join(','));
+
+      const csv = [headers.join(','), ...csvData].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `payments_selected_${Date.now()}.csv`; a.click();
+      URL.revokeObjectURL(url);
+      Toast.success(`📥 Exported ${rows.length} payment(s) to CSV`);
+    });
+
+    // ── Bulk Delete ──────────────────────────────────────────────────────────
+    container.querySelector('#payments-bulk-delete')?.addEventListener('click', async () => {
+      if (!selectedPaymentIds.size) return;
+      const count = selectedPaymentIds.size;
+      const confirmed = await Modal.confirm(
+        `🗑️ Delete ${count} Payment(s)?`,
+        `This will permanently delete ${count} selected payment record(s). This action cannot be undone.`,
+        { confirmLabel: `Delete ${count} Payments`, confirmClass: 'btn-danger' }
+      );
+      if (!confirmed) return;
+
+      const btn = container.querySelector('#payments-bulk-delete');
+      btn.disabled = true; btn.textContent = '⏳ Deleting…';
+      let deleted = 0;
+      for (const id of selectedPaymentIds) {
+        try {
+          const r = await api.delete(`/api/payments/${id}`);
+          if (r.success) {
+            deleted++;
+            container.querySelector(`.payment-row[data-id="${id}"]`)?.remove();
+          }
+        } catch (e) {}
+      }
+      btn.disabled = false; btn.textContent = '🗑️ Delete';
+      Toast.success(`🗑️ ${deleted} payment(s) deleted`);
+      selectedPaymentIds.clear();
+      updatePaymentsBulkBar();
+    });
 
     // Mount context-aware FAB for Payments page
     if (typeof window !== 'undefined' && window.FAB) {
