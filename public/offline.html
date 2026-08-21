@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're Offline — The Cozy Corner Centre</title>
+  <meta name="theme-color" content="#6c5ce7">
+  <style>
+    :root {
+      --color-primary: #6c5ce7;
+      --color-bg: #0f172a;
+      --color-surface: #1e293b;
+      --color-border: rgba(255,255,255,0.1);
+      --color-text: #e2e8f0;
+      --color-muted: #94a3b8;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh; padding: 24px;
+      text-align: center;
+    }
+
+    /* Animated library icon */
+    .icon-wrap {
+      width: 100px; height: 100px; border-radius: 28px;
+      background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 3rem; margin: 0 auto 28px auto;
+      box-shadow: 0 8px 32px rgba(108,92,231,0.4);
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 8px 32px rgba(108,92,231,0.4); }
+      50% { transform: scale(1.06); box-shadow: 0 12px 40px rgba(108,92,231,0.6); }
+    }
+
+    .card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 40px 32px;
+      max-width: 480px; width: 100%;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+    }
+
+    h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
+    .subtitle {
+      color: var(--color-muted); font-size: 1rem; line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    /* Offline indicator */
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(231,76,60,0.15); color: #e74c3c;
+      border: 1px solid rgba(231,76,60,0.3);
+      padding: 6px 14px; border-radius: 20px;
+      font-size: 0.82rem; font-weight: 700;
+      margin-bottom: 24px;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #e74c3c; animation: blink 1.2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+    /* What you can do while offline */
+    .offline-features {
+      background: rgba(108,92,231,0.08);
+      border: 1px solid rgba(108,92,231,0.2);
+      border-radius: 12px; padding: 16px 20px;
+      margin-bottom: 28px; text-align: left;
+    }
+    .offline-features h3 {
+      font-size: 0.82rem; font-weight: 700; color: #a29bfe;
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+    }
+    .feature-item {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.88rem; color: var(--color-text); margin-bottom: 6px;
+    }
+    .feature-item:last-child { margin-bottom: 0; }
+
+    /* Buttons */
+    .btn-group { display: flex; flex-direction: column; gap: 10px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 24px; border-radius: 10px; font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; border: none; transition: all 0.2s ease; text-decoration: none;
+      font-family: inherit; width: 100%;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: #fff;
+      box-shadow: 0 4px 16px rgba(108,92,231,0.35);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(108,92,231,0.5); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-outline {
+      background: transparent; color: var(--color-text);
+      border: 1px solid var(--color-border);
+    }
+    .btn-outline:hover { background: rgba(255,255,255,0.06); }
+
+    /* Connection restored indicator */
+    #online-restored {
+      display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,184,148,0.95); color: #fff;
+      padding: 10px 20px; border-radius: 20px; font-weight: 700; font-size: 0.88rem;
+      box-shadow: 0 4px 20px rgba(0,184,148,0.4); z-index: 999;
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+
+    .footer-note {
+      margin-top: 24px; font-size: 0.75rem; color: var(--color-muted);
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="card">
+    <div class="icon-wrap">📚</div>
+
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      No Internet Connection
+    </div>
+
+    <h1>You're Offline</h1>
+    <p class="subtitle">
+      The Cozy Corner Centre app needs internet to sync data.<br>
+      Check your connection and try again.
+    </p>
+
+    <div class="offline-features">
+      <h3>⚡ What works offline:</h3>
+      <div class="feature-item">✅ Previously visited pages are still accessible</div>
+      <div class="feature-item">✅ Student Portal (last loaded session)</div>
+      <div class="feature-item">✅ Kiosk attendance (if cached)</div>
+      <div class="feature-item">⏳ Payments, Reports, Live Data — need internet</div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="tryReconnect()">
+        🔄 Try Again
+      </button>
+      <a href="/" class="btn btn-outline">
+        🏠 Go to Home
+      </a>
+    </div>
+
+    <p class="footer-note">
+      📲 Tip: Install this app on your phone for better offline support.<br>
+      The Cozy Corner Centre &bull; Powered by StudyLib
+    </p>
+  </div>
+
+  <div id="online-restored">✅ Connection restored! Reloading…</div>
+
+  <script>
+    function tryReconnect() {
+      window.location.reload();
+    }
+
+    // Auto-detect when internet comes back
+    window.addEventListener('online', () => {
+      const notice = document.getElementById('online-restored');
+      if (notice) notice.style.display = 'block';
+      setTimeout(() => window.location.href = '/', 1800);
+    });
+
+    // Retry ping every 8 seconds
+    setInterval(() => {
+      fetch('/manifest.json', { method: 'HEAD', cache: 'no-store' })
+        .then(() => {
+          const notice = document.getElementById('online-restored');
+          if (notice) notice.style.display = 'block';
+          setTimeout(() => window.location.href = '/', 1800);
+        })
+        .catch(() => {});
+    }, 8000);
+  </script>
+</body>
+</html>
