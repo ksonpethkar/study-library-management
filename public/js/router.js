@@ -2,7 +2,9 @@ export default class Router {
   constructor() {
     this.routes = {};
     this.currentRoute = null;
-    window.addEventListener('hashchange', this.handleHashChange.bind(this));
+    this._prevRoute = null;
+    this._routeHistory = [];
+    window.addEventListener('hashchange', this._onHashChange.bind(this));
   }
 
   addRoute(path, handler) {
@@ -17,7 +19,18 @@ export default class Router {
     return this.currentRoute;
   }
 
-  handleHashChange() {
+  _onHashChange(event) {
+    const oldHash = event.oldURL ? '#' + (event.oldURL.split('#')[1] || '') : '';
+    const newHash = event.newURL ? '#' + (event.newURL.split('#')[1] || '') : '';
+
+    // Detect direction: forward if new route hasn't been visited, back if it has
+    const histIdx = this._routeHistory.lastIndexOf(newHash.split('?')[0]);
+    const isBack = histIdx !== -1 && histIdx < this._routeHistory.length - 1;
+
+    this.handleHashChange(isBack ? 'back' : 'forward');
+  }
+
+  handleHashChange(direction = 'forward') {
     let rawHash = window.location.hash || '';
     let basePath = rawHash.split('?')[0];
 
@@ -27,36 +40,80 @@ export default class Router {
       return;
     }
 
-    const runRoute = (fn) => {
-      if (typeof document !== 'undefined' && document.startViewTransition) {
-        try {
-          const transition = document.startViewTransition(() => fn());
-          if (transition) {
-            if (transition.finished) transition.finished.catch(() => {});
-            if (transition.ready) transition.ready.catch(() => {});
-          }
-        } catch (e) {
-          fn();
-        }
-      } else {
-        fn();
-      }
-    };
-
     if (!rawHash && this.routes['']) {
-      runRoute(this.routes['']);
+      this._runWithTransition(this.routes[''], direction);
       return;
     }
-    
+
     if (!this.routes[basePath]) {
       basePath = '#/dashboard';
       this.navigate(basePath);
       return;
     }
-    
+
+    // Track route history
+    this._prevRoute = this.currentRoute;
     this.currentRoute = rawHash;
+    if (!this._routeHistory.includes(basePath)) {
+      this._routeHistory.push(basePath);
+    }
+
     this.updateSidebarActive(basePath);
-    runRoute(this.routes[basePath]);
+
+    // Unmount FAB on route change (each page re-mounts it)
+    if (typeof window !== 'undefined' && window.FAB) {
+      window.FAB.unmount();
+    }
+
+    this._runWithTransition(this.routes[basePath], direction);
+  }
+
+  _runWithTransition(fn, direction = 'forward') {
+    const main = document.getElementById('main-content') || document.querySelector('.main-content') || document.querySelector('main');
+
+    // Use native View Transitions API if available (Chrome 111+)
+    if (typeof document !== 'undefined' && document.startViewTransition) {
+      try {
+        // Set direction class for CSS to pick up
+        document.documentElement.setAttribute('data-nav-direction', direction);
+        const transition = document.startViewTransition(() => { fn(); });
+        if (transition) {
+          if (transition.finished) transition.finished.catch(() => {});
+          if (transition.ready) transition.ready.catch(() => {});
+          if (transition.finished) {
+            transition.finished.then(() => {
+              document.documentElement.removeAttribute('data-nav-direction');
+            }).catch(() => {});
+          }
+        }
+      } catch (e) {
+        fn();
+      }
+      return;
+    }
+
+    // CSS class-based fallback transition
+    if (main) {
+      const exitClass = direction === 'back' ? 'page-exit-right' : 'page-exit-left';
+      const enterClass = direction === 'back' ? 'page-enter-right' : 'page-enter-left';
+
+      main.classList.add(exitClass);
+      setTimeout(() => {
+        main.classList.remove(exitClass);
+        fn();
+        main.classList.add(enterClass);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            main.classList.add('page-entered');
+            setTimeout(() => {
+              main.classList.remove(enterClass, 'page-entered');
+            }, 350);
+          });
+        });
+      }, 120);
+    } else {
+      fn();
+    }
   }
 
   updateSidebarActive(basePath) {
@@ -71,6 +128,6 @@ export default class Router {
   }
 
   start() {
-    this.handleHashChange();
+    this.handleHashChange('forward');
   }
 }

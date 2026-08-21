@@ -7,6 +7,7 @@ import { Toast, Modal, Loading, renderMobileBottomNav, VoiceSearch } from './ui.
 import { SearchPalette } from './search.js';
 import { AudioFeedback } from './utils/audioFeedback.js';
 import { promptPWAInstall } from './pwaManager.js';
+import { SidebarSortable } from './dragDrop.js';
 
 /**
  * Global Crash Catchers & Error Recovery
@@ -257,6 +258,12 @@ class Application {
 
     // Adapt sidebar for role (Student vs Admin/Staff) & render database config
     await this.updateSidebarForRole();
+
+    // Enable sidebar drag-to-reorder (admin/staff only)
+    if (store.user?.role !== 'student') {
+      // Small delay to ensure sidebar DOM is fully rendered
+      setTimeout(() => SidebarSortable.init(), 300);
+    }
 
     // Render mobile bottom navigation bar based on user role
     renderMobileBottomNav(store.user?.role || 'staff');

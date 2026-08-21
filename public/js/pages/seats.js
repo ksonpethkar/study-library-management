@@ -261,6 +261,32 @@ export async function render() {
     await loadInitialHubData(container);
   }, 0);
 
+  // Mount context-aware FAB for Seats page
+  if (typeof window !== 'undefined' && window.FAB) {
+    window.FAB.mount({
+      icon: '🪑',
+      label: 'Seat Actions',
+      color: '#fd79a8',
+      actions: [
+        {
+          icon: '➕',
+          label: 'Add Seat',
+          onClick: () => { const btn = container.querySelector('#addSeatBtn, [id*="addSeat"]'); if (btn) btn.click(); }
+        },
+        {
+          icon: '🗺️',
+          label: 'Seat Map',
+          onClick: () => { const btn = container.querySelector('[data-tab="seats"], .hub-tab-btn'); if (btn) btn.click(); }
+        },
+        {
+          icon: '📊',
+          label: 'Occupancy Report',
+          onClick: () => { window.location.hash = '#/reports'; }
+        }
+      ]
+    });
+  }
+
   return container;
 }
 

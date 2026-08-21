@@ -90,7 +90,33 @@ export function render() {
   `;
 
   setTimeout(() => init(container), 0);
-  
+
+  // Mount context-aware FAB for Attendance page
+  if (typeof window !== 'undefined' && window.FAB) {
+    window.FAB.mount({
+      icon: '⏱️',
+      label: 'Attendance Actions',
+      color: '#0984e3',
+      actions: [
+        {
+          icon: '✅',
+          label: 'Mark Present',
+          onClick: () => { const input = container.querySelector('#student-search'); if (input) { input.focus(); input.scrollIntoView({ behavior: 'smooth' }); } }
+        },
+        {
+          icon: '🖥️',
+          label: 'Open Kiosk',
+          onClick: () => { window.open('/kiosk', '_blank'); }
+        },
+        {
+          icon: '📅',
+          label: 'Export Logs',
+          onClick: () => { const btn = container.querySelector('[id*="export"], [id*="Export"]'); if (btn) btn.click(); }
+        }
+      ]
+    });
+  }
+
   return container;
 }
 

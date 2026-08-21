@@ -1280,5 +1280,26 @@ export async function render(container) {
         }
     }
 
+    // Mount context-aware FAB for Payments page
+    if (typeof window !== 'undefined' && window.FAB) {
+      window.FAB.mount({
+        icon: '💳',
+        label: 'Payment Actions',
+        color: '#00b894',
+        actions: [
+          {
+            icon: '➕',
+            label: 'Collect Fee',
+            onClick: () => { const btn = container.querySelector('#collectPaymentBtn, [id*="collectFee"], [id*="collect"]'); if (btn) btn.click(); }
+          },
+          {
+            icon: '📊',
+            label: 'Revenue Report',
+            onClick: () => { const btn = container.querySelector('#exportReportBtn, [id*="export"]'); if (btn) btn.click(); else window.location.hash = '#/reports'; }
+          }
+        ]
+      });
+    }
+
     return container;
 }

@@ -2085,6 +2085,32 @@ export async function render() {
     loadStats();
     loadStudents(1);
   }, 0);
-  
+
+  // Mount context-aware FAB for Students page
+  if (typeof window !== 'undefined' && window.FAB) {
+    window.FAB.mount({
+      icon: '🎓',
+      label: 'Student Actions',
+      color: 'var(--color-primary, #6c5ce7)',
+      actions: [
+        {
+          icon: '➕',
+          label: 'Add Student',
+          onClick: () => { const btn = container.querySelector('#addStudentBtn'); if (btn) btn.click(); }
+        },
+        {
+          icon: '⏳',
+          label: 'Waiting List',
+          onClick: () => { const tab = container.querySelector('[data-tab="waiting"]'); if (tab) tab.click(); }
+        },
+        {
+          icon: '📤',
+          label: 'Export Students',
+          onClick: () => { const btn = container.querySelector('#exportStudentsBtn, [id*="export"]'); if (btn) btn.click(); }
+        }
+      ]
+    });
+  }
+
   return container;
 }

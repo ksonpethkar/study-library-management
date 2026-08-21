@@ -1476,3 +1476,150 @@ if (typeof window !== 'undefined') {
 
 
 
+
+
+// =============================================================================
+// FAB - Floating Action Button with speed-dial (context-aware per page)
+// =============================================================================
+export const FAB = {
+  _el: null,
+  _scrollHandler: null,
+  _outsideClickHandler: null,
+  _lastScrollY: 0,
+  _isOpen: false,
+
+  /**
+   * Mount FAB to page
+   * @param {object} config
+   *   icon {string}    - Main button emoji/text
+   *   label {string}   - Accessibility label
+   *   color {string}   - CSS color for main button bg
+   *   actions {Array}  - [{ icon, label, onClick }]
+   */
+  mount(config = {}) {
+    this.unmount();
+    const { icon = '+', label = 'Quick Actions', color = 'var(--color-primary, #6c5ce7)', actions = [] } = config;
+
+    const fab = document.createElement('div');
+    fab.id = 'global-fab';
+    fab.className = 'fab-container';
+    fab.setAttribute('aria-label', label);
+
+    // Speed-dial menu (appears above main button)
+    const speedDial = document.createElement('div');
+    speedDial.className = 'fab-speed-dial';
+    speedDial.setAttribute('aria-hidden', 'true');
+
+    actions.forEach((action, idx) => {
+      const item = document.createElement('button');
+      item.className = 'fab-speed-item';
+      item.type = 'button';
+      item.setAttribute('aria-label', action.label || '');
+      item.style.transitionDelay = `${idx * 45}ms`;
+      item.innerHTML = `
+        <span class="fab-speed-label">${action.label || ''}</span>
+        <span class="fab-speed-icon">${action.icon || '+'}</span>
+      `;
+      item.onclick = (e) => {
+        e.stopPropagation();
+        this._closeSpeedDial();
+        if (typeof action.onClick === 'function') action.onClick();
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+      };
+      speedDial.appendChild(item);
+    });
+
+    // Main FAB button
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'fab-main-btn';
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-label', label);
+    btn.style.background = color;
+    btn.innerHTML = `<span class="fab-main-icon">${icon}</span>`;
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      if (this._isOpen) this._closeSpeedDial();
+      else this._openSpeedDial();
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+    };
+
+    fab.appendChild(speedDial);
+    fab.appendChild(btn);
+    document.body.appendChild(fab);
+    this._el = fab;
+    this._lastScrollY = window.scrollY;
+
+    // Auto-hide on scroll down, show on scroll up
+    let ticking = false;
+    this._scrollHandler = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          const currentY = window.scrollY;
+          const diff = currentY - this._lastScrollY;
+          if (diff > 50 && currentY > 150) {
+            fab.classList.add('fab-hidden');
+            this._closeSpeedDial();
+          } else if (diff < -20) {
+            fab.classList.remove('fab-hidden');
+          }
+          this._lastScrollY = currentY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+    window.addEventListener('scroll', this._scrollHandler, { passive: true });
+
+    // Close speed-dial on outside click
+    this._outsideClickHandler = (e) => {
+      if (this._isOpen && this._el && !this._el.contains(e.target)) {
+        this._closeSpeedDial();
+      }
+    };
+    document.addEventListener('click', this._outsideClickHandler);
+  },
+
+  _openSpeedDial() {
+    if (!this._el) return;
+    this._isOpen = true;
+    this._el.classList.add('fab-open');
+    const mainBtn = this._el.querySelector('.fab-main-btn');
+    if (mainBtn) mainBtn.setAttribute('aria-expanded', 'true');
+    const speedDial = this._el.querySelector('.fab-speed-dial');
+    if (speedDial) speedDial.removeAttribute('aria-hidden');
+    const items = this._el.querySelectorAll('.fab-speed-item');
+    items.forEach((item, i) => { setTimeout(() => item.classList.add('visible'), i * 45); });
+  },
+
+  _closeSpeedDial() {
+    if (!this._el) return;
+    this._isOpen = false;
+    this._el.classList.remove('fab-open');
+    const mainBtn = this._el.querySelector('.fab-main-btn');
+    if (mainBtn) mainBtn.setAttribute('aria-expanded', 'false');
+    const speedDial = this._el.querySelector('.fab-speed-dial');
+    if (speedDial) speedDial.setAttribute('aria-hidden', 'true');
+    this._el.querySelectorAll('.fab-speed-item').forEach(item => item.classList.remove('visible'));
+  },
+
+  unmount() {
+    if (this._el && this._el.parentNode) this._el.remove();
+    this._el = null;
+    this._isOpen = false;
+    if (this._scrollHandler) {
+      window.removeEventListener('scroll', this._scrollHandler);
+      this._scrollHandler = null;
+    }
+    if (this._outsideClickHandler) {
+      document.removeEventListener('click', this._outsideClickHandler);
+      this._outsideClickHandler = null;
+    }
+  },
+
+  update(config) { this.unmount(); this.mount(config); },
+  hide() { if (this._el) this._el.classList.add('fab-hidden'); },
+  show() { if (this._el) this._el.classList.remove('fab-hidden'); }
+};
+
+if (typeof window !== 'undefined') window.FAB = FAB;
