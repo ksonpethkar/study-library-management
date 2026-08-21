@@ -60,6 +60,17 @@ export default class Router {
 
     this.updateSidebarActive(basePath);
 
+    // ── Phase B: Scroll to top on every route change ──────────────────────
+    // Critical for mobile — prevents arriving at new page mid-scroll
+    const mainEl = document.getElementById('page-content') ||
+                   document.getElementById('main-content') ||
+                   document.querySelector('.main-content');
+    if (mainEl) {
+      mainEl.scrollTop = 0;
+    }
+    // Also scroll window for iOS standalone PWA
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
     // Unmount FAB on route change (each page re-mounts it)
     if (typeof window !== 'undefined' && window.FAB) {
       window.FAB.unmount();

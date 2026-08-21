@@ -312,17 +312,8 @@ export async function initAppEvents() {
   // Apply initial translations to DOM on boot
   import('./i18n.js').then(m => m.applyTranslationsToDOM());
 
-  // Notification Bell Click & Dropdown
-  const notifBtn = document.getElementById('notif-btn') || document.getElementById('notification-btn');
-  if (notifBtn) {
-    notifBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      showNotificationsModal();
-    });
-    // Poll unread count on startup and every 60 seconds
-    updateNotificationBadge();
-    setInterval(updateNotificationBadge, 60000);
-  }
+  // Notification Bell — badge count only (Phase 7 initNotificationCenter owns the click + panel)
+  updateNotificationBadge();
 
   // Sidebar nav - update active state & close mobile sidebar on click
   document.querySelectorAll('.sidebar-nav .nav-item').forEach(link => {

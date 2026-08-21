@@ -3,7 +3,7 @@ import Router from './router.js';
 import { initSetupWizard, initLoginPage, initAppEvents } from './auth.js';
 import { t } from './i18n.js';
 import ShortcutManager from './shortcuts.js';
-import { Toast, Modal, Loading, renderMobileBottomNav, VoiceSearch } from './ui.js';
+import { Toast, Modal, Loading, renderMobileBottomNav, VoiceSearch, initPullToRefresh } from './ui.js';
 import { SearchPalette } from './search.js';
 import { AudioFeedback } from './utils/audioFeedback.js';
 import { promptPWAInstall } from './pwaManager.js';
@@ -274,6 +274,12 @@ class Application {
     // Init search palette
     if (!this.searchPalette) {
       this.searchPalette = new SearchPalette();
+    }
+
+    // ── Phase B: Pull-to-Refresh (mobile only, init once) ─────────────────
+    if (!this._ptrInit) {
+      this._ptrInit = true;
+      initPullToRefresh();
     }
 
     // Wire up voice search button

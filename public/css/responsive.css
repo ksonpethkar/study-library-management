@@ -820,3 +820,238 @@ body {
 
 /* ── END PHASE A ────────────────────────────────────────────────────────*/
 
+
+/* ╔══════════════════════════════════════════════════════════════════════╗
+   ║  PHASE B — Touch UX, Mobile Cards, Scroll Fix                      ║
+   ╚══════════════════════════════════════════════════════════════════════╝ */
+
+/* ── 1. Students Table — Mobile Card View (<= 640px) ─────────────────────
+   9 columns: checkbox / ID / Name / Phone / Plan / Seat / Expiry / Status / KYC / Actions
+   On mobile: show as cards with Name prominent, key info below             */
+@media (max-width: 640px) {
+  .students-table-container table thead,
+  .students-table-container .data-table thead {
+    display: none !important;
+  }
+
+  .students-table-container table tbody .student-row,
+  .students-table-container .data-table tbody .student-row {
+    display: block !important;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    margin-bottom: 10px;
+    padding: 14px;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .students-table-container tbody .student-row td {
+    display: none !important;
+    border: none !important;
+    padding: 2px 0 !important;
+  }
+
+  /* Show: Name (td:3), Phone (td:4), Plan (td:5), Status (td:8), Actions (td:9-10) */
+  .students-table-container tbody .student-row td:nth-child(3),
+  .students-table-container tbody .student-row td:nth-child(4),
+  .students-table-container tbody .student-row td:nth-child(5),
+  .students-table-container tbody .student-row td:nth-child(8),
+  .students-table-container tbody .student-row td:nth-child(9),
+  .students-table-container tbody .student-row td:nth-child(10) {
+    display: block !important;
+  }
+
+  /* Name: biggest, at top */
+  .students-table-container tbody .student-row td:nth-child(3) strong {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+  }
+
+  /* Student ID: shown as ::before via data attribute */
+  .students-table-container tbody .student-row::before {
+    content: attr(data-student-id);
+    display: block;
+    font-family: monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--color-primary, #6c5ce7);
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Status badge: absolute top-right */
+  .students-table-container tbody .student-row td:nth-child(8) {
+    position: absolute !important;
+    top: 12px;
+    right: 12px;
+    display: block !important;
+    padding: 0 !important;
+  }
+
+  /* Actions row: flex wrap */
+  .students-table-container tbody .student-row td:nth-child(9),
+  .students-table-container tbody .student-row td:nth-child(10) {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 10px !important;
+    border-top: 1px solid var(--color-border) !important;
+    margin-top: 8px;
+  }
+
+  .students-table-container tbody .student-row td:nth-child(9) .btn,
+  .students-table-container tbody .student-row td:nth-child(10) .btn {
+    flex: 1;
+    text-align: center;
+    font-size: 0.78rem;
+    padding: 6px 10px;
+  }
+
+  /* Hide checkbox, ID text col, Seat, Expiry on mobile */
+  .students-table-container tbody .student-row td:nth-child(1),
+  .students-table-container tbody .student-row td:nth-child(2),
+  .students-table-container tbody .student-row td:nth-child(6),
+  .students-table-container tbody .student-row td:nth-child(7) {
+    display: none !important;
+  }
+}
+
+/* ── 2. Search / Filter bars: stack vertically on mobile ─────────────────*/
+@media (max-width: 640px) {
+  .filter-bar,
+  .search-filter-row,
+  [id*="filter-row"],
+  [id*="search-row"] {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .filter-bar .form-control,
+  .filter-bar select,
+  .filter-bar input {
+    width: 100% !important;
+  }
+
+  /* Students page: search + filter inputs full width */
+  #student-search,
+  #student-filter-status,
+  #student-filter-plan,
+  #student-filter-shift,
+  #payment-search,
+  #filter-status,
+  #filter-method {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+/* ── 3. Header: safe area inset + iPhone notch ───────────────────────────*/
+.header,
+.app-header,
+nav.header {
+  padding-top: max(8px, env(safe-area-inset-top)) !important;
+}
+
+/* ── 4. Main content: prevent content hiding under bottom nav ────────────*/
+@media (max-width: 768px) {
+  #page-content,
+  .page-content,
+  .main-content {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* ── 5. Sidebar overlay — smooth dark background when open ──────────────*/
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1040;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.sidebar-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── 6. Mobile sidebar: smoother slide + visible above overlay ───────────*/
+@media (max-width: 768px) {
+  .sidebar {
+    z-index: 1050 !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.35) !important;
+  }
+}
+
+/* ── 7. Buttons in modals: stack full-width on small screens ─────────────*/
+@media (max-width: 480px) {
+  .modal-footer,
+  .modal-actions,
+  [class*="modal"] .btn-group {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  [class*="modal"] .modal-footer .btn,
+  [class*="modal"] .btn-group .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* ── 8. Form rows in modals: single column on small screens ─────────────*/
+@media (max-width: 480px) {
+  .modal-body .row,
+  [class*="modal"] .row {
+    --bs-gutter-x: 0.5rem;
+  }
+
+  .modal-body .col-6,
+  [class*="modal"] .col-6 {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* ── 9. Floating Action Button: clear bottom nav properly ────────────────*/
+@media (max-width: 768px) {
+  .fab,
+  .fab-container,
+  #fab-speed-dial,
+  [class*="fab-btn"],
+  [id*="fab"] {
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 16px !important;
+  }
+}
+
+/* ── 10. Pull-to-refresh: spin animation ────────────────────────────────*/
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── 11. Active mobile tab scale bounce ─────────────────────────────────*/
+.mobile-tab-item:active {
+  transform: scale(0.88) !important;
+  transition: transform 0.08s ease !important;
+}
+
+/* ── 12. Long text in filter dropdowns / selects ────────────────────────*/
+@media (max-width: 640px) {
+  select.form-control,
+  select.form-select {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+}
+
+/* ── END PHASE B ────────────────────────────────────────────────────────*/
+

@@ -199,7 +199,7 @@ export async function render() {
       const expiry = s.expiryDate ? new Date(s.expiryDate).toLocaleDateString('en-IN') : '-';
 
       return `
-        <tr class="student-row" data-id="${escapeHTML(s._id)}">
+        <tr class="student-row" data-id="${escapeHTML(s._id)}" data-student-id="${escapeHTML(s.studentId || '')}">
           <td style="width: 44px; text-align: center; vertical-align: middle; padding: 0.5rem 0.25rem;">
             <label class="student-select-label" style="position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; width: 22px; height: 22px; margin: 0;">
               <input type="checkbox" class="student-select-cb" data-id="${escapeHTML(s._id)}" style="position: absolute; opacity: 0; width: 0; height: 0; margin: 0; pointer-events: none;">
