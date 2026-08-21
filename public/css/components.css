@@ -2283,3 +2283,194 @@ html.dark-theme .bottom-sheet {
   .fab-container { bottom: calc(84px + env(safe-area-inset-bottom)); }
   .mobile-bottom-nav, .mobile-tab-bar { padding-bottom: env(safe-area-inset-bottom); }
 }
+
+/* ============================================================
+   PHASE 2 — Smart Data & Automation CSS
+   Attendance Heatmap, Behavior Score, Module Gradients,
+   Occupancy Gauge, WA Blast Modal, Counter Animations
+   ============================================================ */
+
+/* ── Module Gradient Header Banners ──────────────────────────*/
+.module-header {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--module-gradient, linear-gradient(135deg, rgba(108,92,231,0.12) 0%, rgba(99,102,241,0.04) 100%));
+  border: 1px solid var(--module-border-color, rgba(108,92,231,0.2));
+}
+.module-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--module-gradient-overlay, transparent);
+  pointer-events: none;
+  border-radius: inherit;
+}
+/* Per-module gradient themes */
+.page-container[data-module="students"] .module-header {
+  --module-gradient: linear-gradient(135deg, rgba(99,102,241,0.14) 0%, rgba(139,92,246,0.06) 100%);
+  --module-border-color: rgba(99,102,241,0.25);
+}
+.page-container[data-module="payments"] .module-header {
+  --module-gradient: linear-gradient(135deg, rgba(0,184,148,0.14) 0%, rgba(16,185,129,0.06) 100%);
+  --module-border-color: rgba(0,184,148,0.25);
+}
+.page-container[data-module="seats"] .module-header {
+  --module-gradient: linear-gradient(135deg, rgba(253,121,168,0.14) 0%, rgba(232,67,147,0.06) 100%);
+  --module-border-color: rgba(253,121,168,0.25);
+}
+.page-container[data-module="attendance"] .module-header {
+  --module-gradient: linear-gradient(135deg, rgba(9,132,227,0.14) 0%, rgba(6,182,212,0.06) 100%);
+  --module-border-color: rgba(9,132,227,0.25);
+}
+.page-container[data-module="reports"] .module-header {
+  --module-gradient: linear-gradient(135deg, rgba(253,203,110,0.14) 0%, rgba(245,158,11,0.06) 100%);
+  --module-border-color: rgba(253,203,110,0.25);
+}
+.page-container[data-module="settings"] .module-header {
+  --module-gradient: linear-gradient(135deg, rgba(162,155,254,0.14) 0%, rgba(108,92,231,0.06) 100%);
+  --module-border-color: rgba(162,155,254,0.25);
+}
+
+/* ── Behavior Score Badge ──────────────────────────────────── */
+.behavior-badge {
+  cursor: help;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+.behavior-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* ── Attendance Heatmap Calendar ───────────────────────────── */
+.attendance-heatmap-wrap {
+  user-select: none;
+  -webkit-overflow-scrolling: touch;
+}
+.attendance-heatmap-wrap svg rect {
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  transform-origin: center;
+}
+.attendance-heatmap-wrap svg rect:hover {
+  opacity: 0.85 !important;
+  transform: scale(1.15);
+}
+.heatmap-svg-container {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+/* ── KPI Stat Card Enhancements ─────────────────────────────── */
+.stat-card {
+  transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease;
+  cursor: default;
+}
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+}
+.stat-card-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+  transition: all 0.15s ease;
+}
+/* Occupancy gauge arc animation */
+#dash-gauge-arc {
+  transition: stroke-dasharray 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ── WA Blast Modal ─────────────────────────────────────────── */
+#wa-blast-modal textarea {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  border-radius: 8px;
+  resize: vertical;
+  min-height: 100px;
+}
+.wa-filter-btn {
+  transition: all 0.18s ease;
+}
+.wa-filter-btn.btn-primary {
+  box-shadow: 0 2px 8px rgba(108,92,231,0.35);
+}
+
+/* ── Dashboard Renewal WA Blast Button ─────────────────────── */
+.dash-wa-blast-btn {
+  background: linear-gradient(135deg, #25D366, #128C7E);
+  color: #fff !important;
+  border: none !important;
+  border-radius: 20px !important;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.dash-wa-blast-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(37,211,102,0.4);
+  color: #fff !important;
+}
+
+/* ── KPI Counter Animation ──────────────────────────────────── */
+@keyframes kpiCountUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.stat-card-value {
+  animation: kpiCountUp 0.4s ease both;
+}
+
+/* ── Student Year Heatmap Section (inside modal) ────────────── */
+#student-year-heatmap {
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border, rgba(255,255,255,0.08));
+}
+#student-year-heatmap .btn-ghost {
+  background: transparent;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.15));
+  color: var(--color-text-secondary);
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+#student-year-heatmap .btn-ghost:hover {
+  background: rgba(255,255,255,0.07);
+}
+#student-year-heatmap .btn-ghost:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── Mobile responsive heatmap ──────────────────────────────── */
+@media (max-width: 600px) {
+  .heatmap-svg-container {
+    font-size: 0;
+  }
+  .attendance-heatmap-wrap {
+    margin: 0 -4px;
+  }
+  #student-analytics-widget {
+    padding: 12px !important;
+  }
+}
+
+/* ── KPI Renewal Widget ─────────────────────────────────────── */
+[data-widget-id="kpi_renewals_week"] .stat-card-body {
+  flex-direction: column;
+  align-items: flex-start;
+}
+[data-widget-id="kpi_renewals_week"] #dash-renewal-wa-actions {
+  border-top: 1px solid var(--color-border, rgba(255,255,255,0.07));
+  padding-top: 8px !important;
+  margin-top: 4px;
+}
+
+/* ── KPI Occupancy Gauge Card ──────────────────────────────── */
+[data-widget-id="kpi_occupancy_gauge"] .stat-card-body {
+  flex-direction: column;
+  align-items: flex-start;
+}
+

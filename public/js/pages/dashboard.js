@@ -11,10 +11,13 @@ const DEFAULT_WIDGETS = [
   { id: 'kpi_expiring_soon', label: 'Expiring in 48 Hours', isEnabled: true, order: 4, category: 'kpi', icon: '⏰' },
   { id: 'kpi_defaulter_dues', label: 'Overdue Fee Balances', isEnabled: true, order: 5, category: 'kpi', icon: '⚠️' },
   { id: 'kpi_total_seats', label: 'Total Seat Capacity', isEnabled: true, order: 6, category: 'kpi', icon: '🏢' },
-  { id: 'chart_revenue_trend', label: 'Monthly Revenue Trend Chart', isEnabled: true, order: 7, category: 'chart', icon: '📈' },
-  { id: 'chart_shift_occupancy', label: 'Shift Occupancy Distribution Chart', isEnabled: true, order: 8, category: 'chart', icon: '🕒' },
-  { id: 'chart_exam_stats', label: 'Student Exam Preparation Breakdown', isEnabled: true, order: 9, category: 'chart', icon: '🎯' },
-  { id: 'quick_actions', label: 'Quick 1-Tap Action Toolbar', isEnabled: true, order: 10, category: 'action', icon: '⚡' }
+  { id: 'kpi_renewals_week', label: 'Renewals Due This Week', isEnabled: true, order: 7, category: 'kpi', icon: '📅' },
+  { id: 'kpi_occupancy_gauge', label: 'Live Seat Occupancy Gauge', isEnabled: true, order: 8, category: 'kpi', icon: '🎯' },
+  { id: 'kpi_behavior_alerts', label: 'At-Risk Student Alerts', isEnabled: true, order: 9, category: 'kpi', icon: '🔴' },
+  { id: 'chart_revenue_trend', label: 'Monthly Revenue Trend Chart', isEnabled: true, order: 10, category: 'chart', icon: '📈' },
+  { id: 'chart_shift_occupancy', label: 'Shift Occupancy Distribution Chart', isEnabled: true, order: 11, category: 'chart', icon: '🕒' },
+  { id: 'chart_exam_stats', label: 'Student Exam Preparation Breakdown', isEnabled: true, order: 12, category: 'chart', icon: '🎯' },
+  { id: 'quick_actions', label: 'Quick 1-Tap Action Toolbar', isEnabled: true, order: 13, category: 'action', icon: '⚡' }
 ];
 
 const formatCurrency = (amount) => {
@@ -237,6 +240,62 @@ function renderWidgetHTML(widget) {
           </div>
         </div>
       `;
+
+    case 'kpi_renewals_week':
+      return `
+        <div class="stat-card card" data-widget-id="kpi_renewals_week" style="border-left: 4px solid #6c5ce7; cursor:pointer;" onclick="window.location.hash='#/students'">
+          <div class="stat-card-body">
+            <div class="stat-card-info">
+              <div class="stat-card-title">📅 Renewals Due This Week</div>
+              <div class="stat-card-value" id="dash-kpi-renewals-week" style="color:#6c5ce7;">0 students</div>
+              <div class="text-xs text-muted" id="dash-kpi-renewals-sub" style="margin-top:4px;">Expiring in next 7 days</div>
+            </div>
+            <div class="stat-card-icon" style="background:rgba(108,92,231,0.15);color:#6c5ce7;">📅</div>
+          </div>
+          <div style="padding:0 16px 12px;display:flex;gap:8px;flex-wrap:wrap;" id="dash-renewal-wa-actions">
+            <button class="btn btn-xs btn-outline-success dash-wa-blast-btn" style="font-size:0.72rem;padding:3px 10px;" onclick="event.stopPropagation();window._dashWABlast && window._dashWABlast()">
+              📲 WA Blast Renewals
+            </button>
+          </div>
+        </div>`;
+
+    case 'kpi_occupancy_gauge':
+      return `
+        <div class="stat-card card" data-widget-id="kpi_occupancy_gauge" style="border-left: 4px solid #00cec9;">
+          <div class="stat-card-body">
+            <div class="stat-card-info">
+              <div class="stat-card-title">🎯 Seat Occupancy</div>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
+                <div style="position:relative;width:56px;height:56px;flex-shrink:0;">
+                  <svg viewBox="0 0 36 36" style="width:56px;height:56px;transform:rotate(-90deg);">
+                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none" stroke="rgba(148,163,184,0.2)" stroke-width="4"/>
+                    <path id="dash-gauge-arc" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none" stroke="#00cec9" stroke-width="4" stroke-dasharray="0, 100" stroke-linecap="round"/>
+                  </svg>
+                  <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#00cec9;" id="dash-gauge-pct">0%</div>
+                </div>
+                <div>
+                  <div class="stat-card-value" id="dash-kpi-occ-value" style="color:#00cec9;font-size:1.3rem;">0/0</div>
+                  <div class="text-xs text-muted" id="dash-kpi-occ-sub">Occupied / Total Seats</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+    case 'kpi_behavior_alerts':
+      return `
+        <div class="stat-card card" data-widget-id="kpi_behavior_alerts" style="border-left: 4px solid #d63031; cursor:pointer;" onclick="window.location.hash='#/students'">
+          <div class="stat-card-body">
+            <div class="stat-card-info">
+              <div class="stat-card-title">🔴 At-Risk Students</div>
+              <div class="stat-card-value" id="dash-kpi-behavior-alerts" style="color:#d63031;">0</div>
+              <div class="text-xs text-muted" id="dash-kpi-alerts-sub" style="margin-top:4px;">Low attendance (&lt;50%) or expired</div>
+            </div>
+            <div class="stat-card-icon" style="background:rgba(214,48,49,0.15);color:#d63031;">⚠️</div>
+          </div>
+        </div>`;
 
     default:
       return '';
@@ -702,6 +761,75 @@ export async function render(container) {
     const elTotalSeatsSub = document.getElementById('dash-kpi-total-seats-sub');
     if (elTotalSeats) elTotalSeats.textContent = `${totalSeats} Desks`;
     if (elTotalSeatsSub) elTotalSeatsSub.textContent = `${occupiedSeats} Occupied, ${seatStats.maintenance || 0} Maintenance`;
+
+    // ── Phase 2 Smart Widget Data ─────────────────────────────────────────────
+
+    // KPI 7: Renewals Due This Week
+    const elRenewalsWeek = document.getElementById('dash-kpi-renewals-week');
+    const elRenewalsSub = document.getElementById('dash-kpi-renewals-sub');
+    const renewalsThisWeek = expiringList.filter(s => {
+      if (s.daysRemaining !== undefined) return s.daysRemaining >= 0 && s.daysRemaining <= 7;
+      if (s.expiryDate) {
+        const diff = (new Date(s.expiryDate) - new Date()) / (1000 * 60 * 60 * 24);
+        return diff >= 0 && diff <= 7;
+      }
+      return false;
+    });
+    if (elRenewalsWeek) elRenewalsWeek.textContent = `${renewalsThisWeek.length} students`;
+    if (elRenewalsSub) elRenewalsSub.textContent = `${expiring48h} expiring today / tomorrow`;
+
+    // Wire WA blast button on renewals widget
+    window._dashWABlast = async () => {
+      if (!renewalsThisWeek.length) { if (window.Toast) Toast.info('No renewals due this week'); return; }
+      let bizName = 'Study Library';
+      try { const s = await api.get('/api/settings'); bizName = s?.data?.businessProfile?.businessName || bizName; } catch (e) {}
+      for (const s of renewalsThisWeek) {
+        const ph = (s.phone||'').replace(/[^0-9]/g,'');
+        if (!ph || ph.length < 10) continue;
+        const intl = ph.length===10 ? '91'+ph : ph;
+        const exp = s.expiryDate ? new Date(s.expiryDate).toLocaleDateString('en-IN') : 'soon';
+        const msg = `Hi ${s.name}! 👋\nYour library membership expires on *${exp}*.\nPlease renew to continue your studies. 📚\n\n— ${bizName}`;
+        window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, '_blank');
+        await new Promise(r => setTimeout(r, 700));
+      }
+      if (window.Toast) Toast.success(`📲 Opened ${renewalsThisWeek.length} WA links`);
+    };
+
+    // KPI 8: Occupancy Gauge (animated SVG arc)
+    const gaugeArc = document.getElementById('dash-gauge-arc');
+    const gaugePct = document.getElementById('dash-gauge-pct');
+    const elOccValue = document.getElementById('dash-kpi-occ-value');
+    const elOccSub = document.getElementById('dash-kpi-occ-sub');
+    if (gaugeArc) gaugeArc.setAttribute('stroke-dasharray', `${occPct}, 100`);
+    if (gaugePct) gaugePct.textContent = `${occPct}%`;
+    if (elOccValue) elOccValue.textContent = `${occupiedSeats}/${totalSeats}`;
+    if (elOccSub) elOccSub.textContent = `Occupied / Total • ${occPct}% full`;
+
+    // KPI 9: At-Risk Students (expired + low attendance proxy = expired + pending)
+    const elAlerts = document.getElementById('dash-kpi-behavior-alerts');
+    const elAlertsSub = document.getElementById('dash-kpi-alerts-sub');
+    const atRiskCount = (studentStats.expired || 0) + (studentStats.inactive || 0);
+    if (elAlerts) elAlerts.textContent = atRiskCount;
+    if (elAlertsSub) elAlertsSub.textContent = `${studentStats.expired||0} expired + ${studentStats.inactive||0} inactive`;
+
+    // ── KPI Counter Animations ────────────────────────────────────────────────
+    // Animate all stat-card-value elements with number counting
+    document.querySelectorAll('.stat-card-value').forEach(el => {
+      const raw = el.textContent?.replace(/[₹,\s]/g, '').replace(/[^0-9.]/g, '');
+      const num = parseFloat(raw);
+      if (!isNaN(num) && num > 0 && !el.dataset.animated) {
+        el.dataset.animated = '1';
+        const prefix = el.textContent.startsWith('₹') ? '₹' : '';
+        const suffix = el.textContent.replace(/[₹0-9,.\s]/g, '').trim();
+        let start = 0;
+        const step = num / 30;
+        const timer = setInterval(() => {
+          start = Math.min(start + step, num);
+          el.textContent = prefix + Math.round(start).toLocaleString('en-IN') + (suffix ? ' ' + suffix : '');
+          if (start >= num) clearInterval(timer);
+        }, 20);
+      }
+    });
 
     // Secondary Pulse widgets
     const elPresToday = document.getElementById('dash-present-today');

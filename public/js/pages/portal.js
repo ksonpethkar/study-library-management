@@ -4,6 +4,7 @@ import { SmartFormatters } from '../utils/smartFormatters.js';
 import { t } from '../i18n.js';
 import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
 import { PushNotifications } from '../utils/pushNotifications.js';
+import { renderHeatmap, renderBehaviorBadge, calculateBehaviorScore } from '../utils/attendanceHeatmap.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -30,6 +31,32 @@ export async function render() {
     }
 
     renderPortalUI(container, res.data, analytics);
+
+    // ── Phase 2: Inject full-year heatmap into student portal ────────────────
+    // Runs after the portal HTML is in the DOM
+    setTimeout(async () => {
+      // Find or create the year heatmap container below the 30-day grid
+      let yearHeatmapWrap = container.querySelector('#portal-year-heatmap');
+      if (!yearHeatmapWrap) {
+        const analyticsSection = container.querySelector('[data-section="analytics"]') ||
+          container.querySelector('#portal-analytics-section') ||
+          container.querySelector('.portal-analytics-card .card-body');
+        if (analyticsSection) {
+          yearHeatmapWrap = document.createElement('div');
+          yearHeatmapWrap.id = 'portal-year-heatmap';
+          yearHeatmapWrap.style.cssText = 'margin-top:18px;padding-top:14px;border-top:1px solid var(--color-border,rgba(255,255,255,0.08));';
+          analyticsSection.appendChild(yearHeatmapWrap);
+        }
+      }
+      if (yearHeatmapWrap && res.data?.student?._id) {
+        try {
+          await renderHeatmap(yearHeatmapWrap, res.data.student._id, new Date().getFullYear(), { compact: false });
+        } catch (e) {
+          yearHeatmapWrap.innerHTML = '<div class="text-muted small text-center p-2">Full attendance calendar unavailable</div>';
+        }
+      }
+    }, 200);
+
   } catch (error) {
     container.innerHTML = `
       <div class="card p-5 text-center" style="background: var(--color-surface); border: 1px solid var(--color-danger); border-radius: var(--radius-lg);">

@@ -10,6 +10,7 @@ import { renderHeatmapGridHtml } from './portal.js';
 import { IDBStorage } from '../utils/idbStorage.js';
 import { OptimisticUI } from '../utils/optimisticUI.js';
 import { SmartIntelligence } from '../utils/smartIntelligence.js';
+import { renderHeatmap, renderBehaviorBadge, calculateBehaviorScore } from '../utils/attendanceHeatmap.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -367,25 +368,11 @@ export async function render() {
       });
     });
 
-    // Bulk WhatsApp Reminders
-    tableContainer.querySelector('#btn-bulk-whatsapp')?.addEventListener('click', async (e) => {
-      const selected = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.dataset.id);
-      if (selected.length === 0) return;
-      const btn = e.currentTarget;
-      UI.buttonLoading(btn, true, 'Sending...');
-      try {
-        const res = await api.post('/api/students/bulk-remind', { studentIds: selected });
-        if (res.success && res.data) {
-          const links = res.data;
-          // Open the first WhatsApp link and toast the rest
-          if (links[0]?.whatsappUrl) window.open(links[0].whatsappUrl, '_blank');
-          Toast.success(`WhatsApp reminder opened for ${links[0]?.name}. (${links.length} total prepared)`);
-        }
-      } catch (err) {
-        Toast.error('Failed to generate reminders');
-      } finally {
-        UI.buttonLoading(btn, false);
-      }
+    // Bulk WhatsApp Blast — opens wa.me/ links with filter options
+    tableContainer.querySelector('#btn-bulk-whatsapp')?.addEventListener('click', async () => {
+      const selectedIds = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.dataset.id);
+      const selectedStudents = state.students.filter(s => selectedIds.includes(s._id));
+      await openWABlastModal(selectedStudents, loadStudents, state, api, Toast, Modal, Confirm, escapeHTML);
     });
 
     // Bulk Renew
@@ -1667,6 +1654,201 @@ export async function render() {
     });
   }
 
+  /**
+   * Smart WhatsApp Blast Modal
+   * Supports: selected students | all active | by shift | by plan
+   * Uses wa.me/ links (free, no API cost)
+   */
+  async function openWABlastModal(preSelectedStudents = [], reloadFn) {
+    let allStudents = preSelectedStudents;
+    let shifts = [];
+    let plans = [];
+
+    // Fetch shifts and plans for filter options
+    try {
+      const [shiftRes, planRes] = await Promise.all([
+        api.get('/api/shifts?limit=50'),
+        api.get('/api/plans?limit=50')
+      ]);
+      shifts = shiftRes?.data?.shifts || shiftRes?.data || [];
+      plans = planRes?.data?.plans || planRes?.data || [];
+    } catch (e) {}
+
+    const shiftOptions = shifts.map(s => `<option value="${escapeHTML(s._id)}">${escapeHTML(s.name)}</option>`).join('');
+    const planOptions = plans.map(p => `<option value="${escapeHTML(p._id)}">${escapeHTML(p.name)}</option>`).join('');
+
+    const msgTemplate = `Hi {name}! 👋\nYour library membership expires on *{expiry}*.\nPlease renew to continue your studies. 📚\nRenew now: {link}\n\n— {library}`;
+
+    const content = `
+      <div id="wa-blast-modal" style="font-family:'Outfit',sans-serif;">
+        <div class="mb-3">
+          <label class="form-label fw-700">📋 Recipient Filter</label>
+          <div class="d-flex flex-wrap gap-2 mb-2">
+            <button type="button" class="btn btn-sm btn-primary wa-filter-btn active" data-filter="selected">
+              ✅ Selected (${preSelectedStudents.length})
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary wa-filter-btn" data-filter="all_active">
+              🟢 All Active Students
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary wa-filter-btn" data-filter="by_shift">
+              🕒 By Shift
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary wa-filter-btn" data-filter="by_plan">
+              🏷️ By Plan
+            </button>
+          </div>
+          <div id="wa-filter-sub" style="display:none;margin-top:8px;">
+            <div id="wa-shift-select" style="display:none;">
+              <select id="wa-shift-id" class="form-select form-control form-control-sm">
+                <option value="">— Select Shift —</option>
+                ${shiftOptions}
+              </select>
+            </div>
+            <div id="wa-plan-select" style="display:none;">
+              <select id="wa-plan-id" class="form-select form-control form-control-sm">
+                <option value="">— Select Plan —</option>
+                ${planOptions}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-700">💬 Message Template</label>
+          <div class="mb-1 text-xs text-muted">Variables: <code>{name}</code> <code>{expiry}</code> <code>{plan}</code> <code>{seat}</code> <code>{link}</code> <code>{library}</code></div>
+          <textarea id="wa-blast-message" class="form-control" rows="5" style="font-size:0.85rem;font-family:monospace;">${msgTemplate}</textarea>
+        </div>
+
+        <div id="wa-recipient-count" class="mb-3 text-sm" style="color:var(--color-text-secondary);">
+          Recipients loaded: <strong id="wa-count-num">${preSelectedStudents.length}</strong>
+        </div>
+
+        <div class="mb-2 text-xs text-muted" style="background:rgba(108,92,231,0.08);border-radius:8px;padding:8px 12px;border:1px solid rgba(108,92,231,0.2);">
+          ℹ️ This opens WhatsApp <code>wa.me/</code> links one by one (free, no API cost). Your browser may block popups — please allow for this site.
+        </div>
+      </div>`;
+
+    const modal = Modal.show({
+      title: '📲 WhatsApp Blast Sender',
+      content,
+      size: 'md',
+      actions: `
+        <button id="wa-blast-load-btn" type="button" class="btn btn-outline-secondary btn-sm">🔄 Load Recipients</button>
+        <button id="wa-blast-send-btn" type="button" class="btn btn-success">📲 Open WA Links (${preSelectedStudents.length})</button>
+        <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
+      `
+    });
+    if (!modal) return;
+
+    let currentFilter = 'selected';
+    let recipientList = [...preSelectedStudents];
+
+    const countEl = modal.querySelector('#wa-count-num');
+    const sendBtn = modal.querySelector('#wa-blast-send-btn');
+
+    function updateCount() {
+      if (countEl) countEl.textContent = recipientList.length;
+      if (sendBtn) sendBtn.textContent = `📲 Open WA Links (${recipientList.length})`;
+    }
+
+    // Filter button switching
+    modal.querySelectorAll('.wa-filter-btn').forEach(btn => {
+      btn.onclick = () => {
+        modal.querySelectorAll('.wa-filter-btn').forEach(b => b.classList.replace('btn-primary', 'btn-outline-secondary'));
+        btn.classList.replace('btn-outline-secondary', 'btn-primary');
+        currentFilter = btn.dataset.filter;
+        const subEl = modal.querySelector('#wa-filter-sub');
+        const shiftSel = modal.querySelector('#wa-shift-select');
+        const planSel = modal.querySelector('#wa-plan-select');
+        if (currentFilter === 'by_shift') {
+          if (subEl) subEl.style.display = 'block';
+          if (shiftSel) shiftSel.style.display = 'block';
+          if (planSel) planSel.style.display = 'none';
+        } else if (currentFilter === 'by_plan') {
+          if (subEl) subEl.style.display = 'block';
+          if (shiftSel) shiftSel.style.display = 'none';
+          if (planSel) planSel.style.display = 'block';
+        } else {
+          if (subEl) subEl.style.display = 'none';
+        }
+        if (currentFilter === 'selected') {
+          recipientList = [...preSelectedStudents];
+          updateCount();
+        }
+      };
+    });
+
+    // Load recipients button
+    modal.querySelector('#wa-blast-load-btn')?.addEventListener('click', async () => {
+      try {
+        let params = { status: 'active', limit: 500 };
+        if (currentFilter === 'by_shift') {
+          const shiftId = modal.querySelector('#wa-shift-id')?.value;
+          if (!shiftId) { Toast.error('Please select a shift'); return; }
+          params.shift = shiftId;
+        } else if (currentFilter === 'by_plan') {
+          const planId = modal.querySelector('#wa-plan-id')?.value;
+          if (!planId) { Toast.error('Please select a plan'); return; }
+          params.plan = planId;
+        } else if (currentFilter === 'selected') {
+          recipientList = [...preSelectedStudents];
+          updateCount();
+          return;
+        }
+        const res = await api.get('/api/students', params);
+        recipientList = res?.data?.students || res?.data || [];
+        updateCount();
+        Toast.success(`${recipientList.length} recipients loaded`);
+      } catch (e) {
+        Toast.error('Failed to load recipients');
+      }
+    });
+
+    // Send WA links
+    modal.querySelector('#wa-blast-send-btn')?.addEventListener('click', async () => {
+      if (recipientList.length === 0) { Toast.error('No recipients'); return; }
+
+      const msgTpl = modal.querySelector('#wa-blast-message')?.value || msgTemplate;
+      let bizName = 'Study Library';
+      try {
+        const bRes = await api.get('/api/settings');
+        bizName = bRes?.data?.businessProfile?.businessName || bizName;
+      } catch (e) {}
+
+      Modal.closeAll();
+
+      let sent = 0;
+      for (const student of recipientList) {
+        const phone = (student.phone || '').replace(/[^0-9]/g, '');
+        if (!phone || phone.length < 10) continue;
+        const intlPhone = phone.length === 10 ? '91' + phone : phone;
+
+        const expiry = student.expiryDate
+          ? new Date(student.expiryDate).toLocaleDateString('en-IN')
+          : 'N/A';
+        const renewLink = `https://wa.me/${intlPhone}`;
+
+        const msg = msgTpl
+          .replace(/{name}/g, student.name || 'Student')
+          .replace(/{expiry}/g, expiry)
+          .replace(/{plan}/g, student.plan?.name || 'your plan')
+          .replace(/{seat}/g, student.seat?.seatNumber || 'N/A')
+          .replace(/{link}/g, renewLink)
+          .replace(/{library}/g, bizName);
+
+        const waUrl = `https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`;
+        window.open(waUrl, '_blank');
+        sent++;
+
+        // Delay between opens to avoid browser blocking
+        if (sent < recipientList.length) {
+          await new Promise(r => setTimeout(r, 700));
+        }
+      }
+      Toast.success(`📲 Opened ${sent} WhatsApp link(s). Check your browser tabs!`);
+    });
+  }
+
   async function sendWhatsAppReminder(student, reminderType = 'renewal_reminder') {
     try {
       Loading.show('Preparing WhatsApp reminder & UPI payment link...');
@@ -1700,7 +1882,12 @@ export async function render() {
       const a = res.data;
 
       if (badgesEl) {
+        // Calculate behavior score from analytics data
+        const attPct = a.consistencyScore || 0;
+        const streakD = a.currentStreak || 0;
+        const behaviorBadgeHtml = renderBehaviorBadge(attPct, 100, streakD);
         badgesEl.innerHTML = `
+          ${behaviorBadgeHtml}
           <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.75rem;">
             ${escapeHTML(a.peakStudyHours?.badge || '🌅 Peak Time')}
           </span>
@@ -1760,6 +1947,22 @@ export async function render() {
       `;
     } catch (err) {
       contentEl.innerHTML = `<div class="text-muted small text-center p-2">Unable to load attendance analytics (${escapeHTML(err.message || 'No records')})</div>`;
+    }
+
+    // ── Full-year Heatmap (Phase 2) ──────────────────────────────────────────
+    // Add a full GitHub-style year heatmap below the existing 30-day grid
+    let yearHeatmapEl = container.querySelector('#student-year-heatmap');
+    if (!yearHeatmapEl) {
+      yearHeatmapEl = document.createElement('div');
+      yearHeatmapEl.id = 'student-year-heatmap';
+      yearHeatmapEl.style.cssText = 'margin-top:14px;padding-top:14px;border-top:1px solid var(--color-border,rgba(255,255,255,0.08));';
+      const analyticsWidget = container.querySelector('#student-analytics-widget');
+      if (analyticsWidget) analyticsWidget.appendChild(yearHeatmapEl);
+    }
+    try {
+      await renderHeatmap(yearHeatmapEl, studentId, new Date().getFullYear(), { compact: false });
+    } catch (e) {
+      yearHeatmapEl.innerHTML = '<div class="text-muted small text-center">Heatmap unavailable</div>';
     }
   }
 
