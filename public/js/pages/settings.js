@@ -4802,7 +4802,8 @@ async function initLandingSettings(container) {
         <!-- Left: CMS Form Editor -->
         <div class="cms-editor-panel" style="width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; background: var(--color-surface);">
           <div class="landing-tabs" style="display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border);">
-            <button class="landing-tab-btn active" data-tab="hero" style="padding: 0.5rem 0.85rem; border: none; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 600; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap;">Hero & Branding</button>
+            <button class="landing-tab-btn active" data-tab="presets" style="padding: 0.5rem 0.85rem; border: none; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 700; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap;">🎨 Theme Presets & Styles</button>
+            <button class="landing-tab-btn" data-tab="hero" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Hero & Branding</button>
             <button class="landing-tab-btn" data-tab="navbar" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Navbar & CTA</button>
             <button class="landing-tab-btn" data-tab="about" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">About & Stats</button>
             <button class="landing-tab-btn" data-tab="facilities" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Facilities</button>
@@ -4820,8 +4821,93 @@ async function initLandingSettings(container) {
           
           <!-- Tab Content -->
           <div id="landing-tab-content">
+          <!-- 0. Theme Presets & Styles -->
+          <div class="landing-panel" id="l-panel-presets">
+            <h4 style="margin: 0 0 8px 0; font-size: 1.1rem; font-weight: 800; color: var(--color-primary);">🎨 Landing Page Theme Presets</h4>
+            <p class="text-muted small mb-4">Choose a visual preset style for your public website. Changes render live on the preview canvas.</p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 1.5rem;">
+              
+              <!-- Preset 1: Modern Glassmorphism -->
+              <label class="preset-card ${(!config.theme?.preset || config.theme?.preset === 'modern_glass' || config.theme?.preset === 'default') ? 'active' : ''}" style="border: 2px solid ${(!config.theme?.preset || config.theme?.preset === 'modern_glass' || config.theme?.preset === 'default') ? 'var(--color-primary)' : 'var(--color-border)'}; background: var(--color-surface); padding: 14px; border-radius: var(--radius-lg); cursor: pointer; display: block; transition: all 0.2s;">
+                <input type="radio" name="landing-theme-preset" value="modern_glass" ${(!config.theme?.preset || config.theme?.preset === 'modern_glass' || config.theme?.preset === 'default') ? 'checked' : ''} style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-weight: 800; font-size: 0.95rem;">✨ Modern Glass</span>
+                  <span style="width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(135deg, #6c5ce7, #00b894); display: inline-block;"></span>
+                </div>
+                <div style="font-size: 0.78rem; color: var(--color-text-secondary); line-height: 1.4;">Frosted glass cards, glowing purple & emerald accents, ambient backdrop blur.</div>
+              </label>
+
+              <!-- Preset 2: Academic Minimalist -->
+              <label class="preset-card ${config.theme?.preset === 'academic_minimal' ? 'active' : ''}" style="border: 2px solid ${config.theme?.preset === 'academic_minimal' ? 'var(--color-primary)' : 'var(--color-border)'}; background: var(--color-surface); padding: 14px; border-radius: var(--radius-lg); cursor: pointer; display: block; transition: all 0.2s;">
+                <input type="radio" name="landing-theme-preset" value="academic_minimal" ${config.theme?.preset === 'academic_minimal' ? 'checked' : ''} style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-weight: 800; font-size: 0.95rem;">📖 Academic Clean</span>
+                  <span style="width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(135deg, #1e293b, #0284c7); display: inline-block;"></span>
+                </div>
+                <div style="font-size: 0.78rem; color: var(--color-text-secondary); line-height: 1.4;">High-contrast slate typography, distraction-free study layout, clean structure.</div>
+              </label>
+
+              <!-- Preset 3: Dark Cyber Luxury -->
+              <label class="preset-card ${config.theme?.preset === 'cyber_dark' ? 'active' : ''}" style="border: 2px solid ${config.theme?.preset === 'cyber_dark' ? 'var(--color-primary)' : 'var(--color-border)'}; background: var(--color-surface); padding: 14px; border-radius: var(--radius-lg); cursor: pointer; display: block; transition: all 0.2s;">
+                <input type="radio" name="landing-theme-preset" value="cyber_dark" ${config.theme?.preset === 'cyber_dark' ? 'checked' : ''} style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-weight: 800; font-size: 0.95rem;">⚡ Dark Cyber</span>
+                  <span style="width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(135deg, #06b6d4, #8b5cf6); display: inline-block;"></span>
+                </div>
+                <div style="font-size: 0.78rem; color: var(--color-text-secondary); line-height: 1.4;">Deep obsidian (#030712) background, glowing cyan borders, tech matrix vibe.</div>
+              </label>
+
+              <!-- Preset 4: Warm Cozy Library -->
+              <label class="preset-card ${config.theme?.preset === 'warm_library' ? 'active' : ''}" style="border: 2px solid ${config.theme?.preset === 'warm_library' ? 'var(--color-primary)' : 'var(--color-border)'}; background: var(--color-surface); padding: 14px; border-radius: var(--radius-lg); cursor: pointer; display: block; transition: all 0.2s;">
+                <input type="radio" name="landing-theme-preset" value="warm_library" ${config.theme?.preset === 'warm_library' ? 'checked' : ''} style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-weight: 800; font-size: 0.95rem;">🏛️ Warm Cozy</span>
+                  <span style="width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(135deg, #b45309, #d97706); display: inline-block;"></span>
+                </div>
+                <div style="font-size: 0.78rem; color: var(--color-text-secondary); line-height: 1.4;">Warm parchment & espresso wood, gold accents, classic reading room aesthetic.</div>
+              </label>
+
+            </div>
+
+            <h5 style="margin: 0 0 8px 0; font-weight: 700;">Custom Brand Color Palette</h5>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 1.5rem;">
+              <div>
+                <label class="form-label small">Primary Brand Color</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="color" id="l-theme-primary-picker" value="${config.theme?.primaryColor || '#6c5ce7'}" style="width: 40px; height: 38px; padding: 2px; border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer;">
+                  <input type="text" id="l-theme-primary" class="form-control font-monospace" value="${config.theme?.primaryColor || '#6c5ce7'}">
+                </div>
+              </div>
+              <div>
+                <label class="form-label small">Accent Color</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="color" id="l-theme-accent-picker" value="${config.theme?.accentColor || '#00b894'}" style="width: 40px; height: 38px; padding: 2px; border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer;">
+                  <input type="text" id="l-theme-accent" class="form-control font-monospace" value="${config.theme?.accentColor || '#00b894'}">
+                </div>
+              </div>
+              <div>
+                <label class="form-label small">Secondary Color</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="color" id="l-theme-sec-picker" value="${config.theme?.secondaryColor || '#3b82f6'}" style="width: 40px; height: 38px; padding: 2px; border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer;">
+                  <input type="text" id="l-theme-secondary" class="form-control font-monospace" value="${config.theme?.secondaryColor || '#3b82f6'}">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group mb-3">
+              <label class="form-label small">Font Family</label>
+              <select id="l-theme-font" class="form-select">
+                <option value="Outfit, sans-serif" ${(!config.theme?.fontFamily || config.theme?.fontFamily.includes('Outfit')) ? 'selected' : ''}>Outfit (Modern Geometric - Default)</option>
+                <option value="Plus Jakarta Sans, sans-serif" ${config.theme?.fontFamily?.includes('Plus Jakarta Sans') ? 'selected' : ''}>Plus Jakarta Sans (Clean Modern)</option>
+                <option value="Inter, sans-serif" ${config.theme?.fontFamily?.includes('Inter') ? 'selected' : ''}>Inter (High-Readability Neo-Grotesque)</option>
+                <option value="Poppins, sans-serif" ${config.theme?.fontFamily?.includes('Poppins') ? 'selected' : ''}>Poppins (Friendly & Rounded)</option>
+              </select>
+            </div>
+          </div>
+
           <!-- 1. Hero & Branding -->
-          <div class="landing-panel" id="l-panel-hero">
+          <div class="landing-panel" id="l-panel-hero" style="display: none;">
             <h4>Hero Section</h4>
             <div class="form-group mb-3">
               <label>Headline</label>
@@ -5178,6 +5264,32 @@ async function initLandingSettings(container) {
               <label>Social Share (OpenGraph) Banner Image URL</label>
               <input type="text" id="l-seo-ogImage" class="form-control" placeholder="https://.../banner.jpg" value="${escapeHTML(config.seo?.ogImage || '')}">
             </div>
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small">Canonical URL</label>
+                <input type="url" id="l-seo-canonical" class="form-control" placeholder="https://yourlibrary.com/landing" value="${escapeHTML(config.seo?.canonicalUrl || '')}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">Twitter / X Handle</label>
+                <input type="text" id="l-seo-twitter" class="form-control" placeholder="@studylibrary" value="${escapeHTML(config.seo?.twitterHandle || '')}">
+              </div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small">Google Analytics 4 ID (GA4)</label>
+                <input type="text" id="l-seo-ga4" class="form-control font-monospace" placeholder="G-XXXXXXXXXX" value="${escapeHTML(config.seo?.googleAnalyticsId || '')}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small">Meta / Facebook Pixel ID</label>
+                <input type="text" id="l-seo-pixel" class="form-control font-monospace" placeholder="123456789012345" value="${escapeHTML(config.seo?.metaPixelId || '')}">
+              </div>
+            </div>
+            <div class="form-check form-switch mt-2">
+              <input class="form-check-input" type="checkbox" id="l-seo-schema-toggle" ${config.seo?.structuredDataEnabled !== false ? 'checked' : ''}>
+              <label class="form-check-label" for="l-seo-schema-toggle" style="font-weight: 600; font-size: 0.88rem;">
+                Enable Google LocalBusiness JSON-LD Schema (Rich Snippets)
+              </label>
+            </div>
           </div>
           
         </div> <!-- #landing-tab-content -->
@@ -5268,6 +5380,39 @@ async function initLandingSettings(container) {
         btnLayoutVertical.style.fontWeight = '600';
       });
     }
+
+    // Theme Preset Card Click Listener & Live iFrame Sync
+    listContainer.querySelectorAll('input[name="landing-theme-preset"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        listContainer.querySelectorAll('.preset-card').forEach(c => {
+          c.classList.remove('active');
+          c.style.border = '1px solid var(--color-border)';
+        });
+        const parentCard = radio.closest('.preset-card');
+        if (parentCard) {
+          parentCard.classList.add('active');
+          parentCard.style.border = '2px solid var(--color-primary)';
+        }
+
+        const preset = radio.value;
+        if (pvIframe && pvIframe.contentWindow) {
+          pvIframe.contentWindow.postMessage({ type: 'PRESET_CHANGE', preset }, '*');
+        }
+      });
+    });
+
+    // Color Pickers Sync
+    const bindColorPicker = (pickerId, inputId) => {
+      const picker = listContainer.querySelector(pickerId);
+      const input = listContainer.querySelector(inputId);
+      if (picker && input) {
+        picker.addEventListener('input', e => { input.value = e.target.value; });
+        input.addEventListener('input', e => { picker.value = e.target.value; });
+      }
+    };
+    bindColorPicker('#l-theme-primary-picker', '#l-theme-primary');
+    bindColorPicker('#l-theme-accent-picker', '#l-theme-accent');
+    bindColorPicker('#l-theme-sec-picker', '#l-theme-secondary');
 
     // Tab Logic
     const tabBtns = listContainer.querySelectorAll('.landing-tab-btn');
@@ -5997,13 +6142,28 @@ async function initLandingSettings(container) {
       callNumber: listContainer.querySelector('#l-float-call')?.value.trim() || ''
     };
 
+    // 0. Theme & Presets
+    payload.theme = {
+      ...payload.theme,
+      preset: listContainer.querySelector('input[name="landing-theme-preset"]:checked')?.value || 'modern_glass',
+      primaryColor: listContainer.querySelector('#l-theme-primary')?.value.trim() || '#6c5ce7',
+      accentColor: listContainer.querySelector('#l-theme-accent')?.value.trim() || '#00b894',
+      secondaryColor: listContainer.querySelector('#l-theme-secondary')?.value.trim() || '#3b82f6',
+      fontFamily: listContainer.querySelector('#l-theme-font')?.value || 'Outfit, sans-serif'
+    };
+
     // 13. SEO & Meta
     payload.seo = {
       ...payload.seo,
       metaTitle: listContainer.querySelector('#l-seo-title')?.value.trim() || '',
       metaDescription: listContainer.querySelector('#l-seo-desc')?.value.trim() || '',
       metaKeywords: listContainer.querySelector('#l-seo-keywords')?.value.trim() || '',
-      ogImage: listContainer.querySelector('#l-seo-ogImage')?.value.trim() || ''
+      ogImage: listContainer.querySelector('#l-seo-ogImage')?.value.trim() || '',
+      canonicalUrl: listContainer.querySelector('#l-seo-canonical')?.value.trim() || '',
+      twitterHandle: listContainer.querySelector('#l-seo-twitter')?.value.trim() || '',
+      googleAnalyticsId: listContainer.querySelector('#l-seo-ga4')?.value.trim() || '',
+      metaPixelId: listContainer.querySelector('#l-seo-pixel')?.value.trim() || '',
+      structuredDataEnabled: listContainer.querySelector('#l-seo-schema-toggle')?.checked !== false
     };
 
     try {

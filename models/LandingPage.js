@@ -177,15 +177,21 @@ const landingPageSchema = new mongoose.Schema({
   seo: {
     metaTitle: { type: String, default: 'Study Library & Reading Hall' },
     metaDescription: { type: String, default: 'Peaceful, air-conditioned study library with high-speed Wi-Fi, ergonomic seating, and 24x7 power backup.' },
-    metaKeywords: { type: String, default: 'study library, reading hall, silent library, UPSC library' },
-    ogImage: { type: String, default: '' }
+    metaKeywords: { type: String, default: 'study library, reading hall, silent library, UPSC library, competitive exam study space' },
+    ogImage: { type: String, default: '' },
+    canonicalUrl: { type: String, default: '' },
+    googleAnalyticsId: { type: String, default: '' },
+    metaPixelId: { type: String, default: '' },
+    twitterHandle: { type: String, default: '' },
+    structuredDataEnabled: { type: Boolean, default: true }
   },
 
-  // Theme & Branding Configuration
+  // Theme & Visual Presets Configuration
   theme: {
-    preset: { type: String, default: 'default' },
+    preset: { type: String, enum: ['modern_glass', 'academic_minimal', 'cyber_dark', 'warm_library', 'default'], default: 'modern_glass' },
     primaryColor: { type: String, default: '#6c5ce7' },
     accentColor: { type: String, default: '#00b894' },
+    secondaryColor: { type: String, default: '#3b82f6' },
     fontFamily: { type: String, default: 'Outfit, sans-serif' }
   }
 }, { timestamps: true });
