@@ -1854,3 +1854,45 @@ body {
   }
 }
 
+/* ── MediaFieldPicker & Settings Category Mobile Screen Fit ──────────────── */
+@media (max-width: 768px) {
+  .settings-tabs-wrapper {
+    margin-left: -12px !important;
+    margin-right: -12px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  
+  .settings-panel,
+  .card-body,
+  .card {
+    padding: 12px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .mfp-preview {
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+    min-height: 58px !important;
+  }
+
+  .mfp-preview + div {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+
+  .mfp-upload-file-btn,
+  .mfp-open-btn,
+  .mfp-remove-btn {
+    font-size: 0.75rem !important;
+    padding: 6px 10px !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    text-align: center !important;
+  }
+}
+
+
