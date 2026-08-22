@@ -1435,9 +1435,17 @@
           if (landing.hero.title) {
             const hTitle = document.getElementById('hero-title');
             if (hTitle) {
-              let t = landing.hero.title.replace(/Study Library|StudyLib/gi, brandName);
-              if (t.includes(brandName) && !t.includes(`<span>${brandName}</span>`)) {
-                t = t.replace(brandName, `<span>${brandName}</span>`);
+              let t = landing.hero.title;
+              if (t.includes('{library_name}')) {
+                t = t.replace(/{library_name}/gi, brandName);
+              }
+              if (!t.includes('<span>') && !t.includes('</span>')) {
+                const words = t.split(' ');
+                if (words.length > 2) {
+                  t = `<span>${words.slice(0, 2).join(' ')}</span> ${words.slice(2).join(' ')}`;
+                } else {
+                  t = `<span>${t}</span>`;
+                }
               }
               hTitle.innerHTML = t;
             }

@@ -210,9 +210,17 @@ async function sendHydratedHTML(res, htmlPath) {
 
     // 2. Pre-hydrate Hero Customizations
     if (landing?.hero?.title) {
-      let ht = landing.hero.title.replace(/Study Library|StudyLib/gi, bName);
-      if (ht.includes(bName) && !ht.includes(`<span>${bName}</span>`)) {
-        ht = ht.replace(bName, `<span>${bName}</span>`);
+      let ht = landing.hero.title;
+      if (ht.includes('{library_name}')) {
+        ht = ht.replace(/{library_name}/gi, bName);
+      }
+      if (!ht.includes('<span>') && !ht.includes('</span>')) {
+        const words = ht.split(' ');
+        if (words.length > 2) {
+          ht = `<span>${words.slice(0, 2).join(' ')}</span> ${words.slice(2).join(' ')}`;
+        } else {
+          ht = `<span>${ht}</span>`;
+        }
       }
       html = html.replace(/<h1 class="hero-title" id="hero-title">[\s\S]*?<\/h1>/g, `<h1 class="hero-title" id="hero-title">${ht}</h1>`);
     }
