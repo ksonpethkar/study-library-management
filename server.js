@@ -54,9 +54,17 @@ app.use(generalLimiter);
 const compression = require('compression');
 app.use(compression());
 
-// Static folder with caching
+// Static folder with smart cache headers
 app.use(express.static(path.join(__dirname, 'public'), {
-  maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('sw.js') || filePath.endsWith('.html') || filePath.endsWith('.json')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+    }
+  },
   etag: true,
   lastModified: true
 }));

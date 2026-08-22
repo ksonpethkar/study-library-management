@@ -3,7 +3,7 @@
  * Phase 4: Updated cache, offline fallback page, stale-while-revalidate
  */
 
-const CACHE_NAME = 'studylib-pwa-v7';
+const CACHE_NAME = 'studylib-pwa-v10';
 
 // All static assets to pre-cache on install
 const STATIC_ASSETS = [
@@ -38,11 +38,8 @@ const STATIC_ASSETS = [
   '/js/i18n.js',
   '/js/themeManager.js',
   '/js/pwaManager.js',
-  // Phase 1 additions
   '/js/dragDrop.js',
-  // Phase 2 additions
   '/js/utils/attendanceHeatmap.js',
-  // Utilities
   '/js/utils/imageCompressor.js',
   '/js/utils/audioFeedback.js',
   '/js/utils/pushNotifications.js',
@@ -56,7 +53,6 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Use Promise.allSettled so one missing asset doesn't block the whole install
       return Promise.allSettled(
         STATIC_ASSETS.map(url =>
           cache.add(url).catch(err => {
@@ -81,7 +77,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// ── Fetch — Stale-While-Revalidate + offline fallback ────────────────────
+// ── Fetch — Network-First for code (JS/CSS/HTML) + Stale-While-Revalidate for images ──
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
@@ -96,11 +92,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Network-First for JS, CSS, and HTML files so deployments apply instantly
+  if (
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.html') ||
+    url.pathname === '/'
+  ) {
+    event.respondWith(
+      fetch(req)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cached = await caches.match(req);
+          if (cached) return cached;
+          if (req.headers.get('accept')?.includes('text/html')) {
+            return (await caches.match('/index.html')) || (await caches.match('/offline.html'));
+          }
+          return new Response('', { status: 503 });
+        })
+    );
+    return;
+  }
+
+  // Stale-While-Revalidate for other static assets (icons, fonts, images)
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
       const cachedResponse = await cache.match(req);
-
-      // Revalidate from network in background
       const fetchPromise = fetch(req)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && networkResponse.type !== 'opaque') {
@@ -109,19 +132,9 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(async () => {
-          // Offline fallback
-          if (req.headers.get('accept')?.includes('text/html')) {
-            // Return cached page or the offline fallback HTML
-            return (
-              cachedResponse ||
-              (await cache.match('/index.html')) ||
-              (await cache.match('/offline.html'))
-            );
-          }
           return cachedResponse || new Response('', { status: 503 });
         });
 
-      // Return cached immediately, update in background (stale-while-revalidate)
       return cachedResponse || fetchPromise;
     })
   );
