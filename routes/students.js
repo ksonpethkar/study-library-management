@@ -198,8 +198,34 @@ router.post('/', validate([
         }
       }
     }
-    
+
+    // Auto-calculate expiryDate from plan duration if not explicitly provided
+    if (req.body.plan && !student.expiryDate) {
+      const Plan = require('../models/Plan');
+      const planDoc = await Plan.findById(req.body.plan).lean();
+      if (planDoc) {
+        const d = new Date();
+        const durationType = planDoc.durationType || 'months';
+        const duration = Number(planDoc.duration) || 1;
+        if (durationType === 'days') {
+          d.setDate(d.getDate() + duration);
+        } else if (durationType === 'years') {
+          d.setFullYear(d.getFullYear() + duration);
+        } else {
+          d.setMonth(d.getMonth() + duration);
+        }
+        student.expiryDate = d;
+      }
+    }
+
     await student.save();
+
+    // Mark seat occupied
+    if (student.seat) {
+      const Seat = require('../models/Seat');
+      await Seat.findByIdAndUpdate(student.seat, { status: 'occupied', currentStudent: student._id }).catch(() => {});
+    }
+
     res.status(201).json({ success: true, data: student, message: 'Student created successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

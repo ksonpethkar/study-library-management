@@ -558,8 +558,8 @@ export async function render() {
           { name: 'seat', label: 'Declaration & Signature', icon: 'seat' }
         ];
 
-    const seenFieldNames = new Set();
-    const adminFieldKeys = new Set(['plan', 'seat', 'status', 'notes', 'rfidCardNumber', 'biometricId']);
+    const seenFieldNames = new Set(!isEdit ? ['name', 'phone', 'plan', 'seat', 'status', 'paymentmode', 'payment_mode'] : []);
+    const adminFieldKeys = new Set(['plan', 'seat', 'status', 'notes', 'rfidCardNumber', 'biometricId', 'paymentMode', 'payment_mode']);
     const activeFields = [];
 
     (customFields || []).forEach(f => {
@@ -954,7 +954,9 @@ export async function render() {
           className: 'btn-primary',
           onClick: async (m) => {
             const form = m.element.querySelector('#studentForm');
+            const details = form.querySelector('details');
             if (!form.checkValidity()) {
+              if (details) details.open = true;
               form.reportValidity();
               return;
             }
