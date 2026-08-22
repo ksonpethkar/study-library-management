@@ -261,19 +261,22 @@
 
   window.dismissSystemPreloader = function() {
     const p = document.getElementById('system-preloader') || document.getElementById('landing-preloader') || document.getElementById('app-loading');
-    if (p && p.style.display !== 'none' && p.style.visibility !== 'hidden') {
+    if (p) {
+      p.style.pointerEvents = 'none';
       p.style.opacity = '0';
       p.style.visibility = 'hidden';
-      setTimeout(() => { p.style.display = 'none'; }, 350);
+      p.style.display = 'none';
+      try { p.remove(); } catch(e) {}
     }
   };
 
-  // Fail-safe auto-dismiss after 1.8 seconds max to guarantee no freeze
-  window.addEventListener('load', function() {
-    setTimeout(function() {
-      if (window.dismissSystemPreloader) window.dismissSystemPreloader();
-    }, 1800);
-  });
+  // Immediate and fail-safe auto-dismiss
+  if (document.readyState === 'complete') {
+    window.dismissSystemPreloader();
+  } else {
+    window.addEventListener('DOMContentLoaded', window.dismissSystemPreloader);
+    window.addEventListener('load', window.dismissSystemPreloader);
+  }
 
   window.ThemeManager = ThemeManager;
   window.getSystemTheme = () => ThemeManager.getEffectiveTheme();

@@ -1004,7 +1004,7 @@ export class SwipeRow {
 
     // Touch events
     this.row.addEventListener('touchstart', this._onStart.bind(this), { passive: true });
-    this.row.addEventListener('touchmove',  this._onMove.bind(this),  { passive: false });
+    this.row.addEventListener('touchmove',  this._onMove.bind(this),  { passive: true });
     this.row.addEventListener('touchend',   this._onEnd.bind(this));
   }
 

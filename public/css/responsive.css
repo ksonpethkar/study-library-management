@@ -55,18 +55,23 @@ body {
 
   /* Prevent horizontal page scrolling & keep smooth 1-finger vertical touch scroll */
   body {
-    overflow-x: hidden;
-    overflow-y: visible;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    min-height: 100% !important;
     -webkit-overflow-scrolling: touch !important;
   }
 
+  #app,
   .app-container,
   #page-content,
   .main-content,
+  .page-content,
   .page-container {
-    overflow-x: hidden;
+    overflow-x: hidden !important;
     overflow-y: visible !important;
     height: auto !important;
+    max-height: none !important;
+    min-height: auto !important;
   }
 
   /* Override hardcoded inline min-width rules on mobile input fields and cards */
