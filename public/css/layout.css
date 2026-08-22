@@ -375,10 +375,9 @@ html.dark-theme .main-header {
 }
 
 /* Universal 100% Fluid Screen-Fit & Flexible Auto-Adjust System Tokens */
-.page-content, .page-container, #page-content, .app-main, .main-content {
+.page-content, .page-container, #page-content, .app-main {
   width: 100% !important;
   max-width: 100% !important;
-  margin: 0 !important;
   box-sizing: border-box !important;
   flex: 1 1 auto !important;
 }
@@ -505,8 +504,8 @@ html.dark-theme .main-header {
 
 /* Responsive Rules */
 @media (min-width: 1025px) and (max-width: 1199px) {
-  .app-container { grid-template-columns: var(--sidebar-collapsed-width) 1fr; }
   .sidebar { width: var(--sidebar-collapsed-width); }
+  .main-content { width: calc(100% - var(--sidebar-collapsed-width)); margin-left: var(--sidebar-collapsed-width); }
   .sidebar-header { padding: 0; justify-content: center; }
   .sidebar-header span { display: none; }
   .sidebar-header svg { margin-right: 0; }
