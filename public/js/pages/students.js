@@ -600,7 +600,9 @@ export async function render() {
       const val = getVal(f.fieldName);
       const reqMark = f.required ? ' <span class="text-danger">*</span>' : '';
       const colClass = f.type === 'textarea' || f.type === 'address_autocomplete' || f.type === 'aadhaar_pan' || f.type === 'exam_badge' || f.type === 'signature_pad' ? 'col-12' : (f.colSpan === 12 || f.colSpan === 2 ? 'col-12' : 'col-md-6');
-      const depAttr = f.conditional?.enabled ? `data-depends-on="${escapeHTML(f.conditional.dependsOn)}" data-show-when="${escapeHTML(f.conditional.showWhen)}" data-operator="${escapeHTML(f.conditional.operator || 'equals')}"` : '';
+      // Support both new showIf API and legacy conditional.enabled API
+      const showIfConfig = f.showIf || (f.conditional?.enabled ? { field: f.conditional.dependsOn, operator: f.conditional.operator || 'equals', value: f.conditional.showWhen } : null);
+      const depAttr = showIfConfig ? `data-depends-on="${escapeHTML(showIfConfig.field)}" data-show-when="${escapeHTML(showIfConfig.value || '')}" data-operator="${escapeHTML(showIfConfig.operator || 'equals')}" style="display:none;"` : '';
       const helpText = f.helpText ? `<small class="text-muted d-block" style="font-size: 0.72rem; margin-top: 3px;">${escapeHTML(f.helpText)}</small>` : '';
 
       if (f.type === 'photo_upload') {
@@ -1195,14 +1197,21 @@ export async function render() {
           const target = String(showWhen).trim();
 
           let isMatch = false;
+          const boolVal = rawVal === true || rawVal === 'true' || rawVal === 'on';
           if (operator === 'equals') {
-            isMatch = (val.toLowerCase() === target.toLowerCase()) || (rawVal === true && target === 'true');
+            isMatch = val.toLowerCase() === target.toLowerCase() || (boolVal && target.toLowerCase() === 'true');
           } else if (operator === 'not_equals') {
             isMatch = val.toLowerCase() !== target.toLowerCase();
           } else if (operator === 'contains') {
             isMatch = val.toLowerCase().includes(target.toLowerCase());
-          } else if (operator === 'not_empty') {
+          } else if (operator === 'is_checked') {
+            isMatch = boolVal;
+          } else if (operator === 'is_not_checked') {
+            isMatch = !boolVal;
+          } else if (operator === 'is_not_empty' || operator === 'not_empty') {
             isMatch = val.length > 0;
+          } else if (operator === 'is_empty') {
+            isMatch = val.length === 0;
           }
 
           if (isMatch) {

@@ -308,15 +308,14 @@ function renderProfileUI(container, user) {
       if (autoPersist) {
         try {
           await api.put('/api/settings/admin-profile', { avatar: url });
-          const u = auth.getUser();
-          if (u) {
-            u.avatar = url;
-            auth.setUser(u);
-          }
-          window.dispatchEvent(new CustomEvent('user-updated'));
-          if (typeof window.updateProfileAvatar === 'function') {
-            window.updateProfileAvatar(url);
-          }
+          // Update in-memory store safely (auth is not imported — use App singleton)
+          try {
+            const App = window.App || (window.__app_instance);
+            const u = App?.getUser?.();
+            if (u) { u.avatar = url; App.setUser?.(u); }
+          } catch (_) {}
+          window.dispatchEvent(new CustomEvent('user-updated', { detail: { avatar: url } }));
+          if (typeof window.updateProfileAvatar === 'function') window.updateProfileAvatar(url);
         } catch (err) {
           console.warn('Failed to auto-persist avatar:', err);
         }
@@ -330,15 +329,13 @@ function renderProfileUI(container, user) {
       if (autoPersist) {
         try {
           await api.put('/api/settings/admin-profile', { avatar: '' });
-          const u = auth.getUser();
-          if (u) {
-            u.avatar = '';
-            auth.setUser(u);
-          }
-          window.dispatchEvent(new CustomEvent('user-updated'));
-          if (typeof window.updateProfileAvatar === 'function') {
-            window.updateProfileAvatar('');
-          }
+          try {
+            const App = window.App || (window.__app_instance);
+            const u = App?.getUser?.();
+            if (u) { u.avatar = ''; App.setUser?.(u); }
+          } catch (_) {}
+          window.dispatchEvent(new CustomEvent('user-updated', { detail: { avatar: '' } }));
+          if (typeof window.updateProfileAvatar === 'function') window.updateProfileAvatar('');
         } catch (err) {}
       }
     }
@@ -481,15 +478,18 @@ function renderProfileUI(container, user) {
 
       const updated = res.data || {};
 
-      // Sync active auth user session in localStorage
-      const u = auth.getUser();
-      if (u) {
-        u.name = updated.name || name || u.name;
-        u.email = updated.email || email || u.email;
-        u.phone = updated.phone || phone || u.phone;
-        u.avatar = updated.avatar !== undefined ? updated.avatar : avatar;
-        auth.setUser(u);
-      }
+      // Sync active auth user session in App store (auth is not imported here)
+      try {
+        const App = window.App || (window.__app_instance);
+        const u = App?.getUser?.();
+        if (u) {
+          u.name = updated.name || name || u.name;
+          u.email = updated.email || email || u.email;
+          u.phone = updated.phone || phone || u.phone;
+          u.avatar = updated.avatar !== undefined ? updated.avatar : avatar;
+          App.setUser?.(u);
+        }
+      } catch (_) {}
       window.dispatchEvent(new CustomEvent('user-updated'));
 
       // Update header & sidebar avatar dynamically

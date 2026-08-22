@@ -30,11 +30,29 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Invalid Base64 image format' });
       }
 
-      const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+      const ext = matches[1].toLowerCase();
       const base64Data = matches[2];
+
+      // ── Security: whitelist allowed image types ──────────────────────────
+      const ALLOWED_TYPES = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'];
+      if (!ALLOWED_TYPES.includes(ext === 'jpeg' ? 'jpg' : ext)) {
+        return res.status(400).json({ success: false, message: `Image type '${ext}' not allowed. Use JPG, PNG, or WebP.` });
+      }
+
+      // ── Security: 5MB size limit (base64 is ~1.37× actual size) ─────────
+      const MAX_BASE64_BYTES = 7 * 1024 * 1024; // 7MB base64 ≈ 5MB actual
+      if (base64Data.length > MAX_BASE64_BYTES) {
+        const actualMB = ((base64Data.length * 3) / 4 / 1024 / 1024).toFixed(1);
+        return res.status(413).json({
+          success: false,
+          message: `Image too large (${actualMB} MB). Maximum allowed size is 5 MB. Please compress the image first.`
+        });
+      }
+
       const buffer = Buffer.from(base64Data, 'base64');
 
-      const filename = `img_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const safeExt = ext === 'jpeg' ? 'jpg' : ext;
+      const filename = `img_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${safeExt}`;
       const targetPath = path.join(uploadsDir, filename);
 
       await fs.promises.writeFile(targetPath, buffer);

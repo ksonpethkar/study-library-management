@@ -230,7 +230,9 @@ export async function initAppEvents() {
   // Sidebar logout button
   document.getElementById('sidebar-logout-btn')?.addEventListener('click', async () => {
     const App = await getApp();
-    App.logout();
+    const { Confirm } = await import('./ui.js');
+    const ok = await Confirm.show({ title: 'Sign Out?', message: 'You will be signed out of the admin panel. Any unsaved changes will be lost.', confirmText: 'Sign Out', cancelText: 'Stay', danger: true });
+    if (ok) App.logout();
   });
   
   // Load org branding into sidebar
@@ -306,10 +308,12 @@ export async function initAppEvents() {
     }, { passive: true });
   })();
 
-  // Logout button
+  // Logout button (header)
   document.getElementById('logout-btn')?.addEventListener('click', async () => {
     const App = await getApp();
-    App.logout();
+    const { Confirm } = await import('./ui.js');
+    const ok = await Confirm.show({ title: 'Sign Out?', message: 'You will be signed out of the admin panel.', confirmText: 'Sign Out', cancelText: 'Stay', danger: true });
+    if (ok) App.logout();
   });
 
   // User avatar dropdown toggle

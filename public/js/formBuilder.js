@@ -184,6 +184,7 @@ export class FormBuilder {
       ]);
 
       this.fields = (fieldsRes && Array.isArray(fieldsRes.data)) ? fieldsRes.data : [];
+      this.allFields = this.fields; // expose for conditional trigger field dropdown
       if (tplRes && tplRes.data) {
         this.template = tplRes.data;
         const b = this.template.branding || {};
@@ -1108,7 +1109,7 @@ export class FormBuilder {
               <option value="email" ${field.type === 'email' ? 'selected' : ''}>📧 Email Address</option>
               <option value="select" ${field.type === 'select' ? 'selected' : ''}>📋 Dropdown Select</option>
               <option value="radio" ${field.type === 'radio' ? 'selected' : ''}>🔘 Multiple Choice Radio</option>
-              <option value="checkbox" ${field.type === 'checkbox' ? 'selected' : ''}>✅ Single Checkbox</option>
+              <option value="checkbox" ${field.type === 'checkbox' ? 'selected' : ''}>✅ Single Checkbox (Yes/No)</option>
               <option value="multiselect" ${field.type === 'multiselect' ? 'selected' : ''}>☑️ Multi-Select Checkboxes</option>
               <option value="date" ${field.type === 'date' ? 'selected' : ''}>📅 Date Picker</option>
               <option value="time" ${field.type === 'time' ? 'selected' : ''}>⏰ Time Picker</option>
@@ -1122,6 +1123,9 @@ export class FormBuilder {
               <option value="aadhaar_pan" ${field.type === 'aadhaar_pan' ? 'selected' : ''}>🪪 Aadhaar / PAN Proof Number</option>
               <option value="terms_checkbox" ${field.type === 'terms_checkbox' ? 'selected' : ''}>📜 Quiet Study Code Consent</option>
               <option value="star_rating" ${field.type === 'star_rating' ? 'selected' : ''}>⭐ Star Rating</option>
+              <optgroup label="── Logic ──">
+              <option value="conditional" ${field.type === 'conditional' ? 'selected' : ''}>🔀 Conditional (Show If...)</option>
+              </optgroup>
             </select>
           </div>
 
@@ -1160,6 +1164,51 @@ export class FormBuilder {
           <input type="text" id="fe-options" class="form-control" value="${escapeHTML((field.options || []).join(', '))}" placeholder="Option 1, Option 2, Option 3">
         </div>
 
+        <!-- ── Conditional Show-If Panel ─────────────────────────────────── -->
+        <div id="fe-conditional-wrap" style="display: ${field.type === 'conditional' ? 'block' : 'none'}; background: rgba(99,102,241,0.07); border: 1px solid rgba(99,102,241,0.25); border-radius: 10px; padding: 14px; margin-top: 4px;">
+          <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-primary); margin-bottom: 10px;">🔀 Conditional Logic — Show this field only when:</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div class="form-group" style="margin:0;">
+              <label class="form-label text-xs" style="font-weight:700;">Trigger Field</label>
+              <select id="fe-show-if-field" class="form-select" style="font-size:0.85rem;">
+                <option value="">— Pick a field —</option>
+                ${(FormBuilder.allFields || []).filter(f => f.fieldName !== field.fieldName).map(f => `<option value="${escapeHTML(f.fieldName)}" ${(field.showIf?.field === f.fieldName) ? 'selected' : ''}>${escapeHTML(f.label)} (${escapeHTML(f.fieldName)})</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label class="form-label text-xs" style="font-weight:700;">Condition</label>
+              <select id="fe-show-if-op" class="form-select" style="font-size:0.85rem;">
+                <option value="equals" ${field.showIf?.operator === 'equals' ? 'selected' : ''}>= Equals</option>
+                <option value="not_equals" ${field.showIf?.operator === 'not_equals' ? 'selected' : ''}>≠ Not Equals</option>
+                <option value="contains" ${field.showIf?.operator === 'contains' ? 'selected' : ''}>Contains</option>
+                <option value="is_checked" ${field.showIf?.operator === 'is_checked' ? 'selected' : ''}>✅ Is Checked</option>
+                <option value="is_not_checked" ${field.showIf?.operator === 'is_not_checked' ? 'selected' : ''}>☐ Is Unchecked</option>
+                <option value="is_not_empty" ${field.showIf?.operator === 'is_not_empty' ? 'selected' : ''}>Is Filled</option>
+                <option value="is_empty" ${field.showIf?.operator === 'is_empty' ? 'selected' : ''}>Is Empty</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label class="form-label text-xs" style="font-weight:700;">Trigger Value</label>
+              <input type="text" id="fe-show-if-val" class="form-control" style="font-size:0.85rem;" value="${escapeHTML(field.showIf?.value || '')}" placeholder="e.g. Yes, Option A">
+            </div>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label text-xs" style="font-weight:700;">This field's own type (what it collects when shown)</label>
+            <select id="fe-conditional-subtype" class="form-select" style="font-size:0.85rem;">
+              <option value="text" ${(field.conditionalSubType || 'text') === 'text' ? 'selected' : ''}>📝 Short Text</option>
+              <option value="textarea" ${field.conditionalSubType === 'textarea' ? 'selected' : ''}>📄 Long Paragraph</option>
+              <option value="number" ${field.conditionalSubType === 'number' ? 'selected' : ''}>🔢 Number</option>
+              <option value="select" ${field.conditionalSubType === 'select' ? 'selected' : ''}>📋 Dropdown</option>
+              <option value="date" ${field.conditionalSubType === 'date' ? 'selected' : ''}>📅 Date</option>
+              <option value="checkbox" ${field.conditionalSubType === 'checkbox' ? 'selected' : ''}>✅ Checkbox</option>
+              <option value="file" ${field.conditionalSubType === 'file' ? 'selected' : ''}>📎 File Upload</option>
+            </select>
+          </div>
+          <div style="font-size:0.78rem; color: var(--color-text-muted); margin-top: 8px;">
+            💡 Example: "If <strong>has_laptop</strong> <em>is_checked</em> → show this field"
+          </div>
+        </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
           <button type="button" class="btn btn-secondary btn-sm fb-cancel-modal-btn" data-modal-close="true">Cancel</button>
           <button type="submit" class="btn btn-primary btn-sm" style="font-weight: 700;">💾 Save Question Field</button>
@@ -1187,10 +1236,13 @@ export class FormBuilder {
       });
     }
 
-    // Toggle options field
+    // Toggle options + conditional panels on type change
     modalContent.querySelector('#fe-type')?.addEventListener('change', (e) => {
-      const showOpts = ['select', 'radio', 'multiselect'].includes(e.target.value);
+      const val = e.target.value;
+      const showOpts = ['select', 'radio', 'multiselect'].includes(val);
+      const showCond = val === 'conditional';
       modalContent.querySelector('#fe-options-wrap').style.display = showOpts ? 'block' : 'none';
+      modalContent.querySelector('#fe-conditional-wrap').style.display = showCond ? 'block' : 'none';
     });
 
     // Form submit
@@ -1207,6 +1259,21 @@ export class FormBuilder {
       const rawOpts = modalContent.querySelector('#fe-options').value;
       const options = rawOpts ? rawOpts.split(',').map(s => s.trim()).filter(Boolean) : [];
 
+      // Conditional show-if logic
+      let showIf = null;
+      let conditionalSubType = null;
+      if (type === 'conditional') {
+        const triggerField = modalContent.querySelector('#fe-show-if-field')?.value;
+        const operator = modalContent.querySelector('#fe-show-if-op')?.value || 'equals';
+        const value = modalContent.querySelector('#fe-show-if-val')?.value.trim() || '';
+        conditionalSubType = modalContent.querySelector('#fe-conditional-subtype')?.value || 'text';
+        if (!triggerField) {
+          Toast.error('Please pick a trigger field for the conditional logic.');
+          return;
+        }
+        showIf = { field: triggerField, operator, value };
+      }
+
       const payload = {
         fieldName: key,
         label,
@@ -1217,7 +1284,9 @@ export class FormBuilder {
         required,
         colSpan,
         options,
-        isActive: true
+        isActive: true,
+        ...(showIf && { showIf }),
+        ...(conditionalSubType && { conditionalSubType })
       };
 
       try {

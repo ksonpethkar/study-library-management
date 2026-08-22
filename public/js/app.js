@@ -542,6 +542,7 @@ class Application {
 
   /** Get current user from store */
   getUser() { return store.user; }
+  setUser(u) { store.user = u; }
 
   /** Get JWT token from localStorage */
   getToken() { return localStorage.getItem('sl_token'); }
