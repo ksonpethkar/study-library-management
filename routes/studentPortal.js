@@ -63,6 +63,41 @@ router.post('/webhook/payment-captured', optionalAuth, async (req, res) => {
   }
 });
 
+// @route   GET /api/student-portal/config
+// @desc    Get dynamic feature flags and portal configurations
+// @access  Public / Optional Auth
+router.get('/config', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  try {
+    const SystemSetting = require('../models/SystemSetting');
+    const settings = await SystemSetting.find({ category: 'portal' }).lean();
+    const portalConfig = {};
+    settings.forEach(s => {
+      const shortKey = s.key.replace(/^portal\./, '');
+      portalConfig[shortKey] = s.value;
+    });
+
+    const businessProfile = await BusinessProfile.getProfile().catch(() => ({}));
+
+    res.json({
+      success: true,
+      data: {
+        features: portalConfig,
+        businessProfile: {
+          businessName: businessProfile.businessName,
+          logo: businessProfile.logo,
+          favicon: businessProfile.favicon,
+          phone: businessProfile.phone,
+          upiId: businessProfile.upiId,
+          upiQrCode: businessProfile.upiQrCode
+        }
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 router.use(protect);
 
 /**

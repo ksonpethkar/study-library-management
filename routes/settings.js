@@ -256,7 +256,7 @@ const updateSystemSettingsHandler = async (req, res) => {
     // Flatten categorized nested objects
     const flatUpdates = {};
     for (const [k, v] of Object.entries(updates)) {
-      if (typeof v === 'object' && v !== null && !Array.isArray(v) && ['general', 'payment', 'admission', 'notification'].includes(k)) {
+      if (typeof v === 'object' && v !== null && !Array.isArray(v) && ['general', 'payment', 'admission', 'notification', 'portal', 'automations', 'billing', 'operations', 'kiosk', 'dashboard'].includes(k)) {
         for (const [subK, subV] of Object.entries(v)) {
           flatUpdates[`${k}.${subK}`] = subV;
         }

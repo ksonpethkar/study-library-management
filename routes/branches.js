@@ -5,6 +5,7 @@ const Branch = require('../models/Branch');
 const Seat = require('../models/Seat');
 const Student = require('../models/Student');
 const User = require('../models/User');
+const BusinessProfile = require('../models/BusinessProfile');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 

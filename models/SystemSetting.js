@@ -105,6 +105,44 @@ systemSettingSchema.statics.initDefaults = async function() {
     { category: 'notification', key: 'notification.enableConversationalBot', value: true, type: 'boolean', label: 'Enable Interactive WhatsApp Conversational Bot' },
 
     
+    // Portal Feature Matrix
+    { category: 'portal', key: 'portal.enableOnlineRenewal', value: true, type: 'boolean', label: 'Enable Student Portal Online Fee Renewal' },
+    { category: 'portal', key: 'portal.enableSeatTransfer', value: true, type: 'boolean', label: 'Enable Student Seat Transfer Requests' },
+    { category: 'portal', key: 'portal.enableShiftSwitch', value: true, type: 'boolean', label: 'Enable Student Shift Switch Requests' },
+    { category: 'portal', key: 'portal.enableIdPassDownload', value: true, type: 'boolean', label: 'Enable Digital Mobile ID Pass Download' },
+    { category: 'portal', key: 'portal.enableReceiptDownload', value: true, type: 'boolean', label: 'Enable Fee Receipt PDF Download' },
+    { category: 'portal', key: 'portal.enableProfileEdit', value: true, type: 'boolean', label: 'Enable Student Profile & KYC Self-Edit' },
+    { category: 'portal', key: 'portal.enableWebAuthn', value: true, type: 'boolean', label: 'Enable One-Touch Biometric Login' },
+    { category: 'portal', key: 'portal.enableGamifiedBadges', value: true, type: 'boolean', label: 'Enable Gamified Badges & Study Streak' },
+    { category: 'portal', key: 'portal.enableReferralProgram', value: true, type: 'boolean', label: 'Enable Student Referral Program & Wallet' },
+    { category: 'portal', key: 'portal.enableAttendanceLogs', value: true, type: 'boolean', label: 'Enable 30-Day AI Study Heatmap' },
+    { category: 'portal', key: 'portal.enableAnnouncements', value: true, type: 'boolean', label: 'Enable Notice Board & Announcements' },
+    { category: 'portal', key: 'portal.enableLockerRequests', value: true, type: 'boolean', label: 'Enable Locker Allotment Requests' },
+
+    // Automations
+    { category: 'automations', key: 'automations.autoSeatExpiry', value: true, type: 'boolean', label: 'Auto Release Expired Seats' },
+    { category: 'automations', key: 'automations.autoDueReminders', value: true, type: 'boolean', label: 'Auto Dispatch Balance Due Reminders' },
+    { category: 'automations', key: 'automations.autoReceiptGeneration', value: true, type: 'boolean', label: 'Auto Generate & Send PDF Receipts' },
+    { category: 'automations', key: 'automations.autoDailyBackup', value: true, type: 'boolean', label: 'Daily Automated Cloud Database Snapshots' },
+
+    // Billing & Invoicing
+    { category: 'billing', key: 'billing.receiptPrefix', value: 'LIB-2026', type: 'string', label: 'Invoice / Receipt Prefix' },
+    { category: 'billing', key: 'billing.nextReceiptNumber', value: 1001, type: 'number', label: 'Starting Invoice Number' },
+    { category: 'billing', key: 'billing.enableGst', value: false, type: 'boolean', label: 'Enable GST Tax on Invoices' },
+    { category: 'billing', key: 'billing.gstRate', value: 18, type: 'number', label: 'Standard GST Percentage (%)' },
+    { category: 'billing', key: 'billing.hsnSacCode', value: '999293', type: 'string', label: 'HSN / SAC Code' },
+    { category: 'billing', key: 'billing.allowPartialPayment', value: true, type: 'boolean', label: 'Allow Partial / Split Payments' },
+    { category: 'billing', key: 'billing.minPartialPercent', value: 50, type: 'number', label: 'Minimum Partial Payment (%)' },
+    { category: 'billing', key: 'billing.refundPolicyDays', value: 3, type: 'number', label: 'Refund Guarantee Window (Days)' },
+
+    // Extended Library Operations
+    { category: 'operations', key: 'operations.openingTime', value: '06:00', type: 'string', label: 'Daily Opening Time' },
+    { category: 'operations', key: 'operations.closingTime', value: '23:00', type: 'string', label: 'Daily Closing Time' },
+    { category: 'operations', key: 'operations.weeklyOff', value: 'none', type: 'string', label: 'Weekly Off Day' },
+    { category: 'operations', key: 'operations.examExtendedHours', value: false, type: 'boolean', label: 'Enable 24x7 Exam Season Hours' },
+    { category: 'operations', key: 'operations.emergencyNotice', value: '', type: 'string', label: 'Emergency Closure Broadcast Message' },
+    { category: 'operations', key: 'operations.emergencyNoticeEnabled', value: false, type: 'boolean', label: 'Enable Emergency Banner Broadcast' },
+
     // General Settings
     { category: 'general', key: 'general.currency', value: 'INR', type: 'string', label: 'Currency' },
     { category: 'general', key: 'general.currencySymbol', value: '₹', type: 'string', label: 'Currency Symbol' },
