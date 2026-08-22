@@ -344,6 +344,8 @@ if (typeof window !== 'undefined') {
   window.Modal.closeAll = Modal.closeAll;
   window.Modal.close = Modal.close;
   window.Modal.hide = Modal.hide;
+  window.Modal.confirm = Modal.confirm;
+  window.Confirm = Confirm;
 
   // Global capture click listener for all Cancel / Close buttons inside any modal
   document.addEventListener('click', (e) => {

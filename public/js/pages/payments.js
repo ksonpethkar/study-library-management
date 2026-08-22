@@ -1536,11 +1536,12 @@ export async function render(container) {
     container.querySelector('#payments-bulk-delete')?.addEventListener('click', async () => {
       if (!selectedPaymentIds.size) return;
       const count = selectedPaymentIds.size;
-      const confirmed = await Modal.confirm(
-        `🗑️ Delete ${count} Payment(s)?`,
-        `This will permanently delete ${count} selected payment record(s). This action cannot be undone.`,
-        { confirmLabel: `Delete ${count} Payments`, confirmClass: 'btn-danger' }
-      );
+      const confirmed = await Confirm.show({
+        title: `🗑️ Delete ${count} Payment(s)?`,
+        message: `This will permanently delete ${count} selected payment record(s). This action cannot be undone.`,
+        confirmText: `Delete ${count} Payments`,
+        danger: true
+      });
       if (!confirmed) return;
 
       const btn = container.querySelector('#payments-bulk-delete');
