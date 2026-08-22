@@ -3,7 +3,7 @@
  * Phase 4: Updated cache, offline fallback page, stale-while-revalidate
  */
 
-const CACHE_NAME = 'studylib-pwa-v4';
+const CACHE_NAME = 'studylib-pwa-v5';
 
 // All static assets to pre-cache on install
 const STATIC_ASSETS = [
@@ -19,6 +19,8 @@ const STATIC_ASSETS = [
   '/kiosk',
   '/kiosk.html',
   '/manifest.json',
+  '/manifest-student.json',
+  '/manifest-admin.json',
   '/css/variables.css',
   '/css/base.css',
   '/css/layout.css',
