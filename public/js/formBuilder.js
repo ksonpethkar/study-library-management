@@ -76,6 +76,10 @@ export class FormBuilder {
                 📁 + Add Custom Section
               </button>
 
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="fb-paste-section-btn" style="font-weight: 600;" title="Paste copied section">
+                📋 Paste Section
+              </button>
+
               <button type="button" class="btn btn-primary btn-sm" id="fb-add-field-btn" style="font-weight: 700;">
                 ✨ + Add Question Field
               </button>
@@ -294,9 +298,12 @@ export class FormBuilder {
               <span class="badge badge-secondary" style="font-size: 0.7rem;">${sec.isSystem ? 'System Component' : secFields.length + ' Questions'}</span>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
               ${secIdx > 0 ? `<button type="button" class="btn btn-sm btn-ghost fb-sec-up" data-sec="${sec.name}" title="Move Section Up">⬆️</button>` : ''}
               ${secIdx < this.sections.length - 1 ? `<button type="button" class="btn btn-sm btn-ghost fb-sec-down" data-sec="${sec.name}" title="Move Section Down">⬇️</button>` : ''}
+              <button type="button" class="btn btn-sm btn-outline-secondary fb-sec-rename" data-sec="${sec.name}" title="Rename Section Title & Icon" style="font-size: 0.75rem; padding: 2px 7px;">✏️ Rename</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary fb-sec-copy" data-sec="${sec.name}" title="Copy Section & All Questions" style="font-size: 0.75rem; padding: 2px 7px;">📋 Copy Sec</button>
+              <button type="button" class="btn btn-sm btn-outline-success fb-sec-paste-field" data-sec="${sec.name}" title="Paste Copied Question into this Section" style="font-size: 0.75rem; padding: 2px 7px;">📋 Paste Q</button>
               <button type="button" class="btn btn-sm btn-outline-primary fb-sec-add-field" data-sec="${sec.name}" title="Add Question to this Section" style="font-size: 0.75rem; padding: 2px 8px;">➕ Add Question</button>
               ${!isCoreSec ? `<button type="button" class="btn btn-sm btn-ghost text-danger fb-sec-delete" data-sec="${sec.name}" title="Delete Section" style="font-size: 0.75rem; padding: 2px 6px;">🗑️ Delete</button>` : ''}
             </div>
@@ -320,6 +327,9 @@ export class FormBuilder {
         handle: '.fb-sec-drag-handle',
         ghostClass: 'sortable-ghost',
         chosenClass: 'sortable-chosen',
+        delay: 150,
+        delayOnTouchOnly: true,
+        touchStartThreshold: 8,
         onEnd: () => {
           const newSecOrder = Array.from(container.querySelectorAll('.fb-sec-card')).map(el => el.dataset.section);
           newSecOrder.forEach((secName, idx) => {
@@ -340,6 +350,9 @@ export class FormBuilder {
           handle: '.fb-field-drag-handle',
           ghostClass: 'sortable-ghost',
           chosenClass: 'sortable-chosen',
+          delay: 150,
+          delayOnTouchOnly: true,
+          touchStartThreshold: 8,
           onEnd: async (evt) => {
             const targetSec = evt.to.dataset.section;
             const fieldId = evt.item.dataset.id;
@@ -381,12 +394,32 @@ export class FormBuilder {
       btn.addEventListener('click', () => this.moveSection(btn.dataset.sec, 1));
     });
 
+    container.querySelectorAll('.fb-sec-rename').forEach(btn => {
+      btn.addEventListener('click', () => this.openRenameSectionModal(btn.dataset.sec));
+    });
+
+    container.querySelectorAll('.fb-sec-copy').forEach(btn => {
+      btn.addEventListener('click', () => this.copySection(btn.dataset.sec));
+    });
+
+    container.querySelectorAll('.fb-sec-paste-field').forEach(btn => {
+      btn.addEventListener('click', () => this.pasteField(btn.dataset.sec));
+    });
+
     container.querySelectorAll('.fb-sec-add-field').forEach(btn => {
       btn.addEventListener('click', () => this.openFieldEditor(null, btn.dataset.sec));
     });
 
     container.querySelectorAll('.fb-sec-delete').forEach(btn => {
       btn.addEventListener('click', () => this.deleteSection(btn.dataset.sec));
+    });
+
+    container.querySelectorAll('.fb-field-copy').forEach(btn => {
+      btn.addEventListener('click', () => this.copyField(btn.dataset.id));
+    });
+
+    container.querySelectorAll('.fb-field-duplicate').forEach(btn => {
+      btn.addEventListener('click', () => this.duplicateField(btn.dataset.id));
     });
 
     container.querySelectorAll('.fb-field-edit').forEach(btn => {
@@ -547,10 +580,16 @@ export class FormBuilder {
           </div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+        <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; flex-wrap: wrap;">
           ${index > 0 ? `<button type="button" class="btn btn-sm btn-ghost fb-field-up" data-id="${field._id}" title="Move Question Up">⬆️</button>` : ''}
           ${index < total - 1 ? `<button type="button" class="btn btn-sm btn-ghost fb-field-down" data-id="${field._id}" title="Move Question Down">⬇️</button>` : ''}
           
+          <button type="button" class="btn btn-sm btn-outline-secondary fb-field-copy" data-id="${field._id}" title="Copy Question to Clipboard" style="font-size: 0.75rem; padding: 2px 6px;">
+            📋 Copy
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary fb-field-duplicate" data-id="${field._id}" title="Instant Duplicate Question" style="font-size: 0.75rem; padding: 2px 6px;">
+            📄 Duplicate
+          </button>
           <button type="button" class="btn btn-sm btn-ghost fb-field-toggle" data-id="${field._id}" title="${isActive ? 'Hide Question' : 'Show Question'}">
             ${isActive ? '🟢 Active' : '⚪ Hidden'}
           </button>
@@ -932,6 +971,11 @@ export class FormBuilder {
       this.openAddSectionModal();
     });
 
+    // Paste Section
+    document.getElementById('fb-paste-section-btn')?.addEventListener('click', () => {
+      this.pasteSection();
+    });
+
     // Add Field
     document.getElementById('fb-add-field-btn')?.addEventListener('click', () => {
       this.openFieldEditor(null);
@@ -1091,6 +1135,288 @@ export class FormBuilder {
       this.renderSections();
       this.renderPreview();
     });
+  }
+
+  static openRenameSectionModal(secName) {
+    const sec = this.sections.find(s => s.name === secName);
+    if (!sec) return;
+
+    const modalContent = document.createElement('div');
+    modalContent.innerHTML = `
+      <form id="fb-rename-section-form" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label text-xs" style="font-weight:700;">Section Title / Step Heading *</label>
+          <input type="text" id="rs-label" class="form-control" value="${escapeHTML(sec.label)}" required>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label text-xs" style="font-weight:700;">Section Icon Emoji</label>
+          <input type="text" id="rs-icon" class="form-control" value="${escapeHTML(sec.icon || '📁')}" placeholder="e.g. 👤, 📚, 💎, 💳, 💺, 📍, 📄">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn btn-secondary btn-sm fb-cancel-modal-btn" data-modal-close="true">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm" style="font-weight: 700;">💾 Update Section</button>
+        </div>
+      </form>
+    `;
+
+    const modal = new Modal({
+      title: `✏️ Rename Section: ${sec.label}`,
+      content: modalContent,
+      size: 'sm'
+    });
+    modal.show();
+
+    modalContent.querySelector('.fb-cancel-modal-btn')?.addEventListener('click', () => {
+      modal.close();
+      Modal.closeAll();
+    });
+
+    modalContent.querySelector('#fb-rename-section-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const newLabel = modalContent.querySelector('#rs-label').value.trim();
+      const newIcon = modalContent.querySelector('#rs-icon').value.trim() || '📁';
+
+      sec.label = newLabel;
+      sec.icon = newIcon;
+
+      if (!this.template) this.template = {};
+      this.template.sections = this.sections;
+
+      try {
+        await api.put('/api/custom-fields/templates/active', { sections: this.sections });
+        try {
+          await api.put(`/api/custom-fields/sections/${secName}`, { label: newLabel, icon: newIcon });
+        } catch (e) {}
+        Toast.success(`Section renamed to "${newLabel}" successfully!`);
+      } catch (err) {
+        Toast.error('Failed to save renamed section');
+      }
+
+      modal.close();
+      this.renderSections();
+      this.renderPreview();
+    });
+  }
+
+  static copyField(fieldId) {
+    const field = this.fields.find(f => String(f._id) === String(fieldId));
+    if (!field) return;
+
+    const copyData = {
+      label: field.label,
+      type: field.type,
+      required: !!field.required,
+      colSpan: field.colSpan || 12,
+      placeholder: field.placeholder || '',
+      helpText: field.helpText || '',
+      defaultValue: field.defaultValue || '',
+      options: Array.isArray(field.options) ? [...field.options] : [],
+      validation: field.validation ? { ...field.validation } : {},
+      showIf: field.showIf ? { ...field.showIf } : undefined,
+      conditionalSubType: field.conditionalSubType || undefined,
+      icon: field.icon || '',
+      fieldName: field.fieldName || field.name || 'field'
+    };
+
+    FormBuilder.copiedField = copyData;
+    try {
+      localStorage.setItem('fb_copied_field', JSON.stringify(copyData));
+    } catch (e) {}
+
+    Toast.success(`📋 Question "${field.label}" copied! Click "📋 Paste Q" in any section.`);
+  }
+
+  static async duplicateField(fieldId) {
+    const field = this.fields.find(f => String(f._id) === String(fieldId));
+    if (!field) return;
+
+    const uniqueSuffix = Date.now().toString(36).slice(-4);
+    const baseKey = (field.fieldName || field.name || 'field').replace(/_copy.*$/, '');
+    const newKey = `${baseKey}_copy_${uniqueSuffix}`;
+
+    const newFieldPayload = {
+      fieldName: newKey,
+      label: `${field.label} (Copy)`,
+      type: field.type,
+      section: field.section || 'personal',
+      required: !!field.required,
+      colSpan: field.colSpan || 12,
+      placeholder: field.placeholder || '',
+      helpText: field.helpText || '',
+      defaultValue: field.defaultValue || '',
+      options: Array.isArray(field.options) ? [...field.options] : [],
+      validation: field.validation ? { ...field.validation } : {},
+      showIf: field.showIf ? { ...field.showIf } : undefined,
+      conditionalSubType: field.conditionalSubType || undefined,
+      icon: field.icon || '',
+      isActive: true,
+      order: (field.order || 0) + 1
+    };
+
+    try {
+      Loading.show('Duplicating question...');
+      await api.post('/api/custom-fields', newFieldPayload);
+      Loading.hide();
+      Toast.success(`Question duplicated as "${newFieldPayload.label}"`);
+      await FormBuilder.loadData();
+    } catch (err) {
+      Loading.hide();
+      Toast.error(err.message || 'Failed to duplicate question');
+    }
+  }
+
+  static async pasteField(secName) {
+    let copyData = FormBuilder.copiedField;
+    if (!copyData) {
+      try {
+        const stored = localStorage.getItem('fb_copied_field');
+        if (stored) copyData = JSON.parse(stored);
+      } catch (e) {}
+    }
+
+    if (!copyData) {
+      Toast.warning('No question copied yet. Click 📋 Copy on any question first!');
+      return;
+    }
+
+    const uniqueSuffix = Date.now().toString(36).slice(-4);
+    const baseKey = (copyData.fieldName || 'field').replace(/_copy.*$/, '');
+    const newKey = `${baseKey}_copy_${uniqueSuffix}`;
+
+    const newFieldPayload = {
+      fieldName: newKey,
+      label: `${copyData.label} (Copy)`,
+      type: copyData.type,
+      section: secName,
+      required: !!copyData.required,
+      colSpan: copyData.colSpan || 12,
+      placeholder: copyData.placeholder || '',
+      helpText: copyData.helpText || '',
+      defaultValue: copyData.defaultValue || '',
+      options: Array.isArray(copyData.options) ? [...copyData.options] : [],
+      validation: copyData.validation ? { ...copyData.validation } : {},
+      showIf: copyData.showIf ? { ...copyData.showIf } : undefined,
+      conditionalSubType: copyData.conditionalSubType || undefined,
+      icon: copyData.icon || '',
+      isActive: true,
+      order: this.fields.filter(f => f.section === secName).length + 1
+    };
+
+    try {
+      Loading.show('Pasting question into section...');
+      await api.post('/api/custom-fields', newFieldPayload);
+      Loading.hide();
+      Toast.success(`Pasted "${newFieldPayload.label}" into section!`);
+      await FormBuilder.loadData();
+    } catch (err) {
+      Loading.hide();
+      Toast.error(err.message || 'Failed to paste question');
+    }
+  }
+
+  static copySection(secName) {
+    const sec = this.sections.find(s => s.name === secName);
+    if (!sec) return;
+
+    const secFields = this.fields.filter(f => (f.section || 'personal') === secName);
+    const copyData = {
+      section: {
+        name: sec.name,
+        label: sec.label,
+        icon: sec.icon
+      },
+      fields: secFields.map(f => ({
+        fieldName: f.fieldName || f.name,
+        label: f.label,
+        type: f.type,
+        required: !!f.required,
+        colSpan: f.colSpan || 12,
+        placeholder: f.placeholder || '',
+        helpText: f.helpText || '',
+        defaultValue: f.defaultValue || '',
+        options: Array.isArray(f.options) ? [...f.options] : [],
+        validation: f.validation ? { ...f.validation } : {},
+        showIf: f.showIf ? { ...f.showIf } : undefined,
+        icon: f.icon || ''
+      }))
+    };
+
+    FormBuilder.copiedSection = copyData;
+    try {
+      localStorage.setItem('fb_copied_section', JSON.stringify(copyData));
+    } catch (e) {}
+
+    Toast.success(`📋 Section "${sec.label}" & ${secFields.length} questions copied! Click "📋 Paste Section" in toolbar.`);
+  }
+
+  static async pasteSection() {
+    let copyData = FormBuilder.copiedSection;
+    if (!copyData) {
+      try {
+        const stored = localStorage.getItem('fb_copied_section');
+        if (stored) copyData = JSON.parse(stored);
+      } catch (e) {}
+    }
+
+    if (!copyData || !copyData.section) {
+      Toast.warning('No section copied yet. Click 📋 Copy Sec on any section first!');
+      return;
+    }
+
+    const uniqueSuffix = Date.now().toString(36).slice(-4);
+    const baseSlug = copyData.section.name.replace(/_copy.*$/, '');
+    const newSecKey = `${baseSlug}_copy_${uniqueSuffix}`;
+    const newSecLabel = `${copyData.section.label} (Copy)`;
+
+    const newSec = {
+      name: newSecKey,
+      label: newSecLabel,
+      icon: copyData.section.icon || '📁',
+      order: this.sections.length + 1,
+      isSystem: false
+    };
+
+    this.sections.push(newSec);
+    if (!this.template) this.template = {};
+    this.template.sections = this.sections;
+
+    try {
+      Loading.show('Pasting section and questions...');
+      await api.put('/api/custom-fields/templates/active', { sections: this.sections });
+
+      // Clone each field from the copied section into the new section
+      if (Array.isArray(copyData.fields)) {
+        for (const [idx, f] of copyData.fields.entries()) {
+          const newFieldKey = `${f.fieldName}_${uniqueSuffix}`;
+          await api.post('/api/custom-fields', {
+            fieldName: newFieldKey,
+            label: f.label,
+            type: f.type,
+            section: newSecKey,
+            required: !!f.required,
+            colSpan: f.colSpan || 12,
+            placeholder: f.placeholder || '',
+            helpText: f.helpText || '',
+            defaultValue: f.defaultValue || '',
+            options: f.options || [],
+            validation: f.validation || {},
+            showIf: f.showIf,
+            icon: f.icon || '',
+            isActive: true,
+            order: idx + 1
+          });
+        }
+      }
+
+      Loading.hide();
+      Toast.success(`Pasted section "${newSecLabel}" with ${copyData.fields?.length || 0} questions!`);
+      await FormBuilder.loadData();
+    } catch (err) {
+      Loading.hide();
+      Toast.error(err.message || 'Failed to paste section');
+    }
   }
 
   static async toggleFieldActive(fieldId) {

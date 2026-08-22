@@ -6018,12 +6018,17 @@ async function initLandingSettings(container) {
   container.querySelector('#btn-quick-backup-header')?.addEventListener('click', async () => {
     try {
       Loading.show('Generating full system database backup...');
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/backup/export', {
+      const token = localStorage.getItem('sl_token') || localStorage.getItem('token') || '';
+      let res = await fetch('/api/backup/export', {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (!res.ok) {
+        res = await fetch('/api/settings/backup', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
       Loading.hide();
-      if (!res.ok) throw new Error('Backup failed');
+      if (!res.ok) throw new Error('Backup failed (HTTP ' + res.status + ')');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

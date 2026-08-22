@@ -444,7 +444,7 @@ router.post('/change-password', validatePasswordUpdate, async (req, res) => {
  * @desc    Generate and download full JSON database backup
  * @access  Private (Owner / Super Admin)
  */
-router.get('/backup', roleCheck('owner'), async (req, res) => {
+router.get('/backup', roleCheck('owner', 'superadmin', 'admin'), async (req, res) => {
   try {
     const Student = require('../models/Student');
     const Seat = require('../models/Seat');

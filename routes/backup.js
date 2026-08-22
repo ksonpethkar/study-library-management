@@ -16,7 +16,7 @@ const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
 
 // GET /api/backup/export - Full JSON database dump
-router.get('/export', protect, roleCheck('owner'), async (req, res) => {
+router.get('/export', protect, roleCheck('owner', 'superadmin', 'admin'), async (req, res) => {
   try {
     const backupData = {
       exportedAt: new Date().toISOString(),
@@ -44,7 +44,7 @@ router.get('/export', protect, roleCheck('owner'), async (req, res) => {
 });
 
 // POST /api/backup/restore - Restore from uploaded JSON
-router.post('/restore', protect, roleCheck('owner'), async (req, res) => {
+router.post('/restore', protect, roleCheck('owner', 'superadmin', 'admin'), async (req, res) => {
   try {
     const data = req.body;
     if (!data || !data.version) {
