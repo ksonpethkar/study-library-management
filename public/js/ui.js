@@ -540,21 +540,21 @@ export const Loading = {
   },
   hidePage() {
     const sysPreloader = document.getElementById('system-preloader');
-    if (sysPreloader && sysPreloader.style.display !== 'none') {
+    if (sysPreloader) {
+      sysPreloader.style.pointerEvents = 'none';
       sysPreloader.style.opacity = '0';
       sysPreloader.style.visibility = 'hidden';
-      setTimeout(() => {
-        if (sysPreloader) sysPreloader.style.display = 'none';
-      }, 300);
+      sysPreloader.style.display = 'none';
+      try { sysPreloader.remove(); } catch(e) {}
     }
 
     const overlay = document.getElementById('global-page-loader');
     if (overlay) {
+      overlay.style.pointerEvents = 'none';
       overlay.style.opacity = '0';
       overlay.style.visibility = 'hidden';
-      setTimeout(() => {
-        if (overlay && overlay.parentNode) overlay.remove();
-      }, 250);
+      overlay.style.display = 'none';
+      try { overlay.remove(); } catch(e) {}
     }
   },
   show(target) {

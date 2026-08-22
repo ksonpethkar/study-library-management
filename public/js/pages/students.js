@@ -1512,6 +1512,14 @@ export async function render() {
       handleDelete(id);
       return;
     }
+
+    const rowEl = e.target.closest('tr.student-row');
+    if (rowEl && !e.target.closest('button, input, select, .badge, .btn, label, a')) {
+      const id = rowEl.getAttribute('data-id');
+      const student = state.students.find(s => s._id === id);
+      if (student) showStudentProfile(student);
+      return;
+    }
   });
 
   function showStudentProfile(student) {

@@ -2141,9 +2141,12 @@ html.dark-theme .bottom-sheet {
 .fab-speed-icon { font-size: 1.15rem; flex-shrink: 0; }
 .fab-speed-label { font-size: 0.82rem; font-weight: 600; color: var(--color-text-primary, #fff); }
 
-/* Hide FAB on desktop (≥1024px) — optional, comment out to show on desktop too */
+/* Hide FAB on desktop (≥1024px) */
 @media (min-width: 1024px) {
-  .fab-container { bottom: 24px; }
+  .fab-container {
+    display: none !important;
+    pointer-events: none !important;
+  }
 }
 
 /* ── Page Transition Animations ─────────────────────────────── */
