@@ -3,38 +3,22 @@
    iOS & Android Touch Flexibility, Responsive Tables, Modals & Auto-Shrink
    ========================================================================== */
 
-/* 1. Prevent Horizontal Page Out-of-Bounds Scrolling & Enable Seamless Viewport Scroll */
+/* 1. Native Viewport Scrolling Foundation (Exact Student-Login Working Architecture) */
 html {
-  max-width: 100%;
-  width: 100%;
-  min-height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-text-size-adjust: 100%;
-  -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  max-width: 100%;
-  width: 100%;
   min-height: 100vh;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  overflow-y: visible !important;
-  -webkit-overflow-scrolling: touch;
 }
 
 *, *::before, *::after {
   box-sizing: border-box;
-}
-
-/* 2. Touch Accessibility & Screen Fit */
-@media (max-width: 1024px) {
-  html {
-    -webkit-overflow-scrolling: touch !important;
-  }
 }
 
 @media (max-width: 768px) {
