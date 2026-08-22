@@ -4600,42 +4600,19 @@ async function initSidebarManager(container) {
       });
     });
 
-    // Setup Drag & Drop reordering
-    let draggedItem = null;
-    const cards = listContainer.querySelectorAll('.sidebar-item-card');
-    cards.forEach(card => {
-      card.addEventListener('dragstart', () => {
-        draggedItem = card;
-        setTimeout(() => { card.style.opacity = '0.5'; }, 0);
-      });
-      card.addEventListener('dragend', () => {
-        card.style.opacity = '1';
-        draggedItem = null;
-      });
-      card.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        const afterElement = getDragAfterElement(listContainer, e.clientY);
-        if (afterElement == null) {
-          listContainer.appendChild(draggedItem);
-        } else {
-          listContainer.insertBefore(draggedItem, afterElement);
+    // Setup Drag & Drop reordering with Sortable.js
+    if (typeof window !== 'undefined' && window.Sortable) {
+      window.Sortable.create(listContainer, {
+        handle: '.drag-handle',
+        animation: 180,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        onEnd: () => {
+          if (window.Toast) window.Toast.info('Sidebar order updated. Click Save All Changes to persist.');
         }
       });
-    });
+    }
   };
-
-  function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('.sidebar-item-card:not(.dragging)')];
-    return draggableElements.reduce((closest, child) => {
-      const box = child.getBoundingClientRect();
-      const offset = y - box.top - box.height / 2;
-      if (offset < 0 && offset > closest.offset) {
-        return { offset: offset, element: child };
-      } else {
-        return closest;
-      }
-    }, { offset: Number.NEGATIVE_INFINITY }).element;
-  }
 
   const defaultItems = [
     { key: 'dashboard', label: 'Dashboard', icon: '📊', href: '#/dashboard', isEnabled: true, allowedRoles: ['owner', 'branch_manager', 'staff'] },
@@ -5307,6 +5284,24 @@ async function initLandingSettings(container) {
       });
     });
 
+    // Helper to make any list Sortable with Sortable.js
+    const makeSortableList = (containerEl, getArrayFn) => {
+      if (!containerEl || typeof window === 'undefined' || !window.Sortable) return;
+      window.Sortable.create(containerEl, {
+        handle: '.drag-handle',
+        animation: 160,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        onEnd: (evt) => {
+          const arr = getArrayFn();
+          if (Array.isArray(arr) && evt.oldIndex !== undefined && evt.newIndex !== undefined) {
+            const movedItem = arr.splice(evt.oldIndex, 1)[0];
+            arr.splice(evt.newIndex, 0, movedItem);
+          }
+        }
+      });
+    };
+
     // Helper functions to render lists with full CRUD and reordering
     const renderFacilities = () => {
       const parent = listContainer.querySelector('#l-facilities-list');
@@ -5328,12 +5323,13 @@ async function initLandingSettings(container) {
         const div = document.createElement('div');
         div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface);';
         div.innerHTML = `
-          <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 4px;">
+          <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; align-items: center; gap: 4px;">
+            <div class="drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 0 4px; user-select: none;" title="Drag to reorder facility">⠿</div>
             <button class="btn btn-sm btn-outline btn-up-fac" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
             <button class="btn btn-sm btn-outline btn-down-fac" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
             <button class="btn btn-sm btn-outline-danger btn-delete-facility" title="Delete Facility">🗑️</button>
           </div>
-          <div style="display: flex; gap: 0.75rem; width: calc(100% - 120px);">
+          <div style="display: flex; gap: 0.75rem; width: calc(100% - 150px);">
             <input type="text" class="form-control l-fac-icon" style="width: 54px; text-align: center;" placeholder="Icon" value="${escapeHTML(item.icon || '❄️')}">
             <input type="text" class="form-control l-fac-title" style="flex: 1; font-weight: 600;" placeholder="Facility Title" value="${escapeHTML(item.title || '')}">
           </div>
@@ -5366,6 +5362,7 @@ async function initLandingSettings(container) {
         });
         parent.appendChild(div);
       });
+      makeSortableList(parent, () => items);
     };
 
     listContainer.querySelector('#btn-add-facility')?.addEventListener('click', () => {
@@ -5404,6 +5401,7 @@ async function initLandingSettings(container) {
               <span style="font-weight: 700; font-size: 0.88rem;">Show on Landing Page</span>
             </label>
             <div style="display: flex; align-items: center; gap: 4px;">
+              <div class="drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 0 4px; user-select: none;" title="Drag to reorder shift">⠿</div>
               ${item.shiftId ? '<span style="font-size: 0.72rem; padding: 2px 6px; background: rgba(108,92,231,0.1); color: var(--color-primary); border-radius: 4px; font-weight: 700;">Live System Shift</span>' : ''}
               <button class="btn btn-sm btn-outline btn-up-shift" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
               <button class="btn btn-sm btn-outline btn-down-shift" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
@@ -5450,6 +5448,7 @@ async function initLandingSettings(container) {
         });
         parent.appendChild(div);
       });
+      makeSortableList(parent, () => items);
     };
 
     listContainer.querySelector('#btn-add-shift')?.addEventListener('click', () => {
@@ -5481,6 +5480,7 @@ async function initLandingSettings(container) {
         const div = document.createElement('div');
         div.style.cssText = 'display: flex; gap: 0.5rem; align-items: center; background: var(--color-surface); padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 6px;';
         div.innerHTML = `
+          <div class="drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 0 4px; user-select: none;" title="Drag to reorder rule">⠿</div>
           <span style="font-weight: 700; font-size: 0.85rem; color: var(--color-primary); min-width: 24px; text-align: center;">${idx + 1}.</span>
           <input type="text" class="form-control l-rule-text" style="flex: 1;" value="${escapeHTML(item)}" placeholder="Rule statement...">
           <div style="display: flex; gap: 4px;">
@@ -5514,6 +5514,7 @@ async function initLandingSettings(container) {
         });
         parent.appendChild(div);
       });
+      makeSortableList(parent, () => items);
     };
 
     listContainer.querySelector('#btn-add-rule')?.addEventListener('click', () => {
@@ -5545,6 +5546,7 @@ async function initLandingSettings(container) {
         const div = document.createElement('div');
         div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); display: flex; gap: 1rem; align-items: center; position: relative; background: var(--color-surface);';
         div.innerHTML = `
+          <div class="drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 0 4px; user-select: none;" title="Drag to reorder photo">⠿</div>
           <img src="${escapeHTML(item.url || 'https://via.placeholder.com/80')}" style="width: 70px; height: 70px; object-fit: cover; border-radius: var(--radius-md);" onerror="this.src='https://via.placeholder.com/80?text=No+Img'">
           <div style="flex: 1; display: flex; flex-direction: column; gap: 0.4rem;">
             <input type="text" class="form-control l-gal-url" placeholder="Image URL" value="${escapeHTML(item.url || '')}">
@@ -5595,6 +5597,7 @@ async function initLandingSettings(container) {
         });
         parent.appendChild(div);
       });
+      makeSortableList(parent, () => items);
     };
 
     listContainer.querySelector('#btn-add-gallery')?.addEventListener('click', () => {
@@ -5625,12 +5628,13 @@ async function initLandingSettings(container) {
         const div = document.createElement('div');
         div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface);';
         div.innerHTML = `
-          <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 4px;">
+          <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; align-items: center; gap: 4px;">
+            <div class="drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 0 4px; user-select: none;" title="Drag to reorder FAQ">⠿</div>
             <button class="btn btn-sm btn-outline btn-up-faq" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
             <button class="btn btn-sm btn-outline btn-down-faq" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
             <button class="btn btn-sm btn-outline-danger btn-delete-faq" title="Delete FAQ">🗑️</button>
           </div>
-          <input type="text" class="form-control l-faq-q mb-2" style="width: calc(100% - 120px); font-weight: 600;" placeholder="Question" value="${escapeHTML(item.question || '')}">
+          <input type="text" class="form-control l-faq-q mb-2" style="width: calc(100% - 150px); font-weight: 600;" placeholder="Question" value="${escapeHTML(item.question || '')}">
           <textarea class="form-control l-faq-a" placeholder="Answer" rows="2">${escapeHTML(item.answer || '')}</textarea>
         `;
 
@@ -5659,6 +5663,7 @@ async function initLandingSettings(container) {
         });
         parent.appendChild(div);
       });
+      makeSortableList(parent, () => items);
     };
 
     listContainer.querySelector('#btn-add-faq')?.addEventListener('click', () => {
@@ -5687,12 +5692,13 @@ async function initLandingSettings(container) {
         const div = document.createElement('div');
         div.style.cssText = 'border: 1px solid var(--color-border); padding: 1rem; border-radius: var(--radius-md); position: relative; background: var(--color-surface);';
         div.innerHTML = `
-          <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; gap: 4px;">
+          <div style="position: absolute; top: 0.75rem; right: 0.75rem; display: flex; align-items: center; gap: 4px;">
+            <div class="drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 0 4px; user-select: none;" title="Drag to reorder review">⠿</div>
             <button class="btn btn-sm btn-outline btn-up-test" ${idx === 0 ? 'disabled' : ''} title="Move Up">⬆️</button>
             <button class="btn btn-sm btn-outline btn-down-test" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down">⬇️</button>
             <button class="btn btn-sm btn-outline-danger btn-delete-test" title="Delete Review">🗑️</button>
           </div>
-          <div style="display: flex; gap: 0.75rem; margin-bottom: 0.5rem; width: calc(100% - 120px); flex-wrap: wrap;">
+          <div style="display: flex; gap: 0.75rem; margin-bottom: 0.5rem; width: calc(100% - 150px); flex-wrap: wrap;">
             <input type="text" class="form-control l-test-name" style="flex: 1; min-width: 130px; font-weight: 600;" placeholder="Student Name" value="${escapeHTML(item.name || '')}">
             <input type="text" class="form-control l-test-exam" style="flex: 1; min-width: 130px;" placeholder="Exam / Qualification" value="${escapeHTML(item.exam || '')}">
             <input type="number" class="form-control l-test-rating" style="width: 110px;" placeholder="Rating (1-5)" min="1" max="5" value="${item.rating || 5}">
@@ -5727,6 +5733,7 @@ async function initLandingSettings(container) {
         });
         parent.appendChild(div);
       });
+      makeSortableList(parent, () => items);
     };
 
     listContainer.querySelector('#btn-add-testimonial')?.addEventListener('click', () => {
@@ -5756,7 +5763,8 @@ async function initLandingSettings(container) {
         const div = document.createElement('div');
         div.style.cssText = 'border: 1px solid var(--color-border); padding: 0.75rem 1rem; border-radius: var(--radius-md); background: var(--color-surface); display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;';
         div.innerHTML = `
-          <div style="display: flex; gap: 0.5rem; flex: 1; min-width: 260px;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 260px;">
+            <div class="drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 0 4px; user-select: none;" title="Drag to reorder link">⠿</div>
             <input type="text" class="form-control l-ql-label" style="flex: 1; font-weight: 600;" placeholder="Link Label" value="${escapeHTML(item.label || '')}">
             <input type="text" class="form-control l-ql-url" style="flex: 1.5;" placeholder="URL (e.g. /register or https://...)" value="${escapeHTML(item.url || '')}">
           </div>
@@ -5799,6 +5807,7 @@ async function initLandingSettings(container) {
         });
         parent.appendChild(div);
       });
+      makeSortableList(parent, () => links);
     };
 
     listContainer.querySelector('#btn-add-quicklink')?.addEventListener('click', () => {
