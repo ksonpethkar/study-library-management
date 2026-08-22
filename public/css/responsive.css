@@ -30,10 +30,9 @@ body {
   box-sizing: border-box;
 }
 
-/* 2. iOS Safari Auto-Zoom Prevention & Touch Accessibility */
+/* 2. Touch Accessibility & Screen Fit */
 @media (max-width: 1024px) {
   html {
-    touch-action: pan-y !important;
     -webkit-overflow-scrolling: touch !important;
   }
 }
@@ -52,11 +51,11 @@ body {
     box-sizing: border-box !important;
   }
 
-  /* Prevent horizontal page scrolling & keep smooth 1-finger vertical touch scroll */
+  /* Prevent horizontal page scrolling & keep unconstrained 1-finger vertical touch scroll */
   body {
     overflow-x: hidden !important;
-    overflow-y: auto !important;
-    min-height: 100% !important;
+    overflow-y: visible !important;
+    min-height: 100vh !important;
     -webkit-overflow-scrolling: touch !important;
   }
 
@@ -1585,10 +1584,7 @@ a, a * {
   -webkit-tap-highlight-color: rgba(108, 92, 231, 0.12);
 }
 
-/* ── 2. Overscroll Behavior: prevent body rubber-band from bubbling ───────*/
-body {
-  overscroll-behavior-y: contain;
-}
+/* ── 2. Modal / bottom-sheet overscroll containment ───────*/
 
 /* Modal / bottom-sheet: allow their own scroll, not body */
 .modal-backdrop,
