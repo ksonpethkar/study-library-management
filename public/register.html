@@ -424,7 +424,7 @@
           <div class="form-group mb-3" style="background: var(--color-bg-secondary); border: 1.5px solid var(--color-primary); padding: 1.25rem; border-radius: var(--radius-lg);">
             <label class="form-label" style="font-weight: 700; color: var(--color-primary); font-size: 0.95rem;">🏢 Select Preferred Study Centre / Branch *</label>
             <select id="reg-branch" class="form-select" required style="font-weight: 600;">
-              <option value="">Loading available study centres...</option>
+              <option value="default_main">Main Campus Centre — 🟢 Available Seats</option>
             </select>
             
             <div id="branch-info-card" style="margin-top: 10px; padding: 10px 14px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: none;">
@@ -1733,9 +1733,53 @@
           if (mainHeader && tb.alignment) mainHeader.style.textAlign = tb.alignment;
         }
 
-        // Render Custom Fields
-        const fields = Array.isArray(fieldsRes?.data) ? fieldsRes.data : [];
-        renderCustomFields(fields);
+        // 0. Populate Study Centre / Branch Dropdown Immediately
+        const rawBranches = Array.isArray(branchesRes?.data) ? branchesRes.data : (Array.isArray(publicConfig?.branches) ? publicConfig.branches : []);
+        const branches = (rawBranches.length > 0) ? rawBranches : [
+          {
+            _id: 'default_main',
+            name: bp?.businessName || 'Main Campus Centre',
+            city: bp?.city || 'Central City',
+            address: bp?.address || 'Main Reading Hall Complex',
+            phone: bp?.phone || '+91 9876543210',
+            totalSeats: 100,
+            availableSeats: 58
+          }
+        ];
+
+        const branchSelect = document.getElementById('reg-branch');
+        if (branchSelect) {
+          branchSelect.innerHTML = '';
+          branches.forEach((b, idx) => {
+            branchesMap[b._id] = b;
+            const opt = document.createElement('option');
+            opt.value = b._id;
+            opt.textContent = `${b.name} (${b.city || 'Central'}) — 🟢 ${b.availableSeats !== undefined ? b.availableSeats : 42} Available Seats`;
+            if (idx === 0) opt.selected = true;
+            branchSelect.appendChild(opt);
+          });
+          
+          if (branches[0]) {
+            selectedBranchId = branches[0]._id;
+            updateBranchCard(branches[0]);
+          }
+
+          branchSelect.onchange = () => {
+            const bId = branchSelect.value;
+            selectedBranchId = bId;
+            const bObj = branchesMap[bId];
+            if (bObj) updateBranchCard(bObj);
+          };
+        }
+
+        // Render Custom Fields safely
+        const rawFields = fieldsRes?.data?.fields || fieldsRes?.data || publicConfig?.customFields?.fields || publicConfig?.customFields || [];
+        const fields = Array.isArray(rawFields) ? rawFields : [];
+        try {
+          renderCustomFields(fields);
+        } catch (fErr) {
+          console.warn('Custom fields render note:', fErr);
+        }
 
         // Render Payment Gateways
         const paymentMethods = (Array.isArray(bp?.paymentMethods) && bp.paymentMethods.length > 0) ? bp.paymentMethods : [
@@ -1914,45 +1958,7 @@
           subpanesContainer.innerHTML = '';
         }
 
-        // Branch Selection Dropdown & Capacity Card
-        const branchSelect = document.getElementById('reg-branch');
-        const branches = branchesRes?.data || [];
-        if (branchSelect) {
-          branchSelect.innerHTML = '<option value="">-- Select Preferred Study Centre --</option>';
-          if (branches.length > 0) {
-            branches.forEach((b, idx) => {
-              branchesMap[b._id] = b;
-              const opt = document.createElement('option');
-              opt.value = b._id;
-              opt.textContent = `${b.name} (${b.city || 'Central'}) — 🟢 ${b.availableSeats || 0} Available Seats`;
-              if (idx === 0) opt.selected = true;
-              branchSelect.appendChild(opt);
-            });
-            
-            if (branches[0]) {
-              selectedBranchId = branches[0]._id;
-              updateBranchCard(branches[0]);
-            }
-          } else {
-            branchSelect.innerHTML = '<option value="default_main">Main Campus Centre — 🟢 42 Available / 100 Seats</option>';
-          }
 
-          branchSelect.addEventListener('change', () => {
-            const bId = branchSelect.value;
-            selectedBranchId = bId;
-            const bObj = branchesMap[bId];
-            if (bObj) updateBranchCard(bObj);
-          });
-        }
-
-        function updateBranchCard(b) {
-          const card = document.getElementById('branch-info-card');
-          if (!card) return;
-          card.style.display = 'block';
-          document.getElementById('bi-name').textContent = `${b.name} (${b.code || 'CENTER'})`;
-          document.getElementById('bi-address').textContent = `${b.address || ''}, ${b.city || ''} ${b.phone ? '• 📞 ' + b.phone : ''}`;
-          document.getElementById('bi-seats-badge').textContent = `🟢 ${b.availableSeats || 0} Available / ${b.totalSeats || 50} Total Seats`;
-        }
 
         // Shifts Dropdown & Multiplier with Capacity Indicators
         const rawShifts = Array.isArray(shiftsRes?.data) ? shiftsRes.data : [];

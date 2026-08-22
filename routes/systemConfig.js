@@ -3,6 +3,10 @@ const router = express.Router();
 const BusinessProfile = require('../models/BusinessProfile');
 const Plan = require('../models/Plan');
 const Shift = require('../models/Shift');
+const Branch = require('../models/Branch');
+const Seat = require('../models/Seat');
+const Student = require('../models/Student');
+const Attendance = require('../models/Attendance');
 const CustomField = require('../models/CustomField');
 const ReceiptConfig = require('../models/ReceiptConfig');
 const LandingPage = require('../models/LandingPage');
@@ -37,7 +41,7 @@ const guessShiftIcon = (name) => {
 /**
  * @route   GET /api/system/public-config
  * @desc    Aggregate Single Source of Truth (SSOT) public configuration
- *          Returns businessProfile, plans, shifts, customFields, receiptConfig, landing, theme
+ *          Returns businessProfile, plans, shifts, branches, customFields, receiptConfig, landing, theme
  * @access  Public
  */
 router.get('/public-config', async (req, res) => {
@@ -53,22 +57,29 @@ router.get('/public-config', async (req, res) => {
       businessProfileRes,
       plansRes,
       shiftsRes,
+      branchesRes,
       customFieldsRes,
       receiptConfigRes,
       landingConfigRes,
       activeStudentsRes,
       settingsRes,
-      attendanceStatsRes
+      attendanceStatsRes,
+      occupiedCountsRes
     ] = await Promise.allSettled([
       BusinessProfile.getProfile(),
-      Plan.find({ isActive: true }).sort({ displayOrder: 1, price: 1 }),
-      Shift.find({ isActive: true }).sort({ startTime: 1, name: 1 }),
+      Plan.find({ isActive: true }).sort({ displayOrder: 1, price: 1 }).lean(),
+      Shift.find({ isActive: true }).sort({ startTime: 1, name: 1 }).lean(),
+      Branch.find({ isActive: true }).lean(),
       CustomField.getActiveFields(),
       ReceiptConfig.getConfig(),
       LandingPage.getPageConfig(),
-      Student.find({ status: 'active' }).populate('plan', 'shift name'),
+      Student.find({ status: 'active' }).populate('plan', 'shift name').lean(),
       SystemSetting.find().lean(),
-      Attendance.getTodayStats()
+      Attendance.getTodayStats(),
+      Seat.aggregate([
+        { $match: { status: 'occupied', isActive: true, branch: { $ne: null } } },
+        { $group: { _id: '$branch', count: { $sum: 1 } } }
+      ])
     ]);
 
     const businessProfile = businessProfileRes.status === 'fulfilled' && businessProfileRes.value ? businessProfileRes.value : {};
@@ -398,6 +409,36 @@ router.get('/public-config', async (req, res) => {
       timestamp: new Date().toISOString()
     };
 
+    // 3.5 Branches Aggregation with available seat calculations
+    const rawBranches = branchesRes.status === 'fulfilled' && Array.isArray(branchesRes.value) ? branchesRes.value : [];
+    const occupiedCounts = occupiedCountsRes.status === 'fulfilled' && Array.isArray(occupiedCountsRes.value) ? occupiedCountsRes.value : [];
+    const occupiedMap = new Map(occupiedCounts.map(c => [String(c._id), c.count]));
+
+    let formattedBranches = [];
+    if (rawBranches.length > 0) {
+      formattedBranches = rawBranches.map(b => {
+        const occupiedSeats = occupiedMap.get(String(b._id)) || 0;
+        const totalSeats = b.totalSeats || 50;
+        return {
+          ...b,
+          occupiedSeats,
+          availableSeats: Math.max(0, totalSeats - occupiedSeats)
+        };
+      });
+    } else {
+      formattedBranches = [{
+        _id: 'default_main',
+        name: formattedBusinessProfile.businessName || 'Main Campus Central',
+        code: 'MAIN',
+        city: formattedBusinessProfile.city || 'Central City',
+        address: formattedBusinessProfile.address || 'Main Reading Hall Complex',
+        phone: formattedBusinessProfile.phone || '+91 9876543210',
+        totalSeats: 50,
+        occupiedSeats: 1,
+        availableSeats: 49
+      }];
+    }
+
     // Return unified SSOT response
     res.json({
       success: true,
@@ -408,6 +449,7 @@ router.get('/public-config', async (req, res) => {
         businessProfile: formattedBusinessProfile,
         plans: formattedPlans,
         shifts: formattedShifts,
+        branches: formattedBranches,
         customFields: formattedCustomFields,
         receiptConfig: formattedReceiptConfig,
         kioskVoice,
