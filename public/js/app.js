@@ -613,6 +613,16 @@ class Application {
         }
       } catch (err) {
         console.error(`Render error on page ${pageId}:`, err);
+        content.innerHTML = `
+          <div class="card p-4 text-center" style="border-color: var(--color-danger); margin: 2rem; background: var(--color-surface); border-radius: var(--radius-lg);">
+            <div style="font-size: 2.2rem; margin-bottom: 8px;">⚠️</div>
+            <h4 style="color: var(--color-danger); margin-bottom: 6px; font-weight: 800;">Failed to load ${pageId}</h4>
+            <p class="text-muted small">${escapeHTML(err.message || 'An error occurred while rendering the page.')}</p>
+            <div>
+              <button class="btn btn-primary btn-sm mt-2" onclick="window.location.reload()">🔄 Reload Page</button>
+            </div>
+          </div>
+        `;
       } finally {
         Loading.hidePage();
       }

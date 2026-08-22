@@ -12,9 +12,11 @@ import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerat
 import { FormBuilder } from '../formBuilder.js';
 import { PushNotifications } from '../utils/pushNotifications.js';
 
-export async function render() {
-  const container = document.createElement('div');
-  container.className = 'page-container';
+export async function render(container) {
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'page-container';
+  }
 
   container.innerHTML = `
     <div class="module-header" style="margin-bottom: 1.25rem;">
