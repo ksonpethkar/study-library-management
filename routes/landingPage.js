@@ -254,6 +254,11 @@ router.put('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) 
     if (floatingActions) config.floatingActions = { ...config.floatingActions.toObject(), ...floatingActions };
     if (seo) config.seo = { ...config.seo.toObject(), ...seo };
 
+    // Publish / Draft toggle — instant without full form save
+    if (req.body.isPublished !== undefined) {
+      config.isPublished = req.body.isPublished === true || req.body.isPublished === 'true';
+    }
+
     // Sync business profile if provided in update payload
     let updatedProfile = null;
     if (businessProfile && typeof businessProfile === 'object') {

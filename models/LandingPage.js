@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 
 const landingPageSchema = new mongoose.Schema({
+  // Publish / Draft status
+  isPublished: { type: Boolean, default: true },
+
   // Hero / Banner Section
   hero: {
     title: { type: String, default: 'Premier Air-Conditioned Study Library & Reading Hall' },

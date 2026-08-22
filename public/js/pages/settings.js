@@ -1495,16 +1495,26 @@ function renderSettingsUI(container, profile, settings) {
       <!-- ========================================== -->
       <div class="settings-panel" id="panel-landing" style="display: none;">
         <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);">
-          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
+          <div class="card-header" style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
               <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
                 <span>🌐</span> Public Landing Page, CMS &amp; SEO Engine
               </h3>
               <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">Manage your public-facing website, hero banners, facilities, testimonials, and maps with live split-screen preview.</p>
             </div>
-            <a href="/landing" target="_blank" class="btn btn-outline-primary btn-sm" style="font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-              <span>👁️</span> Open Live Website ↗
-            </a>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <!-- Published status badge -->
+              <span id="landing-status-badge" style="font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 99px; background: rgba(16,185,129,0.15); color: #10b981;">⬤ LIVE</span>
+              <!-- Draft / Publish toggle -->
+              <label class="switch-label" style="margin: 0; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;" title="Toggle landing page on/off for public visitors">
+                <input type="checkbox" id="landing-published-toggle" checked>
+                <span class="switch-slider"></span>
+                <span id="landing-published-label">Published</span>
+              </label>
+              <a href="/landing" target="_blank" class="btn btn-outline-primary btn-sm" style="font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                <span>👁️</span> Open Live Website ↗
+              </a>
+            </div>
           </div>
           <div class="card-body" style="padding: 1.5rem;">
             <div id="landing-settings-container">
@@ -4755,11 +4765,43 @@ async function initLandingSettings(container) {
       if (res.success && res.data) {
         config = res.data.landing || {};
         renderForm();
+        // Sync published toggle with loaded config
+        const toggle = container.querySelector('#landing-published-toggle');
+        const badge = container.querySelector('#landing-status-badge');
+        const label = container.querySelector('#landing-published-label');
+        const isPublished = config.isPublished !== false; // default true
+        if (toggle) toggle.checked = isPublished;
+        if (badge) {
+          badge.textContent = isPublished ? '⬤ LIVE' : '⬤ DRAFT';
+          badge.style.background = isPublished ? 'rgba(16,185,129,0.15)' : 'rgba(251,191,36,0.15)';
+          badge.style.color = isPublished ? '#10b981' : '#f59e0b';
+        }
+        if (label) label.textContent = isPublished ? 'Published' : 'Draft';
       }
     } catch (e) {
       listContainer.innerHTML = '<div class="text-danger">Failed to load landing settings</div>';
     }
   };
+
+  // Publish / Draft instant toggle
+  container.querySelector('#landing-published-toggle')?.addEventListener('change', async (e) => {
+    const isPublished = e.target.checked;
+    const badge = container.querySelector('#landing-status-badge');
+    const label = container.querySelector('#landing-published-label');
+    if (badge) {
+      badge.textContent = isPublished ? '⬤ LIVE' : '⬤ DRAFT';
+      badge.style.background = isPublished ? 'rgba(16,185,129,0.15)' : 'rgba(251,191,36,0.15)';
+      badge.style.color = isPublished ? '#10b981' : '#f59e0b';
+    }
+    if (label) label.textContent = isPublished ? 'Published' : 'Draft';
+    try {
+      await api.put('/api/landing', { isPublished });
+      Toast.success(isPublished ? '🌐 Landing page is now LIVE!' : '📝 Landing page set to DRAFT (hidden from visitors)');
+    } catch (err) {
+      Toast.error('Failed to update publish status');
+      e.target.checked = !isPublished; // revert
+    }
+  });
 
   const renderForm = () => {
     listContainer.innerHTML = `
