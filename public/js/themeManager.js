@@ -243,10 +243,20 @@
       appleEl.href = iconUrl;
     }
 
-    if (profile.businessName && document.title) {
-      if (document.title.includes('Study Library') || document.title.includes('StudyLib')) {
-        document.title = document.title.replace(/Study Library|StudyLib/g, profile.businessName);
+    if (profile.businessName) {
+      try {
+        localStorage.setItem('sl_public_profile_cache', JSON.stringify(profile));
+      } catch(e) {}
+
+      if (document.title) {
+        document.title = document.title.replace(/Study Library|StudyLib|The Cozy Corner Centre/g, profile.businessName);
       }
+      
+      const brandElements = ['lib-title', 'lib-name', 'sidebar-org-name', 'nav-brand-name', 'drawer-brand-name', 'footer-org-name', 'kiosk-lib-name'];
+      brandElements.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = profile.businessName;
+      });
     }
   }
 

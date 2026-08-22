@@ -853,7 +853,7 @@
         for (const inp of inputs) {
           if (inp.offsetParent !== null && !inp.checkValidity()) {
             inp.reportValidity();
-            valid = false;
+              valid = false;
             return;
           }
         }
@@ -2018,6 +2018,15 @@
               updateCalculator();
             }
           }
+        }
+
+        // Render Dynamic Library Rules & Code of Conduct from Admin Settings
+        const rulesBox = document.getElementById('reg-rules-scroll-box');
+        const landingRules = landingData?.landing?.rules?.items || landingData?.rules?.items || bp?.rules || [];
+        if (rulesBox && Array.isArray(landingRules) && landingRules.length > 0) {
+          rulesBox.innerHTML = '<ol style="margin: 0; padding-left: 1.2rem;">' + landingRules.map(r => `
+            <li style="margin-bottom: 6px;"><strong>${escapeHTML(r.title || r.heading || 'Rule')}:</strong> ${escapeHTML(r.description || r.text || '')}</li>
+          `).join('') + '</ol>';
         }
 
       } catch (err) {

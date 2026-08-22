@@ -19,13 +19,15 @@ const roleCheck = (...roles) => {
 
 // GET /public-list — Public endpoint for student registration branch selection
 router.get('/public-list', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
-    const [branches, occupiedCounts] = await Promise.all([
+    const [branches, occupiedCounts, profile] = await Promise.all([
       Branch.find({ isActive: true }).lean(),
       Seat.aggregate([
         { $match: { status: 'occupied', isActive: true, branch: { $ne: null } } },
         { $group: { _id: '$branch', count: { $sum: 1 } } }
-      ])
+      ]),
+      BusinessProfile.getProfile().catch(() => ({}))
     ]);
 
     if (!branches || branches.length === 0) {
@@ -33,14 +35,14 @@ router.get('/public-list', async (req, res) => {
         success: true,
         data: [{
           _id: 'default_main',
-          name: 'Main Campus Centre',
+          name: profile?.businessName || 'Main Study Centre',
           code: 'MAIN',
-          city: 'Central City',
-          address: 'Main Reading Hall Complex',
-          phone: '+91 9876543210',
+          city: profile?.city || 'Main Campus',
+          address: profile?.address || 'Main Study Hall',
+          phone: profile?.phone || '',
           totalSeats: 100,
-          occupiedSeats: 42,
-          availableSeats: 58
+          occupiedSeats: 0,
+          availableSeats: 100
         }]
       });
     }

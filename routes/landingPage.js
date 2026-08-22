@@ -23,6 +23,7 @@ const roleCheck = (...roles) => {
  * @access  Public
  */
 router.get('/', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     let landingConfig = null;
     let businessProfile = {};

@@ -134,7 +134,7 @@ export async function render() {
                         <button class="btn btn-sm btn-outline-success btn-convert-visitor" data-name="${escapeHTML(v.name)}" data-phone="${escapeHTML(v.phone)}" data-exam="${escapeHTML(v.targetExam || '')}" data-slot="${escapeHTML(v.preferredSlot || '')}" style="padding: 2px 8px; font-size: 0.75rem; font-weight: 600;" title="Convert Lead to Admission">
                           🎓 Convert
                         </button>
-                        <a href="https://wa.me/91${escapeHTML(v.phone)}?text=${encodeURIComponent(`Hello ${v.name}! Greetings from Cozy Corner Study Library. Desks are available for your ${v.targetExam || 'study'} preparation. Visit us to reserve your seat today!`)}" target="_blank" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.75rem; font-weight: 600; text-decoration: none;" title="Send WhatsApp Message">
+                        <a href="https://wa.me/91${escapeHTML(v.phone)}?text=${encodeURIComponent(`Hello ${v.name}! Greetings from ${window.store?.settings?.businessName || 'our Study Library'}. Desks are available for your ${v.targetExam || 'study'} preparation. Visit us to reserve your seat today!`)}" target="_blank" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.75rem; font-weight: 600; text-decoration: none;" title="Send WhatsApp Message">
                           💬 WhatsApp
                         </a>
                         <button class="btn btn-sm btn-outline-danger btn-delete-visitor" data-id="${v._id}" style="padding: 2px 6px; font-size: 0.75rem;">Delete</button>
