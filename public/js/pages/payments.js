@@ -29,7 +29,7 @@ export async function render(container) {
             <div class="module-actions">
                 <button class="btn btn-primary d-flex align-items-center gap-2" id="btnCollectPayment" style="font-weight: 700;">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    + Collect Fee Payment
+                    Collect Fee Payment
                 </button>
             </div>
         </div>
@@ -313,7 +313,7 @@ export async function render(container) {
                     <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(p.receiptNumber || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Receipt Number">📋</button>
                 </td>
                 <td>
-                    <div style="font-weight: 600;">${escapeHTML(p.student?.name || 'Unknown')}</div>
+                    <div style="font-weight: 600;">${escapeHTML(p.student?.name || p.studentName || (p.notes && !p.notes.startsWith('{') ? p.notes : 'Registered Student'))}</div>
                     <small class="text-muted">${escapeHTML(SmartFormatters.phone(p.student?.phone) || '')}</small>
                     ${p.student?.phone ? `<button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(p.student.phone)}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">📋</button>` : ''}
                 </td>

@@ -433,6 +433,27 @@ Modal.prototype.close = function() {
 };
 
 /**
+ * Universal Modal.confirm supporting Modal.confirm(title, msg, opts) and Modal.confirm(msg, opts)
+ */
+Modal.confirm = async function(titleOrMsg, msgOrOpts, opts) {
+  if (typeof titleOrMsg === 'string' && typeof msgOrOpts === 'string') {
+    return await Confirm.show({
+      title: titleOrMsg,
+      message: msgOrOpts,
+      confirmText: opts?.confirmLabel || opts?.confirmText || 'Confirm',
+      danger: opts?.confirmClass?.includes('danger') || opts?.danger || false
+    });
+  } else if (typeof titleOrMsg === 'string') {
+    return await Confirm.show({
+      message: titleOrMsg,
+      confirmText: msgOrOpts?.confirmLabel || msgOrOpts?.confirmText || 'Confirm',
+      danger: msgOrOpts?.confirmClass?.includes('danger') || msgOrOpts?.danger || false
+    });
+  }
+  return await Confirm.show(titleOrMsg);
+};
+
+/**
  * Universal Confirm supporting Confirm(msg, onConfirm) and Confirm.show({ ... })
  */
 export const Confirm = function(messageOrOptions, callback) {
