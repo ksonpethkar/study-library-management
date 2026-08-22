@@ -243,6 +243,9 @@ router.put('/:id', validate([
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
+    const oldSeat = student.seat ? String(student.seat) : null;
+    const oldLocker = student.locker ? String(student.locker) : null;
+
     const customFieldsData = req.body.customFields;
     delete req.body.customFields;
 
@@ -257,6 +260,27 @@ router.put('/:id', validate([
     }
 
     await student.save();
+
+    // Atomic Seat Synchronization
+    const newSeat = student.seat ? String(student.seat) : null;
+    if (oldSeat && oldSeat !== newSeat) {
+      await Seat.findByIdAndUpdate(oldSeat, { status: 'available', currentStudent: null }).catch(() => {});
+    }
+    if (newSeat && student.status === 'active') {
+      await Seat.findByIdAndUpdate(newSeat, { status: 'occupied', currentStudent: student._id }).catch(() => {});
+    } else if (newSeat && ['inactive', 'expired', 'suspended'].includes(student.status)) {
+      await Seat.findByIdAndUpdate(newSeat, { status: 'available', currentStudent: null }).catch(() => {});
+    }
+
+    // Atomic Locker Synchronization
+    const newLocker = student.locker ? String(student.locker) : null;
+    if (oldLocker && oldLocker !== newLocker) {
+      await Locker.findByIdAndUpdate(oldLocker, { status: 'available', currentStudent: null }).catch(() => {});
+    }
+    if (newLocker && student.status === 'active') {
+      await Locker.findByIdAndUpdate(newLocker, { status: 'occupied', currentStudent: student._id }).catch(() => {});
+    }
+
     res.json({ success: true, data: student, message: 'Student updated successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

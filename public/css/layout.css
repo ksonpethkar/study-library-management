@@ -108,6 +108,20 @@
 .sidebar-nav::-webkit-scrollbar { width: 4px; }
 .sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
 
+.sidebar-section-title {
+  padding: 14px 20px 4px 20px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-sidebar-text);
+  opacity: 0.55;
+  user-select: none;
+}
+.sidebar.collapsed .sidebar-section-title {
+  display: none;
+}
+
 .nav-item {
   display: flex;
   align-items: center;

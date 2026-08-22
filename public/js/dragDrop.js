@@ -95,6 +95,8 @@ export const SidebarSortable = {
 
     // Only allow drag on desktop or with explicit touch delay
     this._instance = Sortable.create(nav, {
+      draggable: '.nav-item',
+      filter: '.sidebar-section-title',
       animation: 220,
       ghostClass: 'sortable-ghost',
       chosenClass: 'sortable-chosen',
