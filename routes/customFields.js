@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
 router.get('/all', async (req, res) => {
   try {
     await CustomField.seedDefaultFields();
-    const fields = await CustomField.find().sort({ order: 1, createdAt: 1 });
+    const fields = await CustomField.find().sort({ order: 1, createdAt: 1 }).lean();
     res.json({ success: true, data: fields });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch form fields' });
@@ -41,7 +41,7 @@ router.get('/templates/active', async (req, res) => {
 // GET /api/custom-fields/sections - Get unique sections
 router.get('/sections', async (req, res) => {
   try {
-    const fields = await CustomField.find().sort({ order: 1 });
+    const fields = await CustomField.find().sort({ order: 1 }).lean();
     const sectionsMap = new Map();
     
     fields.forEach(field => {

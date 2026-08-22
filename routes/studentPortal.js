@@ -17,7 +17,7 @@ router.use(protect);
  * Helper to find student document for current authenticated user
  */
 async function getStudentForUser(user, req = null) {
-  const isAdmin = ['owner', 'branch_manager', 'staff', 'superadmin'].includes(user.role);
+  const isAdmin = ['owner', 'branch_manager'].includes(user.role);
   const studentIdParam = req?.query?.studentId || req?.body?.studentId;
 
   // 1. If Admin requested a specific student ID to inspect:
@@ -60,11 +60,24 @@ async function getStudentForUser(user, req = null) {
   return null;
 }
 
+// In-memory badge calculation cache (10 min TTL)
+const _badgeCache = new Map();
+const BADGE_CACHE_TTL = 10 * 60 * 1000;
+
 /**
  * Helper to calculate attendance stats, streaks, and auto-award badges for a student
  */
-async function calculateAndAwardBadges(studentId) {
+async function calculateAndAwardBadges(studentId, forceRefresh = false) {
   try {
+    const sid = String(studentId);
+    if (!forceRefresh && _badgeCache.has(sid)) {
+      const cached = _badgeCache.get(sid);
+      if (Date.now() - cached.ts < BADGE_CACHE_TTL) {
+        return cached.data;
+      }
+      _badgeCache.delete(sid);
+    }
+
     const studentDoc = await Student.findById(studentId);
     if (!studentDoc) return null;
 
@@ -225,7 +238,7 @@ async function calculateAndAwardBadges(studentId) {
       .populate('branch')
       .lean();
 
-    return {
+    const result = {
       student: populatedStudent || studentDoc.toObject(),
       badgeProgress: badgeDefs.map(d => ({
         badgeId: d.badgeId,
@@ -242,6 +255,9 @@ async function calculateAndAwardBadges(studentId) {
       currentStreak,
       maxStreak
     };
+
+    _badgeCache.set(sid, { data: result, ts: Date.now() });
+    return result;
   } catch (err) {
     console.error('Badge calculation error:', err);
     return null;
@@ -262,7 +278,7 @@ router.get('/dashboard', async (req, res) => {
       student = badgeResult.student;
     }
 
-    const isAdmin = ['owner', 'branch_manager', 'staff', 'superadmin'].includes(req.user.role);
+    const isAdmin = ['owner', 'branch_manager'].includes(req.user.role);
     let allStudents = [];
     if (isAdmin) {
       allStudents = await Student.find({}, '_id name studentId phone status').sort({ name: 1 }).lean();
@@ -981,9 +997,18 @@ router.post('/create-gateway-order', async (req, res) => {
 });
 
 // @route   POST /api/student-portal/webhook/payment-captured
-// @desc    Option B Webhook: 0-second Bank Gateway Payment Auto-Verification (Razorpay / PhonePe / Cashfree)
+// @desc    Option B Webhook: Bank Gateway Payment Auto-Verification (Secured with Secret/Admin Auth)
 router.post('/webhook/payment-captured', async (req, res) => {
   try {
+    const webhookSecret = req.headers['x-webhook-secret'];
+    const expectedSecret = process.env.WEBHOOK_SECRET || process.env.JWT_SECRET;
+    const isAuthorizedSecret = expectedSecret && webhookSecret === expectedSecret;
+    const isAuthorizedAdmin = req.user && ['owner', 'branch_manager'].includes(req.user.role);
+
+    if (!isAuthorizedSecret && !isAuthorizedAdmin) {
+      return res.status(401).json({ success: false, message: 'Unauthorized webhook access: missing or invalid signature/secret' });
+    }
+
     const { event, studentId, planId, utrNumber, amountPaid } = req.body;
 
     const student = await Student.findOne({ $or: [{ _id: studentId }, { studentId }] });

@@ -22,6 +22,7 @@ function validate(validations) {
 }
 
 router.use(protect);
+router.use(roleCheck('owner', 'branch_manager'));
 
 router.get('/', async (req, res) => {
     try {

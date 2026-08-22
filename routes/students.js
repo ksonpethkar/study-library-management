@@ -7,15 +7,7 @@ const Locker = require('../models/Locker');
 const User = require('../models/User');
 const { generateStudentId } = require('../utils/idGenerator');
 const { protect } = require('../middleware/auth');
-
-const roleCheck = (...roles) => {
-  return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ success: false, message: 'Not authorized for this role' });
-    }
-    next();
-  };
-};
+const { roleCheck } = require('../middleware/roleCheck');
 
 function validate(validations) {
   return async (req, res, next) => {
@@ -31,6 +23,7 @@ function validate(validations) {
 }
 
 router.use(protect);
+router.use(roleCheck('owner', 'branch_manager'));
 
 // GET /stats
 router.get('/stats', async (req, res) => {

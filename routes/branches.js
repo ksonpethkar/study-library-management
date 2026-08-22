@@ -20,7 +20,14 @@ const roleCheck = (...roles) => {
 // GET /public-list — Public endpoint for student registration branch selection
 router.get('/public-list', async (req, res) => {
   try {
-    const branches = await Branch.find({ isActive: true }).lean();
+    const [branches, occupiedCounts] = await Promise.all([
+      Branch.find({ isActive: true }).lean(),
+      Seat.aggregate([
+        { $match: { status: 'occupied', isActive: true, branch: { $ne: null } } },
+        { $group: { _id: '$branch', count: { $sum: 1 } } }
+      ])
+    ]);
+
     if (!branches || branches.length === 0) {
       return res.json({
         success: true,
@@ -38,8 +45,9 @@ router.get('/public-list', async (req, res) => {
       });
     }
 
-    const data = await Promise.all(branches.map(async (b) => {
-      const occupiedSeats = await Seat.countDocuments({ branch: b._id, status: 'occupied', isActive: true });
+    const occupiedMap = new Map(occupiedCounts.map(c => [String(c._id), c.count]));
+    const data = branches.map(b => {
+      const occupiedSeats = occupiedMap.get(String(b._id)) || 0;
       const totalSeats = b.totalSeats || 50;
       const availableSeats = Math.max(0, totalSeats - occupiedSeats);
       return {
@@ -47,7 +55,7 @@ router.get('/public-list', async (req, res) => {
         occupiedSeats,
         availableSeats
       };
-    }));
+    });
 
     res.json({ success: true, data });
   } catch (error) {

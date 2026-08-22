@@ -75,6 +75,8 @@ studentSchema.index({ expiryDate: 1 });
 studentSchema.index({ seat: 1 });
 studentSchema.index({ name: 'text', phone: 'text', studentId: 'text' });
 studentSchema.index({ phone: 1 });
+studentSchema.index({ email: 1 });
+studentSchema.index({ status: 1 });
 
 studentSchema.pre('save', async function() {
   if (this.isNew && !this.studentId) {

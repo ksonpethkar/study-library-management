@@ -31,10 +31,16 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
+const allowedOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) 
+  : (process.env.NODE_ENV === 'production' 
+      ? ['https://study-library-management.onrender.com'] 
+      : '*');
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-webhook-secret']
 }));
 
 // Body parser
@@ -48,13 +54,17 @@ app.use(generalLimiter);
 const compression = require('compression');
 app.use(compression());
 
-// Static folder
-app.use(express.static(path.join(__dirname, 'public')));
+// Static folder with caching
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
+  etag: true,
+  lastModified: true
+}));
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!require('fs').existsSync(uploadsDir)) {
   require('fs').mkdirSync(uploadsDir, { recursive: true });
 }
-app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static(uploadsDir, { maxAge: '7d' }));
 
 // API Routes
 app.use('/api/upload', require('./routes/upload'));

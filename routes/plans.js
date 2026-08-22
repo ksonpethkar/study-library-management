@@ -34,11 +34,18 @@ function validate(validations) {
 router.get('/', async (req, res) => {
   try {
     const Student = require('../models/Student');
-    const plans = await Plan.find({ isActive: true }).sort('displayOrder').lean();
+    const [plans, counts] = await Promise.all([
+      Plan.find({ isActive: true }).sort('displayOrder').lean(),
+      Student.aggregate([
+        { $match: { status: 'active', plan: { $ne: null } } },
+        { $group: { _id: '$plan', count: { $sum: 1 } } }
+      ])
+    ]);
     
-    const enriched = await Promise.all(plans.map(async p => {
-      const activeCount = await Student.countDocuments({ plan: p._id, status: 'active' });
-      return { ...p, activeMembersCount: activeCount };
+    const countsMap = new Map(counts.map(c => [String(c._id), c.count]));
+    const enriched = plans.map(p => ({
+      ...p,
+      activeMembersCount: countsMap.get(String(p._id)) || 0
     }));
 
     res.json({ success: true, data: enriched, message: 'Active plans retrieved successfully' });
@@ -53,11 +60,18 @@ router.use(protect);
 router.get('/all', async (req, res) => {
   try {
     const Student = require('../models/Student');
-    const plans = await Plan.find().sort('displayOrder').lean();
+    const [plans, counts] = await Promise.all([
+      Plan.find().sort('displayOrder').lean(),
+      Student.aggregate([
+        { $match: { status: 'active', plan: { $ne: null } } },
+        { $group: { _id: '$plan', count: { $sum: 1 } } }
+      ])
+    ]);
 
-    const enriched = await Promise.all(plans.map(async p => {
-      const activeCount = await Student.countDocuments({ plan: p._id, status: 'active' });
-      return { ...p, activeMembersCount: activeCount };
+    const countsMap = new Map(counts.map(c => [String(c._id), c.count]));
+    const enriched = plans.map(p => ({
+      ...p,
+      activeMembersCount: countsMap.get(String(p._id)) || 0
     }));
 
     res.json({ success: true, data: enriched, message: 'All plans retrieved successfully' });

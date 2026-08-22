@@ -34,6 +34,20 @@ export default class Router {
     let rawHash = window.location.hash || '';
     let basePath = rawHash.split('?')[0];
 
+    // ── RBAC Route Guard: Silently redirect student role to #/portal ────────
+    try {
+      const App = window.App || window.__app_instance;
+      const currentUser = App?.getUser?.();
+      if (currentUser && currentUser.role === 'student') {
+        const allowedStudentRoutes = ['#/portal', '#/profile'];
+        const isAllowed = allowedStudentRoutes.some(r => basePath === r || basePath.startsWith(r + '?'));
+        if (!isAllowed) {
+          window.location.hash = '#/portal';
+          return;
+        }
+      }
+    } catch (_) {}
+
     // Alias: if navigating to #/branches, redirect to #/seats?tab=centers
     if (basePath === '#/branches') {
       window.location.hash = '#/seats?tab=centers';

@@ -270,6 +270,16 @@ export async function initAppEvents() {
     document.getElementById('sidebar-overlay')?.classList.remove('visible');
   });
 
+  // Sync body.sidebar-open class whenever sidebar open state changes
+  const sidebarEl = document.getElementById('sidebar');
+  if (sidebarEl && typeof MutationObserver !== 'undefined') {
+    const observer = new MutationObserver(() => {
+      const isOpen = sidebarEl.classList.contains('mobile-open');
+      document.body.classList.toggle('sidebar-open', isOpen);
+    });
+    observer.observe(sidebarEl, { attributes: true, attributeFilter: ['class'] });
+  }
+
   // ── Phase D: Swipe-right from left edge to open sidebar (native app feel) ──
   // Swipe left on open sidebar to close it
   (() => {

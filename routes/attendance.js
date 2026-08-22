@@ -44,7 +44,8 @@ router.get('/', protect, async (req, res) => {
       .populate('seat', 'seatNumber')
       .sort({ date: -1, createdAt: -1 })
       .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
     res.json({
       success: true,
@@ -67,7 +68,8 @@ router.get('/today', protect, async (req, res) => {
     const records = await Attendance.find({ date: { $gte: startOfDay, $lte: endOfDay } })
       .populate('student', 'name studentId phone')
       .populate('seat', 'seatNumber')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
       
     const stats = await Attendance.getTodayStats();
 

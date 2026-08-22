@@ -479,6 +479,11 @@ html.dark-theme .main-header {
   transition: opacity var(--transition-base);
 }
 
+body.sidebar-open, html.sidebar-open {
+  overflow: hidden !important;
+  touch-action: none !important;
+}
+
 /* Responsive Rules */
 @media (max-width: 1199px) {
   .app-container { grid-template-columns: var(--sidebar-collapsed-width) 1fr; }
