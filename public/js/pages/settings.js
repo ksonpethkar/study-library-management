@@ -4800,7 +4800,7 @@ async function initLandingSettings(container) {
 
       <div class="landing-editor-split" id="landing-editor-split" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; width: 100%;">
         <!-- Left: CMS Form Editor -->
-        <div class="cms-editor-panel" style="width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; background: var(--color-surface); height: calc(100vh - 220px); min-height: 520px; overflow-y: auto;">
+        <div class="cms-editor-panel" style="width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; background: var(--color-surface);">
           <div class="landing-tabs" style="display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border);">
             <button class="landing-tab-btn active" data-tab="hero" style="padding: 0.5rem 0.85rem; border: none; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 600; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap;">Hero & Branding</button>
             <button class="landing-tab-btn" data-tab="navbar" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Navbar & CTA</button>
@@ -5182,7 +5182,7 @@ async function initLandingSettings(container) {
       </div> <!-- .cms-editor-panel -->
         
       <!-- Right: Live Split-Screen Interactive Preview Canvas -->
-      <div class="cms-preview-panel" style="width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: var(--color-bg-secondary); height: calc(100vh - 220px); min-height: 520px; display: flex; flex-direction: column; overflow: hidden; position: sticky; top: 80px; box-shadow: var(--shadow-md);">
+      <div class="cms-preview-panel" style="width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: var(--color-bg-secondary); height: calc(100vh - 120px); max-height: 820px; min-height: 520px; display: flex; flex-direction: column; overflow: hidden; position: sticky; top: 80px; box-shadow: var(--shadow-md);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding: 0 0.25rem; flex-shrink: 0;">
             <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
               <span>🌐</span> Live Landing Page Viewport
