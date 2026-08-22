@@ -770,6 +770,11 @@ table th, table td,
 }
 
 /* Modal */
+.modal:not([open]) {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 .modal {
   border: none;
   background: transparent;

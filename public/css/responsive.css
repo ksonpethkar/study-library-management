@@ -18,13 +18,12 @@ html {
 body {
   max-width: 100%;
   width: 100%;
-  min-height: 100%;
+  min-height: 100vh;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: visible !important;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
 }
 
 *, *::before, *::after {
@@ -33,7 +32,7 @@ body {
 
 /* 2. iOS Safari Auto-Zoom Prevention & Touch Accessibility */
 @media (max-width: 1024px) {
-  html, body, .app-container, #page-content, .main-content, .page-content, .page-container {
+  html {
     touch-action: pan-y !important;
     -webkit-overflow-scrolling: touch !important;
   }
