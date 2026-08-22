@@ -368,8 +368,6 @@ html.dark-theme .main-header {
   margin: 0 !important;
   box-sizing: border-box !important;
   flex: 1 1 auto !important;
-  will-change: transform, opacity;
-  transform: translate3d(0, 0, 0);
 }
 
 .page-content {
@@ -510,7 +508,7 @@ html.dark-theme .main-header {
     min-width: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
-    overflow-x: hidden !important;
+    overflow: visible !important;
   }
   .sidebar {
     position: fixed !important;
