@@ -4,12 +4,20 @@
    ========================================================================== */
 
 /* 1. Prevent Horizontal Page Out-of-Bounds Scrolling & Enable 1-Finger Vertical Scroll */
-html, body {
-  max-width: 100% !important;
-  overflow-x: hidden !important;
-  touch-action: pan-y !important;
-  -webkit-overflow-scrolling: touch !important;
+html {
+  max-width: 100%;
+  overflow-x: clip;
+  overflow-y: auto;
   -webkit-text-size-adjust: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  max-width: 100%;
+  overflow-x: clip;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 *, *::before, *::after {
@@ -33,17 +41,19 @@ html, body {
 
   /* Prevent horizontal page scrolling & keep smooth 1-finger vertical touch scroll */
   body {
-    overflow-x: hidden;
-    touch-action: pan-y !important;
+    overflow-x: clip;
+    overflow-y: visible;
     -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y;
   }
 
   .app-container,
   #page-content,
-  .main-content {
+  .main-content,
+  .page-container {
     overflow-x: clip;
     overflow-y: visible !important;
-    touch-action: pan-y !important;
+    height: auto !important;
   }
 
   /* Override hardcoded inline min-width rules on mobile input fields and cards */

@@ -41,6 +41,9 @@ export class DragDropList {
       ghostClass: this.ghostClass,
       chosenClass: "sortable-chosen",
       dragClass: "sortable-drag",
+      delay: 150,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 8,
       onEnd: () => { if (typeof this.onReorder === "function") this.onReorder(this.getOrder()); }
     };
     if (this.handle) opts.handle = this.handle;
@@ -90,11 +93,15 @@ export const SidebarSortable = {
     this._restoreOrder(nav);
     if (this._instance) { try { this._instance.destroy(); } catch (e) {} }
 
+    // Only allow drag on desktop or with explicit touch delay
     this._instance = Sortable.create(nav, {
       animation: 220,
       ghostClass: 'sortable-ghost',
       chosenClass: 'sortable-chosen',
       dragoverBubble: false,
+      delay: 200,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 10,
       onEnd: () => this._saveOrder(nav)
     });
 
@@ -192,6 +199,9 @@ export const DashboardSortable = {
       ghostClass: "sortable-ghost",
       chosenClass: "sortable-chosen",
       handle: ".widget-drag-handle",
+      delay: 150,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 8,
       onEnd: () => {
         const order = Array.from(container.children)
           .map(el => el.dataset.widgetId || el.id || "").filter(Boolean);
@@ -250,11 +260,17 @@ export class KanbanBoard {
         animation: 200,
         ghostClass: "kanban-ghost",
         chosenClass: "kanban-chosen",
+        delay: 150,
+        delayOnTouchOnly: true,
+        touchStartThreshold: 8,
         onEnd: (evt) => {
-          const toColumn = evt.to.dataset.column;
-          const cardId = evt.item.dataset.id || evt.item.id || "";
-          if (typeof this.onCardMove === "function" && fromColumn !== toColumn) {
-            this.onCardMove({ cardId, fromColumn, toColumn });
+          if (typeof this.onCardMove === "function") {
+            this.onCardMove({
+              cardId: evt.item.dataset.id || evt.item.id || "",
+              fromColumn,
+              toColumn: evt.to.dataset.column || fromColumn,
+              newIndex: evt.newIndex
+            });
           }
         }
       });
@@ -277,6 +293,9 @@ export function makeRowsSortable(tableBodyEl, { onReorder, handle = ".drag-handl
     animation: 150,
     ghostClass: "sortable-ghost",
     chosenClass: "sortable-chosen",
+    delay: 150,
+    delayOnTouchOnly: true,
+    touchStartThreshold: 8,
     onEnd: () => {
       const order = Array.from(tableBodyEl.querySelectorAll("tr"))
         .map(row => row.dataset.id || row.id || "").filter(Boolean);

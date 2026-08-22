@@ -474,13 +474,19 @@ html.dark-theme .main-header {
   background: rgba(0,0,0,0.5);
   z-index: 1040;
   opacity: 0;
+  pointer-events: none !important;
   transition: opacity var(--transition-base);
+}
+
+.sidebar-overlay.active, .sidebar-overlay.visible {
+  display: block !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 @media (max-width: 768px) {
   body.sidebar-open, html.sidebar-open {
-    overflow: hidden !important;
-    touch-action: none !important;
+    overflow: hidden;
   }
 }
 
