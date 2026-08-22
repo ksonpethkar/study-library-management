@@ -6,8 +6,10 @@
 /* 1. Prevent Horizontal Page Out-of-Bounds Scrolling & Enable Seamless Viewport Scroll */
 html {
   max-width: 100%;
+  width: 100%;
+  min-height: 100%;
   overflow-x: hidden;
-  overflow-y: scroll;
+  overflow-y: auto;
   -webkit-text-size-adjust: 100%;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
@@ -15,9 +17,14 @@ html {
 
 body {
   max-width: 100%;
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
   overflow-x: hidden;
-  overflow-y: visible;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 *, *::before, *::after {
@@ -26,8 +33,9 @@ body {
 
 /* 2. iOS Safari Auto-Zoom Prevention & Touch Accessibility */
 @media (max-width: 1024px) {
-  html, body {
-    touch-action: pan-x pan-y;
+  html, body, .app-container, #page-content, .main-content, .page-content, .page-container {
+    touch-action: pan-y !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 }
 

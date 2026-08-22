@@ -229,14 +229,7 @@ class Application {
       }
     }, { passive: false });
 
-    // 2. Block 2-finger multi-touch pinch zooming on mobile
-    document.addEventListener('touchmove', (e) => {
-      if (isMobileDevice() && e.touches && e.touches.length > 1) {
-        if (e.cancelable) e.preventDefault();
-      }
-    }, { passive: false });
-
-    // 3. Block double-tap to zoom on mobile while preserving normal inputs
+    // 2. Block double-tap to zoom on mobile while preserving normal inputs
     let lastTouchEnd = 0;
     document.addEventListener('touchend', (e) => {
       if (!isMobileDevice()) return;
