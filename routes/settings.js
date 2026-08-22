@@ -47,7 +47,7 @@ router.use(protect);
  * @desc    Get business profile and all system settings categorized
  * @access  Private (Admin / Owner / Manager)
  */
-router.get('/', async (req, res) => {
+router.get('/', roleCheck('owner', 'branch_manager', 'staff'), async (req, res) => {
   try {
     const businessProfile = await BusinessProfile.getProfile();
     

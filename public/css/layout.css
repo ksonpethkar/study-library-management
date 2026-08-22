@@ -479,9 +479,11 @@ html.dark-theme .main-header {
   transition: opacity var(--transition-base);
 }
 
-body.sidebar-open, html.sidebar-open {
-  overflow: hidden !important;
-  touch-action: none !important;
+@media (max-width: 768px) {
+  body.sidebar-open, html.sidebar-open {
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
 }
 
 /* Responsive Rules */

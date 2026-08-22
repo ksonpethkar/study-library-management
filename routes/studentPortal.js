@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, optionalAuth } = require('../middleware/auth');
 const Student = require('../models/Student');
 const Seat = require('../models/Seat');
 const Plan = require('../models/Plan');
@@ -10,6 +10,58 @@ const BusinessProfile = require('../models/BusinessProfile');
 const Notification = require('../models/Notification');
 const { Referral, LeaveRequest, SeatChangeRequest } = require('../models/Operations');
 const ReferralConfig = require('../models/ReferralConfig');
+
+// @route   POST /api/student-portal/webhook/payment-captured
+// @desc    Option B Webhook: Bank Gateway Payment Auto-Verification (Secured with Secret/Admin Auth)
+router.post('/webhook/payment-captured', optionalAuth, async (req, res) => {
+  try {
+    const webhookSecret = req.headers['x-webhook-secret'];
+    const expectedSecret = process.env.WEBHOOK_SECRET || process.env.JWT_SECRET;
+    const isAuthorizedSecret = expectedSecret && webhookSecret === expectedSecret;
+    const isAuthorizedAdmin = req.user && ['owner', 'branch_manager'].includes(req.user.role);
+
+    if (!isAuthorizedSecret && !isAuthorizedAdmin) {
+      return res.status(401).json({ success: false, message: 'Unauthorized webhook access: missing or invalid signature/secret' });
+    }
+
+    const { event, studentId, planId, utrNumber, amountPaid } = req.body;
+
+    const student = await Student.findOne({ $or: [{ _id: studentId }, { studentId }] });
+    if (!student) {
+      return res.status(400).json({ success: false, message: 'Student not found for webhook payload' });
+    }
+
+    const durationDays = 30;
+    const validFrom = student.expiryDate && new Date(student.expiryDate) > new Date() ? new Date(student.expiryDate) : new Date();
+    const validUntil = new Date(validFrom.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+    const payment = new Payment({
+      student: student._id,
+      plan: planId || student.plan || null,
+      amount: Number(amountPaid) || 1000,
+      finalAmount: Number(amountPaid) || 1000,
+      paymentMethod: 'upi_gateway',
+      transactionId: utrNumber || `PG_${Date.now()}`,
+      status: 'paid',
+      paymentDate: new Date(),
+      periodStart: validFrom,
+      periodEnd: validUntil,
+      notes: `Option B Gateway Auto-Verified Webhook Payment (${event || 'payment.captured'})`
+    });
+
+    await payment.save();
+
+    await Student.findByIdAndUpdate(student._id, {
+      expiryDate: validUntil,
+      status: 'active',
+      pendingFine: 0
+    });
+
+    res.json({ success: true, message: 'Payment auto-verified and membership renewed instantly' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 router.use(protect);
 
@@ -991,58 +1043,6 @@ router.post('/create-gateway-order', async (req, res) => {
         studentPhone: student.phone
       }
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// @route   POST /api/student-portal/webhook/payment-captured
-// @desc    Option B Webhook: Bank Gateway Payment Auto-Verification (Secured with Secret/Admin Auth)
-router.post('/webhook/payment-captured', async (req, res) => {
-  try {
-    const webhookSecret = req.headers['x-webhook-secret'];
-    const expectedSecret = process.env.WEBHOOK_SECRET || process.env.JWT_SECRET;
-    const isAuthorizedSecret = expectedSecret && webhookSecret === expectedSecret;
-    const isAuthorizedAdmin = req.user && ['owner', 'branch_manager'].includes(req.user.role);
-
-    if (!isAuthorizedSecret && !isAuthorizedAdmin) {
-      return res.status(401).json({ success: false, message: 'Unauthorized webhook access: missing or invalid signature/secret' });
-    }
-
-    const { event, studentId, planId, utrNumber, amountPaid } = req.body;
-
-    const student = await Student.findOne({ $or: [{ _id: studentId }, { studentId }] });
-    if (!student) {
-      return res.status(400).json({ success: false, message: 'Student not found for webhook payload' });
-    }
-
-    const durationDays = 30;
-    const validFrom = student.expiryDate && new Date(student.expiryDate) > new Date() ? new Date(student.expiryDate) : new Date();
-    const validUntil = new Date(validFrom.getTime() + durationDays * 24 * 60 * 60 * 1000);
-
-    const payment = new Payment({
-      student: student._id,
-      plan: planId || student.plan || null,
-      amount: Number(amountPaid) || 1000,
-      finalAmount: Number(amountPaid) || 1000,
-      paymentMethod: 'upi_gateway',
-      transactionId: utrNumber || `PG_${Date.now()}`,
-      status: 'paid',
-      paymentDate: new Date(),
-      periodStart: validFrom,
-      periodEnd: validUntil,
-      notes: `Option B Gateway Auto-Verified Webhook Payment (${event || 'payment.captured'})`
-    });
-
-    await payment.save();
-
-    await Student.findByIdAndUpdate(student._id, {
-      expiryDate: validUntil,
-      status: 'active',
-      pendingFine: 0
-    });
-
-    res.json({ success: true, message: 'Payment auto-verified and membership renewed instantly' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

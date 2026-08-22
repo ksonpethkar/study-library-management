@@ -57,16 +57,19 @@ router.get('/', async (req, res) => {
       query.plan = req.query.plan;
     }
 
-    const students = await Student.find(query)
-      .populate('plan', 'name price duration durationType shift')
-      .populate('seat', 'seatNumber zone status branch')
-      .populate('locker', 'lockerNumber monthlyFee status')
-      .populate('shift', 'name startTime endTime code')
-      .populate('branch', 'name code city address')
-      .sort(req.query.sort || '-createdAt')
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const [students, total] = await Promise.all([
+      Student.find(query)
+        .populate('plan', 'name price duration durationType shift')
+        .populate('seat', 'seatNumber zone status branch')
+        .populate('locker', 'lockerNumber monthlyFee status')
+        .populate('shift', 'name startTime endTime code')
+        .populate('branch', 'name code city address')
+        .sort(req.query.sort || '-createdAt')
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Student.countDocuments(query)
+    ]);
 
     const enrichedStudents = students.map(s => {
       let score = 0;

@@ -4813,17 +4813,17 @@ async function initLandingSettings(container) {
           <button id="btn-pv-mobile" class="btn btn-sm btn-outline" style="font-weight: 600;">📱 Smartphone</button>
           <button id="btn-pv-refresh" class="btn btn-sm btn-outline" title="Refresh Live Canvas">🔄 Refresh</button>
           <span style="border-left: 1px solid var(--color-border); height: 20px; margin: 0 4px;"></span>
-          <button id="btn-layout-vertical" class="btn btn-sm btn-primary" style="font-weight: 700;">↕️ Vertical Stack (Top/Bottom)</button>
-          <button id="btn-layout-horizontal" class="btn btn-sm btn-outline" style="font-weight: 600;">↔️ Horizontal Split (Left/Right)</button>
+          <button id="btn-layout-horizontal" class="btn btn-sm btn-primary" style="font-weight: 700;">↔️ Side-by-Side (Left/Right)</button>
+          <button id="btn-layout-vertical" class="btn btn-sm btn-outline" style="font-weight: 600;">↕️ Vertical Stack (Top/Bottom)</button>
         </div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
           <small class="text-muted">Instant live preview updates on save</small>
         </div>
       </div>
 
-      <div class="landing-editor-split" id="landing-editor-split" style="display: flex; flex-direction: column; gap: 1.25rem; width: 100%;">
+      <div class="landing-editor-split" id="landing-editor-split" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; width: 100%;">
         <!-- Left: CMS Form Editor -->
-        <div class="cms-editor-panel" style="width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; background: var(--color-surface); height: calc(100vh - 280px); min-height: 500px; overflow-y: auto;">
+        <div class="cms-editor-panel" style="width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; background: var(--color-surface); height: calc(100vh - 220px); min-height: 520px; overflow-y: auto;">
           <div class="landing-tabs" style="display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--color-border);">
             <button class="landing-tab-btn active" data-tab="hero" style="padding: 0.5rem 0.85rem; border: none; background: var(--color-primary-bg); color: var(--color-primary); font-weight: 600; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap;">Hero & Branding</button>
             <button class="landing-tab-btn" data-tab="navbar" style="padding: 0.5rem 0.85rem; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; white-space: nowrap;">Navbar & CTA</button>
@@ -5205,7 +5205,7 @@ async function initLandingSettings(container) {
       </div> <!-- .cms-editor-panel -->
         
       <!-- Right: Live Split-Screen Interactive Preview Canvas -->
-      <div class="cms-preview-panel" style="width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: var(--color-bg-secondary); height: 600px; min-height: 600px; display: flex; flex-direction: column; overflow: hidden; margin-top: 0.5rem;">
+      <div class="cms-preview-panel" style="width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: var(--color-bg-secondary); height: calc(100vh - 220px); min-height: 520px; display: flex; flex-direction: column; overflow: hidden; position: sticky; top: 80px; box-shadow: var(--shadow-md);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding: 0 0.25rem; flex-shrink: 0;">
             <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
               <span>🌐</span> Live Landing Page Viewport
@@ -5269,7 +5269,7 @@ async function initLandingSettings(container) {
 
     if (btnLayoutVertical && btnLayoutHorizontal && splitWrapper) {
       btnLayoutVertical.addEventListener('click', () => {
-        splitWrapper.classList.remove('horizontal-mode');
+        splitWrapper.style.gridTemplateColumns = '1fr';
         btnLayoutVertical.className = 'btn btn-sm btn-primary';
         btnLayoutVertical.style.fontWeight = '700';
         btnLayoutHorizontal.className = 'btn btn-sm btn-outline';
@@ -5277,7 +5277,7 @@ async function initLandingSettings(container) {
       });
 
       btnLayoutHorizontal.addEventListener('click', () => {
-        splitWrapper.classList.add('horizontal-mode');
+        splitWrapper.style.gridTemplateColumns = '1fr 1fr';
         btnLayoutHorizontal.className = 'btn btn-sm btn-primary';
         btnLayoutHorizontal.style.fontWeight = '700';
         btnLayoutVertical.className = 'btn btn-sm btn-outline';

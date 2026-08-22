@@ -248,11 +248,125 @@
       color: #f59e0b;
       transform: scale(1.15);
     }
+
+    .step-label {
+      font-size: 0.75rem;
+      transition: color 0.3s;
+    }
+
+    /* Mobile Responsive Optimizations */
+    @media (max-width: 640px) {
+      body {
+        padding: 0.75rem 0.5rem;
+      }
+      .admission-container {
+        border-radius: var(--radius-lg);
+        margin-bottom: 1rem;
+      }
+      .admission-header {
+        padding: 1.5rem 1rem;
+      }
+      .admission-header h1 {
+        font-size: 1.4rem !important;
+      }
+      .stepper {
+        padding: 0.75rem 0.5rem;
+      }
+      .step-number {
+        width: 28px;
+        height: 28px;
+        font-size: 0.8rem;
+        margin-bottom: 0.25rem;
+      }
+      .step::after {
+        top: 14px;
+      }
+      .step-label {
+        font-size: 0.68rem !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .wizard-step-content {
+        padding: 1.25rem 0.85rem;
+      }
+      .form-row-responsive {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+      }
+      .btn-nav {
+        margin-top: 1.5rem;
+        gap: 8px;
+      }
+      .btn-nav .btn {
+        min-height: 46px;
+        padding: 0.65rem 1rem;
+        font-size: 0.95rem;
+      }
+      .btn-nav .btn-prev {
+        min-width: 80px;
+      }
+      .btn-nav .btn-next, .btn-nav #btn-submit-reg {
+        flex: 1;
+      }
+      .calculator-card {
+        padding: 1rem;
+      }
+      #printable-success-slip {
+        padding: 1rem !important;
+        width: 100% !important;
+      }
+      #registration-success-wrap .btn {
+        width: 100%;
+        min-height: 46px;
+      }
+    }
+
+    @media (max-width: 375px) {
+      body {
+        padding: 0.5rem 0.25rem;
+      }
+      .admission-header {
+        padding: 1.25rem 0.75rem;
+      }
+      .admission-header h1 {
+        font-size: 1.25rem !important;
+      }
+      .stepper {
+        padding: 0.5rem 0.25rem;
+      }
+      .step-number {
+        width: 24px;
+        height: 24px;
+        font-size: 0.75rem;
+      }
+      .step::after {
+        top: 12px;
+      }
+      .step-label {
+        font-size: 0.62rem !important;
+      }
+      .wizard-step-content {
+        padding: 1rem 0.65rem;
+      }
+      .exam-pill {
+        padding: 5px 10px;
+        font-size: 0.78rem;
+      }
+      .form-section-title {
+        font-size: 0.95rem;
+      }
+      .upi-intent-btn {
+        font-size: 0.75rem !important;
+        padding: 8px 2px !important;
+        min-height: 44px;
+      }
+    }
   </style>
 </head>
 <body>
 
-  <!-- System-Wide Universal Preloader Screen (Displays Only 100% Final Hydrated Output) -->
+  <!-- System-Wide Universal Preloader Screen (Dismissed instantly upon data hydration) -->
   <div id="system-preloader" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0f172a; z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.35s ease, visibility 0.35s ease;">
     <div style="width: 48px; height: 48px; border: 4px solid rgba(108, 92, 231, 0.2); border-top-color: #6c5ce7; border-radius: 50%; animation: preloader-spin 0.8s linear infinite;"></div>
     <div id="system-preloader-title" style="margin-top: 1.25rem; font-family: 'Outfit', system-ui, sans-serif; font-size: 1.15rem; font-weight: 700; color: #f8fafc; letter-spacing: 0.5px;">The Cozy Corner Centre</div>
@@ -276,23 +390,23 @@
       <div class="stepper" id="wizard-stepper">
         <div class="step active" id="stepper-1">
           <div class="step-number">1</div>
-          <div style="font-size: 0.75rem;">Personal</div>
+          <div class="step-label">Personal</div>
         </div>
         <div class="step" id="stepper-2">
           <div class="step-number">2</div>
-          <div style="font-size: 0.75rem;">Goals & KYC</div>
+          <div class="step-label">Goals & KYC</div>
         </div>
         <div class="step" id="stepper-3">
           <div class="step-number">3</div>
-          <div style="font-size: 0.75rem;">Plan & Fee</div>
+          <div class="step-label">Plan & Fee</div>
         </div>
         <div class="step" id="stepper-4">
           <div class="step-number">4</div>
-          <div style="font-size: 0.75rem;">Payment</div>
+          <div class="step-label">Payment</div>
         </div>
         <div class="step" id="stepper-5">
           <div class="step-number">5</div>
-          <div style="font-size: 0.75rem;">Seat & Sign</div>
+          <div class="step-label">Seat & Sign</div>
         </div>
       </div>
 
@@ -703,6 +817,7 @@
     const plansMap = {};
     const shiftsMap = {};
     const branchesMap = {};
+    const customSigStudios = {};
     let selectedBranchId = '';
     let allCustomFields = [];
 
@@ -856,7 +971,7 @@
         if (stateEl && !stateEl.value) stateEl.placeholder = '⚡ Auto-filling...';
         try {
           const res = await SmartIntelligence.lookupPincode(pin);
-          if (res.success) {
+          if (res && res.success) {
             if (cityEl && res.city) cityEl.value = res.city;
             if (stateEl && res.state) stateEl.value = res.state;
           }
@@ -888,7 +1003,7 @@
       try {
         const res = await fetch(`/api/auth/check-duplicate?phone=${encodeURIComponent(phone)}&email=${encodeURIComponent(email)}`);
         const json = await res.json();
-        if (json.isDuplicate) {
+        if (json && json.isDuplicate) {
           if (alertBox) {
             alertBox.textContent = json.message || `⚠️ Mobile number or email is already registered!`;
             alertBox.style.display = 'block';
@@ -932,7 +1047,7 @@
           
           gridHtml += `
             <button type="button" class="seat-picker-btn" data-id="${escapeHTML(s._id)}" data-number="${escapeHTML(s.seatNumber)}" ${!isAvailable ? 'disabled' : ''} 
-              style="padding: 10px 4px; border-radius: var(--radius-md); font-weight: 800; font-size: 0.88rem; background: ${bg}; color: ${color}; border: ${border}; cursor: ${isAvailable ? 'pointer' : 'not-allowed'}; text-align: center; transition: all 0.2s; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
+              style="padding: 10px 4px; min-height: 48px; border-radius: var(--radius-md); font-weight: 800; font-size: 0.88rem; background: ${bg}; color: ${color}; border: ${border}; cursor: ${isAvailable ? 'pointer' : 'not-allowed'}; text-align: center; transition: all 0.2s; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; touch-action: manipulation;">
               <span style="width: 22px; height: 22px; border-radius: 50%; background: ${indicatorBg}; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
                 ${isAvailable ? '✓' : '✕'}
               </span>
@@ -995,6 +1110,7 @@
       document.querySelectorAll('.exam-pill').forEach(pill => {
         pill.addEventListener('click', () => {
           const exam = pill.dataset.exam;
+          if (!exam) return;
           if (selectedExams.has(exam)) {
             selectedExams.delete(exam);
             pill.classList.remove('selected');
@@ -1156,15 +1272,28 @@
           const cleanQr = libraryCustomQrImage.startsWith('data:image') ? libraryCustomQrImage : (libraryCustomQrImage.startsWith('/') ? libraryCustomQrImage : '/' + libraryCustomQrImage);
           qrMount.innerHTML = `
             <div style="text-align: center;">
-              <img src="${cleanQr}" style="width: 180px; height: 180px; border-radius: 8px; object-fit: contain; border: 1px solid var(--color-border); display: block; margin: 0 auto 6px auto;">
+              <img src="${cleanQr}" alt="Custom UPI QR" style="width: 180px; height: 180px; border-radius: 8px; object-fit: contain; border: 1px solid var(--color-border); display: block; margin: 0 auto 6px auto;">
               <span class="badge badge-primary" style="font-size: 0.75rem;">Pay ₹${payable}</span>
             </div>
           `;
         } else {
-          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiString)}`;
+          let qrDataUrl = '';
+          try {
+            if (typeof qrcode === 'function') {
+              const qr = qrcode(0, 'M');
+              qr.addData(upiString);
+              qr.make();
+              qrDataUrl = qr.createDataURL(5);
+            }
+          } catch(e) {}
+          
+          if (!qrDataUrl) {
+            qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiString)}`;
+          }
+
           qrMount.innerHTML = `
             <div style="text-align: center;">
-              <img src="${qrUrl}" style="width: 180px; height: 180px; border-radius: 8px; object-fit: contain; display: block; margin: 0 auto 6px auto;" onerror="this.onerror=null; this.src='https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(upiString)}';">
+              <img src="${qrDataUrl}" alt="Dynamic UPI QR" style="width: 180px; height: 180px; border-radius: 8px; object-fit: contain; display: block; margin: 0 auto 6px auto;" onerror="this.onerror=null; this.src='https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(upiString)}';">
               <span class="badge badge-primary" style="font-size: 0.75rem;">Pay ₹${payable} via Any UPI App</span>
             </div>
           `;
@@ -1179,13 +1308,17 @@
       const formData = new FormData(form);
       const data = Object.fromEntries(formData.entries());
       
-      document.querySelectorAll('.custom-field-input, .custom-field-radio, .form-checkbox, .custom-dyn-input').forEach(el => {
-        const name = el.dataset.field || el.dataset.name || el.name;
+      document.querySelectorAll('.custom-dyn-input, .custom-dyn-radio, .form-checkbox, input, select, textarea').forEach(el => {
+        const name = el.dataset.field || el.dataset.name || el.name || el.id;
         if (name) {
-          if (el.type === 'checkbox') data[name] = el.checked;
-          else if (el.type === 'radio') {
+          if (el.type === 'checkbox') {
+            data[name] = el.checked ? 'true' : 'false';
+            data[`is_${name}`] = el.checked;
+          } else if (el.type === 'radio') {
             if (el.checked) data[name] = el.value;
-          } else if (el.value) data[name] = el.value;
+          } else {
+            data[name] = el.value;
+          }
         }
       });
 
@@ -1194,20 +1327,24 @@
         const showWhen = wrapper.dataset.showWhen;
         const operator = wrapper.dataset.operator || 'equals';
         
-        if (dependsOn && showWhen) {
-          const rawVal = data[`cf_${dependsOn}`] || data[dependsOn];
-          const val = rawVal !== undefined ? String(rawVal).trim() : '';
-          const target = String(showWhen).trim();
+        if (dependsOn && showWhen !== undefined && showWhen !== null) {
+          let rawVal = data[`cf_${dependsOn}`] ?? data[dependsOn] ?? data[`reg-${dependsOn}`] ?? '';
+          if (rawVal === undefined || rawVal === null) rawVal = '';
+          
+          const val = String(rawVal).trim().toLowerCase();
+          const target = String(showWhen).trim().toLowerCase();
 
           let isMatch = false;
           if (operator === 'equals') {
-            isMatch = (val.toLowerCase() === target.toLowerCase()) || (rawVal === true && target === 'true');
+            isMatch = (val === target) || (rawVal === true && (target === 'true' || target === 'yes' || target === '1')) || (rawVal === false && (target === 'false' || target === 'no' || target === '0'));
           } else if (operator === 'not_equals') {
-            isMatch = val.toLowerCase() !== target.toLowerCase();
+            isMatch = val !== target;
           } else if (operator === 'contains') {
-            isMatch = val.toLowerCase().includes(target.toLowerCase());
+            isMatch = val.includes(target);
           } else if (operator === 'not_empty') {
-            isMatch = val.length > 0;
+            isMatch = val.length > 0 && val !== 'false';
+          } else if (operator === 'empty') {
+            isMatch = val.length === 0 || val === 'false';
           }
           
           if (isMatch) {
@@ -1233,13 +1370,23 @@
     document.getElementById('public-reg-form')?.addEventListener('change', evaluateLogic);
     document.getElementById('public-reg-form')?.addEventListener('input', evaluateLogic);
 
+    function getStepForSection(section) {
+      if (!section) return 1;
+      const sec = String(section).trim().toLowerCase();
+      if (sec.includes('1') || sec === 'personal' || sec === 'contact' || sec === 'address' || sec === 'basic') return 1;
+      if (sec.includes('2') || sec === 'academic' || sec === 'kyc' || sec === 'verification' || sec === 'goals' || sec === 'documents' || sec === 'education') return 2;
+      if (sec.includes('3') || sec === 'plan' || sec === 'fees' || sec === 'membership' || sec === 'shift' || sec === 'pricing') return 3;
+      if (sec.includes('4') || sec === 'payment' || sec === 'billing' || sec === 'pay') return 4;
+      return 5;
+    }
+
     // Dynamic Field Renderer for Admission Wizard
     function renderCustomFields(fields) {
       allCustomFields = fields;
       const coreFieldKeys = new Set([
         'name', 'phone', 'email', 'password', 'gender', 'dateofbirth', 'dob',
         'pincode', 'city', 'state', 'targetexams', 'photo', 'signature',
-        'plan', 'seat', 'notes', 'terms'
+        'plan', 'shift', 'seat', 'terms'
       ]);
 
       const step1Fields = [];
@@ -1249,22 +1396,16 @@
       const step5Fields = [];
 
       fields.forEach(f => {
-        if (f.isActive === false) return;
+        if (f.isActive === false || f.isActive === 'false') return;
         const slug = (f.fieldName || '').trim().toLowerCase();
         if (coreFieldKeys.has(slug)) return;
 
-        const sec = (f.section || 'personal').toLowerCase();
-        if (sec === 'personal' || sec === 'contact') {
-          step1Fields.push(f);
-        } else if (sec === 'academic' || sec === 'kyc') {
-          step2Fields.push(f);
-        } else if (sec === 'plan' || sec === 'fees') {
-          step3Fields.push(f);
-        } else if (sec === 'payment') {
-          step4Fields.push(f);
-        } else {
-          step5Fields.push(f);
-        }
+        const stepNum = getStepForSection(f.section);
+        if (stepNum === 1) step1Fields.push(f);
+        else if (stepNum === 2) step2Fields.push(f);
+        else if (stepNum === 3) step3Fields.push(f);
+        else if (stepNum === 4) step4Fields.push(f);
+        else step5Fields.push(f);
       });
 
       function buildFieldGroupHtml(fList) {
@@ -1275,9 +1416,12 @@
         
         fList.forEach(f => {
           const reqMark = f.required ? ' <span style="color: var(--color-danger);">*</span>' : '';
-          const colStyle = (f.colSpan === 12 || f.colSpan === 2 || ['textarea', 'aadhaar_pan', 'signature_pad', 'exam_badge'].includes(f.type)) ? 'grid-column: 1 / -1;' : '';
+          const colStyle = (f.colSpan === 12 || f.colSpan === 2 || ['textarea', 'aadhaar_pan', 'signature_pad', 'exam_badge', 'multiselect'].includes(f.type)) ? 'grid-column: 1 / -1;' : '';
           const helpText = f.helpText ? `<small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 3px;">${escapeHTML(f.helpText)}</small>` : '';
-          const depAttr = f.conditional?.enabled ? `data-depends-on="${escapeHTML(f.conditional.dependsOn)}" data-show-when="${escapeHTML(f.conditional.showWhen)}" data-operator="${escapeHTML(f.conditional.operator || 'equals')}"` : '';
+          
+          const cond = f.conditional || (f.showIf ? { enabled: true, dependsOn: f.showIf.field || f.showIf.dependsOn, showWhen: f.showIf.value || f.showIf.showWhen, operator: f.showIf.operator } : null);
+          const isCondEnabled = cond && (cond.enabled !== false) && cond.dependsOn;
+          const depAttr = isCondEnabled ? `data-depends-on="${escapeHTML(cond.dependsOn)}" data-show-when="${escapeHTML(cond.showWhen)}" data-operator="${escapeHTML(cond.operator || 'equals')}"` : '';
 
           let fieldInputHtml = '';
 
@@ -1285,7 +1429,7 @@
             fieldInputHtml = `
               <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
                 <label class="form-label" style="font-weight: 600;">📑 ${escapeHTML(f.label)}${reqMark}</label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 8px;">
                   <div>
                     <label class="form-label text-xs">ID Document Type</label>
                     <select class="form-select form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}_type" name="cf_${escapeHTML(f.fieldName)}_type">
@@ -1331,6 +1475,33 @@
                   <option value="">-- Select Blood Group --</option>
                   ${bgOpts.map(bg => `<option value="${bg}">${bg}</option>`).join('')}
                 </select>
+                ${helpText}
+              </div>
+            `;
+          } else if (f.type === 'multiselect') {
+            fieldInputHtml = `
+              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+                <label class="form-label" style="font-weight: 600;">☑️ ${escapeHTML(f.label)}${reqMark}</label>
+                <div class="custom-dyn-multiselect-group" data-field="${escapeHTML(f.fieldName)}" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px;">
+                  ${(f.options || []).map(opt => `
+                    <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer; background: var(--color-bg-secondary); padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+                      <input type="checkbox" class="custom-dyn-multiselect" value="${escapeHTML(opt)}" style="accent-color: var(--color-primary); width: 16px; height: 16px;">
+                      <span>${escapeHTML(opt)}</span>
+                    </label>
+                  `).join('')}
+                </div>
+                ${helpText}
+              </div>
+            `;
+          } else if (f.type === 'exam_badge') {
+            fieldInputHtml = `
+              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+                <label class="form-label" style="font-weight: 600;">🏷️ ${escapeHTML(f.label)}${reqMark}</label>
+                <div class="custom-dyn-badge-group" data-field="${escapeHTML(f.fieldName)}" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+                  ${(f.options || []).map(opt => `
+                    <span class="exam-pill custom-dyn-badge" data-val="${escapeHTML(opt)}">${escapeHTML(opt)}</span>
+                  `).join('')}
+                </div>
                 ${helpText}
               </div>
             `;
@@ -1387,7 +1558,7 @@
                 ${helpText}
               </div>
             `;
-          } else if (f.type === 'textarea') {
+          } else if (f.type === 'textarea' || f.type === 'address_autocomplete') {
             fieldInputHtml = `
               <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
                 <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
@@ -1396,7 +1567,7 @@
               </div>
             `;
           } else {
-            const inputType = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : (f.type === 'email' ? 'email' : (f.type === 'phone' ? 'tel' : 'text'))));
+            const inputType = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : (f.type === 'email' ? 'email' : (f.type === 'phone' ? 'tel' : (f.type === 'url' ? 'url' : (f.type === 'color' ? 'color' : 'text'))))));
             fieldInputHtml = `
               <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
                 <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
@@ -1440,7 +1611,18 @@
 
       // Mount dynamic Signature Studios
       document.querySelectorAll('.custom-field-sig-mount').forEach(mount => {
-        new SignatureStudio(mount, { width: 440, height: 140 });
+        const fName = mount.dataset.field;
+        if (fName) {
+          customSigStudios[fName] = new SignatureStudio(mount, { width: 440, height: 140 });
+        }
+      });
+
+      // Exam Badge Pills Interaction
+      document.querySelectorAll('.custom-dyn-badge').forEach(badge => {
+        badge.addEventListener('click', () => {
+          badge.classList.toggle('selected');
+          evaluateLogic();
+        });
       });
 
       // Initialize Star Rating widgets
@@ -1455,6 +1637,7 @@
               if (idx < val) s.classList.add('active');
               else s.classList.remove('active');
             });
+            evaluateLogic();
           });
         });
         stars.forEach(s => s.classList.add('active'));
@@ -1466,6 +1649,36 @@
       if (window.SmartIntelligence && typeof window.SmartIntelligence.bindDynamicIDProofValidation === 'function') {
         window.SmartIntelligence.bindDynamicIDProofValidation(document);
       }
+    }
+
+    function bindUpiIntentButtons() {
+      document.querySelectorAll('.upi-intent-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          const app = btn.dataset.app;
+          const basePrice = selectedPlanData ? Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0) : 0;
+          const multiplier = selectedShiftData?.priceMultiplier ? Number(selectedShiftData.priceMultiplier) : 1.0;
+          const lockerFee = document.getElementById('reg-request-locker')?.checked ? 200 : 0;
+          const payable = Math.max(0, Math.round((basePrice * multiplier) + lockerFee - discountAmount));
+          
+          if (payable <= 0) {
+            alert('Please select a membership plan first to compute fee amount.');
+            return;
+          }
+
+          const upiId = libraryUpiId || 'thecozycorner@okaxis';
+          const bizName = libraryBusinessName || 'Study Library';
+          const txnRef = `UPI${Date.now()}`;
+          const baseParams = `pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(bizName)}&am=${payable}&cu=INR&tn=${encodeURIComponent('Admission Fee Payment')}&tr=${encodeURIComponent(txnRef)}`;
+
+          let schemeUrl = `upi://pay?${baseParams}`;
+          if (app === 'gpay') schemeUrl = `gpay://upi/pay?${baseParams}`;
+          else if (app === 'phonepe') schemeUrl = `phonepe://pay?${baseParams}`;
+          else if (app === 'paytm') schemeUrl = `paytmmp://pay?${baseParams}`;
+
+          window.location.href = schemeUrl;
+        };
+      });
     }
 
     // Load Initial Public Config
@@ -1506,7 +1719,7 @@
           if (slipAddr) slipAddr.textContent = `${bp.address}, ${bp.city || ''} • 📞 ${bp.phone || ''}`;
         }
 
-        libraryUpiId = bp?.upiId || '';
+        libraryUpiId = bp?.upiId || 'thecozycorner@okaxis';
         libraryCustomQrImage = bp?.upiQrCode || '';
         libraryBankDetails = bp?.bankDetails || {};
         libraryPaymentInstructions = bp?.paymentInstructions || '';
@@ -1672,10 +1885,20 @@
             });
           });
 
-          document.getElementById('btn-copy-upi')?.addEventListener('click', () => {
-            navigator.clipboard.writeText(libraryUpiId);
-            alert('UPI ID copied to clipboard!');
-          });
+          const copyBtn = document.getElementById('btn-copy-upi');
+          if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+              navigator.clipboard.writeText(libraryUpiId).then(() => {
+                const orig = copyBtn.innerHTML;
+                copyBtn.innerHTML = '✅ Copied!';
+                setTimeout(() => { copyBtn.innerHTML = orig; }, 2000);
+              }).catch(() => {
+                alert(`UPI ID: ${libraryUpiId}`);
+              });
+            });
+          }
+
+          bindUpiIntentButtons();
         } else if (radioGrid && subpanesContainer && activeMethods.length === 0) {
           radioGrid.innerHTML = `
             <div style="grid-column: 1 / -1; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 1.5rem; text-align: center;">
@@ -1689,34 +1912,6 @@
             </div>
           `;
           subpanesContainer.innerHTML = '';
-        }
-
-          // Mobile UPI Intent Click Handler
-          document.querySelectorAll('.upi-intent-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-              e.preventDefault();
-              const app = btn.dataset.app;
-              const basePrice = selectedPlanData ? Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0) : 0;
-              const multiplier = selectedShiftData?.priceMultiplier ? Number(selectedShiftData.priceMultiplier) : 1.0;
-              const lockerFee = document.getElementById('reg-request-locker')?.checked ? 200 : 0;
-              const payable = Math.max(0, Math.round((basePrice * multiplier) + lockerFee - discountAmount));
-              
-              if (payable <= 0) {
-                alert('Please select a membership plan first to compute fee amount.');
-                return;
-              }
-
-              const txnRef = `UPI${Date.now()}`;
-              const baseParams = `pa=${encodeURIComponent(libraryUpiId)}&pn=${encodeURIComponent(libraryBusinessName)}&am=${payable}&cu=INR&tn=${encodeURIComponent('Admission Fee Payment')}&tr=${encodeURIComponent(txnRef)}`;
-
-              let schemeUrl = `upi://pay?${baseParams}`;
-              if (app === 'gpay') schemeUrl = `gpay://upi/pay?${baseParams}`;
-              else if (app === 'phonepe') schemeUrl = `phonepe://pay?${baseParams}`;
-              else if (app === 'paytm') schemeUrl = `paytmmp://pay?${baseParams}`;
-
-              window.location.href = schemeUrl;
-            });
-          });
         }
 
         // Branch Selection Dropdown & Capacity Card
@@ -1822,6 +2017,16 @@
 
       } catch (err) {
         console.error('Failed to init register page:', err);
+      } finally {
+        if (typeof window.dismissSystemPreloader === 'function') {
+          window.dismissSystemPreloader();
+        } else {
+          const p = document.getElementById('system-preloader');
+          if (p) {
+            p.style.opacity = '0';
+            setTimeout(() => { p.style.display = 'none'; }, 350);
+          }
+        }
       }
     }
 
@@ -1869,12 +2074,36 @@
         }
       });
 
+      // Capture dynamic multiselect checkboxes
+      document.querySelectorAll('.custom-dyn-multiselect-group').forEach(group => {
+        const fName = group.dataset.field;
+        if (fName) {
+          const checkedVals = Array.from(group.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+          customFields[fName] = checkedVals;
+        }
+      });
+
+      // Capture dynamic exam badge pills
+      document.querySelectorAll('.custom-dyn-badge-group').forEach(group => {
+        const fName = group.dataset.field;
+        if (fName) {
+          const selectedBadges = Array.from(group.querySelectorAll('.custom-dyn-badge.selected')).map(b => b.dataset.val);
+          customFields[fName] = selectedBadges;
+        }
+      });
+
       // Capture dynamic media fields
       document.querySelectorAll('.custom-field-media-mount').forEach(mount => {
         const fName = mount.dataset.field;
         const val = mount.querySelector('.mfp-hidden-value')?.value;
         if (fName && val) customFields[fName] = val;
       });
+
+      // Capture dynamic signature studios
+      for (const [fName, sigInst] of Object.entries(customSigStudios)) {
+        const sigVal = sigInst.getValue();
+        if (sigVal) customFields[fName] = sigVal;
+      }
 
       let txnId = '';
       if (pmMode === 'upi') txnId = document.getElementById('reg-upi-ref')?.value?.trim() || '';
@@ -1918,7 +2147,7 @@
         if (!response.ok || !result.success) {
           alert(result.message || 'Registration failed. Please verify the entered information.');
           btn.disabled = false;
-          btn.textContent = '🚀 Complete Admission & Payment';
+          btn.textContent = '🚀 Complete Registration & Get Admission Slip';
           return;
         }
 
@@ -2020,7 +2249,7 @@
       } catch (error) {
         alert('Network error. Please check your internet connection.');
         btn.disabled = false;
-        btn.textContent = '🚀 Complete Admission & Payment';
+        btn.textContent = '🚀 Complete Registration & Get Admission Slip';
       }
     });
 

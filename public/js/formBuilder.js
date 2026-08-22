@@ -184,7 +184,24 @@ export class FormBuilder {
       ]);
 
       this.fields = (fieldsRes && Array.isArray(fieldsRes.data)) ? fieldsRes.data : [];
-      this.allFields = this.fields; // expose for conditional trigger field dropdown
+      FormBuilder.allFields = this.fields;
+      if (!this.fields.some(f => f.fieldName === 'branch')) {
+        this.fields.unshift({
+          _id: 'sys_branch',
+          fieldName: 'branch',
+          label: 'Preferred Study Centre / Branch',
+          type: 'select',
+          required: true,
+          order: 0,
+          section: 'personal',
+          sectionLabel: 'Study Centre & Personal Info',
+          isActive: true,
+          isSystemField: true,
+          isDeletable: false,
+          helpText: 'Select preferred study centre / branch'
+        });
+      }
+      this.template = (tplRes && tplRes.data) ? tplRes.data : {};
       if (tplRes && tplRes.data) {
         this.template = tplRes.data;
         const b = this.template.branding || {};

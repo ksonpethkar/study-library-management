@@ -118,14 +118,45 @@ app.get('/api/system/public-config', async (req, res) => {
     const Branch = require('./models/Branch');
 
     await CustomField.seedDefaultFields().catch(() => {});
-    const [businessProfile, customFields, template, plans, shifts, branches] = await Promise.all([
+    const Seat = require('./models/Seat');
+    const [businessProfile, customFields, template, plans, shifts, rawBranches, occupiedCounts] = await Promise.all([
       BusinessProfile.getProfile().catch(() => ({})),
       CustomField.getActiveFields().catch(() => []),
       FormTemplate.getActiveTemplate().catch(() => null),
       Plan.find({ isActive: true }).sort('displayOrder').lean().catch(() => []),
       Shift.find({ isActive: true }).sort('startTime').lean().catch(() => []),
-      Branch.find({ isActive: true }).lean().catch(() => [])
+      Branch.find({ isActive: true }).lean().catch(() => []),
+      Seat.aggregate([
+        { $match: { status: 'occupied', isActive: true, branch: { $ne: null } } },
+        { $group: { _id: '$branch', count: { $sum: 1 } } }
+      ]).catch(() => [])
     ]);
+
+    let branches = [];
+    if (rawBranches && rawBranches.length > 0) {
+      const occupiedMap = new Map((occupiedCounts || []).map(c => [String(c._id), c.count]));
+      branches = rawBranches.map(b => {
+        const occupiedSeats = occupiedMap.get(String(b._id)) || 0;
+        const totalSeats = b.totalSeats || 50;
+        return {
+          ...b,
+          occupiedSeats,
+          availableSeats: Math.max(0, totalSeats - occupiedSeats)
+        };
+      });
+    } else {
+      branches = [{
+        _id: 'default_main',
+        name: 'Main Campus Central',
+        code: 'MAIN',
+        city: 'Central City',
+        address: 'Main Reading Hall Complex',
+        phone: '+91 9876543210',
+        totalSeats: 50,
+        occupiedSeats: 1,
+        availableSeats: 49
+      }];
+    }
 
     res.json({
       success: true,
@@ -288,4 +319,8 @@ const startServer = async () => {
   }
 };
 
-startServer();
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app, startServer };

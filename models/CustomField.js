@@ -129,6 +129,21 @@ customFieldSchema.statics.seedDefaultFields = async function(force = false) {
     const standardFields = [
       // 1. Personal Information Section
       {
+        fieldName: 'branch',
+        label: 'Preferred Study Centre / Branch',
+        type: 'select',
+        placeholder: 'Select preferred study centre',
+        required: true,
+        order: 0,
+        section: 'personal',
+        sectionLabel: 'Study Centre & Personal Info',
+        sectionIcon: '🏢',
+        sectionDescription: 'Study centre branch and basic identification',
+        isSystemField: true,
+        isDeletable: false,
+        helpText: 'Select your preferred study centre / reading hall branch'
+      },
+      {
         fieldName: 'name',
         label: 'Full Name',
         type: 'text',
@@ -136,7 +151,7 @@ customFieldSchema.statics.seedDefaultFields = async function(force = false) {
         required: true,
         order: 1,
         section: 'personal',
-        sectionLabel: 'Personal Information',
+        sectionLabel: 'Study Centre & Personal Info',
         sectionIcon: '👤',
         sectionDescription: 'Basic identification details',
         isSystemField: true,
