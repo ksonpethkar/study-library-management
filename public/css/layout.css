@@ -679,7 +679,8 @@ body {
   padding-left: var(--sal);
   padding-right: var(--sar);
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Touch-friendly Minimum Action Targets */

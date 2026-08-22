@@ -965,16 +965,30 @@ export class SwipeRow {
   }
 
   _onStart(e) {
-    this._startX  = e.touches[0].clientX;
+    if (!e.touches || e.touches.length !== 1) return;
+    this._startX = e.touches[0].clientX;
+    this._startY = e.touches[0].clientY;
     this._dragging = true;
+    this._isSwiping = false;
   }
 
   _onMove(e) {
-    if (!this._dragging) return;
-    this._currentX = e.touches[0].clientX - this._startX;
-    // Only swipe left
-    if (this._currentX < 0) {
-      e.preventDefault();
+    if (!this._dragging || !e.touches || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - this._startX;
+    const dy = Math.abs(touch.clientY - this._startY);
+
+    // If vertical movement is greater than horizontal, it's a page scroll: cancel swipe immediately!
+    if (!this._isSwiping && dy > Math.abs(dx)) {
+      this._dragging = false;
+      return;
+    }
+
+    // Only start horizontal swipe if user moved horizontally by at least 12px and dx < 0
+    if (dx < -12 && Math.abs(dx) > dy * 1.5) {
+      this._isSwiping = true;
+      this._currentX = dx;
+      if (e.cancelable) e.preventDefault();
       const offset = Math.max(this._currentX, -this._actionsEl.offsetWidth);
       this.row.style.transform = `translateX(${offset}px)`;
     }
@@ -982,11 +996,12 @@ export class SwipeRow {
 
   _onEnd() {
     this._dragging = false;
-    if (this._currentX < -this.threshold) {
+    if (this._isSwiping && this._currentX < -this.threshold) {
       this.open();
     } else {
       this.close();
     }
+    this._isSwiping = false;
     this._currentX = 0;
   }
 
