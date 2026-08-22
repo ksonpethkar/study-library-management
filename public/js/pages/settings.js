@@ -4979,6 +4979,8 @@ async function initLandingSettings(container) {
               ℹ️ Live system shifts are automatically populated. Use the checkbox to show or hide any shift on the public landing page.
             </p>
             <div id="l-shifts-list" style="display: flex; flex-direction: column; gap: 0.85rem;"></div>
+          </div>
+
           <!-- 5b. Pricing & Plans Header -->
           <div class="landing-panel" id="l-panel-pricing" style="display: none;">
             <h4 style="margin-bottom: 0.5rem;">Pricing & Membership Plans Section</h4>
@@ -5182,21 +5184,26 @@ async function initLandingSettings(container) {
       </div> <!-- .cms-editor-panel -->
         
       <!-- Right: Live Split-Screen Interactive Preview Canvas -->
-      <div class="cms-preview-panel" style="width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1rem; background: var(--color-bg-secondary); height: calc(100vh - 120px); max-height: 820px; min-height: 520px; display: flex; flex-direction: column; overflow: hidden; position: sticky; top: 80px; box-shadow: var(--shadow-md);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding: 0 0.25rem; flex-shrink: 0;">
-            <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
-              <span>🌐</span> Live Landing Page Viewport
+      <div class="cms-preview-panel" style="width: 100%; position: sticky; top: 80px;">
+        <div class="card p-0" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-md);">
+          <div class="card-header" style="padding: 10px 16px; background: var(--color-surface-hover); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.88rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 6px;">
+              <span>🌐</span> Live Landing Page Viewport (/landing)
+            </span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge badge-success" style="font-size: 0.7rem; font-weight: 700;">SYNCED LIVE</span>
+              <a href="/landing" target="_blank" class="btn btn-xs btn-outline-primary" style="font-size: 0.75rem; text-decoration: none; padding: 2px 8px; font-weight: 700;">
+                Open Full Page ↗
+              </a>
             </div>
-            <a href="/landing" target="_blank" style="font-size: 0.8rem; font-weight: 600; color: var(--color-primary); text-decoration: none;">
-              Open Full Page ↗
-            </a>
           </div>
 
-          <div id="pv-frame-shell" style="flex: 1; border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; background: #fff; box-shadow: var(--shadow-md); margin: 0 auto; transition: all 0.3s ease; width: 100%; position: relative;">
-            <iframe id="pv-landing-iframe" src="/landing?preview=true" style="width: 100%; height: 100%; border: none;"></iframe>
+          <div id="pv-frame-shell" style="padding: 12px; background: var(--color-bg-secondary); transition: all 0.3s ease; margin: 0 auto; width: 100%; height: calc(100vh - 180px); min-height: 560px; max-height: 820px; box-sizing: border-box; display: flex; justify-content: center; align-items: center;">
+            <iframe id="pv-landing-iframe" src="/landing?preview=true" style="width: 100%; height: 100%; border: 1px solid var(--color-border); border-radius: 10px; background: #fff; box-shadow: var(--shadow-sm);"></iframe>
           </div>
         </div>
       </div>
+    </div>
     `;
 
     // Viewport Mode Switching Logic
