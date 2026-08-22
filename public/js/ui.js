@@ -195,6 +195,10 @@ Modal.show = function(opts) {
     document.body.appendChild(modal);
   }
   
+  const widthMap = { sm: '420px', md: '640px', lg: '850px', xl: '1050px' };
+  // Clamp to viewport — prevents modal overflow on mobile phones
+  const rawW = widthMap[size] || widthMap.md;
+  
   modal.style.cssText = `
     padding: 0;
     border: 1px solid var(--color-border, #333);
@@ -202,15 +206,13 @@ Modal.show = function(opts) {
     background: var(--color-surface, #1e2230);
     color: var(--color-text-primary, #fff);
     box-shadow: var(--shadow-xl, 0 16px 48px rgba(0,0,0,0.5));
-    max-width: 90vw;
+    width: min(${rawW}, 95vw);
+    max-width: 95vw;
+    height: auto !important;
+    max-height: 85vh;
     margin: auto;
+    overflow: hidden;
   `;
-
-  const widthMap = { sm: '420px', md: '640px', lg: '850px', xl: '1050px' };
-  // Clamp to viewport — prevents modal overflow on mobile phones
-  const rawW = widthMap[size] || widthMap.md;
-  modal.style.width = `min(${rawW}, 95vw)`;
-  modal.style.maxWidth = '95vw';
 
   modal.innerHTML = `
     <div class="modal-header" style="padding: 16px 20px; border-bottom: 1px solid var(--color-divider, rgba(255,255,255,0.08)); display: flex; justify-content: space-between; align-items: center;">
@@ -464,40 +466,37 @@ Confirm.show = async function(opts) {
   }
 
   return new Promise(resolve => {
-    const confirmBtnClass = danger ? 'btn btn-danger' : 'btn btn-primary';
+    const confirmBtnClass = danger ? 'btn-danger' : 'btn-primary';
     
-    const content = `<p style="margin: 0; color: var(--color-text-secondary, #ccc); font-size: 1rem;">${escapeHTML(message)}</p>`;
-    const actions = `
-      <button id="confirm-cancel" class="btn btn-secondary">${escapeHTML(cancelText)}</button>
-      <button id="confirm-ok" class="${confirmBtnClass}">${escapeHTML(confirmText)}</button>
-    `;
+    const content = `<div style="padding: 4px 0; color: var(--color-text-secondary, #ccc); font-size: 0.95rem; line-height: 1.5;">${escapeHTML(message)}</div>`;
     
-    const modal = Modal.show({
+    Modal.show({
       title,
       content,
       size: 'sm',
-      actions,
+      buttons: [
+        {
+          text: cancelText,
+          className: 'btn-secondary',
+          onClick: (m) => {
+            m.close();
+            resolve(false);
+          }
+        },
+        {
+          text: confirmText,
+          className: confirmBtnClass,
+          onClick: async (m) => {
+            m.close();
+            if (typeof onConfirm === 'function') {
+              await onConfirm();
+            }
+            resolve(true);
+          }
+        }
+      ],
       onClose: () => resolve(false)
     });
-    
-    const cancelBtn = modal.querySelector('#confirm-cancel');
-    if (cancelBtn) {
-      cancelBtn.onclick = () => {
-        Modal.close();
-        resolve(false);
-      };
-    }
-    
-    const okBtn = modal.querySelector('#confirm-ok');
-    if (okBtn) {
-      okBtn.onclick = async () => {
-        Modal.close();
-        if (typeof onConfirm === 'function') {
-          await onConfirm();
-        }
-        resolve(true);
-      };
-    }
   });
 };
 

@@ -777,16 +777,15 @@ table th, table td,
 
 .modal {
   border: none;
-  background: transparent;
+  background: var(--color-surface);
   padding: 0;
   margin: auto;
-  width: 100%;
-  max-width: 100vw;
-  height: 100vh;
-  max-height: 100vh;
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal);
+  width: auto;
+  max-width: 95vw;
+  height: auto !important;
+  max-height: 90vh !important;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
   overflow: hidden;
 }
 .modal::backdrop {
