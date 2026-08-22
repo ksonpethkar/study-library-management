@@ -588,22 +588,22 @@ export async function render(container) {
 
   // 2. Render base page skeleton
   content.innerHTML = `
-    <div class="page-header flex-between mb-4" style="align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+    <div class="page-header mb-3">
       <div>
-        <h1 style="margin: 0; font-size: 1.6rem; font-weight: 700;">${t('nav.dashboard', 'Dashboard')}</h1>
+        <h1 style="margin: 0; font-weight: 700;">${t('nav.dashboard', 'Dashboard')}</h1>
         <p class="text-muted small mb-0" style="margin-top: 4px;">Welcome back, ${escapeHTML(user.name)}! Here is your study library live overview.</p>
       </div>
-      <div class="d-flex gap-2 flex-wrap">
-        <button id="btn-refresh-dashboard" class="btn btn-outline-secondary d-flex align-items-center gap-2" style="font-weight: 600;">
+      <div class="d-flex gap-2 flex-wrap mt-2">
+        <button id="btn-refresh-dashboard" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2" style="font-weight: 600;">
           🔄 Refresh
         </button>
         ${canCustomize ? `
-          <button id="btn-customize-dashboard" class="btn btn-primary d-flex align-items-center gap-2" style="font-weight: 600;">
-            ⚙️ Customize Dashboard Widgets
+          <button id="btn-customize-dashboard" class="btn btn-sm btn-primary d-flex align-items-center gap-2" style="font-weight: 600;">
+            ⚙️ Customize Widgets
           </button>
         ` : ''}
-        <a href="/kiosk" target="_blank" class="btn btn-outline" style="border-color: #6366f1; color: #818cf8; font-weight: 600;">
-          📲 Launch Gate Kiosk
+        <a href="/kiosk" target="_blank" class="btn btn-sm btn-outline" style="border-color: #6366f1; color: #818cf8; font-weight: 600;">
+          📲 Launch Kiosk
         </a>
       </div>
     </div>
