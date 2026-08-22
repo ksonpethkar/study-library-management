@@ -67,7 +67,12 @@ const protect = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'User account is inactive' });
     }
 
-    req.user = user;
+    // If token was signed with role: 'student' (from student login), enforce student role in session
+    if (decoded.role === 'student') {
+      req.user = { ...user, role: 'student' };
+    } else {
+      req.user = user;
+    }
     next();
   } catch (err) {
     return res.status(401).json({ success: false, message: 'Not authorized, token failed' });

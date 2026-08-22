@@ -11,6 +11,7 @@ const CustomField = require('../models/CustomField');
 const { Referral } = require('../models/Operations');
 const emailService = require('../utils/emailService');
 const whatsappService = require('../utils/whatsappService');
+const jwt = require('jsonwebtoken');
 
 // @route   POST /api/auth/setup
 // @desc    First-time setup (create owner account + business profile)
@@ -149,8 +150,11 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
 // @desc    Get current user
 router.get('/me', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    res.json({ success: true, data: user, message: 'User data retrieved' });
+    const user = await User.findById(req.user.id || req.user._id).lean();
+    if (user && req.user.role === 'student') {
+      user.role = 'student';
+    }
+    res.json({ success: true, data: user || req.user, message: 'User data retrieved' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -646,7 +650,13 @@ router.post('/student-login', authLimiter, async (req, res) => {
     user.lastLogin = Date.now();
     await user.save({ validateBeforeSave: false });
 
-    const token = user.generateAuthToken();
+    // Always sign student-scoped JWT token for student portal sessions
+    const secret = process.env.JWT_SECRET || 'study-library-jwt-secret-key-2026-production';
+    const token = jwt.sign(
+      { id: user._id, role: 'student', email: user.email, studentId: student._id },
+      secret,
+      { expiresIn: process.env.JWT_EXPIRE || '24h' }
+    );
     const businessProfile = await BusinessProfile.getProfile();
 
     res.json({
@@ -654,7 +664,7 @@ router.post('/student-login', authLimiter, async (req, res) => {
       data: {
         token,
         student,
-        user: { id: user._id, name: user.name, role: user.role, email: user.email },
+        user: { id: user._id, name: user.name, role: 'student', email: user.email },
         businessProfile
       },
       message: `Welcome back, ${student.name}!`

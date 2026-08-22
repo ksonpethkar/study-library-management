@@ -70,7 +70,11 @@ router.use(protect);
  */
 async function getStudentForUser(user, req = null) {
   const isAdmin = ['owner', 'branch_manager'].includes(user.role);
-  const studentIdParam = req?.query?.studentId || req?.body?.studentId;
+  // 0. If token explicitly contains studentId (e.g. from student login):
+  if (user?.studentId) {
+    const student = await Student.findById(user.studentId).populate('plan').populate('seat').populate('branch').lean();
+    if (student) return student;
+  }
 
   // 1. If Admin requested a specific student ID to inspect:
   if (isAdmin && studentIdParam) {
