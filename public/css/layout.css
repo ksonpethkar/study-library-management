@@ -683,7 +683,6 @@ body {
   padding-left: var(--sal);
   padding-right: var(--sar);
   -webkit-tap-highlight-color: transparent;
-  touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 }
 
