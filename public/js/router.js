@@ -103,51 +103,7 @@ export default class Router {
   }
 
   _runWithTransition(fn, direction = 'forward') {
-    const main = document.getElementById('main-content') || document.querySelector('.main-content') || document.querySelector('main');
-
-    // Use native View Transitions API if available (Chrome 111+)
-    if (typeof document !== 'undefined' && document.startViewTransition) {
-      try {
-        // Set direction class for CSS to pick up
-        document.documentElement.setAttribute('data-nav-direction', direction);
-        const transition = document.startViewTransition(() => { fn(); });
-        if (transition) {
-          if (transition.finished) transition.finished.catch(() => {});
-          if (transition.ready) transition.ready.catch(() => {});
-          if (transition.finished) {
-            transition.finished.then(() => {
-              document.documentElement.removeAttribute('data-nav-direction');
-            }).catch(() => {});
-          }
-        }
-      } catch (e) {
-        fn();
-      }
-      return;
-    }
-
-    // CSS class-based fallback transition
-    if (main) {
-      const exitClass = direction === 'back' ? 'page-exit-right' : 'page-exit-left';
-      const enterClass = direction === 'back' ? 'page-enter-right' : 'page-enter-left';
-
-      main.classList.add(exitClass);
-      setTimeout(() => {
-        main.classList.remove(exitClass);
-        fn();
-        main.classList.add(enterClass);
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            main.classList.add('page-entered');
-            setTimeout(() => {
-              main.classList.remove(enterClass, 'page-entered');
-            }, 350);
-          });
-        });
-      }, 120);
-    } else {
-      fn();
-    }
+    fn();
   }
 
   updateSidebarActive(basePath) {
