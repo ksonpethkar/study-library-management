@@ -42,55 +42,6 @@
 </head>
 <body>
 
-  <!-- System-Wide Universal Route-Aware Preloader Screen -->
-  <div id="system-preloader" class="global-page-loader-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0f172a; z-index: 999999; display: flex; align-items: center; justify-content: center; transition: opacity 0.35s ease, visibility 0.35s ease;">
-    <div class="page-loader-card" style="background: rgba(30, 41, 59, 0.92); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 2.25rem 2.5rem; text-align: center; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); max-width: 420px; width: 90%; display: flex; flex-direction: column; align-items: center;">
-      <div class="page-loader-ring" style="width: 72px; height: 72px; border-radius: 50%; background: radial-gradient(circle, rgba(108, 92, 231, 0.2) 0%, transparent 70%); border: 3px solid rgba(108, 92, 231, 0.25); border-top-color: #6c5ce7; border-right-color: #00b894; display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem; animation: preloader-spin 1s linear infinite; box-shadow: 0 0 20px rgba(108, 92, 231, 0.3);">
-        <span id="sys-preloader-icon" class="page-loader-icon" style="font-size: 1.85rem;">🎓</span>
-      </div>
-      <h3 id="sys-preloader-name" class="page-loader-title" style="margin: 0 0 6px 0; font-family: 'Outfit', system-ui, sans-serif; font-size: 1.2rem; font-weight: 800; color: #ffffff; letter-spacing: 0.3px;">Student Self-Service Portal</h3>
-      <p id="sys-preloader-sub" class="page-loader-subtitle" style="margin: 0 0 1.25rem 0; font-size: 0.85rem; color: #94a3b8; font-weight: 500;">Loading study analytics, ID pass & desk info...</p>
-      <div class="page-loader-bar" style="width: 100%; height: 5px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; position: relative;">
-        <div class="page-loader-progress" style="height: 100%; width: 50%; background: linear-gradient(90deg, #6c5ce7, #00b894); border-radius: 4px; animation: preloader-progress 1.2s ease-in-out infinite alternate;"></div>
-      </div>
-    </div>
-    <style>
-      @keyframes preloader-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-      @keyframes preloader-progress { 0% { width: 15%; margin-left: 0%; } 100% { width: 75%; margin-left: 25%; } }
-    </style>
-  </div>
-  <script>
-    (function() {
-      const hash = (window.location.hash || '').replace('#/', '').split('?')[0];
-      const pageTitles = {
-        portal: { name: 'Student Self-Service Portal', icon: '🎓', sub: 'Loading study analytics, ID pass & desk info...' },
-        dashboard: { name: 'Admin Operations Dashboard', icon: '📊', sub: 'Loading real-time revenue & occupancy analytics...' },
-        students: { name: 'Student Master Directory', icon: '👨‍🎓', sub: 'Loading student profiles & fee ledgers...' },
-        seats: { name: 'Live Seating Grid Matrix', icon: '💺', sub: 'Loading real-time seat availability & shift assignments...' },
-        lockers: { name: 'Smart Locker Storage Manager', icon: '🔐', sub: 'Loading locker assignments & availability...' },
-        plans: { name: 'Membership Plans & Pricing', icon: '🏷️', sub: 'Loading tier rates & discount rules...' },
-        payments: { name: 'Fee Collection & Receipt Studio', icon: '💳', sub: 'Loading payment logs & revenue receipts...' },
-        attendance: { name: 'Attendance & Gate Check-in Ledger', icon: '⏱️', sub: 'Loading check-in logs & active hours...' },
-        shifts: { name: 'Study Shift & Slot Schedule', icon: '🕒', sub: 'Loading shift timings & seat quotas...' },
-        branches: { name: 'Multi-Branch Centre Management', icon: '🏢', sub: 'Loading branch locations & capacity status...' },
-        reports: { name: 'Financial P&L & GST Analytics', icon: '📈', sub: 'Loading executive reports & Tally exports...' },
-        expenses: { name: 'Operational Expense Manager', icon: '💸', sub: 'Loading expense vouchers & profit ledgers...' },
-        operations: { name: 'Seat Transfer & Request Desk', icon: '🔄', sub: 'Loading operational requests...' },
-        settings: { name: 'System Settings & Branding Control', icon: '⚙️', sub: 'Loading system configurations...' },
-        profile: { name: 'My Account & Security Profile', icon: '👤', sub: 'Loading security settings & profile details...' }
-      };
-      const pInfo = pageTitles[hash] || { name: 'Library Management System', icon: '⚡', sub: 'Loading workspace...' };
-      document.addEventListener('DOMContentLoaded', function() {
-        const iconEl = document.getElementById('sys-preloader-icon');
-        const titleEl = document.getElementById('sys-preloader-name');
-        const subEl = document.getElementById('sys-preloader-sub');
-        if (iconEl) iconEl.textContent = pInfo.icon;
-        if (titleEl) titleEl.textContent = pInfo.name;
-        if (subEl) subEl.textContent = pInfo.sub;
-      });
-    })();
-  </script>
-
   <div id="app" class="app-container" style="display:none">
     
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
