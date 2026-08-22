@@ -25,6 +25,12 @@ body {
 }
 
 /* 2. iOS Safari Auto-Zoom Prevention & Touch Accessibility */
+@media (max-width: 1024px) {
+  html, body {
+    touch-action: pan-x pan-y;
+  }
+}
+
 @media (max-width: 768px) {
   /* Enforce max-width and box-sizing across cards, containers, inputs, and modals */
   .card,

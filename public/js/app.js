@@ -78,6 +78,9 @@ class Application {
     // Init offline/online sync banner listeners
     this.initOfflineBanner();
 
+    // Prevent pinch-to-zoom and multi-touch zoom on mobile screens while allowing desktop zoom
+    this.initMobileZoomLock();
+
     // Init keyboard shortcuts
     if (!this.shortcuts) {
       this.shortcuts = new ShortcutManager();
@@ -196,6 +199,54 @@ class Application {
       banner.style.background = '#d97706';
       banner.style.display = 'block';
     }
+  }
+
+  /**
+   * Block zoom-in / zoom-out on mobile view across the entire system
+   * Keeps desktop browser zoom (Ctrl + + / Ctrl + - / mouse wheel) fully functional.
+   */
+  initMobileZoomLock() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    const isMobileDevice = () => window.innerWidth <= 1024 || ('ontouchstart' in window && navigator.maxTouchPoints > 0 && window.innerWidth <= 1024);
+
+    // 1. Block iOS Safari pinch-to-zoom gesture events
+    document.addEventListener('gesturestart', (e) => {
+      if (isMobileDevice()) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    document.addEventListener('gesturechange', (e) => {
+      if (isMobileDevice()) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    document.addEventListener('gestureend', (e) => {
+      if (isMobileDevice()) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // 2. Block 2-finger multi-touch pinch zooming on mobile
+    document.addEventListener('touchmove', (e) => {
+      if (isMobileDevice() && e.touches && e.touches.length > 1) {
+        if (e.cancelable) e.preventDefault();
+      }
+    }, { passive: false });
+
+    // 3. Block double-tap to zoom on mobile while preserving normal inputs
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      if (!isMobileDevice()) return;
+      const now = Date.now();
+      const isInput = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable);
+      if (!isInput && now - lastTouchEnd <= 300) {
+        if (e.cancelable) e.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, { passive: false });
   }
 
   /**
