@@ -855,13 +855,6 @@
       <p class="section-subtitle">Choose the perfect duration and secure your seat today.</p>
     </div>
 
-    <div class="plan-toggles">
-      <button class="plan-toggle active">1 Month</button>
-      <button class="plan-toggle">3 Months (5% OFF)</button>
-      <button class="plan-toggle">6 Months (10% OFF)</button>
-      <button class="plan-toggle">1 Year (15% OFF)</button>
-    </div>
-
     <div class="plans-grid" id="plans-container">
       <div class="plan-card" style="position: relative;">
         <span style="position: absolute; top: 12px; right: 12px; background: #00b894; color: #fff; font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 50px;">30% OFF</span>
@@ -1191,63 +1184,39 @@
     }
     initGalleryFilters();
 
-    // Plan Duration Filter Handler
+    // Render Dynamic Plans
     let allLandingPlans = [];
-    function initPlanToggles() {
-      const planBtns = document.querySelectorAll('.plan-toggles .plan-toggle');
-      planBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-          planBtns.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          const text = btn.textContent.trim().toLowerCase();
-          let mult = 1;
-          let disc = 0;
-          if (text.includes('3 month')) { mult = 3; disc = 5; }
-          else if (text.includes('6 month')) { mult = 6; disc = 10; }
-          else if (text.includes('1 year')) { mult = 12; disc = 15; }
-
-          renderPlansWithDuration(mult, disc);
-        });
-      });
-    }
-    initPlanToggles();
-
-    function renderPlansWithDuration(multiplier = 1, discountPercent = 0) {
-      if (!allLandingPlans || allLandingPlans.length === 0) return;
+    function renderPlans(plans) {
+      const plansList = plans || allLandingPlans;
+      if (!plansList || plansList.length === 0) return;
       const plansCont = document.getElementById('plans-container');
       if (!plansCont) return;
 
-      plansCont.innerHTML = allLandingPlans.map((p) => {
-        const baseEffective = Math.round(p.effectivePrice || p.price || 0);
-        const totalBase = baseEffective * multiplier;
-        const discountedTotal = Math.round(totalBase * (1 - discountPercent / 100));
+      plansCont.innerHTML = plansList.map((p) => {
+        const finalPrice = Math.round(p.effectivePrice || p.price || 0);
         
         let durationLabel = '';
-        if (multiplier > 1) {
-          durationLabel = multiplier === 12 ? '1 Year' : `${multiplier} Months`;
+        if (p.duration && p.duration > 1) {
+          durationLabel = p.durationType === 'days' ? `${p.duration} Days` : `${p.duration} Months`;
+        } else if (p.name && p.name.toLowerCase().includes('quarter')) {
+          durationLabel = '3 Months';
+        } else if (p.name && (p.name.toLowerCase().includes('half') || p.name.toLowerCase().includes('6 month'))) {
+          durationLabel = '6 Months';
+        } else if (p.name && (p.name.toLowerCase().includes('annual') || p.name.toLowerCase().includes('year'))) {
+          durationLabel = '1 Year';
         } else {
-          if (p.duration && p.duration > 1) {
-            durationLabel = p.durationType === 'days' ? `${p.duration} Days` : `${p.duration} Months`;
-          } else if (p.name && p.name.toLowerCase().includes('quarter')) {
-            durationLabel = '3 Months';
-          } else if (p.name && (p.name.toLowerCase().includes('half') || p.name.toLowerCase().includes('6 month'))) {
-            durationLabel = '6 Months';
-          } else if (p.name && (p.name.toLowerCase().includes('annual') || p.name.toLowerCase().includes('year'))) {
-            durationLabel = '1 Year';
-          } else {
-            durationLabel = '1 Month';
-          }
+          durationLabel = '1 Month';
         }
 
-        const totalDiscount = Math.max(p.discount || 0, discountPercent);
+        const discount = p.discount || 0;
         const planId = p.id || p._id || '';
 
         return `
           <div class="plan-card">
-            ${totalDiscount > 0 ? `<div class="plan-badge">${totalDiscount}% OFF</div>` : ''}
+            ${discount > 0 ? `<div class="plan-badge">${discount}% OFF</div>` : ''}
             <h3 class="plan-name">${p.name}</h3>
             <div class="plan-price-row">
-              <span class="plan-price">₹${discountedTotal.toLocaleString('en-IN')}</span>
+              <span class="plan-price">₹${finalPrice.toLocaleString('en-IN')}</span>
               <span class="plan-period">/ ${durationLabel}</span>
             </div>
             <ul class="plan-features">
@@ -1664,7 +1633,7 @@
 
             if (plans && plans.length > 0) {
               allLandingPlans = plans;
-              renderPlansWithDuration(1, 0);
+              renderPlans(plans);
             }
           }
         }
