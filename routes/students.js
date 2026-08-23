@@ -131,6 +131,14 @@ router.post('/', validate([
   body('phone').notEmpty().withMessage('Phone is required').trim()
 ]), roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
+    if (req.body.phone) {
+      let cleanPhone = String(req.body.phone).trim().replace(/[^0-9+]/g, '');
+      if (cleanPhone.startsWith('0') && cleanPhone.length === 11) {
+        cleanPhone = cleanPhone.slice(1);
+      }
+      req.body.phone = cleanPhone;
+    }
+
     // Validate Shift Capacity
     if (req.body.shift || req.body.plan) {
       const Shift = require('../models/Shift');
@@ -241,6 +249,14 @@ router.put('/:id', validate([
     const student = await Student.findById(req.params.id);
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    if (req.body.phone) {
+      let cleanPhone = String(req.body.phone).trim().replace(/[^0-9+]/g, '');
+      if (cleanPhone.startsWith('0') && cleanPhone.length === 11) {
+        cleanPhone = cleanPhone.slice(1);
+      }
+      req.body.phone = cleanPhone;
     }
 
     const oldSeat = student.seat ? String(student.seat) : null;

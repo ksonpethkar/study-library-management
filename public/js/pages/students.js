@@ -954,15 +954,37 @@ export async function render() {
           className: 'btn-primary',
           onClick: async (m) => {
             const form = m.element.querySelector('#studentForm');
-            const details = form.querySelector('details');
-            if (!form.checkValidity()) {
-              if (details) details.open = true;
-              form.reportValidity();
+            if (!form) return;
+
+            const nameInput = form.querySelector('[name="name"]');
+            const phoneInput = form.querySelector('[name="phone"]');
+
+            const nameVal = nameInput?.value?.trim();
+            if (!nameVal) {
+              Toast.warning('Please enter the Student Full Name');
+              nameInput?.focus();
               return;
             }
-            
+
+            let phoneVal = phoneInput?.value?.trim().replace(/[^0-9+]/g, '') || '';
+            if (!phoneVal) {
+              Toast.warning('Please enter the Mobile Number (WhatsApp)');
+              phoneInput?.focus();
+              return;
+            }
+            if (phoneVal.startsWith('0') && phoneVal.length === 11) {
+              phoneVal = phoneVal.slice(1);
+            }
+            if (phoneVal.length < 10) {
+              Toast.warning('Please enter a valid 10-digit mobile number');
+              phoneInput?.focus();
+              return;
+            }
+
             const formData = new FormData(form);
             const data = Object.fromEntries(formData.entries());
+            data.name = nameVal;
+            data.phone = phoneVal;
             
             // Handle target exams array
             const examsStr = data.targetExams || '';
