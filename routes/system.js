@@ -7,6 +7,8 @@ const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
 const SystemSetting = require('../models/SystemSetting');
 const ReceiptConfig = require('../models/ReceiptConfig');
+const FormTemplate = require('../models/FormTemplate');
+const CustomField = require('../models/CustomField');
 
 /**
  * @route   GET /api/system/public-config
@@ -15,13 +17,15 @@ const ReceiptConfig = require('../models/ReceiptConfig');
  */
 router.get('/public-config', async (req, res) => {
   try {
-    const [businessProfile, allShifts, allPlans, todayStats, receiptConfig, rawSettings] = await Promise.all([
+    const [businessProfile, allShifts, allPlans, todayStats, receiptConfig, rawSettings, activeTemplate, allFields] = await Promise.all([
       BusinessProfile.getProfile(),
       Shift.find({ isActive: true }).sort({ startTime: 1, name: 1 }),
       Plan.find({ isActive: true }).sort('displayOrder').lean(),
       Attendance.getTodayStats().catch(() => ({ totalPresent: 0, totalAbsent: 0, currentlyCheckedIn: 0 })),
       ReceiptConfig.getConfig(),
-      SystemSetting.find().lean().catch(() => [])
+      SystemSetting.find().lean().catch(() => []),
+      FormTemplate.getActiveTemplate().catch(() => null),
+      CustomField.find({ isActive: true }).sort({ order: 1 }).lean().catch(() => [])
     ]);
 
     // Calculate active student enrollment & full status for each shift
@@ -123,6 +127,8 @@ router.get('/public-config', async (req, res) => {
         gstNumber: businessProfile.gstNumber || '',
         shifts: shiftsWithCapacity,
         plans: allPlans,
+        template: activeTemplate,
+        customFields: allFields,
         kioskVoice,
         livePunchStats,
         receiptConfig,

@@ -1372,13 +1372,188 @@
       return 5;
     }
 
+    // Sync Header Branding, Colors & Section Labels configured by Admin in FormBuilder
+    function syncTemplateBrandingAndSections(template, bp) {
+      if (!template) return;
+
+      // 1. Visual Theme Accent
+      if (template.theme?.primaryColor) {
+        document.documentElement.style.setProperty('--color-primary', template.theme.primaryColor);
+        document.documentElement.style.setProperty('--primary', template.theme.primaryColor);
+      }
+
+      // 2. Header Branding Studio Settings
+      const tb = template.branding;
+      if (tb) {
+        const titleEl = document.getElementById('lib-title');
+        if (titleEl && tb.headerText) titleEl.textContent = tb.headerText;
+        
+        const tagEl = document.getElementById('lib-tagline');
+        if (tagEl && tb.tagline) tagEl.textContent = tb.tagline;
+
+        const mainHeader = document.getElementById('admission-main-header');
+        if (mainHeader && tb.alignment) mainHeader.style.textAlign = tb.alignment;
+
+        const logoEl = document.getElementById('lib-logo-icon');
+        if (logoEl) {
+          if (tb.showLogo === false) {
+            logoEl.style.display = 'none';
+          } else {
+            logoEl.style.display = 'block';
+            if (tb.logoSize) logoEl.style.fontSize = `${Math.round(parseInt(tb.logoSize, 10) * 0.6)}px`;
+          }
+        }
+
+        // Hero Banner Image
+        let bannerWrap = document.getElementById('admission-hero-banner');
+        if (tb.showBanner && tb.bannerImage) {
+          if (!bannerWrap) {
+            bannerWrap = document.createElement('div');
+            bannerWrap.id = 'admission-hero-banner';
+            bannerWrap.style.cssText = 'width: 100%; max-height: 220px; overflow: hidden; border-radius: 12px 12px 0 0; margin-bottom: 1rem;';
+            const cont = document.querySelector('.admission-container');
+            if (cont && mainHeader) cont.insertBefore(bannerWrap, mainHeader);
+          }
+          bannerWrap.innerHTML = `<img src="${escapeHTML(tb.bannerImage)}" alt="Admission Banner" style="width: 100%; height: 100%; object-fit: cover; max-height: 220px;">`;
+          bannerWrap.style.display = 'block';
+        } else if (bannerWrap) {
+          bannerWrap.style.display = 'none';
+        }
+      }
+
+      // 3. Sections & Stepper Custom Titles
+      if (Array.isArray(template.sections) && template.sections.length > 0) {
+        const secMap = {
+          personal: 1,
+          academic: 2,
+          plan: 3,
+          payment: 4,
+          seat: 5
+        };
+
+        template.sections.forEach((sec, idx) => {
+          const stepNum = secMap[sec.name] || (idx + 1);
+          if (stepNum >= 1 && stepNum <= 5) {
+            const stepperEl = document.getElementById(`stepper-${stepNum}`);
+            if (stepperEl) {
+              const labelEl = stepperEl.querySelector('.step-label');
+              if (labelEl && sec.label) {
+                labelEl.textContent = sec.label.replace(/^Step \d+:\s*/i, '').trim();
+              }
+              if (sec.isHidden) stepperEl.style.display = 'none';
+              else stepperEl.style.display = 'flex';
+            }
+
+            const stepContent = document.getElementById(`step-${stepNum}`);
+            if (stepContent) {
+              const titleEl = stepContent.querySelector('.form-section-title');
+              if (titleEl && sec.label) {
+                const icon = sec.icon || (stepNum === 1 ? '👤' : stepNum === 2 ? '🎯' : stepNum === 3 ? '⏰' : stepNum === 4 ? '💳' : '🪑');
+                titleEl.innerHTML = `<span>${icon}</span> ${escapeHTML(sec.label)}`;
+              }
+              if (sec.isHidden) stepContent.style.display = 'none';
+            }
+          }
+        });
+      }
+
+      // 4. Submit button text
+      if (template.settings?.submitButtonText) {
+        const btnSubmit = document.getElementById('btn-submit-reg');
+        if (btnSubmit) btnSubmit.textContent = template.settings.submitButtonText;
+      }
+    }
+
+    // Sync System Core Fields (labels, placeholders, required status, active visibility)
+    function syncCoreFields(fields) {
+      if (!Array.isArray(fields)) return;
+
+      fields.forEach(f => {
+        const key = (f.fieldName || '').trim().toLowerCase();
+        const isHidden = f.isActive === false || f.isActive === 'false';
+        const isReq = Boolean(f.required);
+        const customLabel = f.label;
+        const customPlaceholder = f.placeholder;
+        const customHelp = f.helpText;
+
+        const applyCore = (inputId, wrapperQuery) => {
+          const inp = document.getElementById(inputId);
+          const wrap = wrapperQuery ? document.querySelector(wrapperQuery) : (inp ? inp.closest('.form-group') : null);
+          if (!wrap && !inp) return;
+
+          if (isHidden) {
+            if (wrap) wrap.style.display = 'none';
+            if (inp) {
+              inp.required = false;
+              inp.disabled = true;
+            }
+            return;
+          } else {
+            if (wrap) wrap.style.display = '';
+            if (inp) inp.disabled = false;
+          }
+
+          if (inp) {
+            if (customPlaceholder) inp.placeholder = customPlaceholder;
+            if (f.required !== undefined) inp.required = isReq;
+          }
+
+          if (wrap && customLabel) {
+            const lbl = wrap.querySelector('label.form-label');
+            if (lbl) {
+              lbl.innerHTML = `${escapeHTML(customLabel)}${isReq ? ' <span style="color: var(--color-danger);">*</span>' : ''}`;
+            }
+          }
+
+          if (wrap && customHelp) {
+            let helpEl = wrap.querySelector('.core-field-help-text');
+            if (!helpEl) {
+              helpEl = document.createElement('small');
+              helpEl.className = 'text-muted core-field-help-text';
+              helpEl.style.cssText = 'display: block; font-size: 0.75rem; margin-top: 3px;';
+              wrap.appendChild(helpEl);
+            }
+            helpEl.textContent = customHelp;
+          }
+        };
+
+        if (key === 'name' || key === 'fullname') applyCore('reg-name');
+        else if (key === 'phone' || key === 'mobile') applyCore('reg-phone');
+        else if (key === 'email') applyCore('reg-email');
+        else if (key === 'password') applyCore('reg-password');
+        else if (key === 'gender') applyCore('reg-gender');
+        else if (key === 'dob' || key === 'dateofbirth') applyCore('reg-dob');
+        else if (key === 'pincode') applyCore('reg-pincode');
+        else if (key === 'city') applyCore('reg-city');
+        else if (key === 'state') applyCore('reg-state');
+        else if (key === 'parentphone' || key === 'emergencycontact' || key === 'parent_phone') applyCore('reg-parent-phone');
+        else if (key === 'targetexams' || key === 'targetexam' || key === 'exam') {
+          const examWrap = document.getElementById('exam-pills-container');
+          if (examWrap && isHidden) examWrap.parentElement.style.display = 'none';
+          else if (examWrap) examWrap.parentElement.style.display = '';
+        } else if (key === 'photo' || key === 'selfie') {
+          const photoWrap = document.getElementById('public-photo-mount');
+          if (photoWrap && isHidden) photoWrap.parentElement.style.display = 'none';
+          else if (photoWrap) photoWrap.parentElement.style.display = '';
+        } else if (key === 'signature') {
+          const sigWrap = document.getElementById('sig-studio-mount');
+          if (sigWrap && isHidden) sigWrap.closest('.mb-4').style.display = 'none';
+          else if (sigWrap) sigWrap.closest('.mb-4').style.display = '';
+        }
+      });
+    }
+
     // Dynamic Field Renderer for Admission Wizard
-    function renderCustomFields(fields) {
+    function renderCustomFields(fields, template) {
       allCustomFields = fields;
+      
+      // 1. Sync Core Fields
+      syncCoreFields(fields);
+
       const coreFieldKeys = new Set([
         'name', 'phone', 'email', 'password', 'gender', 'dateofbirth', 'dob',
         'pincode', 'city', 'state', 'targetexams', 'photo', 'signature',
-        'plan', 'shift', 'seat', 'terms'
+        'plan', 'shift', 'seat', 'terms', 'parentphone', 'parent_phone'
       ]);
 
       const step1Fields = [];
@@ -1683,15 +1858,17 @@
           if (cfgJson.success && cfgJson.data) publicConfig = cfgJson.data;
         } catch (e) {}
 
-        const [landingRes, plansRes, shiftsRes, fieldsRes, branchesRes] = await Promise.all([
+        const [landingRes, plansRes, shiftsRes, fieldsRes, branchesRes, templateRes] = await Promise.all([
           publicConfig?.businessProfile ? Promise.resolve({ data: { businessProfile: publicConfig.businessProfile } }) : fetch('/api/landing').then(r => r.json()).catch(() => null),
           publicConfig?.plans ? Promise.resolve({ data: publicConfig.plans }) : fetch('/api/plans').then(r => r.json()).catch(() => null),
           publicConfig?.shifts ? Promise.resolve({ data: publicConfig.shifts }) : fetch('/api/shifts').then(r => r.json()).catch(() => null),
-          publicConfig?.customFields ? Promise.resolve({ data: publicConfig.customFields }) : fetch('/api/custom-fields').then(r => r.json()).catch(() => null),
-          publicConfig?.branches ? Promise.resolve({ data: publicConfig.branches }) : fetch('/api/branches/public-list').then(r => r.json()).catch(() => null)
+          publicConfig?.customFields ? Promise.resolve({ data: publicConfig.customFields }) : fetch('/api/custom-fields/all').then(r => r.json()).catch(() => fetch('/api/custom-fields').then(r => r.json()).catch(() => null)),
+          publicConfig?.branches ? Promise.resolve({ data: publicConfig.branches }) : fetch('/api/branches/public-list').then(r => r.json()).catch(() => null),
+          publicConfig?.template ? Promise.resolve({ data: publicConfig.template }) : fetch('/api/custom-fields/templates/active').then(r => r.json()).catch(() => null)
         ]);
 
         const bp = landingRes?.data?.businessProfile || publicConfig?.businessProfile || {};
+        const activeTemplate = templateRes?.data || publicConfig?.template || null;
         businessProfileData = bp;
         if (bp?.businessName) {
           try { localStorage.setItem('sl_public_profile_cache', JSON.stringify(bp)); } catch(e) {}
@@ -1716,13 +1893,9 @@
         libraryBankDetails = bp?.bankDetails || {};
         libraryPaymentInstructions = bp?.paymentInstructions || '';
 
-        // Dynamic Header Branding Template Support
-        if (publicConfig?.template?.branding) {
-          const tb = publicConfig.template.branding;
-          if (tb.headerText) document.getElementById('lib-title').textContent = tb.headerText;
-          if (tb.tagline) document.getElementById('lib-tagline').textContent = tb.tagline;
-          const mainHeader = document.getElementById('admission-main-header');
-          if (mainHeader && tb.alignment) mainHeader.style.textAlign = tb.alignment;
+        // Dynamic Header Branding & Section Synchronization from FormBuilder Studio
+        if (activeTemplate) {
+          syncTemplateBrandingAndSections(activeTemplate, bp);
         }
 
         // 0. Populate Study Centre / Branch Dropdown Immediately
@@ -1771,11 +1944,11 @@
           };
         }
 
-        // Render Custom Fields safely
+        // Render Custom Fields safely with Live Form Builder Template Sync
         const rawFields = fieldsRes?.data?.fields || fieldsRes?.data || publicConfig?.customFields?.fields || publicConfig?.customFields || [];
         const fields = Array.isArray(rawFields) ? rawFields : [];
         try {
-          renderCustomFields(fields);
+          renderCustomFields(fields, activeTemplate);
         } catch (fErr) {
           console.warn('Custom fields render note:', fErr);
         }
