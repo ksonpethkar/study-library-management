@@ -7,6 +7,7 @@ const BusinessProfile = require('../models/BusinessProfile');
 const { Visitor } = require('../models/Operations');
 const Notification = require('../models/Notification');
 const { protect } = require('../middleware/auth');
+const memoryCache = require('../utils/memoryCache');
 
 const roleCheck = (...roles) => {
   return (req, res, next) => {
@@ -22,7 +23,7 @@ const roleCheck = (...roles) => {
  * @desc    Get complete public landing page data (Hero, facilities, plans, gallery, rules, contact)
  * @access  Public
  */
-router.get('/', async (req, res) => {
+router.get('/', memoryCache.middleware(30), async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     let landingConfig = null;

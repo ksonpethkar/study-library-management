@@ -3017,7 +3017,21 @@ canvas.sparkline {
   /* Make pay renewal page payment list scrollable */
   #pay-renewal-list .table-responsive {
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
+/* ── Performance & Rendering Acceleration Foundation ─────── */
+.data-table tbody tr,
+.table tbody tr,
+.student-card-item,
+.log-item-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 48px;
 }
 
+.modal-content,
+.bottom-sheet,
+.mobile-bottom-nav,
+.fab-container,
+.toast-item {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+}

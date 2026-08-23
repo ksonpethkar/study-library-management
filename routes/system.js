@@ -9,13 +9,14 @@ const SystemSetting = require('../models/SystemSetting');
 const ReceiptConfig = require('../models/ReceiptConfig');
 const FormTemplate = require('../models/FormTemplate');
 const CustomField = require('../models/CustomField');
+const memoryCache = require('../utils/memoryCache');
 
 /**
  * @route   GET /api/system/public-config
  * @desc    Get public library configuration for gate kiosk, registration, receipts & waiting list
  * @access  Public
  */
-router.get('/public-config', async (req, res) => {
+router.get('/public-config', memoryCache.middleware(30), async (req, res) => {
   try {
     const [businessProfile, allShifts, allPlans, todayStats, receiptConfig, rawSettings, activeTemplate, allFields] = await Promise.all([
       BusinessProfile.getProfile(),
