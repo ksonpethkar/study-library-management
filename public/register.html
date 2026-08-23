@@ -1098,9 +1098,18 @@
 
     // Exam pills toggle
     const selectedExams = new Set();
-    function setupExamPills() {
-      document.querySelectorAll('.exam-pill').forEach(pill => {
-        pill.addEventListener('click', () => {
+    function setupExamPills(customList) {
+      const container = document.getElementById('exam-pills-container');
+      if (!container) return;
+
+      if (Array.isArray(customList) && customList.length > 0) {
+        container.innerHTML = customList.map(e => `
+          <span class="exam-pill ${selectedExams.has(e) ? 'selected' : ''}" data-exam="${escapeHTML(e)}">${escapeHTML(e)}</span>
+        `).join('');
+      }
+
+      container.querySelectorAll('.exam-pill').forEach(pill => {
+        pill.onclick = () => {
           const exam = pill.dataset.exam;
           if (!exam) return;
           if (selectedExams.has(exam)) {
@@ -1110,7 +1119,7 @@
             selectedExams.add(exam);
             pill.classList.add('selected');
           }
-        });
+        };
       });
     }
     setupExamPills();
@@ -1951,6 +1960,12 @@
           renderCustomFields(fields, activeTemplate);
         } catch (fErr) {
           console.warn('Custom fields render note:', fErr);
+        }
+
+        // Dynamically populate target competitive exams configured by Admin
+        const dynamicExams = bp?.targetExams || publicConfig?.targetExams || [];
+        if (dynamicExams.length > 0) {
+          setupExamPills(dynamicExams);
         }
 
         // Render Payment Gateways

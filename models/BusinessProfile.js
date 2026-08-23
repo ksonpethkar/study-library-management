@@ -29,6 +29,20 @@ const businessProfileSchema = new mongoose.Schema({
     bankName: { type: String, default: '' },
     branchName: { type: String, default: '' }
   },
+  targetExams: {
+    type: [String],
+    default: ['UPSC Civil Services', 'State PSC / MPSC', 'SSC / CGL', 'Banking & RBI', 'IIT-JEE', 'NEET Medical', 'Chartered Accountancy (CA)', 'GATE / Engineering', 'Judiciary / CLAT', 'Defense / CDS']
+  },
+  rules: {
+    type: [String],
+    default: [
+      'Maintain absolute silence in reading zones at all times.',
+      'Mobile phones must remain on silent mode. Calls must be attended outside.',
+      'Do not reserve empty desks with personal belongings when away.',
+      'Smoking, tobacco, and outside cooked food are strictly prohibited.',
+      'Ensure cleanliness and take care of study desks, charging points, and library facilities.'
+    ]
+  },
   paymentInstructions: {
     type: String,
     default: 'Please enter your 12-digit UTR / Reference number after completing payment.'

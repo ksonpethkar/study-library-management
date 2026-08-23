@@ -130,6 +130,8 @@ router.get('/public-config', memoryCache.middleware(30), async (req, res) => {
         plans: allPlans,
         template: activeTemplate,
         customFields: allFields,
+        targetExams: businessProfile.targetExams || [],
+        rules: businessProfile.rules || [],
         kioskVoice,
         livePunchStats,
         receiptConfig,
