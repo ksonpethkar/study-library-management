@@ -131,8 +131,13 @@ class Application {
         } else {
           try {
             const userData = await api.get('/api/auth/me');
-            store.user = userData.data || userData;
-            this.showApp();
+            const user = userData?.data || userData?.user || (userData?.email ? userData : null);
+            if (user && user.role) {
+              store.user = user;
+              await this.showApp();
+            } else {
+              this.logout();
+            }
           } catch (e) {
             // Token invalid or expired
             this.logout();
@@ -286,6 +291,16 @@ class Application {
   async showApp() {
     this._show('app');
 
+    // 1. Initialize and start SPA router immediately to mount active page
+    if (!this.router) {
+      this.initRouter();
+    } else {
+      this.router.start();
+    }
+
+    // 2. Render mobile bottom navigation bar immediately
+    renderMobileBottomNav(store.user?.role || 'staff');
+
     // Wire up sidebar, header events only once
     if (!this._appEventsInit) {
       initAppEvents();
@@ -301,23 +316,29 @@ class Application {
     };
 
     // Adapt sidebar for role (Student vs Admin/Staff) & render database config
-    await this.updateSidebarForRole();
+    try {
+      await this.updateSidebarForRole();
+    } catch (e) {
+      console.warn('Sidebar role update error:', e);
+    }
 
     // Enable sidebar drag-to-reorder (admin/staff only)
     if (store.user?.role !== 'student') {
-      // Small delay to ensure sidebar DOM is fully rendered
-      setTimeout(() => SidebarSortable.init({
-        mode: 'personal',          // each user has own sidebar order
-        userId: store.user?._id || store.user?.id || null
-      }), 300);
+      setTimeout(() => {
+        try {
+          SidebarSortable.init({
+            mode: 'personal',
+            userId: store.user?._id || store.user?.id || null
+          });
+        } catch (e) {}
+      }, 300);
     }
-
-    // Render mobile bottom navigation bar based on user role
-    renderMobileBottomNav(store.user?.role || 'staff');
 
     // Init search palette
     if (!this.searchPalette) {
-      this.searchPalette = new SearchPalette();
+      try {
+        this.searchPalette = new SearchPalette();
+      } catch (e) {}
     }
 
     // ── Phase B: Pull-to-Refresh (mobile only, init once) ─────────────────
@@ -416,13 +437,6 @@ class Application {
           }
         });
       });
-    }
-
-    // Init router
-    if (!this.router) {
-      this.initRouter();
-    } else {
-      this.router.start();
     }
 
     // ── Phase 3: Apply saved module colors on startup ─────────────────────

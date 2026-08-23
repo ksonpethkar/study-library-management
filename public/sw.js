@@ -3,7 +3,7 @@
  * Phase 4: Updated cache, offline fallback page, stale-while-revalidate
  */
 
-const CACHE_NAME = 'studylib-pwa-v12';
+const CACHE_NAME = 'studylib-pwa-v13';
 
 // All static assets to pre-cache on install
 const STATIC_ASSETS = [

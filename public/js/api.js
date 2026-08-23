@@ -30,23 +30,17 @@ class ApiClient {
       
       if (response.status === 401) {
         localStorage.removeItem('sl_token');
-        // Graceful session expiry — don't hard reload (loses form data)
+        if (window.App && typeof window.App.showLogin === 'function') {
+          window.App.showLogin();
+        }
         if (!ApiClient._sessionExpiredShown) {
           ApiClient._sessionExpiredShown = true;
-          // Show toast if Toast is available
           if (window.Toast?.warning) {
             window.Toast.warning('⏰ Session expired — please sign in again.');
           }
-          // Navigate to login without hard reload
           setTimeout(() => {
-            if (window.App?.showLogin) {
-              window.App.showLogin();
-            } else {
-              window.location.hash = '';
-              location.reload();
-            }
             ApiClient._sessionExpiredShown = false;
-          }, 1500);
+          }, 3000);
         }
         return null;
       }
