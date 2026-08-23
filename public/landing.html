@@ -740,7 +740,7 @@
       </div>
 
       <h1 class="hero-title" id="hero-title">
-        Premier Air-Conditioned <span>The Cozy Corner Centre</span> & Reading Hall
+        <span>Study Library</span> & Reading Hall
       </h1>
 
       <p class="hero-subtitle" id="hero-subtitle">
@@ -1410,11 +1410,15 @@
                 t = t.replace(/{library_name}/gi, brandName);
               }
               if (!t.includes('<span>') && !t.includes('</span>')) {
-                const words = t.split(' ');
-                if (words.length > 2) {
-                  t = `<span>${words.slice(0, 2).join(' ')}</span> ${words.slice(2).join(' ')}`;
+                if (brandName && t.includes(brandName)) {
+                  t = t.replace(brandName, `<span>${escapeHTML(brandName)}</span>`);
                 } else {
-                  t = `<span>${t}</span>`;
+                  const words = t.split(' ');
+                  if (words.length > 2) {
+                    t = `<span>${escapeHTML(words.slice(0, 2).join(' '))}</span> ${escapeHTML(words.slice(2).join(' '))}`;
+                  } else {
+                    t = `<span>${escapeHTML(t)}</span>`;
+                  }
                 }
               }
               hTitle.innerHTML = t;
