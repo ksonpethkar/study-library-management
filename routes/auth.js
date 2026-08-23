@@ -160,6 +160,48 @@ router.get('/me', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/auth/users
+// @desc    Get all staff and admin users for RBAC management
+router.get('/users', protect, async (req, res) => {
+  try {
+    const users = await User.find({ role: { $ne: 'student' } })
+      .select('-password')
+      .populate('branch', 'name city')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ success: true, data: users, message: 'Staff users retrieved' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   POST /api/auth/users
+// @desc    Add new staff or branch manager user
+router.post('/users', protect, async (req, res) => {
+  try {
+    const { name, email, password, role, phone, branch } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Name, email, and password are required' });
+    }
+    const existing = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'User with this email already exists' });
+    }
+    const newUser = await User.create({
+      name,
+      email: email.toLowerCase().trim(),
+      password,
+      role: role || 'staff',
+      phone,
+      branch: branch || null
+    });
+    const populated = await User.findById(newUser._id).select('-password').populate('branch', 'name city').lean();
+    res.status(201).json({ success: true, data: populated, message: 'Staff member added successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // @route   GET /api/auth/check-setup
 // @desc    Check if first-time setup is needed
 router.get('/check-setup', async (req, res) => {

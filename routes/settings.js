@@ -636,6 +636,30 @@ router.put('/sidebar', protect, roleCheck('owner', 'branch_manager'), async (req
   }
 });
 
+// PUT /api/settings/sidebar-config - Support navOrder drag & drop updates
+router.put('/sidebar-config', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const { navOrder } = req.body;
+    if (Array.isArray(navOrder)) {
+      const config = await SidebarConfig.getConfig();
+      const existingItems = config.items || [];
+      const orderMap = new Map(navOrder.map((href, idx) => [href.replace('#/', ''), idx + 1]));
+      
+      existingItems.forEach(item => {
+        if (orderMap.has(item.key)) {
+          item.order = orderMap.get(item.key);
+        }
+      });
+      config.items.sort((a, b) => (a.order || 0) - (b.order || 0));
+      await config.save();
+      return res.json({ success: true, data: config.items, message: 'Sidebar order updated successfully' });
+    }
+    res.json({ success: true, message: 'Sidebar config updated' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // PUT /api/settings/sidebar/reset - Reset to defaults
 router.put('/sidebar/reset', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {

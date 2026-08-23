@@ -608,6 +608,15 @@
       clearKeypad();
     }
 
+    // Expose all interactive kiosk button actions on window
+    window.switchKioskMode = switchKioskMode;
+    window.typeKey = typeKey;
+    window.clearKeypad = clearKeypad;
+    window.submitKeypad = submitKeypad;
+    window.captureFingerprint = captureFingerprint;
+    window.connectUsbDevice = connectUsbDevice;
+    window.toggleVoiceAudio = toggleVoiceAudio;
+
     // Barcode scanner input handling
     const barcodeInput = document.getElementById('barcode-input');
     barcodeInput?.addEventListener('keydown', (e) => {

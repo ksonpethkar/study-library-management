@@ -1151,6 +1151,95 @@ function bindStudioEvents(container, studioId, store) {
   container.querySelector('#btn-sec-export-json')?.addEventListener('click', () => {
     container.querySelector('#btn-master-quick-backup')?.click();
   });
+
+  // Add Staff Member Trigger
+  container.querySelector('#btn-add-staff-member')?.addEventListener('click', () => {
+    showAddStaffModal(container, store.branches || []);
+  });
+
+  // Refresh AI Insights Trigger
+  container.querySelector('#btn-refresh-ai-insights')?.addEventListener('click', () => {
+    Toast.info('Refreshing retention and revenue intelligence...');
+    const viewport = container.querySelector('#master-studio-viewport');
+    if (viewport) {
+      viewport.innerHTML = '';
+      viewport.appendChild(renderAutomationsAiStudio(store.settings.auto));
+      bindStudioEvents(container, 'automations_ai', store);
+    }
+  });
+}
+
+function showAddStaffModal(container, branches) {
+  const content = document.createElement('div');
+  const branchOpts = branches.map(b => `<option value="${b._id}">${escapeHTML(b.name)}</option>`).join('');
+
+  content.innerHTML = `
+    <form id="form-add-staff" class="p-2">
+      <div class="form-group mb-2">
+        <label class="form-label" style="font-weight: 600;">Full Name *</label>
+        <input type="text" id="staff-name" class="form-control" placeholder="e.g. Ramesh Kumar" required>
+      </div>
+      <div class="form-group mb-2">
+        <label class="form-label" style="font-weight: 600;">Email Address (Login ID) *</label>
+        <input type="email" id="staff-email" class="form-control" placeholder="e.g. ramesh@library.com" required>
+      </div>
+      <div class="form-group mb-2">
+        <label class="form-label" style="font-weight: 600;">Password *</label>
+        <input type="password" id="staff-password" class="form-control" placeholder="Create temporary password" required>
+      </div>
+      <div class="form-group mb-2">
+        <label class="form-label" style="font-weight: 600;">Phone Number</label>
+        <input type="tel" id="staff-phone" class="form-control" placeholder="10-digit mobile">
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <label class="form-label" style="font-weight: 600;">Role *</label>
+          <select id="staff-role" class="form-select form-control">
+            <option value="staff">Staff / Receptionist</option>
+            <option value="branch_manager">Branch Manager</option>
+            <option value="owner">Admin / Co-Owner</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label class="form-label" style="font-weight: 600;">Assigned Centre</label>
+          <select id="staff-branch" class="form-select form-control">
+            <option value="">All Branches</option>
+            ${branchOpts}
+          </select>
+        </div>
+      </div>
+      <div class="d-flex justify-content-end gap-2 pt-2 border-top">
+        <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="btn-save-staff">Create Staff Account</button>
+      </div>
+    </form>
+  `;
+
+  const m = new Modal({
+    title: '👥 Add Staff Team Member',
+    content,
+    size: 'md'
+  });
+  m.show();
+
+  content.querySelector('#form-add-staff')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = content.querySelector('#staff-name').value.trim();
+    const email = content.querySelector('#staff-email').value.trim();
+    const password = content.querySelector('#staff-password').value;
+    const phone = content.querySelector('#staff-phone').value.trim();
+    const role = content.querySelector('#staff-role').value;
+    const branch = content.querySelector('#staff-branch').value || null;
+
+    try {
+      await api.post('/api/auth/users', { name, email, password, phone, role, branch });
+      Toast.success('Staff account created successfully!');
+      m.close();
+      render(container);
+    } catch (err) {
+      Toast.error(err.message || 'Failed to create staff account');
+    }
+  });
 }
 
 // -------------------------------------------------------------
