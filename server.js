@@ -16,19 +16,69 @@ initProcessErrorHandlers();
 
 const app = express();
 
-// Security Middleware — configured to allow inline scripts, Google Fonts, and our own assets
+// Security Middleware — configured to allow CDNs (Chart.js, Sortable.js), Google Fonts, worker blobs, and maps
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "blob:", "https:"],
-      connectSrc: ["'self'", "https://api.postalpincode.in", "https://api.qrserver.com", "https://api.zippopotam.us"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "'unsafe-eval'",
+        "https://cdn.jsdelivr.net",
+        "https://cdnjs.cloudflare.com"
+      ],
+      scriptSrcAttr: ["'unsafe-inline'"],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://fonts.googleapis.com",
+        "https://cdn.jsdelivr.net",
+        "https://cdnjs.cloudflare.com"
+      ],
+      fontSrc: [
+        "'self'",
+        "https://fonts.gstatic.com",
+        "https://cdnjs.cloudflare.com",
+        "data:"
+      ],
+      imgSrc: [
+        "'self'",
+        "data:",
+        "blob:",
+        "https:",
+        "http:"
+      ],
+      connectSrc: [
+        "'self'",
+        "https:",
+        "wss:",
+        "blob:",
+        "data:",
+        "https://api.postalpincode.in",
+        "https://api.qrserver.com",
+        "https://api.zippopotam.us",
+        "https://ui-avatars.com"
+      ],
+      frameSrc: [
+        "'self'",
+        "https://www.google.com",
+        "https://maps.google.com",
+        "https://*.google.com"
+      ],
+      workerSrc: [
+        "'self'",
+        "blob:"
+      ],
+      childSrc: [
+        "'self'",
+        "blob:"
+      ],
+      objectSrc: ["'none'"]
     }
   },
   crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
 const allowedOrigins = process.env.CORS_ORIGIN 
