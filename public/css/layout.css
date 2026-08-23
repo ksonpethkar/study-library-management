@@ -533,7 +533,7 @@ html.dark-theme .main-header {
 
 @media (max-width: 1024px) {
   .app-container {
-    display: flex !important;
+    display: flex;
     flex-direction: column !important;
     width: 100% !important;
     max-width: 100vw !important;
@@ -541,6 +541,10 @@ html.dark-theme .main-header {
     margin: 0 !important;
     padding: 0 !important;
     overflow: visible !important;
+  }
+  .app-container[style*="display: none"],
+  .app-container[style*="display:none"] {
+    display: none !important;
   }
   .main-content {
     width: 100% !important;

@@ -713,10 +713,14 @@ window.App = App;
 window.toggleTheme = () => App.toggleTheme();
 window.reloadSidebar = () => App.updateSidebarForRole();
 
-// Boot the application
-document.addEventListener('DOMContentLoaded', () => {
+// Boot the application safely (handles deferred module loading)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+  });
+} else {
   App.init();
-});
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // PHASE 7 — Notification Center, Confetti, Swipe Row Actions

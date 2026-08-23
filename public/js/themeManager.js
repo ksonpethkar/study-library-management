@@ -169,15 +169,21 @@
   // Listen to OS system theme changes
   ThemeManager.initSystemListener();
 
-  // 2. DOMContentLoaded initialization & event delegation
-  document.addEventListener('DOMContentLoaded', () => {
+  // 2. DOM initialization & event delegation
+  const initThemeDOM = () => {
     const mode = ThemeManager.getMode();
     ThemeManager.setThemeMode(mode, false);
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initThemeDOM);
+  } else {
+    initThemeDOM();
+  }
 
-    // Event delegation for theme choices & dropdown triggers
-    document.addEventListener('click', (e) => {
-      // Handle click on dropdown item with [data-theme-mode]
-      const optionBtn = e.target.closest('[data-theme-mode]');
+  // Event delegation for theme choices & dropdown triggers
+  document.addEventListener('click', (e) => {
+    // Handle click on dropdown item with [data-theme-mode]
+    const optionBtn = e.target.closest('[data-theme-mode]');
       if (optionBtn) {
         e.preventDefault();
         e.stopPropagation();
@@ -217,7 +223,6 @@
         });
       }
     });
-  });
 
   function updateDynamicFaviconAndTitle(profile) {
     if (!profile) return;
