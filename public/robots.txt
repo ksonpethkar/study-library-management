@@ -1,0 +1,11 @@
+# Study Library Management System - Robots Control
+User-agent: *
+Allow: /
+Allow: /landing
+Allow: /register
+Allow: /student-login
+
+# Disallow private admin API & application endpoints
+Disallow: /api/
+Disallow: /#/
+Disallow: /uploads/

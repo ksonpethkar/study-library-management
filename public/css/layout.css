@@ -7,7 +7,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: var(--z-modal, 600);
 }
 #app-loading .loading-spinner {
   width: 60px;
@@ -34,7 +34,7 @@
   top: 0;
   left: 0;
   bottom: 0;
-  z-index: 1050;
+  z-index: var(--z-sticky, 500);
   transition: width var(--transition-base);
   overflow: hidden;
 }
@@ -498,7 +498,7 @@ html.dark-theme .main-header {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.5);
-  z-index: 1040;
+  z-index: var(--z-sticky, 500);
   opacity: 0;
   pointer-events: none !important;
   transition: opacity var(--transition-base);
@@ -536,7 +536,7 @@ html.dark-theme .main-header {
     display: flex;
     flex-direction: column !important;
     width: 100% !important;
-    max-width: 100vw !important;
+    max-width: 100% !important;
     min-width: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -548,7 +548,7 @@ html.dark-theme .main-header {
   }
   .main-content {
     width: 100% !important;
-    max-width: 100vw !important;
+    max-width: 100% !important;
     margin-left: 0 !important;
   }
   .sidebar {
@@ -561,7 +561,7 @@ html.dark-theme .main-header {
     height: 100vh !important;
     transform: translateX(-100%) !important;
     transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    z-index: 1050 !important;
+    z-index: var(--z-sticky, 500) !important;
     box-shadow: 0 0 30px rgba(0, 0, 0, 0.4) !important;
   }
   .sidebar.mobile-open {
@@ -587,7 +587,7 @@ html.dark-theme .main-header {
   
   .main-content {
     width: 100% !important;
-    max-width: 100vw !important;
+    max-width: 100% !important;
     min-width: 0 !important;
     margin: 0 !important;
     flex: 1 1 auto !important;
@@ -602,7 +602,7 @@ html.dark-theme .main-header {
     padding: 12px !important;
     padding-bottom: calc(85px + env(safe-area-inset-bottom)) !important;
     width: 100% !important;
-    max-width: 100vw !important;
+    max-width: 100% !important;
     box-sizing: border-box !important;
     overflow-x: hidden !important;
   }
@@ -616,7 +616,7 @@ html.dark-theme .main-header {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: var(--z-modal, 600);
   padding: var(--space-4);
   overflow-y: auto;
 }
@@ -753,7 +753,7 @@ button, input, select, textarea, .btn, .nav-item, .action-btn {
     left: 0;
     width: 280px;
     transform: translateX(-100%);
-    z-index: 1050;
+    z-index: var(--z-sticky, 500);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   
@@ -767,7 +767,7 @@ button, input, select, textarea, .btn, .nav-item, .action-btn {
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(4px);
-    z-index: 1040;
+    z-index: var(--z-sticky, 500);
   }
   
   .main-content {

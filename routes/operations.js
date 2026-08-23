@@ -13,7 +13,7 @@ router.use(protect);
 // ----------------------------------------------------
 router.get('/visitors', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const visitors = await Visitor.find().sort({ createdAt: -1 }).lean();
+    const visitors = await Visitor.find().sort({ createdAt: -1 }).limit(500).lean();
     res.json({ success: true, data: visitors });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });

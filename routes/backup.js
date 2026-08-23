@@ -21,17 +21,17 @@ router.get('/export', protect, roleCheck('owner', 'superadmin', 'admin'), async 
     const backupData = {
       exportedAt: new Date().toISOString(),
       version: '2.0.0',
-      businessProfile: await BusinessProfile.find(),
-      systemSettings: await SystemSetting.find(),
-      branches: await Branch.find(),
-      shifts: await Shift.find(),
-      plans: await Plan.find(),
-      seats: await Seat.find(),
-      students: await Student.find(),
-      payments: await Payment.find(),
-      attendances: await Attendance.find().sort({ date: -1 }).limit(5000),
-      expenses: await Expense.find(),
-      lockers: await Locker.find()
+      businessProfile: await BusinessProfile.find().lean(),
+      systemSettings: await SystemSetting.find().lean(),
+      branches: await Branch.find().lean(),
+      shifts: await Shift.find().lean(),
+      plans: await Plan.find().lean(),
+      seats: await Seat.find().lean(),
+      students: await Student.find().sort({ createdAt: -1 }).limit(10000).lean(),
+      payments: await Payment.find().sort({ paymentDate: -1 }).limit(20000).lean(),
+      attendances: await Attendance.find().sort({ date: -1 }).limit(10000).lean(),
+      expenses: await Expense.find().sort({ createdAt: -1 }).limit(5000).lean(),
+      lockers: await Locker.find().lean()
     };
 
     const filename = `study_library_backup_${new Date().toISOString().split('T')[0]}.json`;

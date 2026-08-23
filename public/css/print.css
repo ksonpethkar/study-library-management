@@ -1,4 +1,11 @@
 @media print {
+  :root {
+    --color-text-primary: #000000 !important;
+    --color-text-secondary: #333333 !important;
+    --color-bg-primary: #ffffff !important;
+    --color-surface: #ffffff !important;
+    --color-border: #cccccc !important;
+  }
   /* Hide non-printable elements */
   #sidebar, 
   #main-header, 

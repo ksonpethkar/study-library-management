@@ -554,19 +554,20 @@ class Application {
 
         nav.innerHTML = items.map(item => {
           const isActive = item.href === currentHash;
+          const safeLabel = escapeHTML(item.label || '');
           let iconHtml = '';
           if (item.icon && item.icon.startsWith('<svg')) {
-            iconHtml = item.icon;
+            iconHtml = item.icon; // SVG markup is safe (from our own code)
           } else if (item.icon && item.icon.trim()) {
-            iconHtml = `<span class="nav-icon-emoji" style="font-size: 1.15rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">${item.icon}</span>`;
+            iconHtml = `<span class="nav-icon-emoji" style="font-size: 1.15rem; width: 22px; display: inline-flex; align-items: center; justify-content: center;">${escapeHTML(item.icon)}</span>`;
           } else {
             iconHtml = defaultIcons[item.key] || '<span class="nav-icon-emoji">📌</span>';
           }
 
           return `
-            <a href="${item.href}" class="nav-item ${isActive ? 'active' : ''}" data-key="${item.key}">
+            <a href="${escapeHTML(item.href || '#')}" class="nav-item ${isActive ? 'active' : ''}" data-key="${escapeHTML(item.key || '')}">
               ${iconHtml}
-              <span ${item.i18nKey ? `data-i18n="${item.i18nKey}"` : ''}>${item.label}</span>
+              <span ${item.i18nKey ? `data-i18n="${escapeHTML(item.i18nKey)}"` : ''}>${safeLabel}</span>
             </a>
           `;
         }).join('');
@@ -638,6 +639,10 @@ class Application {
 
     const meta = pageMeta[pageId] || { name: pageId.charAt(0).toUpperCase() + pageId.slice(1), icon: '⚡', skel: 'table' };
 
+    // Navigation race condition guard: track current request ID
+    this._navSeq = (this._navSeq || 0) + 1;
+    const currentSeq = this._navSeq;
+
     // 1. Instant top progress bar animation
     Loading.startProgress();
 
@@ -647,11 +652,16 @@ class Application {
     const doRender = async () => {
       try {
         const result = await renderFn(content);
+        // Check if navigation moved on while this page was rendering
+        if (this._navSeq !== currentSeq) {
+          return; // Ignore stale render response
+        }
         if (result instanceof HTMLElement && result !== content) {
           content.innerHTML = '';
           content.appendChild(result);
         }
       } catch (err) {
+        if (this._navSeq !== currentSeq) return;
         console.error(`Render error on page ${pageId}:`, err);
         content.innerHTML = `
           <div class="card p-4 text-center" style="border-color: var(--color-danger); margin: 2rem; background: var(--color-surface); border-radius: var(--radius-lg);">
@@ -664,8 +674,10 @@ class Application {
           </div>
         `;
       } finally {
-        Loading.doneProgress();
-        Loading.hidePage();
+        if (this._navSeq === currentSeq) {
+          Loading.doneProgress();
+          Loading.hidePage();
+        }
       }
     };
 

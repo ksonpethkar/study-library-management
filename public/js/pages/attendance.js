@@ -206,12 +206,16 @@ async function init(container) {
     }, 250));
   }
 
-  // Hide search results when clicking outside
-  document.addEventListener('click', (e) => {
+  // Hide search results when clicking outside (cleaned up across page re-renders)
+  if (window._attSearchClickCleanup) {
+    document.removeEventListener('click', window._attSearchClickCleanup);
+  }
+  window._attSearchClickCleanup = (e) => {
     if (searchInput && searchResults && !searchInput.contains(e.target) && !searchResults.contains(e.target)) {
       searchResults.style.display = 'none';
     }
-  });
+  };
+  document.addEventListener('click', window._attSearchClickCleanup);
 
   // Hardware Biometric / RFID Scanner Modal
   container.querySelector('#btn-biometric-simulator')?.addEventListener('click', () => {

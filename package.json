@@ -1,14 +1,17 @@
 {
   "name": "library-management-system",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Production-Grade Study Library Management System & PWA",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["library", "management", "study-hall", "pwa"],
+  "author": "Cozy Corner Tech",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {

@@ -17,6 +17,7 @@
   text-decoration: none;
   white-space: nowrap;
   user-select: none;
+  -webkit-user-select: none;
   box-shadow: var(--shadow-md);
 }
 
@@ -723,7 +724,7 @@ table th, table td,
   align-items: center;
   gap: var(--space-3);
   min-width: 280px;
-  max-width: calc(100vw - 32px);
+  max-width: calc(100% - 32px);
   pointer-events: auto;
   border-left: 4px solid var(--color-primary);
   animation: toastSlideIn var(--transition-spring) forwards;
@@ -791,6 +792,7 @@ table th, table td,
 .modal::backdrop {
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 .modal-content {
   background: rgba(255, 255, 255, 0.85);
@@ -863,6 +865,7 @@ dialog#modal-container {
 dialog#modal-container::backdrop {
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 @media (max-width: 767px) {
@@ -881,6 +884,7 @@ dialog#modal-container::backdrop {
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: var(--z-search-palette);
   display: none;
   justify-content: center;
@@ -968,7 +972,7 @@ dialog#modal-container::backdrop {
   height: 3px;
   background: linear-gradient(90deg, #6366f1, #a855f7, #06b6d4);
   box-shadow: 0 0 12px rgba(99, 102, 241, 0.8), 0 0 6px rgba(6, 182, 212, 0.6);
-  z-index: 9999999;
+  z-index: var(--z-toast, 700);
   pointer-events: none;
   transition: width 0.2s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.3s ease;
   border-radius: 0 2px 2px 0;
@@ -980,12 +984,12 @@ dialog#modal-container::backdrop {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
+  width: 100%;
   height: 100vh;
   background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 999999;
+  z-index: var(--z-modal, 600);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1809,6 +1813,7 @@ input[type="checkbox"].toggle-switch:checked::before,
   align-items: center;
   gap: 10px;
   user-select: none;
+  -webkit-user-select: none;
 }
 
 /* ========================================== */
@@ -1920,6 +1925,7 @@ label.switch {
   gap: 0.6rem;
   cursor: pointer;
   user-select: none;
+  -webkit-user-select: none;
   font-weight: 600;
   font-size: 0.9rem;
   margin: 0;
@@ -2069,7 +2075,7 @@ label.switch input[type="checkbox"]:checked + .switch-track::before {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  z-index: 1100;
+  z-index: var(--z-dropdown, 400);
   transform: translateY(100%);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 16px 20px max(16px, env(safe-area-inset-bottom)) 20px;
@@ -2218,6 +2224,7 @@ html.dark-theme .bottom-sheet {
   border-radius: 4px;
   font-size: 1.1rem;
   user-select: none;
+  -webkit-user-select: none;
   transition: color 0.2s, background 0.2s;
   display: inline-flex;
   align-items: center;
@@ -2275,6 +2282,7 @@ html.dark-theme .bottom-sheet {
   cursor: grab;
   transition: box-shadow 0.2s, transform 0.15s;
   user-select: none;
+  -webkit-user-select: none;
 }
 .kanban-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.25); transform: translateY(-1px); }
 
@@ -2448,7 +2456,7 @@ html.dark-theme .bottom-sheet {
   font-weight: 600;
   border-radius: 0 0 16px 16px;
   padding: 0 20px;
-  z-index: 9999;
+  z-index: var(--z-modal, 600);
   transition: height 0.15s ease, opacity 0.15s ease;
   box-shadow: 0 4px 16px rgba(108, 92, 231, 0.4);
   white-space: nowrap;
@@ -2483,6 +2491,7 @@ html.dark-theme .bottom-sheet {
 .sidebar-nav .nav-item {
   cursor: grab;
   user-select: none;
+  -webkit-user-select: none;
 }
 .sidebar-nav .nav-item:active,
 .sidebar-nav .nav-item.sortable-chosen { cursor: grabbing; }
@@ -2562,6 +2571,7 @@ html.dark-theme .bottom-sheet {
 /* ── Attendance Heatmap Calendar ───────────────────────────── */
 .attendance-heatmap-wrap {
   user-select: none;
+  -webkit-user-select: none;
   -webkit-overflow-scrolling: touch;
 }
 .attendance-heatmap-wrap svg rect {
@@ -2881,7 +2891,7 @@ html.dark-theme .bottom-sheet {
   border-top: 1px solid var(--color-border);
   border-radius: 20px 20px 0 0;
   padding: 20px 24px calc(20px + env(safe-area-inset-bottom));
-  z-index: 9998;
+  z-index: var(--z-sticky, 500);
   box-shadow: 0 -8px 32px rgba(0,0,0,0.3);
   animation: sheetSlideUp 0.3s cubic-bezier(0.34,1.4,0.64,1);
 }

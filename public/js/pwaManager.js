@@ -9,9 +9,7 @@ export function initPWA() {
   // Register Service Worker
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').then((reg) => {
-        console.log('PWA ServiceWorker registered with scope:', reg.scope);
-      }).catch((err) => {
+      navigator.serviceWorker.register('/sw.js').catch((err) => {
         console.warn('PWA ServiceWorker registration failed:', err);
       });
     });
@@ -27,7 +25,6 @@ export function initPWA() {
   window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
     hidePWAInstallButtons();
-    console.log('StudyLib PWA App successfully installed!');
   });
 
   // Haptic feedback on button clicks
@@ -50,10 +47,7 @@ export function promptPWAInstall() {
 
   if (deferredInstallPrompt) {
     deferredInstallPrompt.prompt();
-    deferredInstallPrompt.userChoice.then((choiceResult) => {
-      if (choiceResult.outcome === 'accepted') {
-        console.log('User accepted PWA install prompt');
-      }
+    deferredInstallPrompt.userChoice.then(() => {
       deferredInstallPrompt = null;
       hidePWAInstallButtons();
     });

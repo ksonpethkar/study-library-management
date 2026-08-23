@@ -4,13 +4,19 @@
  */
 
 class MemoryCache {
-  constructor() {
+  constructor(maxSize = 1000) {
     this.cache = new Map();
+    this.maxSize = maxSize;
   }
 
   set(key, value, ttlSeconds = 60) {
     const expiresAt = Date.now() + (ttlSeconds * 1000);
     this.cache.set(key, { value, expiresAt });
+    // Cap memory usage to prevent unbounded growth
+    if (this.cache.size > this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) this.cache.delete(firstKey);
+    }
   }
 
   get(key) {

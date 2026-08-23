@@ -460,11 +460,15 @@ export async function render(container) {
         exportDropdown.classList.toggle('active');
       });
 
-      document.addEventListener('click', (e) => {
+      if (window._repExportClickCleanup) {
+        document.removeEventListener('click', window._repExportClickCleanup);
+      }
+      window._repExportClickCleanup = (e) => {
         if (!exportDropdown.contains(e.target)) {
           exportDropdown.classList.remove('active');
         }
-      });
+      };
+      document.addEventListener('click', window._repExportClickCleanup);
     }
 
     // Export Actions

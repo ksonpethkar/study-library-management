@@ -15,7 +15,7 @@ if (!fs.existsSync(uploadsDir)) {
  * @desc    Upload image file (base64 or multipart)
  * @access  Private / Public
  */
-router.post('/', async (req, res) => {
+router.post('/', protect, async (req, res) => {
   try {
     const { image, folder } = req.body;
 
