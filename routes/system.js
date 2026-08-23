@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const BusinessProfile = require('../models/BusinessProfile');
 const Shift = require('../models/Shift');
+const Plan = require('../models/Plan');
 const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
 const SystemSetting = require('../models/SystemSetting');
@@ -14,9 +15,10 @@ const ReceiptConfig = require('../models/ReceiptConfig');
  */
 router.get('/public-config', async (req, res) => {
   try {
-    const [businessProfile, allShifts, todayStats, receiptConfig, rawSettings] = await Promise.all([
+    const [businessProfile, allShifts, allPlans, todayStats, receiptConfig, rawSettings] = await Promise.all([
       BusinessProfile.getProfile(),
       Shift.find({ isActive: true }).sort({ startTime: 1, name: 1 }),
+      Plan.find({ isActive: true }).sort('displayOrder').lean(),
       Attendance.getTodayStats().catch(() => ({ totalPresent: 0, totalAbsent: 0, currentlyCheckedIn: 0 })),
       ReceiptConfig.getConfig(),
       SystemSetting.find().lean().catch(() => [])
@@ -120,6 +122,7 @@ router.get('/public-config', async (req, res) => {
         pincode: businessProfile.pincode || '',
         gstNumber: businessProfile.gstNumber || '',
         shifts: shiftsWithCapacity,
+        plans: allPlans,
         kioskVoice,
         livePunchStats,
         receiptConfig,

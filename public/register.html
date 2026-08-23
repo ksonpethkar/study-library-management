@@ -1981,8 +1981,13 @@
         }
 
         // Plans dropdown with Shift Capacity Indicators
-        const rawPlans = Array.isArray(plansRes?.data) ? plansRes.data : (landingRes?.data?.plans || []);
-        const plans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false');
+        const rawPlans = Array.isArray(publicConfig?.plans) ? publicConfig.plans : (Array.isArray(plansRes?.data) ? plansRes.data : (landingRes?.data?.plans || []));
+        const filteredPlans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false');
+        const plans = (filteredPlans.length > 0) ? filteredPlans : (rawPlans.length > 0 ? rawPlans : [
+          { _id: 'plan_monthly', name: 'Monthly Study Plan', price: 1000, effectivePrice: 700, duration: 1, durationType: 'months', shift: 'fullday' },
+          { _id: 'plan_quarterly', name: 'Quarterly Prime Plan', price: 4000, effectivePrice: 2400, duration: 3, durationType: 'months', shift: 'fullday' }
+        ]);
+
         if (plans && plans.length > 0 && planSelect) {
           planSelect.innerHTML = '<option value="">-- Choose Study Shift & Plan --</option>';
           plans.forEach(p => {
