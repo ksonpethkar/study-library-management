@@ -104,9 +104,12 @@ router.use(protect);
  * Helper to find student document for current authenticated user
  */
 async function getStudentForUser(user, req = null) {
+  if (!user) return null;
   const isAdmin = ['owner', 'branch_manager'].includes(user.role);
+  const studentIdParam = req?.query?.studentId || req?.params?.studentId;
+
   // 0. If token explicitly contains studentId (e.g. from student login):
-  if (user?.studentId) {
+  if (user.studentId) {
     const student = await Student.findById(user.studentId).populate('plan').populate('seat').populate('branch').lean();
     if (student) return student;
   }
@@ -141,10 +144,16 @@ async function getStudentForUser(user, req = null) {
   // 3. If user is Admin/Owner and has no student record of their own:
   if (isAdmin) {
     // Return first active student for preview purposes
-    const firstStudent = await Student.findOne({ status: 'active' })
+    let firstStudent = await Student.findOne({ status: 'active' })
       .populate('plan')
       .populate('seat')
-      .populate('branch') || await Student.findOne().populate('plan').populate('seat').populate('branch').lean();
+      .populate('branch').lean();
+    if (!firstStudent) {
+      firstStudent = await Student.findOne()
+        .populate('plan')
+        .populate('seat')
+        .populate('branch').lean();
+    }
     return firstStudent;
   }
 
