@@ -838,10 +838,32 @@ html.dark-theme .modal-content {
   border-bottom-right-radius: var(--radius-lg);
 }
 
-.modal-sm { max-width: 400px; --modal-max-width: 400px; }
+.modal-sm { max-width: 420px; --modal-max-width: 420px; }
 .modal-lg { max-width: 800px; --modal-max-width: 800px; }
 .modal-xl { max-width: 1140px; --modal-max-width: 1140px; }
 .modal-dialog, .modal-content, .modal-lg, .modal-xl { max-width: min(95vw, var(--modal-max-width, 800px)); width: 100%; }
+
+dialog#modal-container {
+  height: fit-content !important;
+  min-height: 0 !important;
+  max-height: 88vh !important;
+  margin: auto !important;
+  padding: 0 !important;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-lg, 14px);
+  background: var(--color-surface, #1e2230);
+  color: var(--color-text-primary, #ffffff);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+dialog#modal-container::backdrop {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+}
 
 @media (max-width: 767px) {
   .form-input, .form-control, .form-select, .btn, .action-btn {

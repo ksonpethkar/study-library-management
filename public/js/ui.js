@@ -201,27 +201,31 @@ Modal.show = function(opts) {
   
   modal.style.cssText = `
     padding: 0;
-    border: 1px solid var(--color-border, #333);
-    border-radius: var(--radius-lg, 12px);
+    border: 1px solid var(--color-border, rgba(255,255,255,0.12));
+    border-radius: var(--radius-lg, 14px);
     background: var(--color-surface, #1e2230);
     color: var(--color-text-primary, #fff);
     box-shadow: var(--shadow-xl, 0 16px 48px rgba(0,0,0,0.5));
     width: min(${rawW}, 95vw);
     max-width: 95vw;
-    height: auto !important;
+    height: fit-content !important;
+    min-height: 0 !important;
     max-height: 85vh;
     margin: auto;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
   `;
 
   modal.innerHTML = `
-    <div class="modal-header" style="padding: 16px 20px; border-bottom: 1px solid var(--color-divider, rgba(255,255,255,0.08)); display: flex; justify-content: space-between; align-items: center;">
-      <h3 style="margin: 0; font-size: 1.2rem; font-weight: 600; color: var(--color-text-primary, #fff);">${escapeHTML(title)}</h3>
-      <button class="modal-close modal-close-btn" style="background: none; border: none; font-size: 1.5rem; color: var(--color-text-muted, #aaa); cursor: pointer; line-height: 1; padding: 4px;">&times;</button>
+    <div class="modal-header" style="padding: 14px 20px; border-bottom: 1px solid var(--color-divider, rgba(255,255,255,0.08)); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+      <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary, #fff);">${escapeHTML(title)}</h3>
+      <button class="modal-close modal-close-btn" style="background: none; border: none; font-size: 1.4rem; color: var(--color-text-muted, #aaa); cursor: pointer; line-height: 1; padding: 4px;">&times;</button>
     </div>
-    <div class="modal-body-container" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+    <div class="modal-body-container" style="padding: 18px 20px; max-height: calc(85vh - 120px); overflow-y: auto; flex: 1 1 auto;">
     </div>
-    <div class="modal-footer-container" style="padding: 14px 20px; border-top: 1px solid var(--color-divider, rgba(255,255,255,0.08)); display: none; justify-content: flex-end; gap: 10px;"></div>
+    <div class="modal-footer-container" style="padding: 12px 20px; border-top: 1px solid var(--color-divider, rgba(255,255,255,0.08)); display: none; justify-content: flex-end; gap: 10px; flex-shrink: 0; background: var(--color-bg-secondary, rgba(255,255,255,0.02));"></div>
   `;
 
   const bodyContainer = modal.querySelector('.modal-body-container');
@@ -479,10 +483,19 @@ Confirm.show = async function(opts) {
     onConfirm = opts.onConfirm || null;
   }
 
+  const icon = danger ? '⚠️' : '❓';
+
   return new Promise(resolve => {
     const confirmBtnClass = danger ? 'btn-danger' : 'btn-primary';
     
-    const content = `<div style="padding: 4px 0; color: var(--color-text-secondary, #ccc); font-size: 0.95rem; line-height: 1.5;">${escapeHTML(message)}</div>`;
+    const content = `
+      <div style="display: flex; gap: 14px; align-items: flex-start; padding: 4px 0;">
+        <div style="font-size: 1.6rem; line-height: 1; flex-shrink: 0; padding-top: 2px;">${icon}</div>
+        <div style="flex: 1; color: var(--color-text-secondary, rgba(255,255,255,0.75)); font-size: 0.95rem; line-height: 1.55; font-weight: 500;">
+          ${escapeHTML(message)}
+        </div>
+      </div>
+    `;
     
     Modal.show({
       title,
