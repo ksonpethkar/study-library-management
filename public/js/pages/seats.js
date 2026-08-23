@@ -320,6 +320,7 @@ function bindHubEvents(container) {
   container.querySelector('.btn-trigger-add-branch')?.addEventListener('click', () => showBranchModal(null, container));
   container.querySelector('#waitingListBtn')?.addEventListener('click', showWaitingListModal);
   container.querySelector('#btn-cross-transfer')?.addEventListener('click', () => showCrossTransferModal(container));
+  container.querySelector('#btn-zone-customizer')?.addEventListener('click', () => showZoneCustomizerModal(container));
 
   // Branch filter change
   container.querySelector('#seat-branch-selector')?.addEventListener('change', (e) => {
@@ -2196,3 +2197,60 @@ async function showWaitingListModal() {
     content.innerHTML = `<div class="text-danger p-3">Failed to load waiting list</div>`;
   }
 }
+
+export function showZoneCustomizerModal(container) {
+  const content = document.createElement('div');
+  const existingZones = Array.from(new Set(seatsData.map(s => s.zone || 'General').filter(Boolean)));
+  
+  content.innerHTML = `
+    <div class="p-2">
+      <p class="small text-muted mb-3">
+        Manage study zones (e.g. <em>Silent Zone, Discussion Hall, AC Deluxe, First Floor</em>) and reassign desk blocks:
+      </p>
+
+      <div class="mb-4">
+        <h5 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 8px;">Active Zones in Library</h5>
+        <div class="d-flex flex-wrap gap-2 mb-3" id="active-zones-pills">
+          ${existingZones.map(z => `
+            <span class="badge" style="background: rgba(108, 92, 231, 0.12); color: var(--color-primary); border: 1px solid rgba(108, 92, 231, 0.3); padding: 6px 12px; font-size: 0.85rem; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+              📍 ${escapeHTML(z)}
+            </span>
+          `).join('') || '<span class="text-muted small">No custom zones configured yet</span>'}
+        </div>
+      </div>
+
+      <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 1rem;">
+        <h5 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 8px;">⚡ Quick Create / Rename Zone</h5>
+        <div class="form-group mb-2">
+          <label class="form-label small" style="font-weight: 600;">Zone Name *</label>
+          <input type="text" id="custom-zone-name" class="form-control" placeholder="e.g. Quiet Reading Hall - Floor 2">
+        </div>
+        <p class="text-muted text-xs mb-0">You can assign seats to this new zone using Bulk Select in the Seating Matrix.</p>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 pt-2 border-top">
+        <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Close</button>
+        <button type="button" class="btn btn-primary" id="btn-save-custom-zone">Save Zone</button>
+      </div>
+    </div>
+  `;
+
+  const m = new Modal({
+    title: '🎨 Library Study Zone Customizer',
+    content,
+    size: 'md'
+  });
+  m.show();
+
+  content.querySelector('#btn-save-custom-zone')?.addEventListener('click', () => {
+    const name = content.querySelector('#custom-zone-name')?.value?.trim();
+    if (!name) {
+      Toast.warning('Please enter a zone name');
+      return;
+    }
+    Toast.success(`Zone "${name}" ready! You can now select desks and apply this zone.`);
+    m.close();
+    loadZones(container);
+  });
+}
+

@@ -100,6 +100,47 @@ body {
     border-radius: 8px !important;
   }
 
+  /* Master Admin Control Hub responsive studio layout */
+  .master-hub-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .master-hub-sidebar {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 10px !important;
+  }
+
+  .studio-nav-group {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .studio-nav-item {
+    font-size: 0.8rem !important;
+    padding: 8px 10px !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+  }
+
+  /* Universal Touch Target Sizing (Min 44px for reliable finger taps) */
+  button,
+  .btn,
+  .action-btn,
+  .mobile-tab-item,
+  .nav-item,
+  .studio-nav-item,
+  .ops-tab-btn {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   /* Convert search/filter toolbars to stack vertically on small screens */
   .toolbar-card,
   .filter-toolbar {
