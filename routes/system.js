@@ -107,6 +107,8 @@ router.get('/public-config', async (req, res) => {
       success: true,
       data: {
         businessName: businessProfile.businessName || 'Study Library',
+        libraryName: businessProfile.businessName || 'Study Library',
+        name: businessProfile.businessName || 'Study Library',
         tagline: businessProfile.tagline || 'Premier Air-Conditioned Reading Hall',
         logo: businessProfile.logo || '',
         favicon: businessProfile.favicon || '',

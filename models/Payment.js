@@ -62,6 +62,7 @@ const paymentSchema = new mongoose.Schema({
         }
     }],
     transactionId: String,
+    referenceNumber: { type: String, trim: true, index: true },
     notes: String,
     collectedBy: {
         type: mongoose.Schema.Types.ObjectId,

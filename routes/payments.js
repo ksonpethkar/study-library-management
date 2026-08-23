@@ -231,6 +231,20 @@ router.post('/', roleCheck('owner', 'branch_manager'), validate([
             branch: req.user.branch || req.body.branch || null
         };
 
+        if (paymentData.referenceNumber && String(paymentData.referenceNumber).trim()) {
+            const cleanRef = String(paymentData.referenceNumber).trim();
+            const existingRef = await Payment.findOne({
+                referenceNumber: cleanRef,
+                status: { $ne: 'failed' }
+            }).lean();
+            if (existingRef) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Payment with UTR / Reference Number "${cleanRef}" already recorded.`
+                });
+            }
+        }
+
         const amount = Number(paymentData.amount) || 0;
         const discount = Number(paymentData.discount) || 0;
         const lateFee = Number(paymentData.lateFee) || 0;
