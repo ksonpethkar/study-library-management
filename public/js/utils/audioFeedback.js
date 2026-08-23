@@ -5,18 +5,24 @@
 class SoundEngine {
   constructor() {
     this.ctx = null;
-    this.enabled = localStorage.getItem('sl_sound_enabled') !== 'false';
+    let isEnabled = true;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        isEnabled = window.localStorage.getItem('sl_sound_enabled') !== 'false';
+      }
+    } catch (_) {}
+    this.enabled = isEnabled;
   }
 
   _initContext() {
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const AudioCtx = (typeof window !== 'undefined') ? (window.AudioContext || window.webkitAudioContext) : null;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      try { this.ctx.resume(); } catch (_) {}
     }
   }
 
@@ -26,7 +32,11 @@ class SoundEngine {
     } else {
       this.enabled = !this.enabled;
     }
-    localStorage.setItem('sl_sound_enabled', this.enabled ? 'true' : 'false');
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('sl_sound_enabled', this.enabled ? 'true' : 'false');
+      }
+    } catch (_) {}
     return this.enabled;
   }
 

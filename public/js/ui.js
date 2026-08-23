@@ -337,17 +337,8 @@ Modal.hide = function() {
   Modal.close();
 };
 
-// Global fallback for any inline HTML onclick handlers and window object
-if (typeof window !== 'undefined') {
-  window.Toast = Toast;
-  window.Modal = Modal;
-  window.Modal.closeAll = Modal.closeAll;
-  window.Modal.close = Modal.close;
-  window.Modal.hide = Modal.hide;
-  window.Modal.confirm = Modal.confirm;
-  window.Confirm = Confirm;
-
-  // Global capture click listener for all Cancel / Close buttons inside any modal
+// Global capture click listener for all Cancel / Close buttons inside any modal
+if (typeof document !== 'undefined') {
   document.addEventListener('click', (e) => {
     const trigger = e.target.closest('[data-modal-close], [data-close-modal], .modal-close, .modal-close-btn, .modal-cancel, .btn-modal-close, .fb-cancel-modal-btn');
     if (trigger) {
@@ -1647,4 +1638,19 @@ export const FAB = {
   show() { if (this._el) this._el.classList.remove('fab-hidden'); }
 };
 
-if (typeof window !== 'undefined') window.FAB = FAB;
+if (typeof window !== 'undefined') {
+  window.Toast = Toast;
+  window.Modal = Modal;
+  window.Modal.closeAll = Modal.closeAll;
+  window.Modal.close = Modal.close;
+  window.Modal.hide = Modal.hide;
+  window.Modal.confirm = Modal.confirm;
+  window.Confirm = Confirm;
+  window.Loading = Loading;
+  window.BottomSheet = BottomSheet;
+  window.FAB = FAB;
+  window.initPullToRefresh = initPullToRefresh;
+  window.PDFExport = PDFExport;
+  window.VoiceSearch = VoiceSearch;
+  window.renderMobileBottomNav = renderMobileBottomNav;
+}
