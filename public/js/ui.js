@@ -528,7 +528,52 @@ Confirm.show = async function(opts) {
 };
 
 export const Loading = {
-  showPage(pageName = 'Loading Workspace...', subtitle = 'Preparing page contents...', icon = '⚡') {
+  _progressInterval: null,
+  _progressValue: 0,
+
+  // 1. Top Slim Glowing Progress Bar
+  startProgress() {
+    let bar = document.getElementById('global-top-progress');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'global-top-progress';
+      bar.className = 'global-top-progress-bar';
+      document.body.appendChild(bar);
+    }
+    clearInterval(this._progressInterval);
+    this._progressValue = 15;
+    bar.style.width = '15%';
+    bar.style.opacity = '1';
+    bar.style.display = 'block';
+
+    this._progressInterval = setInterval(() => {
+      if (this._progressValue < 85) {
+        this._progressValue += Math.random() * 12;
+        if (this._progressValue > 85) this._progressValue = 85;
+        bar.style.width = `${this._progressValue}%`;
+      }
+    }, 100);
+  },
+
+  doneProgress() {
+    clearInterval(this._progressInterval);
+    const bar = document.getElementById('global-top-progress');
+    if (bar) {
+      bar.style.width = '100%';
+      setTimeout(() => {
+        bar.style.opacity = '0';
+        setTimeout(() => {
+          bar.style.display = 'none';
+          bar.style.width = '0%';
+        }, 250);
+      }, 150);
+    }
+  },
+
+  // 2. Standard Central Glassmorphic Page Loader
+  showPage(pageName = 'Loading...', subtitle = 'Preparing your workspace...', icon = '⚡') {
+    this.startProgress();
+
     // Check if initial system-preloader exists
     const sysPreloader = document.getElementById('system-preloader');
     if (sysPreloader && sysPreloader.style.display !== 'none') {
@@ -564,84 +609,112 @@ export const Loading = {
     overlay.style.visibility = 'visible';
     overlay.style.display = 'flex';
   },
+
   hidePage() {
+    this.doneProgress();
+
     const sysPreloader = document.getElementById('system-preloader');
     if (sysPreloader) {
-      sysPreloader.style.pointerEvents = 'none';
       sysPreloader.style.opacity = '0';
-      sysPreloader.style.visibility = 'hidden';
-      sysPreloader.style.display = 'none';
-      try { sysPreloader.remove(); } catch(e) {}
+      sysPreloader.style.pointerEvents = 'none';
+      setTimeout(() => {
+        sysPreloader.style.display = 'none';
+        try { sysPreloader.remove(); } catch(e) {}
+      }, 250);
     }
 
     const overlay = document.getElementById('global-page-loader');
     if (overlay) {
-      overlay.style.pointerEvents = 'none';
       overlay.style.opacity = '0';
-      overlay.style.visibility = 'hidden';
-      overlay.style.display = 'none';
-      try { overlay.remove(); } catch(e) {}
+      overlay.style.pointerEvents = 'none';
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        try { overlay.remove(); } catch(e) {}
+      }, 250);
     }
   },
+
+  // 3. Instant Shimmer Skeletons for 0ms Perceived Response
+  renderSkeleton(container, type = 'table') {
+    if (!container) return;
+    if (typeof container === 'string') container = document.querySelector(container);
+    if (!container) return;
+
+    if (type === 'dashboard') {
+      container.innerHTML = `
+        <div class="skeleton-shimmer-container">
+          <div class="skeleton-stats-grid">
+            <div class="skeleton-card skeleton-stat-box"></div>
+            <div class="skeleton-card skeleton-stat-box"></div>
+            <div class="skeleton-card skeleton-stat-box"></div>
+            <div class="skeleton-card skeleton-stat-box"></div>
+          </div>
+          <div class="skeleton-main-grid">
+            <div class="skeleton-card skeleton-chart-box"></div>
+            <div class="skeleton-card skeleton-side-box"></div>
+          </div>
+        </div>
+      `;
+    } else if (type === 'seats') {
+      container.innerHTML = `
+        <div class="skeleton-shimmer-container">
+          <div class="skeleton-card skeleton-toolbar"></div>
+          <div class="skeleton-seat-grid">
+            ${Array.from({ length: 48 }).map(() => '<div class="skeleton-seat-circle"></div>').join('')}
+          </div>
+        </div>
+      `;
+    } else {
+      // Table / List default
+      container.innerHTML = `
+        <div class="skeleton-shimmer-container">
+          <div class="skeleton-card skeleton-toolbar"></div>
+          <div class="skeleton-card skeleton-table-box">
+            <div class="skeleton-row skeleton-header-row"></div>
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+            <div class="skeleton-row"></div>
+          </div>
+        </div>
+      `;
+    }
+  },
+
+  // 4. Modal / Button / Target Loading
   show(target) {
     if (!target) {
-      let overlay = document.getElementById('global-loading-overlay');
-      if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'global-loading-overlay';
-        overlay.className = 'global-loading-overlay';
-        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); backdrop-filter:blur(3px); z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px;';
-        overlay.innerHTML = '<div class="loading-spinner"></div><div id="global-loading-text" style="color:#fff; font-weight:600; font-size:0.95rem;">Loading...</div>';
-        document.body.appendChild(overlay);
-      }
+      this.showPage('Processing Request...', 'Please wait a moment...', '⚡');
       return;
     }
 
     if (target instanceof HTMLElement) {
+      if (target.tagName === 'BUTTON' || target.classList.contains('btn')) {
+        target.classList.add('btn-loading');
+        target.disabled = true;
+        return;
+      }
       target.classList.add('loading-skeleton');
       target.setAttribute('aria-busy', 'true');
       return;
     }
 
     if (typeof target === 'string') {
-      try {
-        const el = document.querySelector(target);
-        if (el) {
-          el.classList.add('loading-skeleton');
-          el.setAttribute('aria-busy', 'true');
-          return;
-        }
-      } catch (e) {
-        // Not a valid CSS selector - treat target as a display message
-      }
-
-      let overlay = document.getElementById('global-loading-overlay');
-      if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'global-loading-overlay';
-        overlay.className = 'global-loading-overlay';
-        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); backdrop-filter:blur(3px); z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px;';
-        overlay.innerHTML = `<div class="loading-spinner"></div><div id="global-loading-text" style="color:#fff; font-weight:600; font-size:0.95rem;">${escapeHTML(target)}</div>`;
-        document.body.appendChild(overlay);
-      } else {
-        const textEl = document.getElementById('global-loading-text');
-        if (textEl) textEl.textContent = target;
-        overlay.style.display = 'flex';
-      }
+      this.showPage('Processing...', target, '⚡');
     }
   },
-  hide(target) {
-    if (!target) {
-      const overlay = document.getElementById('global-loading-overlay');
-      if (overlay) overlay.remove();
-      this.hidePage();
-      return;
-    }
 
+  hide(target) {
+    this.hidePage();
     if (target instanceof HTMLElement) {
+      if (target.tagName === 'BUTTON' || target.classList.contains('btn')) {
+        target.classList.remove('btn-loading');
+        target.disabled = false;
+        return;
+      }
       target.classList.remove('loading-skeleton');
       target.removeAttribute('aria-busy');
-      return;
     }
 
     if (typeof target === 'string') {
@@ -657,15 +730,17 @@ export const Loading = {
     const overlay = document.getElementById('global-loading-overlay');
     if (overlay) overlay.remove();
   },
+
   button(btn, isLoading) {
     if (typeof btn === 'string') btn = document.querySelector(btn);
     if (!btn) return;
     if (isLoading) {
       btn.dataset.originalText = btn.innerHTML;
-      btn.innerHTML = '<span class="spinner" style="display:inline-block; width:1em; height:1em; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin 0.75s linear infinite;"></span>';
+      btn.classList.add('btn-loading');
       btn.disabled = true;
     } else {
-      btn.innerHTML = btn.dataset.originalText || btn.innerHTML;
+      btn.classList.remove('btn-loading');
+      if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
       btn.disabled = false;
     }
   },

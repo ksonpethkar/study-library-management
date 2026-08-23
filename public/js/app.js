@@ -618,6 +618,32 @@ class Application {
     // Update active nav links immediately
     this.updateActiveNav(pageId);
 
+    const pageMeta = {
+      dashboard: { name: 'Dashboard', icon: '📊', skel: 'dashboard' },
+      students: { name: 'Student Master & Admissions', icon: '🎓', skel: 'table' },
+      seats: { name: 'Live Seating Grid & Hall Matrix', icon: '💺', skel: 'seats' },
+      lockers: { name: 'Locker Allocation Matrix', icon: '🔐', skel: 'table' },
+      plans: { name: 'Membership Study Plans', icon: '📦', skel: 'cards' },
+      payments: { name: 'Fee Collection & Receipt Studio', icon: '💳', skel: 'table' },
+      attendance: { name: 'Gate Kiosk Attendance Log', icon: '📅', skel: 'table' },
+      shifts: { name: 'Study Shift Timings', icon: '⏰', skel: 'table' },
+      branches: { name: 'Multi-Branch Study Centres', icon: '🏢', skel: 'cards' },
+      reports: { name: 'Financial & Occupancy Analytics', icon: '📈', skel: 'table' },
+      expenses: { name: 'Operational Expense Tracker', icon: '💸', skel: 'table' },
+      operations: { name: 'Waiting List & Asset Log', icon: '📋', skel: 'table' },
+      portal: { name: 'Student Self-Service Portal', icon: '🌟', skel: 'dashboard' },
+      settings: { name: 'System Settings & Studio Controls', icon: '⚙️', skel: 'table' },
+      profile: { name: 'Admin Account & Security', icon: '👤', skel: 'cards' }
+    };
+
+    const meta = pageMeta[pageId] || { name: pageId.charAt(0).toUpperCase() + pageId.slice(1), icon: '⚡', skel: 'table' };
+
+    // 1. Instant top progress bar animation
+    Loading.startProgress();
+
+    // 2. Instant skeleton shimmer placeholder
+    Loading.renderSkeleton(content, meta.skel);
+
     const doRender = async () => {
       try {
         const result = await renderFn(content);
@@ -630,7 +656,7 @@ class Application {
         content.innerHTML = `
           <div class="card p-4 text-center" style="border-color: var(--color-danger); margin: 2rem; background: var(--color-surface); border-radius: var(--radius-lg);">
             <div style="font-size: 2.2rem; margin-bottom: 8px;">⚠️</div>
-            <h4 style="color: var(--color-danger); margin-bottom: 6px; font-weight: 800;">Failed to load ${pageId}</h4>
+            <h4 style="color: var(--color-danger); margin-bottom: 6px; font-weight: 800;">Failed to load ${escapeHTML(meta.name)}</h4>
             <p class="text-muted small">${escapeHTML(err.message || 'An error occurred while rendering the page.')}</p>
             <div>
               <button class="btn btn-primary btn-sm mt-2" onclick="window.location.reload()">🔄 Reload Page</button>
@@ -638,6 +664,7 @@ class Application {
           </div>
         `;
       } finally {
+        Loading.doneProgress();
         Loading.hidePage();
       }
     };
