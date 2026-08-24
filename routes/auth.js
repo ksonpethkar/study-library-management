@@ -502,12 +502,20 @@ router.post('/public-register', authLimiter, async (req, res) => {
       }
     }
 
-    // Handle seat assignment if selected during registration
+    // Handle atomic seat assignment if selected during registration
     let allocatedSeatDoc = null;
     if (seat && mongoose.Types.ObjectId.isValid(seat)) {
-      allocatedSeatDoc = await Seat.findById(seat);
+      allocatedSeatDoc = await Seat.findOneAndUpdate(
+        { _id: seat, status: 'available' },
+        { status: 'occupied', currentStudent: newStudent._id, assignedAt: new Date() },
+        { new: true }
+      );
       if (allocatedSeatDoc) {
         newStudent.seat = allocatedSeatDoc._id;
+      } else {
+        newStudent.seat = null;
+        const noteMsg = 'Seat was concurrently booked by another user; floating admission granted.';
+        newStudent.notes = newStudent.notes ? `${newStudent.notes} • ${noteMsg}` : noteMsg;
       }
     }
 
@@ -546,12 +554,6 @@ router.post('/public-register', authLimiter, async (req, res) => {
       } catch (refLogErr) {
         console.warn('Referral logging warning:', refLogErr);
       }
-    }
-
-    if (allocatedSeatDoc && allocatedSeatDoc.status === 'available') {
-      allocatedSeatDoc.status = 'occupied';
-      allocatedSeatDoc.currentStudent = newStudent._id;
-      await allocatedSeatDoc.save();
     }
 
     // Create payment record if plan is chosen

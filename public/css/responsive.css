@@ -1986,3 +1986,77 @@ a, a * {
   .page-loader-card { padding: 1.25rem 2rem; }
   .page-loader-ring { width: 48px; height: 48px; }
 }
+
+/* ==========================================================================
+   Virtual Keyboard Viewport Responsiveness
+   ========================================================================== */
+body.virtual-keyboard-open .mobile-bottom-nav,
+body.virtual-keyboard-open .speed-dial-fab,
+body.virtual-keyboard-open .app-fab,
+body.virtual-keyboard-open .fab-container,
+body.virtual-keyboard-open #global-fab,
+body.virtual-keyboard-open #btn-pwa-header-install,
+body.virtual-keyboard-open .btn-pwa-install,
+body.virtual-keyboard-open .btn-floating,
+body.virtual-keyboard-open .floating-action-bar {
+  display: none !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transform: translateY(100%) !important;
+}
+
+body.virtual-keyboard-open {
+  padding-bottom: 0 !important;
+}
+
+body.virtual-keyboard-open #page-content,
+body.virtual-keyboard-open .page-content,
+body.virtual-keyboard-open .page-container,
+body.virtual-keyboard-open .main-content {
+  padding-bottom: 16px !important;
+}
+
+/* Modal sizing dynamically adjusting so inputs and buttons are never clipped behind soft keyboards */
+body.virtual-keyboard-open dialog,
+body.virtual-keyboard-open dialog#modal-container,
+body.virtual-keyboard-open dialog.modal-container-dialog,
+body.virtual-keyboard-open dialog.app-modal,
+body.virtual-keyboard-open .modal-dialog,
+body.virtual-keyboard-open .modal-content,
+body.virtual-keyboard-open .custom-modal,
+body.virtual-keyboard-open .modal {
+  max-height: min(92dvh, calc(100vh - 16px)) !important;
+  margin: auto !important;
+  overflow: hidden !important;
+}
+
+body.virtual-keyboard-open .modal-header {
+  padding: 10px 16px !important;
+  flex-shrink: 0 !important;
+}
+
+body.virtual-keyboard-open .modal-body,
+body.virtual-keyboard-open .modal-body-container {
+  max-height: calc(55vh - 50px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding: 12px 16px !important;
+  overscroll-behavior: contain !important;
+}
+
+body.virtual-keyboard-open .modal-footer,
+body.virtual-keyboard-open .modal-footer-container {
+  position: sticky !important;
+  bottom: 0 !important;
+  background: var(--color-surface, #1e2230) !important;
+  z-index: 10 !important;
+  padding: 10px 16px !important;
+  flex-shrink: 0 !important;
+}
+
+body.virtual-keyboard-open input:focus,
+body.virtual-keyboard-open textarea:focus,
+body.virtual-keyboard-open select:focus {
+  scroll-margin-bottom: 30px;
+}

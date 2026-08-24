@@ -43,12 +43,12 @@ export class KeyboardShortcuts {
         return;
       }
 
-      // 3. Esc: Closes any open modal dialog or bottom sheet
+      // 3. Esc: Closes top open modal dialog or bottom sheet
       if (e.key === 'Escape' || e.key === 'Esc') {
         if (window.App && window.App.searchPalette && window.App.searchPalette.isOpen) {
           window.App.searchPalette.close();
         }
-        Modal.closeAll();
+        Modal.close();
         BottomSheet.close();
         return;
       }

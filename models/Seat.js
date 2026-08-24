@@ -44,6 +44,9 @@ const seatSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Student'
   },
+  assignedAt: {
+    type: Date
+  },
   amenities: [{
     type: String
   }],

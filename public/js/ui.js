@@ -148,11 +148,11 @@ export class ModalClass {
   }
 
   hide() {
-    Modal.close();
+    Modal.close(this.element);
   }
 
   close() {
-    Modal.close();
+    Modal.close(this.element);
   }
 }
 
@@ -168,6 +168,8 @@ export const Modal = function(titleOrOptions, content, size) {
   }
   return new ModalClass(titleOrOptions, content, size);
 };
+
+Modal._stack = [];
 
 Modal.show = function(opts) {
   let title = '';
@@ -188,13 +190,24 @@ Modal.show = function(opts) {
     onClose = opts.onClose || null;
   }
 
-  let modal = document.getElementById('modal-container');
-  if (!modal) {
-    modal = document.createElement('dialog');
-    modal.id = 'modal-container';
-    document.body.appendChild(modal);
+  // Calculate stack depth and layered z-index
+  const stackLevel = Modal._stack.length;
+  const zIndex = 1000 + (stackLevel * 10);
+
+  // If previous modals exist in stack, deactivate their pointer events while top modal is active
+  if (stackLevel > 0) {
+    const prevModal = Modal._stack[stackLevel - 1];
+    if (prevModal && prevModal.element) {
+      prevModal.element.setAttribute('aria-hidden', 'true');
+      prevModal.element.style.pointerEvents = 'none';
+    }
   }
-  
+
+  const modal = document.createElement('dialog');
+  modal.className = 'modal-container-dialog app-modal modal';
+  modal.id = stackLevel === 0 ? 'modal-container' : `modal-container-${Date.now()}-${stackLevel}`;
+  modal.setAttribute('data-stack-level', String(stackLevel));
+
   const widthMap = { sm: '420px', md: '640px', lg: '850px', xl: '1050px' };
   // Clamp to viewport — prevents modal overflow on mobile phones
   const rawW = widthMap[size] || widthMap.md;
@@ -216,6 +229,7 @@ Modal.show = function(opts) {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    z-index: ${zIndex};
   `;
 
   modal.innerHTML = `
@@ -239,12 +253,10 @@ Modal.show = function(opts) {
   const modalWrapper = {
     element: modal,
     close: () => {
-      Modal.closeAll();
-      if (onClose) onClose();
+      Modal.close(modal);
     },
     hide: () => {
-      Modal.closeAll();
-      if (onClose) onClose();
+      Modal.close(modal);
     }
   };
 
@@ -261,7 +273,7 @@ Modal.show = function(opts) {
         if (typeof btn.onClick === 'function') {
           btn.onClick(modalWrapper);
         } else {
-          Modal.closeAll();
+          Modal.close(modal);
         }
       };
       footerContainer.appendChild(b);
@@ -275,7 +287,7 @@ Modal.show = function(opts) {
     cancelBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      Modal.closeAll();
+      Modal.close(modal);
     };
 
     const confirmBtn = document.createElement('button');
@@ -290,13 +302,18 @@ Modal.show = function(opts) {
         confirmBtn.textContent = 'Processing...';
         try {
           const res = await opts.onConfirm(modalWrapper);
-          if (res !== false) Modal.closeAll();
+          if (res !== false) {
+            Modal.close(modal);
+          } else {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = opts.confirmText || 'Save & Confirm';
+          }
         } catch (err) {
           console.error(err);
-          Modal.closeAll();
+          Modal.close(modal);
         }
       } else {
-        Modal.closeAll();
+        Modal.close(modal);
       }
     };
 
@@ -313,15 +330,14 @@ Modal.show = function(opts) {
       e.preventDefault();
       e.stopPropagation();
     }
-    Modal.closeAll();
-    if (onClose) onClose();
+    Modal.close(modal);
   };
   
   if (closeBtn) closeBtn.onclick = closeHandler;
   
   modal.oncancel = (e) => {
     e.preventDefault();
-    closeHandler();
+    Modal.close(modal);
   };
   
   modal.onclick = (e) => {
@@ -329,33 +345,133 @@ Modal.show = function(opts) {
     const isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
       rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
     if (!isInDialog) {
-      closeHandler();
+      Modal.close(modal);
     }
   };
 
-  if (!modal.open) {
-    modal.showModal();
+  // Push record to stack
+  Modal._stack.push({
+    element: modal,
+    onClose,
+    options: opts,
+    wrapper: modalWrapper
+  });
+
+  document.body.appendChild(modal);
+
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.classList.add('modal-open');
+    document.body.style.overflow = 'hidden';
   }
+
+  if (typeof modal.showModal === 'function') {
+    if (!modal.open) {
+      try {
+        modal.showModal();
+      } catch (err) {
+        modal.setAttribute('open', '');
+        modal.style.display = 'flex';
+      }
+    }
+  } else {
+    modal.setAttribute('open', '');
+    modal.style.display = 'flex';
+  }
+
   return modal;
 };
 
-Modal.close = function() {
+Modal.close = function(target) {
+  if (!Modal._stack || Modal._stack.length === 0) {
+    const dialogs = document.querySelectorAll('dialog, #modal-container, .modal-container, .modal, .modal-backdrop');
+    dialogs.forEach(d => {
+      try {
+        if (typeof d.close === 'function' && d.open) d.close();
+        d.removeAttribute('open');
+        d.style.display = 'none';
+        d.remove();
+      } catch (e) {}
+    });
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = '';
+    }
+    return;
+  }
+
+  let itemToClose = null;
+  if (target) {
+    const targetEl = target instanceof HTMLElement ? target : (target && target.element ? target.element : null);
+    const idx = Modal._stack.findIndex(item => item.element === targetEl || (targetEl && item.element && item.element.contains(targetEl)));
+    if (idx !== -1) {
+      itemToClose = Modal._stack.splice(idx, 1)[0];
+    }
+  }
+
+  if (!itemToClose) {
+    // Pop the topmost modal
+    itemToClose = Modal._stack.pop();
+  }
+
+  if (itemToClose && itemToClose.element) {
+    try {
+      if (typeof itemToClose.element.close === 'function' && itemToClose.element.open) {
+        itemToClose.element.close();
+      }
+    } catch (e) {}
+    try {
+      itemToClose.element.removeAttribute('open');
+      itemToClose.element.style.display = 'none';
+      itemToClose.element.remove();
+    } catch (e) {}
+
+    if (typeof itemToClose.onClose === 'function') {
+      try {
+        itemToClose.onClose();
+      } catch (err) {
+        console.error('Error in Modal onClose handler:', err);
+      }
+    }
+  }
+
+  // If stack still has items, reactivate the previous top-most modal
+  if (Modal._stack.length > 0) {
+    const topItem = Modal._stack[Modal._stack.length - 1];
+    if (topItem && topItem.element) {
+      topItem.element.removeAttribute('aria-hidden');
+      topItem.element.style.pointerEvents = '';
+      try {
+        const focusable = topItem.element.querySelector('input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])');
+        if (focusable) focusable.focus();
+        else topItem.element.focus();
+      } catch (e) {}
+    }
+  } else {
+    // Stack is empty -> restore body scroll and remove backdrop
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = '';
+    }
+    document.querySelectorAll('.modal-backdrop').forEach(el => {
+      try { el.remove(); } catch (e) {}
+    });
+  }
+};
+
+Modal.closeAll = function() {
+  if (Modal._stack && Modal._stack.length > 0) {
+    while (Modal._stack.length > 0) {
+      Modal.close();
+    }
+  }
   const dialogs = document.querySelectorAll('dialog, #modal-container, .modal-container, .modal, .modal-backdrop');
   dialogs.forEach(d => {
     try {
-      if (typeof d.close === 'function' && d.open) {
-        d.close();
-      }
+      if (typeof d.close === 'function' && d.open) d.close();
       d.removeAttribute('open');
       d.style.display = 'none';
       d.remove();
     } catch (e) {}
-  });
-  document.getElementById('modal-container')?.remove();
-  document.querySelectorAll('.modal-backdrop, [id^="modal-"]').forEach(el => {
-    if (el.tagName === 'DIALOG' || el.classList.contains('modal-backdrop')) {
-      try { el.remove(); } catch(e) {}
-    }
   });
   if (typeof document !== 'undefined' && document.body) {
     document.body.classList.remove('modal-open');
@@ -363,12 +479,8 @@ Modal.close = function() {
   }
 };
 
-Modal.closeAll = function() {
-  Modal.close();
-};
-
-Modal.hide = function() {
-  Modal.close();
+Modal.hide = function(target) {
+  Modal.close(target);
 };
 
 // Scoped click listener for Cancel / Close buttons inside modals
@@ -379,12 +491,11 @@ if (typeof document !== 'undefined') {
       e.preventDefault();
       e.stopPropagation();
       const parentDialog = trigger.closest('dialog, .modal-container, .modal');
-      if (parentDialog && parentDialog.id && parentDialog.id !== 'modal-container') {
-        try { if (typeof parentDialog.close === 'function') parentDialog.close(); } catch(e) {}
-        parentDialog.remove();
+      if (parentDialog) {
+        Modal.close(parentDialog);
         return;
       }
-      Modal.closeAll();
+      Modal.close();
       return;
     }
 
@@ -394,12 +505,11 @@ if (typeof document !== 'undefined') {
       e.preventDefault();
       e.stopPropagation();
       const parentDialog = cancelBtn.closest('dialog, .modal-container, .modal');
-      if (parentDialog && parentDialog.id && parentDialog.id !== 'modal-container') {
-        try { if (typeof parentDialog.close === 'function') parentDialog.close(); } catch(e) {}
-        parentDialog.remove();
+      if (parentDialog) {
+        Modal.close(parentDialog);
         return;
       }
-      Modal.closeAll();
+      Modal.close();
     }
   }, true);
 }
@@ -460,11 +570,11 @@ Modal.prototype.open = function() {
 };
 
 Modal.prototype.hide = function() {
-  Modal.close();
+  Modal.close(this.element);
 };
 
 Modal.prototype.close = function() {
-  Modal.close();
+  Modal.close(this.element);
 };
 
 /**
@@ -528,7 +638,7 @@ Confirm.show = async function(opts) {
     const finish = (value) => {
       if (!resolved) {
         resolved = true;
-        Modal.closeAll();
+        Modal.close();
         resolve(value);
       }
     };
@@ -2073,6 +2183,49 @@ if (typeof document !== 'undefined') {
   });
 }
 
+/**
+ * Virtual Keyboard Viewport Responsiveness Listener
+ * Detects mobile on-screen virtual keyboard toggle and adapts the layout.
+ */
+export function initVisualViewportKeyboardListener() {
+  if (typeof window === 'undefined') return;
+
+  const updateKeyboardState = () => {
+    if (window.visualViewport) {
+      // If visual viewport height is < 75% of window.innerHeight, virtual keyboard is open
+      const isKeyboardOpen = window.visualViewport.height < (window.innerHeight * 0.75);
+      if (isKeyboardOpen) {
+        document.body.classList.add('virtual-keyboard-open');
+      } else {
+        document.body.classList.remove('virtual-keyboard-open');
+      }
+    }
+  };
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateKeyboardState);
+    window.visualViewport.addEventListener('scroll', updateKeyboardState);
+  }
+
+  // Fallback focus listeners for mobile browsers
+  window.addEventListener('focusin', (e) => {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
+      if (window.innerWidth <= 768) {
+        setTimeout(updateKeyboardState, 150);
+      }
+    }
+  });
+
+  window.addEventListener('focusout', () => {
+    if (window.innerWidth <= 768) {
+      setTimeout(updateKeyboardState, 150);
+    }
+  });
+
+  // Initial check
+  updateKeyboardState();
+}
+
 if (typeof window !== 'undefined') {
   window.Toast = Toast;
   window.Modal = Modal;
@@ -2086,7 +2239,14 @@ if (typeof window !== 'undefined') {
   window.FAB = FAB;
   window.ActionMenu = ActionMenu;
   window.initPullToRefresh = initPullToRefresh;
+  window.initVisualViewportKeyboardListener = initVisualViewportKeyboardListener;
   window.PDFExport = PDFExport;
   window.VoiceSearch = VoiceSearch;
   window.renderMobileBottomNav = renderMobileBottomNav;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => initVisualViewportKeyboardListener());
+  } else {
+    initVisualViewportKeyboardListener();
+  }
 }

@@ -1,11 +1,19 @@
 const mongoose = require('mongoose');
 
+const sessionSchema = new mongoose.Schema({
+  checkIn: { type: Date },
+  checkOut: { type: Date },
+  durationMinutes: { type: Number, default: 0 }
+}, { _id: false });
+
 const attendanceSchema = new mongoose.Schema({
   student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
   date: { type: Date, required: true },
   checkIn: Date,
   checkOut: Date,
   duration: Number, // in minutes
+  sessions: [sessionSchema],
+  totalStudyMinutes: { type: Number, default: 0 },
   status: { type: String, enum: ['present', 'absent', 'late', 'half_day'], default: 'present' },
   seat: { type: mongoose.Schema.Types.ObjectId, ref: 'Seat' },
   shift: String,
@@ -22,9 +30,22 @@ attendanceSchema.index({ branch: 1, student: 1, date: -1 });
 attendanceSchema.index({ date: 1, status: 1 });
 
 attendanceSchema.pre('save', async function() {
-  if (this.checkIn && this.checkOut) {
+  if (this.sessions && this.sessions.length > 0) {
+    let sumMinutes = 0;
+    for (const s of this.sessions) {
+      if (s.checkIn && s.checkOut) {
+        const diffMs = new Date(s.checkOut).getTime() - new Date(s.checkIn).getTime();
+        s.durationMinutes = Math.max(0, Math.round(diffMs / (1000 * 60)));
+        sumMinutes += s.durationMinutes;
+      }
+    }
+    this.totalStudyMinutes = sumMinutes;
+    this.duration = sumMinutes;
+  } else if (this.checkIn && this.checkOut) {
     const diffMs = new Date(this.checkOut).getTime() - new Date(this.checkIn).getTime();
-    this.duration = Math.max(0, Math.round(diffMs / (1000 * 60)));
+    const durationMins = Math.max(0, Math.round(diffMs / (1000 * 60)));
+    this.duration = durationMins;
+    this.totalStudyMinutes = durationMins;
   }
 });
 

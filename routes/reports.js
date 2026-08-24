@@ -108,27 +108,27 @@ router.get('/overview', async (req, res) => {
     ] = await Promise.all([
       // All time revenue
       Payment.aggregate([
-        { $match: { status: 'paid' } },
+        { $match: { status: 'paid', isDeleted: { $ne: true } } },
         { $group: { _id: null, total: { $sum: '$finalAmount' }, count: { $sum: 1 } } }
       ]),
       // Period revenue
       Payment.aggregate([
-        { $match: { paymentDate: { $gte: startDate, $lte: endDate }, status: 'paid' } },
+        { $match: { paymentDate: { $gte: startDate, $lte: endDate }, status: 'paid', isDeleted: { $ne: true } } },
         { $group: { _id: null, total: { $sum: '$finalAmount' }, count: { $sum: 1 } } }
       ]),
       // Current month revenue
       Payment.aggregate([
-        { $match: { paymentDate: { $gte: monthStart, $lte: todayEnd }, status: 'paid' } },
+        { $match: { paymentDate: { $gte: monthStart, $lte: todayEnd }, status: 'paid', isDeleted: { $ne: true } } },
         { $group: { _id: null, total: { $sum: '$finalAmount' } } }
       ]),
       // Total students
-      Student.countDocuments(),
+      Student.countDocuments({ isDeleted: { $ne: true } }),
       // Active students
-      Student.countDocuments({ status: 'active' }),
+      Student.countDocuments({ status: 'active', isDeleted: { $ne: true } }),
       // Inactive students
-      Student.countDocuments({ status: 'inactive' }),
+      Student.countDocuments({ status: 'inactive', isDeleted: { $ne: true } }),
       // Expired students
-      Student.countDocuments({ status: 'expired' }),
+      Student.countDocuments({ status: 'expired', isDeleted: { $ne: true } }),
       // Total attendance logs
       Attendance.countDocuments(),
       // Today's attendance
@@ -136,15 +136,17 @@ router.get('/overview', async (req, res) => {
       // Expiring in next 30 days
       Student.countDocuments({
         expiryDate: { $gte: todayStart, $lte: in30Days },
-        status: { $in: ['active', 'expired'] }
+        status: { $in: ['active', 'expired'] },
+        isDeleted: { $ne: true }
       }),
       // Students with expired date (dues)
       Student.countDocuments({
-        expiryDate: { $lt: todayStart }
+        expiryDate: { $lt: todayStart },
+        isDeleted: { $ne: true }
       }),
       // Pending/partial payment dues amount
       Payment.aggregate([
-        { $match: { status: { $in: ['pending', 'partial'] } } },
+        { $match: { status: { $in: ['pending', 'partial'] }, isDeleted: { $ne: true } } },
         { $group: { _id: null, total: { $sum: '$finalAmount' }, count: { $sum: 1 } } }
       ])
     ]);
@@ -202,7 +204,8 @@ router.get('/revenue', async (req, res) => {
     // 1. Trend analysis (daily or monthly)
     const paymentsInPeriod = await Payment.find({
       paymentDate: { $gte: startDate, $lte: endDate },
-      status: 'paid'
+      status: 'paid',
+      isDeleted: { $ne: true }
     })
       .populate('student', 'name studentId phone email')
       .populate('plan', 'name price duration durationType')
@@ -279,7 +282,8 @@ router.get('/revenue', async (req, res) => {
 
     // Dues stats
     const duesStudents = await Student.find({
-      expiryDate: { $lt: new Date() }
+      expiryDate: { $lt: new Date() },
+      isDeleted: { $ne: true }
     }).populate('plan', 'name price').lean();
 
     let estimatedPendingDues = 0;
@@ -485,7 +489,8 @@ router.get('/expiries', async (req, res) => {
     past30Days.setDate(past30Days.getDate() - 30);
 
     const students = await Student.find({
-      expiryDate: { $gte: past30Days.lean(), $lte: futureDate }
+      expiryDate: { $gte: past30Days, $lte: futureDate },
+      isDeleted: { $ne: true }
     })
       .populate('plan', 'name price duration durationType')
       .populate('seat', 'seatNumber zone')
@@ -572,7 +577,7 @@ router.get('/expiries', async (req, res) => {
 router.get('/export/students', async (req, res) => {
   try {
     const { format = 'csv', status, plan } = req.query;
-    const filter = {};
+    const filter = { isDeleted: { $ne: true } };
     if (status) filter.status = status;
     if (plan) filter.plan = plan;
 
@@ -626,7 +631,7 @@ router.get('/export/students', async (req, res) => {
 router.get('/export/payments', async (req, res) => {
   try {
     const { format = 'csv', startDate: qStart, endDate: qEnd, method, status } = req.query;
-    const filter = {};
+    const filter = { isDeleted: { $ne: true } };
 
     if (qStart || qEnd) {
       const { startDate, endDate } = parseDateRange(qStart, qEnd, 90);
@@ -783,14 +788,16 @@ router.get('/tally-xml', async (req, res) => {
     const [payments, expenses] = await Promise.all([
       Payment.find({
         paymentDate: { $gte: startDate, $lte: endDate },
-        status: 'paid'
+        status: 'paid',
+        isDeleted: { $ne: true }
       })
         .populate('student', 'name studentId phone')
         .populate('plan', 'name')
         .sort({ paymentDate: 1 })
         .lean(),
       Expense.find({
-        date: { $gte: startDate, $lte: endDate }
+        date: { $gte: startDate, $lte: endDate },
+        isDeleted: { $ne: true }
       })
         .sort({ date: 1 })
         .lean()
@@ -923,7 +930,8 @@ router.get('/gst-report', async (req, res) => {
 
     const payments = await Payment.find({
       paymentDate: { $gte: startDate, $lte: endDate },
-      status: 'paid'
+      status: 'paid',
+      isDeleted: { $ne: true }
     })
       .populate('student', 'name studentId phone state gstin')
       .populate('plan', 'name price')

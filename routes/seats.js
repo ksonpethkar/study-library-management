@@ -73,7 +73,7 @@ router.get('/', async (req, res) => {
 router.get('/zones', async (req, res) => {
   try {
     const { branch } = req.query;
-    let match = {};
+    let match = { isDeleted: { $ne: true } };
     if (branch && branch !== 'all') {
       if (branch === 'unassigned') match.branch = null;
       else if (mongoose.Types.ObjectId.isValid(branch)) match.branch = new mongoose.Types.ObjectId(branch);
@@ -95,7 +95,7 @@ router.get('/zones', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     const { branch } = req.query;
-    let match = {};
+    let match = { isDeleted: { $ne: true } };
     if (branch && branch !== 'all') {
       if (branch === 'unassigned') match.branch = null;
       else if (mongoose.Types.ObjectId.isValid(branch)) match.branch = new mongoose.Types.ObjectId(branch);
@@ -225,16 +225,21 @@ router.post('/bulk', roleCheck('owner', 'branch_manager'), validate([
   }
 });
 
-// POST /bulk-delete - Delete multiple seats
+// POST /bulk-delete - Soft-delete multiple seats to Trash
 router.post('/bulk-delete', roleCheck('owner'), async (req, res) => {
   try {
-    const { seatIds } = req.body;
+    const { seatIds, reason } = req.body;
     if (!Array.isArray(seatIds) || seatIds.length === 0) {
       return res.status(400).json({ success: false, message: 'No seat IDs provided' });
     }
 
     // Do not delete occupied seats
-    const occupied = await Seat.find({ _id: { $in: seatIds }, status: 'occupied' }).lean();
+    const occupied = await Seat.find({
+      _id: { $in: seatIds },
+      $or: [{ status: 'occupied' }, { currentStudent: { $ne: null } }],
+      isDeleted: { $ne: true }
+    }).lean();
+
     if (occupied.length > 0) {
       return res.status(400).json({ 
         success: false, 
@@ -242,8 +247,35 @@ router.post('/bulk-delete', roleCheck('owner'), async (req, res) => {
       });
     }
 
-    const result = await Seat.deleteMany({ _id: { $in: seatIds } });
-    res.json({ success: true, message: `Successfully deleted ${result.deletedCount} seats` });
+    const seatsToDelete = await Seat.find({
+      _id: { $in: seatIds },
+      isDeleted: { $ne: true }
+    }).populate('branch', 'name');
+
+    for (const seat of seatsToDelete) {
+      await moveToTrash({
+        itemType: 'seat',
+        itemId: seat._id,
+        itemTitle: `Desk ${seat.seatNumber} (${seat.zone || 'Zone A'})`,
+        itemSubtitle: `Floor: ${seat.floor || 'G'} • Type: ${(seat.type || 'regular').toUpperCase()} • Branch: ${seat.branch?.name || 'Main'}`,
+        originalCollection: 'seats',
+        itemData: seat.toObject ? seat.toObject() : seat,
+        user: req.user,
+        reason: reason || req.body?.reason || ''
+      });
+
+      await Seat.findByIdAndUpdate(seat._id, {
+        isDeleted: true,
+        isActive: false,
+        deletedAt: new Date(),
+        deletedBy: req.user?._id
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully moved ${seatsToDelete.length} seat(s) to Recycle Bin (Trash)`
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -329,6 +361,13 @@ router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => 
       reason: req.body?.reason || ''
     });
 
+    await Seat.findByIdAndUpdate(seat._id, {
+      isDeleted: true,
+      isActive: false,
+      deletedAt: new Date(),
+      deletedBy: req.user?._id
+    });
+
     res.json({ success: true, data: {}, message: `Seat "${seat.seatNumber}" moved to Recycle Bin (Trash).` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -397,7 +436,7 @@ router.post('/:id/assign', roleCheck('owner', 'branch_manager'), validate([
 
     // Shift Overlap Prevention: Find other active students assigned to this seat
     const occupiedStudents = await Student.find({
-      seat: seat._id.lean(),
+      seat: seat._id,
       status: 'active',
       _id: { $ne: student._id }
     }).populate('shift').populate('plan');
@@ -419,14 +458,36 @@ router.post('/:id/assign', roleCheck('owner', 'branch_manager'), validate([
       await Seat.findByIdAndUpdate(student.seat, { currentStudent: null, status: 'available' });
     }
 
-    // Update seat
-    seat.currentStudent = student._id;
-    seat.status = 'occupied';
-    await seat.save();
+    // Atomic seat assignment guard
+    const updatedSeat = await Seat.findOneAndUpdate(
+      {
+        _id: seat._id,
+        status: { $ne: 'maintenance' },
+        $or: [
+          { status: 'available' },
+          { currentStudent: null },
+          { currentStudent: student._id }
+        ]
+      },
+      {
+        $set: {
+          currentStudent: student._id,
+          status: 'occupied',
+          assignedAt: new Date()
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedSeat) {
+      return res.status(409).json({
+        success: false,
+        message: `Seat ${seat.seatNumber} is currently occupied or unavailable`
+      });
+    }
 
     // Update student
-    student.seat = seat._id;
-    await student.save();
+    await Student.findByIdAndUpdate(student._id, { seat: updatedSeat._id });
     
     const populated = await Seat.findById(seat._id).populate('currentStudent', 'name studentId phone').lean();
     res.json({ success: true, data: populated, message: `Student ${student.name} assigned to Seat ${seat.seatNumber} successfully` });

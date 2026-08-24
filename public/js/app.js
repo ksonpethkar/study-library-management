@@ -3,7 +3,7 @@ import Router from './router.js';
 import { initSetupWizard, initLoginPage, initAppEvents } from './auth.js';
 import { t } from './i18n.js';
 import ShortcutManager from './shortcuts.js';
-import { Toast, Modal, Loading, renderMobileBottomNav, VoiceSearch, initPullToRefresh } from './ui.js';
+import { Toast, Modal, Loading, renderMobileBottomNav, VoiceSearch, initPullToRefresh, initVisualViewportKeyboardListener } from './ui.js';
 import { SearchPalette } from './search.js';
 import { AudioFeedback } from './utils/audioFeedback.js';
 import { promptPWAInstall } from './pwaManager.js';
@@ -349,34 +349,10 @@ class Application {
       initPullToRefresh();
     }
 
-    // ── Phase D: Virtual Keyboard Detection ────────────────────────────────
-    // Hide bottom nav when soft keyboard opens so inputs stay accessible
+    // ── Phase D: Virtual Keyboard Detection & Viewport Responsiveness ───────
     if (!this._keyboardInit) {
       this._keyboardInit = true;
-      const bottomNav = document.querySelector('.mobile-bottom-nav');
-      if (bottomNav) {
-        const hideNav = () => { bottomNav.style.display = 'none'; };
-        const showNav = () => { bottomNav.style.removeProperty('display'); };
-
-        if (window.visualViewport) {
-          // Modern API — fires when viewport shrinks (keyboard open)
-          const initialH = window.visualViewport.height;
-          window.visualViewport.addEventListener('resize', () => {
-            const shrunk = window.visualViewport.height < initialH * 0.8;
-            shrunk ? hideNav() : showNav();
-          });
-        } else {
-          // Fallback: listen to focus/blur on inputs
-          document.addEventListener('focusin', (e) => {
-            if (e.target.matches('input, textarea, select')) {
-              if (window.innerWidth <= 768) hideNav();
-            }
-          });
-          document.addEventListener('focusout', () => {
-            setTimeout(showNav, 150);
-          });
-        }
-      }
+      initVisualViewportKeyboardListener();
     }
 
     // ── Phase D: Mobile Keyboard Input Enhancement ─────────────────────────

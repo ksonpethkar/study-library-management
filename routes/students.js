@@ -258,10 +258,24 @@ router.post('/', validate([
 
     await student.save();
 
-    // Mark seat occupied
+    // Mark seat occupied with atomic concurrency guard
     if (student.seat) {
       const Seat = require('../models/Seat');
-      await Seat.findByIdAndUpdate(student.seat, { status: 'occupied', currentStudent: student._id }).catch(() => {});
+      const allocatedSeat = await Seat.findOneAndUpdate(
+        {
+          _id: student.seat,
+          $or: [{ status: 'available' }, { currentStudent: null }, { currentStudent: student._id }]
+        },
+        { status: 'occupied', currentStudent: student._id, assignedAt: new Date() },
+        { new: true }
+      ).catch(() => null);
+
+      if (!allocatedSeat) {
+        student.seat = null;
+        const noteMsg = 'Seat was concurrently booked by another user; floating admission granted.';
+        student.notes = student.notes ? `${student.notes} • ${noteMsg}` : noteMsg;
+        await student.save();
+      }
     }
 
     res.status(201).json({ success: true, data: student, message: 'Student created successfully' });
@@ -356,7 +370,20 @@ router.put('/:id', validate([
       await Seat.findByIdAndUpdate(oldSeat, { status: 'available', currentStudent: null }).catch(() => {});
     }
     if (newSeat && student.status === 'active') {
-      await Seat.findByIdAndUpdate(newSeat, { status: 'occupied', currentStudent: student._id }).catch(() => {});
+      const allocatedSeat = await Seat.findOneAndUpdate(
+        {
+          _id: newSeat,
+          $or: [{ status: 'available' }, { currentStudent: null }, { currentStudent: student._id }]
+        },
+        { status: 'occupied', currentStudent: student._id, assignedAt: new Date() },
+        { new: true }
+      ).catch(() => null);
+
+      if (!allocatedSeat && oldSeat !== newSeat) {
+        student.seat = oldSeat ? new mongoose.Types.ObjectId(oldSeat) : null;
+        await student.save();
+        return res.status(409).json({ success: false, message: 'Requested seat is already occupied by another student' });
+      }
     } else if (newSeat && ['inactive', 'expired', 'suspended'].includes(student.status)) {
       await Seat.findByIdAndUpdate(newSeat, { status: 'available', currentStudent: null }).catch(() => {});
     }

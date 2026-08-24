@@ -58,12 +58,28 @@ const expenseSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  // Soft Delete & Trash Support
+  isDeleted: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  deletedAt: {
+    type: Date
+  },
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
 }, {
   timestamps: true
 });
 
 // Database Indexes
+expenseSchema.index({ isDeleted: 1, branch: 1, date: -1 });
+expenseSchema.index({ isDeleted: 1, branch: 1, category: 1 });
+expenseSchema.index({ isDeleted: 1, date: -1 });
 expenseSchema.index({ branch: 1, date: -1 });
 expenseSchema.index({ branch: 1, category: 1 });
 expenseSchema.index({ date: -1 });
@@ -74,7 +90,7 @@ expenseSchema.statics.getMonthlyTotal = async function(year, month) {
   const end = new Date(year, month, 0, 23, 59, 59);
 
   const result = await this.aggregate([
-    { $match: { date: { $gte: start, $lte: end } } },
+    { $match: { date: { $gte: start, $lte: end }, isDeleted: { $ne: true } } },
     { $group: { _id: null, total: { $sum: '$amount' } } }
   ]);
 
@@ -82,7 +98,7 @@ expenseSchema.statics.getMonthlyTotal = async function(year, month) {
 };
 
 expenseSchema.statics.getCategoryBreakdown = async function(year, month) {
-  const matchStage = {};
+  const matchStage = { isDeleted: { $ne: true } };
   if (year && month) {
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59);

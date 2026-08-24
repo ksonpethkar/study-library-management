@@ -29,6 +29,48 @@ function validate(validations) {
 }
 
 /**
+ * @route   GET /api/expenses/stats
+ * @desc    Get expense statistics & monthly breakdown
+ */
+router.get('/stats', async (req, res) => {
+  try {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
+
+    const [totalAgg, monthAgg, categoryStats] = await Promise.all([
+      Expense.aggregate([
+        { $match: { isDeleted: { $ne: true } } },
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+      ]),
+      Expense.aggregate([
+        { $match: { date: { $gte: startOfMonth, $lte: endOfMonth }, isDeleted: { $ne: true } } },
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+      ]),
+      Expense.aggregate([
+        { $match: { isDeleted: { $ne: true } } },
+        { $group: { _id: '$category', total: { $sum: '$amount' }, count: { $sum: 1 } } },
+        { $sort: { total: -1 } }
+      ])
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        totalExpenses: totalAgg[0]?.total || 0,
+        totalCount: totalAgg[0]?.count || 0,
+        thisMonthExpenses: monthAgg[0]?.total || 0,
+        thisMonthCount: monthAgg[0]?.count || 0,
+        byCategory: categoryStats
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching expense stats:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch expense statistics' });
+  }
+});
+
+/**
  * @route   GET /api/expenses/summary
  * @desc    Get Profit & Loss Summary (Revenue vs Expenses, Net Profit, Category breakdown)
  */
@@ -66,7 +108,7 @@ router.get('/summary', async (req, res) => {
 
     // 1. Total Expenses
     const expenseAgg = await Expense.aggregate([
-      { $match: { date: dateFilter } },
+      { $match: { date: dateFilter, isDeleted: { $ne: true } } },
       { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
     ]);
     const totalExpenses = expenseAgg.length > 0 ? expenseAgg[0].total : 0;
@@ -74,7 +116,7 @@ router.get('/summary', async (req, res) => {
 
     // 2. Total Revenue from Payments
     const paymentAgg = await Payment.aggregate([
-      { $match: { status: 'paid', createdAt: dateFilter } },
+      { $match: { status: 'paid', createdAt: dateFilter, isDeleted: { $ne: true } } },
       { $group: { _id: null, total: { $sum: '$finalAmount' }, count: { $sum: 1 } } }
     ]);
     const totalRevenue = paymentAgg.length > 0 ? paymentAgg[0].total : 0;
@@ -82,13 +124,13 @@ router.get('/summary', async (req, res) => {
 
     // 3. Previous Period for growth rates
     const prevExpenseAgg = await Expense.aggregate([
-      { $match: { date: prevDateFilter } },
+      { $match: { date: prevDateFilter, isDeleted: { $ne: true } } },
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
     const prevTotalExpenses = prevExpenseAgg.length > 0 ? prevExpenseAgg[0].total : 0;
 
     const prevPaymentAgg = await Payment.aggregate([
-      { $match: { status: 'paid', createdAt: prevDateFilter } },
+      { $match: { status: 'paid', createdAt: prevDateFilter, isDeleted: { $ne: true } } },
       { $group: { _id: null, total: { $sum: '$finalAmount' } } }
     ]);
     const prevTotalRevenue = prevPaymentAgg.length > 0 ? prevPaymentAgg[0].total : 0;
@@ -100,7 +142,7 @@ router.get('/summary', async (req, res) => {
 
     // Category Breakdown
     const categoryBreakdown = await Expense.aggregate([
-      { $match: { date: dateFilter } },
+      { $match: { date: dateFilter, isDeleted: { $ne: true } } },
       {
         $group: {
           _id: '$category',
@@ -123,11 +165,11 @@ router.get('/summary', async (req, res) => {
 
       const [mExp, mRev] = await Promise.all([
         Expense.aggregate([
-          { $match: { date: { $gte: mStart, $lte: mEnd } } },
+          { $match: { date: { $gte: mStart, $lte: mEnd }, isDeleted: { $ne: true } } },
           { $group: { _id: null, total: { $sum: '$amount' } } }
         ]),
         Payment.aggregate([
-          { $match: { status: 'paid', createdAt: { $gte: mStart, $lte: mEnd } } },
+          { $match: { status: 'paid', createdAt: { $gte: mStart, $lte: mEnd }, isDeleted: { $ne: true } } },
           { $group: { _id: null, total: { $sum: '$finalAmount' } } }
         ])
       ]);
@@ -270,7 +312,7 @@ router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 15, category, search, startDate, endDate, paymentMethod } = req.query;
 
-    const query = {};
+    const query = { isDeleted: { $ne: true } };
 
     if (category && category !== 'all') {
       query.category = category;

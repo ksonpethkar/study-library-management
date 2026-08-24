@@ -845,7 +845,10 @@ html.dark-theme .modal-content {
 .modal-xl { max-width: 1140px; --modal-max-width: 1140px; }
 .modal-dialog, .modal-content, .modal-lg, .modal-xl { max-width: min(95vw, var(--modal-max-width, 800px)); width: 100%; }
 
-dialog#modal-container {
+dialog#modal-container,
+dialog.modal-container-dialog,
+dialog.app-modal,
+dialog.modal {
   height: fit-content !important;
   min-height: 0 !important;
   max-height: 88vh !important;
@@ -862,7 +865,10 @@ dialog#modal-container {
   box-sizing: border-box !important;
 }
 
-dialog#modal-container::backdrop {
+dialog#modal-container::backdrop,
+dialog.modal-container-dialog::backdrop,
+dialog.app-modal::backdrop,
+dialog.modal::backdrop {
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);

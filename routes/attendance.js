@@ -557,13 +557,17 @@ router.post('/check-in', protect, validate([
       record.checkOut = undefined;
       record.status = 'present';
       if (seatId) record.seat = seatId;
+      if (!record.sessions) record.sessions = [];
+      record.sessions.push({ checkIn: now, checkOut: null, durationMinutes: 0 });
     } else {
       record = new Attendance({
         student: studentId,
         date: now,
         checkIn: now,
         status: 'present',
-        seat: seatId || undefined
+        seat: seatId || undefined,
+        sessions: [{ checkIn: now, checkOut: null, durationMinutes: 0 }],
+        totalStudyMinutes: 0
       });
     }
 
@@ -614,11 +618,29 @@ router.post('/check-out', protect, validate([
     }
 
     record.checkOut = now;
-    const durationMinutes = Math.max(0, Math.round((now.getTime() - new Date(record.checkIn).getTime()) / (1000 * 60)));
-    record.duration = durationMinutes;
+
+    if (!record.sessions || record.sessions.length === 0) {
+      const sessionMins = Math.max(0, Math.round((now.getTime() - new Date(record.checkIn).getTime()) / (1000 * 60)));
+      record.sessions = [{ checkIn: record.checkIn, checkOut: now, durationMinutes: sessionMins }];
+      record.totalStudyMinutes = sessionMins;
+      record.duration = sessionMins;
+    } else {
+      let activeSession = record.sessions.slice().reverse().find(s => !s.checkOut);
+      if (activeSession) {
+        activeSession.checkOut = now;
+        activeSession.durationMinutes = Math.max(0, Math.round((now.getTime() - new Date(activeSession.checkIn || record.checkIn).getTime()) / (1000 * 60)));
+      } else {
+        const sessionMins = Math.max(0, Math.round((now.getTime() - new Date(record.checkIn).getTime()) / (1000 * 60)));
+        record.sessions.push({ checkIn: record.checkIn, checkOut: now, durationMinutes: sessionMins });
+      }
+      const totalMins = record.sessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+      record.totalStudyMinutes = totalMins;
+      record.duration = totalMins;
+    }
+
     await record.save();
 
-    res.json({ success: true, data: record, message: `Check-out successful (${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m study duration)` });
+    res.json({ success: true, data: record, message: `Check-out successful (${Math.floor((record.duration || record.totalStudyMinutes || 0) / 60)}h ${(record.duration || record.totalStudyMinutes || 0) % 60}m study duration)` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -638,7 +660,24 @@ router.post('/check-out-all', protect, roleCheck('owner', 'branch_manager'), asy
 
     for (const rec of activeRecords) {
       rec.checkOut = now;
-      rec.duration = Math.max(0, Math.round((now.getTime() - new Date(rec.checkIn).getTime()) / (1000 * 60)));
+      if (!rec.sessions || rec.sessions.length === 0) {
+        const sessionMins = Math.max(0, Math.round((now.getTime() - new Date(rec.checkIn).getTime()) / (1000 * 60)));
+        rec.sessions = [{ checkIn: rec.checkIn, checkOut: now, durationMinutes: sessionMins }];
+        rec.totalStudyMinutes = sessionMins;
+        rec.duration = sessionMins;
+      } else {
+        let activeSession = rec.sessions.slice().reverse().find(s => !s.checkOut);
+        if (activeSession) {
+          activeSession.checkOut = now;
+          activeSession.durationMinutes = Math.max(0, Math.round((now.getTime() - new Date(activeSession.checkIn || rec.checkIn).getTime()) / (1000 * 60)));
+        } else {
+          const sessionMins = Math.max(0, Math.round((now.getTime() - new Date(rec.checkIn).getTime()) / (1000 * 60)));
+          rec.sessions.push({ checkIn: rec.checkIn, checkOut: now, durationMinutes: sessionMins });
+        }
+        const totalMins = rec.sessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+        rec.totalStudyMinutes = totalMins;
+        rec.duration = totalMins;
+      }
       await rec.save();
     }
 
@@ -808,15 +847,37 @@ router.post(['/rfid-punch', '/kiosk-punch'], async (req, res) => {
         date: now,
         checkIn: now,
         status: 'present',
-        markedBy: 'self'
+        markedBy: 'self',
+        sessions: [{ checkIn: now, checkOut: null, durationMinutes: 0 }],
+        totalStudyMinutes: 0
       });
       await att.save();
       action = 'check-in';
     } else if (att.checkIn && !att.checkOut) {
       // Currently checked in = Check-Out
       att.checkOut = now;
-      durationMinutes = Math.max(0, Math.round((now.getTime() - new Date(att.checkIn).getTime()) / (1000 * 60)));
-      att.duration = durationMinutes;
+      if (!att.sessions || att.sessions.length === 0) {
+        const sessionMins = Math.max(0, Math.round((now.getTime() - new Date(att.checkIn).getTime()) / (1000 * 60)));
+        att.sessions = [{ checkIn: att.checkIn, checkOut: now, durationMinutes: sessionMins }];
+        att.totalStudyMinutes = sessionMins;
+        att.duration = sessionMins;
+        durationMinutes = sessionMins;
+      } else {
+        let activeSession = att.sessions.slice().reverse().find(s => !s.checkOut);
+        if (activeSession) {
+          activeSession.checkOut = now;
+          const sessionMins = Math.max(0, Math.round((now.getTime() - new Date(activeSession.checkIn || att.checkIn).getTime()) / (1000 * 60)));
+          activeSession.durationMinutes = sessionMins;
+          durationMinutes = sessionMins;
+        } else {
+          const sessionMins = Math.max(0, Math.round((now.getTime() - new Date(att.checkIn).getTime()) / (1000 * 60)));
+          att.sessions.push({ checkIn: att.checkIn, checkOut: now, durationMinutes: sessionMins });
+          durationMinutes = sessionMins;
+        }
+        const totalMins = att.sessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+        att.totalStudyMinutes = totalMins;
+        att.duration = totalMins;
+      }
       await att.save();
       action = 'check-out';
     } else {
@@ -824,6 +885,8 @@ router.post(['/rfid-punch', '/kiosk-punch'], async (req, res) => {
       att.checkIn = now;
       att.checkOut = null;
       att.status = 'present';
+      if (!att.sessions) att.sessions = [];
+      att.sessions.push({ checkIn: now, checkOut: null, durationMinutes: 0 });
       await att.save();
       action = 'check-in';
     }
@@ -862,11 +925,11 @@ router.post(['/rfid-punch', '/kiosk-punch'], async (req, res) => {
         } : null
       },
       time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      durationMinutes,
+      durationMinutes: durationMinutes || att.duration || 0,
       punchStats,
       message: action === 'check-in'
         ? `Welcome ${student.name}! Checked in successfully.`
-        : `Goodbye ${student.name}! Checked out (${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m logged).`
+        : `Goodbye ${student.name}! Checked out (${Math.floor((att.duration || att.totalStudyMinutes || 0) / 60)}h ${(att.duration || att.totalStudyMinutes || 0) % 60}m logged).`
     });
   } catch (error) {
     console.error('Error during kiosk punch:', error);
@@ -925,7 +988,9 @@ router.post('/biometric', async (req, res) => {
         date: now,
         checkIn: now,
         status: 'present',
-        markedBy: 'biometric'
+        markedBy: 'biometric',
+        sessions: [{ checkIn: now, checkOut: null, durationMinutes: 0 }],
+        totalStudyMinutes: 0
       });
 
       return res.json({
@@ -942,6 +1007,24 @@ router.post('/biometric', async (req, res) => {
     } else if (att.checkIn && !att.checkOut) {
       // Check-Out
       att.checkOut = now;
+      if (!att.sessions || att.sessions.length === 0) {
+        const sessionMins = Math.max(0, Math.round((now.getTime() - new Date(att.checkIn).getTime()) / (1000 * 60)));
+        att.sessions = [{ checkIn: att.checkIn, checkOut: now, durationMinutes: sessionMins }];
+        att.totalStudyMinutes = sessionMins;
+        att.duration = sessionMins;
+      } else {
+        let activeSession = att.sessions.slice().reverse().find(s => !s.checkOut);
+        if (activeSession) {
+          activeSession.checkOut = now;
+          activeSession.durationMinutes = Math.max(0, Math.round((now.getTime() - new Date(activeSession.checkIn || att.checkIn).getTime()) / (1000 * 60)));
+        } else {
+          const sessionMins = Math.max(0, Math.round((now.getTime() - new Date(att.checkIn).getTime()) / (1000 * 60)));
+          att.sessions.push({ checkIn: att.checkIn, checkOut: now, durationMinutes: sessionMins });
+        }
+        const totalMins = att.sessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+        att.totalStudyMinutes = totalMins;
+        att.duration = totalMins;
+      }
       await att.save();
 
       return res.json({
@@ -957,9 +1040,11 @@ router.post('/biometric', async (req, res) => {
         message: `Goodbye ${student.name}! Checked out at ${nowTimeStr} (${att.duration || 0} mins)`
       });
     } else {
-      // Multiple punches in same day - Re-punch
+      // Multiple punches in same day - Re-punch / Re-entry
       att.checkOut = null;
       att.checkIn = now;
+      if (!att.sessions) att.sessions = [];
+      att.sessions.push({ checkIn: now, checkOut: null, durationMinutes: 0 });
       await att.save();
 
       return res.json({
@@ -1032,17 +1117,38 @@ router.post('/hardware-sync', async (req, res) => {
           markedBy: 'biometric',
           seat: student.seat?._id || student.seat || null,
           branch: student.branch || null,
-          notes: `Hardware Sync (${log.deviceId || 'Biometric'})`
+          notes: `Hardware Sync (${log.deviceId || 'Biometric'})`,
+          sessions: [{ checkIn: punchTime, checkOut: null, durationMinutes: 0 }],
+          totalStudyMinutes: 0
         });
       } else if (!att.checkOut) {
         // Second punch = Check-Out
         att.checkOut = punchTime;
-        att.duration = Math.round((punchTime.getTime() - new Date(att.checkIn).getTime()) / (1000 * 60));
+        if (!att.sessions || att.sessions.length === 0) {
+          const sessionMins = Math.max(0, Math.round((punchTime.getTime() - new Date(att.checkIn).getTime()) / (1000 * 60)));
+          att.sessions = [{ checkIn: att.checkIn, checkOut: punchTime, durationMinutes: sessionMins }];
+          att.totalStudyMinutes = sessionMins;
+          att.duration = sessionMins;
+        } else {
+          let activeSession = att.sessions.slice().reverse().find(s => !s.checkOut);
+          if (activeSession) {
+            activeSession.checkOut = punchTime;
+            activeSession.durationMinutes = Math.max(0, Math.round((punchTime.getTime() - new Date(activeSession.checkIn || att.checkIn).getTime()) / (1000 * 60)));
+          } else {
+            const sessionMins = Math.max(0, Math.round((punchTime.getTime() - new Date(att.checkIn).getTime()) / (1000 * 60)));
+            att.sessions.push({ checkIn: att.checkIn, checkOut: punchTime, durationMinutes: sessionMins });
+          }
+          const totalMins = att.sessions.reduce((acc, s) => acc + (s.durationMinutes || 0), 0);
+          att.totalStudyMinutes = totalMins;
+          att.duration = totalMins;
+        }
         att.notes = (att.notes ? att.notes + ' • ' : '') + `Auto Out (${log.deviceId || 'Biometric'})`;
       } else {
-        // Subsequent punch = Update Check-Out
-        att.checkOut = punchTime;
-        att.duration = Math.round((punchTime.getTime() - new Date(att.checkIn).getTime()) / (1000 * 60));
+        // Subsequent punch = Re-entry check-in
+        att.checkOut = null;
+        att.checkIn = punchTime;
+        if (!att.sessions) att.sessions = [];
+        att.sessions.push({ checkIn: punchTime, checkOut: null, durationMinutes: 0 });
       }
 
       await att.save();

@@ -23,9 +23,11 @@ router.get('/public-list', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     const [branches, occupiedCounts, profile] = await Promise.all([
-      Branch.find({ isActive: true }).lean(),
+      Branch.find({ isActive: true, isDeleted: { $ne: true } })
+        .select('name code city address phone totalSeats amenities image banner')
+        .lean(),
       Seat.aggregate([
-        { $match: { status: 'occupied', isActive: true, branch: { $ne: null } } },
+        { $match: { status: 'occupied', isActive: true, branch: { $ne: null }, isDeleted: { $ne: true } } },
         { $group: { _id: '$branch', count: { $sum: 1 } } }
       ]),
       BusinessProfile.getProfile().catch(() => ({}))
@@ -73,16 +75,16 @@ router.use(protect);
 router.get('/stats', async (req, res) => {
   try {
     const [totalBranches, activeBranches, totalActiveStudents, branches] = await Promise.all([
-      Branch.countDocuments(),
-      Branch.countDocuments({ isActive: true }),
-      Student.countDocuments({ status: 'active' }),
-      Branch.find({ isActive: true })
-    ]).lean();
+      Branch.countDocuments({ isDeleted: { $ne: true } }),
+      Branch.countDocuments({ isActive: true, isDeleted: { $ne: true } }),
+      Student.countDocuments({ status: 'active', isDeleted: { $ne: true } }),
+      Branch.find({ isActive: true, isDeleted: { $ne: true } }).lean()
+    ]);
 
     const totalCapacity = branches.reduce((sum, b) => sum + (b.totalSeats || 0), 0);
     const assignedManagerIds = branches.filter(b => b.manager).map(b => b.manager.toString());
     const uniqueManagersCount = new Set(assignedManagerIds).size;
-    const totalOccupiedSeats = await Seat.countDocuments({ status: 'occupied', isActive: true });
+    const totalOccupiedSeats = await Seat.countDocuments({ status: 'occupied', isActive: true, isDeleted: { $ne: true } });
 
     res.json({
       success: true,
@@ -142,11 +144,11 @@ router.get('/', async (req, res) => {
       .sort({ isMainBranch: -1, createdAt: -1 });
 
     const branchesWithCounts = await Promise.all(branches.map(async (b) => {
-      const branchObj = b.toObject();
+      const branchObj = b.toObject ? b.toObject() : { ...b };
       const [configuredSeats, occupiedSeats, activeStudents] = await Promise.all([
-        Seat.countDocuments({ branch: b._id, isActive: true }),
-        Seat.countDocuments({ branch: b._id, status: 'occupied', isActive: true }),
-        Student.countDocuments({ branch: b._id, status: 'active' })
+        Seat.countDocuments({ branch: b._id, isActive: true, isDeleted: { $ne: true } }),
+        Seat.countDocuments({ branch: b._id, status: 'occupied', isActive: true, isDeleted: { $ne: true } }),
+        Student.countDocuments({ branch: b._id, status: 'active', isDeleted: { $ne: true } })
       ]);
 
       branchObj.configuredSeats = configuredSeats;
@@ -174,17 +176,17 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const branch = await Branch.findById(req.params.id)
-      .populate('manager', 'name email phone avatar role').lean();
+      .populate('manager', 'name email phone avatar role');
 
     if (!branch) {
       return res.status(404).json({ success: false, message: 'Branch not found' });
     }
 
-    const branchObj = branch.toObject();
+    const branchObj = branch.toObject ? branch.toObject() : { ...branch };
     const [configuredSeats, occupiedSeats, activeStudents] = await Promise.all([
-      Seat.countDocuments({ branch: branch._id, isActive: true }),
-      Seat.countDocuments({ branch: branch._id, status: 'occupied', isActive: true }),
-      Student.countDocuments({ branch: branch._id, status: 'active' })
+      Seat.countDocuments({ branch: branch._id, isActive: true, isDeleted: { $ne: true } }),
+      Seat.countDocuments({ branch: branch._id, status: 'occupied', isActive: true, isDeleted: { $ne: true } }),
+      Student.countDocuments({ branch: branch._id, status: 'active', isDeleted: { $ne: true } })
     ]);
 
     branchObj.configuredSeats = configuredSeats;
