@@ -139,6 +139,9 @@ function renderMasterHubUI(container, store) {
           <button class="studio-nav-item" data-studio="billing_receipt">
             <span>🧾</span> <span>Receipt Builder & Billing</span>
           </button>
+          <button class="studio-nav-item" data-studio="modules_manager">
+            <span>🧩</span> <span>App Modules & Feature Toggles</span>
+          </button>
           <button class="studio-nav-item" data-studio="notifications">
             <span>💬</span> <span>WhatsApp & Notifications</span>
           </button>
@@ -228,6 +231,7 @@ function renderMasterHubUI(container, store) {
     formbuilder: () => renderFormBuilderStudio(container),
     centers_seats: () => renderCentersSeatsStudio(branches, shifts),
     billing_receipt: () => renderBillingReceiptStudio(profile, billing, pay),
+    modules_manager: () => renderModulesManagerStudio(),
     notifications: () => renderNotificationsStudio(notif, profile),
     operations: () => renderOperationsStudio(ops),
     staff_rbac: () => renderStaffRbacStudio(staffUsers, branches),
@@ -700,22 +704,22 @@ function renderBillingReceiptStudio(profile, billing, pay) {
         <span>🖨️</span> Select Receipt Output Format
       </label>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;" id="receipt-format-grid">
-        <div class="card p-3 receipt-format-card active" data-format="thermal80" style="border: 2px solid var(--color-primary); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
+        <div class="card p-3 receipt-format-card ${currentFormat === 'thermal80' ? 'active' : ''}" data-format="thermal80" style="border: ${currentFormat === 'thermal80' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)'}; background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
           <span style="font-size: 1.6rem; margin-bottom: 2px;">🖨️</span>
           <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800;">POS Thermal 80mm</h5>
           <small class="text-muted d-block">Standard 3-inch POS roll</small>
         </div>
-        <div class="card p-3 receipt-format-card" data-format="thermal58" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
+        <div class="card p-3 receipt-format-card ${currentFormat === 'thermal58' ? 'active' : ''}" data-format="thermal58" style="border: ${currentFormat === 'thermal58' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)'}; background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
           <span style="font-size: 1.6rem; margin-bottom: 2px;">📱</span>
           <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800;">POS Thermal 58mm</h5>
           <small class="text-muted d-block">2-inch mobile Bluetooth roll</small>
         </div>
-        <div class="card p-3 receipt-format-card" data-format="standardA4" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
+        <div class="card p-3 receipt-format-card ${currentFormat === 'standardA4' ? 'active' : ''}" data-format="standardA4" style="border: ${currentFormat === 'standardA4' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)'}; background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
           <span style="font-size: 1.6rem; margin-bottom: 2px;">📄</span>
           <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800;">Official A4 Invoice</h5>
           <small class="text-muted d-block">Printable GST tax invoice</small>
         </div>
-        <div class="card p-3 receipt-format-card" data-format="modern_minimal" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
+        <div class="card p-3 receipt-format-card ${currentFormat === 'modern_minimal' ? 'active' : ''}" data-format="modern_minimal" style="border: ${currentFormat === 'modern_minimal' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)'}; background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
           <span style="font-size: 1.6rem; margin-bottom: 2px;">✨</span>
           <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800;">Modern Digital Pass</h5>
           <small class="text-muted d-block">Clean digital fee voucher</small>
@@ -1197,6 +1201,13 @@ function renderBillingReceiptStudio(profile, billing, pay) {
         card.classList.add('active');
         card.style.border = '2px solid var(--color-primary)';
         currentFormat = card.dataset.format;
+        if (billing) {
+          billing.defaultTemplate = currentFormat;
+          billing['billing.defaultTemplate'] = currentFormat;
+        }
+        if (store && store.settings && store.settings.billing) {
+          store.settings.billing.defaultTemplate = currentFormat;
+        }
         liveUpdateReceipt();
       });
     });
@@ -1385,6 +1396,182 @@ function renderBillingReceiptStudio(profile, billing, pay) {
 
     // Initial render
     liveUpdateReceipt();
+  }, 50);
+
+  return wrapper;
+}
+
+// -------------------------------------------------------------
+// 5B. 🧩 App Modules & Granular Feature Toggles Studio
+// -------------------------------------------------------------
+function renderModulesManagerStudio() {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'card';
+  wrapper.style.cssText = 'padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);';
+
+  wrapper.innerHTML = `
+    <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <div>
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-primary);">🧩 App Modules & Granular Feature Toggles</h3>
+        <p class="text-muted small mb-0">Turn any system module ON or OFF with 1-click. Disabled modules are immediately hidden from navigation and deactivated system-wide.</p>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="button" id="btn-modules-enable-all" class="btn btn-sm btn-outline-success" style="font-weight: 700;">🟢 Enable All</button>
+        <button type="button" id="btn-modules-disable-optional" class="btn btn-sm btn-outline-secondary" style="font-weight: 700;">⚪ Minimal Mode</button>
+        <button type="button" id="btn-save-modules-config" class="btn btn-sm btn-primary" style="font-weight: 800; padding: 6px 18px;">💾 Save Module Settings</button>
+      </div>
+    </div>
+
+    <div id="modules-loading-spinner" class="text-center p-4">
+      <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;"></div>
+      <p class="text-muted small mt-2">Loading system modules & permissions...</p>
+    </div>
+
+    <div id="modules-grid-container" style="display: none;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px;" id="modules-cards-grid">
+        <!-- Dynamic Module Cards -->
+      </div>
+    </div>
+  `;
+
+  setTimeout(async () => {
+    try {
+      const res = await api.get('/api/settings/sidebar/all');
+      const items = (res.success && Array.isArray(res.data)) ? res.data : [];
+      
+      const moduleDescriptions = {
+        dashboard: 'Executive overview, real-time KPI cards, revenue metrics & occupancy charts.',
+        students: 'Directory of registered members, 360° profiles, KYC documents & identity passes.',
+        seats: 'Interactive visual desk layout grid, branch selector & live shift occupancy.',
+        lockers: 'Private study locker allocation, security keys & monthly recurring locker fees.',
+        plans: 'Membership study tiers, pricing rules, validity duration & discount coupons.',
+        payments: 'Fee collection register, GST tax invoices, partial payments & refund tracking.',
+        attendance: 'Student check-in / check-out scanner, Kiosk terminal & biometric sync.',
+        shifts: 'Operating study shifts (Morning, Evening, Full Day, 24x7) with price multipliers.',
+        reports: 'Financial P&L statements, GSTR-1 sales reports & Tally Prime XML accounting exports.',
+        expenses: 'Operational library expense log, vendor payments, utility bills & category tracking.',
+        operations: 'Library operating schedule, weekly off days, emergency notices & holiday calendar.',
+        settings: 'Master administration hub, branding, receipt templates & security configurations.',
+        profile: 'Current user profile settings, credentials & active session info.'
+      };
+
+      const spinner = wrapper.querySelector('#modules-loading-spinner');
+      const container = wrapper.querySelector('#modules-grid-container');
+      const grid = wrapper.querySelector('#modules-cards-grid');
+      if (spinner) spinner.style.display = 'none';
+      if (container) container.style.display = 'block';
+
+      grid.innerHTML = items.map(m => {
+        const isSystem = m.isSystem;
+        const isEnabled = m.isEnabled !== false;
+        const desc = moduleDescriptions[m.key] || 'Core feature module of the Study Library platform.';
+        return `
+          <div class="card p-3 module-item-card" data-key="${escapeHTML(m.key)}" style="background: var(--color-bg-secondary); border: 1.5px solid ${isEnabled ? 'rgba(0, 184, 148, 0.4)' : 'var(--color-border)'}; border-radius: var(--radius-md); transition: all 0.2s;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.6rem; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: var(--color-surface); border-radius: 8px; border: 1px solid var(--color-border);">${m.icon || '📦'}</span>
+                <div>
+                  <h5 style="margin: 0; font-size: 0.98rem; font-weight: 800; color: var(--color-text-primary);">${escapeHTML(m.label)}</h5>
+                  <code style="font-size: 0.72rem; color: var(--color-text-muted);">${escapeHTML(m.href)}</code>
+                </div>
+              </div>
+              <div class="form-check form-switch" style="padding-left: 2.5em; margin: 0;">
+                <input class="form-check-input module-toggle-switch" type="checkbox" role="switch" data-key="${escapeHTML(m.key)}" ${isEnabled ? 'checked' : ''} ${isSystem ? 'disabled' : ''} style="width: 2.2em; height: 1.2em; cursor: ${isSystem ? 'not-allowed' : 'pointer'};">
+              </div>
+            </div>
+            
+            <p style="font-size: 0.82rem; color: var(--color-text-secondary); margin: 6px 0 10px 0; min-height: 38px; line-height: 1.35;">
+              ${escapeHTML(desc)}
+            </p>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--color-border); padding-top: 8px; font-size: 0.75rem;">
+              <span class="module-status-badge badge" style="background: ${isEnabled ? 'rgba(0, 184, 148, 0.15)' : 'rgba(108, 117, 125, 0.15)'}; color: ${isEnabled ? 'var(--color-success)' : 'var(--color-text-muted)'}; font-weight: 700;">
+                ${isEnabled ? '🟢 Active & Visible' : '⚪ Disabled (Hidden)'}
+              </span>
+              ${isSystem ? '<span class="badge badge-secondary" style="font-size: 0.65rem;">System Core</span>' : '<span class="text-muted">Custom Module</span>'}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Toggle switch change listener
+      grid.querySelectorAll('.module-toggle-switch').forEach(sw => {
+        sw.addEventListener('change', () => {
+          const card = sw.closest('.module-item-card');
+          const badge = card.querySelector('.module-status-badge');
+          if (sw.checked) {
+            card.style.border = '1.5px solid rgba(0, 184, 148, 0.4)';
+            badge.style.background = 'rgba(0, 184, 148, 0.15)';
+            badge.style.color = 'var(--color-success)';
+            badge.textContent = '🟢 Active & Visible';
+          } else {
+            card.style.border = '1.5px solid var(--color-border)';
+            badge.style.background = 'rgba(108, 117, 125, 0.15)';
+            badge.style.color = 'var(--color-text-muted)';
+            badge.textContent = '⚪ Disabled (Hidden)';
+          }
+        });
+      });
+
+      // Enable all
+      wrapper.querySelector('#btn-modules-enable-all')?.addEventListener('click', () => {
+        grid.querySelectorAll('.module-toggle-switch').forEach(sw => {
+          sw.checked = true;
+          sw.dispatchEvent(new Event('change'));
+        });
+      });
+
+      // Minimal mode (disable non-system modules like Lockers, Expenses, Operations)
+      wrapper.querySelector('#btn-modules-disable-optional')?.addEventListener('click', () => {
+        grid.querySelectorAll('.module-toggle-switch').forEach(sw => {
+          if (!sw.disabled) {
+            const key = sw.dataset.key;
+            if (['lockers', 'expenses', 'operations', 'reports', 'attendance', 'shifts'].includes(key)) {
+              sw.checked = false;
+              sw.dispatchEvent(new Event('change'));
+            }
+          }
+        });
+      });
+
+      // Save Handler
+      wrapper.querySelector('#btn-save-modules-config')?.addEventListener('click', async () => {
+        const btnSave = wrapper.querySelector('#btn-save-modules-config');
+        UI.buttonLoading(btnSave, true, 'Saving Modules...');
+
+        const updatedItems = items.map(orig => {
+          const sw = grid.querySelector(`.module-toggle-switch[data-key="${orig.key}"]`);
+          return {
+            ...orig,
+            isEnabled: sw ? sw.checked : (orig.isEnabled !== false)
+          };
+        });
+
+        try {
+          const saveRes = await api.put('/api/settings/sidebar', { items: updatedItems });
+          if (saveRes.success) {
+            Toast.success('Module settings saved successfully! Navigation refreshed.');
+            try {
+              const navOrder = updatedItems.filter(i => i.isEnabled !== false).map(i => i.href);
+              localStorage.setItem('sl_sidebar_order', JSON.stringify(navOrder));
+              if (window.SidebarSortable && window.SidebarSortable.init) {
+                window.SidebarSortable.init();
+              }
+              window.dispatchEvent(new CustomEvent('sidebar-config-changed', { detail: updatedItems }));
+            } catch(e) {}
+          } else {
+            Toast.error(saveRes.message || 'Failed to update modules');
+          }
+        } catch(err) {
+          Toast.error(err.message || 'Error updating module configuration');
+        } finally {
+          UI.buttonLoading(btnSave, false);
+        }
+      });
+
+    } catch (err) {
+      console.error('Error in modules studio:', err);
+    }
   }, 50);
 
   return wrapper;
@@ -1787,9 +1974,12 @@ function renderWebsiteCmsStudio() {
 
     <!-- 4 Selectable Theme Presets -->
     <div style="margin-bottom: 1.5rem;">
-      <label class="form-label" style="font-weight: 800; font-size: 0.95rem; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-        <span>🎨</span> Select Visual Theme Preset
-      </label>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <label class="form-label mb-0" style="font-weight: 800; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+          <span>🎨</span> Select Visual Theme Preset
+        </label>
+        <span class="badge" style="background: rgba(108,92,231,0.12); color: var(--color-primary); font-size: 0.75rem;">1-Tap Instant Theme Apply</span>
+      </div>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;" id="theme-presets-grid">
         <div class="card p-3 theme-preset-card active" data-preset="modern_glass" style="border: 2px solid var(--color-primary); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
           <span style="font-size: 1.8rem; margin-bottom: 4px;">✨</span>
@@ -1838,149 +2028,189 @@ function renderWebsiteCmsStudio() {
     </div>
 
     <!-- Split-Screen Controls + Live Preview Layout -->
-    <div style="display: grid; grid-template-columns: 1fr 1.15fr; gap: 20px;" class="cms-split-layout">
+    <div style="display: grid; grid-template-columns: 1.05fr 1.15fr; gap: 20px;" class="cms-split-layout">
       
-      <!-- Left Column: All CMS Customization Accordions / Sections -->
-      <div style="display: flex; flex-direction: column; gap: 14px; max-height: 780px; overflow-y: auto; padding-right: 4px;">
+      <!-- Left Column: Collapsible Interactive Accordions -->
+      <div style="display: flex; flex-direction: column; gap: 12px; max-height: 820px; overflow-y: auto; padding-right: 6px;" id="cms-accordions-col">
         
+        <!-- Accordion Controls Toolbar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px;">
+          <span style="font-size: 0.82rem; font-weight: 700; color: var(--color-text-secondary);">⚙️ Customization Sections</span>
+          <div class="d-flex gap-2">
+            <button type="button" id="btn-cms-expand-all" class="btn btn-xs btn-outline-secondary" style="font-size: 0.72rem; padding: 2px 8px;">➕ Expand All</button>
+            <button type="button" id="btn-cms-collapse-all" class="btn btn-xs btn-outline-secondary" style="font-size: 0.72rem; padding: 2px 8px;">➖ Collapse All</button>
+          </div>
+        </div>
+
         <!-- Section 1: 🎨 Palette & Typography Overrides -->
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>🎨</span> Color Palette & Typography Styling
-          </h5>
-          <div class="row g-2">
-            <div class="col-md-4">
-              <label class="form-label small" style="font-weight: 700;">Primary Color</label>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <input type="color" id="cms-color-primary" class="form-control form-control-color p-0" value="#6c5ce7" style="width: 36px; height: 32px; cursor: pointer;">
-                <input type="text" id="cms-color-primary-text" class="form-control form-control-sm font-monospace" value="#6c5ce7" maxlength="7">
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: visible;">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>🎨</span> Color Palette & Typography Styling
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted); transition: transform 0.2s;">▲</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: block;">
+            <div class="row g-2">
+              <div class="col-md-4">
+                <label class="form-label small" style="font-weight: 700;">Primary Color</label>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="color" id="cms-color-primary" class="form-control form-control-color p-0" value="#6c5ce7" style="width: 36px; height: 32px; cursor: pointer;">
+                  <input type="text" id="cms-color-primary-text" class="form-control form-control-sm font-monospace" value="#6c5ce7" maxlength="7">
+                </div>
               </div>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label small" style="font-weight: 700;">Accent Color</label>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <input type="color" id="cms-color-accent" class="form-control form-control-color p-0" value="#00b894" style="width: 36px; height: 32px; cursor: pointer;">
-                <input type="text" id="cms-color-accent-text" class="form-control form-control-sm font-monospace" value="#00b894" maxlength="7">
+              <div class="col-md-4">
+                <label class="form-label small" style="font-weight: 700;">Accent Color</label>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="color" id="cms-color-accent" class="form-control form-control-color p-0" value="#00b894" style="width: 36px; height: 32px; cursor: pointer;">
+                  <input type="text" id="cms-color-accent-text" class="form-control form-control-sm font-monospace" value="#00b894" maxlength="7">
+                </div>
               </div>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label small" style="font-weight: 700;">Secondary Tint</label>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <input type="color" id="cms-color-secondary" class="form-control form-control-color p-0" value="#3b82f6" style="width: 36px; height: 32px; cursor: pointer;">
-                <input type="text" id="cms-color-secondary-text" class="form-control form-control-sm font-monospace" value="#3b82f6" maxlength="7">
+              <div class="col-md-4">
+                <label class="form-label small" style="font-weight: 700;">Secondary Tint</label>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="color" id="cms-color-secondary" class="form-control form-control-color p-0" value="#3b82f6" style="width: 36px; height: 32px; cursor: pointer;">
+                  <input type="text" id="cms-color-secondary-text" class="form-control form-control-sm font-monospace" value="#3b82f6" maxlength="7">
+                </div>
               </div>
-            </div>
-            <div class="col-12 mt-2">
-              <label class="form-label small" style="font-weight: 700;">Typography Font Family</label>
-              <select id="cms-font-family" class="form-select form-select-sm">
-                <option value="Outfit, sans-serif">Outfit (Modern, Clean & Geometric)</option>
-                <option value="Inter, sans-serif">Inter (High Legibility & Academic)</option>
-                <option value="Poppins, sans-serif">Poppins (Friendly & Rounded)</option>
-                <option value="Plus Jakarta Sans, sans-serif">Plus Jakarta Sans (Tech & Sleek)</option>
-                <option value="Playfair Display, serif">Playfair Display (Warm & Classic Serif)</option>
-                <option value="Roboto, sans-serif">Roboto (Standard Sans)</option>
-              </select>
+              <div class="col-12 mt-2">
+                <label class="form-label small" style="font-weight: 700;">Typography Font Family</label>
+                <select id="cms-font-family" class="form-select form-select-sm">
+                  <option value="Outfit, sans-serif">Outfit (Modern, Clean & Geometric)</option>
+                  <option value="Inter, sans-serif">Inter (High Legibility & Academic)</option>
+                  <option value="Poppins, sans-serif">Poppins (Friendly & Rounded)</option>
+                  <option value="Plus Jakarta Sans, sans-serif">Plus Jakarta Sans (Tech & Sleek)</option>
+                  <option value="Playfair Display, serif">Playfair Display (Warm & Classic Serif)</option>
+                  <option value="Roboto, sans-serif">Roboto (Standard Sans)</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Section 2: 🌟 Hero Banner & Headline -->
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>🌟</span> Hero Section Headline & Action CTAs
-          </h5>
-          <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">Hero Headline Title</label>
-            <input type="text" id="cms-hero-title" class="form-control form-control-sm" value="Premier Air-Conditioned Study Library & Reading Hall">
-            <small class="text-muted">Use <code>{library_name}</code> to dynamically display your business name</small>
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: visible;">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>🌟</span> Hero Section Headline & Action CTAs
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted); transition: transform 0.2s;">▲</span>
           </div>
-          <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">Hero Subtitle</label>
-            <input type="text" id="cms-hero-subtitle" class="form-control form-control-sm" value="Peaceful, Disciplined & Distraction-Free Study Environment for Competitive Exam Aspirants.">
-          </div>
-          <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">Announcement Marquee Alert Ticker</label>
-            <input type="text" id="cms-hero-ticker" class="form-control form-control-sm" value="⚡ Limited Seats Available for Morning & Full Day Shifts! Reserve Yours Today.">
-          </div>
-          <div class="row g-2">
-            <div class="col-6">
-              <label class="form-label small" style="font-weight: 700;">Primary CTA Button</label>
-              <input type="text" id="cms-hero-cta-text" class="form-control form-control-sm" value="Book Your Seat / Register Now">
+          <div class="cms-accordion-body p-3 pt-0" style="display: block;">
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Hero Headline Title</label>
+              <input type="text" id="cms-hero-title" class="form-control form-control-sm" value="Premier Air-Conditioned Study Library & Reading Hall">
+              <small class="text-muted">Use <code>{library_name}</code> to dynamically display your business name</small>
             </div>
-            <div class="col-6">
-              <label class="form-label small" style="font-weight: 700;">Secondary CTA Button</label>
-              <input type="text" id="cms-hero-sec-text" class="form-control form-control-sm" value="Send Quick Enquiry">
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Hero Subtitle</label>
+              <input type="text" id="cms-hero-subtitle" class="form-control form-control-sm" value="Peaceful, Disciplined & Distraction-Free Study Environment for Competitive Exam Aspirants.">
+            </div>
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Announcement Marquee Alert Ticker</label>
+              <input type="text" id="cms-hero-ticker" class="form-control form-control-sm" value="⚡ Limited Seats Available for Morning & Full Day Shifts! Reserve Yours Today.">
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Primary CTA Button</label>
+                <input type="text" id="cms-hero-cta-text" class="form-control form-control-sm" value="Book Your Seat / Register Now">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Secondary CTA Button</label>
+                <input type="text" id="cms-hero-sec-text" class="form-control form-control-sm" value="Send Quick Enquiry">
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Section 3: ⚡ Key Facility Badges (6 Amenities) -->
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>⚡</span> Key Facility & Amenities Badges
-          </h5>
-          <div class="row g-2">
-            <div class="col-6"><input type="text" id="cms-fac-1" class="form-control form-control-sm" value="❄️ 100% Inverter AC Hall"></div>
-            <div class="col-6"><input type="text" id="cms-fac-2" class="form-control form-control-sm" value="🚀 300 Mbps Optical Fiber Wi-Fi"></div>
-            <div class="col-6"><input type="text" id="cms-fac-3" class="form-control form-control-sm" value="🔋 Zero-Interruption Power Backup"></div>
-            <div class="col-6"><input type="text" id="cms-fac-4" class="form-control form-control-sm" value="📹 24x7 HD CCTV Surveillance"></div>
-            <div class="col-6"><input type="text" id="cms-fac-5" class="form-control form-control-sm" value="💧 Chilled & Hot RO Drinking Water"></div>
-            <div class="col-6"><input type="text" id="cms-fac-6" class="form-control form-control-sm" value="🔐 Personal Storage Lockers"></div>
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: visible;">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>⚡</span> Key Facility & Amenities Badges
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted); transition: transform 0.2s;">▲</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: block;">
+            <p class="text-muted small mb-2">Customize the 6 feature badges displayed on your landing page:</p>
+            <div class="row g-2">
+              <div class="col-6"><input type="text" id="cms-fac-1" class="form-control form-control-sm" value="❄️ 100% Inverter AC Hall"></div>
+              <div class="col-6"><input type="text" id="cms-fac-2" class="form-control form-control-sm" value="🚀 300 Mbps Optical Fiber Wi-Fi"></div>
+              <div class="col-6"><input type="text" id="cms-fac-3" class="form-control form-control-sm" value="🔋 Zero-Interruption Power Backup"></div>
+              <div class="col-6"><input type="text" id="cms-fac-4" class="form-control form-control-sm" value="📹 24x7 HD CCTV Surveillance"></div>
+              <div class="col-6"><input type="text" id="cms-fac-5" class="form-control form-control-sm" value="💧 Chilled & Hot RO Drinking Water"></div>
+              <div class="col-6"><input type="text" id="cms-fac-6" class="form-control form-control-sm" value="🔐 Personal Storage Lockers"></div>
+            </div>
           </div>
         </div>
 
         <!-- Section 4: 📖 About & Library Information -->
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>📖</span> About Section & Library Atmosphere
-          </h5>
-          <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">About Headline Title</label>
-            <input type="text" id="cms-about-title" class="form-control form-control-sm" value="Why Choose Our Reading Hall?">
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: visible;">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>📖</span> About Section & Library Atmosphere
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted); transition: transform 0.2s;">▲</span>
           </div>
-          <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">About Narrative / Mission</label>
-            <textarea id="cms-about-desc" class="form-control form-control-sm" rows="3">Designed specifically for UPSC, MPSC, Banking, SSC, NEET/JEE, CA, and other exam aspirants. We provide ergonomic seating, high-speed Wi-Fi, pin-drop silence, and premium amenities to supercharge your study focus.</textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label small" style="font-weight: 700;">Daily Operating Hours Notice</label>
-            <input type="text" id="cms-opening-hours" class="form-control form-control-sm" value="Open Daily: 06:00 AM – 11:00 PM (365 Days)">
+          <div class="cms-accordion-body p-3 pt-0" style="display: block;">
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">About Headline Title</label>
+              <input type="text" id="cms-about-title" class="form-control form-control-sm" value="Why Choose Our Reading Hall?">
+            </div>
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">About Narrative / Mission</label>
+              <textarea id="cms-about-desc" class="form-control form-control-sm" rows="3">Designed specifically for UPSC, MPSC, Banking, SSC, NEET/JEE, CA, and other exam aspirants. We provide ergonomic seating, high-speed Wi-Fi, pin-drop silence, and premium amenities to supercharge your study focus.</textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label small" style="font-weight: 700;">Daily Operating Hours Notice</label>
+              <input type="text" id="cms-opening-hours" class="form-control form-control-sm" value="Open Daily: 06:00 AM – 11:00 PM (365 Days)">
+            </div>
           </div>
         </div>
 
         <!-- Section 5: 📱 Floating Quick Actions (WhatsApp & Direct Call) -->
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>📱</span> Floating Quick Action Widgets (WhatsApp & Call)
-          </h5>
-          <div class="row g-2">
-            <div class="col-md-6">
-              <label class="form-label small" style="font-weight: 700;">Floating WhatsApp Support Number</label>
-              <input type="tel" id="cms-floating-whatsapp" class="form-control form-control-sm" placeholder="+91 98765 43210">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label small" style="font-weight: 700;">Floating Direct Call Number</label>
-              <input type="tel" id="cms-floating-call" class="form-control form-control-sm" placeholder="+91 98765 43210">
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: visible;">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>📱</span> Floating Quick Action Widgets (WhatsApp & Call)
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted); transition: transform 0.2s;">▲</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: block;">
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label small" style="font-weight: 700;">Floating WhatsApp Support Number</label>
+                <input type="tel" id="cms-floating-whatsapp" class="form-control form-control-sm" placeholder="+91 98765 43210">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small" style="font-weight: 700;">Floating Direct Call Number</label>
+                <input type="tel" id="cms-floating-call" class="form-control form-control-sm" placeholder="+91 98765 43210">
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Section 6: 🔍 SEO, Social Graph & Google Maps -->
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>🔍</span> SEO, Social Share & Google Maps
-          </h5>
-          <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">Google Search Page Title</label>
-            <input type="text" id="cms-seo-title" class="form-control form-control-sm" value="Study Library & Reading Hall — Premium Self-Study Space">
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: visible;">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>🔍</span> SEO, Social Share & Google Maps
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted); transition: transform 0.2s;">▲</span>
           </div>
-          <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">Meta Description</label>
-            <textarea id="cms-seo-desc" class="form-control form-control-sm" rows="2">Peaceful, air-conditioned study library with high-speed Wi-Fi, ergonomic seating, and 24x7 power backup.</textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label small" style="font-weight: 700;">Google Maps Location Embed URL</label>
-            <input type="url" id="cms-map-embed" class="form-control form-control-sm" placeholder="https://www.google.com/maps/embed?...">
+          <div class="cms-accordion-body p-3 pt-0" style="display: block;">
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Google Search Page Title</label>
+              <input type="text" id="cms-seo-title" class="form-control form-control-sm" value="Study Library & Reading Hall — Premium Self-Study Space">
+            </div>
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Meta Description</label>
+              <textarea id="cms-seo-desc" class="form-control form-control-sm" rows="2">Peaceful, air-conditioned study library with high-speed Wi-Fi, ergonomic seating, and 24x7 power backup.</textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label small" style="font-weight: 700;">Google Maps Location Embed URL</label>
+              <input type="url" id="cms-map-embed" class="form-control form-control-sm" placeholder="https://www.google.com/maps/embed?...">
+            </div>
           </div>
         </div>
 
@@ -2012,6 +2242,31 @@ function renderWebsiteCmsStudio() {
   setTimeout(async () => {
     const iframe = wrapper.querySelector('#cms-preview-frame');
     const previewContainer = wrapper.querySelector('#cms-preview-container');
+
+    // 0. Interactive Accordion Expand/Collapse Logic
+    wrapper.querySelectorAll('.cms-accordion-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const body = header.nextElementSibling;
+        const icon = header.querySelector('.cms-accordion-toggle');
+        if (body.style.display === 'none') {
+          body.style.display = 'block';
+          if (icon) icon.textContent = '▲';
+        } else {
+          body.style.display = 'none';
+          if (icon) icon.textContent = '▼';
+        }
+      });
+    });
+
+    wrapper.querySelector('#btn-cms-expand-all')?.addEventListener('click', () => {
+      wrapper.querySelectorAll('.cms-accordion-body').forEach(b => b.style.display = 'block');
+      wrapper.querySelectorAll('.cms-accordion-toggle').forEach(t => t.textContent = '▲');
+    });
+
+    wrapper.querySelector('#btn-cms-collapse-all')?.addEventListener('click', () => {
+      wrapper.querySelectorAll('.cms-accordion-body').forEach(b => b.style.display = 'none');
+      wrapper.querySelectorAll('.cms-accordion-toggle').forEach(t => t.textContent = '▼');
+    });
 
     // Helper to send live updates to preview iframe
     const dispatchLiveUpdate = () => {
@@ -2130,6 +2385,12 @@ function renderWebsiteCmsStudio() {
 
         if (iframe) {
           iframe.src = `/landing?preview=true&theme=${currentPreset}&t=${Date.now()}`;
+        }
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({
+            type: 'PRESET_CHANGE',
+            preset: currentPreset
+          }, '*');
         }
         setTimeout(dispatchLiveUpdate, 150);
       });
@@ -2691,6 +2952,7 @@ async function saveActiveStudioSettings(container, studioId, store) {
       },
       billing: {
         receiptPrefix: container.querySelector('#setting-bill-prefix')?.value?.trim() || store.settings.billing?.receiptPrefix || 'LIB-2026',
+        defaultTemplate: container.querySelector('.receipt-format-card.active')?.dataset.format || store.settings.billing?.defaultTemplate || 'thermal80',
         gstRate: container.querySelector('#setting-bill-gstRate')?.value ? Number(container.querySelector('#setting-bill-gstRate').value) : (store.settings.billing?.gstRate ?? 18),
         hsnSacCode: container.querySelector('#setting-bill-hsn')?.value?.trim() || store.settings.billing?.hsnSacCode || '999293',
         refundPolicyDays: container.querySelector('#setting-bill-refundDays')?.value ? Number(container.querySelector('#setting-bill-refundDays').value) : (store.settings.billing?.refundPolicyDays ?? 3)

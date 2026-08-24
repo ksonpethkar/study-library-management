@@ -1310,17 +1310,21 @@
         const queryPreset = urlParams.get('theme') || urlParams.get('preset');
         const preset = queryPreset || landing.theme?.preset || 'modern_glass';
         document.documentElement.setAttribute('data-landing-preset', preset);
-        if (landing.theme?.primaryColor) {
-          document.documentElement.style.setProperty('--primary', landing.theme.primaryColor);
-        }
-        if (landing.theme?.accentColor) {
-          document.documentElement.style.setProperty('--accent', landing.theme.accentColor);
-        }
-        if (landing.theme?.secondaryColor) {
-          document.documentElement.style.setProperty('--secondary', landing.theme.secondaryColor);
-        }
-        if (landing.theme?.fontFamily) {
-          document.body.style.fontFamily = landing.theme.fontFamily;
+        
+        // Only override CSS vars with custom colors if not previewing a different preset
+        if (!queryPreset || queryPreset === (landing.theme?.preset || 'modern_glass')) {
+          if (landing.theme?.primaryColor) {
+            document.documentElement.style.setProperty('--primary', landing.theme.primaryColor);
+          }
+          if (landing.theme?.accentColor) {
+            document.documentElement.style.setProperty('--accent', landing.theme.accentColor);
+          }
+          if (landing.theme?.secondaryColor) {
+            document.documentElement.style.setProperty('--secondary', landing.theme.secondaryColor);
+          }
+          if (landing.theme?.fontFamily) {
+            document.body.style.fontFamily = landing.theme.fontFamily;
+          }
         }
 
         // 1. SEO & Metadata

@@ -135,6 +135,7 @@ systemSettingSchema.statics.initDefaults = async function() {
     // Billing & Invoicing
     { category: 'billing', key: 'billing.receiptPrefix', value: 'LIB-2026', type: 'string', label: 'Invoice / Receipt Prefix' },
     { category: 'billing', key: 'billing.nextReceiptNumber', value: 1001, type: 'number', label: 'Starting Invoice Number' },
+    { category: 'billing', key: 'billing.defaultTemplate', value: 'thermal80', type: 'string', label: 'Default Receipt Template' },
     { category: 'billing', key: 'billing.enableGst', value: false, type: 'boolean', label: 'Enable GST Tax on Invoices' },
     { category: 'billing', key: 'billing.gstRate', value: 18, type: 'number', label: 'Standard GST Percentage (%)' },
     { category: 'billing', key: 'billing.hsnSacCode', value: '999293', type: 'string', label: 'HSN / SAC Code' },
