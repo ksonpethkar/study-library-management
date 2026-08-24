@@ -1737,7 +1737,8 @@ function renderModulesManagerStudio() {
 // -------------------------------------------------------------
 // 6. 🔔 WhatsApp & Notification Suite Studio
 // -------------------------------------------------------------
-function renderNotificationStudio(notif, profile) {
+function renderNotificationsStudio(notif, profile) {
+const renderNotificationStudio = renderNotificationsStudio;
   return `
     <div class="card" style="padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
       <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
