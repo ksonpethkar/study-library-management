@@ -311,7 +311,7 @@ router.put('/:id', validate([
   }
 });
 
-// DELETE /:id — Deactivate branch
+// DELETE /:id — Deactivate/delete branch
 router.delete('/:id', roleCheck('owner'), async (req, res) => {
   try {
     const branch = await Branch.findById(req.params.id);
@@ -320,7 +320,12 @@ router.delete('/:id', roleCheck('owner'), async (req, res) => {
     }
 
     if (branch.isMainBranch) {
-      return res.status(400).json({ success: false, message: 'Cannot deactivate the primary main branch' });
+      // If other active branches exist, promote the next active branch to primary main branch
+      const nextBranch = await Branch.findOne({ _id: { $ne: branch._id }, isActive: true });
+      if (nextBranch) {
+        nextBranch.isMainBranch = true;
+        await nextBranch.save();
+      }
     }
 
     branch.isActive = false;
@@ -329,7 +334,7 @@ router.delete('/:id', roleCheck('owner'), async (req, res) => {
     res.json({
       success: true,
       data: branch,
-      message: 'Branch deactivated successfully'
+      message: 'Branch deleted successfully'
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

@@ -1091,11 +1091,9 @@ function renderCentersTab(container) {
             <button type="button" class="btn btn-sm btn-outline-secondary btn-branch-edit" data-id="${branch._id}" style="font-size: 0.8rem;">
               ✏️ Edit
             </button>
-            ${!isMain ? `
-              <button type="button" class="btn btn-sm btn-outline-danger btn-branch-delete" data-id="${branch._id}" style="font-size: 0.8rem;">
-                🗑️
-              </button>
-            ` : ''}
+            <button type="button" class="btn btn-sm btn-outline-danger btn-branch-delete" data-id="${branch._id}" style="font-size: 0.8rem;" title="Delete Branch">
+              🗑️
+            </button>
           </div>
         </div>
 
@@ -1426,6 +1424,13 @@ function showBranchModal(branch = null, container) {
         </div>
       </div>
 
+      <div class="mb-3 p-2" style="background: rgba(253, 203, 110, 0.1); border-radius: 6px; border: 1px solid rgba(253, 203, 110, 0.25);">
+        <label class="form-check-label" style="font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" class="form-check-input" name="isMainBranch" value="true" ${branch?.isMainBranch ? 'checked' : ''} style="cursor: pointer;">
+          <span>⭐ Designate as Primary Main Campus Branch</span>
+        </label>
+      </div>
+
       <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
         <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
         <button type="submit" class="btn btn-primary" id="btn-submit-branch-form" style="font-weight: 600;">
@@ -1450,6 +1455,7 @@ function showBranchModal(branch = null, container) {
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
     data.amenities = Array.from(content.querySelectorAll('input[name="amenities"]:checked')).map(cb => cb.value);
+    data.isMainBranch = Boolean(content.querySelector('input[name="isMainBranch"]:checked'));
 
     try {
       let res;
@@ -1471,21 +1477,28 @@ function showBranchModal(branch = null, container) {
   });
 }
 
-function handleDeleteBranch(branch, container) {
-  Confirm.show({
-    title: 'Deactivate Branch',
-    message: `Are you sure you want to deactivate branch "${branch.name}" (${branch.code})? Existing seat configurations will be archived.`,
-    danger: true,
-    onConfirm: async () => {
-      try {
-        const res = await api.delete(`/api/branches/${branch._id}`);
-        if (res.success) {
-          Toast.success(res.message);
-          await loadInitialHubData(container);
-        }
-      } catch (e) { Toast.error(e.message); }
-    }
+async function handleDeleteBranch(branch, container) {
+  const isMain = branch.isMainBranch;
+  const ok = await Confirm.show({
+    title: `Delete Branch: ${branch.name}`,
+    message: isMain
+      ? `Are you sure you want to delete "${branch.name}" (${branch.code})? Since this is currently the primary main campus, another active branch will automatically become the primary campus.`
+      : `Are you sure you want to delete branch "${branch.name}" (${branch.code})? Existing seat configurations will be archived.`,
+    danger: true
   });
+  if (ok) {
+    try {
+      const res = await api.delete(`/api/branches/${branch._id}`);
+      if (res.success) {
+        Toast.success(res.message || 'Branch deleted successfully');
+        await loadInitialHubData(container);
+      } else {
+        Toast.error(res.message || 'Failed to delete branch');
+      }
+    } catch (e) {
+      Toast.error(e.message || 'Failed to delete branch');
+    }
+  }
 }
 
 // ----------------------------------------------------
