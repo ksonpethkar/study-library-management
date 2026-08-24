@@ -1769,21 +1769,31 @@ export const FAB = {
 
 // ── Universal 5-Level Action Architecture Menu Helper ──────────
 export const ActionMenu = {
+  _activeFloatingMenu: null,
+  _activeTrigger: null,
+
+  closeAll() {
+    if (this._activeFloatingMenu) {
+      this._activeFloatingMenu.remove();
+      this._activeFloatingMenu = null;
+    }
+    this._activeTrigger = null;
+    document.querySelectorAll('.dropdown.active, .dropdown.open, .dropdown-menu.show').forEach(d => {
+      d.classList.remove('active', 'open', 'show');
+    });
+  },
+
   /**
-   * Renders standardized 5-Level Action dropdown menu HTML or triggers a BottomSheet on mobile
-   * Level 1: Basic View / Edit / Delete
-   * Level 2: Status & Lifecycle (Active, Deactivate, Archive, Restore)
-   * Level 3: Portability & Clones (Duplicate, Export CSV/PDF, Import)
-   * Level 4: Domain Actions (Seat Assign, Renew, Transfer, WhatsApp, POS Print)
-   * Level 5: Audit & Security (Lock/Unlock, Audit Log)
+   * Renders standardized 5-Level Action dropdown menu button HTML
    */
   renderHtml(actions = [], entityId = '') {
+    const encodedActions = encodeURIComponent(JSON.stringify(actions));
     return `
       <div class="dropdown action-menu-wrapper d-inline-block" data-entity-id="${escapeHTML(entityId)}">
-        <button type="button" class="btn btn-sm btn-outline-secondary btn-action-menu-trigger dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" style="padding: 3px 8px; font-size: 0.8rem; font-weight: 700; border-radius: 6px;" title="Universal Actions">
+        <button type="button" class="btn btn-sm btn-outline-secondary btn-action-menu-trigger dropdown-toggle" data-actions="${encodedActions}" data-entity-id="${escapeHTML(entityId)}" aria-expanded="false" style="padding: 3px 8px; font-size: 0.8rem; font-weight: 700; border-radius: 6px;" title="Universal Actions">
           ⋮ Actions
         </button>
-        <ul class="dropdown-menu dropdown-menu-end shadow" style="min-width: 210px; font-size: 0.84rem; padding: 6px 0; border-radius: 8px; z-index: 1050; background: var(--color-surface); border: 1px solid var(--color-border);">
+        <ul class="dropdown-menu dropdown-menu-end shadow" style="display: none; min-width: 210px; font-size: 0.84rem; padding: 6px 0; border-radius: 8px; z-index: 1050; background: var(--color-surface); border: 1px solid var(--color-border);">
           ${actions.map(act => {
             if (act.divider) return `<li><hr class="dropdown-divider" style="margin: 4px 0; border-color: var(--color-border);"></li>`;
             if (act.header) return `<li class="dropdown-header text-muted text-uppercase" style="font-size: 0.68rem; font-weight: 800; padding: 4px 14px; letter-spacing: 0.5px; color: var(--color-text-secondary);">${escapeHTML(act.header)}</li>`;
@@ -1807,6 +1817,186 @@ export const ActionMenu = {
   },
 
   /**
+   * Displays a floating menu portal attached to document.body to prevent table overflow clipping
+   */
+  showFloatingMenu(triggerBtn, actions, entityId) {
+    this.closeAll();
+    if (!actions || !actions.length) return;
+
+    // Mobile fallback: On narrow screens <= 480px, display bottom sheet
+    if (window.innerWidth <= 480 && typeof BottomSheet !== 'undefined' && BottomSheet.show) {
+      const sheetContent = `
+        <div style="padding: 0.5rem 0;">
+          <div style="font-weight: 800; font-size: 0.95rem; margin-bottom: 10px; padding: 0 16px; color: var(--color-primary);">Quick Actions</div>
+          <div style="display: flex; flex-direction: column;">
+            ${actions.map(act => {
+              if (act.divider) return `<hr style="margin: 4px 0; border-color: var(--color-border);">`;
+              if (act.header) return `<div style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--color-text-muted); padding: 6px 16px 2px;">${escapeHTML(act.header)}</div>`;
+              const icon = act.icon || '⚡';
+              const label = act.label || '';
+              const actionKey = act.action || act.id || '';
+              const isDanger = act.danger ? 'color: var(--color-danger, #ef4444);' : 'color: var(--color-text-primary);';
+              return `
+                <button type="button" class="btn-mobile-sheet-action action-menu-item" data-action="${escapeHTML(actionKey)}" data-id="${escapeHTML(entityId)}" style="display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 16px; border: none; background: transparent; ${isDanger} font-size: 0.92rem; cursor: pointer;">
+                  <span style="font-size: 1.1rem;">${icon}</span>
+                  <span style="flex-grow: 1; font-weight: ${act.bold ? '700' : '500'};">${escapeHTML(label)}</span>
+                  ${act.badge ? `<span class="badge badge-sm" style="font-size: 0.7rem; background: rgba(108,92,231,0.15); color: var(--color-primary);">${escapeHTML(act.badge)}</span>` : ''}
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+      const sheet = BottomSheet.show({
+        title: 'Select Action',
+        content: sheetContent,
+        height: 'auto'
+      });
+
+      const sheetEl = document.getElementById('bottom-sheet');
+      if (sheetEl) {
+        sheetEl.addEventListener('click', (e) => {
+          const item = e.target.closest('.action-menu-item');
+          if (!item) return;
+          e.preventDefault();
+          const action = item.dataset.action;
+          const id = item.dataset.id;
+          if (sheet && sheet.close) sheet.close();
+
+          const origItem = triggerBtn.parentElement?.querySelector(`.action-menu-item[data-action="${action}"]`);
+          if (origItem) {
+            origItem.click();
+          } else {
+            const container = triggerBtn.closest('#page-content, .card, .table-responsive, table, body');
+            if (container) {
+              const dummy = document.createElement('a');
+              dummy.className = 'action-menu-item';
+              dummy.dataset.action = action;
+              dummy.dataset.id = id;
+              const clickEvt = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
+              Object.defineProperty(clickEvt, 'target', { value: dummy, enumerable: true });
+              container.dispatchEvent(clickEvt);
+            }
+          }
+        });
+      }
+      return;
+    }
+
+    // Desktop & Tablet Floating Portal Menu
+    const floating = document.createElement('div');
+    floating.id = 'floating-action-menu-portal';
+    floating.className = 'floating-action-menu-portal shadow-lg';
+    floating.style.cssText = `
+      position: fixed;
+      z-index: 999999;
+      background: var(--color-surface, #ffffff);
+      border: 1px solid var(--color-border, #e2e8f0);
+      border-radius: 8px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+      min-width: 210px;
+      max-width: 280px;
+      padding: 6px 0;
+      font-size: 0.84rem;
+      user-select: none;
+      animation: fadeIn 0.12s ease-out;
+    `;
+
+    floating.innerHTML = `
+      <ul style="list-style: none; margin: 0; padding: 0;">
+        ${actions.map(act => {
+          if (act.divider) return `<li style="margin: 4px 0; border-top: 1px solid var(--color-border, #e2e8f0);"></li>`;
+          if (act.header) return `<li style="font-size: 0.66rem; font-weight: 800; padding: 4px 14px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-secondary, #64748b);">${escapeHTML(act.header)}</li>`;
+          const icon = act.icon || '⚡';
+          const label = act.label || '';
+          const actionKey = act.action || act.id || '';
+          const isDanger = act.danger ? 'color: var(--color-danger, #ef4444);' : 'color: var(--color-text-primary, #1e293b);';
+          return `
+            <li>
+              <a href="#" class="floating-action-item action-menu-item" data-action="${escapeHTML(actionKey)}" data-id="${escapeHTML(entityId)}" style="display: flex; align-items: center; gap: 8px; padding: 6px 14px; text-decoration: none; ${isDanger} transition: background 0.12s; cursor: pointer;">
+                <span style="font-size: 0.95rem; width: 18px; text-align: center;">${icon}</span>
+                <span style="flex-grow: 1; font-weight: ${act.bold ? '700' : '500'}; white-space: nowrap;">${escapeHTML(label)}</span>
+                ${act.badge ? `<span class="badge badge-sm" style="font-size: 0.65rem; background: rgba(108,92,231,0.15); color: var(--color-primary);">${escapeHTML(act.badge)}</span>` : ''}
+              </a>
+            </li>
+          `;
+        }).join('')}
+      </ul>
+    `;
+
+    document.body.appendChild(floating);
+    this._activeFloatingMenu = floating;
+    this._activeTrigger = triggerBtn;
+
+    // Hover styling on menu items
+    floating.querySelectorAll('.floating-action-item').forEach(item => {
+      item.addEventListener('mouseenter', () => {
+        item.style.backgroundColor = 'var(--color-bg-secondary, rgba(108,92,231,0.08))';
+      });
+      item.addEventListener('mouseleave', () => {
+        item.style.backgroundColor = 'transparent';
+      });
+    });
+
+    // Calculate position
+    const rect = triggerBtn.getBoundingClientRect();
+    const floatingRect = floating.getBoundingClientRect();
+    
+    let left = rect.right - floatingRect.width;
+    if (left < 10) left = 10;
+    if (left + floatingRect.width > window.innerWidth - 10) {
+      left = window.innerWidth - floatingRect.width - 10;
+    }
+
+    let top = rect.bottom + 4;
+    // If it overflows viewport bottom, place above
+    if (top + floatingRect.height > window.innerHeight - 10) {
+      top = rect.top - floatingRect.height - 4;
+    }
+
+    floating.style.left = `${Math.max(0, left)}px`;
+    floating.style.top = `${Math.max(0, top)}px`;
+
+    // Click handler for floating action items
+    floating.addEventListener('click', (e) => {
+      const item = e.target.closest('.action-menu-item');
+      if (!item) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const action = item.dataset.action;
+      const id = item.dataset.id;
+      const currentTrigger = ActionMenu._activeTrigger;
+      ActionMenu.closeAll();
+
+      // Trigger action via original trigger item or container delegation
+      if (currentTrigger) {
+        const origItem = currentTrigger.parentElement?.querySelector(`.action-menu-item[data-action="${action}"]`);
+        if (origItem) {
+          origItem.click();
+          return;
+        }
+
+        const container = currentTrigger.closest('#page-content, .card, .table-responsive, table, body');
+        if (container) {
+          const dummy = document.createElement('a');
+          dummy.className = 'action-menu-item';
+          dummy.dataset.action = action;
+          dummy.dataset.id = id;
+          
+          const clickEvt = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+          });
+          Object.defineProperty(clickEvt, 'target', { value: dummy, enumerable: true });
+          container.dispatchEvent(clickEvt);
+        }
+      }
+    });
+  },
+
+  /**
    * Bind event delegation on a container for action menu clicks
    */
   bind(container, handler) {
@@ -1822,6 +2012,58 @@ export const ActionMenu = {
     });
   }
 };
+
+// Global Event Listeners for ActionMenu triggers
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.btn-action-menu-trigger, [data-bs-toggle="dropdown"]');
+    if (trigger) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // If clicking the currently open trigger, toggle it off
+      if (ActionMenu._activeTrigger === trigger) {
+        ActionMenu.closeAll();
+        return;
+      }
+
+      let actions = [];
+      const actionsData = trigger.getAttribute('data-actions');
+      if (actionsData) {
+        try { actions = JSON.parse(decodeURIComponent(actionsData)); } catch(err) {}
+      }
+
+      if (!actions || !actions.length) {
+        const menu = trigger.parentElement?.querySelector('.dropdown-menu');
+        if (menu) {
+          menu.querySelectorAll('.action-menu-item').forEach(el => {
+            actions.push({
+              action: el.dataset.action,
+              id: el.dataset.id,
+              label: el.textContent.trim(),
+              danger: el.classList.contains('text-danger')
+            });
+          });
+        }
+      }
+
+      const entityId = trigger.getAttribute('data-entity-id') || trigger.closest('[data-entity-id]')?.dataset.entityId || '';
+      ActionMenu.showFloatingMenu(trigger, actions, entityId);
+      return;
+    }
+
+    // Outside click closes active floating menu
+    if (!e.target.closest('#floating-action-menu-portal, #bottom-sheet')) {
+      ActionMenu.closeAll();
+    }
+  });
+
+  window.addEventListener('resize', () => ActionMenu.closeAll());
+  window.addEventListener('scroll', () => ActionMenu.closeAll(), { passive: true });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') ActionMenu.closeAll();
+  });
+}
 
 if (typeof window !== 'undefined') {
   window.Toast = Toast;
