@@ -125,6 +125,33 @@ router.post('/', validate([
         cleanPhone = cleanPhone.slice(1);
       }
       req.body.phone = cleanPhone;
+
+      // Duplicate Check: Check by last 10 digits or exact phone
+      const digitsOnly = cleanPhone.replace(/[^0-9]/g, '');
+      const last10 = digitsOnly.length >= 10 ? digitsOnly.slice(-10) : digitsOnly;
+      if (last10) {
+        const existingStudent = await Student.findOne({
+          phone: { $regex: last10 + '$' }
+        }).lean();
+
+        if (existingStudent) {
+          return res.status(400).json({
+            success: false,
+            message: `A student with mobile number "${req.body.phone}" is already registered (${existingStudent.name}, Student ID: ${existingStudent.studentId || 'N/A'}). Duplicate admissions with same phone number are not allowed.`
+          });
+        }
+      }
+    }
+
+    if (req.body.email && req.body.email.trim()) {
+      const cleanEmail = req.body.email.toLowerCase().trim();
+      const existingEmail = await Student.findOne({ email: cleanEmail }).lean();
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          message: `A student with email "${req.body.email}" is already registered (${existingEmail.name}, Student ID: ${existingEmail.studentId || 'N/A'}).`
+        });
+      }
     }
 
     // Validate Shift Capacity
@@ -245,6 +272,35 @@ router.put('/:id', validate([
         cleanPhone = cleanPhone.slice(1);
       }
       req.body.phone = cleanPhone;
+
+      const digitsOnly = cleanPhone.replace(/[^0-9]/g, '');
+      const last10 = digitsOnly.length >= 10 ? digitsOnly.slice(-10) : digitsOnly;
+      if (last10) {
+        const existingPhone = await Student.findOne({
+          _id: { $ne: req.params.id },
+          phone: { $regex: last10 + '$' }
+        }).lean();
+        if (existingPhone) {
+          return res.status(400).json({
+            success: false,
+            message: `Mobile number "${req.body.phone}" is already used by another student (${existingPhone.name}, Student ID: ${existingPhone.studentId || 'N/A'}).`
+          });
+        }
+      }
+    }
+
+    if (req.body.email && req.body.email.trim()) {
+      const cleanEmail = req.body.email.toLowerCase().trim();
+      const existingEmail = await Student.findOne({
+        _id: { $ne: req.params.id },
+        email: cleanEmail
+      }).lean();
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          message: `Email "${req.body.email}" is already used by another student (${existingEmail.name}, Student ID: ${existingEmail.studentId || 'N/A'}).`
+        });
+      }
     }
 
     const oldSeat = student.seat ? String(student.seat) : null;
