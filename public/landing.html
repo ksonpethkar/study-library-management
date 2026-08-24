@@ -1456,6 +1456,19 @@
             }
           }
 
+          // Banner Image Backdrop
+          const bannerUrl = businessProfile.bannerImage || landing.hero?.bgImage || '';
+          if (bannerUrl) {
+            const heroSec = document.getElementById('hero');
+            if (heroSec) {
+              heroSec.style.backgroundImage = `linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(30, 41, 59, 0.82)), url("${bannerUrl}")`;
+              heroSec.style.backgroundSize = 'cover';
+              heroSec.style.backgroundPosition = 'center';
+            }
+            document.querySelector('meta[property="og:image"]')?.setAttribute('content', bannerUrl);
+            document.querySelector('meta[name="twitter:image"]')?.setAttribute('content', bannerUrl);
+          }
+
           // Ticker
           const tickerEl = document.getElementById('landing-ticker');
           const tickerTextEl = document.getElementById('ticker-text');

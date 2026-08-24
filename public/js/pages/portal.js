@@ -145,13 +145,15 @@ function renderPortalUI(container, data, analytics = null) {
     </div>
 
     <!-- Top Welcome Banner -->
-    <div class="card mb-4" style="
-      background: linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(162, 155, 254, 0.05)), var(--color-surface);
+    <div class="card mb-4" id="portal-welcome-banner" style="
+      background: ${business.bannerImage ? `linear-gradient(135deg, rgba(108, 92, 231, 0.88), rgba(15, 23, 42, 0.82)), url('${business.bannerImage}') center/cover` : `linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(162, 155, 254, 0.05)), var(--color-surface)`};
       border: 1px solid var(--color-border);
       border-radius: var(--radius-lg);
       padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
     ">
-      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.25rem;">
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.25rem; position: relative; z-index: 1;">
         <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; min-width: 0; flex: 1;">
           <div style="
             width: 68px; height: 68px; border-radius: 50%;
@@ -162,14 +164,14 @@ function renderPortalUI(container, data, analytics = null) {
             ${(student.photo || user?.avatar) ? `<img src="${escapeHTML(student.photo || user.avatar)}" alt="${escapeHTML(student.name)}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
           </div>
           <div style="min-width: 0; flex: 1;">
-            <h2 style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 700; color: var(--color-text-primary); word-break: break-word; overflow-wrap: break-word; text-transform: capitalize;">
+            <h2 style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 700; color: ${business.bannerImage ? '#ffffff' : 'var(--color-text-primary)'}; word-break: break-word; overflow-wrap: break-word; text-transform: capitalize;">
               Welcome back, ${escapeHTML((student.name || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()))}!
             </h2>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
-              <span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); font-family: monospace; font-weight: 700; font-size: 0.85rem;">
+              <span class="badge" style="background: rgba(0, 184, 148, 0.2); color: ${business.bannerImage ? '#a7f3d0' : 'var(--color-success)'}; font-family: monospace; font-weight: 700; font-size: 0.85rem;">
                 ${escapeHTML(student.studentId || 'STU-MEMBER')}
               </span>
-              <span style="color: var(--color-text-secondary); font-size: 0.85rem;">• ${escapeHTML(business.businessName || 'Study Library')}</span>
+              <span style="color: ${business.bannerImage ? 'rgba(255,255,255,0.85)' : 'var(--color-text-secondary)'}; font-size: 0.85rem;">• ${escapeHTML(business.businessName || 'Study Library')}</span>
             </div>
             <div style="display: flex; gap: 4px; flex-wrap: wrap;">
               ${examTags}

@@ -1952,6 +1952,7 @@
 
         // Branding Sync
         const logoUrl = bp?.logo || publicConfig?.logo || activeTemplate?.branding?.logoUrl || '';
+        const bannerUrl = bp?.bannerImage || publicConfig?.bannerImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.bannerImage || '';
         const logoEl = document.getElementById('lib-logo-icon');
         if (logoEl) {
           if (logoUrl) {
@@ -1959,11 +1960,17 @@
           }
         }
 
+        const mainHeader = document.getElementById('admission-main-header');
+        if (mainHeader && bannerUrl) {
+          mainHeader.style.backgroundImage = `linear-gradient(135deg, rgba(108, 92, 231, 0.88), rgba(0, 184, 148, 0.88)), url("${bannerUrl}")`;
+          mainHeader.style.backgroundSize = 'cover';
+          mainHeader.style.backgroundPosition = 'center';
+        }
+
         if (activeTemplate?.branding) {
           const tb = activeTemplate.branding;
           if (tb.headerText) document.getElementById('lib-title').textContent = tb.headerText;
           if (tb.tagline) document.getElementById('lib-tagline').textContent = tb.tagline;
-          const mainHeader = document.getElementById('admission-main-header');
           if (mainHeader && tb.alignment) mainHeader.style.textAlign = tb.alignment;
           if (logoEl) {
             if (tb.showLogo === false) logoEl.style.display = 'none';

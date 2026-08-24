@@ -108,6 +108,8 @@ const validateBusinessProfile = validate([
   body('registrationNumber').optional().trim(),
   body('upiQrCode').optional().trim(),
   body('stampImage').optional().trim(),
+  body('bannerImage').optional().trim(),
+  body('coverImage').optional().trim(),
   body('logo').optional().trim(),
   body('favicon').optional().trim()
 ]);
@@ -118,7 +120,7 @@ router.put('/business-profile', roleCheck('owner'), validateBusinessProfile, asy
     const fields = [
       'businessName', 'tagline', 'logo', 'favicon', 'address', 'city', 'state', 'pincode',
       'phone', 'email', 'website', 'gstNumber', 'registrationNumber', 'upiQrCode', 'upiId',
-      'paymentInstructions', 'enableUpiDeepLinks', 'stampImage',
+      'paymentInstructions', 'enableUpiDeepLinks', 'stampImage', 'bannerImage', 'coverImage',
       'gatewayProvider', 'razorpayKeyId', 'razorpaySecret', 'razorpayWebhookSecret',
       'cashfreeAppId', 'cashfreeSecret', 'phonepeMerchantId', 'phonepeSaltKey',
       'enableAutoWebhookVerification'

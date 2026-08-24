@@ -129,6 +129,7 @@ router.get('/', memoryCache.middleware(30), async (req, res) => {
           logo: businessProfile?.logo || '',
           favicon: businessProfile?.favicon || '',
           stampImage: businessProfile?.stampImage || '',
+          bannerImage: businessProfile?.bannerImage || '',
           phone: businessProfile?.phone || '',
           email: businessProfile?.email || '',
           address: businessProfile?.address || '',
@@ -272,7 +273,7 @@ router.put('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) 
       const bpFields = [
         'businessName', 'tagline', 'logo', 'favicon', 'address', 'city', 'state', 'pincode',
         'phone', 'email', 'website', 'gstNumber', 'registrationNumber', 'upiQrCode', 'upiId',
-        'paymentInstructions', 'enableUpiDeepLinks', 'stampImage', 'mapEmbedUrl'
+        'paymentInstructions', 'enableUpiDeepLinks', 'stampImage', 'bannerImage', 'mapEmbedUrl'
       ];
       bpFields.forEach(field => {
         if (businessProfile[field] !== undefined) {
@@ -302,6 +303,7 @@ router.put('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) 
           logo: updatedProfile?.logo || '',
           favicon: updatedProfile?.favicon || '',
           stampImage: updatedProfile?.stampImage || '',
+          bannerImage: updatedProfile?.bannerImage || '',
           phone: updatedProfile?.phone || '',
           email: updatedProfile?.email || '',
           address: updatedProfile?.address || '',

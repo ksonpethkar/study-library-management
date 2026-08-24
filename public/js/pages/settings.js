@@ -439,9 +439,10 @@ function renderBrandingStudio(profile, gen) {
       </div>
       <div class="settings-accordion-body">
         <div class="row g-3">
-          <div class="col-md-4" id="mount-branding-logo"></div>
-          <div class="col-md-4" id="mount-branding-favicon"></div>
-          <div class="col-md-4" id="mount-branding-stamp"></div>
+          <div class="col-md-6 col-lg-3" id="mount-branding-logo"></div>
+          <div class="col-md-6 col-lg-3" id="mount-branding-favicon"></div>
+          <div class="col-md-6 col-lg-3" id="mount-branding-stamp"></div>
+          <div class="col-md-6 col-lg-3" id="mount-branding-banner"></div>
         </div>
       </div>
     </div>
@@ -512,6 +513,20 @@ function renderBrandingStudio(profile, gen) {
       });
       picker.querySelector('.mfp-hidden-value')?.setAttribute('id', 'setting-stamp');
       stampMount.appendChild(picker);
+    }
+
+    // Mount Organisation Banner / Hero Cover Picker
+    const bannerMount = wrapper.querySelector('#mount-branding-banner');
+    if (bannerMount && typeof MediaFieldPicker !== 'undefined') {
+      const picker = MediaFieldPicker.create({
+        name: 'bannerImage',
+        label: 'Organisation Banner / Hero Cover',
+        value: profile.bannerImage || '',
+        preset: 'cover_banner',
+        onChange: (url) => { profile.bannerImage = url; }
+      });
+      picker.querySelector('.mfp-hidden-value')?.setAttribute('id', 'setting-banner');
+      bannerMount.appendChild(picker);
     }
   }, 10);
 
@@ -3252,6 +3267,7 @@ async function saveActiveStudioSettings(container, studioId, store) {
       logo: (container.querySelector('#setting-logo') || container.querySelector('input[name="logo"]'))?.value?.trim() || store.profile.logo,
       favicon: (container.querySelector('#setting-favicon') || container.querySelector('input[name="favicon"]'))?.value?.trim() || store.profile.favicon,
       stampImage: (container.querySelector('#setting-stamp') || container.querySelector('input[name="stampImage"]'))?.value?.trim() || store.profile.stampImage,
+      bannerImage: (container.querySelector('#setting-banner') || container.querySelector('input[name="bannerImage"]'))?.value?.trim() || store.profile.bannerImage,
       upiId: container.querySelector('#setting-bill-upiId')?.value?.trim() || store.profile.upiId,
       upiQrCode: (container.querySelector('#setting-bill-upiQr') || container.querySelector('input[name="upiQrCode"]'))?.value?.trim() || store.profile.upiQrCode,
       bankDetails: {

@@ -120,6 +120,7 @@ router.get('/public-config', memoryCache.middleware(30), async (req, res) => {
         logo: businessProfile.logo || '',
         favicon: businessProfile.favicon || '',
         stampImage: businessProfile.stampImage || '',
+        bannerImage: businessProfile.bannerImage || '',
         phone: businessProfile.phone || '',
         email: businessProfile.email || '',
         address: businessProfile.address || '',

@@ -108,6 +108,8 @@ const businessProfileSchema = new mongoose.Schema({
     }
   ],
   stampImage: String,
+  bannerImage: String,
+  coverImage: String,
   socialLinks: {
     facebook: String,
     instagram: String,

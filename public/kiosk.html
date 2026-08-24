@@ -907,6 +907,7 @@
         const data = json.data;
         kioskConfig.businessName = data.businessName || data.businessProfile?.businessName || 'Study Library';
         kioskConfig.logo = data.logo || data.businessProfile?.logo || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.logo || '';
+        kioskConfig.bannerImage = data.bannerImage || data.businessProfile?.bannerImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.bannerImage || '';
         kioskConfig.shifts = data.shifts || [];
         kioskConfig.kioskVoice = data.kioskVoice || kioskConfig.kioskVoice;
 
@@ -924,6 +925,15 @@
         if (kioskConfig.logo && logoContainer) {
           logoContainer.innerHTML = `<img src="${kioskConfig.logo}" style="width:100%; height:100%; object-fit:contain; border-radius:10px;">`;
           logoContainer.style.background = 'transparent';
+        }
+
+        if (kioskConfig.bannerImage) {
+          const kioskCard = document.querySelector('.kiosk-card');
+          if (kioskCard) {
+            kioskCard.style.backgroundImage = `linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.94)), url("${kioskConfig.bannerImage}")`;
+            kioskCard.style.backgroundSize = 'cover';
+            kioskCard.style.backgroundPosition = 'center';
+          }
         }
 
         // Render Active Shifts Pills

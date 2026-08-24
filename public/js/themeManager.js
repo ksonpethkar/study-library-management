@@ -296,6 +296,29 @@
           }
         });
       }
+
+      if (profile.bannerImage) {
+        const bannerElements = [
+          'admission-main-header', 'portal-welcome-banner', 'landing-hero-backdrop', 'kiosk-header'
+        ];
+        bannerElements.forEach(id => {
+          const el = document.getElementById(id) || document.querySelector(`.${id}`);
+          if (el) {
+            el.style.backgroundImage = `linear-gradient(135deg, rgba(108, 92, 231, 0.82), rgba(0, 184, 148, 0.82)), url("${profile.bannerImage}")`;
+            el.style.backgroundSize = 'cover';
+            el.style.backgroundPosition = 'center';
+          }
+        });
+        document.querySelectorAll('.app-banner-bg, .dynamic-banner-img').forEach(el => {
+          if (el.tagName === 'IMG') {
+            el.src = profile.bannerImage;
+          } else {
+            el.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url("${profile.bannerImage}")`;
+            el.style.backgroundSize = 'cover';
+            el.style.backgroundPosition = 'center';
+          }
+        });
+      }
     }
   }
 
