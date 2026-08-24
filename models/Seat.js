@@ -58,17 +58,30 @@ const seatSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  // Soft Delete & Trash Support
+  isDeleted: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  deletedAt: {
+    type: Date
+  },
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
 }, {
   timestamps: true
 });
 
-// Performance & Multi-Branch Database Indexes
-seatSchema.index({ branch: 1, seatNumber: 1 }, { unique: true });
-seatSchema.index({ branch: 1, zone: 1, status: 1 });
-seatSchema.index({ branch: 1, isActive: 1, status: 1 });
-seatSchema.index({ currentStudent: 1 });
-seatSchema.index({ status: 1 });
+// Performance & Multi-Branch Soft-Delete Database Indexes
+seatSchema.index({ branch: 1, seatNumber: 1 });
+seatSchema.index({ isDeleted: 1, branch: 1, zone: 1, status: 1 });
+seatSchema.index({ isDeleted: 1, branch: 1, isActive: 1, status: 1 });
+seatSchema.index({ isDeleted: 1, currentStudent: 1 });
+seatSchema.index({ isDeleted: 1, status: 1 });
 
 seatSchema.statics.getStats = async function() {
   const stats = await this.aggregate([

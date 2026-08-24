@@ -70,11 +70,28 @@ router.put('/:id', protect, roleCheck('owner'), async (req, res) => {
 // @access  Private (Owner)
 router.delete('/:id', protect, roleCheck('owner'), async (req, res) => {
   try {
-    const coupon = await Coupon.findByIdAndDelete(req.params.id);
+    const { moveToTrash } = require('./trash');
+    const coupon = await Coupon.findById(req.params.id);
     if (!coupon) {
       return res.status(404).json({ success: false, message: 'Coupon not found' });
     }
-    res.json({ success: true, message: 'Coupon deleted successfully' });
+
+    await moveToTrash({
+      itemType: 'coupon',
+      itemId: coupon._id,
+      itemTitle: `Promo Code: ${coupon.code || 'COUPON'}`,
+      itemSubtitle: `Discount: ${coupon.discountType === 'percentage' ? `${coupon.discountValue}%` : `₹${coupon.discountValue}`} • Uses: ${coupon.usedCount || 0}/${coupon.maxUses || '∞'}`,
+      originalCollection: 'coupons',
+      itemData: coupon.toObject ? coupon.toObject() : coupon,
+      user: req.user,
+      reason: req.body?.reason || ''
+    });
+
+    coupon.isActive = false;
+    coupon.isDeleted = true;
+    await coupon.save();
+
+    res.json({ success: true, message: `Coupon "${coupon.code}" moved to Recycle Bin (Trash).` });
   } catch (error) {
     console.error('Error deleting coupon:', error);
     res.status(500).json({ success: false, message: 'Server error' });

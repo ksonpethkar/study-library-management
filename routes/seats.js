@@ -7,6 +7,7 @@ const Student = require('../models/Student');
 const Shift = require('../models/Shift');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
+const { moveToTrash } = require('./trash');
 
 function validate(validations) {
   return async (req, res, next) => {
@@ -22,7 +23,7 @@ function validate(validations) {
 // GET /public-available - Public endpoint for student registration seat selection
 router.get('/public-available', async (req, res) => {
   try {
-    const seats = await Seat.find({ isActive: true })
+    const seats = await Seat.find({ isActive: true, isDeleted: { $ne: true } })
       .select('seatNumber zone floor status type priceMultiplier branch')
       .populate('branch', 'name code')
       .sort('seatNumber')
@@ -40,7 +41,7 @@ router.use(protect);
 router.get('/', async (req, res) => {
   try {
     const { zone, status, floor, type, branch, search } = req.query;
-    let filter = {};
+    let filter = { isDeleted: { $ne: true } };
     if (zone) filter.zone = zone;
     if (status) filter.status = status;
     if (floor) filter.floor = floor;
@@ -308,7 +309,7 @@ router.put('/:id', roleCheck('owner', 'branch_manager'), validate([
 // DELETE /:id - Delete seat
 router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const seat = await Seat.findById(req.params.id).lean();
+    const seat = await Seat.findById(req.params.id).populate('branch', 'name');
     if (!seat) {
       return res.status(404).json({ success: false, message: 'Seat not found' });
     }
@@ -317,8 +318,18 @@ router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => 
       return res.status(400).json({ success: false, message: 'Cannot delete an occupied seat. Please release the student first.' });
     }
     
-    await Seat.findByIdAndDelete(req.params.id);
-    res.json({ success: true, data: {}, message: `Seat ${seat.seatNumber} deleted successfully` });
+    await moveToTrash({
+      itemType: 'seat',
+      itemId: seat._id,
+      itemTitle: `Desk ${seat.seatNumber} (${seat.zone || 'Zone A'})`,
+      itemSubtitle: `Floor: ${seat.floor || 'G'} • Type: ${(seat.type || 'regular').toUpperCase()} • Branch: ${seat.branch?.name || 'Main'}`,
+      originalCollection: 'seats',
+      itemData: seat.toObject ? seat.toObject() : seat,
+      user: req.user,
+      reason: req.body?.reason || ''
+    });
+
+    res.json({ success: true, data: {}, message: `Seat "${seat.seatNumber}" moved to Recycle Bin (Trash).` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

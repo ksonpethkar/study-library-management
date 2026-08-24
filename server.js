@@ -145,6 +145,7 @@ app.use('/api/backup', require('./routes/backup'));
 app.use('/api/landing', require('./routes/landingPage'));
 app.use('/api/audit-logs', require('./routes/auditLogs'));
 app.use('/api/coupons', require('./routes/coupons'));
+app.use('/api/trash', require('./routes/trash'));
 app.use('/api/system', require('./routes/systemConfig'));
 app.use('/api/system', require('./routes/systemHealth'));
 app.use('/api/ai', require('./routes/aiInsights'));

@@ -40,8 +40,21 @@ router.put('/visitors/:id', roleCheck('owner', 'branch_manager'), async (req, re
 
 router.delete('/visitors/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    await Visitor.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Visitor record deleted' });
+    const { moveToTrash } = require('./trash');
+    const visitor = await Visitor.findById(req.params.id);
+    if (visitor) {
+      await moveToTrash({
+        itemType: 'visitor',
+        itemId: visitor._id,
+        itemTitle: `Visitor: ${visitor.name || 'Inquiry'}`,
+        itemSubtitle: `Phone: ${visitor.phone || 'N/A'} • Purpose: ${visitor.purpose || 'Study Hall Visit'}`,
+        originalCollection: 'visitors',
+        itemData: visitor.toObject ? visitor.toObject() : visitor,
+        user: req.user
+      });
+      await Visitor.findByIdAndDelete(req.params.id);
+    }
+    res.json({ success: true, message: 'Visitor record moved to Recycle Bin (Trash)' });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }
@@ -70,19 +83,32 @@ router.post('/announcements', roleCheck('owner', 'branch_manager'), async (req, 
 
 router.delete('/announcements/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    await Announcement.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Notice removed' });
+    const { moveToTrash } = require('./trash');
+    const notice = await Announcement.findById(req.params.id);
+    if (notice) {
+      await moveToTrash({
+        itemType: 'announcement',
+        itemId: notice._id,
+        itemTitle: `Notice: ${notice.title || 'Announcement'}`,
+        itemSubtitle: `Target: ${(notice.targetAudience || 'all').toUpperCase()} • Pinned: ${notice.isPinned ? 'Yes' : 'No'}`,
+        originalCollection: 'announcements',
+        itemData: notice.toObject ? notice.toObject() : notice,
+        user: req.user
+      });
+      await Announcement.findByIdAndDelete(req.params.id);
+    }
+    res.json({ success: true, message: 'Notice moved to Recycle Bin (Trash)' });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }
 });
 
 // ----------------------------------------------------
-// 3. Holidays & Schedule
+// 3. Holidays & Closures
 // ----------------------------------------------------
 router.get('/holidays', async (req, res) => {
   try {
-    const holidays = await Holiday.find().sort({ date: 1 }).lean();
+    const holidays = await Holiday.find().sort({ startDate: 1 }).lean();
     res.json({ success: true, data: holidays });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
@@ -100,8 +126,21 @@ router.post('/holidays', roleCheck('owner', 'branch_manager'), async (req, res) 
 
 router.delete('/holidays/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    await Holiday.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Holiday removed' });
+    const { moveToTrash } = require('./trash');
+    const hol = await Holiday.findById(req.params.id);
+    if (hol) {
+      await moveToTrash({
+        itemType: 'holiday',
+        itemId: hol._id,
+        itemTitle: `Holiday: ${hol.title || 'Closure'}`,
+        itemSubtitle: `Date: ${hol.startDate ? new Date(hol.startDate).toLocaleDateString() : 'TBD'}`,
+        originalCollection: 'holidays',
+        itemData: hol.toObject ? hol.toObject() : hol,
+        user: req.user
+      });
+      await Holiday.findByIdAndDelete(req.params.id);
+    }
+    res.json({ success: true, message: 'Holiday removed to Recycle Bin (Trash)' });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }
@@ -139,8 +178,21 @@ router.put('/lostfound/:id', roleCheck('owner', 'branch_manager'), async (req, r
 
 router.delete('/lostfound/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    await LostFound.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Record deleted' });
+    const { moveToTrash } = require('./trash');
+    const lf = await LostFound.findById(req.params.id);
+    if (lf) {
+      await moveToTrash({
+        itemType: 'lost_found',
+        itemId: lf._id,
+        itemTitle: `Lost Item: ${lf.title || lf.itemName || 'Item'}`,
+        itemSubtitle: `Found at: ${lf.location || 'Hall'} • Status: ${(lf.status || 'open').toUpperCase()}`,
+        originalCollection: 'lostfounds',
+        itemData: lf.toObject ? lf.toObject() : lf,
+        user: req.user
+      });
+      await LostFound.findByIdAndDelete(req.params.id);
+    }
+    res.json({ success: true, message: 'Record moved to Recycle Bin (Trash)' });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }
@@ -182,8 +234,21 @@ router.put('/feedback/:id/reply', roleCheck('owner', 'branch_manager'), async (r
 
 router.delete('/feedback/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    await Feedback.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Feedback deleted' });
+    const { moveToTrash } = require('./trash');
+    const fb = await Feedback.findById(req.params.id);
+    if (fb) {
+      await moveToTrash({
+        itemType: 'feedback',
+        itemId: fb._id,
+        itemTitle: `Feedback: ${fb.subject || fb.title || 'Student Query'}`,
+        itemSubtitle: `Student: ${fb.studentName || 'Anonymous'} • Status: ${(fb.status || 'open').toUpperCase()}`,
+        originalCollection: 'feedbacks',
+        itemData: fb.toObject ? fb.toObject() : fb,
+        user: req.user
+      });
+      await Feedback.findByIdAndDelete(req.params.id);
+    }
+    res.json({ success: true, message: 'Feedback moved to Recycle Bin (Trash)' });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
   }

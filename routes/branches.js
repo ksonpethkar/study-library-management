@@ -337,13 +337,27 @@ router.delete('/:id', roleCheck('owner'), async (req, res) => {
       await Seat.deleteMany({ branch: branch._id });
     }
 
-    // Delete branch document from database
-    await Branch.findByIdAndDelete(branch._id);
+    // Move to Trash
+    const { moveToTrash } = require('./trash');
+    await moveToTrash({
+      itemType: 'branch',
+      itemId: branch._id,
+      itemTitle: `${branch.name} (${branch.code || 'Campus'})`,
+      itemSubtitle: `City: ${branch.city || 'N/A'} • Total Seats: ${branch.totalSeats || 0} • Status: ${branch.isActive ? 'ACTIVE' : 'INACTIVE'}`,
+      originalCollection: 'branches',
+      itemData: branch.toObject ? branch.toObject() : branch,
+      user: req.user,
+      reason: req.body?.reason || ''
+    });
+
+    branch.isActive = false;
+    branch.isDeleted = true;
+    await branch.save();
 
     res.json({
       success: true,
       data: branch,
-      message: 'Branch deleted successfully'
+      message: `Branch "${branch.name}" moved to Recycle Bin (Trash).`
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

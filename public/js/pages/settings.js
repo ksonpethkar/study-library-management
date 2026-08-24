@@ -169,6 +169,9 @@ function renderMasterHubUI(container, store) {
           <button class="studio-nav-item" data-studio="security_backup">
             <span>🔒</span> <span>Security & Data Backup</span>
           </button>
+          <button class="studio-nav-item" onclick="window.location.hash='#/trash'" style="color: var(--color-danger); margin-top: 4px;">
+            <span>🗑️</span> <span>Recycle Bin & Trash</span>
+          </button>
         </div>
 
       </div>

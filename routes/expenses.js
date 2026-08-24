@@ -411,14 +411,26 @@ router.put(
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const expense = await Expense.findByIdAndDelete(req.params.id);
+    const { moveToTrash } = require('./trash');
+    const expense = await Expense.findById(req.params.id);
     if (!expense) {
       return res.status(404).json({ success: false, message: 'Expense not found' });
     }
 
+    await moveToTrash({
+      itemType: 'expense',
+      itemId: expense._id,
+      itemTitle: `${expense.title || 'Expense'} (₹${expense.amount})`,
+      itemSubtitle: `Category: ${expense.category || 'General'} • Paid To: ${expense.paidTo || 'N/A'} • Method: ${(expense.paymentMethod || 'Cash').toUpperCase()}`,
+      originalCollection: 'expenses',
+      itemData: expense.toObject ? expense.toObject() : expense,
+      user: req.user,
+      reason: req.body?.reason || ''
+    });
+
     res.json({
       success: true,
-      message: 'Expense deleted successfully'
+      message: `Expense "${expense.title || 'Expense'}" moved to Recycle Bin (Trash).`
     });
   } catch (err) {
     console.error('Error deleting expense:', err);

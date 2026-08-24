@@ -7,6 +7,7 @@ const Payment = require('../models/Payment');
 const Student = require('../models/Student');
 const Plan = require('../models/Plan');
 const BusinessProfile = require('../models/BusinessProfile');
+const { moveToTrash } = require('./trash');
 
 function validate(validations) {
     return async (req, res, next) => {
@@ -27,7 +28,7 @@ router.use(roleCheck('owner', 'branch_manager'));
 router.get('/', async (req, res) => {
     try {
         const { student, status, method, startDate, endDate, page = 1, limit = 10 } = req.query;
-        let query = {};
+        let query = { isDeleted: { $ne: true } };
         
         if (student) query.student = student;
         if (status) query.status = status;
@@ -314,10 +315,21 @@ router.put('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
 
 router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
     try {
-        const payment = await Payment.findByIdAndDelete(req.params.id);
+        const payment = await Payment.findById(req.params.id).populate('student', 'name studentId phone');
         if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
         
-        res.json({ success: true, data: null, message: 'Payment deleted successfully' });
+        await moveToTrash({
+            itemType: 'payment',
+            itemId: payment._id,
+            itemTitle: `Receipt #${payment.receiptNumber || 'REC'} — ₹${payment.amountPaid}`,
+            itemSubtitle: `Student: ${payment.student?.name || 'N/A'} • Method: ${(payment.paymentMethod || 'UPI').toUpperCase()} • Status: ${(payment.status || 'Paid').toUpperCase()}`,
+            originalCollection: 'payments',
+            itemData: payment.toObject ? payment.toObject() : payment,
+            user: req.user,
+            reason: req.body?.reason || ''
+        });
+        
+        res.json({ success: true, data: null, message: `Payment receipt #${payment.receiptNumber || ''} moved to Recycle Bin (Trash).` });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

@@ -69,23 +69,28 @@ const studentSchema = new mongoose.Schema({
   notes: { type: String },
   customFields: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
   branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  // Soft Delete & Trash Support
+  isDeleted: { type: Boolean, default: false, index: true },
+  deletedAt: { type: Date },
+  deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, {
   timestamps: true
 });
 
-// Performance Database Indexes
-studentSchema.index({ branch: 1, status: 1 });
-studentSchema.index({ branch: 1, status: 1, expiryDate: 1 });
-studentSchema.index({ branch: 1, plan: 1 });
-studentSchema.index({ seat: 1, shift: 1, status: 1 });
-studentSchema.index({ locker: 1 });
-studentSchema.index({ expiryDate: 1 });
-studentSchema.index({ seat: 1 });
+// Performance & Soft-Delete Compound Database Indexes
+studentSchema.index({ isDeleted: 1, branch: 1, status: 1 });
+studentSchema.index({ isDeleted: 1, branch: 1, status: 1, expiryDate: 1 });
+studentSchema.index({ isDeleted: 1, branch: 1, plan: 1 });
+studentSchema.index({ isDeleted: 1, seat: 1, shift: 1, status: 1 });
+studentSchema.index({ isDeleted: 1, locker: 1 });
+studentSchema.index({ isDeleted: 1, expiryDate: 1 });
+studentSchema.index({ isDeleted: 1, seat: 1 });
+studentSchema.index({ isDeleted: 1, phone: 1 });
+studentSchema.index({ isDeleted: 1, email: 1 });
+studentSchema.index({ isDeleted: 1, status: 1 });
+studentSchema.index({ isDeleted: 1, createdAt: -1 });
 studentSchema.index({ name: 'text', phone: 'text', studentId: 'text' });
-studentSchema.index({ phone: 1 });
-studentSchema.index({ email: 1 });
-studentSchema.index({ status: 1 });
 
 studentSchema.pre('save', async function() {
   if (this.isNew && !this.studentId) {

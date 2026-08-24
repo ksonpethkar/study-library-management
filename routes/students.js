@@ -9,6 +9,7 @@ const { generateStudentId } = require('../utils/idGenerator');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
 const { validate } = require('../middleware/validate');
+const { moveToTrash } = require('./trash');
 
 router.use(protect);
 router.use(roleCheck('owner', 'branch_manager'));
@@ -16,7 +17,7 @@ router.use(roleCheck('owner', 'branch_manager'));
 // GET /stats
 router.get('/stats', async (req, res) => {
   try {
-    const stats = await Student.getStats();
+    const stats = await Student.getStats({ isDeleted: { $ne: true } });
     res.json({ success: true, data: stats, message: 'Stats fetched successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -30,7 +31,7 @@ router.get('/', async (req, res) => {
     const limit = parseInt(req.query.limit, 10) || 10;
     const skip = (page - 1) * limit;
 
-    const query = {};
+    const query = { isDeleted: { $ne: true } };
     if (req.query.search) {
       query.$or = [
         { name: { $regex: req.query.search, $options: 'i' } },
@@ -393,18 +394,22 @@ router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => 
       await Locker.findByIdAndUpdate(student.locker, { status: 'available', currentStudent: null });
     }
 
-    // Delete student user account if exists
-    if (student.phone || student.email) {
-      const orConditions = [];
-      if (student.phone) orConditions.push({ phone: student.phone });
-      if (student.email) orConditions.push({ email: student.email });
-      if (orConditions.length > 0) {
-        await User.findOneAndDelete({ $or: orConditions });
-      }
-    }
+    // Move to Trash
+    await moveToTrash({
+      itemType: 'student',
+      itemId: student._id,
+      itemTitle: `${student.name} (${student.studentId || 'ID'})`,
+      itemSubtitle: `📱 ${student.phone || 'No Phone'} • 🏢 ${student.branch?.name || 'Main Campus'} • Status: ${(student.status || 'Active').toUpperCase()}`,
+      originalCollection: 'students',
+      itemData: student.toObject ? student.toObject() : student,
+      user: req.user,
+      reason: req.body?.reason || ''
+    });
 
-    await Student.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: `Student "${student.name}" deleted successfully` });
+    res.json({
+      success: true,
+      message: `Student "${student.name}" moved to Recycle Bin (Trash). You can restore or permanently delete it anytime.`
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

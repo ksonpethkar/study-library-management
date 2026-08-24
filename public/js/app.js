@@ -8,6 +8,7 @@ import { SearchPalette } from './search.js';
 import { AudioFeedback } from './utils/audioFeedback.js';
 import { promptPWAInstall } from './pwaManager.js';
 import { SidebarSortable } from './dragDrop.js';
+import { CommandPalette } from './commandPalette.js';
 
 /**
  * Global Crash Catchers & Error Recovery
@@ -81,13 +82,14 @@ class Application {
     // Prevent pinch-to-zoom and multi-touch zoom on mobile screens while allowing desktop zoom
     this.initMobileZoomLock();
 
-    // Init keyboard shortcuts
+    // Init keyboard shortcuts & Global Command Palette
+    CommandPalette.init();
     if (!this.shortcuts) {
       this.shortcuts = new ShortcutManager();
       this.shortcuts.register('Ctrl+D', () => this.toggleTheme(), 'Toggle Dark Mode');
       this.shortcuts.register('Ctrl+K', () => {
-        if (this.searchPalette) this.searchPalette.open();
-      }, 'Open Search');
+        CommandPalette.toggle();
+      }, 'Open Quick Actions & Command Palette');
     }
 
     // Init interactive ripples & audio feedback
@@ -713,7 +715,7 @@ class Application {
 
     const pages = [
       'dashboard', 'students', 'seats', 'lockers', 'plans', 'payments',
-      'attendance', 'shifts', 'branches', 'reports', 'expenses', 'operations', 'portal', 'settings', 'profile'
+      'attendance', 'shifts', 'branches', 'reports', 'expenses', 'operations', 'trash', 'portal', 'settings', 'profile'
     ];
 
     pages.forEach(page => {
@@ -737,6 +739,16 @@ class Application {
           }
         }
       });
+    });
+
+    // High Performance: Pre-fetch page modules when hovering over sidebar links
+    document.querySelectorAll('.sidebar-nav .nav-item, .mobile-bottom-nav .mobile-tab-item').forEach(link => {
+      link.addEventListener('mouseenter', () => {
+        const href = (link.getAttribute('href') || '').replace('#/', '').split('?')[0];
+        if (href && pages.includes(href)) {
+          import(`./pages/${href}.js`).catch(() => {});
+        }
+      }, { passive: true, once: true });
     });
 
     // Default route

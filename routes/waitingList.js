@@ -322,4 +322,34 @@ router.put('/:id/cancel', adminAuth, async (req, res) => {
   }
 });
 
+/**
+ * @route   DELETE /api/waiting-list/:id
+ * @desc    Delete waiting list item to Recycle Bin
+ */
+router.delete('/:id', adminAuth, async (req, res) => {
+  try {
+    const { moveToTrash } = require('./trash');
+    const item = await WaitingList.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ success: false, message: 'Waiting list entry not found' });
+    }
+
+    await moveToTrash({
+      itemType: 'waiting_list',
+      itemId: item._id,
+      itemTitle: `Waitlist: ${item.studentName} (#${item.priority || 1})`,
+      itemSubtitle: `Phone: ${item.studentPhone || 'N/A'} • Preferred Shift: ${item.preferredShift || 'Any'}`,
+      originalCollection: 'waitinglists',
+      itemData: item.toObject ? item.toObject() : item,
+      user: req.user
+    });
+
+    await WaitingList.findByIdAndDelete(req.params.id);
+
+    res.json({ success: true, message: `Waitlist entry for "${item.studentName}" moved to Recycle Bin (Trash).` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

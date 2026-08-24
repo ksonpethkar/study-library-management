@@ -258,21 +258,34 @@ router.put('/:id', roleCheck('owner', 'branch_manager'), updateShiftValidations,
   }
 });
 
-// DELETE /:id — Deactivate shift (soft delete)
+// DELETE /:id — Soft delete shift to Recycle Bin
 router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const shift = await Shift.findByIdAndUpdate(
-      req.params.id,
-      { isActive: false },
-      { new: true }
-    );
+    const { moveToTrash } = require('./trash');
+    const shift = await Shift.findById(req.params.id);
     if (!shift) {
       return res.status(404).json({ success: false, message: 'Shift not found' });
     }
+
+    shift.isActive = false;
+    shift.isDeleted = true;
+    await shift.save();
+
+    await moveToTrash({
+      itemType: 'shift',
+      itemId: shift._id,
+      itemTitle: `${shift.name} (${shift.startTime || ''} - ${shift.endTime || ''})`,
+      itemSubtitle: `Capacity: ${shift.maxCapacity || 'Unlimited'} • Multiplier: ${shift.priceMultiplier || 1.0}x`,
+      originalCollection: 'shifts',
+      itemData: shift.toObject ? shift.toObject() : shift,
+      user: req.user,
+      reason: req.body?.reason || ''
+    });
+
     res.json({
       success: true,
       data: shift,
-      message: 'Shift deactivated successfully'
+      message: `Shift "${shift.name}" moved to Recycle Bin (Trash).`
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

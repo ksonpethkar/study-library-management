@@ -71,16 +71,21 @@ const paymentSchema = new mongoose.Schema({
     branch: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Branch'
-    }
+    },
+    // Soft Delete & Trash Support
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date },
+    deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
-// Performance Database Indexes
-paymentSchema.index({ student: 1, paymentDate: -1 });
-paymentSchema.index({ branch: 1, paymentDate: -1 });
-paymentSchema.index({ branch: 1, status: 1, dueDate: 1 });
-paymentSchema.index({ branch: 1, createdAt: -1 });
-paymentSchema.index({ status: 1, paymentDate: -1 });
-paymentSchema.index({ balanceDue: 1, dueDate: 1 });
+// Performance & Soft-Delete Database Indexes
+paymentSchema.index({ isDeleted: 1, student: 1, paymentDate: -1 });
+paymentSchema.index({ isDeleted: 1, branch: 1, paymentDate: -1 });
+paymentSchema.index({ isDeleted: 1, branch: 1, status: 1, dueDate: 1 });
+paymentSchema.index({ isDeleted: 1, branch: 1, createdAt: -1 });
+paymentSchema.index({ isDeleted: 1, status: 1, paymentDate: -1 });
+paymentSchema.index({ isDeleted: 1, balanceDue: 1, dueDate: 1 });
+paymentSchema.index({ isDeleted: 1, createdAt: -1 });
 
 paymentSchema.pre('save', async function() {
     if (this.isNew && !this.receiptNumber) {

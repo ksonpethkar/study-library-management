@@ -244,7 +244,8 @@ router.put('/:id', protect, roleCheck('owner', 'branch_manager'), async (req, re
 // DELETE /api/lockers/:id - Delete locker
 router.delete('/:id', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const locker = await Locker.findById(req.params.id).lean();
+    const { moveToTrash } = require('./trash');
+    const locker = await Locker.findById(req.params.id).populate('branch', 'name');
     if (!locker) {
       return res.status(404).json({ success: false, message: 'Locker not found' });
     }
@@ -252,8 +253,18 @@ router.delete('/:id', protect, roleCheck('owner', 'branch_manager'), async (req,
       return res.status(400).json({ success: false, message: 'Cannot delete an occupied locker. Release it first.' });
     }
 
-    await Locker.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: 'Locker deleted' });
+    await moveToTrash({
+      itemType: 'locker',
+      itemId: locker._id,
+      itemTitle: `Locker #${locker.lockerNumber || locker.number}`,
+      itemSubtitle: `Floor: ${locker.floor || 'G'} • Status: ${(locker.status || 'available').toUpperCase()} • Branch: ${locker.branch?.name || 'Main'}`,
+      originalCollection: 'lockers',
+      itemData: locker.toObject ? locker.toObject() : locker,
+      user: req.user,
+      reason: req.body?.reason || ''
+    });
+
+    res.json({ success: true, message: `Locker #${locker.lockerNumber || locker.number} moved to Recycle Bin (Trash).` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

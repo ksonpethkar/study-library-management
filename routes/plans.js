@@ -155,15 +155,28 @@ router.put('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
 
 router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const plan = await Plan.findByIdAndUpdate(
-      req.params.id,
-      { isActive: false },
-      { new: true }
-    );
+    const { moveToTrash } = require('./trash');
+    const plan = await Plan.findById(req.params.id);
     if (!plan) {
       return res.status(404).json({ success: false, message: 'Plan not found' });
     }
-    res.json({ success: true, data: plan, message: 'Plan deleted successfully' });
+    
+    plan.isActive = false;
+    plan.isDeleted = true;
+    await plan.save();
+
+    await moveToTrash({
+      itemType: 'plan',
+      itemId: plan._id,
+      itemTitle: `${plan.name} (₹${plan.price})`,
+      itemSubtitle: `Duration: ${plan.duration} ${plan.durationType || 'days'} • Shift: ${plan.shift || 'Any'}`,
+      originalCollection: 'plans',
+      itemData: plan.toObject ? plan.toObject() : plan,
+      user: req.user,
+      reason: req.body?.reason || ''
+    });
+
+    res.json({ success: true, data: plan, message: `Plan "${plan.name}" moved to Recycle Bin (Trash).` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
