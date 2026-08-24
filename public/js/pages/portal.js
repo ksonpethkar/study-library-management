@@ -5,6 +5,7 @@ import { t } from '../i18n.js';
 import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
 import { PushNotifications } from '../utils/pushNotifications.js';
 import { renderHeatmap, renderBehaviorBadge, calculateBehaviorScore } from '../utils/attendanceHeatmap.js';
+import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -1122,6 +1123,10 @@ function renderPortalUI(container, data, analytics = null) {
                     <label class="form-label small font-weight-bold">ID Proof Document Number *</label>
                     <input type="text" id="kyc-idProofNumber" name="idProofNumber" class="form-control form-control-sm" value="${escapeHTML(student.idProof?.number || '')}" placeholder="12-digit Aadhaar / ID number" required>
                   </div>
+                  <div class="col-12 mt-2">
+                    <label class="form-label small font-weight-bold">Upload Government ID Proof Scan / Photo</label>
+                    <div id="mount-portal-idproof"></div>
+                  </div>
                 </div>
               </div>
 
@@ -1158,6 +1163,17 @@ function renderPortalUI(container, data, analytics = null) {
       const inputSpPhoto = modalContent.querySelector('#input-sp-photo');
       const spImg = modalContent.querySelector('#sp-avatar-img');
       const spInitials = modalContent.querySelector('#sp-avatar-initials');
+
+      // Mount ID Proof Document Scan Picker if KYC incomplete
+      const portalKycMount = modalContent.querySelector('#mount-portal-idproof');
+      if (portalKycMount) {
+        portalKycMount.appendChild(MediaFieldPicker.create({
+          label: 'ID Proof Document Scan / Photo',
+          preset: 'document',
+          name: 'idProofImage',
+          value: student.idProof?.image || ''
+        }));
+      }
 
       const saveStudentPhoto = async (dataUrl, btn) => {
         try {
@@ -1252,7 +1268,8 @@ function renderPortalUI(container, data, analytics = null) {
             emergencyContactPhone: modalContent.querySelector('#kyc-emergencyContactPhone')?.value?.trim(),
             emergencyContactRelation: modalContent.querySelector('#kyc-emergencyContactRelation')?.value?.trim(),
             idProofType: modalContent.querySelector('#kyc-idProofType')?.value,
-            idProofNumber: modalContent.querySelector('#kyc-idProofNumber')?.value?.trim()
+            idProofNumber: modalContent.querySelector('#kyc-idProofNumber')?.value?.trim(),
+            idProofImage: modalContent.querySelector('#mount-portal-idproof .mfp-hidden-value')?.value || ''
           };
 
           const res = await api.put('/api/student-portal/profile', payload);

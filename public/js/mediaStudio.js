@@ -858,12 +858,56 @@ export class MediaStudio {
   }
 
   show() {
-    this.modal = new Modal({
-      title: `📸 ${this.options.title}`,
-      content: this.modalContent,
-      size: 'lg'
-    });
-    this.modal.show();
+    // Render in an independent dialog so parent modals (Student Edit, Profile, etc.) are never overwritten or closed
+    let dialog = document.getElementById('media-studio-modal');
+    if (!dialog) {
+      dialog = document.createElement('dialog');
+      dialog.id = 'media-studio-modal';
+      document.body.appendChild(dialog);
+    }
+
+    const widthMap = { passport: '640px', document: '850px', general: '750px' };
+    const rawW = widthMap[this.options.preset] || '800px';
+
+    dialog.style.cssText = `
+      padding: 0;
+      border: 1px solid var(--color-border, rgba(255,255,255,0.15));
+      border-radius: var(--radius-lg, 14px);
+      background: var(--color-surface, #1e2230);
+      color: var(--color-text-primary, #fff);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+      width: min(${rawW}, 95vw);
+      max-width: 95vw;
+      height: fit-content !important;
+      min-height: 0 !important;
+      max-height: 90vh;
+      margin: auto;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      z-index: 10000;
+    `;
+
+    dialog.innerHTML = `
+      <div class="modal-header" style="padding: 14px 20px; border-bottom: 1px solid var(--color-divider, rgba(255,255,255,0.08)); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary, #fff);">📸 ${escapeHTML(this.options.title || 'Photo & Media Studio')}</h3>
+        <button type="button" class="ms-close-btn" style="background: none; border: none; font-size: 1.4rem; color: var(--color-text-muted, #aaa); cursor: pointer; line-height: 1; padding: 4px;">&times;</button>
+      </div>
+      <div class="modal-body-container" style="padding: 18px 20px; max-height: calc(90vh - 80px); overflow-y: auto; flex: 1 1 auto;">
+      </div>
+    `;
+
+    const bodyContainer = dialog.querySelector('.modal-body-container');
+    bodyContainer.appendChild(this.modalContent);
+
+    dialog.querySelector('.ms-close-btn').addEventListener('click', () => this.close());
+    dialog.oncancel = () => this.close();
+
+    if (!dialog.open) {
+      dialog.showModal();
+    }
+    this.dialog = dialog;
 
     if (this.options.value) {
       const img = new Image();
@@ -874,7 +918,13 @@ export class MediaStudio {
 
   close() {
     this.stopCamera();
-    if (this.modal) this.modal.close();
+    if (this.dialog) {
+      try {
+        if (this.dialog.open) this.dialog.close();
+      } catch (e) {}
+      this.dialog.remove();
+      this.dialog = null;
+    }
   }
 }
 
@@ -911,7 +961,7 @@ export class MediaFieldPicker {
           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiString)}`;
           return `<img src="${qrUrl}" alt="UPI QR" style="width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 2px;">`;
         }
-        const defaultEmoji = preset === 'stamp_logo' ? '🏛️' : preset === 'qr_code' ? '📱' : '👤';
+        const defaultEmoji = preset === 'stamp_logo' ? '🏛️' : preset === 'qr_code' ? '📱' : preset === 'document' ? '📑' : '👤';
         return `<span style="font-size: 2rem; line-height: 1; opacity: 0.85;">${defaultEmoji}</span>`;
       }
 
@@ -942,7 +992,7 @@ export class MediaFieldPicker {
                 🗑️ Remove
               </button>
             </div>
-            <small style="color: var(--color-text-secondary); font-size: 0.72rem;">${preset === 'qr_code' ? '⚡ UPI QR for student fees' : '✨ 1:1 Transparent PNG / SVG'}</small>
+            <small style="color: var(--color-text-secondary); font-size: 0.72rem;">${preset === 'qr_code' ? '⚡ UPI QR for student fees' : preset === 'document' ? '📑 Clear KYC scan / photo' : '✨ 1:1 Transparent PNG / JPG'}</small>
           </div>
         </div>
         <input type="file" class="mfp-file-input" accept="image/*" style="display: none;">
@@ -960,7 +1010,7 @@ export class MediaFieldPicker {
       hiddenInput.value = dataUrl || '';
       preview.innerHTML = renderPreview(dataUrl);
       removeBtn.style.display = dataUrl ? 'inline-block' : 'none';
-      uploadBtn.innerHTML = dataUrl ? '📁 Change Image' : '📁 Upload Image';
+      uploadBtn.innerHTML = dataUrl ? '📁 Change' : '📁 Upload';
 
       hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
       hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
@@ -969,28 +1019,37 @@ export class MediaFieldPicker {
 
       if (dataUrl && dataUrl.startsWith('data:image/')) {
         try {
+          const token = localStorage.getItem('sl_token') || localStorage.getItem('token');
+          const headers = { 'Content-Type': 'application/json' };
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+
           const res = await fetch('/api/upload', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ image: dataUrl })
           });
           const result = await res.json();
           if (result.success && result.url) {
             hiddenInput.value = result.url;
+            hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
             hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
             if (onChange) onChange(result.url);
           }
-        } catch (err) {}
+        } catch (err) {
+          console.error('Image background upload error:', err);
+        }
       }
     };
 
     // Clicking preview box also triggers upload
-    preview.addEventListener('click', () => {
+    preview.addEventListener('click', (e) => {
+      e.stopPropagation();
       fileInput.click();
     });
 
     // Direct File Upload click
-    uploadBtn.addEventListener('click', () => {
+    uploadBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       fileInput.click();
     });
 
@@ -1008,13 +1067,14 @@ export class MediaFieldPicker {
       reader.onload = async (evt) => {
         const rawDataUrl = evt.target.result;
         await updateImageValue(rawDataUrl);
-        Toast.success(`${label || 'Image'} uploaded & ready!`);
+        Toast.success(`${label || 'Image'} uploaded successfully!`);
       };
       reader.readAsDataURL(file);
     });
 
     // Open Camera & Filter Studio
-    wrapper.querySelector('.mfp-open-btn').addEventListener('click', () => {
+    wrapper.querySelector('.mfp-open-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
       MediaStudio.open({
         title: label,
         preset,
@@ -1026,12 +1086,15 @@ export class MediaFieldPicker {
     });
 
     // Remove Image
-    removeBtn.addEventListener('click', () => {
+    removeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       hiddenInput.value = '';
       fileInput.value = '';
-      preview.innerHTML = '<span style="font-size: 24px; opacity: 0.5;">📷</span>';
+      preview.innerHTML = renderPreview('');
       removeBtn.style.display = 'none';
-      uploadBtn.innerHTML = '📁 Upload Image';
+      uploadBtn.innerHTML = '📁 Upload';
+      hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+      hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
       if (onChange) onChange('');
     });
 
