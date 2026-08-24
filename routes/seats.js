@@ -306,7 +306,7 @@ router.put('/:id', roleCheck('owner', 'branch_manager'), validate([
 });
 
 // DELETE /:id - Delete seat
-router.delete('/:id', roleCheck('owner'), async (req, res) => {
+router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const seat = await Seat.findById(req.params.id).lean();
     if (!seat) {
@@ -317,7 +317,7 @@ router.delete('/:id', roleCheck('owner'), async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cannot delete an occupied seat. Please release the student first.' });
     }
     
-    await seat.deleteOne();
+    await Seat.findByIdAndDelete(req.params.id);
     res.json({ success: true, data: {}, message: `Seat ${seat.seatNumber} deleted successfully` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

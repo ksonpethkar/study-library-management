@@ -312,7 +312,7 @@ router.put('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
     }
 });
 
-router.delete('/:id', roleCheck('owner'), async (req, res) => {
+router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
     try {
         const payment = await Payment.findByIdAndDelete(req.params.id);
         if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });

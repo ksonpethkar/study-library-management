@@ -486,6 +486,14 @@ Confirm.show = async function(opts) {
   const icon = danger ? '⚠️' : '❓';
 
   return new Promise(resolve => {
+    let resolved = false;
+    const finish = (value) => {
+      if (!resolved) {
+        resolved = true;
+        resolve(value);
+      }
+    };
+
     const confirmBtnClass = danger ? 'btn-danger' : 'btn-primary';
     
     const content = `
@@ -506,23 +514,23 @@ Confirm.show = async function(opts) {
           text: cancelText,
           className: 'btn-secondary',
           onClick: (m) => {
+            finish(false);
             m.close();
-            resolve(false);
           }
         },
         {
           text: confirmText,
           className: confirmBtnClass,
           onClick: async (m) => {
+            finish(true);
             m.close();
             if (typeof onConfirm === 'function') {
               await onConfirm();
             }
-            resolve(true);
           }
         }
       ],
-      onClose: () => resolve(false)
+      onClose: () => finish(false)
     });
   });
 };

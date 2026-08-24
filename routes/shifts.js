@@ -259,7 +259,7 @@ router.put('/:id', roleCheck('owner', 'branch_manager'), updateShiftValidations,
 });
 
 // DELETE /:id — Deactivate shift (soft delete)
-router.delete('/:id', roleCheck('owner'), async (req, res) => {
+router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const shift = await Shift.findByIdAndUpdate(
       req.params.id,
