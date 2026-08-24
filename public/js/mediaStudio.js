@@ -1053,23 +1053,80 @@ export class MediaFieldPicker {
       fileInput.click();
     });
 
+    // Helper to auto-compress image files on client-side
+    const compressUploadedFile = (file) => {
+      return new Promise((resolve) => {
+        if (!file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = () => resolve('');
+          reader.readAsDataURL(file);
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const canvas = document.createElement('canvas');
+              let maxW = preset === 'passport' ? 400 : 1200;
+              let maxH = preset === 'passport' ? 400 : 1200;
+              let { width, height } = img;
+
+              if (width > maxW || height > maxH) {
+                if (width > height) {
+                  height = Math.round((height * maxW) / width);
+                  width = maxW;
+                } else {
+                  width = Math.round((width * maxH) / height);
+                  height = maxH;
+                }
+              }
+
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              ctx.drawImage(img, 0, 0, width, height);
+
+              let dataUrl = canvas.toDataURL('image/webp', 0.85);
+              if (!dataUrl || dataUrl.length < 50) {
+                dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+              }
+              resolve(dataUrl);
+            } catch (err) {
+              resolve(e.target.result);
+            }
+          };
+          img.onerror = () => resolve(e.target.result);
+          img.src = e.target.result;
+        };
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(file);
+      });
+    };
+
     // File Input change
-    fileInput.addEventListener('change', (e) => {
+    fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      if (!file.type.startsWith('image/')) {
-        Toast.error('Please select a valid image file (PNG, JPG, WEBP)');
+      if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+        Toast.error('Please select a valid image file (PNG, JPG, WebP) or PDF document');
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-        const rawDataUrl = evt.target.result;
-        await updateImageValue(rawDataUrl);
-        Toast.success(`${label || 'Image'} uploaded successfully!`);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedDataUrl = await compressUploadedFile(file);
+        if (compressedDataUrl) {
+          await updateImageValue(compressedDataUrl);
+          Toast.success(`${label || 'Document'} uploaded & optimized successfully!`);
+        }
+      } catch (err) {
+        Toast.error(err.message || 'File processing failed');
+      }
     });
 
     // Open Camera & Filter Studio

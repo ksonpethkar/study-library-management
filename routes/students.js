@@ -203,6 +203,14 @@ router.post('/', validate([
 
     req.body.createdBy = req.user._id;
     
+    if (req.body.gender) {
+      const g = String(req.body.gender).toLowerCase().trim();
+      req.body.gender = ['male', 'female', 'other'].includes(g) ? g : undefined;
+    }
+    if (req.body.status) {
+      req.body.status = String(req.body.status).toLowerCase().trim();
+    }
+
     if (!req.body.studentId) {
       req.body.studentId = await generateStudentId({ branch: req.body.branch });
     }
@@ -305,6 +313,14 @@ router.put('/:id', validate([
 
     const oldSeat = student.seat ? String(student.seat) : null;
     const oldLocker = student.locker ? String(student.locker) : null;
+
+    if (req.body.gender) {
+      const g = String(req.body.gender).toLowerCase().trim();
+      req.body.gender = ['male', 'female', 'other'].includes(g) ? g : undefined;
+    }
+    if (req.body.status) {
+      req.body.status = String(req.body.status).toLowerCase().trim();
+    }
 
     const customFieldsData = req.body.customFields;
     delete req.body.customFields;

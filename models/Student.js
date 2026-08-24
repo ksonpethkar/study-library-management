@@ -5,7 +5,11 @@ const studentSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, lowercase: true, trim: true },
   phone: { type: String, required: true, trim: true },
-  gender: { type: String, enum: ['male', 'female', 'other'] },
+  gender: {
+    type: String,
+    enum: ['male', 'female', 'other', 'Male', 'Female', 'Other', 'MALE', 'FEMALE', 'OTHER', ''],
+    set: v => (v ? String(v).toLowerCase().trim() : undefined)
+  },
   dateOfBirth: { type: Date },
   address: { type: String },
   city: { type: String },
@@ -23,7 +27,12 @@ const studentSchema = new mongoose.Schema({
   shift: { type: mongoose.Schema.Types.ObjectId, ref: 'Shift' },
   admissionDate: { type: Date, default: Date.now },
   expiryDate: { type: Date },
-  status: { type: String, enum: ['active', 'inactive', 'suspended', 'expired', 'pending', 'pending_payment'], default: 'active' },
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'suspended', 'expired', 'pending', 'pending_payment', 'Active', 'Inactive', 'Suspended', 'Expired', 'Pending', 'Pending_Payment'],
+    set: v => (v ? String(v).toLowerCase().trim() : 'active'),
+    default: 'active'
+  },
   targetExams: [{ type: String, trim: true }],
   signature: { type: String }, // Base64 data URL from signature canvas pad
   bloodGroup: { type: String, trim: true },
