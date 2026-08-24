@@ -209,6 +209,47 @@ function renderMasterHubUI(container, store) {
       color: var(--color-primary);
       font-weight: 700;
     }
+    .settings-accordion-card {
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      margin-bottom: 14px;
+      overflow: visible;
+      transition: all 0.2s ease;
+    }
+    .settings-accordion-header {
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      background: var(--color-surface-hover);
+      border-bottom: 1px solid var(--color-border);
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+    .settings-accordion-header:hover {
+      background: var(--color-bg-secondary);
+    }
+    .settings-accordion-header h5, .settings-accordion-header h4 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--color-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .settings-accordion-toggle {
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: var(--color-text-muted);
+      transition: transform 0.2s ease;
+    }
+    .settings-accordion-body {
+      padding: 16px;
+      display: block;
+    }
     @media (max-width: 900px) {
       .master-hub-layout {
         grid-template-columns: 1fr !important;
@@ -255,6 +296,7 @@ function renderMasterHubUI(container, store) {
         viewport.innerHTML = content;
       }
       bindStudioEvents(container, studioId, store);
+      setTimeout(() => initStudioAccordions(viewport), 20);
     }
   };
 
@@ -307,88 +349,125 @@ function renderBrandingStudio(profile, gen) {
   wrapper.style.cssText = 'padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);';
   
   wrapper.innerHTML = `
-    <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem;">
-      <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">🏢 Library Branding & Global Identity</h3>
-      <p class="text-muted small mb-0">Configure your study centre's public name, official logos, contact information, and terms.</p>
+    <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <div>
+        <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">🏢 Library Branding & Global Identity</h3>
+        <p class="text-muted small mb-0">Configure your study centre's public name, official logos, contact information, and terms.</p>
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-expand-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➕ Expand All</button>
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-collapse-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➖ Collapse All</button>
+      </div>
     </div>
 
-    <div class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label" style="font-weight: 700;">Library / Business Name *</label>
-        <input type="text" id="setting-businessName" class="form-control" value="${escapeHTML(profile.businessName || 'Study Library')}" placeholder="e.g. Study Library & Reading Hall">
+    <!-- Section 1: 🏢 Basic Library Profile & Identification -->
+    <div class="card settings-accordion-card">
+      <div class="settings-accordion-header">
+        <h5><span>🏢</span> Basic Business Details & Identity</h5>
+        <span class="settings-accordion-toggle">▲</span>
       </div>
-      <div class="col-md-6">
-        <label class="form-label" style="font-weight: 700;">Brand Tagline / Slogan</label>
-        <input type="text" id="setting-tagline" class="form-control" value="${escapeHTML(profile.tagline || 'Premier Air-Conditioned Self-Study Space')}" placeholder="e.g. Premier Self-Study Space">
-      </div>
+      <div class="settings-accordion-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" style="font-weight: 700;">Library / Business Name *</label>
+            <input type="text" id="setting-businessName" class="form-control" value="${escapeHTML(profile.businessName || 'Study Library')}" placeholder="e.g. Study Library & Reading Hall">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" style="font-weight: 700;">Brand Tagline / Slogan</label>
+            <input type="text" id="setting-tagline" class="form-control" value="${escapeHTML(profile.tagline || 'Premier Air-Conditioned Self-Study Space')}" placeholder="e.g. Premier Self-Study Space">
+          </div>
 
-      <div class="col-md-4">
-        <label class="form-label" style="font-weight: 600;">Official Phone / WhatsApp</label>
-        <input type="tel" id="setting-phone" class="form-control" value="${escapeHTML(profile.phone || '')}" placeholder="+91 9876543210">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" style="font-weight: 600;">Official Support Email</label>
-        <input type="email" id="setting-email" class="form-control" value="${escapeHTML(profile.email || '')}" placeholder="support@library.com">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" style="font-weight: 600;">Website / Domain</label>
-        <input type="url" id="setting-website" class="form-control" value="${escapeHTML(profile.website || '')}" placeholder="https://yourlibrary.com">
-      </div>
+          <div class="col-md-4">
+            <label class="form-label" style="font-weight: 600;">Official Phone / WhatsApp</label>
+            <input type="tel" id="setting-phone" class="form-control" value="${escapeHTML(profile.phone || '')}" placeholder="+91 9876543210">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" style="font-weight: 600;">Official Support Email</label>
+            <input type="email" id="setting-email" class="form-control" value="${escapeHTML(profile.email || '')}" placeholder="support@library.com">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" style="font-weight: 600;">Website / Domain</label>
+            <input type="url" id="setting-website" class="form-control" value="${escapeHTML(profile.website || '')}" placeholder="https://yourlibrary.com">
+          </div>
 
-      <div class="col-12">
-        <label class="form-label" style="font-weight: 600;">Physical Campus Address</label>
-        <textarea id="setting-address" class="form-control" rows="2" placeholder="Full street address, landmark, area...">${escapeHTML(profile.address || '')}</textarea>
+          <div class="col-md-6">
+            <label class="form-label" style="font-weight: 600;">Shop Act / Registration Number</label>
+            <input type="text" id="setting-regNumber" class="form-control" value="${escapeHTML(profile.registrationNumber || '')}" placeholder="e.g. REG-MH-2026-9988">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" style="font-weight: 600;">GSTIN Tax Number</label>
+            <input type="text" id="setting-gstNumber" class="form-control font-monospace" value="${escapeHTML(profile.gstNumber || '')}" placeholder="e.g. 27AAAAA0000A1Z5">
+          </div>
+        </div>
       </div>
+    </div>
 
-      <div class="col-md-4">
-        <label class="form-label" style="font-weight: 600;">City</label>
-        <input type="text" id="setting-city" class="form-control" value="${escapeHTML(profile.city || '')}" placeholder="e.g. Pune">
+    <!-- Section 2: 📍 Physical Campus Address & Location -->
+    <div class="card settings-accordion-card">
+      <div class="settings-accordion-header">
+        <h5><span>📍</span> Physical Campus Address & Location</h5>
+        <span class="settings-accordion-toggle">▲</span>
       </div>
-      <div class="col-md-4">
-        <label class="form-label" style="font-weight: 600;">State</label>
-        <input type="text" id="setting-state" class="form-control" value="${escapeHTML(profile.state || '')}" placeholder="e.g. Maharashtra">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label" style="font-weight: 600;">Pincode</label>
-        <input type="text" id="setting-pincode" class="form-control" value="${escapeHTML(profile.pincode || '')}" placeholder="e.g. 411001">
-      </div>
+      <div class="settings-accordion-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label" style="font-weight: 600;">Physical Campus Address</label>
+            <textarea id="setting-address" class="form-control" rows="2" placeholder="Full street address, landmark, area...">${escapeHTML(profile.address || '')}</textarea>
+          </div>
 
-      <div class="col-md-6">
-        <label class="form-label" style="font-weight: 600;">Shop Act / Registration Number</label>
-        <input type="text" id="setting-regNumber" class="form-control" value="${escapeHTML(profile.registrationNumber || '')}" placeholder="e.g. REG-MH-2026-9988">
+          <div class="col-md-4">
+            <label class="form-label" style="font-weight: 600;">City</label>
+            <input type="text" id="setting-city" class="form-control" value="${escapeHTML(profile.city || '')}" placeholder="e.g. Pune">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" style="font-weight: 600;">State</label>
+            <input type="text" id="setting-state" class="form-control" value="${escapeHTML(profile.state || '')}" placeholder="e.g. Maharashtra">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" style="font-weight: 600;">Pincode</label>
+            <input type="text" id="setting-pincode" class="form-control" value="${escapeHTML(profile.pincode || '')}" placeholder="e.g. 411001">
+          </div>
+        </div>
       </div>
-      <div class="col-md-6">
-        <label class="form-label" style="font-weight: 600;">GSTIN Tax Number</label>
-        <input type="text" id="setting-gstNumber" class="form-control font-monospace" value="${escapeHTML(profile.gstNumber || '')}" placeholder="e.g. 27AAAAA0000A1Z5">
-      </div>
+    </div>
 
-      <div class="col-12 mt-3 pt-3" style="border-top: 1px solid var(--color-border);">
-        <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin-bottom: 12px;">🖼️ Brand Media & Visual Assets (Upload, Crop & Remove)</h5>
+    <!-- Section 3: 🖼️ Brand Media & Visual Assets -->
+    <div class="card settings-accordion-card">
+      <div class="settings-accordion-header">
+        <h5><span>🖼️</span> Brand Media & Visual Assets (Upload, Crop & Remove)</h5>
+        <span class="settings-accordion-toggle">▲</span>
+      </div>
+      <div class="settings-accordion-body">
         <div class="row g-3">
           <div class="col-md-4" id="mount-branding-logo"></div>
           <div class="col-md-4" id="mount-branding-favicon"></div>
           <div class="col-md-4" id="mount-branding-stamp"></div>
         </div>
       </div>
+    </div>
 
-      <div class="col-12 mt-3 pt-3" style="border-top: 1px solid var(--color-border);">
-        <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin-bottom: 12px;">🌐 Social Media Channels</h5>
+    <!-- Section 4: 🌐 Social Media Channels & Links -->
+    <div class="card settings-accordion-card">
+      <div class="settings-accordion-header">
+        <h5><span>🌐</span> Social Media Channels & Groups</h5>
+        <span class="settings-accordion-toggle">▲</span>
+      </div>
+      <div class="settings-accordion-body">
         <div class="row g-3">
           <div class="col-md-4">
-            <label class="form-label small">WhatsApp Channel / Group Link</label>
+            <label class="form-label small" style="font-weight: 600;">WhatsApp Channel / Group Link</label>
             <input type="url" id="setting-social-wa" class="form-control" value="${escapeHTML(profile.socialLinks?.whatsapp || '')}" placeholder="https://chat.whatsapp.com/...">
           </div>
           <div class="col-md-4">
-            <label class="form-label small">Instagram Profile URL</label>
+            <label class="form-label small" style="font-weight: 600;">Instagram Profile URL</label>
             <input type="url" id="setting-social-insta" class="form-control" value="${escapeHTML(profile.socialLinks?.instagram || '')}" placeholder="https://instagram.com/...">
           </div>
           <div class="col-md-4">
-            <label class="form-label small">Facebook Page URL</label>
+            <label class="form-label small" style="font-weight: 600;">Facebook Page URL</label>
             <input type="url" id="setting-social-fb" class="form-control" value="${escapeHTML(profile.socialLinks?.facebook || '')}" placeholder="https://facebook.com/...">
           </div>
         </div>
       </div>
-
     </div>
   `;
 
@@ -451,53 +530,69 @@ function renderMembershipsStudio(pay, adm, plans, locker) {
           <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">💳 Membership Plans, Fines & Fee Policies</h3>
           <p class="text-muted small mb-0">Configure admission fees, security deposit amounts, automated late fine formulas, and grace periods.</p>
         </div>
-        <a href="#/plans" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">➕ Manage Membership Plans Matrix ↗</a>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <button type="button" class="btn btn-xs btn-outline-secondary btn-expand-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➕ Expand All</button>
+          <button type="button" class="btn btn-xs btn-outline-secondary btn-collapse-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➖ Collapse All</button>
+          <a href="#/plans" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">➕ Manage Plans Matrix ↗</a>
+        </div>
       </div>
 
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label" style="font-weight: 700;">Payment Grace Period (Days)</label>
-          <input type="number" id="setting-pay-grace" class="form-control" value="${pay['payment.gracePeriod'] ?? pay.gracePeriod ?? 5}" min="0" max="30">
-          <small class="text-muted">Days allowed after expiry before late fine begins</small>
+      <!-- Section 1: 💳 Late Fees, Grace Periods & Auto-Suspend -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <h5><span>💳</span> Fee Grace Periods, Late Fines &amp; Auto-Suspend</h5>
+          <span class="settings-accordion-toggle">▲</span>
         </div>
-
-        <div class="col-md-4">
-          <label class="form-label" style="font-weight: 700;">Daily Late Fine Amount (₹)</label>
-          <input type="number" id="setting-pay-lateFee" class="form-control" value="${pay['payment.lateFeeAmount'] ?? pay.lateFeeAmount ?? 50}" min="0">
-          <small class="text-muted">Penalty charged per day past grace period</small>
-        </div>
-
-        <div class="col-md-4">
-          <label class="form-label" style="font-weight: 700;">Auto-Suspend Threshold (Days)</label>
-          <input type="number" id="setting-pay-suspend" class="form-control" value="${pay['payment.autoSuspendDays'] ?? pay.autoSuspendDays ?? 15}" min="1">
-          <small class="text-muted">Days overdue before student seat is auto-released</small>
-        </div>
-
-        <div class="col-md-6">
-          <label class="form-label" style="font-weight: 700;">Student ID Prefix</label>
-          <input type="text" id="setting-adm-idPrefix" class="form-control font-monospace" value="${escapeHTML(adm['admission.idPrefix'] || adm.idPrefix || 'STU')}">
-          <small class="text-muted">Example: STU &rarr; STU-2026-001</small>
-        </div>
-
-        <div class="col-md-6">
-          <label class="form-label" style="font-weight: 700;">Maximum Membership Pause Days</label>
-          <input type="number" id="setting-adm-maxPause" class="form-control" value="15" min="0" max="60">
-          <small class="text-muted">Days allowed for exam break membership freeze</small>
-        </div>
-
-        <!-- 🔒 Study Locker Add-on Customization -->
-        <div class="col-12 mt-3 pt-3" style="border-top: 1px solid var(--color-border);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-            <div>
-              <h5 style="font-size: 0.98rem; font-weight: 800; color: var(--color-primary); margin: 0;">🔒 Personal Study Locker Add-on Customization</h5>
-              <p class="text-muted small mb-0">Control student registration locker add-on option, monthly fee pricing, deposit, and descriptions.</p>
+        <div class="settings-accordion-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label" style="font-weight: 700;">Payment Grace Period (Days)</label>
+              <input type="number" id="setting-pay-grace" class="form-control" value="${pay['payment.gracePeriod'] ?? pay.gracePeriod ?? 5}" min="0" max="30">
+              <small class="text-muted">Days allowed after expiry before late fine begins</small>
             </div>
-            <div class="form-check form-switch" style="font-size: 1.15rem;">
-              <input class="form-check-input" type="checkbox" id="setting-locker-enable" ${lockerConfig.enableAddon !== false && lockerConfig['locker.enableAddon'] !== false ? 'checked' : ''}>
-              <label class="form-check-label" style="font-size: 0.85rem; font-weight: 700; margin-left: 6px;">Enable Locker Add-on</label>
+
+            <div class="col-md-4">
+              <label class="form-label" style="font-weight: 700;">Daily Late Fine Amount (₹)</label>
+              <input type="number" id="setting-pay-lateFee" class="form-control" value="${pay['payment.lateFeeAmount'] ?? pay.lateFeeAmount ?? 50}" min="0">
+              <small class="text-muted">Penalty charged per day past grace period</small>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label" style="font-weight: 700;">Auto-Suspend Threshold (Days)</label>
+              <input type="number" id="setting-pay-suspend" class="form-control" value="${pay['payment.autoSuspendDays'] ?? pay.autoSuspendDays ?? 15}" min="1">
+              <small class="text-muted">Days overdue before student seat is auto-released</small>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label" style="font-weight: 700;">Student ID Prefix</label>
+              <input type="text" id="setting-adm-idPrefix" class="form-control font-monospace" value="${escapeHTML(adm['admission.idPrefix'] || adm.idPrefix || 'STU')}">
+              <small class="text-muted">Example: STU &rarr; STU-2026-001</small>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label" style="font-weight: 700;">Maximum Membership Pause Days</label>
+              <input type="number" id="setting-adm-maxPause" class="form-control" value="15" min="0" max="60">
+              <small class="text-muted">Days allowed for exam break membership freeze</small>
             </div>
           </div>
+        </div>
+      </div>
 
+      <!-- Section 2: 🔒 Personal Study Locker Add-on Customization -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h5><span>🔒</span> Personal Study Locker Add-on Customization</h5>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="form-check form-switch" style="font-size: 1.1rem; margin: 0;">
+              <input class="form-check-input" type="checkbox" id="setting-locker-enable" ${lockerConfig.enableAddon !== false && lockerConfig['locker.enableAddon'] !== false ? 'checked' : ''}>
+              <label class="form-check-label" style="font-size: 0.82rem; font-weight: 700; margin-left: 4px;">Enable</label>
+            </div>
+            <span class="settings-accordion-toggle">▲</span>
+          </div>
+        </div>
+        <div class="settings-accordion-body">
           <div class="row g-3 p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
             <div class="col-md-4">
               <label class="form-label" style="font-weight: 700;">Locker Monthly Fee (₹)</label>
@@ -519,9 +614,15 @@ function renderMembershipsStudio(pay, adm, plans, locker) {
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="col-12 mt-3 pt-3" style="border-top: 1px solid var(--color-border);">
-          <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin-bottom: 12px;">📋 Active Membership Plans Overview (${plans.length} Plans)</h5>
+      <!-- Section 3: 📋 Active Membership Plans Overview -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <h5><span>📋</span> Active Membership Plans Overview (${plans.length} Plans)</h5>
+          <span class="settings-accordion-toggle">▲</span>
+        </div>
+        <div class="settings-accordion-body">
           <div class="table-responsive">
             <table class="table" style="font-size: 0.88rem;">
               <thead>
@@ -551,8 +652,8 @@ function renderMembershipsStudio(pay, adm, plans, locker) {
             </table>
           </div>
         </div>
-
       </div>
+
     </div>
   `;
 }
@@ -602,16 +703,22 @@ function renderCentersSeatsStudio(branches, shifts) {
           <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">💺 Multi-Branch, Seating Layouts & Shift Quotas</h3>
           <p class="text-muted small mb-0">Manage library branches, desk zones (AC, Silent, Cabins), and shift timings.</p>
         </div>
-        <div style="display: flex; gap: 8px;">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <button type="button" class="btn btn-xs btn-outline-secondary btn-expand-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➕ Expand All</button>
+          <button type="button" class="btn btn-xs btn-outline-secondary btn-collapse-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➖ Collapse All</button>
           <a href="#/branches" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">🏛️ Branches Matrix</a>
           <a href="#/seats" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">💺 Seating Grid</a>
           <a href="#/shifts" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">🕒 Shifts Studio</a>
         </div>
       </div>
 
-      <div class="row g-3">
-        <div class="col-12">
-          <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin-bottom: 10px;">🏛️ Active Study Centre Branches (${branches.length})</h5>
+      <!-- Section 1: 🏛️ Active Study Centre Branches -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <h5><span>🏛️</span> Active Study Centre Branches (${branches.length})</h5>
+          <span class="settings-accordion-toggle">▲</span>
+        </div>
+        <div class="settings-accordion-body">
           <div class="table-responsive">
             <table class="table" style="font-size: 0.88rem;">
               <thead>
@@ -639,9 +746,15 @@ function renderCentersSeatsStudio(branches, shifts) {
             </table>
           </div>
         </div>
+      </div>
 
-        <div class="col-12 mt-3 pt-3" style="border-top: 1px solid var(--color-border);">
-          <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin-bottom: 10px;">🕒 Configured Study Shifts & Rate Multipliers (${shifts.length})</h5>
+      <!-- Section 2: 🕒 Configured Study Shifts -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <h5><span>🕒</span> Configured Study Shifts &amp; Rate Multipliers (${shifts.length})</h5>
+          <span class="settings-accordion-toggle">▲</span>
+        </div>
+        <div class="settings-accordion-body">
           <div class="table-responsive">
             <table class="table" style="font-size: 0.88rem;">
               <thead>
@@ -669,8 +782,8 @@ function renderCentersSeatsStudio(branches, shifts) {
             </table>
           </div>
         </div>
-
       </div>
+
     </div>
   `;
 }
@@ -692,7 +805,9 @@ function renderBillingReceiptStudio(profile, billing, pay) {
         <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-primary);">🧾 POS Receipt Builder & GST Billing Studio</h3>
         <p class="text-muted small mb-0">Design, customize, and test-print thermal receipts (80mm/58mm), official A4 GST invoices, paid stamps, and UPI QR codes with real-time live preview.</p>
       </div>
-      <div class="d-flex gap-2 align-items-center">
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-expand-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➕ Expand All</button>
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-collapse-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➖ Collapse All</button>
         <button type="button" id="btn-test-print-receipt" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">🖨️ Test Print Sample</button>
         <button type="button" id="btn-save-receipt-builder" class="btn btn-sm btn-primary" style="font-weight: 800; padding: 6px 18px;">💾 Save Receipt Template</button>
       </div>
@@ -734,181 +849,199 @@ function renderBillingReceiptStudio(profile, billing, pay) {
       <div style="display: flex; flex-direction: column; gap: 14px; max-height: 750px; overflow-y: auto; padding-right: 4px;">
         
         <!-- Header & Branding -->
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>🏢</span> Header & Library Branding
-          </h5>
-          <div class="row g-2">
-            <div class="col-md-6">
-              <label class="form-label small" style="font-weight: 700;">Receipt & Invoice Prefix</label>
-              <input type="text" id="setting-bill-prefix" class="form-control form-control-sm font-monospace" value="${escapeHTML(billing['billing.receiptPrefix'] || billing.receiptPrefix || 'LIB-2026')}" placeholder="e.g. LIB-2026">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label small" style="font-weight: 700;">Receipt Subtitle / Tagline</label>
-              <input type="text" id="rc-header-subtitle" class="form-control form-control-sm" value="Official Fee Payment Receipt">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label small" style="font-weight: 700;">Header Accent Color</label>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <input type="color" id="rc-header-color" class="form-control form-control-color p-0" value="#4f46e5" style="width: 34px; height: 30px; cursor: pointer;">
-                <input type="text" id="rc-header-color-text" class="form-control form-control-sm font-monospace" value="#4f46e5" maxlength="7">
+        <div class="card settings-accordion-card">
+          <div class="settings-accordion-header">
+            <h5><span>🏢</span> Header &amp; Library Branding</h5>
+            <span class="settings-accordion-toggle">▲</span>
+          </div>
+          <div class="settings-accordion-body">
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label small" style="font-weight: 700;">Receipt & Invoice Prefix</label>
+                <input type="text" id="setting-bill-prefix" class="form-control form-control-sm font-monospace" value="${escapeHTML(billing['billing.receiptPrefix'] || billing.receiptPrefix || 'LIB-2026')}" placeholder="e.g. LIB-2026">
               </div>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label small" style="font-weight: 700;">GSTIN / Tax Number</label>
-              <input type="text" id="rc-header-gstin" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.gstNumber || '')}" placeholder="e.g. 27AAAAA0000A1Z5">
-            </div>
-            <div class="col-12 mt-2">
-              <div style="display: flex; gap: 14px; flex-wrap: wrap;">
-                <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
-                  <input class="form-check-input" type="checkbox" id="rc-toggle-logo" checked>
-                  <span>Show Library Logo</span>
-                </label>
-                <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
-                  <input class="form-check-input" type="checkbox" id="rc-toggle-address" checked>
-                  <span>Show Address</span>
-                </label>
-                <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
-                  <input class="form-check-input" type="checkbox" id="rc-toggle-contact" checked>
-                  <span>Show Phone & Email</span>
-                </label>
+              <div class="col-md-6">
+                <label class="form-label small" style="font-weight: 700;">Receipt Subtitle / Tagline</label>
+                <input type="text" id="rc-header-subtitle" class="form-control form-control-sm" value="Official Fee Payment Receipt">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small" style="font-weight: 700;">Header Accent Color</label>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="color" id="rc-header-color" class="form-control form-control-color p-0" value="#4f46e5" style="width: 34px; height: 30px; cursor: pointer;">
+                  <input type="text" id="rc-header-color-text" class="form-control form-control-sm font-monospace" value="#4f46e5" maxlength="7">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small" style="font-weight: 700;">GSTIN / Tax Number</label>
+                <input type="text" id="rc-header-gstin" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.gstNumber || '')}" placeholder="e.g. 27AAAAA0000A1Z5">
+              </div>
+              <div class="col-12 mt-2">
+                <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                  <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                    <input class="form-check-input" type="checkbox" id="rc-toggle-logo" checked>
+                    <span>Show Library Logo</span>
+                  </label>
+                  <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                    <input class="form-check-input" type="checkbox" id="rc-toggle-address" checked>
+                    <span>Show Address</span>
+                  </label>
+                  <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                    <input class="form-check-input" type="checkbox" id="rc-toggle-contact" checked>
+                    <span>Show Phone & Email</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Student, Desk & Admission Details -->
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>📋</span> Student Details & Line Item Elements
-          </h5>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
-            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
-              <input class="form-check-input" type="checkbox" id="rc-toggle-stuId" checked>
-              <span>Show Student ID</span>
-            </label>
-            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
-              <input class="form-check-input" type="checkbox" id="rc-toggle-stuPhone" checked>
-              <span>Show Student Phone</span>
-            </label>
-            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
-              <input class="form-check-input" type="checkbox" id="rc-toggle-seat" checked>
-              <span>Show Desk / Shift</span>
-            </label>
-            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
-              <input class="form-check-input" type="checkbox" id="rc-toggle-validity" checked>
-              <span>Show Validity Dates</span>
-            </label>
-            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
-              <input class="form-check-input" type="checkbox" id="rc-toggle-breakdown" checked>
-              <span>Itemized Fee Breakdown</span>
-            </label>
-            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
-              <input class="form-check-input" type="checkbox" id="rc-toggle-paymentMode" checked>
-              <span>Payment Mode & Txn Ref</span>
-            </label>
+        <div class="card settings-accordion-card">
+          <div class="settings-accordion-header">
+            <h5><span>📋</span> Student Details &amp; Line Items</h5>
+            <span class="settings-accordion-toggle">▲</span>
+          </div>
+          <div class="settings-accordion-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+              <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                <input class="form-check-input" type="checkbox" id="rc-toggle-stuId" checked>
+                <span>Show Student ID</span>
+              </label>
+              <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                <input class="form-check-input" type="checkbox" id="rc-toggle-stuPhone" checked>
+                <span>Show Student Phone</span>
+              </label>
+              <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                <input class="form-check-input" type="checkbox" id="rc-toggle-seat" checked>
+                <span>Show Desk / Shift</span>
+              </label>
+              <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                <input class="form-check-input" type="checkbox" id="rc-toggle-validity" checked>
+                <span>Show Validity Dates</span>
+              </label>
+              <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                <input class="form-check-input" type="checkbox" id="rc-toggle-breakdown" checked>
+                <span>Itemized Fee Breakdown</span>
+              </label>
+              <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                <input class="form-check-input" type="checkbox" id="rc-toggle-paymentMode" checked>
+                <span>Payment Mode & Txn Ref</span>
+              </label>
+            </div>
           </div>
         </div>
 
         <!-- Official Stamp & Signature Block -->
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>🪪</span> Official Stamp & Authorized Signature
-          </h5>
-          <div class="row g-2">
-            <div class="col-md-7">
-              <label class="form-label small" style="font-weight: 700;">Paid Stamp Text</label>
-              <input type="text" id="rc-stamp-text" class="form-control form-control-sm font-monospace" value="PAID • OFFICIAL RECEIPT">
-            </div>
-            <div class="col-md-5">
-              <label class="form-label small" style="font-weight: 700;">Stamp Color</label>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <input type="color" id="rc-stamp-color" class="form-control form-control-color p-0" value="#059669" style="width: 34px; height: 30px; cursor: pointer;">
-                <input type="text" id="rc-stamp-color-text" class="form-control form-control-sm font-monospace" value="#059669" maxlength="7">
+        <div class="card settings-accordion-card">
+          <div class="settings-accordion-header">
+            <h5><span>🪪</span> Official Stamp &amp; Signature</h5>
+            <span class="settings-accordion-toggle">▲</span>
+          </div>
+          <div class="settings-accordion-body">
+            <div class="row g-2">
+              <div class="col-md-7">
+                <label class="form-label small" style="font-weight: 700;">Paid Stamp Text</label>
+                <input type="text" id="rc-stamp-text" class="form-control form-control-sm font-monospace" value="PAID • OFFICIAL RECEIPT">
               </div>
-            </div>
-            <div class="col-md-7">
-              <label class="form-label small" style="font-weight: 700;">Authorized Signatory Label</label>
-              <input type="text" id="rc-signature-label" class="form-control form-control-sm" value="Authorized Signatory">
-            </div>
-            <div class="col-12 mt-2">
-              <div style="display: flex; gap: 14px; flex-wrap: wrap;">
-                <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
-                  <input class="form-check-input" type="checkbox" id="rc-toggle-stamp" checked>
-                  <span>Show Paid Stamp Mark</span>
-                </label>
-                <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
-                  <input class="form-check-input" type="checkbox" id="rc-toggle-signature" checked>
-                  <span>Show Signature Line</span>
-                </label>
+              <div class="col-md-5">
+                <label class="form-label small" style="font-weight: 700;">Stamp Color</label>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="color" id="rc-stamp-color" class="form-control form-control-color p-0" value="#059669" style="width: 34px; height: 30px; cursor: pointer;">
+                  <input type="text" id="rc-stamp-color-text" class="form-control form-control-sm font-monospace" value="#059669" maxlength="7">
+                </div>
+              </div>
+              <div class="col-md-7">
+                <label class="form-label small" style="font-weight: 700;">Authorized Signatory Label</label>
+                <input type="text" id="rc-signature-label" class="form-control form-control-sm" value="Authorized Signatory">
+              </div>
+              <div class="col-12 mt-2">
+                <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                  <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                    <input class="form-check-input" type="checkbox" id="rc-toggle-stamp" checked>
+                    <span>Show Paid Stamp Mark</span>
+                  </label>
+                  <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                    <input class="form-check-input" type="checkbox" id="rc-toggle-signature" checked>
+                    <span>Show Signature Line</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Dynamic UPI QR & Payment Link on Receipt -->
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>💳</span> Dynamic UPI QR Code on Receipt
-          </h5>
-          <div class="row g-2">
-            <div class="col-md-8">
-              <label class="form-label small" style="font-weight: 700;">Primary Library UPI ID (VPA)</label>
-              <input type="text" id="setting-bill-upiId" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.upiId || '')}" placeholder="e.g. studylib@okhdfcbank">
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-              <label class="form-check form-switch mb-2" style="font-size: 0.88rem; cursor: pointer;">
-                <input class="form-check-input" type="checkbox" id="rc-toggle-upiqr" checked>
-                <span>Print UPI QR Code</span>
-              </label>
+        <div class="card settings-accordion-card">
+          <div class="settings-accordion-header">
+            <h5><span>💳</span> Dynamic UPI QR Code on Receipt</h5>
+            <span class="settings-accordion-toggle">▲</span>
+          </div>
+          <div class="settings-accordion-body">
+            <div class="row g-2">
+              <div class="col-md-8">
+                <label class="form-label small" style="font-weight: 700;">Primary Library UPI ID (VPA)</label>
+                <input type="text" id="setting-bill-upiId" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.upiId || '')}" placeholder="e.g. studylib@okhdfcbank">
+              </div>
+              <div class="col-md-4 d-flex align-items-end">
+                <label class="form-check form-switch mb-2" style="font-size: 0.88rem; cursor: pointer;">
+                  <input class="form-check-input" type="checkbox" id="rc-toggle-upiqr" checked>
+                  <span>Print UPI QR Code</span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Terms, Conditions & Custom Footer Notes -->
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>📝</span> Terms, Policies & Footer Message
-          </h5>
-          <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">Terms & Conditions</label>
-            <textarea id="rc-terms-text" class="form-control form-control-sm" rows="2">1. Fees paid are non-refundable. 2. Seat allotment is strictly non-transferable. 3. Maintain pin-drop silence in the reading hall.</textarea>
+        <div class="card settings-accordion-card">
+          <div class="settings-accordion-header">
+            <h5><span>📝</span> Terms, Policies &amp; Footer Message</h5>
+            <span class="settings-accordion-toggle">▲</span>
           </div>
-          <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">Footer Greeting / Custom Note</label>
-            <input type="text" id="rc-custom-note" class="form-control form-control-sm" value="Thank you for choosing our study library! Best wishes for your exams.">
+          <div class="settings-accordion-body">
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Terms & Conditions</label>
+              <textarea id="rc-terms-text" class="form-control form-control-sm" rows="2">1. Fees paid are non-refundable. 2. Seat allotment is strictly non-transferable. 3. Maintain pin-drop silence in the reading hall.</textarea>
+            </div>
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Footer Greeting / Custom Note</label>
+              <input type="text" id="rc-custom-note" class="form-control form-control-sm" value="Thank you for choosing our study library! Best wishes for your exams.">
+            </div>
+            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+              <input class="form-check-input" type="checkbox" id="rc-toggle-timestamp" checked>
+              <span>Print Date & Time Timestamp</span>
+            </label>
           </div>
-          <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
-            <input class="form-check-input" type="checkbox" id="rc-toggle-timestamp" checked>
-            <span>Print Date & Time Timestamp</span>
-          </label>
         </div>
 
         <!-- GST & Bank Wire Transfer Details -->
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-            <span>📊</span> GST Tax Engine & Bank Wire Transfer Info
-          </h5>
-          <div class="row g-2">
-            <div class="col-md-4">
-              <label class="form-label small">GST Rate (%)</label>
-              <input type="number" id="setting-bill-gstRate" class="form-control form-control-sm" value="${billing['billing.gstRate'] ?? billing.gstRate ?? 18}" min="0" max="28">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label small">HSN / SAC Code</label>
-              <input type="text" id="setting-bill-hsn" class="form-control form-control-sm font-monospace" value="${escapeHTML(billing['billing.hsnSacCode'] || billing.hsnSacCode || '999293')}" placeholder="999293">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label small">Refund Window (Days)</label>
-              <input type="number" id="setting-bill-refundDays" class="form-control form-control-sm" value="${billing['billing.refundPolicyDays'] ?? billing.refundPolicyDays ?? 3}" min="0">
-            </div>
-            <div class="col-md-6 mt-2">
-              <label class="form-label small">Bank Account Holder</label>
-              <input type="text" id="setting-bank-accName" class="form-control form-control-sm" value="${escapeHTML(profile.bankDetails?.accountName || '')}">
-            </div>
-            <div class="col-md-6 mt-2">
-              <label class="form-label small">Account Number</label>
-              <input type="text" id="setting-bank-accNo" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.bankDetails?.accountNumber || '')}">
+        <div class="card settings-accordion-card">
+          <div class="settings-accordion-header">
+            <h5><span>📊</span> GST Tax Engine &amp; Bank Wire Details</h5>
+            <span class="settings-accordion-toggle">▲</span>
+          </div>
+          <div class="settings-accordion-body">
+            <div class="row g-2">
+              <div class="col-md-4">
+                <label class="form-label small">GST Rate (%)</label>
+                <input type="number" id="setting-bill-gstRate" class="form-control form-control-sm" value="${billing['billing.gstRate'] ?? billing.gstRate ?? 18}" min="0" max="28">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small">HSN / SAC Code</label>
+                <input type="text" id="setting-bill-hsn" class="form-control form-control-sm font-monospace" value="${escapeHTML(billing['billing.hsnSacCode'] || billing.hsnSacCode || '999293')}" placeholder="999293">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small">Refund Window (Days)</label>
+                <input type="number" id="setting-bill-refundDays" class="form-control form-control-sm" value="${billing['billing.refundPolicyDays'] ?? billing.refundPolicyDays ?? 3}" min="0">
+              </div>
+              <div class="col-md-6 mt-2">
+                <label class="form-label small">Bank Account Holder</label>
+                <input type="text" id="setting-bank-accName" class="form-control form-control-sm" value="${escapeHTML(profile.bankDetails?.accountName || '')}">
+              </div>
+              <div class="col-md-6 mt-2">
+                <label class="form-label small">Account Number</label>
+                <input type="text" id="setting-bank-accNo" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.bankDetails?.accountNumber || '')}">
+              </div>
             </div>
           </div>
         </div>
@@ -1415,7 +1548,9 @@ function renderModulesManagerStudio() {
         <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-primary);">🧩 App Modules & Granular Feature Toggles</h3>
         <p class="text-muted small mb-0">Turn any system module ON or OFF with 1-click. Disabled modules are immediately hidden from navigation and deactivated system-wide.</p>
       </div>
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-expand-all-sections" id="btn-modules-expand-all" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➕ Expand All</button>
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-collapse-all-sections" id="btn-modules-collapse-all" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➖ Collapse All</button>
         <button type="button" id="btn-modules-enable-all" class="btn btn-sm btn-outline-success" style="font-weight: 700;">🟢 Enable All</button>
         <button type="button" id="btn-modules-disable-optional" class="btn btn-sm btn-outline-secondary" style="font-weight: 700;">⚪ Minimal Mode</button>
         <button type="button" id="btn-save-modules-config" class="btn btn-sm btn-primary" style="font-weight: 800; padding: 6px 18px;">💾 Save Module Settings</button>
@@ -1468,10 +1603,13 @@ function renderModulesManagerStudio() {
         return `
           <div class="card p-3 module-item-card" data-key="${escapeHTML(m.key)}" style="background: var(--color-bg-secondary); border: 1.5px solid ${isEnabled ? 'rgba(0, 184, 148, 0.4)' : 'var(--color-border)'}; border-radius: var(--radius-md); transition: all 0.2s;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-              <div style="display: flex; align-items: center; gap: 10px;">
+              <div class="module-card-header" style="display: flex; align-items: center; gap: 10px; cursor: pointer; flex: 1;">
                 <span style="font-size: 1.6rem; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: var(--color-surface); border-radius: 8px; border: 1px solid var(--color-border);">${m.icon || '📦'}</span>
                 <div>
-                  <h5 style="margin: 0; font-size: 0.98rem; font-weight: 800; color: var(--color-text-primary);">${escapeHTML(m.label)}</h5>
+                  <h5 style="margin: 0; font-size: 0.98rem; font-weight: 800; color: var(--color-text-primary); display: flex; align-items: center; gap: 6px;">
+                    ${escapeHTML(m.label)}
+                    <span class="module-toggle-caret" style="font-size: 0.75rem; color: var(--color-text-muted);">▲</span>
+                  </h5>
                   <code style="font-size: 0.72rem; color: var(--color-text-muted);">${escapeHTML(m.href)}</code>
                 </div>
               </div>
@@ -1480,19 +1618,38 @@ function renderModulesManagerStudio() {
               </div>
             </div>
             
-            <p style="font-size: 0.82rem; color: var(--color-text-secondary); margin: 6px 0 10px 0; min-height: 38px; line-height: 1.35;">
-              ${escapeHTML(desc)}
-            </p>
+            <div class="module-details-body">
+              <p style="font-size: 0.82rem; color: var(--color-text-secondary); margin: 6px 0 10px 0; line-height: 1.35;">
+                ${escapeHTML(desc)}
+              </p>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--color-border); padding-top: 8px; font-size: 0.75rem;">
-              <span class="module-status-badge badge" style="background: ${isEnabled ? 'rgba(0, 184, 148, 0.15)' : 'rgba(108, 117, 125, 0.15)'}; color: ${isEnabled ? 'var(--color-success)' : 'var(--color-text-muted)'}; font-weight: 700;">
-                ${isEnabled ? '🟢 Active & Visible' : '⚪ Disabled (Hidden)'}
-              </span>
-              ${isSystem ? '<span class="badge badge-secondary" style="font-size: 0.65rem;">System Core</span>' : '<span class="text-muted">Custom Module</span>'}
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--color-border); padding-top: 8px; font-size: 0.75rem;">
+                <span class="module-status-badge badge" style="background: ${isEnabled ? 'rgba(0, 184, 148, 0.15)' : 'rgba(108, 117, 125, 0.15)'}; color: ${isEnabled ? 'var(--color-success)' : 'var(--color-text-muted)'}; font-weight: 700;">
+                  ${isEnabled ? '🟢 Active & Visible' : '⚪ Disabled (Hidden)'}
+                </span>
+                ${isSystem ? '<span class="badge badge-secondary" style="font-size: 0.65rem;">System Core</span>' : '<span class="text-muted">Custom Module</span>'}
+              </div>
             </div>
           </div>
         `;
       }).join('');
+
+      // Header click to toggle module details
+      grid.querySelectorAll('.module-card-header').forEach(header => {
+        header.addEventListener('click', () => {
+          const card = header.closest('.module-item-card');
+          const body = card?.querySelector('.module-details-body');
+          const caret = card?.querySelector('.module-toggle-caret');
+          if (!body) return;
+          if (body.style.display === 'none') {
+            body.style.display = 'block';
+            if (caret) caret.textContent = '▲';
+          } else {
+            body.style.display = 'none';
+            if (caret) caret.textContent = '▼';
+          }
+        });
+      });
 
       // Toggle switch change listener
       grid.querySelectorAll('.module-toggle-switch').forEach(sw => {
@@ -1583,60 +1740,87 @@ function renderModulesManagerStudio() {
 function renderNotificationStudio(notif, profile) {
   return `
     <div class="card" style="padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
-      <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem;">
-        <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">🔔 WhatsApp Reminders, Bots & Automated Dispatch</h3>
-        <p class="text-muted small mb-0">Automate payment reminder dispatch, seat expiry alerts, and interactive conversational bot.</p>
+      <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">🔔 WhatsApp Reminders, Bots & Automated Dispatch</h3>
+          <p class="text-muted small mb-0">Automate payment reminder dispatch, seat expiry alerts, and interactive conversational bot.</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <button type="button" class="btn btn-xs btn-outline-secondary btn-expand-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➕ Expand All</button>
+          <button type="button" class="btn btn-xs btn-outline-secondary btn-collapse-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➖ Collapse All</button>
+        </div>
       </div>
 
-      <div class="row g-3">
-        <div class="col-md-6">
-          <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
-            <div class="form-check form-switch mb-2" style="font-size: 1.1rem;">
-              <input class="form-check-input" type="checkbox" id="setting-notif-wa" ${notif['notification.enableWhatsapp'] || notif.enableWhatsapp ? 'checked' : ''}>
-              <label class="form-check-label font-weight-bold" for="setting-notif-wa" style="font-size: 0.9rem; font-weight: 700;">Enable Automated WhatsApp Engine</label>
-            </div>
-            <p class="text-muted small mb-0">Dispatches 1-tap WhatsApp reminder links and gateway alerts to students.</p>
-          </div>
+      <!-- Section 1: 🔔 WhatsApp Engine & Automated Reminders -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <h5><span>🔔</span> Automated WhatsApp Reminders Engine</h5>
+          <span class="settings-accordion-toggle">▲</span>
         </div>
-
-        <div class="col-md-6">
-          <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
-            <label class="form-label" style="font-weight: 700; font-size: 0.9rem;">Daily Automated Dispatch Schedule</label>
-            <input type="time" id="setting-notif-time" class="form-control" value="${notif['notification.whatsappScheduleTime'] || notif.whatsappScheduleTime || '09:30'}">
-            <small class="text-muted">Time when system checks and queues daily reminders</small>
-          </div>
-        </div>
-
-        <div class="col-md-4">
-          <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
-            <div class="form-check form-switch mb-1">
-              <input class="form-check-input" type="checkbox" id="setting-notif-expiryBot" ${notif['notification.enableAutoExpiryBot'] !== false ? 'checked' : ''}>
-              <label class="form-check-label font-weight-bold" style="font-weight: 700; font-size: 0.88rem;">⏳ Expiry Alert Bot</label>
+        <div class="settings-accordion-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <div class="form-check form-switch mb-2" style="font-size: 1.1rem;">
+                  <input class="form-check-input" type="checkbox" id="setting-notif-wa" ${notif['notification.enableWhatsapp'] || notif.enableWhatsapp ? 'checked' : ''}>
+                  <label class="form-check-label font-weight-bold" for="setting-notif-wa" style="font-size: 0.9rem; font-weight: 700;">Enable Automated WhatsApp Engine</label>
+                </div>
+                <p class="text-muted small mb-0">Dispatches 1-tap WhatsApp reminder links and gateway alerts to students.</p>
+              </div>
             </div>
-            <small class="text-muted">Sends renewal alerts 3 days and 1 day before plan expires.</small>
-          </div>
-        </div>
 
-        <div class="col-md-4">
-          <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
-            <div class="form-check form-switch mb-1">
-              <input class="form-check-input" type="checkbox" id="setting-notif-duesBot" ${notif['notification.enableAutoDuesBot'] !== false ? 'checked' : ''}>
-              <label class="form-check-label font-weight-bold" style="font-weight: 700; font-size: 0.88rem;">💳 Balance Due Bot</label>
+            <div class="col-md-6">
+              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <label class="form-label" style="font-weight: 700; font-size: 0.9rem;">Daily Automated Dispatch Schedule</label>
+                <input type="time" id="setting-notif-time" class="form-control" value="${notif['notification.whatsappScheduleTime'] || notif.whatsappScheduleTime || '09:30'}">
+                <small class="text-muted">Time when system checks and queues daily reminders</small>
+              </div>
             </div>
-            <small class="text-muted">Notifies students with pending partial fee payments.</small>
-          </div>
-        </div>
-
-        <div class="col-md-4">
-          <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
-            <div class="form-check form-switch mb-1">
-              <input class="form-check-input" type="checkbox" id="setting-notif-chatBot" ${notif['notification.enableConversationalBot'] !== false ? 'checked' : ''}>
-              <label class="form-check-label font-weight-bold" style="font-weight: 700; font-size: 0.88rem;">🤖 Conversational Bot</label>
-            </div>
-            <small class="text-muted">Replies to <code>!seat</code>, <code>!expiry</code>, and <code>!renew</code> commands.</small>
           </div>
         </div>
       </div>
+
+      <!-- Section 2: 🤖 Automated Bots Suite -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <h5><span>🤖</span> Automated AI Bots Suite (Expiry, Dues &amp; Conversational)</h5>
+          <span class="settings-accordion-toggle">▲</span>
+        </div>
+        <div class="settings-accordion-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <div class="form-check form-switch mb-1">
+                  <input class="form-check-input" type="checkbox" id="setting-notif-expiryBot" ${notif['notification.enableAutoExpiryBot'] !== false ? 'checked' : ''}>
+                  <label class="form-check-label font-weight-bold" style="font-weight: 700; font-size: 0.88rem;">⏳ Expiry Alert Bot</label>
+                </div>
+                <small class="text-muted">Sends renewal alerts 3 days and 1 day before plan expires.</small>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <div class="form-check form-switch mb-1">
+                  <input class="form-check-input" type="checkbox" id="setting-notif-duesBot" ${notif['notification.enableAutoDuesBot'] !== false ? 'checked' : ''}>
+                  <label class="form-check-label font-weight-bold" style="font-weight: 700; font-size: 0.88rem;">💳 Balance Due Bot</label>
+                </div>
+                <small class="text-muted">Notifies students with pending partial fee payments.</small>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <div class="form-check form-switch mb-1">
+                  <input class="form-check-input" type="checkbox" id="setting-notif-chatBot" ${notif['notification.enableConversationalBot'] !== false ? 'checked' : ''}>
+                  <label class="form-check-label font-weight-bold" style="font-weight: 700; font-size: 0.88rem;">🤖 Conversational Bot</label>
+                </div>
+                <small class="text-muted">Replies to <code>!seat</code>, <code>!expiry</code>, and <code>!renew</code> commands.</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   `;
 }
@@ -1647,40 +1831,64 @@ function renderNotificationStudio(notif, profile) {
 function renderOperationsStudio(ops) {
   return `
     <div class="card" style="padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
-      <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem;">
-        <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">⏱️ Library Operations, Schedule & Attendance Rules</h3>
-        <p class="text-muted small mb-0">Configure operating hours, weekly off rules, and emergency notices.</p>
+      <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">⏱️ Library Operations, Schedule & Attendance Rules</h3>
+          <p class="text-muted small mb-0">Configure operating hours, weekly off rules, and emergency notices.</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <button type="button" class="btn btn-xs btn-outline-secondary btn-expand-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➕ Expand All</button>
+          <button type="button" class="btn btn-xs btn-outline-secondary btn-collapse-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➖ Collapse All</button>
+        </div>
       </div>
 
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label" style="font-weight: 700;">Opening Time</label>
-          <input type="time" id="setting-ops-open" class="form-control" value="${ops['operations.openingTime'] || ops.openingTime || '06:00'}">
+      <!-- Section 1: ⏱️ Opening Hours & Weekly Off Schedule -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <h5><span>⏱️</span> Campus Operating Hours &amp; Weekly Offs</h5>
+          <span class="settings-accordion-toggle">▲</span>
         </div>
-        <div class="col-md-4">
-          <label class="form-label" style="font-weight: 700;">Closing Time</label>
-          <input type="time" id="setting-ops-close" class="form-control" value="${ops['operations.closingTime'] || ops.closingTime || '23:00'}">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label" style="font-weight: 700;">Weekly Off Day</label>
-          <select id="setting-ops-weeklyOff" class="form-select">
-            <option value="none" selected>None (Open All 7 Days)</option>
-            <option value="sunday">Sunday Only</option>
-            <option value="monday">Monday Only</option>
-          </select>
-        </div>
-
-        <div class="col-12 mt-3 pt-3" style="border-top: 1px solid var(--color-border);">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <label class="form-label mb-0" style="font-weight: 700;">📢 Emergency Notice Board Banner</label>
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" id="setting-ops-emergencyToggle" ${ops['operations.emergencyNoticeEnabled'] || ops.emergencyNoticeEnabled ? 'checked' : ''}>
-              <label class="form-check-label small" for="setting-ops-emergencyToggle">Display Banner</label>
+        <div class="settings-accordion-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label" style="font-weight: 700;">Opening Time</label>
+              <input type="time" id="setting-ops-open" class="form-control" value="${ops['operations.openingTime'] || ops.openingTime || '06:00'}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" style="font-weight: 700;">Closing Time</label>
+              <input type="time" id="setting-ops-close" class="form-control" value="${ops['operations.closingTime'] || ops.closingTime || '23:00'}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" style="font-weight: 700;">Weekly Off Day</label>
+              <select id="setting-ops-weeklyOff" class="form-select">
+                <option value="none" selected>None (Open All 7 Days)</option>
+                <option value="sunday">Sunday Only</option>
+                <option value="monday">Monday Only</option>
+              </select>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Section 2: 📢 Emergency Notice Board Banner -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h5><span>📢</span> Emergency Notice Board Banner</h5>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="form-check form-switch" style="margin: 0; font-size: 1.1rem;">
+              <input class="form-check-input" type="checkbox" id="setting-ops-emergencyToggle" ${ops['operations.emergencyNoticeEnabled'] || ops.emergencyNoticeEnabled ? 'checked' : ''}>
+              <label class="form-check-label small font-weight-bold" for="setting-ops-emergencyToggle" style="font-weight: 700;">Display Banner</label>
+            </div>
+            <span class="settings-accordion-toggle">▲</span>
+          </div>
+        </div>
+        <div class="settings-accordion-body">
           <input type="text" id="setting-ops-emergencyNotice" class="form-control" value="${escapeHTML(ops['operations.emergencyNotice'] || ops.emergencyNotice || '')}" placeholder="e.g. Library will remain closed on 15th August for Independence Day.">
         </div>
       </div>
+
     </div>
   `;
 }
@@ -1699,48 +1907,61 @@ function renderStaffRbacStudio(staffUsers, branches) {
         <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">👥 Staff Management, Roles & Granular Permissions</h3>
         <p class="text-muted small mb-0">Create staff accounts, assign branch access, and configure granular module permissions.</p>
       </div>
-      <button id="btn-add-staff-member" class="btn btn-sm btn-primary" style="font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
-        <span>➕</span> Add Staff Member
-      </button>
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-expand-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➕ Expand All</button>
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-collapse-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➖ Collapse All</button>
+        <button id="btn-add-staff-member" class="btn btn-sm btn-primary" style="font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+          <span>➕</span> Add Staff Member
+        </button>
+      </div>
     </div>
 
-    <div class="table-responsive">
-      <table class="table" style="font-size: 0.88rem;">
-        <thead>
-          <tr style="background: var(--color-bg-secondary);">
-            <th>Staff Name</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Assigned Branch</th>
-            <th>Status</th>
-            <th style="text-align: right;">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="staff-table-body">
-          ${staffUsers.length > 0 ? staffUsers.map(u => `
-            <tr data-user-id="${escapeHTML(u._id || u.id)}">
-              <td><strong>${escapeHTML(u.name)}</strong></td>
-              <td>${escapeHTML(u.email)}</td>
-              <td><span class="badge" style="background: rgba(108,92,231,0.15); color: var(--color-primary); text-transform: uppercase;">${escapeHTML(u.role || 'staff')}</span></td>
-              <td>${escapeHTML(u.branch?.name || (branches.find(b => b._id === u.branch)?.name) || 'All Branches')}</td>
-              <td><span class="badge ${u.isActive !== false ? 'badge-success' : 'badge-danger'}">${u.isActive !== false ? 'Active' : 'Inactive'}</span></td>
-              <td style="text-align: right;">
-                <button class="btn btn-xs btn-outline-primary btn-edit-staff" data-id="${escapeHTML(u._id || u.id)}" style="padding: 2px 8px; font-size: 0.75rem;">✏️ Permissions</button>
-                <button class="btn btn-xs btn-outline-danger btn-del-staff" data-id="${escapeHTML(u._id || u.id)}" style="padding: 2px 8px; font-size: 0.75rem;">🗑️</button>
-              </td>
-            </tr>
-          `).join('') : `
-            <tr>
-              <td><strong>Admin Superuser</strong></td>
-              <td>admin@studylibrary.com</td>
-              <td><span class="badge badge-primary">OWNER</span></td>
-              <td>All Branches</td>
-              <td><span class="badge badge-success">Active</span></td>
-              <td style="text-align: right;"><span class="text-muted small">Superadmin Account</span></td>
-            </tr>
-          `}
-        </tbody>
-      </table>
+    <!-- Section 1: 👥 Staff Members Directory -->
+    <div class="card settings-accordion-card">
+      <div class="settings-accordion-header">
+        <h5><span>👥</span> Staff Members &amp; Branch Access Directory (${staffUsers.length} Staff)</h5>
+        <span class="settings-accordion-toggle">▲</span>
+      </div>
+      <div class="settings-accordion-body">
+        <div class="table-responsive">
+          <table class="table" style="font-size: 0.88rem;">
+            <thead>
+              <tr style="background: var(--color-bg-secondary);">
+                <th>Staff Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Assigned Branch</th>
+                <th>Status</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="staff-table-body">
+              ${staffUsers.length > 0 ? staffUsers.map(u => `
+                <tr data-user-id="${escapeHTML(u._id || u.id)}">
+                  <td><strong>${escapeHTML(u.name)}</strong></td>
+                  <td>${escapeHTML(u.email)}</td>
+                  <td><span class="badge" style="background: rgba(108,92,231,0.15); color: var(--color-primary); text-transform: uppercase;">${escapeHTML(u.role || 'staff')}</span></td>
+                  <td>${escapeHTML(u.branch?.name || (branches.find(b => b._id === u.branch)?.name) || 'All Branches')}</td>
+                  <td><span class="badge ${u.isActive !== false ? 'badge-success' : 'badge-danger'}">${u.isActive !== false ? 'Active' : 'Inactive'}</span></td>
+                  <td style="text-align: right;">
+                    <button class="btn btn-xs btn-outline-primary btn-edit-staff" data-id="${escapeHTML(u._id || u.id)}" style="padding: 2px 8px; font-size: 0.75rem;">✏️ Permissions</button>
+                    <button class="btn btn-xs btn-outline-danger btn-del-staff" data-id="${escapeHTML(u._id || u.id)}" style="padding: 2px 8px; font-size: 0.75rem;">🗑️</button>
+                  </td>
+                </tr>
+              `).join('') : `
+                <tr>
+                  <td><strong>Admin Superuser</strong></td>
+                  <td>admin@studylibrary.com</td>
+                  <td><span class="badge badge-primary">OWNER</span></td>
+                  <td>All Branches</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td style="text-align: right;"><span class="text-muted small">Superadmin Account</span></td>
+                </tr>
+              `}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   `;
 
@@ -2577,22 +2798,36 @@ function renderStudentPortalStudio(portal, profile) {
           <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">📱 Student Portal & Mobile App Master Feature Matrix</h3>
           <p class="text-muted small mb-0">Granularly turn ON or OFF every button, self-service request, and card inside the Student Portal (/student-login).</p>
         </div>
-        <a href="/student-login" target="_blank" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">👁️ Test Student Portal ↗</a>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <button type="button" class="btn btn-xs btn-outline-secondary btn-expand-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➕ Expand All</button>
+          <button type="button" class="btn btn-xs btn-outline-secondary btn-collapse-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➖ Collapse All</button>
+          <a href="/student-login" target="_blank" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">👁️ Test Student Portal ↗</a>
+        </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
-        ${toggles.map(t => `
-          <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-            <div>
-              <div style="font-weight: 700; font-size: 0.92rem; color: var(--color-text-primary); margin-bottom: 2px;">${t.title}</div>
-              <div style="font-size: 0.78rem; color: var(--color-text-secondary); line-height: 1.4;">${t.desc}</div>
-            </div>
-            <div class="form-check form-switch" style="margin: 0; font-size: 1.2rem;">
-              <input class="form-check-input student-portal-toggle" type="checkbox" data-key="${t.key}" ${isEnabled(t.key) ? 'checked' : ''}>
-            </div>
+      <!-- Section 1: 📱 Student Self-Service Feature Matrix -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <h5><span>📱</span> Active Student Portal Features &amp; Modules (${toggles.length} Modules)</h5>
+          <span class="settings-accordion-toggle">▲</span>
+        </div>
+        <div class="settings-accordion-body">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
+            ${toggles.map(t => `
+              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <div>
+                  <div style="font-weight: 700; font-size: 0.92rem; color: var(--color-text-primary); margin-bottom: 2px;">${t.title}</div>
+                  <div style="font-size: 0.78rem; color: var(--color-text-secondary); line-height: 1.4;">${t.desc}</div>
+                </div>
+                <div class="form-check form-switch" style="margin: 0; font-size: 1.2rem;">
+                  <input class="form-check-input student-portal-toggle" type="checkbox" data-key="${t.key}" ${isEnabled(t.key) ? 'checked' : ''}>
+                </div>
+              </div>
+            `).join('')}
           </div>
-        `).join('')}
+        </div>
       </div>
+
     </div>
   `;
 }
@@ -2606,44 +2841,63 @@ function renderAutomationsAiStudio(auto) {
   wrapper.style.cssText = 'padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);';
 
   wrapper.innerHTML = `
-    <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem;">
-      <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">🤖 Automation Engine & AI Business Insights Studio</h3>
-      <p class="text-muted small mb-0">Autonomous background tasks, AI revenue summaries, occupancy forecasts, and smart retention risk detection.</p>
-    </div>
-
-    <!-- Core Automations Section -->
-    <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin-bottom: 12px;">⚡ Autonomous System Daemons</h5>
-    <div class="row g-3 mb-4">
-      <div class="col-md-6">
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
-          <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" id="setting-auto-seatExpiry" ${auto['automations.autoSeatExpiry'] !== false ? 'checked' : ''}>
-            <label class="form-check-label" style="font-weight: 700;">Auto-Release Expired Seats</label>
-          </div>
-          <small class="text-muted d-block mt-1">Automatically marks desk as vacant when plan expires + grace days</small>
-        </div>
+    <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <div>
+        <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">🤖 Automation Engine & AI Business Insights Studio</h3>
+        <p class="text-muted small mb-0">Autonomous background tasks, AI revenue summaries, occupancy forecasts, and smart retention risk detection.</p>
       </div>
-      <div class="col-md-6">
-        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
-          <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" id="setting-auto-dueReminders" ${auto['automations.autoDueReminders'] !== false ? 'checked' : ''}>
-            <label class="form-check-label" style="font-weight: 700;">Auto-Dispatch Balance Due Reminders</label>
-          </div>
-          <small class="text-muted d-block mt-1">Schedules automated WhatsApp balance notifications</small>
-        </div>
+      <div class="d-flex gap-2 align-items-center">
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-expand-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➕ Expand All</button>
+        <button type="button" class="btn btn-xs btn-outline-secondary btn-collapse-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➖ Collapse All</button>
       </div>
     </div>
 
-    <!-- AI Business Insights Container -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-      <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin: 0;">✨ AI Business Intelligence & Analytics</h5>
-      <button id="btn-refresh-ai-insights" class="btn btn-xs btn-outline-primary" style="font-weight: 700;">🔄 Refresh AI Insights</button>
+    <!-- Section 1: ⚡ Autonomous System Daemons -->
+    <div class="card settings-accordion-card">
+      <div class="settings-accordion-header">
+        <h5><span>⚡</span> Autonomous System Daemons &amp; Auto-Releases</h5>
+        <span class="settings-accordion-toggle">▲</span>
+      </div>
+      <div class="settings-accordion-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="setting-auto-seatExpiry" ${auto['automations.autoSeatExpiry'] !== false ? 'checked' : ''}>
+                <label class="form-check-label" style="font-weight: 700;">Auto-Release Expired Seats</label>
+              </div>
+              <small class="text-muted d-block mt-1">Automatically marks desk as vacant when plan expires + grace days</small>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="setting-auto-dueReminders" ${auto['automations.autoDueReminders'] !== false ? 'checked' : ''}>
+                <label class="form-check-label" style="font-weight: 700;">Auto-Dispatch Balance Due Reminders</label>
+              </div>
+              <small class="text-muted d-block mt-1">Schedules automated WhatsApp balance notifications</small>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <div id="ai-insights-mount-container">
-      <div style="padding: 2rem; text-align: center; color: var(--color-text-secondary);">
-        <div class="loading-spinner" style="margin: 0 auto 8px auto;"></div>
-        <p style="margin: 0; font-size: 0.88rem;">Generating AI insights from real-time database...</p>
+    <!-- Section 2: ✨ AI Business Intelligence & Analytics -->
+    <div class="card settings-accordion-card">
+      <div class="settings-accordion-header">
+        <h5><span>✨</span> AI Business Intelligence &amp; Retention Analytics</h5>
+        <div class="d-flex align-items-center gap-2">
+          <button id="btn-refresh-ai-insights" class="btn btn-xs btn-outline-primary" style="font-weight: 700;">🔄 Refresh</button>
+          <span class="settings-accordion-toggle">▲</span>
+        </div>
+      </div>
+      <div class="settings-accordion-body">
+        <div id="ai-insights-mount-container">
+          <div style="padding: 2rem; text-align: center; color: var(--color-text-secondary);">
+            <div class="loading-spinner" style="margin: 0 auto 8px auto;"></div>
+            <p style="margin: 0; font-size: 0.88rem;">Generating AI insights from real-time database...</p>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -2739,45 +2993,115 @@ function renderAutomationsAiStudio(auto) {
 function renderSecurityBackupStudio() {
   return `
     <div class="card" style="padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
-      <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem;">
-        <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">🔒 Security, Immutable Audit Trails & Backups</h3>
-        <p class="text-muted small mb-0">PIN lock, login history logs, immutable activity audit trails, and 1-click database export/restore.</p>
+      <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">🔒 Security, Immutable Audit Trails & Backups</h3>
+          <p class="text-muted small mb-0">PIN lock, login history logs, immutable activity audit trails, and 1-click database export/restore.</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <button type="button" class="btn btn-xs btn-outline-secondary btn-expand-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➕ Expand All</button>
+          <button type="button" class="btn btn-xs btn-outline-secondary btn-collapse-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➖ Collapse All</button>
+        </div>
       </div>
 
-      <div class="row g-3">
-        <div class="col-md-6">
-          <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
-            <h5 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 6px;">🔐 Quick Admin PIN Lock</h5>
-            <p class="text-muted small mb-3">Set a 4-digit PIN for instant terminal lock when stepping away from the front reception desk.</p>
-            <div style="display: flex; gap: 8px;">
-              <input type="password" id="setting-sec-pin" maxlength="4" class="form-control font-monospace" placeholder="4-digit PIN" style="width: 140px; text-align: center; letter-spacing: 4px; font-size: 1.1rem;">
-              <button id="btn-save-pin" class="btn btn-sm btn-primary">Save PIN</button>
+      <!-- Section 1: 🔐 PIN Lock & Database Snapshot -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <h5><span>🔐</span> Terminal Lock &amp; Database Backups</h5>
+          <span class="settings-accordion-toggle">▲</span>
+        </div>
+        <div class="settings-accordion-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <h5 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 6px;">🔐 Quick Admin PIN Lock</h5>
+                <p class="text-muted small mb-3">Set a 4-digit PIN for instant terminal lock when stepping away from the front reception desk.</p>
+                <div style="display: flex; gap: 8px;">
+                  <input type="password" id="setting-sec-pin" maxlength="4" class="form-control font-monospace" placeholder="4-digit PIN" style="width: 140px; text-align: center; letter-spacing: 4px; font-size: 1.1rem;">
+                  <button id="btn-save-pin" class="btn btn-sm btn-primary">Save PIN</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <h5 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 6px;">💾 Database Snapshot & Export</h5>
+                <p class="text-muted small mb-3">Download complete JSON or CSV data archives of all students, payments, and seats.</p>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <button id="btn-sec-export-json" class="btn btn-sm btn-outline-primary">📥 Export JSON Backup</button>
+                  <a href="#/reports" class="btn btn-sm btn-outline-secondary">📊 Accounting Exports</a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="col-md-6">
-          <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
-            <h5 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 6px;">💾 Database Snapshot & Export</h5>
-            <p class="text-muted small mb-3">Download complete JSON or CSV data archives of all students, payments, and seats.</p>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button id="btn-sec-export-json" class="btn btn-sm btn-outline-primary">📥 Export JSON Backup</button>
-              <a href="#/reports" class="btn btn-sm btn-outline-secondary">📊 Accounting Exports</a>
-            </div>
+      <!-- Section 2: 📜 System Activity Audit Trail -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <h5><span>📜</span> System Activity Audit Trail</h5>
+          <div class="d-flex align-items-center gap-2">
+            <a href="#/reports" class="btn btn-xs btn-outline-primary" style="font-weight: 700;">View Logs ↗</a>
+            <span class="settings-accordion-toggle">▲</span>
           </div>
         </div>
-
-        <div class="col-12 mt-3 pt-3" style="border-top: 1px solid var(--color-border);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin: 0;">📜 System Activity Audit Trail</h5>
-            <a href="#/reports" class="btn btn-xs btn-outline-primary">View Full Logs ↗</a>
-          </div>
+        <div class="settings-accordion-body">
           <p class="text-muted small mb-0">Every student admission, fee payment, desk allocation, and settings change is recorded with user timestamp and IP address.</p>
         </div>
-
       </div>
+
     </div>
   `;
+}
+
+// -------------------------------------------------------------
+// Universal Accordion & Expand/Collapse Controller
+// -------------------------------------------------------------
+function initStudioAccordions(scope) {
+  if (!scope) return;
+
+  // 1. Individual accordion headers toggle
+  scope.querySelectorAll('.settings-accordion-header, .cms-accordion-header').forEach(header => {
+    if (header.dataset.accordionBound) return;
+    header.dataset.accordionBound = 'true';
+
+    header.addEventListener('click', (e) => {
+      // Ignore click if user clicked directly on form controls inside header
+      if (e.target.closest('button, input, select, a, .form-switch, .form-check, label.form-check-label')) return;
+      const body = header.nextElementSibling;
+      const caret = header.querySelector('.settings-accordion-toggle, .cms-accordion-toggle');
+      if (!body) return;
+
+      if (body.style.display === 'none') {
+        body.style.display = 'block';
+        if (caret) caret.textContent = '▲';
+      } else {
+        body.style.display = 'none';
+        if (caret) caret.textContent = '▼';
+      }
+    });
+  });
+
+  // 2. Expand All buttons across any studio
+  scope.querySelectorAll('.btn-expand-all-sections, #btn-cms-expand-all, #btn-modules-expand-all').forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = 'true';
+    btn.addEventListener('click', () => {
+      scope.querySelectorAll('.settings-accordion-body, .cms-accordion-body, .module-details-body').forEach(b => b.style.display = 'block');
+      scope.querySelectorAll('.settings-accordion-toggle, .cms-accordion-toggle, .module-toggle-caret').forEach(c => c.textContent = '▲');
+    });
+  });
+
+  // 3. Collapse All buttons across any studio
+  scope.querySelectorAll('.btn-collapse-all-sections, #btn-cms-collapse-all, #btn-modules-collapse-all').forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = 'true';
+    btn.addEventListener('click', () => {
+      scope.querySelectorAll('.settings-accordion-body, .cms-accordion-body, .module-details-body').forEach(b => b.style.display = 'none');
+      scope.querySelectorAll('.settings-accordion-toggle, .cms-accordion-toggle, .module-toggle-caret').forEach(c => c.textContent = '▼');
+    });
+  });
 }
 
 // -------------------------------------------------------------

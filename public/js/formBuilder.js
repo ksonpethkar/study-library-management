@@ -134,10 +134,16 @@ export class FormBuilder {
           <!-- Left Pane: Form Structure & Question Controls -->
           <div class="fb-left-pane" style="display: flex; flex-direction: column; gap: 16px;">
             <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
-              <h4 style="margin: 0 0 0.85rem 0; font-size: 1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; justify-content: space-between;">
-                <span>📋 Category 2: Registration Form Sections &amp; Questions</span>
-                <span style="color: var(--color-primary); font-size: 0.78rem;">Live Auto-Sync ⚡</span>
-              </h4>
+              <div style="margin: 0 0 0.85rem 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <h4 style="margin: 0; font-size: 1rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+                  <span>📋</span> Form Sections &amp; Questions
+                </h4>
+                <div class="d-flex gap-2 align-items-center">
+                  <button type="button" id="btn-fb-expand-all" class="btn btn-xs btn-outline-secondary" style="font-size: 0.75rem; padding: 2px 8px; font-weight: 700;">➕ Expand All</button>
+                  <button type="button" id="btn-fb-collapse-all" class="btn btn-xs btn-outline-secondary" style="font-size: 0.75rem; padding: 2px 8px; font-weight: 700;">➖ Collapse All</button>
+                  <span class="badge" style="background: rgba(108,92,231,0.12); color: var(--color-primary); font-size: 0.72rem;">Live Auto-Sync ⚡</span>
+                </div>
+              </div>
               <div id="fb-sections-container" style="display: flex; flex-direction: column; gap: 14px;"></div>
             </div>
 
@@ -290,12 +296,13 @@ export class FormBuilder {
 
       return `
         <div class="fb-sec-card" data-section="${sec.name}" style="background: var(--color-surface-hover); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; margin-bottom: 12px;">
-          <div style="padding: 10px 14px; background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.92rem; color: var(--color-primary);">
+          <div class="fb-sec-header" style="padding: 10px 14px; background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div class="fb-sec-title-wrap" style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.92rem; color: var(--color-primary); cursor: pointer; user-select: none;">
               <div class="fb-sec-drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 0 4px; user-select: none;" title="Drag to reorder section">⠿</div>
               <span>${SECTION_ICONS[sec.icon] || '📁'}</span>
               <span>${escapeHTML(sec.label)}</span>
               <span class="badge badge-secondary" style="font-size: 0.7rem;">${sec.isSystem ? 'System Component' : secFields.length + ' Questions'}</span>
+              <span class="fb-sec-toggle-caret" style="font-size: 0.8rem; font-weight: bold; color: var(--color-text-muted); margin-left: 4px;">▲</span>
             </div>
 
             <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
@@ -309,7 +316,7 @@ export class FormBuilder {
             </div>
           </div>
 
-          <div style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+          <div class="fb-sec-body" style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
             ${sec.isSystem && secFields.length === 0 ? this.renderSystemComponentCard(sec) : ''}
 
             <div class="fb-sec-fields-container" data-section="${sec.name}" style="display: flex; flex-direction: column; gap: 8px; min-height: 24px;">
@@ -319,6 +326,35 @@ export class FormBuilder {
         </div>
       `;
     }).join('');
+
+    // Section Expand/Collapse Caret Click Handlers
+    container.querySelectorAll('.fb-sec-title-wrap').forEach(titleWrap => {
+      titleWrap.addEventListener('click', (e) => {
+        if (e.target.closest('.fb-sec-drag-handle')) return;
+        const card = titleWrap.closest('.fb-sec-card');
+        const body = card?.querySelector('.fb-sec-body');
+        const caret = titleWrap.querySelector('.fb-sec-toggle-caret');
+        if (!body) return;
+        if (body.style.display === 'none') {
+          body.style.display = 'flex';
+          if (caret) caret.textContent = '▲';
+        } else {
+          body.style.display = 'none';
+          if (caret) caret.textContent = '▼';
+        }
+      });
+    });
+
+    // Expand All / Collapse All in Form Builder
+    document.getElementById('btn-fb-expand-all')?.addEventListener('click', () => {
+      container.querySelectorAll('.fb-sec-body').forEach(b => b.style.display = 'flex');
+      container.querySelectorAll('.fb-sec-toggle-caret').forEach(c => c.textContent = '▲');
+    });
+
+    document.getElementById('btn-fb-collapse-all')?.addEventListener('click', () => {
+      container.querySelectorAll('.fb-sec-body').forEach(b => b.style.display = 'none');
+      container.querySelectorAll('.fb-sec-toggle-caret').forEach(c => c.textContent = '▼');
+    });
 
     // Initialize Drag & Drop for Sections
     if (typeof window !== 'undefined' && window.Sortable) {
