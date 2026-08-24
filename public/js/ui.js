@@ -321,7 +321,7 @@ Modal.show = function(opts) {
 };
 
 Modal.close = function() {
-  const dialogs = document.querySelectorAll('dialog, #modal-container, .modal-container, .modal');
+  const dialogs = document.querySelectorAll('dialog, #modal-container, .modal-container, .modal, .modal-backdrop');
   dialogs.forEach(d => {
     try {
       if (typeof d.close === 'function' && d.open) {
@@ -329,8 +329,15 @@ Modal.close = function() {
       }
       d.removeAttribute('open');
       d.style.display = 'none';
+      if (d.id === 'modal-container' || d.classList.contains('modal-backdrop')) {
+        d.remove();
+      }
     } catch (e) {}
   });
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+  }
 };
 
 Modal.closeAll = function() {

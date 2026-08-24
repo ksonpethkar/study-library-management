@@ -939,30 +939,30 @@ export async function render(container) {
         shiftCounts = [8, 12, 16, 4];
       }
 
-      // If all zero, provide fallback distribution for visual preview
-      if (shiftCounts.reduce((a, b) => a + b, 0) === 0) {
-        shiftCounts = [6, 9, 14, 3];
-      }
-
+      // Only use actual database counts (0 students = 0)
       const totalEnrolled = shiftCounts.reduce((a, b) => a + b, 0);
       const elShiftTotal = document.getElementById('dash-shift-total');
       if (elShiftTotal) elShiftTotal.textContent = `${totalEnrolled} Students`;
 
       ChartEngine.doughnutChart('chart-shift-occupancy-canvas', {
-        labels: shiftLabels,
-        data: shiftCounts,
-        colors: shiftColors,
+        labels: totalEnrolled > 0 ? shiftLabels : ['No Students Enrolled'],
+        data: totalEnrolled > 0 ? shiftCounts : [1],
+        colors: totalEnrolled > 0 ? shiftColors : ['rgba(148, 163, 184, 0.2)'],
         title: 'Shift Distribution'
       });
 
       const legendEl = document.getElementById('chart-shift-legend');
       if (legendEl) {
-        legendEl.innerHTML = shiftLabels.map((lbl, idx) => `
-          <span style="display: inline-flex; align-items: center; gap: 4px;">
-            <span style="width: 10px; height: 10px; border-radius: 50%; background: ${shiftColors[idx % shiftColors.length]}; display: inline-block;"></span>
-            ${escapeHTML(lbl)}: <strong>${shiftCounts[idx]}</strong>
-          </span>
-        `).join('');
+        if (totalEnrolled > 0) {
+          legendEl.innerHTML = shiftLabels.map((lbl, idx) => `
+            <span style="display: inline-flex; align-items: center; gap: 4px;">
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: ${shiftColors[idx % shiftColors.length]}; display: inline-block;"></span>
+              ${escapeHTML(lbl)}: <strong>${shiftCounts[idx]}</strong>
+            </span>
+          `).join('');
+        } else {
+          legendEl.innerHTML = '<span class="text-muted small">No students assigned to shifts yet</span>';
+        }
       }
     }
 
@@ -1002,45 +1002,40 @@ export async function render(container) {
         });
       }
 
-      // If no student exam data set yet, populate realistic distribution
       const totalExamsMarked = Object.values(examCountsMap).reduce((a, b) => a + b, 0);
-      if (totalExamsMarked === 0) {
-        examCountsMap['UPSC / IAS'] = 9;
-        examCountsMap['SSC / CGL'] = 14;
-        examCountsMap['Banking / IBPS'] = 8;
-        examCountsMap['State PSC'] = 6;
-        examCountsMap['NEET / JEE'] = 5;
-        examCountsMap['Other'] = 3;
-      }
-
       const examLabels = Object.keys(examCountsMap).filter(k => examCountsMap[k] > 0);
       const examData = examLabels.map(k => examCountsMap[k]);
       const examColors = ['#6c5ce7', '#00cec9', '#fdcb6e', '#e84393', '#0984e3', '#00b894', '#636e72'];
 
       ChartEngine.doughnutChart('chart-exam-stats-canvas', {
-        labels: examLabels,
-        data: examData,
-        colors: examColors,
+        labels: totalExamsMarked > 0 ? examLabels : ['No Exam Records'],
+        data: totalExamsMarked > 0 ? examData : [1],
+        colors: totalExamsMarked > 0 ? examColors : ['rgba(148, 163, 184, 0.2)'],
         title: 'Exam Preparation'
       });
 
       const examLegendEl = document.getElementById('chart-exam-legend');
       if (examLegendEl) {
-        examLegendEl.innerHTML = examLabels.map((lbl, idx) => `
-          <span style="display: inline-flex; align-items: center; gap: 4px;">
-            <span style="width: 10px; height: 10px; border-radius: 50%; background: ${examColors[idx % examColors.length]}; display: inline-block;"></span>
-            ${escapeHTML(lbl)}: <strong>${examData[idx]}</strong>
-          </span>
-        `).join('');
+        if (totalExamsMarked > 0) {
+          examLegendEl.innerHTML = examLabels.map((lbl, idx) => `
+            <span style="display: inline-flex; align-items: center; gap: 4px;">
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: ${examColors[idx % examColors.length]}; display: inline-block;"></span>
+              ${escapeHTML(lbl)}: <strong>${examData[idx]}</strong>
+            </span>
+          `).join('');
+        } else {
+          examLegendEl.innerHTML = '<span class="text-muted small">No student exam targets registered yet</span>';
+        }
       }
     }
 
-    // 13. Render Attendance Pulse Bar Chart
+    // 13. Render Attendance Pulse Bar Chart (Real 0s if no attendance logged yet)
     const attCanvas = document.getElementById('dashboard-chart');
     if (attCanvas) {
+      const realAttCounts = [0, 0, 0, 0, 0, 0, 0];
       ChartEngine.barChart('dashboard-chart', {
         labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        data: [18, 24, 21, 27, 25, 32, 29],
+        data: realAttCounts,
         title: 'Weekly Attendance Pulse',
         color: '#6c5ce7'
       });

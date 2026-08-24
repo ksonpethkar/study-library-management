@@ -172,9 +172,9 @@ app.get('/api/system/public-config', async (req, res) => {
     const Shift = require('./models/Shift');
     const Branch = require('./models/Branch');
 
-    await CustomField.seedDefaultFields().catch(() => {});
+    await CustomField.seedDefaultFields().catch(() => {});    const SystemSetting = require('./models/SystemSetting');
     const Seat = require('./models/Seat');
-    const [businessProfile, customFields, template, plans, shifts, rawBranches, occupiedCounts] = await Promise.all([
+    const [businessProfile, customFields, template, plans, shifts, rawBranches, occupiedCounts, systemSettingsList] = await Promise.all([
       BusinessProfile.getProfile().catch(() => ({})),
       CustomField.getActiveFields().catch(() => []),
       FormTemplate.getActiveTemplate().catch(() => null),
@@ -184,8 +184,27 @@ app.get('/api/system/public-config', async (req, res) => {
       Seat.aggregate([
         { $match: { status: 'occupied', isActive: true, branch: { $ne: null } } },
         { $group: { _id: '$branch', count: { $sum: 1 } } }
-      ]).catch(() => [])
+      ]).catch(() => []),
+      SystemSetting.find().lean().catch(() => [])
     ]);
+
+    const settingsMap = {};
+    (systemSettingsList || []).forEach(s => { settingsMap[s.key] = s.value; });
+    const lockerConfig = {
+      enableAddon: settingsMap['locker.enableAddon'] !== false,
+      monthlyFee: Number(settingsMap['locker.monthlyFee']) || 200,
+      deposit: Number(settingsMap['locker.deposit']) || 0,
+      title: settingsMap['locker.title'] || 'Add Personal Study Locker',
+      description: settingsMap['locker.description'] || 'Secure private key-allotted locker to safely keep heavy study books, notes & laptop.'
+    };
+
+    let finalPlans = plans;
+    if (!finalPlans || finalPlans.length === 0) {
+      finalPlans = [
+        { _id: 'plan_monthly', name: 'Monthly Study Plan (16 Hrs)', price: 1200, duration: 30, durationType: 'days', shift: 'fullday', isActive: true },
+        { _id: 'plan_quarterly', name: 'Quarterly Prime Plan', price: 3200, duration: 90, durationType: 'days', shift: 'fullday', isActive: true }
+      ];
+    }
 
     let branches = [];
     if (rawBranches && rawBranches.length > 0) {
@@ -194,7 +213,13 @@ app.get('/api/system/public-config', async (req, res) => {
         const occupiedSeats = occupiedMap.get(String(b._id)) || 0;
         const totalSeats = b.totalSeats || 50;
         return {
-          ...b,
+          _id: b._id,
+          name: b.name,
+          code: b.code || 'MAIN',
+          city: b.city || 'Central City',
+          address: b.address || '',
+          phone: b.phone || '',
+          totalSeats,
           occupiedSeats,
           availableSeats: Math.max(0, totalSeats - occupiedSeats)
         };
@@ -219,9 +244,10 @@ app.get('/api/system/public-config', async (req, res) => {
         businessProfile,
         customFields,
         template,
-        plans,
+        plans: finalPlans,
         shifts,
-        branches
+        branches,
+        locker: lockerConfig
       }
     });
   } catch (err) {
@@ -232,6 +258,7 @@ app.get('/api/system/public-config', async (req, res) => {
 // Server-Side HTML Pre-hydration Engine (Admin Changes Are Final & Served Directly From MongoDB)
 async function sendHydratedHTML(res, htmlPath) {
   try {
+    let fs = require('fs');
     let html = fs.readFileSync(htmlPath, 'utf8');
     const BusinessProfile = require('./models/BusinessProfile');
     const LandingPage = require('./models/LandingPage');
@@ -377,7 +404,12 @@ const startServer = async () => {
     if (typeof Shift.seedDefaults === 'function') {
       await Shift.seedDefaults();
     }
-    
+    // Initialize default membership plans
+    const Plan = require('./models/Plan');
+    if (typeof Plan.seedDefaults === 'function') {
+      await Plan.seedDefaults();
+    }
+
     // Initialize default form templates
     const FormTemplate = require('./models/FormTemplate');
     if (typeof FormTemplate.seedDefaults === 'function') {

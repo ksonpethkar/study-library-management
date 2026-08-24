@@ -63,6 +63,13 @@ systemSettingSchema.statics.initDefaults = async function() {
     { category: 'payment', key: 'payment.lateFeeAmount', value: 50, type: 'number', label: 'Late Fee Amount' },
     { category: 'payment', key: 'payment.latePenalty', value: 50, type: 'number', label: 'Late Penalty' },
     { category: 'payment', key: 'payment.autoSuspendDays', value: 15, type: 'number', label: 'Auto Suspend Days' },
+
+    // Locker Add-on Customization
+    { category: 'locker', key: 'locker.enableAddon', value: true, type: 'boolean', label: 'Enable Locker Add-on in Registration' },
+    { category: 'locker', key: 'locker.monthlyFee', value: 200, type: 'number', label: 'Locker Monthly Add-on Fee (₹)' },
+    { category: 'locker', key: 'locker.deposit', value: 0, type: 'number', label: 'Locker Security Deposit (₹)' },
+    { category: 'locker', key: 'locker.title', value: 'Add Personal Study Locker', type: 'string', label: 'Locker Add-on Option Title' },
+    { category: 'locker', key: 'locker.description', value: 'Secure private key-allotted locker to safely keep heavy study books, notes & laptop.', type: 'string', label: 'Locker Add-on Option Description' },
     
     // Library Operations
     { category: 'operations', key: 'operations.gracePeriodMinutes', value: 15, type: 'number', label: 'Attendance Check-in Grace Period (Minutes)' },

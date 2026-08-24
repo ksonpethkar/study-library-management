@@ -195,8 +195,17 @@ const updateSystemSettingsHandler = async (req, res) => {
       'payment.lateFeeType': { key: 'payment.lateFeeType', category: 'payment', type: 'string', label: 'Late Fee Type' },
       'lateFeeAmount': { key: 'payment.lateFeeAmount', category: 'payment', type: 'number', label: 'Late Fee Amount' },
       'payment.lateFeeAmount': { key: 'payment.lateFeeAmount', category: 'payment', type: 'number', label: 'Late Fee Amount' },
-      'autoSuspendDays': { key: 'payment.autoSuspendDays', category: 'payment', type: 'number', label: 'Auto Suspend Days' },
-      'payment.autoSuspendDays': { key: 'payment.autoSuspendDays', category: 'payment', type: 'number', label: 'Auto Suspend Days' },
+      // Locker Add-on Settings
+      'locker.enableAddon': { key: 'locker.enableAddon', category: 'locker', type: 'boolean', label: 'Enable Locker Add-on in Registration' },
+      'enableLockerAddon': { key: 'locker.enableAddon', category: 'locker', type: 'boolean', label: 'Enable Locker Add-on in Registration' },
+      'locker.monthlyFee': { key: 'locker.monthlyFee', category: 'locker', type: 'number', label: 'Locker Monthly Add-on Fee (₹)' },
+      'lockerMonthlyFee': { key: 'locker.monthlyFee', category: 'locker', type: 'number', label: 'Locker Monthly Add-on Fee (₹)' },
+      'locker.deposit': { key: 'locker.deposit', category: 'locker', type: 'number', label: 'Locker Security Deposit (₹)' },
+      'lockerDeposit': { key: 'locker.deposit', category: 'locker', type: 'number', label: 'Locker Security Deposit (₹)' },
+      'locker.title': { key: 'locker.title', category: 'locker', type: 'string', label: 'Locker Add-on Title' },
+      'lockerTitle': { key: 'locker.title', category: 'locker', type: 'string', label: 'Locker Add-on Title' },
+      'locker.description': { key: 'locker.description', category: 'locker', type: 'string', label: 'Locker Add-on Description' },
+      'lockerDescription': { key: 'locker.description', category: 'locker', type: 'string', label: 'Locker Add-on Description' },
 
       // Admission Settings
       'autoApprove': { key: 'admission.autoApprove', category: 'admission', type: 'boolean', label: 'Auto Approve Admissions' },

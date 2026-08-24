@@ -1247,7 +1247,8 @@
       }
 
       const isLocker = document.getElementById('reg-request-locker')?.checked;
-      const lockerFee = isLocker ? 200 : 0;
+      const dynamicLockerRate = (typeof window.dynamicLockerFee === 'number') ? window.dynamicLockerFee : 200;
+      const lockerFee = isLocker ? dynamicLockerRate : 0;
       const lockerRow = document.getElementById('calc-locker-row');
       const lockerFeeEl = document.getElementById('calc-locker-fee');
       if (lockerRow && lockerFeeEl) {
@@ -2214,6 +2215,31 @@
               selectedPlanData = matched;
               updateCalculator();
             }
+          }
+        }
+
+        // ── Dynamic Locker Add-on Display & Pricing ──────────────────────
+        const lockerCfg = publicConfig?.locker || {
+          enableAddon: true,
+          monthlyFee: 200,
+          title: 'Add Personal Study Locker',
+          description: 'Secure private key-allotted locker to safely keep heavy study books, notes & laptop.'
+        };
+        window.dynamicLockerFee = Number(lockerCfg.monthlyFee) || 200;
+
+        const lockerWrap = document.getElementById('reg-locker-addon-wrap');
+        const lockerLabel = document.getElementById('reg-locker-label');
+        const lockerDesc = document.getElementById('reg-locker-desc');
+        const lockerChk = document.getElementById('reg-request-locker');
+
+        if (lockerWrap) {
+          if (lockerCfg.enableAddon === false || lockerCfg.enableAddon === 'false') {
+            lockerWrap.style.display = 'none';
+            if (lockerChk) lockerChk.checked = false;
+          } else {
+            lockerWrap.style.display = 'block';
+            if (lockerLabel) lockerLabel.textContent = `🔒 ${lockerCfg.title || 'Add Personal Study Locker'} (+₹${window.dynamicLockerFee}/mo)`;
+            if (lockerDesc) lockerDesc.textContent = lockerCfg.description || 'Secure private key-allotted locker to safely keep heavy study books, notes & laptop.';
           }
         }
 
