@@ -587,11 +587,12 @@ export async function render() {
     activeFields.sort((a, b) => (a.order || 0) - (b.order || 0));
 
     const sectionsMap = new Map();
+    const iconMap = { personal: '👤', academic: '🎯', plan: '⏰', payment: '💳', seat: '🪑', contact: '📍', kyc: '🪪', address: '📍' };
     configuredSections.forEach(s => {
       sectionsMap.set(s.name, {
         key: s.name,
         label: s.label,
-        icon: s.icon,
+        icon: iconMap[s.icon] || (s.icon && s.icon.length <= 4 ? s.icon : '') || '📝',
         fields: []
       });
     });
@@ -648,14 +649,15 @@ export async function render() {
                   <option value="Aadhaar Card" ${getVal('idProofType') === 'Aadhaar Card' ? 'selected' : ''}>Aadhaar Card</option>
                   <option value="PAN Card" ${getVal('idProofType') === 'PAN Card' ? 'selected' : ''}>PAN Card</option>
                   <option value="Driving License" ${getVal('idProofType') === 'Driving License' ? 'selected' : ''}>Driving License</option>
-                  <option value="Voter ID" ${getVal('idProofType') === 'Voter ID' ? 'selected' : ''}>Voter ID Card</option>
-                  <option value="College ID" ${getVal('idProofType') === 'College ID' ? 'selected' : ''}>College Student ID</option>
+                  <option value="Voter ID" ${getVal('idProofType') === 'Voter ID' ? 'selected' : ''}>Voter ID</option>
                   <option value="Passport" ${getVal('idProofType') === 'Passport' ? 'selected' : ''}>Passport</option>
+                  <option value="Student / College ID" ${getVal('idProofType') === 'Student / College ID' ? 'selected' : ''}>Student / College ID</option>
+                  <option value="Other Govt ID" ${getVal('idProofType') === 'Other Govt ID' ? 'selected' : ''}>Other Govt ID</option>
                 </select>
               </div>
               <div>
-                <label class="form-label text-xs">ID Proof Number</label>
-                <input type="text" class="form-control" name="idProof.number" value="${escapeHTML(getVal('idProofNumber'))}" placeholder="e.g. 1234 5678 9012">
+                <label class="form-label text-xs">ID Document Number</label>
+                <input type="text" class="form-control" name="idProof.number" value="${escapeHTML(getVal('idProofNumber'))}" placeholder="Enter card / document number">
               </div>
             </div>
             <div id="mount-student-idproof" class="custom-media-mount" data-field="idProofImage" data-preset="document" data-label="ID Proof Document Upload"></div>
@@ -664,9 +666,31 @@ export async function render() {
         `;
       }
 
+      if (f.type === 'address_autocomplete') {
+        return `
+          <div class="col-12 mt-2 dynamic-field-wrapper" ${depAttr}>
+            <label class="form-label" style="font-weight: 600;">📍 ${escapeHTML(f.label)}${reqMark}</label>
+            <textarea class="form-control custom-dyn-input mb-2" name="address" data-field="address" rows="2" placeholder="Full residential street address">${escapeHTML(getVal('address'))}</textarea>
+            <div class="row g-2" style="display: grid; grid-template-columns: 140px 1fr 1fr; gap: 8px;">
+              <div>
+                <input type="text" class="form-control custom-dyn-input" name="pincode" data-field="pincode" value="${escapeHTML(getVal('pincode'))}" placeholder="Pincode (6 digits)" maxlength="6">
+              </div>
+              <div>
+                <input type="text" class="form-control custom-dyn-input" name="city" data-field="city" value="${escapeHTML(getVal('city'))}" placeholder="City">
+              </div>
+              <div>
+                <input type="text" class="form-control custom-dyn-input" name="state" data-field="state" value="${escapeHTML(getVal('state'))}" placeholder="State">
+              </div>
+            </div>
+            ${helpText}
+          </div>
+        `;
+      }
+
       if (f.type === 'exam_badge') {
-        const examsList = ['UPSC', 'MPSC', 'SSC CGL', 'Banking / IBPS', 'JEE', 'NEET', 'CA / CS', 'GATE', 'CAT / MBA', 'Law / CLAT', 'UGC NET', 'State PSC', 'Other'];
-        const selectedArr = Array.isArray(val) ? val : (typeof val === 'string' && val ? val.split(',') : []);
+        const examsList = f.options && f.options.length > 0 ? f.options : ['UPSC', 'MPSC', 'Banking / IBPS', 'SSC CGL', 'JEE / NEET', 'CA / CS', 'GATE', 'UGC NET', 'State PSC', 'Law / CLAT', 'Defence / NDA', 'Other'];
+        const currentVal = getVal(f.fieldName);
+        const selectedArr = Array.isArray(currentVal) ? currentVal : (typeof currentVal === 'string' ? currentVal.split(',').map(s => s.trim()).filter(Boolean) : []);
         return `
           <div class="col-12 mt-2 dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 600;">🎯 ${escapeHTML(f.label)}${reqMark}</label>
@@ -758,13 +782,11 @@ export async function render() {
         const isChecked = val === true || val === 'true' || val === 'on' || val === 1;
         return `
           <div class="col-12 mt-1 dynamic-field-wrapper" ${depAttr}>
-            <div style="background: var(--color-bg-secondary); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; margin: 0;">
-                <input type="checkbox" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" ${isChecked ? 'checked' : ''} ${f.required ? 'required' : ''} style="width: 17px; height: 17px; accent-color: var(--color-primary);">
-                <span>${escapeHTML(f.label)}${reqMark}</span>
-              </label>
-              ${helpText}
-            </div>
+            <label class="form-check" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+              <input type="checkbox" class="form-checkbox custom-dyn-checkbox" name="${escapeHTML(f.fieldName)}" data-field="${escapeHTML(f.fieldName)}" ${isChecked ? 'checked' : ''} ${f.required ? 'required' : ''}>
+              <span class="form-label mb-0" style="font-size: 0.88rem; font-weight: 500;">${escapeHTML(f.label)}${reqMark}</span>
+            </label>
+            ${helpText}
           </div>
         `;
       }
@@ -773,14 +795,13 @@ export async function render() {
         return `
           <div class="col-12 dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
-            <textarea class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" rows="2" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}>${escapeHTML(val)}</textarea>
+            <textarea class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" placeholder="${escapeHTML(f.placeholder || '')}" rows="2" ${f.required ? 'required' : ''}>${escapeHTML(val)}</textarea>
             ${helpText}
           </div>
         `;
       }
 
-      const inputType = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : (f.type === 'email' ? 'email' : (f.type === 'phone' ? 'tel' : 'text'))));
-
+      const inputType = (f.type === 'phone') ? 'tel' : (f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : (f.type === 'number' ? 'number' : (f.type === 'email' ? 'email' : 'text'))));
       return `
         <div class="${colClass} dynamic-field-wrapper" ${depAttr}>
           <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
@@ -790,14 +811,13 @@ export async function render() {
       `;
     }
 
-    // 3. Build Form Sections HTML dynamically
     let dynamicSectionsHtml = '';
     sectionsMap.forEach(sec => {
       if (sec.fields.length === 0) return;
       dynamicSectionsHtml += `
         <div class="col-12 mt-3 mb-1" style="border-top: 1px solid var(--color-border); padding-top: 10px;">
           <h5 style="font-size: 1rem; font-weight: 700; color: var(--color-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-            <span>📝</span>
+            <span>${sec.icon || '📝'}</span>
             <span>${escapeHTML(sec.label)}</span>
           </h5>
         </div>

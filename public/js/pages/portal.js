@@ -798,10 +798,11 @@ function renderPortalUI(container, data, analytics = null) {
       };
 
       // Custom fields grouping by template sections
+      const iconMap = { personal: '👤', academic: '🎯', plan: '⏰', payment: '💳', seat: '🪑', contact: '📍', kyc: '🪪', address: '📍' };
       const sections = templateSections.map(s => ({
         key: (s.name || s.key || '').toLowerCase(),
         label: s.label || s.name,
-        icon: s.icon || '📝',
+        icon: iconMap[s.icon] || (s.icon && s.icon.length <= 4 ? s.icon : '') || '📝',
         fields: []
       }));
 
