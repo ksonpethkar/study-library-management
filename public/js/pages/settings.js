@@ -137,7 +137,7 @@ function renderMasterHubUI(container, store) {
         </div>
         <div class="studio-nav-group" style="display: flex; flex-direction: column; gap: 2px;">
           <button class="studio-nav-item" data-studio="billing_receipt">
-            <span>🧾</span> <span>Billing, GST & Receipts</span>
+            <span>🧾</span> <span>Receipt Builder & Billing</span>
           </button>
           <button class="studio-nav-item" data-studio="notifications">
             <span>💬</span> <span>WhatsApp & Notifications</span>
@@ -672,82 +672,259 @@ function renderCentersSeatsStudio(branches, shifts) {
 }
 
 // -------------------------------------------------------------
-// 5. 🧾 Billing, GST & POS Receipt Studio
+// -------------------------------------------------------------
+// 5. 🧾 POS Receipt Builder & Billing Studio
 // -------------------------------------------------------------
 function renderBillingReceiptStudio(profile, billing, pay) {
   const wrapper = document.createElement('div');
   wrapper.className = 'card';
   wrapper.style.cssText = 'padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);';
   
+  let currentFormat = billing['billing.defaultTemplate'] || 'thermal80';
+
   wrapper.innerHTML = `
-    <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem;">
-      <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">🧾 Billing, POS Receipts & GST Tax Engine</h3>
-      <p class="text-muted small mb-0">Customize POS thermal receipt templates (80mm/58mm/A4), UPI QR checkout, and GST tax settings.</p>
+    <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <div>
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-primary);">🧾 POS Receipt Builder & GST Billing Studio</h3>
+        <p class="text-muted small mb-0">Design, customize, and test-print thermal receipts (80mm/58mm), official A4 GST invoices, paid stamps, and UPI QR codes with real-time live preview.</p>
+      </div>
+      <div class="d-flex gap-2 align-items-center">
+        <button type="button" id="btn-test-print-receipt" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">🖨️ Test Print Sample</button>
+        <button type="button" id="btn-save-receipt-builder" class="btn btn-sm btn-primary" style="font-weight: 800; padding: 6px 18px;">💾 Save Receipt Template</button>
+      </div>
     </div>
 
-    <div class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label" style="font-weight: 700;">Receipt & Invoice Prefix</label>
-        <input type="text" id="setting-bill-prefix" class="form-control font-monospace" value="${escapeHTML(billing['billing.receiptPrefix'] || billing.receiptPrefix || 'LIB-2026')}" placeholder="e.g. LIB-2026">
-        <small class="text-muted">Generated Invoice: LIB-2026-0001</small>
-      </div>
-
-      <div class="col-md-6">
-        <label class="form-label" style="font-weight: 700;">Default Receipt Template</label>
-        <select id="setting-bill-template" class="form-select">
-          <option value="thermal80" selected>🖨️ POS Thermal 80mm (Standard POS Printer)</option>
-          <option value="thermal58">🖨️ POS Thermal 58mm (Compact Mobile Printer)</option>
-          <option value="standardA4">📄 Standard A4 Printable Invoice</option>
-        </select>
-      </div>
-
-      <div class="col-md-6">
-        <label class="form-label" style="font-weight: 700;">Primary Library UPI ID (VPA)</label>
-        <input type="text" id="setting-bill-upiId" class="form-control font-monospace" value="${escapeHTML(profile.upiId || '')}" placeholder="e.g. studylib@okhdfcbank">
-      </div>
-
-      <div class="col-md-6" id="mount-billing-upiqr"></div>
-
-      <div class="col-12 mt-3 pt-3" style="border-top: 1px solid var(--color-border);">
-        <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin-bottom: 12px;">📊 GST & Tax Invoicing Settings</h5>
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label small">GST Percentage (%)</label>
-            <input type="number" id="setting-bill-gstRate" class="form-control" value="${billing['billing.gstRate'] ?? billing.gstRate ?? 18}" min="0" max="28">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label small">HSN / SAC Service Code</label>
-            <input type="text" id="setting-bill-hsn" class="form-control font-monospace" value="${escapeHTML(billing['billing.hsnSacCode'] || billing.hsnSacCode || '999293')}" placeholder="999293">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label small">Refund Window (Days)</label>
-            <input type="number" id="setting-bill-refundDays" class="form-control" value="${billing['billing.refundPolicyDays'] ?? billing.refundPolicyDays ?? 3}" min="0">
-          </div>
+    <!-- Template Format Selector Cards -->
+    <div style="margin-bottom: 1.5rem;">
+      <label class="form-label" style="font-weight: 800; font-size: 0.95rem; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+        <span>🖨️</span> Select Receipt Output Format
+      </label>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;" id="receipt-format-grid">
+        <div class="card p-3 receipt-format-card active" data-format="thermal80" style="border: 2px solid var(--color-primary); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
+          <span style="font-size: 1.6rem; margin-bottom: 2px;">🖨️</span>
+          <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800;">POS Thermal 80mm</h5>
+          <small class="text-muted d-block">Standard 3-inch POS roll</small>
+        </div>
+        <div class="card p-3 receipt-format-card" data-format="thermal58" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
+          <span style="font-size: 1.6rem; margin-bottom: 2px;">📱</span>
+          <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800;">POS Thermal 58mm</h5>
+          <small class="text-muted d-block">2-inch mobile Bluetooth roll</small>
+        </div>
+        <div class="card p-3 receipt-format-card" data-format="standardA4" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
+          <span style="font-size: 1.6rem; margin-bottom: 2px;">📄</span>
+          <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800;">Official A4 Invoice</h5>
+          <small class="text-muted d-block">Printable GST tax invoice</small>
+        </div>
+        <div class="card p-3 receipt-format-card" data-format="modern_minimal" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
+          <span style="font-size: 1.6rem; margin-bottom: 2px;">✨</span>
+          <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800;">Modern Digital Pass</h5>
+          <small class="text-muted d-block">Clean digital fee voucher</small>
         </div>
       </div>
+    </div>
 
-      <div class="col-12 mt-3 pt-3" style="border-top: 1px solid var(--color-border);">
-        <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin-bottom: 12px;">🏦 Bank Account Details (For Wire Transfers)</h5>
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label small">Bank Account Holder Name</label>
-            <input type="text" id="setting-bank-accName" class="form-control" value="${escapeHTML(profile.bankDetails?.accountName || '')}" placeholder="e.g. Study Library Private Limited">
+    <!-- Split-Screen Controls + Live Thermal Receipt Preview -->
+    <div style="display: grid; grid-template-columns: 1fr 1.1fr; gap: 20px;" class="receipt-split-layout">
+      
+      <!-- Left Column: Customization Controls -->
+      <div style="display: flex; flex-direction: column; gap: 14px; max-height: 750px; overflow-y: auto; padding-right: 4px;">
+        
+        <!-- Header & Branding -->
+        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>🏢</span> Header & Library Branding
+          </h5>
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small" style="font-weight: 700;">Receipt & Invoice Prefix</label>
+              <input type="text" id="setting-bill-prefix" class="form-control form-control-sm font-monospace" value="${escapeHTML(billing['billing.receiptPrefix'] || billing.receiptPrefix || 'LIB-2026')}" placeholder="e.g. LIB-2026">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small" style="font-weight: 700;">Receipt Subtitle / Tagline</label>
+              <input type="text" id="rc-header-subtitle" class="form-control form-control-sm" value="Official Fee Payment Receipt">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small" style="font-weight: 700;">Header Accent Color</label>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="color" id="rc-header-color" class="form-control form-control-color p-0" value="#4f46e5" style="width: 34px; height: 30px; cursor: pointer;">
+                <input type="text" id="rc-header-color-text" class="form-control form-control-sm font-monospace" value="#4f46e5" maxlength="7">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small" style="font-weight: 700;">GSTIN / Tax Number</label>
+              <input type="text" id="rc-header-gstin" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.gstNumber || '')}" placeholder="e.g. 27AAAAA0000A1Z5">
+            </div>
+            <div class="col-12 mt-2">
+              <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                  <input class="form-check-input" type="checkbox" id="rc-toggle-logo" checked>
+                  <span>Show Library Logo</span>
+                </label>
+                <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                  <input class="form-check-input" type="checkbox" id="rc-toggle-address" checked>
+                  <span>Show Address</span>
+                </label>
+                <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                  <input class="form-check-input" type="checkbox" id="rc-toggle-contact" checked>
+                  <span>Show Phone & Email</span>
+                </label>
+              </div>
+            </div>
           </div>
-          <div class="col-md-6">
-            <label class="form-label small">Bank Account Number</label>
-            <input type="text" id="setting-bank-accNo" class="form-control font-monospace" value="${escapeHTML(profile.bankDetails?.accountNumber || '')}" placeholder="e.g. 50200012345678">
+        </div>
+
+        <!-- Student, Desk & Admission Details -->
+        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>📋</span> Student Details & Line Item Elements
+          </h5>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+              <input class="form-check-input" type="checkbox" id="rc-toggle-stuId" checked>
+              <span>Show Student ID</span>
+            </label>
+            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+              <input class="form-check-input" type="checkbox" id="rc-toggle-stuPhone" checked>
+              <span>Show Student Phone</span>
+            </label>
+            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+              <input class="form-check-input" type="checkbox" id="rc-toggle-seat" checked>
+              <span>Show Desk / Shift</span>
+            </label>
+            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+              <input class="form-check-input" type="checkbox" id="rc-toggle-validity" checked>
+              <span>Show Validity Dates</span>
+            </label>
+            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+              <input class="form-check-input" type="checkbox" id="rc-toggle-breakdown" checked>
+              <span>Itemized Fee Breakdown</span>
+            </label>
+            <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+              <input class="form-check-input" type="checkbox" id="rc-toggle-paymentMode" checked>
+              <span>Payment Mode & Txn Ref</span>
+            </label>
           </div>
-          <div class="col-md-4">
-            <label class="form-label small">Bank Name</label>
-            <input type="text" id="setting-bank-name" class="form-control" value="${escapeHTML(profile.bankDetails?.bankName || '')}" placeholder="e.g. HDFC Bank">
+        </div>
+
+        <!-- Official Stamp & Signature Block -->
+        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>🪪</span> Official Stamp & Authorized Signature
+          </h5>
+          <div class="row g-2">
+            <div class="col-md-7">
+              <label class="form-label small" style="font-weight: 700;">Paid Stamp Text</label>
+              <input type="text" id="rc-stamp-text" class="form-control form-control-sm font-monospace" value="PAID • OFFICIAL RECEIPT">
+            </div>
+            <div class="col-md-5">
+              <label class="form-label small" style="font-weight: 700;">Stamp Color</label>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="color" id="rc-stamp-color" class="form-control form-control-color p-0" value="#059669" style="width: 34px; height: 30px; cursor: pointer;">
+                <input type="text" id="rc-stamp-color-text" class="form-control form-control-sm font-monospace" value="#059669" maxlength="7">
+              </div>
+            </div>
+            <div class="col-md-7">
+              <label class="form-label small" style="font-weight: 700;">Authorized Signatory Label</label>
+              <input type="text" id="rc-signature-label" class="form-control form-control-sm" value="Authorized Signatory">
+            </div>
+            <div class="col-12 mt-2">
+              <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                  <input class="form-check-input" type="checkbox" id="rc-toggle-stamp" checked>
+                  <span>Show Paid Stamp Mark</span>
+                </label>
+                <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+                  <input class="form-check-input" type="checkbox" id="rc-toggle-signature" checked>
+                  <span>Show Signature Line</span>
+                </label>
+              </div>
+            </div>
           </div>
-          <div class="col-md-4">
-            <label class="form-label small">IFSC Code</label>
-            <input type="text" id="setting-bank-ifsc" class="form-control font-monospace" value="${escapeHTML(profile.bankDetails?.ifscCode || '')}" placeholder="e.g. HDFC0001234">
+        </div>
+
+        <!-- Dynamic UPI QR & Payment Link on Receipt -->
+        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>💳</span> Dynamic UPI QR Code on Receipt
+          </h5>
+          <div class="row g-2">
+            <div class="col-md-8">
+              <label class="form-label small" style="font-weight: 700;">Primary Library UPI ID (VPA)</label>
+              <input type="text" id="setting-bill-upiId" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.upiId || '')}" placeholder="e.g. studylib@okhdfcbank">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <label class="form-check form-switch mb-2" style="font-size: 0.88rem; cursor: pointer;">
+                <input class="form-check-input" type="checkbox" id="rc-toggle-upiqr" checked>
+                <span>Print UPI QR Code</span>
+              </label>
+            </div>
           </div>
-          <div class="col-md-4">
-            <label class="form-label small">Branch Location</label>
-            <input type="text" id="setting-bank-branch" class="form-control" value="${escapeHTML(profile.bankDetails?.branchName || '')}" placeholder="e.g. Shivajinagar Branch">
+        </div>
+
+        <!-- Terms, Conditions & Custom Footer Notes -->
+        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>📝</span> Terms, Policies & Footer Message
+          </h5>
+          <div class="form-group mb-2">
+            <label class="form-label small" style="font-weight: 700;">Terms & Conditions</label>
+            <textarea id="rc-terms-text" class="form-control form-control-sm" rows="2">1. Fees paid are non-refundable. 2. Seat allotment is strictly non-transferable. 3. Maintain pin-drop silence in the reading hall.</textarea>
+          </div>
+          <div class="form-group mb-2">
+            <label class="form-label small" style="font-weight: 700;">Footer Greeting / Custom Note</label>
+            <input type="text" id="rc-custom-note" class="form-control form-control-sm" value="Thank you for choosing our study library! Best wishes for your exams.">
+          </div>
+          <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
+            <input class="form-check-input" type="checkbox" id="rc-toggle-timestamp" checked>
+            <span>Print Date & Time Timestamp</span>
+          </label>
+        </div>
+
+        <!-- GST & Bank Wire Transfer Details -->
+        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>📊</span> GST Tax Engine & Bank Wire Transfer Info
+          </h5>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label class="form-label small">GST Rate (%)</label>
+              <input type="number" id="setting-bill-gstRate" class="form-control form-control-sm" value="${billing['billing.gstRate'] ?? billing.gstRate ?? 18}" min="0" max="28">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">HSN / SAC Code</label>
+              <input type="text" id="setting-bill-hsn" class="form-control form-control-sm font-monospace" value="${escapeHTML(billing['billing.hsnSacCode'] || billing.hsnSacCode || '999293')}" placeholder="999293">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">Refund Window (Days)</label>
+              <input type="number" id="setting-bill-refundDays" class="form-control form-control-sm" value="${billing['billing.refundPolicyDays'] ?? billing.refundPolicyDays ?? 3}" min="0">
+            </div>
+            <div class="col-md-6 mt-2">
+              <label class="form-label small">Bank Account Holder</label>
+              <input type="text" id="setting-bank-accName" class="form-control form-control-sm" value="${escapeHTML(profile.bankDetails?.accountName || '')}">
+            </div>
+            <div class="col-md-6 mt-2">
+              <label class="form-label small">Account Number</label>
+              <input type="text" id="setting-bank-accNo" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.bankDetails?.accountNumber || '')}">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column: Live Simulated Receipt Preview -->
+      <div style="display: flex; flex-direction: column; position: sticky; top: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div class="d-flex align-items-center gap-2">
+            <span style="font-weight: 800; font-size: 0.9rem; color: var(--color-text-primary);">📱 Live Visual Receipt Preview</span>
+            <span id="preview-format-badge" class="badge badge-primary" style="font-size: 0.72rem; text-transform: uppercase;">POS Thermal 80mm</span>
+          </div>
+          <button type="button" id="btn-refresh-receipt-preview" class="btn btn-xs btn-outline-secondary" style="padding: 2px 6px;">🔄</button>
+        </div>
+
+        <div id="receipt-preview-wrapper" style="width: 100%; max-height: 730px; overflow-y: auto; background: #2d3748; padding: 20px; border-radius: var(--radius-lg); display: flex; justify-content: center; box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);">
+          <!-- Live Thermal Paper Simulation -->
+          <div id="receipt-paper" style="width: 340px; background: #ffffff; color: #111827; padding: 20px 18px; border-radius: 4px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.4; transition: all 0.3s ease;">
+            <!-- Rendered by liveUpdateReceipt() -->
           </div>
         </div>
       </div>
@@ -755,20 +932,460 @@ function renderBillingReceiptStudio(profile, billing, pay) {
     </div>
   `;
 
-  setTimeout(() => {
-    const qrMount = wrapper.querySelector('#mount-billing-upiqr');
-    if (qrMount && typeof MediaFieldPicker !== 'undefined') {
-      const picker = MediaFieldPicker.create({
-        name: 'upiQrCode',
-        label: 'UPI QR Code Image',
-        value: profile.upiQrCode || '',
-        preset: 'qr_code',
-        onChange: (url) => { profile.upiQrCode = url; }
-      });
-      picker.querySelector('.mfp-hidden-value')?.setAttribute('id', 'setting-bill-upiQr');
-      qrMount.appendChild(picker);
+  // Attach interactive preview logic
+  setTimeout(async () => {
+    // 1. Fetch saved ReceiptConfig from API if available
+    try {
+      const cfgRes = await api.get('/api/settings/receipt-config');
+      if (cfgRes.success && cfgRes.data) {
+        const rc = cfgRes.data;
+        if (rc.activeTemplate) {
+          currentFormat = rc.activeTemplate;
+          wrapper.querySelectorAll('.receipt-format-card').forEach(c => {
+            if (c.dataset.format === currentFormat) {
+              c.classList.add('active');
+              c.style.border = '2px solid var(--color-primary)';
+            } else {
+              c.classList.remove('active');
+              c.style.border = '1px solid var(--color-border)';
+            }
+          });
+        }
+        if (rc.header?.subtitle) wrapper.querySelector('#rc-header-subtitle').value = rc.header.subtitle;
+        if (rc.header?.headerColor) {
+          wrapper.querySelector('#rc-header-color').value = rc.header.headerColor;
+          wrapper.querySelector('#rc-header-color-text').value = rc.header.headerColor;
+        }
+        if (rc.header?.gstNumber) wrapper.querySelector('#rc-header-gstin').value = rc.header.gstNumber;
+        if (rc.header?.showLogo !== undefined) wrapper.querySelector('#rc-toggle-logo').checked = rc.header.showLogo;
+        if (rc.header?.showAddress !== undefined) wrapper.querySelector('#rc-toggle-address').checked = rc.header.showAddress;
+        if (rc.header?.showPhone !== undefined) wrapper.querySelector('#rc-toggle-contact').checked = rc.header.showPhone;
+
+        if (rc.body?.showStudentId !== undefined) wrapper.querySelector('#rc-toggle-stuId').checked = rc.body.showStudentId;
+        if (rc.body?.showStudentPhone !== undefined) wrapper.querySelector('#rc-toggle-stuPhone').checked = rc.body.showStudentPhone;
+        if (rc.body?.showSeatNumber !== undefined) wrapper.querySelector('#rc-toggle-seat').checked = rc.body.showSeatNumber;
+        if (rc.body?.showPeriod !== undefined) wrapper.querySelector('#rc-toggle-validity').checked = rc.body.showPeriod;
+
+        if (rc.stamp?.showStamp !== undefined) wrapper.querySelector('#rc-toggle-stamp').checked = rc.stamp.showStamp;
+        if (rc.stamp?.stampText) wrapper.querySelector('#rc-stamp-text').value = rc.stamp.stampText;
+        if (rc.stamp?.stampColor) {
+          wrapper.querySelector('#rc-stamp-color').value = rc.stamp.stampColor;
+          wrapper.querySelector('#rc-stamp-color-text').value = rc.stamp.stampColor;
+        }
+
+        if (rc.footer?.signatureLabel) wrapper.querySelector('#rc-signature-label').value = rc.footer.signatureLabel;
+        if (rc.footer?.showSignature !== undefined) wrapper.querySelector('#rc-toggle-signature').checked = rc.footer.showSignature;
+        if (rc.footer?.showUpiQr !== undefined) wrapper.querySelector('#rc-toggle-upiqr').checked = rc.footer.showUpiQr;
+        if (rc.footer?.termsText) wrapper.querySelector('#rc-terms-text').value = rc.footer.termsText;
+        if (rc.footer?.customNote) wrapper.querySelector('#rc-custom-note').value = rc.footer.customNote;
+      }
+    } catch (e) {
+      console.warn('Could not load receipt-config:', e);
     }
-  }, 10);
+
+    const paper = wrapper.querySelector('#receipt-paper');
+    const formatBadge = wrapper.querySelector('#preview-format-badge');
+
+    // 2. Render Live Simulated Receipt
+    const liveUpdateReceipt = () => {
+      if (!paper) return;
+
+      const bizName = profile.businessName || 'The Cozy Corner Study Library';
+      const address = profile.address || 'MG Road, Shivajinagar, Pune 411005';
+      const phone = profile.phone || '+91 98765 43210';
+      const email = profile.email || 'contact@cozystudylibrary.com';
+      const gstin = wrapper.querySelector('#rc-header-gstin')?.value?.trim();
+      const prefix = wrapper.querySelector('#setting-bill-prefix')?.value?.trim() || 'LIB-2026';
+      const subtitle = wrapper.querySelector('#rc-header-subtitle')?.value?.trim() || 'Official Fee Receipt';
+      const headerColor = wrapper.querySelector('#rc-header-color')?.value || '#4f46e5';
+
+      const showLogo = wrapper.querySelector('#rc-toggle-logo')?.checked !== false;
+      const showAddress = wrapper.querySelector('#rc-toggle-address')?.checked !== false;
+      const showContact = wrapper.querySelector('#rc-toggle-contact')?.checked !== false;
+
+      const showStuId = wrapper.querySelector('#rc-toggle-stuId')?.checked !== false;
+      const showStuPhone = wrapper.querySelector('#rc-toggle-stuPhone')?.checked !== false;
+      const showSeat = wrapper.querySelector('#rc-toggle-seat')?.checked !== false;
+      const showValidity = wrapper.querySelector('#rc-toggle-validity')?.checked !== false;
+      const showBreakdown = wrapper.querySelector('#rc-toggle-breakdown')?.checked !== false;
+      const showPaymentMode = wrapper.querySelector('#rc-toggle-paymentMode')?.checked !== false;
+
+      const showStamp = wrapper.querySelector('#rc-toggle-stamp')?.checked !== false;
+      const stampText = wrapper.querySelector('#rc-stamp-text')?.value?.trim() || 'PAID • OFFICIAL RECEIPT';
+      const stampColor = wrapper.querySelector('#rc-stamp-color')?.value || '#059669';
+
+      const showSignature = wrapper.querySelector('#rc-toggle-signature')?.checked !== false;
+      const signatureLabel = wrapper.querySelector('#rc-signature-label')?.value?.trim() || 'Authorized Signatory';
+
+      const showUpiQr = wrapper.querySelector('#rc-toggle-upiqr')?.checked !== false;
+      const upiId = wrapper.querySelector('#setting-bill-upiId')?.value?.trim() || profile.upiId || 'thecozycorner@okaxis';
+
+      const termsText = wrapper.querySelector('#rc-terms-text')?.value?.trim();
+      const customNote = wrapper.querySelector('#rc-custom-note')?.value?.trim();
+      const showTimestamp = wrapper.querySelector('#rc-toggle-timestamp')?.checked !== false;
+
+      // Adjust paper width according to format
+      if (currentFormat === 'thermal58') {
+        paper.style.width = '260px';
+        paper.style.fontSize = '11px';
+        paper.style.padding = '12px 10px';
+        if (formatBadge) formatBadge.textContent = 'POS Thermal 58mm';
+      } else if (currentFormat === 'standardA4') {
+        paper.style.width = '480px';
+        paper.style.fontSize = '12px';
+        paper.style.padding = '28px 24px';
+        paper.style.fontFamily = 'var(--font-family, sans-serif)';
+        if (formatBadge) formatBadge.textContent = 'Standard A4 Invoice';
+      } else {
+        paper.style.width = '340px';
+        paper.style.fontSize = '12.5px';
+        paper.style.padding = '18px 16px';
+        paper.style.fontFamily = "'Courier New', Courier, monospace";
+        if (formatBadge) formatBadge.textContent = 'POS Thermal 80mm';
+      }
+
+      paper.innerHTML = `
+        <!-- Receipt Header -->
+        <div style="text-align: center; border-bottom: 1.5px dashed #333; padding-bottom: 10px; margin-bottom: 10px;">
+          ${showLogo ? `
+            <div style="font-size: 1.75rem; margin-bottom: 2px;">📚</div>
+          ` : ''}
+          <div style="font-weight: 800; font-size: 1.05rem; text-transform: uppercase; color: ${headerColor}; letter-spacing: 0.5px;">${escapeHTML(bizName)}</div>
+          <div style="font-size: 0.8rem; font-weight: 700; color: #555; text-transform: uppercase;">${escapeHTML(subtitle)}</div>
+          ${showAddress ? `<div style="font-size: 0.72rem; color: #444; margin-top: 3px;">${escapeHTML(address)}</div>` : ''}
+          ${showContact ? `<div style="font-size: 0.72rem; color: #444;">Tel: ${escapeHTML(phone)} • ${escapeHTML(email)}</div>` : ''}
+          ${gstin ? `<div style="font-size: 0.72rem; font-weight: 700; color: #222; margin-top: 2px;">GSTIN: ${escapeHTML(gstin)}</div>` : ''}
+        </div>
+
+        <!-- Receipt Metadata -->
+        <div style="border-bottom: 1px dashed #666; padding-bottom: 8px; margin-bottom: 8px; font-size: 0.82rem;">
+          <div style="display: flex; justify-content: space-between;">
+            <span>Receipt No:</span>
+            <strong style="font-family: monospace;">${escapeHTML(prefix)}-0042</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span>Date & Time:</span>
+            <span>${new Date().toLocaleDateString('en-IN')} 10:45 AM</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span>Student Name:</span>
+            <strong>Rahul S. Sharma</strong>
+          </div>
+          ${showStuId ? `
+            <div style="display: flex; justify-content: space-between;">
+              <span>Student ID:</span>
+              <span style="font-family: monospace;">STU-2026-0042</span>
+            </div>
+          ` : ''}
+          ${showStuPhone ? `
+            <div style="display: flex; justify-content: space-between;">
+              <span>Phone (WA):</span>
+              <span>+91 98765 43210</span>
+            </div>
+          ` : ''}
+          ${showSeat ? `
+            <div style="display: flex; justify-content: space-between;">
+              <span>Allocated Seat:</span>
+              <strong>Desk #012 (Zone A)</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>Shift Timing:</span>
+              <span>Full Day (7 AM – 11 PM)</span>
+            </div>
+          ` : ''}
+          ${showValidity ? `
+            <div style="display: flex; justify-content: space-between; margin-top: 2px;">
+              <span>Validity Period:</span>
+              <strong style="color: #059669;">01 Aug 2026 – 31 Aug 2026</strong>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Itemized Table -->
+        ${showBreakdown ? `
+          <div style="border-bottom: 1.5px dashed #333; padding-bottom: 8px; margin-bottom: 8px; font-size: 0.82rem;">
+            <div style="display: flex; justify-content: space-between; font-weight: 700; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin-bottom: 4px;">
+              <span>Description</span>
+              <span>Amount (₹)</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>Monthly Premium 24/7 (30 Days)</span>
+              <span>1,200.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>Personal Locker Storage Addon</span>
+              <span>200.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #dc2626;">
+              <span>Special Early Bird Discount</span>
+              <span>- 100.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #666; font-size: 0.76rem;">
+              <span>CGST (9%) + SGST (9%)</span>
+              <span>234.00</span>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Total Paid & Payment Method -->
+        <div style="border-bottom: 1.5px dashed #333; padding-bottom: 8px; margin-bottom: 8px; font-size: 0.95rem;">
+          <div style="display: flex; justify-content: space-between; font-weight: 800; font-size: 1.05rem;">
+            <span>TOTAL AMOUNT PAID:</span>
+            <span>₹ 1,534.00</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #059669; font-weight: 700; margin-top: 2px;">
+            <span>Balance Due:</span>
+            <span>₹ 0.00 (PAID IN FULL)</span>
+          </div>
+          ${showPaymentMode ? `
+            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: #444; margin-top: 4px;">
+              <span>Payment Mode:</span>
+              <span>UPI / QR Scan</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #666; font-family: monospace;">
+              <span>Txn Ref / UTR:</span>
+              <span>UPI/423981029381</span>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- PAID Official Stamp -->
+        ${showStamp ? `
+          <div style="text-align: center; margin: 12px 0;">
+            <div style="display: inline-block; border: 2.5px solid ${stampColor}; color: ${stampColor}; font-weight: 900; font-size: 0.95rem; padding: 4px 14px; border-radius: 6px; text-transform: uppercase; letter-spacing: 1px; transform: rotate(-3deg);">
+              ✔ ${escapeHTML(stampText)}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Dynamic UPI QR Code for instant verification -->
+        ${showUpiQr ? `
+          <div style="text-align: center; margin: 10px 0; padding: 8px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent('upi://pay?pa=' + upiId + '&pn=' + bizName + '&am=0&cu=INR')}" style="width: 80px; height: 80px; display: block; margin: 0 auto 4px;" alt="UPI QR">
+            <div style="font-size: 0.68rem; font-weight: 700; color: #374151;">Scan to Verify / Pay Balance via UPI</div>
+            <div style="font-size: 0.62rem; color: #6b7280; font-family: monospace;">${escapeHTML(upiId)}</div>
+          </div>
+        ` : ''}
+
+        <!-- Terms, Footer Note & Signature -->
+        <div style="font-size: 0.72rem; color: #4b5563; margin-top: 8px;">
+          ${customNote ? `<div style="font-weight: 700; text-align: center; margin-bottom: 6px; color: #111827;">${escapeHTML(customNote)}</div>` : ''}
+          ${termsText ? `<div style="line-height: 1.3; font-size: 0.68rem; color: #6b7280; margin-bottom: 8px;">${escapeHTML(termsText)}</div>` : ''}
+          
+          ${showSignature ? `
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 14px; padding-top: 8px; border-top: 1px solid #eee;">
+              <div style="font-size: 0.65rem; color: #9ca3af;">
+                ${showTimestamp ? `Generated on: ${new Date().toLocaleString('en-IN')}` : ''}
+              </div>
+              <div style="text-align: center;">
+                <div style="border-bottom: 1px solid #333; width: 100px; margin-bottom: 2px;"></div>
+                <div style="font-size: 0.65rem; font-weight: 700;">${escapeHTML(signatureLabel)}</div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    };
+
+    // 3. Format Switcher Handler
+    wrapper.querySelectorAll('.receipt-format-card').forEach(card => {
+      card.addEventListener('click', () => {
+        wrapper.querySelectorAll('.receipt-format-card').forEach(c => {
+          c.classList.remove('active');
+          c.style.border = '1px solid var(--color-border)';
+        });
+        card.classList.add('active');
+        card.style.border = '2px solid var(--color-primary)';
+        currentFormat = card.dataset.format;
+        liveUpdateReceipt();
+      });
+    });
+
+    // 4. Input & Color Sync Listeners
+    wrapper.querySelectorAll('input, select, textarea').forEach(el => {
+      el.addEventListener('input', liveUpdateReceipt);
+      el.addEventListener('change', liveUpdateReceipt);
+    });
+
+    // Color pickers hex sync
+    ['#rc-header-color', '#rc-stamp-color'].forEach(id => {
+      const colInp = wrapper.querySelector(id);
+      const txtInp = wrapper.querySelector(id + '-text');
+      if (colInp && txtInp) {
+        colInp.addEventListener('input', () => {
+          txtInp.value = colInp.value;
+          liveUpdateReceipt();
+        });
+        txtInp.addEventListener('input', () => {
+          if (txtInp.value.startsWith('#') && txtInp.value.length === 7) {
+            colInp.value = txtInp.value;
+            liveUpdateReceipt();
+          }
+        });
+      }
+    });
+
+    wrapper.querySelector('#btn-refresh-receipt-preview')?.addEventListener('click', liveUpdateReceipt);
+
+    // 5. Test Print Handler
+    wrapper.querySelector('#btn-test-print-receipt')?.addEventListener('click', () => {
+      const printWindow = window.open('', '_blank');
+      const content = paper.innerHTML;
+      const widthCss = currentFormat === 'thermal58' ? '58mm' : (currentFormat === 'standardA4' ? '210mm' : '80mm');
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Test Print Receipt</title>
+          <style>
+            @page { size: ${widthCss} auto; margin: 0; }
+            body { 
+              margin: 0; 
+              padding: 10px; 
+              font-family: ${currentFormat === 'standardA4' ? 'sans-serif' : "'Courier New', Courier, monospace"}; 
+              font-size: ${currentFormat === 'thermal58' ? '11px' : '13px'};
+              color: #000;
+              background: #fff;
+              width: ${widthCss};
+              box-sizing: border-box;
+            }
+            img { max-width: 100%; }
+          </style>
+        </head>
+        <body>
+          ${content}
+          <script>
+            window.onload = () => { window.print(); window.close(); };
+          </script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    });
+
+    // 6. Save Receipt Template Handler
+    wrapper.querySelector('#btn-save-receipt-builder')?.addEventListener('click', async () => {
+      const btnSave = wrapper.querySelector('#btn-save-receipt-builder');
+      UI.buttonLoading(btnSave, true, 'Saving Template...');
+
+      const prefix = wrapper.querySelector('#setting-bill-prefix')?.value?.trim() || 'LIB-2026';
+      const subtitle = wrapper.querySelector('#rc-header-subtitle')?.value?.trim();
+      const headerColor = wrapper.querySelector('#rc-header-color')?.value;
+      const gstin = wrapper.querySelector('#rc-header-gstin')?.value?.trim();
+
+      const showLogo = wrapper.querySelector('#rc-toggle-logo')?.checked;
+      const showAddress = wrapper.querySelector('#rc-toggle-address')?.checked;
+      const showContact = wrapper.querySelector('#rc-toggle-contact')?.checked;
+
+      const showStuId = wrapper.querySelector('#rc-toggle-stuId')?.checked;
+      const showStuPhone = wrapper.querySelector('#rc-toggle-stuPhone')?.checked;
+      const showSeat = wrapper.querySelector('#rc-toggle-seat')?.checked;
+      const showValidity = wrapper.querySelector('#rc-toggle-validity')?.checked;
+      const showBreakdown = wrapper.querySelector('#rc-toggle-breakdown')?.checked;
+      const showPaymentMode = wrapper.querySelector('#rc-toggle-paymentMode')?.checked;
+
+      const showStamp = wrapper.querySelector('#rc-toggle-stamp')?.checked;
+      const stampText = wrapper.querySelector('#rc-stamp-text')?.value?.trim();
+      const stampColor = wrapper.querySelector('#rc-stamp-color')?.value;
+
+      const showSignature = wrapper.querySelector('#rc-toggle-signature')?.checked;
+      const signatureLabel = wrapper.querySelector('#rc-signature-label')?.value?.trim();
+      const showUpiQr = wrapper.querySelector('#rc-toggle-upiqr')?.checked;
+      const upiId = wrapper.querySelector('#setting-bill-upiId')?.value?.trim();
+
+      const termsText = wrapper.querySelector('#rc-terms-text')?.value?.trim();
+      const customNote = wrapper.querySelector('#rc-custom-note')?.value?.trim();
+      const showTimestamp = wrapper.querySelector('#rc-toggle-timestamp')?.checked;
+
+      const gstRate = Number(wrapper.querySelector('#setting-bill-gstRate')?.value || 18);
+      const hsnCode = wrapper.querySelector('#setting-bill-hsn')?.value?.trim() || '999293';
+      const refundDays = Number(wrapper.querySelector('#setting-bill-refundDays')?.value || 3);
+
+      const accName = wrapper.querySelector('#setting-bank-accName')?.value?.trim();
+      const accNo = wrapper.querySelector('#setting-bank-accNo')?.value?.trim();
+
+      try {
+        const payload = {
+          activeTemplate: currentFormat,
+          header: {
+            showLogo,
+            showBusinessName: true,
+            subtitle,
+            showAddress,
+            showPhone: showContact,
+            showEmail: showContact,
+            showGst: Boolean(gstin),
+            gstNumber: gstin,
+            headerColor
+          },
+          body: {
+            showStudentId: showStuId,
+            showStudentPhone: showStuPhone,
+            showSeatNumber: showSeat,
+            showShift: showSeat,
+            showPeriod: showValidity,
+            showDiscount: showBreakdown,
+            showPaymentMethod: showPaymentMode,
+            showTransactionId: showPaymentMode
+          },
+          stamp: {
+            showStamp,
+            stampText,
+            stampColor,
+            showWatermark: currentFormat === 'standardA4'
+          },
+          footer: {
+            showSignature,
+            signatureLabel,
+            showUpiQr,
+            termsText,
+            customNote,
+            showTimestamp
+          },
+          gst: {
+            enabled: gstRate > 0,
+            gstRate,
+            hsnCode
+          }
+        };
+
+        const [rcRes, sysRes, profRes] = await Promise.all([
+          api.put('/api/settings/receipt-config', payload),
+          api.put('/api/settings/system-settings', {
+            billing: {
+              receiptPrefix: prefix,
+              defaultTemplate: currentFormat,
+              gstRate,
+              hsnSacCode: hsnCode,
+              refundPolicyDays: refundDays
+            }
+          }),
+          api.put('/api/settings/profile', {
+            upiId: upiId || profile.upiId,
+            gstNumber: gstin,
+            bankDetails: {
+              accountName: accName || profile.bankDetails?.accountName,
+              accountNumber: accNo || profile.bankDetails?.accountNumber
+            }
+          })
+        ]);
+
+        if (rcRes.success || sysRes.success) {
+          Toast.success('Receipt Builder template & billing configuration saved successfully!');
+        } else {
+          Toast.error(rcRes.message || 'Failed to save template');
+        }
+      } catch (err) {
+        Toast.error(err.message || 'Error saving receipt template');
+      } finally {
+        UI.buttonLoading(btnSave, false);
+      }
+    });
+
+    // Initial render
+    liveUpdateReceipt();
+  }, 50);
 
   return wrapper;
 }
