@@ -679,6 +679,7 @@ function renderPortalUI(container, data, analytics = null) {
     const emergencyRelation = student.emergencyContact?.relation || 'Parent';
     const address = [student.address, student.city, student.state, student.pincode].filter(Boolean).join(', ') || 'Campus Residential';
     const bloodGroup = student.bloodGroup || '';
+    const stampImgUrl = business.stampImage || business.stampImageUrl || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.stampImage || '';
 
     let currentOrientation = 'horizontal';
     let currentSide = 'dual';
@@ -892,8 +893,14 @@ function renderPortalUI(container, data, analytics = null) {
                 <!-- Stamp / Signatory -->
                 ${showStamp ? `
                   <div style="margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; padding-top: 4px;">
-                    <div style="border: 1.5px solid #059669; color: #059669; font-weight: 800; font-size: 0.58rem; padding: 2px 6px; border-radius: 4px; transform: rotate(-4deg); text-align: center;">
-                      OFFICIAL SEAL<br>PAID &amp; VERIFIED
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                      ${stampImgUrl ? `
+                        <img src="${stampImgUrl}" alt="Official Seal" style="max-height: 48px; max-width: 58px; object-fit: contain; margin-bottom: 2px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12));">
+                      ` : `
+                        <div style="border: 1.5px solid #059669; color: #059669; font-weight: 800; font-size: 0.58rem; padding: 2px 6px; border-radius: 4px; transform: rotate(-4deg); text-align: center;">
+                          OFFICIAL SEAL<br>PAID &amp; VERIFIED
+                        </div>
+                      `}
                     </div>
                     <div style="text-align: center;">
                       <div style="width: 70px; border-bottom: 1px solid ${st.subText}; margin-bottom: 2px;"></div>
@@ -950,8 +957,14 @@ function renderPortalUI(container, data, analytics = null) {
 
                 <div style="flex: 0.7; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; border-left: 1px dashed rgba(0,0,0,0.1); padding-left: 8px;">
                   ${showStamp ? `
-                    <div style="border: 1.5px solid #059669; color: #059669; font-weight: 800; font-size: 0.58rem; padding: 3px 6px; border-radius: 4px; transform: rotate(-4deg); margin-top: 6px;">
-                      OFFICIAL SEAL<br>PAID &amp; VERIFIED
+                    <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                      ${stampImgUrl ? `
+                        <img src="${stampImgUrl}" alt="Official Seal" style="max-height: 52px; max-width: 65px; object-fit: contain; margin-top: 2px; margin-bottom: 2px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12));">
+                      ` : `
+                        <div style="border: 1.5px solid #059669; color: #059669; font-weight: 800; font-size: 0.58rem; padding: 3px 6px; border-radius: 4px; transform: rotate(-4deg); margin-top: 6px;">
+                          OFFICIAL SEAL<br>PAID &amp; VERIFIED
+                        </div>
+                      `}
                     </div>
                     <div style="margin-top: auto; padding-bottom: 2px;">
                       <div style="width: 70px; border-bottom: 1px solid ${st.subText}; margin-bottom: 2px;"></div>
@@ -2815,6 +2828,28 @@ export function download1080pMobileIDPass(student, business, initials, seatTitle
     Toast.success('📱 1080x1920px Mobile ID Pass image generated & downloaded!');
   };
 
+  const stampSrc = business.stampImage || window.store?.settings?.businessProfile?.stampImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.stampImage || '';
+  
+  const drawStampAndTrigger = () => {
+    if (stampSrc) {
+      const sImg = new Image();
+      sImg.crossOrigin = 'anonymous';
+      sImg.onload = () => {
+        ctx.save();
+        ctx.globalAlpha = 0.92;
+        ctx.drawImage(sImg, 760, cardY + 1280, 160, 160);
+        ctx.restore();
+        triggerDownload();
+      };
+      sImg.onerror = () => {
+        triggerDownload();
+      };
+      sImg.src = stampSrc;
+    } else {
+      triggerDownload();
+    }
+  };
+
   const qrImg = new Image();
   qrImg.crossOrigin = 'anonymous';
   qrImg.onload = () => {
@@ -2828,7 +2863,7 @@ export function download1080pMobileIDPass(student, business, initials, seatTitle
     ctx.font = '600 24px Outfit, sans-serif';
     ctx.fillText(`Carry Daily on Mobile • Helpdesk: ${business.phone || ''}`, 540, cardY + 1540);
 
-    triggerDownload();
+    drawStampAndTrigger();
   };
   qrImg.onerror = () => {
     ctx.textAlign = 'center';
@@ -2836,7 +2871,7 @@ export function download1080pMobileIDPass(student, business, initials, seatTitle
     ctx.font = '600 24px Outfit, sans-serif';
     ctx.fillText(`Carry Daily on Mobile • Helpdesk: ${business.phone || ''}`, 540, cardY + 1540);
 
-    triggerDownload();
+    drawStampAndTrigger();
   };
   qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrData)}&margin=4`;
 }

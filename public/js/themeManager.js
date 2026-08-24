@@ -248,20 +248,30 @@
       appleEl.href = iconUrl;
     }
 
-    if (profile.businessName) {
+    if (profile) {
       try {
         localStorage.setItem('sl_public_profile_cache', JSON.stringify(profile));
       } catch(e) {}
 
-      if (document.title) {
-        document.title = document.title.replace(/Study Library|StudyLib|The Cozy Corner Centre/g, profile.businessName);
+      if (window.store) {
+        if (!window.store.settings) window.store.settings = {};
+        if (!window.store.settings.businessProfile) window.store.settings.businessProfile = {};
+        Object.assign(window.store.settings.businessProfile, profile);
+        if (!window.store.profile) window.store.profile = {};
+        Object.assign(window.store.profile, profile);
       }
-      
-      const brandElements = ['lib-title', 'lib-name', 'sidebar-org-name', 'nav-brand-name', 'drawer-brand-name', 'footer-org-name', 'kiosk-lib-name'];
-      brandElements.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = profile.businessName;
-      });
+
+      if (profile.businessName) {
+        if (document.title) {
+          document.title = document.title.replace(/Study Library|StudyLib|The Cozy Corner Centre/g, profile.businessName);
+        }
+        
+        const brandElements = ['lib-title', 'lib-name', 'sidebar-org-name', 'nav-brand-name', 'drawer-brand-name', 'footer-org-name', 'kiosk-lib-name'];
+        brandElements.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = profile.businessName;
+        });
+      }
     }
   }
 

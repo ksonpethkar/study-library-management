@@ -1289,6 +1289,9 @@ function renderBillingReceiptStudio(profile, billing, pay) {
         <!-- PAID Official Stamp -->
         ${showStamp ? `
           <div style="text-align: center; margin: 12px 0;">
+            ${(profile.stampImage || (container.querySelector('#setting-stamp') || container.querySelector('input[name="stampImage"]'))?.value?.trim()) ? `
+              <img src="${profile.stampImage || (container.querySelector('#setting-stamp') || container.querySelector('input[name="stampImage"]'))?.value?.trim()}" style="max-height: 52px; max-width: 65px; object-fit: contain; margin-bottom: 4px;" alt="Official Stamp"><br>
+            ` : ''}
             <div style="display: inline-block; border: 2.5px solid ${stampColor}; color: ${stampColor}; font-weight: 900; font-size: 0.95rem; padding: 4px 14px; border-radius: 6px; text-transform: uppercase; letter-spacing: 1px; transform: rotate(-3deg);">
               ✔ ${escapeHTML(stampText)}
             </div>
@@ -1314,7 +1317,10 @@ function renderBillingReceiptStudio(profile, billing, pay) {
               <div style="font-size: 0.65rem; color: #9ca3af;">
                 ${showTimestamp ? `Generated on: ${new Date().toLocaleString('en-IN')}` : ''}
               </div>
-              <div style="text-align: center;">
+              <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+                ${(profile.stampImage || (container.querySelector('#setting-stamp') || container.querySelector('input[name="stampImage"]'))?.value?.trim()) ? `
+                  <img src="${profile.stampImage || (container.querySelector('#setting-stamp') || container.querySelector('input[name="stampImage"]'))?.value?.trim()}" style="max-height: 44px; max-width: 58px; object-fit: contain; margin-bottom: 2px;" alt="Seal Stamp">
+                ` : ''}
                 <div style="border-bottom: 1px solid #333; width: 100px; margin-bottom: 2px;"></div>
                 <div style="font-size: 0.65rem; font-weight: 700;">${escapeHTML(signatureLabel)}</div>
               </div>
