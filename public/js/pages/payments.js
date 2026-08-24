@@ -326,14 +326,79 @@ export async function render(container) {
                     </span>
                 </td>
                 <td>
-                    <button class="btn btn-sm btn-outline-primary btn-view" data-id="${p._id}" style="padding: 3px 8px; font-size: 0.8rem;">View Receipt</button>
-                    ${p.status === 'partial' && p.balanceDue > 0 ? `
-                        <button class="btn btn-sm btn-warning btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px;">💰 Pay Balance</button>
-                        <button class="btn btn-sm btn-outline-success btn-remind-balance" data-id="${p._id}" data-student-id="${p.student?._id || p.student}" data-name="${escapeHTML(p.student?.name || 'Student')}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px; white-space: nowrap;" title="Send WhatsApp Balance Reminder with 1-Tap UPI Link">📲 WhatsApp Reminder</button>
-                    ` : ''}
+                    <div class="d-inline-flex gap-1 align-items-center">
+                        <button class="btn btn-sm btn-outline-primary btn-view" data-id="${p._id}" style="padding: 3px 8px; font-size: 0.8rem; font-weight: 600;">View Receipt</button>
+                        ${p.status === 'partial' && p.balanceDue > 0 ? `
+                            <button class="btn btn-sm btn-warning btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem;">💰 Pay</button>
+                        ` : ''}
+                        ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
+                            { header: 'Level 1: Receipt Operations' },
+                            { id: 'view-receipt', icon: '🧾', label: 'View / Print POS Receipt', bold: true },
+                            { id: 'wa-receipt', icon: '📲', label: 'WhatsApp Receipt Alert' },
+                            { divider: true },
+                            { header: 'Level 2: Financial Governance' },
+                            { id: 'toggle-status', icon: p.status === 'paid' ? '⏳' : '✅', label: p.status === 'paid' ? 'Mark as Pending' : 'Mark as Paid' },
+                            { divider: true },
+                            { header: 'Level 3: Danger Zone' },
+                            { id: 'delete', icon: '🗑️', label: 'Delete Payment Record', danger: true }
+                        ], p._id) : ''}
+                    </div>
                 </td>
             </tr>
         `).join('');
+
+        // ActionMenu click handling on tbody
+        tbody.querySelectorAll('.action-menu-item').forEach(item => {
+            item.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const act = item.dataset.action;
+                const id = item.dataset.id;
+                const payment = payments.find(p => p._id === id);
+                if (!payment) return;
+
+                if (act === 'view-receipt') {
+                    showReceiptModal(id);
+                } else if (act === 'wa-receipt') {
+                    const phone = (payment.student?.phone || payment.phone || '').replace(/\D/g, '');
+                    if (!phone) {
+                        Toast.error('No student phone number linked');
+                        return;
+                    }
+                    const cleanPhone = phone.length === 10 ? '91' + phone : phone;
+                    const text = `Dear ${payment.student?.name || 'Student'}, your payment of ₹${payment.finalAmount || payment.amount} (Receipt: ${payment.receiptNumber || 'N/A'}) has been successfully received. Thank you!`;
+                    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
+                } else if (act === 'delete') {
+                    const ok = await Confirm.show({
+                        title: 'Delete Payment Record',
+                        message: `Permanently delete invoice ${payment.receiptNumber || id}?`,
+                        danger: true
+                    });
+                    if (ok) {
+                        try {
+                            await api.delete(`/api/payments/${id}`);
+                            Toast.success('Payment record deleted');
+                            await IDBStorage.clear('payments');
+                            loadPayments();
+                            loadStats();
+                        } catch (err) {
+                            Toast.error(err.message || 'Delete failed');
+                        }
+                    }
+                } else if (act === 'toggle-status') {
+                    const newStatus = payment.status === 'paid' ? 'pending' : 'paid';
+                    try {
+                        await api.put(`/api/payments/${id}`, { status: newStatus });
+                        Toast.success(`Payment marked as ${newStatus}`);
+                        await IDBStorage.clear('payments');
+                        loadPayments();
+                        loadStats();
+                    } catch (err) {
+                        Toast.error(err.message || 'Status update failed');
+                    }
+                }
+            });
+        });
 
         tbody.querySelectorAll('.btn-copy-text').forEach(btn => {
             btn.addEventListener('click', (e) => {

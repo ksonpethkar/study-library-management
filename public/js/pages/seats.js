@@ -640,24 +640,40 @@ function open360DeskDetailsModal(seat, container) {
         </div>
       `}
 
-      <!-- Quick Action Buttons Grid -->
-      <div class="d-flex gap-2 flex-wrap justify-content-end mt-4 pt-3" style="border-top: 1px solid var(--color-border);">
-        <button type="button" class="btn btn-outline-warning btn-sm btn-action-maint" style="font-weight: 600;">
-          ${seat.status === 'maintenance' ? '🟢 Mark Available' : '🛠️ Mark Maintenance'}
-        </button>
-        <button type="button" class="btn btn-outline-primary btn-sm btn-action-edit" style="font-weight: 600;">
-          ✏️ Edit Desk Config
-        </button>
-        <button type="button" class="btn btn-outline-danger btn-sm btn-action-delete" style="font-weight: 600;">
-          🗑️ Delete Desk
-        </button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="Modal.closeAll()">Close</button>
+      <!-- Universal 5-Level Action Buttons Grid -->
+      <div class="d-flex gap-2 flex-wrap justify-content-between align-items-center mt-4 pt-3" style="border-top: 1px solid var(--color-border);">
+        <div class="d-flex gap-2 flex-wrap">
+          ${(seat.status === 'occupied' || seat.currentStudent) ? `
+            <button type="button" class="btn btn-outline-danger btn-sm btn-action-vacate" style="font-weight: 700;">
+              🔓 Vacate / Release Desk
+            </button>
+          ` : `
+            <button type="button" class="btn btn-outline-success btn-sm btn-action-assign" style="font-weight: 700;">
+              👤 Assign Student
+            </button>
+          `}
+          <button type="button" class="btn btn-outline-secondary btn-sm btn-action-clone" style="font-weight: 600;" title="Duplicate this desk with new number">
+            📑 Clone Desk
+          </button>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <button type="button" class="btn btn-outline-warning btn-sm btn-action-maint" style="font-weight: 600;">
+            ${seat.status === 'maintenance' ? '🟢 Mark Available' : '🛠️ Maintenance'}
+          </button>
+          <button type="button" class="btn btn-outline-primary btn-sm btn-action-edit" style="font-weight: 600;">
+            ✏️ Edit
+          </button>
+          <button type="button" class="btn btn-outline-danger btn-sm btn-action-delete" style="font-weight: 600;">
+            🗑️ Delete
+          </button>
+        </div>
       </div>
     </div>
   `;
 
   const m = new Modal({
-    title: `Desk ${seat.seatNumber} Details`,
+    title: `Desk ${seat.seatNumber} Details & Actions`,
     content: modalContent,
     size: 'md'
   });
@@ -670,6 +686,65 @@ function open360DeskDetailsModal(seat, container) {
       const cleanPhone = ph.replace(/\D/g, '');
       const url = `https://wa.me/${cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone}?text=${encodeURIComponent(`Hello! Library Admin checking in regarding Desk ${seat.seatNumber}.`)}`;
       window.open(url, '_blank');
+    }
+  });
+
+  // Vacate / Release Desk Handler
+  modalContent.querySelector('.btn-action-vacate')?.addEventListener('click', async () => {
+    const ok = await Confirm.show({
+      title: `Release Desk ${seat.seatNumber}?`,
+      message: 'Are you sure you want to unassign this desk from the current student occupant?',
+      danger: true
+    });
+    if (ok) {
+      try {
+        await api.put(`/api/seats/${seat._id}`, { status: 'available', currentStudent: null });
+        Toast.success(`Desk ${seat.seatNumber} has been released and is now available!`);
+        m.close();
+        await IDBStorage.clear('seats');
+        loadSeats(container);
+        loadStats(container);
+      } catch (err) {
+        Toast.error(err.message || 'Failed to release desk');
+      }
+    }
+  });
+
+  // Assign Student Modal
+  modalContent.querySelector('.btn-action-assign')?.addEventListener('click', async () => {
+    m.close();
+    showAssignStudentModal(seat, container);
+  });
+
+  // Clone / Duplicate Desk Handler
+  modalContent.querySelector('.btn-action-clone')?.addEventListener('click', async () => {
+    const currentNum = parseInt(seat.seatNumber.replace(/\D/g, '')) || 1;
+    const prefix = seat.seatNumber.replace(/[0-9]/g, '') || 'D-';
+    const newNumber = `${prefix}${currentNum + 1}`;
+
+    try {
+      const payload = {
+        seatNumber: newNumber,
+        type: seat.type || 'Regular',
+        zone: seat.zone || 'General',
+        zoneColor: seat.zoneColor || '#6c5ce7',
+        floor: seat.floor || 'Ground Floor',
+        monthlyRate: seat.monthlyRate || 1000,
+        branch: seat.branch?._id || seat.branch || null,
+        status: 'available'
+      };
+      const res = await api.post('/api/seats', payload);
+      if (res.success) {
+        Toast.success(`Desk ${newNumber} cloned and created successfully!`);
+        m.close();
+        await IDBStorage.clear('seats');
+        loadSeats(container);
+        loadStats(container);
+      } else {
+        Toast.error(res.message || 'Failed to clone desk');
+      }
+    } catch (err) {
+      Toast.error(err.message || 'Error cloning desk');
     }
   });
 
@@ -715,6 +790,8 @@ function open360DeskDetailsModal(seat, container) {
     }
   });
 }
+
+
 
 function renderSeatsGrid(seats, container) {
   const c = container || document.querySelector('.centers-seats-hub-page') || document;

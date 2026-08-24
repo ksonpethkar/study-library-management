@@ -338,6 +338,22 @@ export async function render() {
     const grid = container.querySelector('#plans-grid');
     if (grid) {
       grid.addEventListener('click', (e) => {
+        const actionMenuItem = e.target.closest('.action-menu-item');
+        if (actionMenuItem) {
+          e.preventDefault();
+          e.stopPropagation();
+          const action = actionMenuItem.dataset.action;
+          const id = actionMenuItem.dataset.id;
+          if (action === 'edit') openEditModal(id);
+          else if (action === 'clone') clonePlan(id);
+          else if (action === 'delete') deletePlan(id);
+          else if (action === 'toggle-active') {
+            const plan = plans.find(p => p._id === id);
+            if (plan) togglePlanStatus(id, !plan.isActive);
+          }
+          return;
+        }
+
         const cloneBtn = e.target.closest('.btn-clone');
         if (cloneBtn) {
           const id = cloneBtn.dataset.id;
@@ -472,10 +488,20 @@ function renderPlansGrid(plansList) {
             <input type="checkbox" class="plan-active-toggle" data-id="${plan._id}" ${plan.isActive ? 'checked' : ''} style="cursor: pointer;">
             <label class="small text-muted" style="margin: 0; font-weight: 600;">Active</label>
           </div>
-          <div class="d-flex gap-1">
-            <button class="btn btn-sm btn-outline-secondary btn-clone" data-id="${plan._id}" style="font-weight: 600;" title="Clone Plan">📋 Clone</button>
-            <button class="btn btn-sm btn-outline-primary btn-edit" data-id="${plan._id}" style="font-weight: 600;">✏️ Edit</button>
-            <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${plan._id}" style="font-weight: 600;">🗑️ Delete</button>
+          <div class="d-flex gap-1 align-items-center">
+            <button class="btn btn-sm btn-outline-secondary btn-clone" data-id="${plan._id}" style="font-weight: 600; font-size: 0.8rem; padding: 3px 8px;" title="Clone Plan">📋 Clone</button>
+            <button class="btn btn-sm btn-outline-primary btn-edit" data-id="${plan._id}" style="font-weight: 600; font-size: 0.8rem; padding: 3px 8px;">✏️ Edit</button>
+            ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
+              { header: 'Level 1: Plan Operations' },
+              { id: 'edit', icon: '✏️', label: 'Edit Plan Configuration', bold: true },
+              { id: 'clone', icon: '📑', label: 'Clone / Duplicate Plan' },
+              { divider: true },
+              { header: 'Level 2: Status & Lifecycle' },
+              { id: 'toggle-active', icon: plan.isActive ? '⏸️' : '🟢', label: plan.isActive ? 'Deactivate / Archive' : 'Activate Plan' },
+              { divider: true },
+              { header: 'Level 3: Danger Zone' },
+              { id: 'delete', icon: '🗑️', label: 'Delete Plan', danger: true }
+            ], plan._id) : ''}
           </div>
         </div>
       </div>

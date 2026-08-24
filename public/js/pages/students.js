@@ -228,12 +228,24 @@ export async function render() {
           <td style="white-space: nowrap;">
             <div class="d-inline-flex gap-1 align-items-center">
               <button class="btn btn-sm btn-outline-secondary btn-view" data-id="${escapeHTML(s._id)}" title="View 360° Profile" style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">👁️ View</button>
-              <button class="btn btn-sm btn-outline-success btn-wa-remind" data-id="${escapeHTML(s._id)}" title="Send WhatsApp Reminder" style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">📲 WhatsApp</button>
-              <button class="btn btn-sm btn-outline-warning btn-pwdreset" data-id="${escapeHTML(s._id)}" title="Reset Password / PIN" style="padding: 4px 6px; font-size: 0.75rem;">🔑</button>
-              <button class="btn btn-sm btn-outline-info btn-idcard" data-id="${escapeHTML(s._id)}" title="Print ID Card" style="padding: 4px 6px; font-size: 0.75rem;">🪪</button>
-              <button class="btn btn-sm btn-outline-success btn-pdfform" data-id="${escapeHTML(s._id)}" title="Download PDF Form" style="padding: 4px 6px; font-size: 0.75rem;">📄</button>
+              <button class="btn btn-sm btn-outline-success btn-wa-remind" data-id="${escapeHTML(s._id)}" title="Send WhatsApp Reminder" style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">📲 WA</button>
               <button class="btn btn-sm btn-outline-primary btn-edit" data-id="${escapeHTML(s._id)}" title="Edit Student" style="padding: 4px 6px; font-size: 0.75rem;">✏️</button>
-              <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${escapeHTML(s._id)}" title="Delete Student" style="padding: 4px 6px; font-size: 0.75rem;">🗑️</button>
+              ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
+                { header: 'Level 1: Core Operations' },
+                { id: 'view', icon: '👁️', label: 'View 360° Profile', bold: true },
+                { id: 'edit', icon: '✏️', label: 'Edit Member Details' },
+                { divider: true },
+                { header: 'Level 2: Status & Lifecycle' },
+                { id: 'toggle-status', icon: s.status === 'active' ? '⏸️' : '🟢', label: s.status === 'active' ? 'Suspend / Deactivate' : 'Activate Membership' },
+                { divider: true },
+                { header: 'Level 3: Documents & Data' },
+                { id: 'idcard', icon: '🪪', label: 'Print Digital ID Pass' },
+                { id: 'pdfform', icon: '📄', label: 'Download Admission PDF' },
+                { id: 'pwdreset', icon: '🔑', label: 'Reset Password / PIN' },
+                { divider: true },
+                { header: 'Level 4: Critical & Danger' },
+                { id: 'delete', icon: '🗑️', label: 'Delete Student Record', danger: true }
+              ], s._id) : ''}
             </div>
           </td>
         </tr>
@@ -1527,6 +1539,31 @@ export async function render() {
       const id = pwdBtn.getAttribute('data-id');
       const student = state.students.find(s => s._id === id);
       if (student) showPasswordResetModal(student);
+      return;
+    }
+
+    const actionMenuItem = e.target.closest('.action-menu-item');
+    if (actionMenuItem) {
+      e.stopPropagation();
+      e.preventDefault();
+      const action = actionMenuItem.dataset.action;
+      const id = actionMenuItem.dataset.id;
+      const student = state.students.find(s => s._id === id);
+      if (!student) return;
+
+      if (action === 'view') showStudentProfile(student);
+      else if (action === 'edit') showStudentForm(student);
+      else if (action === 'idcard') showStudentIdCard(student);
+      else if (action === 'pdfform') previewAdmissionFormPDF(student);
+      else if (action === 'pwdreset') showPasswordResetModal(student);
+      else if (action === 'delete') handleDelete(id);
+      else if (action === 'toggle-status') {
+        const newStatus = student.status === 'active' ? 'suspended' : 'active';
+        api.put(`/api/students/${id}`, { status: newStatus }).then(res => {
+          Toast.success(`Student status updated to ${newStatus}`);
+          loadStudents(state.pagination.page);
+        }).catch(err => Toast.error(err.message || 'Failed to update status'));
+      }
       return;
     }
 

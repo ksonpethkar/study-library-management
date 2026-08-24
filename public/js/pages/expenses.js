@@ -355,39 +355,62 @@ export async function render(container) {
             ${formatCurrency(exp.amount)}
           </td>
           <td class="text-center">
-            <div class="d-flex justify-content-center gap-1">
-              <button class="btn btn-sm btn-ghost btn-edit-exp" data-id="${exp._id}" title="Edit Expense" style="padding: 2px 6px;">✏️</button>
-              <button class="btn btn-sm btn-ghost text-danger btn-delete-exp" data-id="${exp._id}" title="Delete" style="padding: 2px 6px;">🗑️</button>
+            <div class="d-flex justify-content-center align-items-center gap-1">
+              <button class="btn btn-sm btn-outline-primary btn-edit-exp" data-id="${exp._id}" title="Edit Expense" style="padding: 2px 6px; font-size: 0.75rem;">✏️ Edit</button>
+              ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
+                { header: 'Level 1: Expense Operations' },
+                { id: 'edit', icon: '✏️', label: 'Edit Expense Details', bold: true },
+                { id: 'clone', icon: '📑', label: 'Duplicate / Re-record Expense' },
+                { divider: true },
+                { header: 'Level 2: Danger Zone' },
+                { id: 'delete', icon: '🗑️', label: 'Delete Expense Record', danger: true }
+              ], exp._id) : ''}
             </div>
           </td>
         </tr>
       `;
     }).join('');
 
-    // Wire edit & delete
+    // Wire edit, delete & ActionMenu
+    tbody.querySelectorAll('.action-menu-item').forEach(item => {
+      item.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const act = item.dataset.action;
+        const id = item.dataset.id;
+        const exp = state.expenses.find(e => e._id === id);
+        if (!exp) return;
+
+        if (act === 'edit') {
+          showExpenseModal(exp);
+        } else if (act === 'clone') {
+          const cloneExp = { ...exp, title: `${exp.title} (Repeat)`, date: new Date().toISOString().split('T')[0] };
+          delete cloneExp._id;
+          delete cloneExp.createdAt;
+          showExpenseModal(cloneExp);
+        } else if (act === 'delete') {
+          const ok = await Confirm.show({
+            title: 'Delete Expense Record',
+            message: `Are you sure you want to delete "${exp.title}"?`,
+            danger: true
+          });
+          if (ok) {
+            try {
+              await api.delete(`/api/expenses/${id}`);
+              Toast.success('Expense deleted successfully');
+              loadData();
+            } catch (err) {
+              Toast.error('Failed to delete expense');
+            }
+          }
+        }
+      });
+    });
+
     tbody.querySelectorAll('.btn-edit-exp').forEach(btn => {
       btn.addEventListener('click', () => {
         const item = state.expenses.find(e => e._id === btn.dataset.id);
         if (item) showExpenseModal(item);
-      });
-    });
-
-    tbody.querySelectorAll('.btn-delete-exp').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const ok = await Confirm.show({
-          title: 'Delete Expense Record',
-          message: 'Are you sure you want to delete this expense? This will adjust the profit-loss figures.',
-          danger: true
-        });
-        if (ok) {
-          try {
-            await api.delete(`/api/expenses/${btn.dataset.id}`);
-            Toast.success('Expense deleted successfully');
-            loadData();
-          } catch (err) {
-            Toast.error('Failed to delete expense');
-          }
-        }
       });
     });
   }

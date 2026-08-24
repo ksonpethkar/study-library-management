@@ -1741,6 +1741,62 @@ export const FAB = {
   show() { if (this._el) this._el.classList.remove('fab-hidden'); }
 };
 
+// ── Universal 5-Level Action Architecture Menu Helper ──────────
+export const ActionMenu = {
+  /**
+   * Renders standardized 5-Level Action dropdown menu HTML or triggers a BottomSheet on mobile
+   * Level 1: Basic View / Edit / Delete
+   * Level 2: Status & Lifecycle (Active, Deactivate, Archive, Restore)
+   * Level 3: Portability & Clones (Duplicate, Export CSV/PDF, Import)
+   * Level 4: Domain Actions (Seat Assign, Renew, Transfer, WhatsApp, POS Print)
+   * Level 5: Audit & Security (Lock/Unlock, Audit Log)
+   */
+  renderHtml(actions = [], entityId = '') {
+    return `
+      <div class="dropdown action-menu-wrapper d-inline-block" data-entity-id="${escapeHTML(entityId)}">
+        <button type="button" class="btn btn-sm btn-outline-secondary btn-action-menu-trigger dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" style="padding: 3px 8px; font-size: 0.8rem; font-weight: 700; border-radius: 6px;" title="Universal Actions">
+          ⋮ Actions
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow" style="min-width: 210px; font-size: 0.84rem; padding: 6px 0; border-radius: 8px; z-index: 1050; background: var(--color-surface); border: 1px solid var(--color-border);">
+          ${actions.map(act => {
+            if (act.divider) return `<li><hr class="dropdown-divider" style="margin: 4px 0; border-color: var(--color-border);"></li>`;
+            if (act.header) return `<li class="dropdown-header text-muted text-uppercase" style="font-size: 0.68rem; font-weight: 800; padding: 4px 14px; letter-spacing: 0.5px; color: var(--color-text-secondary);">${escapeHTML(act.header)}</li>`;
+            const icon = act.icon || '⚡';
+            const label = act.label || '';
+            const actionKey = act.action || act.id || '';
+            const isDanger = act.danger ? 'text-danger' : '';
+            return `
+              <li>
+                <a class="dropdown-item d-flex align-items-center gap-2 ${isDanger} action-menu-item" href="#" data-action="${escapeHTML(actionKey)}" data-id="${escapeHTML(entityId)}" style="padding: 6px 14px; cursor: pointer; color: var(--color-text-primary);">
+                  <span style="font-size: 1rem; width: 20px; text-align: center;">${icon}</span>
+                  <span style="flex-grow: 1; font-weight: ${act.bold ? '700' : '500'};">${escapeHTML(label)}</span>
+                  ${act.badge ? `<span class="badge badge-sm" style="font-size: 0.65rem; background: rgba(108,92,231,0.15); color: var(--color-primary);">${escapeHTML(act.badge)}</span>` : ''}
+                </a>
+              </li>
+            `;
+          }).join('')}
+        </ul>
+      </div>
+    `;
+  },
+
+  /**
+   * Bind event delegation on a container for action menu clicks
+   */
+  bind(container, handler) {
+    if (!container || typeof handler !== 'function') return;
+    container.addEventListener('click', (e) => {
+      const item = e.target.closest('.action-menu-item');
+      if (!item) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const action = item.dataset.action;
+      const id = item.dataset.id;
+      handler(action, id, item);
+    });
+  }
+};
+
 if (typeof window !== 'undefined') {
   window.Toast = Toast;
   window.Modal = Modal;
@@ -1752,6 +1808,7 @@ if (typeof window !== 'undefined') {
   window.Loading = Loading;
   window.BottomSheet = BottomSheet;
   window.FAB = FAB;
+  window.ActionMenu = ActionMenu;
   window.initPullToRefresh = initPullToRefresh;
   window.PDFExport = PDFExport;
   window.VoiceSearch = VoiceSearch;
