@@ -770,12 +770,24 @@ function renderPortalUI(container, data, analytics = null) {
     profileModal.show();
 
     try {
-      const [fieldsRes, cfgRes] = await Promise.all([
-        api.get('/api/custom-fields').catch(() => ({ data: [] })),
+      const [fieldsRes, tplRes, cfgRes] = await Promise.all([
+        api.get('/api/custom-fields/all').catch(() => api.get('/api/custom-fields')).catch(() => ({ data: [] })),
+        api.get('/api/custom-fields/templates/active').catch(() => ({ data: null })),
         api.get('/api/system/public-config').catch(() => ({ data: null }))
       ]);
 
       const customFieldsList = Array.isArray(fieldsRes.data) ? fieldsRes.data : [];
+      const templateData = tplRes?.data || {};
+      const templateSections = (templateData.sections && templateData.sections.length > 0)
+        ? templateData.sections.filter(s => !s.isHidden).sort((a, b) => (a.order || 0) - (b.order || 0))
+        : [
+            { name: 'personal', label: 'Personal & Contact Information', icon: '👤' },
+            { name: 'academic', label: 'Academic Goals & Preparation', icon: '🎯' },
+            { name: 'contact', label: 'Address & Emergency Contacts', icon: '📍' },
+            { name: 'kyc', label: 'KYC & Identity Verification', icon: '🪪' },
+            { name: 'other', label: 'Additional Information & Preferences', icon: '📋' }
+          ];
+
       const cfMap = (student.customFields && typeof student.customFields === 'object') ? student.customFields : {};
 
       // Standard / Core fields helper
@@ -785,18 +797,22 @@ function renderPortalUI(container, data, analytics = null) {
         return '';
       };
 
-      // Custom fields grouping by section
-      const sections = [
-        { key: 'personal', label: 'Personal & Contact Information', icon: '👤', fields: [] },
-        { key: 'academic', label: 'Academic Goals & Preparation', icon: '🎯', fields: [] },
-        { key: 'contact', label: 'Address & Emergency Contacts', icon: '📍', fields: [] },
-        { key: 'kyc', label: 'KYC & Identity Verification', icon: '🪪', fields: [] },
-        { key: 'other', label: 'Additional Information & Preferences', icon: '📋', fields: [] }
-      ];
+      // Custom fields grouping by template sections
+      const sections = templateSections.map(s => ({
+        key: (s.name || s.key || '').toLowerCase(),
+        label: s.label || s.name,
+        icon: s.icon || '📝',
+        fields: []
+      }));
+
+      if (!sections.some(s => s.key === 'other')) {
+        sections.push({ key: 'other', label: 'Additional Information & Preferences', icon: '📋', fields: [] });
+      }
 
       const coreKeys = new Set(['name', 'phone', 'email', 'gender', 'dob', 'dateOfBirth', 'photo', 'signature', 'plan', 'seat', 'status']);
       
       customFieldsList.forEach(f => {
+        if (f.isActive === false) return;
         const fKey = (f.fieldName || '').trim();
         if (coreKeys.has(fKey.toLowerCase())) return;
         const val = cfMap[fKey] !== undefined ? cfMap[fKey] : (student[fKey] !== undefined ? student[fKey] : '');

@@ -7,6 +7,7 @@ const { roleCheck } = require('../middleware/roleCheck');
 
 // Public/Shared read endpoints to get fields
 router.get('/', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     await CustomField.seedDefaultFields();
     const fields = await CustomField.getActiveFields();
@@ -19,6 +20,7 @@ router.get('/', async (req, res) => {
 
 // GET /api/custom-fields/all - Get all fields including inactive
 router.get('/all', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     await CustomField.seedDefaultFields();
     const fields = await CustomField.find().sort({ order: 1, createdAt: 1 }).lean();
@@ -30,6 +32,7 @@ router.get('/all', async (req, res) => {
 
 // GET /api/custom-fields/templates/active - Get active template
 router.get('/templates/active', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     const template = await FormTemplate.getActiveTemplate();
     res.json({ success: true, data: template });
@@ -40,6 +43,7 @@ router.get('/templates/active', async (req, res) => {
 
 // GET /api/custom-fields/sections - Get unique sections
 router.get('/sections', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     const fields = await CustomField.find().sort({ order: 1 }).lean();
     const sectionsMap = new Map();
