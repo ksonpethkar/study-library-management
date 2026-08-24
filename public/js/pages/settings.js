@@ -2176,7 +2176,7 @@ function renderStaffRbacStudio(staffUsers, branches) {
 // -------------------------------------------------------------
 function renderWebsiteCmsStudio() {
   const wrapper = document.createElement('div');
-  wrapper.className = 'card';
+  wrapper.className = 'card cms-studio-container';
   wrapper.style.cssText = 'padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);';
 
   const presetDefaults = {
@@ -2208,144 +2208,174 @@ function renderWebsiteCmsStudio() {
 
   let currentPreset = 'modern_glass';
   let isMobilePreview = false;
+  let activeViewMode = 'split'; // 'split' | 'editor' | 'preview'
+  let activeCategory = 'all';
 
   wrapper.innerHTML = `
-    <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+    <!-- Top Action & View Toolbar -->
+    <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 14px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
       <div>
-        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-primary);">🌐 Master Landing Page CMS & Live Split-Screen Studio</h3>
-        <p class="text-muted small mb-0">100% Comprehensive Visual Customizer: Edit every single headline, paragraph, badge, button, facility, shift, testimonial, FAQ, rule, footer link, and SEO tag with live split-screen preview.</p>
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+          <span>🌐</span> Website CMS & Live Split-Screen Studio
+        </h3>
+        <p class="text-muted small mb-0">100% Granular Customizer: Edit every headline, button, facility, shift, review, rule, and SEO tag with live split-screen preview.</p>
       </div>
-      <div class="d-flex gap-2 align-items-center">
-        <a href="/landing" target="_blank" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">👁️ Open Live Website (/landing) ↗</a>
-        <button id="btn-save-website-cms" class="btn btn-sm btn-primary" style="font-weight: 800; padding: 6px 18px;">🚀 Publish Live Website</button>
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <!-- View Mode Switcher -->
+        <div class="btn-group btn-group-sm" role="group" style="background: var(--color-bg-secondary); padding: 2px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+          <button type="button" id="btn-view-split" class="btn btn-xs btn-primary" style="font-weight: 700; padding: 4px 10px;">🔲 Split View</button>
+          <button type="button" id="btn-view-editor" class="btn btn-xs btn-ghost text-muted" style="font-weight: 700; padding: 4px 10px;">📝 Editor Only</button>
+          <button type="button" id="btn-view-preview" class="btn btn-xs btn-ghost text-muted" style="font-weight: 700; padding: 4px 10px;">📱 Preview Only</button>
+        </div>
+        <a href="/landing" target="_blank" class="btn btn-sm btn-outline-primary" style="font-weight: 700; padding: 6px 12px;">👁️ Open Live ↗</a>
+        <button id="btn-save-website-cms" class="btn btn-sm btn-primary" style="font-weight: 800; padding: 6px 18px; box-shadow: var(--shadow-sm);">🚀 Publish Live Website</button>
       </div>
     </div>
 
-    <!-- 4 Selectable Theme Presets -->
-    <div style="margin-bottom: 1.5rem;">
+    <!-- 4 Visual Theme Presets -->
+    <div style="margin-bottom: 1.25rem; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <label class="form-label mb-0" style="font-weight: 800; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
-          <span>🎨</span> Select Visual Theme Preset
+        <label class="form-label mb-0" style="font-weight: 800; font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
+          <span>🎨</span> Visual Theme Preset
         </label>
-        <span class="badge" style="background: rgba(108,92,231,0.12); color: var(--color-primary); font-size: 0.75rem;">1-Tap Instant Theme Apply</span>
+        <span class="badge" style="background: rgba(108,92,231,0.12); color: var(--color-primary); font-size: 0.72rem;">1-Tap Instant Theme Apply</span>
       </div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;" id="theme-presets-grid">
-        <div class="card p-3 theme-preset-card active" data-preset="modern_glass" style="border: 2px solid var(--color-primary); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
-          <span style="font-size: 1.8rem; margin-bottom: 4px;">✨</span>
-          <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-text-primary);">Modern Glass</h5>
-          <small class="text-muted d-block">Frosted glass & neon emerald glow</small>
-          <div style="margin-top: 6px; display: flex; justify-content: center; gap: 4px;">
-            <span style="width: 12px; height: 12px; border-radius: 50%; background: #6c5ce7; display: inline-block;"></span>
-            <span style="width: 12px; height: 12px; border-radius: 50%; background: #00b894; display: inline-block;"></span>
-            <span style="width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; display: inline-block;"></span>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px;" id="theme-presets-grid">
+        <div class="card p-2 theme-preset-card active" data-preset="modern_glass" style="border: 2px solid var(--color-primary); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 2px;">
+            <span>✨</span>
+            <strong style="font-size: 0.88rem; color: var(--color-text-primary);">Modern Glass</strong>
+          </div>
+          <small class="text-muted" style="font-size: 0.72rem; display: block;">Frosted glass & emerald glow</small>
+          <div style="margin-top: 4px; display: flex; justify-content: center; gap: 4px;">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #6c5ce7; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #00b894; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #3b82f6; display: inline-block;"></span>
           </div>
         </div>
 
-        <div class="card p-3 theme-preset-card" data-preset="academic_clean" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
-          <span style="font-size: 1.8rem; margin-bottom: 4px;">📖</span>
-          <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-text-primary);">Academic Clean</h5>
-          <small class="text-muted d-block">High contrast slate & ocean teal</small>
-          <div style="margin-top: 6px; display: flex; justify-content: center; gap: 4px;">
-            <span style="width: 12px; height: 12px; border-radius: 50%; background: #1e293b; display: inline-block;"></span>
-            <span style="width: 12px; height: 12px; border-radius: 50%; background: #0284c7; display: inline-block;"></span>
-            <span style="width: 12px; height: 12px; border-radius: 50%; background: #64748b; display: inline-block;"></span>
+        <div class="card p-2 theme-preset-card" data-preset="academic_clean" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 2px;">
+            <span>📖</span>
+            <strong style="font-size: 0.88rem; color: var(--color-text-primary);">Academic Clean</strong>
+          </div>
+          <small class="text-muted" style="font-size: 0.72rem; display: block;">Slate & ocean teal</small>
+          <div style="margin-top: 4px; display: flex; justify-content: center; gap: 4px;">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #1e293b; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #0284c7; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #64748b; display: inline-block;"></span>
           </div>
         </div>
 
-        <div class="card p-3 theme-preset-card" data-preset="dark_cyber" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
-          <span style="font-size: 1.8rem; margin-bottom: 4px;">⚡</span>
-          <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-text-primary);">Dark Cyber</h5>
-          <small class="text-muted d-block">Deep obsidian & bright cyan glow</small>
-          <div style="margin-top: 6px; display: flex; justify-content: center; gap: 4px;">
-            <span style="width: 12px; height: 12px; border-radius: 50%; background: #06b6d4; display: inline-block;"></span>
-            <span style="width: 12px; height: 12px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-            <span style="width: 12px; height: 12px; border-radius: 50%; background: #0b0f19; border: 1px solid #333; display: inline-block;"></span>
+        <div class="card p-2 theme-preset-card" data-preset="dark_cyber" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 2px;">
+            <span>⚡</span>
+            <strong style="font-size: 0.88rem; color: var(--color-text-primary);">Dark Cyber</strong>
+          </div>
+          <small class="text-muted" style="font-size: 0.72rem; display: block;">Obsidian & cyan glow</small>
+          <div style="margin-top: 4px; display: flex; justify-content: center; gap: 4px;">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #06b6d4; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #0b0f19; border: 1px solid #333; display: inline-block;"></span>
           </div>
         </div>
 
-        <div class="card p-3 theme-preset-card" data-preset="warm_cozy" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
-          <span style="font-size: 1.8rem; margin-bottom: 4px;">🏛️</span>
-          <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-text-primary);">Warm Cozy</h5>
-          <small class="text-muted d-block">Parchment background & amber wood</small>
-          <div style="margin-top: 6px; display: flex; justify-content: center; gap: 4px;">
-            <span style="width: 12px; height: 12px; border-radius: 50%; background: #b45309; display: inline-block;"></span>
-            <span style="width: 12px; height: 12px; border-radius: 50%; background: #d97706; display: inline-block;"></span>
-            <span style="width: 12px; height: 12px; border-radius: 50%; background: #faf5ee; border: 1px solid #ccc; display: inline-block;"></span>
+        <div class="card p-2 theme-preset-card" data-preset="warm_cozy" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 2px;">
+            <span>🏛️</span>
+            <strong style="font-size: 0.88rem; color: var(--color-text-primary);">Warm Cozy</strong>
+          </div>
+          <small class="text-muted" style="font-size: 0.72rem; display: block;">Parchment & amber wood</small>
+          <div style="margin-top: 4px; display: flex; justify-content: center; gap: 4px;">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #b45309; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #d97706; display: inline-block;"></span>
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #faf5ee; border: 1px solid #ccc; display: inline-block;"></span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Split-Screen Controls + Live Preview Layout -->
-    <div style="display: grid; grid-template-columns: 1.15fr 1.05fr; gap: 20px;" class="cms-split-layout">
+    <!-- Category Filter Tabs Navigation -->
+    <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px;" id="cms-cat-tabs">
+      <button type="button" class="btn btn-xs btn-primary cms-cat-btn" data-cat="all" style="font-weight: 700; white-space: nowrap; border-radius: 20px; padding: 4px 12px;">🌟 All Sections (17)</button>
+      <button type="button" class="btn btn-xs btn-outline-secondary cms-cat-btn" data-cat="branding" style="font-weight: 700; white-space: nowrap; border-radius: 20px; padding: 4px 12px;">🎨 Theme & Header</button>
+      <button type="button" class="btn btn-xs btn-outline-secondary cms-cat-btn" data-cat="hero" style="font-weight: 700; white-space: nowrap; border-radius: 20px; padding: 4px 12px;">🚀 Hero & Plans</button>
+      <button type="button" class="btn btn-xs btn-outline-secondary cms-cat-btn" data-cat="facilities" style="font-weight: 700; white-space: nowrap; border-radius: 20px; padding: 4px 12px;">⚡ Amenities & Shifts</button>
+      <button type="button" class="btn btn-xs btn-outline-secondary cms-cat-btn" data-cat="about" style="font-weight: 700; white-space: nowrap; border-radius: 20px; padding: 4px 12px;">📖 About & Reviews</button>
+      <button type="button" class="btn btn-xs btn-outline-secondary cms-cat-btn" data-cat="policy" style="font-weight: 700; white-space: nowrap; border-radius: 20px; padding: 4px 12px;">📜 FAQs & Rules</button>
+      <button type="button" class="btn btn-xs btn-outline-secondary cms-cat-btn" data-cat="contact" style="font-weight: 700; white-space: nowrap; border-radius: 20px; padding: 4px 12px;">📞 Contact & SEO</button>
+    </div>
+
+    <!-- Main Studio Layout: Editor (Left) + Split Preview (Right) -->
+    <div id="cms-main-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;" class="cms-split-layout">
       
-      <!-- Left Column: Collapsible Interactive Accordions -->
-      <div style="display: flex; flex-direction: column; gap: 12px; max-height: 860px; overflow-y: auto; padding-right: 6px;" id="cms-accordions-col">
+      <!-- Left Column: Collapsible Interactive Accordions with Zero Flex-Shrink -->
+      <div style="display: flex; flex-direction: column; gap: 12px; max-height: 850px; overflow-y: auto; padding-right: 6px;" id="cms-accordions-col">
         
         <!-- Accordion Controls Toolbar -->
         <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px;">
-          <span style="font-size: 0.82rem; font-weight: 700; color: var(--color-text-secondary);">⚙️ 17 Full Page Customization Sections</span>
+          <span style="font-size: 0.82rem; font-weight: 700; color: var(--color-text-secondary);" id="cms-sections-count-label">⚙️ Showing 17 Sections</span>
           <div class="d-flex gap-2">
-            <button type="button" id="btn-cms-expand-all" class="btn btn-xs btn-outline-secondary" style="font-size: 0.72rem; padding: 2px 8px;">➕ Expand All</button>
-            <button type="button" id="btn-cms-collapse-all" class="btn btn-xs btn-outline-secondary" style="font-size: 0.72rem; padding: 2px 8px;">➖ Collapse All</button>
+            <button type="button" id="btn-cms-expand-all" class="btn btn-xs btn-outline-secondary" style="font-size: 0.72rem; padding: 3px 8px; font-weight: 700;">➕ Expand All</button>
+            <button type="button" id="btn-cms-collapse-all" class="btn btn-xs btn-outline-secondary" style="font-size: 0.72rem; padding: 3px 8px; font-weight: 700;">➖ Collapse All</button>
           </div>
         </div>
 
         <!-- Section 1: 🎨 Palette & Typography Overrides -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+        <div class="card cms-accordion-card" data-category="branding" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none; background: var(--color-surface);">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>🎨</span> 1. Color Palette & Typography Styling
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▲</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: block;">
-            <div class="row g-2">
-              <div class="col-md-4">
-                <label class="form-label small" style="font-weight: 700;">Primary Color</label>
+          <div class="cms-accordion-body p-3 pt-0" style="display: block; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 10px;">
+              <div class="p-2 border rounded" style="background: var(--color-surface);">
+                <label class="form-label small mb-1" style="font-weight: 700;">Primary Color</label>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <input type="color" id="cms-color-primary" class="form-control form-control-color p-0" value="#6c5ce7" style="width: 36px; height: 32px; cursor: pointer;">
-                  <input type="text" id="cms-color-primary-text" class="form-control form-control-sm font-monospace" value="#6c5ce7" maxlength="7">
+                  <input type="color" id="cms-color-primary" value="#6c5ce7" style="width: 34px; height: 30px; border: none; cursor: pointer; border-radius: 4px; padding: 0;">
+                  <input type="text" id="cms-color-primary-text" class="form-control form-control-sm font-monospace p-1" value="#6c5ce7" maxlength="7" style="font-size: 0.8rem;">
                 </div>
               </div>
-              <div class="col-md-4">
-                <label class="form-label small" style="font-weight: 700;">Accent Color</label>
+              <div class="p-2 border rounded" style="background: var(--color-surface);">
+                <label class="form-label small mb-1" style="font-weight: 700;">Accent Glow</label>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <input type="color" id="cms-color-accent" class="form-control form-control-color p-0" value="#00b894" style="width: 36px; height: 32px; cursor: pointer;">
-                  <input type="text" id="cms-color-accent-text" class="form-control form-control-sm font-monospace" value="#00b894" maxlength="7">
+                  <input type="color" id="cms-color-accent" value="#00b894" style="width: 34px; height: 30px; border: none; cursor: pointer; border-radius: 4px; padding: 0;">
+                  <input type="text" id="cms-color-accent-text" class="form-control form-control-sm font-monospace p-1" value="#00b894" maxlength="7" style="font-size: 0.8rem;">
                 </div>
               </div>
-              <div class="col-md-4">
-                <label class="form-label small" style="font-weight: 700;">Secondary Tint</label>
+              <div class="p-2 border rounded" style="background: var(--color-surface);">
+                <label class="form-label small mb-1" style="font-weight: 700;">Secondary Tint</label>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <input type="color" id="cms-color-secondary" class="form-control form-control-color p-0" value="#3b82f6" style="width: 36px; height: 32px; cursor: pointer;">
-                  <input type="text" id="cms-color-secondary-text" class="form-control form-control-sm font-monospace" value="#3b82f6" maxlength="7">
+                  <input type="color" id="cms-color-secondary" value="#3b82f6" style="width: 34px; height: 30px; border: none; cursor: pointer; border-radius: 4px; padding: 0;">
+                  <input type="text" id="cms-color-secondary-text" class="form-control form-control-sm font-monospace p-1" value="#3b82f6" maxlength="7" style="font-size: 0.8rem;">
                 </div>
               </div>
-              <div class="col-12 mt-2">
-                <label class="form-label small" style="font-weight: 700;">Typography Font Family</label>
-                <select id="cms-font-family" class="form-select form-select-sm">
-                  <option value="Outfit, sans-serif">Outfit (Modern, Clean & Geometric)</option>
-                  <option value="Inter, sans-serif">Inter (High Legibility & Academic)</option>
-                  <option value="Poppins, sans-serif">Poppins (Friendly & Rounded)</option>
-                  <option value="Plus Jakarta Sans, sans-serif">Plus Jakarta Sans (Tech & Sleek)</option>
-                  <option value="Playfair Display, serif">Playfair Display (Warm & Classic Serif)</option>
-                  <option value="Roboto, sans-serif">Roboto (Standard Sans)</option>
-                </select>
-              </div>
+            </div>
+            <div>
+              <label class="form-label small mb-1" style="font-weight: 700;">Typography Font Family</label>
+              <select id="cms-font-family" class="form-select form-select-sm">
+                <option value="Outfit, sans-serif">Outfit (Modern, Clean & Geometric)</option>
+                <option value="Inter, sans-serif">Inter (High Legibility & Academic)</option>
+                <option value="Poppins, sans-serif">Poppins (Friendly & Rounded)</option>
+                <option value="Plus Jakarta Sans, sans-serif">Plus Jakarta Sans (Tech & Sleek)</option>
+                <option value="Playfair Display, serif">Playfair Display (Warm & Classic Serif)</option>
+                <option value="Roboto, sans-serif">Roboto (Standard Sans)</option>
+              </select>
             </div>
           </div>
         </div>
 
         <!-- Section 2: 📢 Announcement Ticker & Live Seat Availability -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="branding" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>📢</span> 2. Announcement Ticker & Live Seat Badge
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="form-check form-switch mb-2">
               <input class="form-check-input" type="checkbox" id="cms-ticker-enabled" checked>
               <label class="form-check-label small" for="cms-ticker-enabled" style="font-weight: 700;">Show Top Announcement Marquee Ticker</label>
@@ -2362,14 +2392,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 3: 🧭 Navbar & Header Action Buttons -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="branding" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>🧭</span> 3. Navigation Bar & Header Actions
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="form-group mb-2">
               <label class="form-label small" style="font-weight: 700;">Navbar Brand Name Override</label>
               <input type="text" id="cms-nav-brand-name" class="form-control form-control-sm" placeholder="Leave blank to use Business Profile Name">
@@ -2402,14 +2432,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 4: 🌟 Hero Section Headline, Buttons & Feature Badges -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="hero" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>🌟</span> 4. Hero Section Headline, CTAs & Badges
             </h5>
-            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▲</span>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: block;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="form-group mb-2">
               <label class="form-label small" style="font-weight: 700;">Hero Main Title Headline</label>
               <input type="text" id="cms-hero-title" class="form-control form-control-sm" value="Premier Air-Conditioned Study Library & Reading Hall">
@@ -2450,14 +2480,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 5: ⚡ Key Facilities & Amenities (6 Cards) -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="facilities" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>⚡</span> 5. Facilities & Amenities Cards (6 Cards)
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small" style="font-weight: 700;">Section Title</label>
@@ -2469,7 +2499,6 @@ function renderWebsiteCmsStudio() {
               </div>
             </div>
             <div id="cms-facilities-list" style="display: flex; flex-direction: column; gap: 8px;">
-              <!-- 6 Facility Inputs -->
               ${[
                 { icon: '❄️', title: 'Central Air Conditioning', desc: 'Dual inverter ACs maintaining optimal 23°C temperature all year round.' },
                 { icon: '🚀', title: '300 Mbps Fiber Wi-Fi', desc: 'Enterprise dual-band optical internet with zero buffering for video lectures.' },
@@ -2491,14 +2520,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 6: ⏰ Flexible Study Shifts & Timings -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="facilities" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>⏰</span> 6. Study Shifts & Timings Guide
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small" style="font-weight: 700;">Section Title</label>
@@ -2530,14 +2559,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 7: 💳 Pricing & Membership Plans Header -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="hero" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>💳</span> 7. Pricing & Membership Plans Header
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="form-group mb-2">
               <label class="form-label small" style="font-weight: 700;">Section Badge / Tag</label>
               <input type="text" id="cms-plans-badge" class="form-control form-control-sm" value="AFFORDABLE PRICING">
@@ -2554,14 +2583,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 8: 📖 About Section, Highlights & Live Counters -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="about" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>📖</span> 8. About Section, Highlights & Live Counters
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small" style="font-weight: 700;">About Headline Title</label>
@@ -2594,14 +2623,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 9: 🖼️ Photo Gallery & Showcase -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="about" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>🖼️</span> 9. Photo Gallery & Showcase
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small" style="font-weight: 700;">Section Title</label>
@@ -2632,14 +2661,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 10: ⭐ Student Reviews & Google Trust Rating -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="about" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>⭐</span> 10. Student Reviews & Google Rating
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small" style="font-weight: 700;">Section Title</label>
@@ -2673,14 +2702,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 11: ❓ Frequently Asked Questions (FAQs) -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="policy" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>❓</span> 11. Frequently Asked Questions (FAQs)
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small" style="font-weight: 700;">Section Title</label>
@@ -2712,14 +2741,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 12: 📜 Library Rules & Code of Conduct -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="policy" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>📜</span> 12. Library Rules & Code of Conduct
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small" style="font-weight: 700;">Section Title</label>
@@ -2749,14 +2778,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 13: 📝 Online Enquiry Form -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="policy" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>📝</span> 13. Online Enquiry Section & Alert
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small" style="font-weight: 700;">Enquiry Title</label>
@@ -2775,14 +2804,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 14: 📞 Contact Info, Operating Hours & Google Maps Location -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="contact" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>📞</span> 14. Contact Info, Hours & Google Maps
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small" style="font-weight: 700;">Contact Phone</label>
@@ -2819,14 +2848,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 15: 📱 Floating Quick Actions Widget (Sticky WhatsApp & Call) -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="contact" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>📱</span> 15. Floating Quick Action Buttons (Sticky WA & Call)
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="form-check form-switch mb-2">
               <input class="form-check-input" type="checkbox" id="cms-floating-enabled" checked>
               <label class="form-check-label small" for="cms-floating-enabled" style="font-weight: 700;">Enable Sticky WhatsApp & Call Buttons</label>
@@ -2849,14 +2878,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 16: 🦶 Footer, Quick Links & Copyright -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="contact" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>🦶</span> 16. Footer, Quick Links & Copyright Notice
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="row g-2 mb-2">
               <div class="col-6">
                 <label class="form-label small" style="font-weight: 700;">Footer Organization Name</label>
@@ -2889,14 +2918,14 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 17: 🔍 SEO Search Metadata, Social Share & Analytics -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+        <div class="card cms-accordion-card" data-category="contact" style="flex-shrink: 0; width: 100%; margin-bottom: 8px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden;">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
               <span>🔍</span> 17. SEO Search Metadata & Social Graph
             </h5>
             <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none; background: var(--color-bg-secondary); border-top: 1px solid var(--color-border);">
             <div class="form-group mb-2">
               <label class="form-label small" style="font-weight: 700;">Google Search Page Title</label>
               <input type="text" id="cms-seo-title" class="form-control form-control-sm" value="Study Library & Reading Hall — Premium Self-Study Space">
@@ -2925,10 +2954,10 @@ function renderWebsiteCmsStudio() {
       </div>
 
       <!-- Right Column: Live Responsive Split-Screen Preview -->
-      <div style="display: flex; flex-direction: column; position: sticky; top: 10px;">
+      <div id="cms-preview-col" style="display: flex; flex-direction: column; position: sticky; top: 10px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
           <div class="d-flex align-items-center gap-2">
-            <span style="font-weight: 800; font-size: 0.9rem; color: var(--color-text-primary);">📱 Live Split-Screen Preview</span>
+            <span style="font-weight: 800; font-size: 0.9rem; color: var(--color-text-primary);">📱 Live Preview Canvas</span>
             <span class="badge badge-success" style="font-size: 0.7rem; font-weight: 700;">⚡ Instant Sync</span>
           </div>
           <div class="d-flex gap-1 align-items-center">
@@ -2938,7 +2967,7 @@ function renderWebsiteCmsStudio() {
           </div>
         </div>
 
-        <div id="cms-preview-container" style="width: 100%; height: 760px; border: 2px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; background: #0f121d; display: flex; justify-content: center; align-items: center; transition: all 0.3s;">
+        <div id="cms-preview-container" style="width: 100%; height: 780px; border: 2px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; background: #0f121d; display: flex; justify-content: center; align-items: center; transition: all 0.3s;">
           <iframe id="cms-preview-frame" src="/landing?preview=true&theme=modern_glass" style="width: 100%; height: 100%; border: none; transition: width 0.3s ease;"></iframe>
         </div>
       </div>
@@ -2946,11 +2975,85 @@ function renderWebsiteCmsStudio() {
     </div>
   `;
 
-  // Attach interactive live preview listeners and fetch database config
+  // Attach interactive live preview listeners, tab category filtering, view mode switching, and fetch database config
   setTimeout(async () => {
     const iframe = wrapper.querySelector('#cms-preview-frame');
+    const mainGrid = wrapper.querySelector('#cms-main-grid');
+    const previewCol = wrapper.querySelector('#cms-preview-col');
+    const accordionsCol = wrapper.querySelector('#cms-accordions-col');
 
-    // 0. Interactive Accordion Expand/Collapse Logic
+    // 0. View Mode Switcher Handlers
+    const btnSplit = wrapper.querySelector('#btn-view-split');
+    const btnEditor = wrapper.querySelector('#btn-view-editor');
+    const btnPreview = wrapper.querySelector('#btn-view-preview');
+
+    const updateViewMode = (mode) => {
+      activeViewMode = mode;
+      [btnSplit, btnEditor, btnPreview].forEach(b => {
+        if (b) {
+          b.className = 'btn btn-xs btn-ghost text-muted';
+        }
+      });
+
+      if (mode === 'split') {
+        btnSplit.className = 'btn btn-xs btn-primary';
+        mainGrid.style.display = 'grid';
+        mainGrid.style.gridTemplateColumns = '1fr 1fr';
+        accordionsCol.style.display = 'flex';
+        previewCol.style.display = 'flex';
+      } else if (mode === 'editor') {
+        btnEditor.className = 'btn btn-xs btn-primary';
+        mainGrid.style.display = 'block';
+        accordionsCol.style.display = 'flex';
+        previewCol.style.display = 'none';
+      } else if (mode === 'preview') {
+        btnPreview.className = 'btn btn-xs btn-primary';
+        mainGrid.style.display = 'block';
+        accordionsCol.style.display = 'none';
+        previewCol.style.display = 'flex';
+      }
+    };
+
+    btnSplit?.addEventListener('click', () => updateViewMode('split'));
+    btnEditor?.addEventListener('click', () => updateViewMode('editor'));
+    btnPreview?.addEventListener('click', () => updateViewMode('preview'));
+
+    // 0.1 Category Filter Handlers
+    wrapper.querySelectorAll('.cms-cat-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        wrapper.querySelectorAll('.cms-cat-btn').forEach(b => {
+          b.className = 'btn btn-xs btn-outline-secondary cms-cat-btn';
+        });
+        btn.className = 'btn btn-xs btn-primary cms-cat-btn';
+        activeCategory = btn.dataset.cat;
+
+        let visibleCount = 0;
+        let firstCard = null;
+        wrapper.querySelectorAll('.cms-accordion-card').forEach(card => {
+          const cat = card.dataset.category;
+          if (activeCategory === 'all' || cat === activeCategory) {
+            card.style.display = 'block';
+            visibleCount++;
+            if (!firstCard) firstCard = card;
+          } else {
+            card.style.display = 'none';
+          }
+        });
+
+        // Expand first card in filtered view
+        if (firstCard && activeCategory !== 'all') {
+          const body = firstCard.querySelector('.cms-accordion-body');
+          const toggle = firstCard.querySelector('.cms-accordion-toggle');
+          if (body) body.style.display = 'block';
+          if (toggle) toggle.textContent = '▲';
+        }
+
+        const countLabel = wrapper.querySelector('#cms-sections-count-label');
+        if (countLabel) countLabel.textContent = `⚙️ Showing ${visibleCount} Section${visibleCount > 1 ? 's' : ''}`;
+      });
+    });
+
+    // 0.2 Interactive Accordion Expand/Collapse Logic
     wrapper.querySelectorAll('.cms-accordion-header').forEach(header => {
       header.addEventListener('click', () => {
         const body = header.nextElementSibling;
@@ -2966,8 +3069,14 @@ function renderWebsiteCmsStudio() {
     });
 
     wrapper.querySelector('#btn-cms-expand-all')?.addEventListener('click', () => {
-      wrapper.querySelectorAll('.cms-accordion-body').forEach(b => b.style.display = 'block');
-      wrapper.querySelectorAll('.cms-accordion-toggle').forEach(t => t.textContent = '▲');
+      wrapper.querySelectorAll('.cms-accordion-card').forEach(c => {
+        if (c.style.display !== 'none') {
+          const b = c.querySelector('.cms-accordion-body');
+          const t = c.querySelector('.cms-accordion-toggle');
+          if (b) b.style.display = 'block';
+          if (t) t.textContent = '▲';
+        }
+      });
     });
 
     wrapper.querySelector('#btn-cms-collapse-all')?.addEventListener('click', () => {
