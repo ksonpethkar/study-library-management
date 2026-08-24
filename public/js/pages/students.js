@@ -2410,24 +2410,70 @@ export async function render() {
 
       // Preview Grid Container based on currentSide & orientation
       let previewHtml = '';
+      const isVertical = currentOrientation === 'vertical';
+      const cardHeight = isVertical ? '400px' : '240px';
+
       if (currentSide === 'front') {
-        previewHtml = `<div style="display: flex; justify-content: center;">${renderFrontCard(currentOrientation === 'vertical')}</div>`;
+        previewHtml = `
+          <div style="display: flex; justify-content: center; align-items: center; padding: 6px 0;">
+            ${renderFrontCard(isVertical)}
+          </div>
+        `;
       } else if (currentSide === 'back') {
-        previewHtml = `<div style="display: flex; justify-content: center;">${renderBackCard(currentOrientation === 'vertical')}</div>`;
+        previewHtml = `
+          <div style="display: flex; justify-content: center; align-items: center; padding: 6px 0;">
+            ${renderBackCard(isVertical)}
+          </div>
+        `;
       } else {
         // Dual side side-by-side
         previewHtml = `
-          <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; align-items: center;" id="dual-print-container">
-            <div>
-              <div style="font-size: 0.72rem; font-weight: 700; text-align: center; margin-bottom: 4px; color: var(--color-text-muted);">🪪 FRONT SIDE</div>
-              ${renderFrontCard(currentOrientation === 'vertical')}
+          <div id="dual-print-container" style="
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 8px 4px;
+            box-sizing: border-box;
+            min-width: min-content;
+            margin: 0 auto;
+          ">
+            <!-- Front Column -->
+            <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;">
+              <div style="font-size: 0.75rem; font-weight: 800; text-align: center; margin-bottom: 6px; color: var(--color-primary); letter-spacing: 0.5px;">🪪 FRONT SIDE</div>
+              ${renderFrontCard(isVertical)}
             </div>
-            <div style="border-left: 2px dashed var(--color-border); height: ${isHoriz ? '200px' : '360px'}; display: flex; align-items: center; justify-content: center;">
-              <span style="background: var(--color-surface); padding: 2px 6px; font-size: 0.7rem; color: var(--color-text-muted);" title="Fold / Cut Line">✂️</span>
+
+            <!-- Perfectly Centered Vertical Fold / Cut Line -->
+            <div class="id-cut-separator" style="
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              position: relative;
+              height: ${cardHeight};
+              width: 36px;
+              flex-shrink: 0;
+            ">
+              <div style="position: absolute; top: 0; bottom: 0; left: 50%; border-left: 2px dashed rgba(99, 102, 241, 0.45); transform: translateX(-50%);"></div>
+              <span style="
+                position: relative;
+                background: var(--color-surface, #1e2230);
+                border: 1.5px solid var(--color-border, #374151);
+                border-radius: 20px;
+                padding: 4px 8px;
+                font-size: 0.78rem;
+                line-height: 1;
+                color: var(--color-text-secondary, #94a3b8);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+                z-index: 2;
+              " title="Fold / Cut Line">✂️</span>
             </div>
-            <div>
-              <div style="font-size: 0.72rem; font-weight: 700; text-align: center; margin-bottom: 4px; color: var(--color-text-muted);">📄 BACK SIDE</div>
-              ${renderBackCard(currentOrientation === 'vertical')}
+
+            <!-- Back Column -->
+            <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;">
+              <div style="font-size: 0.75rem; font-weight: 800; text-align: center; margin-bottom: 6px; color: var(--color-primary); letter-spacing: 0.5px;">📄 BACK SIDE</div>
+              ${renderBackCard(isVertical)}
             </div>
           </div>
         `;
@@ -2461,7 +2507,7 @@ export async function render() {
 
             </div>
 
-            <!-- Customization Bar -->
+            <!-- Customization Toggles -->
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-top: 1px solid var(--color-border); padding-top: 10px;">
               <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                 <div>
@@ -2500,7 +2546,7 @@ export async function render() {
           </div>
 
           <!-- Live Card Stage -->
-          <div id="id-card-render-stage" style="padding: 12px 0; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle, rgba(108,92,231,0.06) 0%, transparent 70%); border-radius: var(--radius-md);">
+          <div id="id-card-render-stage" style="padding: 14px 10px; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle, rgba(108,92,231,0.06) 0%, transparent 70%); border-radius: var(--radius-md); overflow-x: auto; width: 100%; box-sizing: border-box;">
             ${previewHtml}
           </div>
 
@@ -2542,6 +2588,18 @@ export async function render() {
               background: none !important;
               padding: 0 !important;
               margin: 0 !important;
+              overflow: visible !important;
+            }
+            #dual-print-container {
+              display: flex !important;
+              flex-direction: row !important;
+              align-items: center !important;
+              justify-content: center !important;
+              gap: 20px !important;
+              flex-wrap: nowrap !important;
+            }
+            .id-cut-separator {
+              display: flex !important;
             }
             .id-card-entity {
               box-shadow: none !important;
@@ -2576,21 +2634,17 @@ export async function render() {
         renderStudioUI();
       });
 
-      // Wire up Color & Theme Picker
+      // Wire up Color Theme Pickers
       modalContent.querySelector('#id-studio-color')?.addEventListener('input', (e) => {
         currentColor = e.target.value;
         renderStudioUI();
       });
       modalContent.querySelector('#id-studio-theme-select')?.addEventListener('change', (e) => {
         currentTheme = e.target.value;
-        if (currentTheme === 'gradient') currentColor = '#4f46e5';
-        if (currentTheme === 'dark') currentColor = '#38bdf8';
-        if (currentTheme === 'minimal') currentColor = '#1e293b';
-        if (currentTheme === 'glass') currentColor = '#0284c7';
         renderStudioUI();
       });
 
-      // Wire up toggles
+      // Wire up Feature Toggles
       modalContent.querySelector('#toggle-id-qr')?.addEventListener('change', (e) => {
         showQr = e.target.checked;
         renderStudioUI();
@@ -2608,24 +2662,31 @@ export async function render() {
         renderStudioUI();
       });
 
-      // Print Button
-      modalContent.querySelector('#btn-print-id-card')?.addEventListener('click', () => {
-        window.print();
-      });
-
-      // Close Button
+      // Wire up Close Button
       modalContent.querySelector('#btn-close-id-studio')?.addEventListener('click', () => {
         idModal.close();
       });
 
-      // Helper to capture DOM element to PNG
+      // Wire up Native Print Action
+      modalContent.querySelector('#btn-print-id-card')?.addEventListener('click', () => {
+        if (currentSide !== 'dual') {
+          currentSide = 'dual';
+          renderStudioUI();
+        }
+        setTimeout(() => {
+          window.print();
+        }, 300);
+      });
+
+      // Wire up Single-Side PNG Downloads
       const downloadElementAsPng = async (targetSelector, filename) => {
         try {
           if (!window.html2canvas) {
             await new Promise((res, rej) => {
               const s = document.createElement('script');
               s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-              s.onload = res; s.onerror = rej;
+              s.onload = res;
+              s.onerror = rej;
               document.head.appendChild(s);
             });
           }
@@ -2667,7 +2728,7 @@ export async function render() {
     const idModal = new Modal({
       title: `🪪 Student ID Card Studio: ${escapeHTML(student.name)}`,
       content: modalContent,
-      size: 'lg'
+      size: 'xl'
     });
     idModal.show();
   }
