@@ -824,178 +824,427 @@
       }
     }
 
-    function buildFieldGroupHtml(fList) {
-      if (!fList || fList.length === 0) return '';
-      fList.sort((a, b) => (a.order || 0) - (b.order || 0));
-
-      let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem;">';
+    function renderDynamicFieldHtml(f) {
+      if (!f) return '';
+      const name = (f.fieldName || f.name || '').trim();
+      const lowerName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const type = f.type || 'text';
+      const label = f.label || name;
+      const placeholder = f.placeholder || '';
+      const required = f.required ? 'required' : '';
+      const reqMark = f.required ? ' <span style="color: var(--color-danger);">*</span>' : '';
+      const helpText = f.helpText ? `<small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 3px;">${escapeHTML(f.helpText)}</small>` : '';
+      const colStyle = (f.colSpan === 12 || f.colSpan === 2 || ['textarea', 'aadhaar_pan', 'photo_upload', 'signature_pad', 'exam_badge', 'multiselect'].includes(type) || ['branch', 'photo', 'address'].includes(lowerName)) ? 'grid-column: 1 / -1;' : '';
       
-      fList.forEach(f => {
-        const reqMark = f.required ? ' <span style="color: var(--color-danger);">*</span>' : '';
-        const colStyle = (f.colSpan === 12 || f.colSpan === 2 || ['textarea', 'aadhaar_pan', 'signature_pad', 'exam_badge', 'multiselect'].includes(f.type)) ? 'grid-column: 1 / -1;' : '';
-        const helpText = f.helpText ? `<small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 3px;">${escapeHTML(f.helpText)}</small>` : '';
-        
-        const cond = f.conditional || (f.showIf ? { enabled: true, dependsOn: f.showIf.field || f.showIf.dependsOn, showWhen: f.showIf.value || f.showIf.showWhen, operator: f.showIf.operator } : null);
-        const isCondEnabled = cond && (cond.enabled !== false) && cond.dependsOn;
-        const depAttr = isCondEnabled ? `data-depends-on="${escapeHTML(cond.dependsOn)}" data-show-when="${escapeHTML(cond.showWhen)}" data-operator="${escapeHTML(cond.operator || 'equals')}"` : '';
+      const cond = f.conditional || (f.showIf ? { enabled: true, dependsOn: f.showIf.field || f.showIf.dependsOn, showWhen: f.showIf.value || f.showIf.showWhen, operator: f.showIf.operator } : null);
+      const isCondEnabled = cond && (cond.enabled !== false) && cond.dependsOn;
+      const depAttr = isCondEnabled ? `data-depends-on="${escapeHTML(cond.dependsOn)}" data-show-when="${escapeHTML(cond.showWhen)}" data-operator="${escapeHTML(cond.operator || 'equals')}"` : '';
 
-        let fieldInputHtml = '';
+      // 1. Branch Selection
+      if (lowerName === 'branch' || type === 'branch' || lowerName === 'studycentre') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">🏢 ${escapeHTML(label)}${reqMark}</label>
+              <select id="reg-branch" name="branch" class="form-select" ${required}>
+                <option value="">-- Loading Active Branches... --</option>
+              </select>
+              ${helpText || '<small class="text-muted">Select your nearest library study campus</small>'}
+            </div>
+          </div>
+        `;
+      }
 
-        if (f.type === 'aadhaar_pan') {
-          fieldInputHtml = `
+      // 2. Full Name
+      if (lowerName === 'fullname' || lowerName === 'name' || lowerName === 'studentname') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">👤 ${escapeHTML(label)}${reqMark}</label>
+              <input type="text" id="reg-name" name="name" class="form-control" placeholder="${escapeHTML(placeholder || 'e.g. Rahul Sharma')}" ${required}>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+
+      // 3. Mobile / WhatsApp Phone Number
+      if (lowerName === 'phone' || lowerName === 'mobile' || lowerName === 'whatsapp') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">📱 ${escapeHTML(label)}${reqMark}</label>
+              <input type="tel" id="reg-phone" name="phone" class="form-control" placeholder="${escapeHTML(placeholder || '10-digit WhatsApp number')}" ${required} maxlength="10">
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+
+      // 4. Date of Birth
+      if (lowerName === 'dateofbirth' || lowerName === 'dob' || lowerName === 'birthdate') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">📅 ${escapeHTML(label)}${reqMark}</label>
+              <input type="date" id="reg-dob" name="dob" class="form-control" ${required}>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+
+      // 5. Email Address
+      if (lowerName === 'email' || lowerName === 'emailaddress') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">📧 ${escapeHTML(label)}${reqMark}</label>
+              <input type="email" id="reg-email" name="email" class="form-control" placeholder="${escapeHTML(placeholder || 'student@example.com')}" ${required}>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+
+      // 6. Gender
+      if (lowerName === 'gender' || lowerName === 'sex') {
+        if (type === 'radio') {
+          const opts = f.options && f.options.length ? f.options : ['Male', 'Female', 'Other'];
+          return `
             <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-              <label class="form-label" style="font-weight: 600;">📑 ${escapeHTML(f.label)}${reqMark}</label>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 8px;">
-                <div>
-                  <label class="form-label text-xs">ID Document Type</label>
-                  <select class="form-select form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}_type" name="cf_${escapeHTML(f.fieldName)}_type">
-                    <option value="Aadhaar Card">Aadhaar Card</option>
-                    <option value="PAN Card">PAN Card</option>
-                    <option value="Voter ID">Voter ID</option>
-                    <option value="Driving License">Driving License</option>
-                    <option value="College Student ID">College Student ID</option>
-                    <option value="Passport">Passport</option>
-                  </select>
+              <div class="form-group mb-2">
+                <label class="form-label" style="font-weight: 600;">🚻 ${escapeHTML(label)}${reqMark}</label>
+                <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px;">
+                  ${opts.map(opt => `
+                    <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer;">
+                      <input type="radio" name="gender" value="${escapeHTML(opt.toLowerCase())}" ${opt.toLowerCase() === 'male' ? 'checked' : ''} ${required}>
+                      ${escapeHTML(opt)}
+                    </label>
+                  `).join('')}
                 </div>
-                <div>
-                  <label class="form-label text-xs">Document Number</label>
-                  <input type="text" class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}_number" name="cf_${escapeHTML(f.fieldName)}_number" placeholder="e.g. Last 4 digits or ID no." ${f.required ? 'required' : ''}>
-                </div>
+                ${helpText}
               </div>
-              <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}_image" data-label="Upload ID Proof Photo / Document" data-preset="document"></div>
-              ${helpText}
             </div>
           `;
-        } else if (f.type === 'photo_upload' || f.type === 'file') {
-          fieldInputHtml = `
-            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-              <label class="form-label" style="font-weight: 600;">📎 ${escapeHTML(f.label)}${reqMark}</label>
-              <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}" data-label="${escapeHTML(f.label)}" data-preset="${f.type === 'photo_upload' ? 'passport' : 'document'}"></div>
+        }
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">🚻 ${escapeHTML(label)}${reqMark}</label>
+              <select id="reg-gender" name="gender" class="form-select" ${required}>
+                <option value="male" selected>Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
               ${helpText}
             </div>
-          `;
-        } else if (f.type === 'signature_pad') {
-          fieldInputHtml = `
-            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-              <label class="form-label" style="font-weight: 600;">✍️ ${escapeHTML(f.label)}${reqMark}</label>
-              <div class="custom-field-sig-mount" data-field="${escapeHTML(f.fieldName)}"></div>
-              ${helpText}
-            </div>
-          `;
-        } else if (f.type === 'blood_group') {
-          const bgOpts = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
-          fieldInputHtml = `
-            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-              <label class="form-label" style="font-weight: 600;">🩸 ${escapeHTML(f.label)}${reqMark}</label>
-              <select class="form-select custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
+          </div>
+        `;
+      }
+
+      // 7. Blood Group
+      if (lowerName === 'bloodgroup' || type === 'blood_group') {
+        const bgOpts = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">🩸 ${escapeHTML(label)}${reqMark}</label>
+              <select id="reg-blood-group" name="bloodGroup" class="form-select" ${required}>
                 <option value="">-- Select Blood Group --</option>
                 ${bgOpts.map(bg => `<option value="${bg}">${bg}</option>`).join('')}
               </select>
               ${helpText}
             </div>
-          `;
-        } else if (f.type === 'multiselect') {
-          fieldInputHtml = `
-            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-              <label class="form-label" style="font-weight: 600;">☑️ ${escapeHTML(f.label)}${reqMark}</label>
-              <div class="custom-dyn-multiselect-group" data-field="${escapeHTML(f.fieldName)}" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px;">
-                ${(f.options || []).map(opt => `
-                  <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer; background: var(--color-bg-secondary); padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
-                    <input type="checkbox" class="custom-dyn-multiselect" value="${escapeHTML(opt)}" style="accent-color: var(--color-primary); width: 16px; height: 16px;">
-                    <span>${escapeHTML(opt)}</span>
-                  </label>
-                `).join('')}
-              </div>
+          </div>
+        `;
+      }
+
+      // 8. Student Portal Password
+      if (lowerName === 'password' || lowerName === 'studentpassword' || lowerName === 'portalpassword') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">🔒 ${escapeHTML(label)}${reqMark}</label>
+              <input type="password" id="reg-password" name="password" class="form-control" placeholder="${escapeHTML(placeholder || 'Choose 6+ char password')}" ${required} minlength="6">
               ${helpText}
             </div>
-          `;
-        } else if (f.type === 'exam_badge') {
-          fieldInputHtml = `
-            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-              <label class="form-label" style="font-weight: 600;">🏷️ ${escapeHTML(f.label)}${reqMark}</label>
-              <div class="custom-dyn-badge-group" data-field="${escapeHTML(f.fieldName)}" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
-                ${(f.options || []).map(opt => `
-                  <span class="exam-pill custom-dyn-badge" data-val="${escapeHTML(opt)}">${escapeHTML(opt)}</span>
-                `).join('')}
-              </div>
+          </div>
+        `;
+      }
+
+      // 9. Passport Photo Upload / Selfie Capture
+      if (lowerName === 'photo' || lowerName === 'passportphoto' || type === 'photo_upload') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="grid-column: 1 / -1;">
+            <div class="mb-3">
+              <label class="form-label" style="font-weight: 600;">📸 ${escapeHTML(label)}${reqMark}</label>
+              <div id="public-photo-mount"></div>
+              ${helpText || '<small class="text-muted">Will be printed on your physical &amp; mobile digital ID card</small>'}
+            </div>
+          </div>
+        `;
+      }
+
+      // 10. Residential Address
+      if (lowerName === 'address' || lowerName === 'residentialaddress') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="grid-column: 1 / -1;">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">🏠 ${escapeHTML(label)}${reqMark}</label>
+              <textarea id="reg-address" name="address" class="form-control" rows="2" placeholder="${escapeHTML(placeholder || 'House/Flat No, Street, Landmark, Area')}" ${required}></textarea>
               ${helpText}
             </div>
-          `;
-        } else if (f.type === 'star_rating') {
-          fieldInputHtml = `
-            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-              <label class="form-label" style="font-weight: 600;">⭐ ${escapeHTML(f.label)}${reqMark}</label>
-              <div class="star-rating-wrap" data-field="${escapeHTML(f.fieldName)}">
-                <span class="star-rating-item" data-val="1">★</span>
-                <span class="star-rating-item" data-val="2">★</span>
-                <span class="star-rating-item" data-val="3">★</span>
-                <span class="star-rating-item" data-val="4">★</span>
-                <span class="star-rating-item" data-val="5">★</span>
-              </div>
-              <input type="hidden" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" value="5">
+          </div>
+        `;
+      }
+
+      // 11. Pincode
+      if (lowerName === 'pincode') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">📮 ${escapeHTML(label)} ⚡${reqMark}</label>
+              <input type="text" id="reg-pincode" name="pincode" class="form-control" placeholder="${escapeHTML(placeholder || '411001')}" maxlength="6" ${required}>
               ${helpText}
             </div>
-          `;
-        } else if (f.type === 'checkbox' || f.type === 'terms_checkbox') {
-          fieldInputHtml = `
-            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-              <div style="background: var(--color-bg-secondary); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; margin: 0;">
-                  <input type="checkbox" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" style="width: 17px; height: 17px; accent-color: var(--color-primary);" ${f.required ? 'required' : ''}>
-                  <span>${escapeHTML(f.label)}${reqMark}</span>
+          </div>
+        `;
+      }
+
+      // 12. City
+      if (lowerName === 'city') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">🏙️ ${escapeHTML(label)}${reqMark}</label>
+              <input type="text" id="reg-city" name="city" class="form-control" placeholder="${escapeHTML(placeholder || 'Auto-filled from pincode')}" ${required}>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+
+      // 13. State
+      if (lowerName === 'state') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">🗺️ ${escapeHTML(label)}${reqMark}</label>
+              <input type="text" id="reg-state" name="state" class="form-control" placeholder="${escapeHTML(placeholder || 'Auto-filled from pincode')}" ${required}>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+
+      // 14. Emergency Contact Name / Phone
+      if (lowerName === 'emergencyname') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">🚨 ${escapeHTML(label)}${reqMark}</label>
+              <input type="text" id="reg-emergency-name" name="emergencyName" class="form-control" placeholder="${escapeHTML(placeholder || 'Parent / Guardian / Friend')}" ${required}>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+      if (lowerName === 'emergencyphone' || lowerName === 'emergencycontact') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">📞 ${escapeHTML(label)}${reqMark}</label>
+              <input type="tel" id="reg-emergency-phone" name="emergencyPhone" class="form-control" placeholder="${escapeHTML(placeholder || '10-digit emergency contact phone')}" maxlength="10" ${required}>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+
+      // 15. KYC / ID Document Type & Number
+      if (lowerName === 'idprooftype' || type === 'aadhaar_pan') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="grid-column: 1 / -1;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">🪪 Government ID Document Type</label>
+                <select id="reg-id-type" name="idProofType" class="form-select">
+                  <option value="Aadhaar Card">Aadhaar Card</option>
+                  <option value="PAN Card">PAN Card</option>
+                  <option value="Voter ID">Voter ID</option>
+                  <option value="Driving License">Driving License</option>
+                  <option value="College Student ID">College Student ID</option>
+                  <option value="Passport">Passport</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Government ID / Document Number</label>
+                <input type="text" id="reg-id-number" name="idProofNumber" class="form-control" placeholder="e.g. Last 4 digits or ID number">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" style="font-weight: 600;">Upload ID Proof Document / Scan</label>
+              <div id="public-idproof-mount"></div>
+              <small class="text-muted">Aadhaar, PAN, College ID or Driver's License</small>
+            </div>
+          </div>
+        `;
+      }
+
+      if (lowerName === 'idproofnumber') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">🪪 ${escapeHTML(label)}${reqMark}</label>
+              <input type="text" id="reg-id-number" name="idProofNumber" class="form-control" placeholder="${escapeHTML(placeholder || 'e.g. Last 4 digits or ID number')}" ${required}>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+
+      // 16. Target Exams (interactive exam pills)
+      if (lowerName === 'targetexams' || lowerName === 'targetexam' || type === 'exam_badge') {
+        const examOptions = f.options && f.options.length ? f.options : [
+          'UPSC / Civil Services', 'State PSC / MPSC', 'SSC / CGL / CHSL', 'Banking / IBPS / SBI',
+          'JEE Mains / Advanced', 'NEET / Medical', 'CA / CS / CMA', 'GATE / ESE',
+          'Law / CLAT / Judiciary', 'Defense / NDA / CDS'
+        ];
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="grid-column: 1 / -1;">
+            <label class="form-label" style="font-weight: 600; margin-bottom: 8px;">🎯 ${escapeHTML(label)}${reqMark}</label>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem;" id="exam-pills-container">
+              ${examOptions.map(ex => `<span class="exam-pill" data-exam="${escapeHTML(ex)}">${escapeHTML(ex)}</span>`).join('')}
+            </div>
+            ${helpText}
+          </div>
+        `;
+      }
+
+      // 17. Occupation / College
+      if (lowerName === 'occupation' || lowerName === 'college') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">🎓 ${escapeHTML(label)}${reqMark}</label>
+              <input type="text" id="reg-occupation" name="occupation" class="form-control" placeholder="${escapeHTML(placeholder || 'e.g. Pune University / Chanakya Academy')}" ${required}>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+
+      // 18. Generic Custom Field Fallback
+      if (type === 'textarea' || type === 'address_autocomplete') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <label class="form-label" style="font-weight: 600;">${escapeHTML(label)}${reqMark}</label>
+            <textarea class="form-control custom-dyn-input" data-field="${escapeHTML(name)}" name="cf_${escapeHTML(name)}" rows="2" placeholder="${escapeHTML(placeholder)}" ${required}></textarea>
+            ${helpText}
+          </div>
+        `;
+      }
+
+      if (type === 'select') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <label class="form-label" style="font-weight: 600;">${escapeHTML(label)}${reqMark}</label>
+            <select class="form-select custom-dyn-input" data-field="${escapeHTML(name)}" name="cf_${escapeHTML(name)}" ${required}>
+              <option value="">-- Select --</option>
+              ${(f.options || []).map(opt => `<option value="${escapeHTML(opt)}">${escapeHTML(opt)}</option>`).join('')}
+            </select>
+            ${helpText}
+          </div>
+        `;
+      }
+
+      if (type === 'radio') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <label class="form-label" style="font-weight: 600;">${escapeHTML(label)}${reqMark}</label>
+            <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px;">
+              ${(f.options || []).map(opt => `
+                <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.88rem; cursor: pointer;">
+                  <input type="radio" class="custom-dyn-radio" name="cf_${escapeHTML(name)}" data-field="${escapeHTML(name)}" value="${escapeHTML(opt)}">
+                  ${escapeHTML(opt)}
                 </label>
-                ${helpText}
-              </div>
+              `).join('')}
             </div>
-          `;
-        } else if (f.type === 'select') {
-          fieldInputHtml = `
-            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-              <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
-              <select class="form-select custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
-                <option value="">-- Select --</option>
-                ${(f.options || []).map(opt => `<option value="${escapeHTML(opt)}">${escapeHTML(opt)}</option>`).join('')}
-              </select>
-              ${helpText}
-            </div>
-          `;
-        } else if (f.type === 'radio') {
-          fieldInputHtml = `
-            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-              <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
-              <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px;">
-                ${(f.options || []).map(opt => `
-                  <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.88rem; cursor: pointer;">
-                    <input type="radio" class="custom-dyn-radio" name="cf_${escapeHTML(f.fieldName)}" data-field="${escapeHTML(f.fieldName)}" value="${escapeHTML(opt)}">
-                    ${escapeHTML(opt)}
-                  </label>
-                `).join('')}
-              </div>
-              ${helpText}
-            </div>
-          `;
-        } else if (f.type === 'textarea' || f.type === 'address_autocomplete') {
-          fieldInputHtml = `
-            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-              <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
-              <textarea class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" rows="2" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}></textarea>
-              ${helpText}
-            </div>
-          `;
-        } else {
-          const inputType = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : (f.type === 'email' ? 'email' : (f.type === 'phone' ? 'tel' : (f.type === 'url' ? 'url' : (f.type === 'color' ? 'color' : 'text'))))));
-          fieldInputHtml = `
-            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-              <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
-              <input type="${inputType}" class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}>
-              ${helpText}
-            </div>
-          `;
-        }
+            ${helpText}
+          </div>
+        `;
+      }
 
-        html += fieldInputHtml;
+      if (type === 'checkbox' || type === 'terms_checkbox') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div style="background: var(--color-bg-secondary); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; margin: 0;">
+                <input type="checkbox" class="custom-dyn-input" data-field="${escapeHTML(name)}" name="cf_${escapeHTML(name)}" style="width: 17px; height: 17px; accent-color: var(--color-primary);" ${required}>
+                <span>${escapeHTML(label)}${reqMark}</span>
+              </label>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+
+      if (type === 'multiselect') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <label class="form-label" style="font-weight: 600;">☑️ ${escapeHTML(label)}${reqMark}</label>
+            <div class="custom-dyn-multiselect-group" data-field="${escapeHTML(name)}" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px;">
+              ${(f.options || []).map(opt => `
+                <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer; background: var(--color-bg-secondary); padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+                  <input type="checkbox" class="custom-dyn-multiselect" value="${escapeHTML(opt)}" style="accent-color: var(--color-primary); width: 16px; height: 16px;">
+                  <span>${escapeHTML(opt)}</span>
+                </label>
+              `).join('')}
+            </div>
+            ${helpText}
+          </div>
+        `;
+      }
+
+      if (type === 'file') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <label class="form-label" style="font-weight: 600;">📎 ${escapeHTML(label)}${reqMark}</label>
+            <div class="custom-field-media-mount" data-field="${escapeHTML(name)}" data-label="${escapeHTML(label)}" data-preset="document"></div>
+            ${helpText}
+          </div>
+        `;
+      }
+
+      if (type === 'signature_pad') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <label class="form-label" style="font-weight: 600;">✍️ ${escapeHTML(label)}${reqMark}</label>
+            <div class="custom-field-sig-mount" data-field="${escapeHTML(name)}"></div>
+            ${helpText}
+          </div>
+        `;
+      }
+
+      const inputType = type === 'number' ? 'number' : (type === 'date' ? 'date' : (type === 'time' ? 'time' : (type === 'email' ? 'email' : (type === 'phone' ? 'tel' : (type === 'url' ? 'url' : (type === 'color' ? 'color' : 'text'))))));
+      return `
+        <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+          <label class="form-label" style="font-weight: 600;">${escapeHTML(label)}${reqMark}</label>
+          <input type="${inputType}" class="form-control custom-dyn-input" data-field="${escapeHTML(name)}" name="cf_${escapeHTML(name)}" placeholder="${escapeHTML(placeholder)}" ${required}>
+          ${helpText}
+        </div>
+      `;
+    }
+
+    function buildFieldGroupHtml(fList) {
+      if (!fList || fList.length === 0) return '';
+      const sortedList = [...fList].sort((a, b) => (a.order || 0) - (b.order || 0));
+
+      let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 0.5rem; margin-bottom: 1rem;">';
+      sortedList.forEach(f => {
+        html += renderDynamicFieldHtml(f);
       });
-
       html += '</div>';
       return html;
     }
@@ -1032,38 +1281,6 @@
         });
       });
 
-      // Core built-in fields that already have specialized dedicated widgets in standard sections
-      const CORE_BUILTIN_FIELD_NAMES = new Set([
-        'name', 'fullname', 'full_name', 'studentname', 'student_name',
-        'phone', 'mobile', 'whatsapp', 'mobilenumber', 'phone_number',
-        'dob', 'dateofbirth', 'date_of_birth', 'birthdate',
-        'email', 'emailaddress', 'email_address',
-        'gender', 'sex',
-        'bloodgroup', 'blood_group',
-        'password', 'studentpassword', 'portalpassword',
-        'photo', 'passportphoto', 'passport_photo', 'studentphoto', 'profile_photo', 'avatar',
-        'branch', 'branchid', 'studycentre', 'study_centre',
-        'address', 'residentialaddress', 'fulladdress',
-        'pincode', 'pin_code', 'zip', 'zipcode',
-        'city', 'state',
-        'emergencyname', 'emergency_name', 'emergencycontactname',
-        'emergencyphone', 'emergency_phone', 'emergencycontact', 'emergency_contact',
-        'idprooftype', 'id_proof_type', 'idtype', 'iddocumenttype',
-        'idproofnumber', 'id_proof_number', 'idnumber', 'aadhaarnumber', 'pannumber',
-        'idprooffront', 'idproofback', 'idproofdocument', 'iddocument',
-        'targetexam', 'targetexams', 'target_exam', 'target_exams', 'exam', 'exams',
-        'occupation', 'college', 'institute', 'company',
-        'plan', 'membership_plan', 'shift', 'study_shift', 'locker', 'requestlocker',
-        'signature', 'digitalsignature', 'digital_signature',
-        'terms', 'rules', 'agreement'
-      ]);
-
-      const isCoreField = (f) => {
-        if (!f) return false;
-        const slug = (f.fieldName || f.name || f.slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        return CORE_BUILTIN_FIELD_NAMES.has(slug) || f.isSystemField === true;
-      };
-
       // 2. Build Step Content Panels
       let formHtml = '';
 
@@ -1073,13 +1290,10 @@
         const isLast = stepNum === totalSteps;
         const secName = sec.name;
         
-        // Filter out duplicate core system fields in standard sections, while preserving truly custom admin fields
-        const secFields = fields.filter(f => {
-          if (f.section !== secName || f.isActive === false) return false;
-          const isStandardSection = ['personal', 'address', 'contact', 'kyc', 'verification', 'academic', 'goals', 'plan', 'payment', 'seat'].includes(secName);
-          if (isStandardSection && isCoreField(f)) return false;
-          return true;
-        });
+        // Retrieve all fields configured in this section in exact drag-and-drop order
+        const secFields = fields
+          .filter(f => (f.section || 'personal') === secName && f.isActive !== false)
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
 
         const iconMap = {
           personal: '👤', address: '📍', contact: '📍', kyc: '🪪', verification: '🪪',
@@ -1092,163 +1306,7 @@
         if (secName === 'personal') {
           stepBodyHtml = `
             <div id="duplicate-alert-box" class="alert alert-danger mb-3" style="display: none; padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.88rem; font-weight: 600; color: #dc3545; background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.2);"></div>
-
-            <!-- Preferred Study Centre / Branch -->
-            <div class="form-group mb-3">
-              <label class="form-label" style="font-weight: 600;">Preferred Study Centre / Branch *</label>
-              <select id="reg-branch" name="branch" class="form-select" required>
-                <option value="">-- Loading Active Branches... --</option>
-              </select>
-              <small class="text-muted">Select your nearest library study campus</small>
-            </div>
-
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Full Name *</label>
-                <input type="text" id="reg-name" name="name" class="form-control" placeholder="e.g. Rahul Sharma" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Mobile / WhatsApp Number *</label>
-                <input type="tel" id="reg-phone" name="phone" class="form-control" placeholder="10-digit WhatsApp number" required maxlength="10">
-              </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Date of Birth *</label>
-                <input type="date" id="reg-dob" name="dob" class="form-control" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Email Address</label>
-                <input type="email" id="reg-email" name="email" class="form-control" placeholder="student@example.com">
-              </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Gender *</label>
-                <select id="reg-gender" name="gender" class="form-select" required>
-                  <option value="male" selected>Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Blood Group</label>
-                <select id="reg-blood-group" name="bloodGroup" class="form-select">
-                  <option value="">-- Select Blood Group --</option>
-                  <option value="A+">A+</option>
-                  <option value="A-">A-</option>
-                  <option value="B+">B+</option>
-                  <option value="B-">B-</option>
-                  <option value="O+">O+</option>
-                  <option value="O-">O-</option>
-                  <option value="AB+">AB+</option>
-                  <option value="AB-">AB-</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Student Portal Password *</label>
-                <input type="password" id="reg-password" name="password" class="form-control" placeholder="Choose 6+ char password" required minlength="6">
-              </div>
-            </div>
-
-            <!-- Student Passport Photo -->
-            <div class="mb-3">
-              <label class="form-label" style="font-weight: 600;">Student Passport Photo (Live Selfie Camera / File Upload)</label>
-              <div id="public-photo-mount"></div>
-              <small class="text-muted">Will be printed on your physical &amp; mobile digital ID card</small>
-            </div>
-
-            <!-- Dynamic Custom Fields for Personal Section -->
-            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
-          `;
-        } else if (secName === 'address' || secName === 'contact') {
-          stepBodyHtml = `
-            <div class="form-group mb-2">
-              <label class="form-label" style="font-weight: 600;">Full Residential Address</label>
-              <textarea id="reg-address" name="address" class="form-control" rows="2" placeholder="House/Flat No, Street, Landmark, Area"></textarea>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 140px 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;" class="form-row-responsive">
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Pincode ⚡</label>
-                <input type="text" id="reg-pincode" name="pincode" class="form-control" placeholder="411001" maxlength="6">
-              </div>
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">City</label>
-                <input type="text" id="reg-city" name="city" class="form-control" placeholder="Auto-filled from pincode">
-              </div>
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">State</label>
-                <input type="text" id="reg-state" name="state" class="form-control" placeholder="Auto-filled from pincode">
-              </div>
-            </div>
-
-            <!-- Emergency Contact -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Emergency Contact Person</label>
-                <input type="text" id="reg-emergency-name" name="emergencyName" class="form-control" placeholder="Parent / Guardian / Friend">
-              </div>
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Emergency Phone Number</label>
-                <input type="tel" id="reg-emergency-phone" name="emergencyPhone" class="form-control" placeholder="10-digit emergency contact phone" maxlength="10">
-              </div>
-            </div>
-
-            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
-          `;
-        } else if (secName === 'kyc' || secName === 'verification') {
-          stepBodyHtml = `
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Government ID Document Type</label>
-                <select id="reg-id-type" name="idProofType" class="form-select">
-                  <option value="Aadhaar Card">Aadhaar Card</option>
-                  <option value="PAN Card">PAN Card</option>
-                  <option value="Voter ID">Voter ID</option>
-                  <option value="Driving License">Driving License</option>
-                  <option value="College Student ID">College Student ID</option>
-                  <option value="Passport">Passport</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label" style="font-weight: 600;">Government ID / Document Number</label>
-                <input type="text" id="reg-id-number" name="idProofNumber" class="form-control" placeholder="e.g. Last 4 digits or ID number">
-              </div>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label" style="font-weight: 600;">Upload ID Proof Document / Scan</label>
-              <div id="public-idproof-mount"></div>
-              <small class="text-muted">Aadhaar, PAN, College ID or Driver's License</small>
-            </div>
-
-            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
-          `;
-        } else if (secName === 'academic' || secName === 'goals') {
-          stepBodyHtml = `
-            <label class="form-label" style="font-weight: 600; margin-bottom: 8px;">Target Competitive Exam / Purpose</label>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem;" id="exam-pills-container">
-              <span class="exam-pill" data-exam="UPSC / Civil Services">UPSC Civil Services</span>
-              <span class="exam-pill" data-exam="State PSC / MPSC">State PSC / MPSC</span>
-              <span class="exam-pill" data-exam="SSC / CGL / CHSL">SSC / CGL</span>
-              <span class="exam-pill" data-exam="Banking / IBPS / SBI">Banking &amp; RBI</span>
-              <span class="exam-pill" data-exam="JEE Mains / Advanced">IIT-JEE</span>
-              <span class="exam-pill" data-exam="NEET / Medical">NEET Medical</span>
-              <span class="exam-pill" data-exam="CA / CS / CMA">Chartered Accountancy (CA)</span>
-              <span class="exam-pill" data-exam="GATE / ESE">GATE / Engineering</span>
-              <span class="exam-pill" data-exam="Law / CLAT / Judiciary">Judiciary / CLAT</span>
-              <span class="exam-pill" data-exam="Defense / NDA / CDS">Defense / CDS</span>
-            </div>
-
-            <div class="form-group mb-3">
-              <label class="form-label" style="font-weight: 600;">College / Coaching Institute / Occupation</label>
-              <input type="text" id="reg-occupation" name="occupation" class="form-control" placeholder="e.g. Pune University / Chanakya Academy">
-            </div>
-
-            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
+            ${buildFieldGroupHtml(secFields)}
           `;
         } else if (secName === 'plan') {
           stepBodyHtml = `
@@ -1286,8 +1344,8 @@
               <small id="referral-msg" style="color: var(--color-success); font-weight: 600; display: none; margin-top: 5px;"></small>
             </div>
 
-            <!-- Dynamic Custom Fields for Plan Section -->
-            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
+            <!-- Dynamic Fields for Plan Section -->
+            ${secFields.length ? buildFieldGroupHtml(secFields) : ''}
 
             <!-- Live Calculator Card -->
             <div class="calculator-card">
@@ -1328,8 +1386,8 @@
             <!-- Dynamic Payment Sub-Option Panes -->
             <div id="payment-methods-subpanes-container"></div>
 
-            <!-- Dynamic Custom Fields for Payment Section -->
-            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
+            <!-- Dynamic Fields for Payment Section -->
+            ${secFields.length ? buildFieldGroupHtml(secFields) : ''}
           `;
         } else if (secName === 'seat') {
           stepBodyHtml = `
@@ -1386,14 +1444,13 @@
               </label>
             </div>
 
-            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
+            <!-- Dynamic Fields for Seat Section -->
+            ${secFields.length ? buildFieldGroupHtml(secFields) : ''}
           `;
         } else {
-          // Custom / Additional Section
+          // Custom / Address / KYC / Academic / Other Section
           stepBodyHtml = `
-            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">
-              ${secFields.length ? buildFieldGroupHtml(secFields) : '<div class="text-muted small p-3 text-center">No custom questions in this section.</div>'}
-            </div>
+            ${secFields.length ? buildFieldGroupHtml(secFields) : '<div class="text-muted small p-3 text-center">No questions configured in this section.</div>'}
           `;
         }
 
@@ -1422,6 +1479,20 @@
                 🚀 ${escapeHTML(template?.settings?.submitButtonText || 'Complete Registration & Get Admission Slip')}
               </button>
             </div>
+          `;
+        }
+
+        formHtml += `
+          <div class="wizard-step-content ${isFirst ? 'active' : ''}" id="step-${stepNum}" data-section="${escapeHTML(secName)}">
+            <div class="wizard-step-header">
+              <div class="step-badge">${icon} ${escapeHTML(sec.label || `Step ${stepNum}`)}</div>
+              <p class="step-desc">${escapeHTML(sec.description || 'Fill out the details below to proceed.')}</p>
+            </div>
+            ${stepBodyHtml}
+            ${navHtml}
+          </div>
+        `;
+      }); </div>
           `;
         }
 

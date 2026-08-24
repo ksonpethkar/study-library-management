@@ -220,12 +220,14 @@ router.post('/reset-defaults', async (req, res) => {
   }
 });
 
-// PUT /api/custom-fields/reorder/bulk - Bulk update field orders & sections
-router.put('/reorder/bulk', async (req, res) => {
+// PUT /api/custom-fields/reorder (or /reorder/bulk) - Bulk update field orders & sections
+router.put(['/reorder', '/reorder/bulk'], async (req, res) => {
   try {
-    const { items, orderedIds, sections } = req.body;
-    if (Array.isArray(items) && items.length > 0) {
-      const bulkOps = items.map((item, index) => ({
+    const { items, orders, orderedIds, sections } = req.body;
+    const fieldsToUpdate = orders || items;
+
+    if (Array.isArray(fieldsToUpdate) && fieldsToUpdate.length > 0) {
+      const bulkOps = fieldsToUpdate.map((item, index) => ({
         updateOne: {
           filter: { _id: item.id || item._id },
           update: { 

@@ -363,9 +363,9 @@ export class FormBuilder {
         handle: '.fb-sec-drag-handle',
         ghostClass: 'sortable-ghost',
         chosenClass: 'sortable-chosen',
-        delay: 150,
+        delay: 0,
         delayOnTouchOnly: true,
-        touchStartThreshold: 8,
+        touchStartThreshold: 5,
         onEnd: () => {
           const newSecOrder = Array.from(container.querySelectorAll('.fb-sec-card')).map(el => el.dataset.section);
           newSecOrder.forEach((secName, idx) => {
@@ -386,9 +386,9 @@ export class FormBuilder {
           handle: '.fb-field-drag-handle',
           ghostClass: 'sortable-ghost',
           chosenClass: 'sortable-chosen',
-          delay: 150,
+          delay: 0,
           delayOnTouchOnly: true,
-          touchStartThreshold: 8,
+          touchStartThreshold: 5,
           onEnd: async (evt) => {
             const targetSec = evt.to.dataset.section;
             const fieldId = evt.item.dataset.id;
@@ -404,7 +404,7 @@ export class FormBuilder {
             allFieldRows.forEach((row, idx) => {
               const rowId = row.dataset.id;
               const f = this.fields.find(item => String(item._id) === String(rowId));
-              if (f) f.order = idx;
+              if (f) f.order = idx + 1;
             });
 
             // Save reordered custom fields
