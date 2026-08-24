@@ -413,8 +413,8 @@ async function loadInitialHubData(container) {
       loadSeats(container)
     ]);
 
-    if (activeHubTab === 'centers') renderCentersTab(container);
-    if (activeHubTab === 'analytics') renderAnalyticsTab(container);
+    renderCentersTab(container);
+    renderAnalyticsTab(container);
 
   } catch (err) {
     console.error('Failed initial hub data load:', err);

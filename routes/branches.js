@@ -121,9 +121,12 @@ router.get('/managers', async (req, res) => {
 
 // GET / — List all branches with populated manager info and seat counts
 router.get('/', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
-    const filter = {};
-    if (req.query.isActive !== undefined && req.query.isActive !== 'all') {
+    const filter = { isActive: { $ne: false } };
+    if (req.query.isActive === 'all') {
+      delete filter.isActive;
+    } else if (req.query.isActive !== undefined) {
       filter.isActive = req.query.isActive === 'true';
     }
     if (req.query.search) {
@@ -311,7 +314,7 @@ router.put('/:id', validate([
   }
 });
 
-// DELETE /:id — Deactivate/delete branch
+// DELETE /:id — Delete branch
 router.delete('/:id', roleCheck('owner'), async (req, res) => {
   try {
     const branch = await Branch.findById(req.params.id);
@@ -319,17 +322,23 @@ router.delete('/:id', roleCheck('owner'), async (req, res) => {
       return res.status(404).json({ success: false, message: 'Branch not found' });
     }
 
-    if (branch.isMainBranch) {
-      // If other active branches exist, promote the next active branch to primary main branch
-      const nextBranch = await Branch.findOne({ _id: { $ne: branch._id }, isActive: true });
-      if (nextBranch) {
-        nextBranch.isMainBranch = true;
-        await nextBranch.save();
-      }
+    // If other active branches exist, promote the next active branch to primary main branch
+    const nextBranch = await Branch.findOne({ _id: { $ne: branch._id }, isActive: { $ne: false } });
+    if (branch.isMainBranch && nextBranch) {
+      nextBranch.isMainBranch = true;
+      await nextBranch.save();
     }
 
-    branch.isActive = false;
-    await branch.save();
+    // Reassign students & seats to next active branch if available, else clean up
+    if (nextBranch) {
+      await Student.updateMany({ branch: branch._id }, { $set: { branch: nextBranch._id } });
+      await Seat.updateMany({ branch: branch._id }, { $set: { branch: nextBranch._id } });
+    } else {
+      await Seat.deleteMany({ branch: branch._id });
+    }
+
+    // Delete branch document from database
+    await Branch.findByIdAndDelete(branch._id);
 
     res.json({
       success: true,
