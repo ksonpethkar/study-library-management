@@ -239,11 +239,11 @@ Modal.show = function(opts) {
   const modalWrapper = {
     element: modal,
     close: () => {
-      if (modal.open) modal.close();
+      Modal.closeAll();
       if (onClose) onClose();
     },
     hide: () => {
-      if (modal.open) modal.close();
+      Modal.closeAll();
       if (onClose) onClose();
     }
   };
@@ -252,13 +252,16 @@ Modal.show = function(opts) {
     footerContainer.style.display = 'flex';
     buttons.forEach(btn => {
       const b = document.createElement('button');
+      b.type = 'button';
       b.className = `btn ${btn.className || 'btn-secondary'}`;
       b.textContent = btn.text || 'Button';
-      b.onclick = () => {
+      b.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         if (typeof btn.onClick === 'function') {
           btn.onClick(modalWrapper);
         } else {
-          modalWrapper.close();
+          Modal.closeAll();
         }
       };
       footerContainer.appendChild(b);
@@ -266,23 +269,34 @@ Modal.show = function(opts) {
   } else if (opts && (opts.onConfirm || opts.confirmText)) {
     footerContainer.style.display = 'flex';
     const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-secondary modal-cancel-btn';
     cancelBtn.textContent = opts.cancelText || 'Cancel';
-    cancelBtn.onclick = () => modalWrapper.close();
+    cancelBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      Modal.closeAll();
+    };
 
     const confirmBtn = document.createElement('button');
-    confirmBtn.className = `btn ${opts.confirmClass || 'btn-primary'}`;
+    confirmBtn.type = 'button';
+    confirmBtn.className = `btn ${opts.confirmClass || 'btn-primary'} modal-confirm-btn`;
     confirmBtn.textContent = opts.confirmText || 'Save & Confirm';
-    confirmBtn.onclick = async () => {
+    confirmBtn.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (typeof opts.onConfirm === 'function') {
         confirmBtn.disabled = true;
-        confirmBtn.textContent = 'Saving...';
-        const res = await opts.onConfirm(modalWrapper);
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = opts.confirmText || 'Save & Confirm';
-        if (res !== false) modalWrapper.close();
+        confirmBtn.textContent = 'Processing...';
+        try {
+          const res = await opts.onConfirm(modalWrapper);
+          if (res !== false) Modal.closeAll();
+        } catch (err) {
+          console.error(err);
+          Modal.closeAll();
+        }
       } else {
-        modalWrapper.close();
+        Modal.closeAll();
       }
     };
 
@@ -294,8 +308,13 @@ Modal.show = function(opts) {
   }
 
   const closeBtn = modal.querySelector('.modal-close');
-  const closeHandler = () => {
-    modalWrapper.close();
+  const closeHandler = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    Modal.closeAll();
+    if (onClose) onClose();
   };
   
   if (closeBtn) closeBtn.onclick = closeHandler;
@@ -329,10 +348,14 @@ Modal.close = function() {
       }
       d.removeAttribute('open');
       d.style.display = 'none';
-      if (d.id === 'modal-container' || d.classList.contains('modal-backdrop')) {
-        d.remove();
-      }
+      d.remove();
     } catch (e) {}
+  });
+  document.getElementById('modal-container')?.remove();
+  document.querySelectorAll('.modal-backdrop, [id^="modal-"]').forEach(el => {
+    if (el.tagName === 'DIALOG' || el.classList.contains('modal-backdrop')) {
+      try { el.remove(); } catch(e) {}
+    }
   });
   if (typeof document !== 'undefined' && document.body) {
     document.body.classList.remove('modal-open');
@@ -497,6 +520,7 @@ Confirm.show = async function(opts) {
     const finish = (value) => {
       if (!resolved) {
         resolved = true;
+        Modal.closeAll();
         resolve(value);
       }
     };
@@ -519,20 +543,22 @@ Confirm.show = async function(opts) {
       buttons: [
         {
           text: cancelText,
-          className: 'btn-secondary',
-          onClick: (m) => {
+          className: 'btn-secondary modal-cancel-btn',
+          onClick: () => {
             finish(false);
-            m.close();
           }
         },
         {
           text: confirmText,
-          className: confirmBtnClass,
-          onClick: async (m) => {
+          className: `${confirmBtnClass} modal-confirm-btn`,
+          onClick: async () => {
             finish(true);
-            m.close();
             if (typeof onConfirm === 'function') {
-              await onConfirm();
+              try {
+                await onConfirm();
+              } catch (e) {
+                console.error('onConfirm error:', e);
+              }
             }
           }
         }

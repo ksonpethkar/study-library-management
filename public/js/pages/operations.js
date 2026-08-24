@@ -220,17 +220,21 @@ export async function render() {
       });
 
       panel.querySelectorAll('.btn-delete-visitor').forEach(btn => {
-        btn.addEventListener('click', () => {
-          Confirm.show({
+        btn.addEventListener('click', async () => {
+          const ok = await Confirm.show({
             title: 'Delete Visitor Record',
             message: 'Are you sure you want to remove this inquiry?',
-            danger: true,
-            onConfirm: async () => {
+            danger: true
+          });
+          if (ok) {
+            try {
               await api.delete(`/api/operations/visitors/${btn.dataset.id}`);
               Toast.success('Visitor removed');
               loadCurrentTab();
+            } catch (err) {
+              Toast.error(err.message || 'Failed to remove visitor');
             }
-          });
+          }
         });
       });
 
@@ -362,72 +366,38 @@ export async function render() {
           <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600;">📅 Library Holiday & Event Schedule (${holidays.length})</h3>
           <button id="btn-add-holiday" class="btn btn-primary btn-sm">+ Schedule Holiday</button>
         </div>
-        <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
-          <div style="overflow-x: auto;">
-            <div class="table-responsive"><table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
-              <thead>
-                <tr style="border-bottom: 1px solid var(--color-divider); color: var(--color-text-muted); font-size: 0.85rem; text-align: left;">
-                  <th style="padding: 12px 16px;">Holiday / Event</th>
-                  <th style="padding: 12px 16px;">Date</th>
-                  <th style="padding: 12px 16px;">Type</th>
-                  <th style="padding: 12px 16px;">Library Status</th>
-                  <th style="padding: 12px 16px;">Timing Override</th>
-                  <th style="padding: 12px 16px;">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${holidays.length > 0 ? holidays.map(h => `
-                  <tr style="border-bottom: 1px solid var(--color-divider); font-size: 0.9rem;">
-                    <td style="padding: 12px 16px;"><strong>${escapeHTML(h.title)}</strong></td>
-                    <td style="padding: 12px 16px;">${new Date(h.date).toLocaleDateString('en-IN', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                    <td style="padding: 12px 16px;"><span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary); text-transform: capitalize;">${escapeHTML(h.type)}</span></td>
-                    <td style="padding: 12px 16px;">
-                      <span class="badge" style="background: ${h.isLibraryClosed ? 'rgba(214,48,49,0.2)' : 'rgba(0,184,148,0.2)'}; color: ${h.isLibraryClosed ? 'var(--color-danger)' : 'var(--color-success)'};">
-                        ${h.isLibraryClosed ? '🔴 Closed' : '🟢 Open (Special Timings)'}
-                      </span>
-                    </td>
-                    <td style="padding: 12px 16px;">${escapeHTML(h.timingOverride || 'Standard 24x7')}</td>
-                    <td style="padding: 12px 16px;">
-                      <button class="btn btn-sm btn-outline-danger btn-delete-holiday" data-id="${h._id}" style="padding: 2px 8px; font-size: 0.75rem;">Delete</button>
-                    </td>
-                  </tr>
-                `).join('') : `
-                  <tr><td colspan="6" class="p-4 text-center text-muted">No scheduled holidays.</td></tr>
-                `}
-              </tbody>
-            </table></div>
-          </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 1rem;">
+          ${holidays.length > 0 ? holidays.map(h => `
+            <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <strong style="font-size: 1rem;">${escapeHTML(h.title)}</strong>
+                <button class="btn btn-sm text-danger btn-delete-holiday" data-id="${h._id}" style="padding: 0 4px; font-size: 0.9rem;" title="Delete Holiday">🗑️</button>
+              </div>
+              <div style="font-size: 0.85rem; color: var(--color-primary); font-weight: 600; margin-bottom: 6px;">
+                📅 ${new Date(h.date).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
+              </div>
+              <p style="font-size: 0.85rem; color: var(--color-text-secondary); margin: 0;">${escapeHTML(h.description || 'Library study rooms will remain closed.')}</p>
+            </div>
+          `).join('') : `
+            <div class="p-4 text-center text-muted" style="grid-column: 1 / -1;">No upcoming holidays scheduled.</div>
+          `}
         </div>
       `;
 
       panel.querySelector('#btn-add-holiday')?.addEventListener('click', () => {
         const modalHtml = `
           <form id="holidayForm">
-            <div class="form-group mb-3">
-              <label class="form-label">Holiday / Festival Name *</label>
-              <input type="text" class="form-control" name="title" required placeholder="e.g. Diwali Festival / Independence Day">
+            <div class="mb-3">
+              <label class="form-label">Holiday / Occasion Title *</label>
+              <input type="text" class="form-control" name="title" required placeholder="e.g. Republic Day, Diwali Break">
             </div>
-            <div class="row mb-3">
-              <div class="col-md-6">
-                <label class="form-label">Date *</label>
-                <input type="date" class="form-control" name="date" required value="${new Date().toISOString().split('T')[0]}">
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Holiday Category</label>
-                <select class="form-select form-control" name="type">
-                  <option value="national">National Holiday</option>
-                  <option value="festival" selected>Festival</option>
-                  <option value="maintenance">Maintenance Day</option>
-                  <option value="special">Special Event</option>
-                </select>
-              </div>
+            <div class="mb-3">
+              <label class="form-label">Date *</label>
+              <input type="date" class="form-control" name="date" required value="${new Date().toISOString().split('T')[0]}">
             </div>
-            <div class="form-group mb-3">
-              <label class="form-label">Special Timing (if open)</label>
-              <input type="text" class="form-control" name="timingOverride" placeholder="e.g. Open 08:00 AM - 06:00 PM only">
-            </div>
-            <div class="form-check mb-2">
-              <label><input type="checkbox" name="isLibraryClosed" value="true"> Entire Library Closed on this date</label>
+            <div class="mb-3">
+              <label class="form-label">Description / Instructions</label>
+              <textarea class="form-control" name="description" rows="2" placeholder="e.g. Library opens back at 6:00 AM the next day."></textarea>
             </div>
           </form>
         `;
@@ -435,25 +405,29 @@ export async function render() {
         const hModal = new Modal({
           title: 'Schedule Library Holiday',
           content: modalHtml,
-          size: 'md',
           buttons: [
-            { text: 'Cancel', className: 'btn-secondary', onClick: (m) => m.close() },
+            { text: 'Cancel', className: 'btn-secondary', onClick: () => hModal.close() },
             {
               text: 'Save Holiday',
               className: 'btn-primary',
-              onClick: async (m) => {
-                const form = m.element.querySelector('#holidayForm');
-                if (!form.checkValidity()) { form.reportValidity(); return; }
-                const data = Object.fromEntries(new FormData(form).entries());
-                data.isLibraryClosed = !!data.isLibraryClosed;
+              onClick: async () => {
+                const form = document.getElementById('holidayForm');
+                const formData = new FormData(form);
+                const payload = Object.fromEntries(formData.entries());
+
+                if (!payload.title || !payload.date) {
+                  Toast.error('Title and Date are required');
+                  return;
+                }
+
                 try {
-                  const sRes = await api.post('/api/operations/holidays', data);
-                  if (sRes.success) {
-                    Toast.success(sRes.message);
-                    m.close();
-                    loadCurrentTab();
-                  }
-                } catch (err) { Toast.error(err.message); }
+                  await api.post('/api/operations/holidays', payload);
+                  Toast.success('Holiday scheduled successfully');
+                  hModal.close();
+                  loadCurrentTab();
+                } catch (err) {
+                  Toast.error(err.message || 'Failed to save holiday');
+                }
               }
             }
           ]
@@ -462,17 +436,21 @@ export async function render() {
       });
 
       panel.querySelectorAll('.btn-delete-holiday').forEach(btn => {
-        btn.addEventListener('click', () => {
-          Confirm.show({
+        btn.addEventListener('click', async () => {
+          const ok = await Confirm.show({
             title: 'Delete Holiday',
             message: 'Remove this date from the holiday list?',
-            danger: true,
-            onConfirm: async () => {
+            danger: true
+          });
+          if (ok) {
+            try {
               await api.delete(`/api/operations/holidays/${btn.dataset.id}`);
               Toast.success('Holiday removed');
               loadCurrentTab();
+            } catch (err) {
+              Toast.error(err.message || 'Failed to remove holiday');
             }
-          });
+          }
         });
       });
 
@@ -480,7 +458,7 @@ export async function render() {
   }
 
   // ----------------------------------------------------
-  // Tab 4: Lost & Found
+  // Tab 4: Lost & Found Items Registry
   // ----------------------------------------------------
   async function renderLostFound(panel) {
     try {
@@ -489,115 +467,101 @@ export async function render() {
 
       panel.innerHTML = `
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600;">🔍 Lost & Found Register (${items.length})</h3>
-          <button id="btn-add-lost" class="btn btn-primary btn-sm">+ Log Found Item</button>
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600;">🔍 Lost & Found Registry (${items.length})</h3>
+          <button id="btn-add-item" class="btn btn-primary btn-sm">+ Log Found Item</button>
         </div>
         <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
           <div style="overflow-x: auto;">
-            <div class="table-responsive"><table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
+            <table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
               <thead>
                 <tr style="border-bottom: 1px solid var(--color-divider); color: var(--color-text-muted); font-size: 0.85rem; text-align: left;">
                   <th style="padding: 12px 16px;">Item Name</th>
-                  <th style="padding: 12px 16px;">Category</th>
                   <th style="padding: 12px 16px;">Found Location</th>
-                  <th style="padding: 12px 16px;">Found Date</th>
+                  <th style="padding: 12px 16px;">Date Found</th>
                   <th style="padding: 12px 16px;">Status</th>
                   <th style="padding: 12px 16px;">Claimed By</th>
                   <th style="padding: 12px 16px;">Action</th>
                 </tr>
               </thead>
               <tbody>
-                ${items.length > 0 ? items.map(it => `
+                ${items.length > 0 ? items.map(item => `
                   <tr style="border-bottom: 1px solid var(--color-divider); font-size: 0.9rem;">
-                    <td style="padding: 12px 16px;"><strong>${escapeHTML(it.itemName)}</strong></td>
-                    <td style="padding: 12px 16px;"><span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary); text-transform: capitalize;">${escapeHTML(it.category)}</span></td>
-                    <td style="padding: 12px 16px;">${escapeHTML(it.foundLocation || 'Desk / Cabin')}</td>
-                    <td style="padding: 12px 16px;">${new Date(it.foundDate).toLocaleDateString('en-IN')}</td>
+                    <td style="padding: 12px 16px;"><strong>${escapeHTML(item.itemName)}</strong></td>
+                    <td style="padding: 12px 16px;">${escapeHTML(item.locationFound || 'Study Hall')}</td>
+                    <td style="padding: 12px 16px;">${new Date(item.dateFound).toLocaleDateString('en-IN')}</td>
                     <td style="padding: 12px 16px;">
-                      <span class="badge" style="background: ${it.status === 'claimed' ? 'rgba(0,184,148,0.2)' : 'rgba(253,203,110,0.2)'}; color: ${it.status === 'claimed' ? 'var(--color-success)' : 'var(--color-warning)'}; text-transform: uppercase;">
-                        ${escapeHTML(it.status)}
+                      <span class="badge" style="background: ${item.status === 'claimed' ? 'rgba(0, 184, 148, 0.15)' : 'rgba(253, 203, 110, 0.2)'}; color: ${item.status === 'claimed' ? 'var(--color-success)' : 'var(--color-warning)'}; text-transform: uppercase;">
+                        ${escapeHTML(item.status)}
                       </span>
                     </td>
-                    <td style="padding: 12px 16px;">${escapeHTML(it.claimedBy || '-')}</td>
+                    <td style="padding: 12px 16px;">${escapeHTML(item.claimedBy || '-')}</td>
                     <td style="padding: 12px 16px;">
-                      ${it.status === 'found' ? `<button class="btn btn-sm btn-outline-success btn-claim-item" data-id="${it._id}" style="padding: 2px 8px; font-size: 0.75rem;">Mark Claimed</button>` : ''}
-                      <button class="btn btn-sm btn-outline-danger btn-delete-item" data-id="${it._id}" style="padding: 2px 8px; font-size: 0.75rem;">Delete</button>
+                      <div style="display: flex; gap: 6px;">
+                        ${item.status === 'found' ? `
+                          <button class="btn btn-sm btn-outline-success btn-claim-item" data-id="${item._id}" style="padding: 2px 6px; font-size: 0.75rem;">Mark Claimed</button>
+                        ` : ''}
+                        <button class="btn btn-sm btn-outline-danger btn-delete-item" data-id="${item._id}" style="padding: 2px 6px; font-size: 0.75rem;">Delete</button>
+                      </div>
                     </td>
                   </tr>
                 `).join('') : `
-                  <tr><td colspan="7" class="p-4 text-center text-muted">No items in the lost & found register.</td></tr>
+                  <tr><td colspan="6" class="p-4 text-center text-muted">No lost & found records. Click "+ Log Found Item" to record misplaced belongings.</td></tr>
                 `}
               </tbody>
-            </table></div>
+            </table>
           </div>
         </div>
       `;
 
-      panel.querySelector('#btn-add-lost')?.addEventListener('click', () => {
+      panel.querySelector('#btn-add-item')?.addEventListener('click', () => {
         const modalHtml = `
-          <form id="lostForm">
-            <div class="form-group mb-3">
-              <label class="form-label">Item Description *</label>
-              <input type="text" class="form-control" name="itemName" required placeholder="e.g. Boat Airdopes Black Case / Fastrack Watch">
+          <form id="lostFoundForm">
+            <div class="mb-3">
+              <label class="form-label">Item Name / Description *</label>
+              <input type="text" class="form-control" name="itemName" required placeholder="e.g. Blue Boat Earphones, Calculator, Water Bottle">
             </div>
-            <div class="row mb-3">
-              <div class="col-md-6">
-                <label class="form-label">Category</label>
-                <select class="form-select form-control" name="category">
-                  <option value="electronics">Electronics (Earphones/Charger)</option>
-                  <option value="books">Books & Notebooks</option>
-                  <option value="stationery">Stationery (Pouch/Calculators)</option>
-                  <option value="clothing">Clothing / Bottles</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Found Location</label>
-                <input type="text" class="form-control" name="foundLocation" placeholder="e.g. Cabin Seat B-05">
-              </div>
+            <div class="mb-3">
+              <label class="form-label">Found Location *</label>
+              <input type="text" class="form-control" name="locationFound" required placeholder="e.g. Desk D-14, Discussion Room 2">
             </div>
-            <div class="form-group mb-3">
-              <label class="form-label" style="font-weight: 600;">Item Photo (Live Snap / Upload)</label>
-              <div id="mount-lost-photo"></div>
+            <div class="mb-3">
+              <label class="form-label">Date Found</label>
+              <input type="date" class="form-control" name="dateFound" required value="${new Date().toISOString().split('T')[0]}">
             </div>
           </form>
         `;
 
-        const lModal = new Modal({
-          title: 'Log Found Item in Vault',
+        const lfModal = new Modal({
+          title: 'Log Found Item',
           content: modalHtml,
-          size: 'md',
           buttons: [
-            { text: 'Cancel', className: 'btn-secondary', onClick: (m) => m.close() },
+            { text: 'Cancel', className: 'btn-secondary', onClick: () => lfModal.close() },
             {
               text: 'Save Item',
               className: 'btn-primary',
-              onClick: async (m) => {
-                const form = m.element.querySelector('#lostForm');
-                if (!form.checkValidity()) { form.reportValidity(); return; }
-                const data = Object.fromEntries(new FormData(form).entries());
+              onClick: async () => {
+                const form = document.getElementById('lostFoundForm');
+                const formData = new FormData(form);
+                const payload = Object.fromEntries(formData.entries());
+
+                if (!payload.itemName || !payload.locationFound) {
+                  Toast.error('Item name and location are required');
+                  return;
+                }
+
                 try {
-                  const sRes = await api.post('/api/operations/lostfound', data);
-                  if (sRes.success) {
-                    Toast.success(sRes.message);
-                    m.close();
-                    loadCurrentTab();
-                  }
-                } catch (err) { Toast.error(err.message); }
+                  await api.post('/api/operations/lostfound', payload);
+                  Toast.success('Lost & found item logged');
+                  lfModal.close();
+                  loadCurrentTab();
+                } catch (err) {
+                  Toast.error(err.message || 'Failed to save item');
+                }
               }
             }
           ]
         });
-        lModal.show();
-
-        const lostMount = lModal.element.querySelector('#mount-lost-photo');
-        if (lostMount) {
-          lostMount.appendChild(MediaFieldPicker.create({
-            label: 'Found Item Photo',
-            preset: 'general',
-            name: 'image'
-          }));
-        }
+        lfModal.show();
       });
 
       panel.querySelectorAll('.btn-claim-item').forEach(btn => {
@@ -611,17 +575,21 @@ export async function render() {
       });
 
       panel.querySelectorAll('.btn-delete-item').forEach(btn => {
-        btn.addEventListener('click', () => {
-          Confirm.show({
+        btn.addEventListener('click', async () => {
+          const ok = await Confirm.show({
             title: 'Delete Item',
             message: 'Remove item from register?',
-            danger: true,
-            onConfirm: async () => {
+            danger: true
+          });
+          if (ok) {
+            try {
               await api.delete(`/api/operations/lostfound/${btn.dataset.id}`);
               Toast.success('Record deleted');
               loadCurrentTab();
+            } catch (err) {
+              Toast.error(err.message || 'Failed to delete item');
             }
-          });
+          }
         });
       });
 
@@ -1351,21 +1319,21 @@ export async function render() {
 
       // Delete Referral
       panel.querySelectorAll('.btn-delete-ref').forEach(btn => {
-        btn.addEventListener('click', () => {
-          Confirm.show({
+        btn.addEventListener('click', async () => {
+          const ok = await Confirm.show({
             title: 'Delete Referral Entry',
             message: 'Are you sure you want to delete this referral lead?',
-            danger: true,
-            onConfirm: async () => {
-              try {
-                await api.delete(`/api/operations/referrals/${btn.dataset.id}`);
-                Toast.success('Referral deleted');
-                loadCurrentTab();
-              } catch (e) {
-                Toast.error('Failed to delete');
-              }
-            }
+            danger: true
           });
+          if (ok) {
+            try {
+              await api.delete(`/api/operations/referrals/${btn.dataset.id}`);
+              Toast.success('Referral deleted');
+              loadCurrentTab();
+            } catch (e) {
+              Toast.error(e.message || 'Failed to delete');
+            }
+          }
         });
       });
 
@@ -1681,21 +1649,21 @@ export async function render() {
 
       // Cancel Waiting Entry
       panel.querySelectorAll('.btn-cancel-waiting').forEach(btn => {
-        btn.addEventListener('click', () => {
-          Confirm.show({
+        btn.addEventListener('click', async () => {
+          const ok = await Confirm.show({
             title: 'Cancel Waiting Queue Entry',
             message: 'Are you sure you want to remove this candidate from the waiting list?',
-            danger: true,
-            onConfirm: async () => {
-              try {
-                await api.put(`/api/waiting-list/${btn.dataset.id}/cancel`, {});
-                Toast.success('Waiting entry cancelled');
-                loadCurrentTab();
-              } catch (e) {
-                Toast.error('Failed to cancel');
-              }
-            }
+            danger: true
           });
+          if (ok) {
+            try {
+              await api.put(`/api/waiting-list/${btn.dataset.id}/cancel`, {});
+              Toast.success('Waiting entry cancelled');
+              loadCurrentTab();
+            } catch (e) {
+              Toast.error(e.message || 'Failed to cancel');
+            }
+          }
         });
       });
 
