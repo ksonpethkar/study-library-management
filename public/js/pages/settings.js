@@ -1185,7 +1185,13 @@ function renderBillingReceiptStudio(profile, billing, pay) {
         <!-- Receipt Header -->
         <div style="text-align: center; border-bottom: 1.5px dashed #333; padding-bottom: 10px; margin-bottom: 10px;">
           ${showLogo ? `
-            <div style="font-size: 1.75rem; margin-bottom: 2px;">📚</div>
+            <div style="margin-bottom: 4px; text-align: center;">
+              ${(profile.logo || (container.querySelector('#setting-logo') || container.querySelector('input[name="logo"]'))?.value?.trim()) ? `
+                <img src="${profile.logo || (container.querySelector('#setting-logo') || container.querySelector('input[name="logo"]'))?.value?.trim()}" alt="Logo" style="max-height: 48px; max-width: 120px; object-fit: contain; display: inline-block;">
+              ` : `
+                <div style="font-size: 1.75rem;">📚</div>
+              `}
+            </div>
           ` : ''}
           <div style="font-weight: 800; font-size: 1.05rem; text-transform: uppercase; color: ${headerColor}; letter-spacing: 0.5px;">${escapeHTML(bizName)}</div>
           <div style="font-size: 0.8rem; font-weight: 700; color: #555; text-transform: uppercase;">${escapeHTML(subtitle)}</div>

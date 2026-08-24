@@ -680,6 +680,7 @@ function renderPortalUI(container, data, analytics = null) {
     const address = [student.address, student.city, student.state, student.pincode].filter(Boolean).join(', ') || 'Campus Residential';
     const bloodGroup = student.bloodGroup || '';
     const stampImgUrl = business.stampImage || business.stampImageUrl || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.stampImage || '';
+    const logoImgUrl = business.logo || business.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.logo || '';
 
     let currentOrientation = 'horizontal';
     let currentSide = 'dual';
@@ -752,7 +753,7 @@ function renderPortalUI(container, data, analytics = null) {
               <!-- Top Curved Banner -->
               <div style="background: ${st.headerBg}; color: #fff; padding: 10px 8px; text-align: center; position: relative;">
                 <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 2px;">
-                  ${business.logo ? `<img src="${business.logo}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover; background: #fff;">` : `<span style="font-size: 1.1rem;">📚</span>`}
+                  ${logoImgUrl ? `<img src="${logoImgUrl}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: contain; background: #fff;">` : `<span style="font-size: 1.1rem;">📚</span>`}
                   <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px;">${escapeHTML(business.businessName || 'Study Library')}</div>
                 </div>
                 <div style="font-size: 0.62rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.tagline || 'Student Membership Pass')}</div>
@@ -801,7 +802,7 @@ function renderPortalUI(container, data, analytics = null) {
               <!-- Top Banner -->
               <div style="background: ${st.headerBg}; color: #fff; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                  ${business.logo ? `<img src="${business.logo}" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover; background: #fff; flex-shrink: 0;">` : `<span style="font-size: 1.1rem; flex-shrink: 0;">📚</span>`}
+                  ${logoImgUrl ? `<img src="${logoImgUrl}" style="width: 24px; height: 24px; border-radius: 4px; object-fit: contain; background: #fff; flex-shrink: 0;">` : `<span style="font-size: 1.1rem; flex-shrink: 0;">📚</span>`}
                   <div style="min-width: 0;">
                     <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.businessName || 'Study Library')}</div>
                     <div style="font-size: 0.6rem; opacity: 0.88; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.tagline || 'Student Membership Card')}</div>

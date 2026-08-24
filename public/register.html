@@ -1951,13 +1951,20 @@
         if (bp?.paymentInstructions) libraryPaymentInstructions = bp.paymentInstructions;
 
         // Branding Sync
+        const logoUrl = bp?.logo || publicConfig?.logo || activeTemplate?.branding?.logoUrl || '';
+        const logoEl = document.getElementById('lib-logo-icon');
+        if (logoEl) {
+          if (logoUrl) {
+            logoEl.innerHTML = `<img src="${logoUrl}" alt="Logo" style="max-height: 56px; max-width: 140px; object-fit: contain; margin-bottom: 0.25rem;">`;
+          }
+        }
+
         if (activeTemplate?.branding) {
           const tb = activeTemplate.branding;
           if (tb.headerText) document.getElementById('lib-title').textContent = tb.headerText;
           if (tb.tagline) document.getElementById('lib-tagline').textContent = tb.tagline;
           const mainHeader = document.getElementById('admission-main-header');
           if (mainHeader && tb.alignment) mainHeader.style.textAlign = tb.alignment;
-          const logoEl = document.getElementById('lib-logo-icon');
           if (logoEl) {
             if (tb.showLogo === false) logoEl.style.display = 'none';
             else {

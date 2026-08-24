@@ -121,7 +121,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
   // Photo & Signature & Stamp URLs
   const photoUrl = s.photo || s.photoUrl || s.customFields?.photo || s.customFields?.passport_photo || s.avatar || '';
   const sigUrl = s.signature || s.signatureUrl || s.customFields?.signature || '';
-  const logoUrl = rcHeader.logoUrl || b.logo || b.logoUrl || '';
+  const logoUrl = rcHeader.logoUrl || b.logo || b.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.logo || '';
   const stampImageUrl = rcFooter.stampImage || b.stampImage || b.stamp || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.stampImage || '';
   const managerSigUrl = rcFooter.signatureImage || '';
   const gstNumber = rcHeader.gstNumber || rcHeader.taxNumber || b.gstNumber || b.taxNumber || '';

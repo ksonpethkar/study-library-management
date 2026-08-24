@@ -906,7 +906,7 @@
 
         const data = json.data;
         kioskConfig.businessName = data.businessName || data.businessProfile?.businessName || 'Study Library';
-        kioskConfig.logo = data.logo || data.businessProfile?.logo || '';
+        kioskConfig.logo = data.logo || data.businessProfile?.logo || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.logo || '';
         kioskConfig.shifts = data.shifts || [];
         kioskConfig.kioskVoice = data.kioskVoice || kioskConfig.kioskVoice;
 

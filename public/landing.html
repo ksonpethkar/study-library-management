@@ -1055,6 +1055,7 @@
   <footer id="contact" class="landing-footer">
     <div class="footer-container">
       <div>
+        <div id="footer-logo" style="margin-bottom: 0.75rem;"></div>
         <h3 class="footer-title" id="footer-org-name">The Cozy Corner Centre</h3>
         <p class="footer-text" id="footer-tagline">Premier Air-Conditioned Reading Hall & Self-Study Space.</p>
         <div class="footer-contact">
@@ -1375,6 +1376,8 @@
           if (logoEl) logoEl.innerHTML = `<img src="${brandLogo}" alt="Logo" style="height: 36px; width: auto; object-fit: contain; border-radius: 6px;">`;
           const drawerLogo = document.querySelector('#mobile-drawer .nav-logo');
           if (drawerLogo) drawerLogo.innerHTML = `<img src="${brandLogo}" alt="Logo" style="height: 32px; width: auto; object-fit: contain; border-radius: 6px;">`;
+          const footerLogoEl = document.getElementById('footer-logo');
+          if (footerLogoEl) footerLogoEl.innerHTML = `<img src="${brandLogo}" alt="Logo" style="height: 42px; width: auto; object-fit: contain; border-radius: 6px;">`;
         }
 
         // Navbar & Drawer CTA buttons

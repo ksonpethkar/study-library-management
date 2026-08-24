@@ -266,10 +266,34 @@
           document.title = document.title.replace(/Study Library|StudyLib|The Cozy Corner Centre/g, profile.businessName);
         }
         
-        const brandElements = ['lib-title', 'lib-name', 'sidebar-org-name', 'nav-brand-name', 'drawer-brand-name', 'footer-org-name', 'kiosk-lib-name'];
+        const brandElements = ['lib-title', 'lib-name', 'sidebar-org-name', 'nav-brand-name', 'drawer-brand-name', 'footer-org-name', 'kiosk-lib-name', 'footer-copy-name'];
         brandElements.forEach(id => {
           const el = document.getElementById(id);
           if (el) el.textContent = profile.businessName;
+        });
+      }
+
+      if (profile.logo) {
+        const logoContainers = [
+          'sidebar-logo', 'sys-preloader-icon', 'nav-logo-icon', 'drawer-logo',
+          'lib-logo-icon', 'kiosk-logo-container', 'portal-brand-logo', 'login-logo-container', 'footer-logo'
+        ];
+        logoContainers.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.innerHTML = `<img src="${profile.logo}" alt="Logo" style="max-height: 100%; max-width: 100%; object-fit: contain; border-radius: inherit; display: block; margin: 0 auto;">`;
+            if (id === 'sidebar-logo') {
+              el.style.display = 'flex';
+              el.style.alignItems = 'center';
+              el.style.justifyContent = 'center';
+            }
+          }
+        });
+        document.querySelectorAll('.app-brand-logo, .dynamic-brand-logo, .business-logo-img').forEach(img => {
+          if (img.tagName === 'IMG') {
+            img.src = profile.logo;
+            img.style.display = '';
+          }
         });
       }
     }

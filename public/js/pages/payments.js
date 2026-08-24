@@ -964,7 +964,7 @@ export async function render(container) {
                 const ftr = config.footer || {};
                 const stp = config.stamp || {};
                 const dt = config.dateTime || {};
-                const logoImg = head.logoUrl || bp.logo || '';
+                const logoImg = head.logoUrl || bp.logo || bp.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.logo || '';
                 const stampImg = stp.stampImage || ftr.stampImage || bp.stampImage || bp.stamp || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.stampImage || '';
                 const sigImg = ftr.signatureImage || '';
                 const gstNo = head.gstNumber || bp.gstNumber || '';
