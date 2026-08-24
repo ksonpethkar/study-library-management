@@ -524,6 +524,19 @@ router.post('/check-in', protect, validate([
   try {
     const { studentId, seatId } = req.body;
     const now = new Date();
+    
+    // Check if there is an active/open check-in within the last 18 hours (handles overnight shifts)
+    const eighteenHoursAgo = new Date(Date.now() - 18 * 60 * 60 * 1000);
+    let openRecord = await Attendance.findOne({
+      student: studentId,
+      checkIn: { $gte: eighteenHoursAgo },
+      checkOut: null
+    }).sort({ checkIn: -1 });
+
+    if (openRecord) {
+      return res.status(400).json({ success: false, message: 'Student is currently already checked in' });
+    }
+
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date();
@@ -534,12 +547,12 @@ router.post('/check-in', protect, validate([
       date: { $gte: startOfDay, $lte: endOfDay }
     });
 
-    if (record) {
-      if (record.checkIn && !record.checkOut) {
-        return res.status(400).json({ success: false, message: 'Student already checked in today' });
-      }
-      // If they were checked out, maybe we allow re-check-in, or just update?
-      // Assuming simple flow: Update checkIn and clear checkOut for re-entry.
+    if (record && !record.checkOut) {
+      return res.status(400).json({ success: false, message: 'Student already checked in today' });
+    }
+
+    if (record && record.checkOut) {
+      // Re-entry check-in
       record.checkIn = now;
       record.checkOut = undefined;
       record.status = 'present';
@@ -567,30 +580,45 @@ router.post('/check-out', protect, validate([
 ]), async (req, res) => {
   try {
     const { studentId } = req.body;
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const record = await Attendance.findOne({
+    const now = new Date();
+    
+    // Look for active open check-in within the last 18 hours (handles shifts crossing midnight seamlessly)
+    const eighteenHoursAgo = new Date(Date.now() - 18 * 60 * 60 * 1000);
+    let record = await Attendance.findOne({
       student: studentId,
-      date: { $gte: startOfDay, $lte: endOfDay }
-    });
+      checkIn: { $gte: eighteenHoursAgo },
+      checkOut: null
+    }).sort({ checkIn: -1 });
+
+    // Fallback: Check today's record
+    if (!record) {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
+      record = await Attendance.findOne({
+        student: studentId,
+        date: { $gte: startOfDay, $lte: endOfDay }
+      });
+    }
 
     if (!record) {
-      return res.status(404).json({ success: false, message: 'No attendance record found for today' });
+      return res.status(404).json({ success: false, message: 'No active check-in record found for student' });
     }
     if (!record.checkIn) {
-      return res.status(400).json({ success: false, message: 'Student has not checked in today' });
+      return res.status(400).json({ success: false, message: 'Student has not checked in' });
     }
     if (record.checkOut) {
-      return res.status(400).json({ success: false, message: 'Student already checked out today' });
+      return res.status(400).json({ success: false, message: 'Student already checked out' });
     }
 
-    record.checkOut = new Date();
+    record.checkOut = now;
+    const durationMinutes = Math.max(0, Math.round((now.getTime() - new Date(record.checkIn).getTime()) / (1000 * 60)));
+    record.duration = durationMinutes;
     await record.save();
 
-    res.json({ success: true, data: record, message: 'Check-out successful' });
+    res.json({ success: true, data: record, message: `Check-out successful (${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m study duration)` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -599,20 +627,24 @@ router.post('/check-out', protect, validate([
 // POST /check-out-all - Bulk check-out all active in hall
 router.post('/check-out-all', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-
+    const eighteenHoursAgo = new Date(Date.now() - 18 * 60 * 60 * 1000);
     const now = new Date();
-    const result = await Attendance.updateMany(
-      { date: { $gte: startOfDay, $lte: endOfDay }, checkIn: { $exists: true }, checkOut: null },
-      { $set: { checkOut: now } }
-    );
+    
+    // Find all un-closed checkins in last 18 hours
+    const activeRecords = await Attendance.find({
+      checkIn: { $gte: eighteenHoursAgo },
+      checkOut: null
+    });
+
+    for (const rec of activeRecords) {
+      rec.checkOut = now;
+      rec.duration = Math.max(0, Math.round((now.getTime() - new Date(rec.checkIn).getTime()) / (1000 * 60)));
+      await rec.save();
+    }
 
     res.json({
       success: true,
-      message: `Successfully checked out ${result.modifiedCount || 0} active members from reading hall.`
+      message: `Successfully checked out ${activeRecords.length} active members from reading hall.`
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -745,13 +777,20 @@ router.post(['/rfid-punch', '/kiosk-punch'], async (req, res) => {
       });
     }
 
-    // Check today's attendance record
+    // Check for open check-in in last 18 hours (handles overnight/midnight shifts cleanly)
+    const eighteenHoursAgo = new Date(Date.now() - 18 * 60 * 60 * 1000);
+    let openAtt = await Attendance.findOne({
+      student: student._id,
+      checkIn: { $gte: eighteenHoursAgo },
+      checkOut: null
+    }).sort({ checkIn: -1 });
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    let att = await Attendance.findOne({
+    let att = openAtt || await Attendance.findOne({
       student: student._id,
       date: { $gte: today, $lt: tomorrow }
     });

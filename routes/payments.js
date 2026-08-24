@@ -323,4 +323,109 @@ router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => 
     }
 });
 
+// ── Cash Register & Shift Handover Endpoints ─────────────────────────
+router.get('/cash-register/summary', protect, async (req, res) => {
+    try {
+        const CashSettlement = require('../models/CashSettlement');
+        const Expense = require('../models/Expense');
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Fetch all cash payments collected today
+        const cashPayments = await Payment.find({
+            paymentDate: { $gte: startOfDay, $lte: endOfDay },
+            paymentMethod: 'cash',
+            status: 'paid'
+        }).populate('student', 'name studentId').lean();
+
+        const onlinePayments = await Payment.find({
+            paymentDate: { $gte: startOfDay, $lte: endOfDay },
+            paymentMethod: { $ne: 'cash' },
+            status: 'paid'
+        }).lean();
+
+        const todayExpenses = await Expense.find({
+            date: { $gte: startOfDay, $lte: endOfDay },
+            paymentMethod: 'cash'
+        }).lean().catch(() => []);
+
+        const totalCashCollected = cashPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+        const totalOnlineCollected = onlinePayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+        const totalCashExpenses = todayExpenses.reduce((acc, e) => acc + (e.amount || 0), 0);
+
+        // Latest previous settlement to get opening cash
+        const lastSettlement = await CashSettlement.findOne().sort({ createdAt: -1 }).lean();
+        const openingCash = lastSettlement ? lastSettlement.actualPhysicalCash : 0;
+        const expectedClosingCash = Math.max(0, openingCash + totalCashCollected - totalCashExpenses);
+
+        const todaySettlement = await CashSettlement.findOne({
+            settlementDate: { $gte: startOfDay, $lte: endOfDay }
+        }).populate('closedBy', 'name role').lean();
+
+        res.json({
+            success: true,
+            data: {
+                openingCash,
+                totalCashCollected,
+                totalOnlineCollected,
+                totalCashExpenses,
+                expectedClosingCash,
+                cashTransactionsCount: cashPayments.length,
+                onlineTransactionsCount: onlinePayments.length,
+                todaySettlement,
+                recentCashPayments: cashPayments.slice(0, 10)
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+router.post('/cash-register/settle', protect, async (req, res) => {
+    try {
+        const CashSettlement = require('../models/CashSettlement');
+        const {
+            openingCash = 0,
+            cashCollected = 0,
+            cashExpenses = 0,
+            expectedClosingCash = 0,
+            actualPhysicalCash = 0,
+            denominations = {},
+            handoverTo = '',
+            notes = ''
+        } = req.body;
+
+        const variance = Number(actualPhysicalCash) - Number(expectedClosingCash);
+        const status = variance === 0 ? 'reconciled' : 'variance_noted';
+
+        const settlement = new CashSettlement({
+            settlementDate: new Date(),
+            branch: req.user.branch || null,
+            closedBy: req.user._id,
+            openingCash: Number(openingCash),
+            cashCollected: Number(cashCollected),
+            cashExpenses: Number(cashExpenses),
+            expectedClosingCash: Number(expectedClosingCash),
+            actualPhysicalCash: Number(actualPhysicalCash),
+            variance,
+            denominations,
+            handoverTo: handoverTo || 'Next Shift / Owner',
+            notes,
+            status
+        });
+
+        await settlement.save();
+
+        res.json({
+            success: true,
+            data: settlement,
+            message: `Cash register settled successfully. Variance: ${variance >= 0 ? '+' : ''}₹${variance}`
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 module.exports = router;

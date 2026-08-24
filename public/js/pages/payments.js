@@ -26,7 +26,10 @@ export async function render(container) {
                 <h2>💰 Payment Management</h2>
                 <p>Track student fee collections, generate GST/standard receipts, and manage pending dues.</p>
             </div>
-            <div class="module-actions">
+            <div class="module-actions d-flex gap-2 align-items-center flex-wrap">
+                <button class="btn btn-outline-secondary d-flex align-items-center gap-2" id="btnCashRegister" style="font-weight: 700;">
+                    <span>💵</span> Cash Register Handover
+                </button>
                 <button class="btn btn-primary d-flex align-items-center gap-2" id="btnCollectPayment" style="font-weight: 700;">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     Collect Fee Payment
@@ -597,6 +600,197 @@ export async function render(container) {
             });
         } catch (e) {
             console.error('Error loading dues', e);
+        }
+    }
+
+    async function showCashRegisterModal() {
+        try {
+            Loading.show('Calculating daily cash register summary...');
+            const res = await api.get('/api/payments/cash-register/summary');
+            Loading.hide();
+
+            if (!res.success) {
+                Toast.error(res.message || 'Failed to fetch cash register summary');
+                return;
+            }
+
+            const data = res.data || {};
+            const opening = data.openingCash || 0;
+            const collected = data.totalCashCollected || 0;
+            const expenses = data.totalCashExpenses || 0;
+            const expected = data.expectedClosingCash || 0;
+
+            const modalContent = `
+                <div style="padding: 6px 0;">
+                    <!-- Financial Overview Cards -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px;">
+                        <div class="p-2 border rounded text-center" style="background: var(--color-bg-secondary);">
+                            <small class="text-muted d-block" style="font-size: 0.75rem; font-weight: 700;">📦 Opening Cash</small>
+                            <strong style="font-size: 1.1rem; color: var(--color-text-primary);">₹${opening}</strong>
+                        </div>
+                        <div class="p-2 border rounded text-center" style="background: rgba(0, 184, 148, 0.08); border-color: rgba(0, 184, 148, 0.2) !important;">
+                            <small class="text-success d-block" style="font-size: 0.75rem; font-weight: 700;">📥 Today's Cash Fees</small>
+                            <strong style="font-size: 1.1rem; color: var(--color-success);">+₹${collected}</strong>
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">(${data.cashTransactionsCount || 0} collections)</small>
+                        </div>
+                        <div class="p-2 border rounded text-center" style="background: rgba(214, 48, 49, 0.08); border-color: rgba(214, 48, 49, 0.2) !important;">
+                            <small class="text-danger d-block" style="font-size: 0.75rem; font-weight: 700;">📤 Cash Expenses</small>
+                            <strong style="font-size: 1.1rem; color: var(--color-danger);">-₹${expenses}</strong>
+                        </div>
+                    </div>
+
+                    <!-- Expected Closing Cash Banner -->
+                    <div style="background: linear-gradient(135deg, rgba(108,92,231,0.12), rgba(0,184,148,0.12)); border: 1.5px solid var(--color-primary); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-weight: 800; font-size: 0.95rem; color: var(--color-primary);">Expected Cash in Drawer:</span>
+                            <small class="text-muted d-block" style="font-size: 0.75rem;">(Opening ₹${opening} + Cash In ₹${collected} - Cash Out ₹${expenses})</small>
+                        </div>
+                        <span style="font-size: 1.4rem; font-weight: 800; color: var(--color-primary);" id="cr-expected-amount">₹${expected}</span>
+                    </div>
+
+                    <!-- Denominations Calculator -->
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 700; font-size: 0.85rem; display: flex; justify-content: space-between;">
+                            <span>🧮 Physical Cash Count & Denominations</span>
+                            <span class="text-muted" style="font-size: 0.75rem;">Enter note quantities</span>
+                        </label>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                            ${[
+                                { val: 500, id: 'cr-d500' },
+                                { val: 200, id: 'cr-d200' },
+                                { val: 100, id: 'cr-d100' },
+                                { val: 50,  id: 'cr-d50'  },
+                                { val: 20,  id: 'cr-d20'  },
+                                { val: 10,  id: 'cr-d10'  }
+                            ].map(d => `
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text font-monospace" style="width: 70px; font-weight: 700;">₹${d.val} ×</span>
+                                    <input type="number" min="0" class="form-control cr-denom-input text-center" id="${d.id}" data-val="${d.val}" placeholder="0">
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="input-group input-group-sm mt-2">
+                            <span class="input-group-text font-monospace" style="width: 140px; font-weight: 700;">🪙 Coins / Loose (₹)</span>
+                            <input type="number" min="0" class="form-control cr-denom-input" id="cr-coins" data-val="1" placeholder="0">
+                        </div>
+                    </div>
+
+                    <!-- Counted Total vs Variance Result -->
+                    <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-weight: 700; font-size: 0.9rem;">Total Physical Cash Counted:</span>
+                            <strong style="font-size: 1.15rem;" id="cr-total-counted">₹0</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px dashed var(--color-border);">
+                            <span style="font-weight: 700; font-size: 0.85rem;">Day-End Settlement Variance:</span>
+                            <span class="badge" id="cr-variance-badge" style="font-size: 0.85rem; font-weight: 800; background: rgba(0,0,0,0.1);">Enter Count</span>
+                        </div>
+                    </div>
+
+                    <!-- Handover Recipient & Notes -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small" style="font-weight: 700;">Handover To / Recipient</label>
+                            <input type="text" id="cr-handover-to" class="form-control form-control-sm" placeholder="e.g. Evening Shift / Bank Deposit" value="Next Shift / Owner Handover">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small" style="font-weight: 700;">Settlement Notes</label>
+                            <input type="text" id="cr-notes" class="form-control form-control-sm" placeholder="Optional notes / discrepancy reasons">
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            Modal.show({
+                title: '💵 Daily Cash Register Handover & Day-End Settlement',
+                content: modalContent,
+                confirmText: '✅ Settle & Close Shift Register',
+                onConfirm: async () => {
+                    const d500 = Number(document.getElementById('cr-d500')?.value) || 0;
+                    const d200 = Number(document.getElementById('cr-d200')?.value) || 0;
+                    const d100 = Number(document.getElementById('cr-d100')?.value) || 0;
+                    const d50  = Number(document.getElementById('cr-d50')?.value)  || 0;
+                    const d20  = Number(document.getElementById('cr-d20')?.value)  || 0;
+                    const d10  = Number(document.getElementById('cr-d10')?.value)  || 0;
+                    const coins= Number(document.getElementById('cr-coins')?.value)|| 0;
+
+                    const actualPhysicalCash = (d500 * 500) + (d200 * 200) + (d100 * 100) + (d50 * 50) + (d20 * 20) + (d10 * 10) + coins;
+                    const handoverTo = document.getElementById('cr-handover-to')?.value?.trim();
+                    const notes = document.getElementById('cr-notes')?.value?.trim();
+
+                    try {
+                        Loading.show('Saving shift handover settlement...');
+                        const settleRes = await api.post('/api/payments/cash-register/settle', {
+                            openingCash: opening,
+                            cashCollected: collected,
+                            cashExpenses: expenses,
+                            expectedClosingCash: expected,
+                            actualPhysicalCash,
+                            denominations: { d500, d200, d100, d50, d20, d10, coins },
+                            handoverTo,
+                            notes
+                        });
+                        Loading.hide();
+
+                        if (settleRes.success) {
+                            Toast.success(settleRes.message || 'Cash register settled successfully');
+                            Modal.close();
+                            loadStats();
+                        } else {
+                            Toast.error(settleRes.message || 'Settlement failed');
+                        }
+                    } catch (e) {
+                        Loading.hide();
+                        Toast.error(e.message || 'Error settling cash register');
+                    }
+                }
+            });
+
+            // Attach real-time math listeners to denomination inputs
+            const updateMath = () => {
+                const d500 = Number(document.getElementById('cr-d500')?.value) || 0;
+                const d200 = Number(document.getElementById('cr-d200')?.value) || 0;
+                const d100 = Number(document.getElementById('cr-d100')?.value) || 0;
+                const d50  = Number(document.getElementById('cr-d50')?.value)  || 0;
+                const d20  = Number(document.getElementById('cr-d20')?.value)  || 0;
+                const d10  = Number(document.getElementById('cr-d10')?.value)  || 0;
+                const coins= Number(document.getElementById('cr-coins')?.value)|| 0;
+
+                const total = (d500 * 500) + (d200 * 200) + (d100 * 100) + (d50 * 50) + (d20 * 20) + (d10 * 10) + coins;
+                const diff = total - expected;
+
+                const countedEl = document.getElementById('cr-total-counted');
+                if (countedEl) countedEl.textContent = `₹${total}`;
+
+                const badge = document.getElementById('cr-variance-badge');
+                if (badge) {
+                    if (total === 0) {
+                        badge.textContent = 'Enter Count';
+                        badge.style.background = 'rgba(255,255,255,0.08)';
+                        badge.style.color = 'var(--color-text-secondary)';
+                    } else if (diff === 0) {
+                        badge.textContent = '✅ Reconciled (₹0 Variance)';
+                        badge.style.background = 'rgba(0,184,148,0.2)';
+                        badge.style.color = 'var(--color-success)';
+                    } else if (diff > 0) {
+                        badge.textContent = `✨ Surplus (+₹${diff})`;
+                        badge.style.background = 'rgba(59,130,246,0.2)';
+                        badge.style.color = 'var(--color-primary)';
+                    } else {
+                        badge.textContent = `⚠️ Deficit / Short (-₹${Math.abs(diff)})`;
+                        badge.style.background = 'rgba(214,48,49,0.2)';
+                        badge.style.color = 'var(--color-danger)';
+                    }
+                }
+            };
+
+            document.querySelectorAll('.cr-denom-input').forEach(inp => {
+                inp.addEventListener('input', updateMath);
+            });
+
+        } catch (err) {
+            Loading.hide();
+            Toast.error(err.message || 'Error opening cash register handover');
         }
     }
 
