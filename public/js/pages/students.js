@@ -1578,7 +1578,7 @@ export async function render() {
     if (pdfBtn) {
       const id = pdfBtn.getAttribute('data-id');
       const student = state.students.find(s => s._id === id);
-      if (student) previewAdmissionFormPDF(student);
+      if (student) previewAdmissionFormPDF(student, { business: window.store?.settings?.businessProfile, receiptConfig: window.store?.settings?.receipt });
       return;
     }
     
@@ -1602,7 +1602,7 @@ export async function render() {
       if (action === 'view') showStudentProfile(student);
       else if (action === 'edit') showStudentForm(student);
       else if (action === 'idcard') showStudentIdCard(student);
-      else if (action === 'pdfform') previewAdmissionFormPDF(student);
+      else if (action === 'pdfform') previewAdmissionFormPDF(student, { business: window.store?.settings?.businessProfile, receiptConfig: window.store?.settings?.receipt });
       else if (action === 'pwdreset') showPasswordResetModal(student);
       else if (action === 'delete') handleDelete(id);
       else if (action === 'toggle-status') {
@@ -1777,7 +1777,7 @@ export async function render() {
     });
 
     modalContent.querySelector('.btn-profile-pdfform')?.addEventListener('click', () => {
-      previewAdmissionFormPDF(student);
+      previewAdmissionFormPDF(student, { business: window.store?.settings?.businessProfile, receiptConfig: window.store?.settings?.receipt });
     });
 
     modalContent.querySelector('.btn-profile-edit')?.addEventListener('click', () => {

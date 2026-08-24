@@ -3,6 +3,17 @@
  * Premium PDF Registration & Admission Form Generator & Interactive Modal Preview
  */
 
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>"']/g, m => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[m]));
+}
+
 export function buildAdmissionFormHTML(student, options = {}) {
   const defaults = {
     template: 'modern_glass', // 'modern_glass' | 'classic_formal' | 'compact_card'
@@ -25,8 +36,8 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
   const opts = { ...defaults, ...options };
   const s = student || {};
-  const b = opts.business || defaults.business;
-  const rc = opts.receiptConfig || {};
+  const b = opts.business || (window.store?.settings?.businessProfile) || defaults.business;
+  const rc = opts.receiptConfig || (window.store?.settings?.receipt) || {};
   const rcHeader = rc.header || {};
   const rcFooter = rc.footer || {};
 
@@ -36,48 +47,102 @@ export function buildAdmissionFormHTML(student, options = {}) {
   const email = s.email || 'N/A';
   const gender = (s.gender || 'Other').toUpperCase();
   const dob = s.dateOfBirth || s.dob ? new Date(s.dateOfBirth || s.dob).toLocaleDateString('en-IN') : 'N/A';
+  const bloodGroup = s.bloodGroup || s.customFields?.bloodGroup || s.customFields?.blood_group || '';
   const pincode = s.pincode || 'N/A';
   const city = s.city || 'N/A';
   const state = s.state || 'N/A';
+  const fullAddress = s.address || s.customFields?.address || '';
+  const occupation = s.occupation || s.collegeOrCompany || s.customFields?.occupation || s.customFields?.college || '';
 
-  const branchName = s.branch?.name || s.branchName || 'Main Centre';
-  const planName = s.plan?.name || s.planName || 'Standard Membership Plan';
-  const shiftName = (s.plan?.shift || s.shift || 'ALL DAY').toUpperCase();
+  const branchName = s.branch?.name || s.branchName || 'Main Branch';
+  const planName = s.plan?.name || s.planName || 'Standard Study Membership';
+  const shiftName = (s.shift?.name || s.plan?.shift || s.shift || 'FULL DAY').toUpperCase();
   const seatNumber = s.seat?.seatNumber || s.seatNumber || 'Floating Desk';
-  const seatZone = s.seat?.zone || s.seatZone || 'General Reading Zone';
+  const seatZone = s.seat?.zone || s.seatZone || 'General Zone';
 
-  const joinedDate = s.joinedDate ? new Date(s.joinedDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+  const joinedDate = s.admissionDate || s.joinedDate || s.createdAt 
+    ? new Date(s.admissionDate || s.joinedDate || s.createdAt).toLocaleDateString('en-IN') 
+    : new Date().toLocaleDateString('en-IN');
   const expiryDate = s.expiryDate ? new Date(s.expiryDate).toLocaleDateString('en-IN') : 'N/A';
   const status = (s.status || 'active').toUpperCase();
 
   const isPaid = status === 'ACTIVE' || status === 'PAID';
-  const stampText = options.stampText || (isPaid ? 'PAID • ACTIVE' : 'PRE-RESERVED • PENDING DESK FEE');
-  const stampColor = isPaid ? '#00b894' : '#fdcb6e';
+  const stampText = options.stampText || (isPaid ? 'PAID & VERIFIED' : 'PROVISIONAL ADMISSION');
+  const stampColor = isPaid ? '#059669' : '#d97706';
 
-  // Target Exams tags
-  const exams = Array.isArray(s.targetExams) && s.targetExams.length > 0 
-    ? s.targetExams.join(', ') 
-    : 'General Competitive Exams & Self Study';
+  // Target Competitive Exams
+  let targetExamsList = [];
+  if (Array.isArray(s.targetExams) && s.targetExams.length > 0) {
+    targetExamsList = s.targetExams;
+  } else if (typeof s.targetExams === 'string' && s.targetExams.trim()) {
+    targetExamsList = s.targetExams.split(',').map(x => x.trim()).filter(Boolean);
+  } else if (s.customFields?.targetExams || s.customFields?.target_exams || s.customFields?.competitive_exams) {
+    const raw = s.customFields.targetExams || s.customFields.target_exams || s.customFields.competitive_exams;
+    targetExamsList = Array.isArray(raw) ? raw : String(raw).split(',').map(x => x.trim()).filter(Boolean);
+  }
+
+  // Emergency / Guardian Contacts
+  const emergencyName = s.emergencyContact?.name || s.emergencyContactName || s.customFields?.['Emergency Contact Name'] || s.customFields?.['Father / Guardian Name'] || s.customFields?.fatherName || '';
+  const emergencyPhone = s.emergencyContact?.phone || s.emergencyContactPhone || s.customFields?.['Emergency Contact Phone'] || s.customFields?.['Parent Phone'] || '';
+  const emergencyRelation = s.emergencyContact?.relation || s.emergencyContactRelation || s.customFields?.['Relation'] || 'Parent / Guardian';
+
+  // Government ID Proof & KYC Details
+  const idProofType = s.idProof?.type || s.idProofType || s.customFields?.idProofType || 'Aadhaar Card';
+  const idProofNumber = s.idProof?.number || s.idProofNumber || s.customFields?.idProofNumber || '';
+  const idProofImage = s.idProof?.image || s.idProofImage || s.customFields?.idProofImage || s.customFields?.idProof || '';
+
+  // Form Builder Custom Fields Extraction (Exclude core fields)
+  const customEntries = [];
+  const coreExcluded = new Set([
+    'name', 'phone', 'email', 'gender', 'dob', 'dateofbirth', 'photo', 'signature', 'seat', 'plan', 'status',
+    'idproofimage', 'idproof', 'idprooftype', 'idproofnumber', 'targetexams', 'target_exams', 'competitive_exams',
+    'address', 'city', 'state', 'pincode', 'bloodgroup', 'blood_group', 'emergencycontact', 'emergencycontactname',
+    'emergencycontactphone', 'emergencycontactrelation', 'parentphone', 'fathername', 'rfidcardnumber', 'biometricid'
+  ]);
+
+  if (s.customFields) {
+    if (s.customFields instanceof Map) {
+      for (const [k, v] of s.customFields.entries()) {
+        const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!coreExcluded.has(cleanKey) && v !== undefined && v !== null && v !== '') {
+          customEntries.push({ label: k, value: typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v) });
+        }
+      }
+    } else if (typeof s.customFields === 'object') {
+      for (const [k, v] of Object.entries(s.customFields)) {
+        const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!coreExcluded.has(cleanKey) && v !== undefined && v !== null && v !== '') {
+          customEntries.push({ label: k, value: typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v) });
+        }
+      }
+    }
+  }
 
   // Photo & Signature & Stamp URLs
-  const photoUrl = s.photo || s.photoUrl || s.customFields?.photo || s.customFields?.passport_photo || s.customFields?.idProofImage || s.avatar || '';
+  const photoUrl = s.photo || s.photoUrl || s.customFields?.photo || s.customFields?.passport_photo || s.avatar || '';
   const sigUrl = s.signature || s.signatureUrl || s.customFields?.signature || '';
   const logoUrl = rcHeader.logoUrl || b.logo || b.logoUrl || '';
   const stampImageUrl = rcFooter.stampImage || b.stampImage || '';
   const managerSigUrl = rcFooter.signatureImage || '';
   const gstNumber = rcHeader.gstNumber || rcHeader.taxNumber || b.gstNumber || b.taxNumber || '';
-  const termsText = rcFooter.termsText || rc.terms || '';
+  const termsText = rcFooter.termsText || rc.terms || b.rules || '';
   const customNote = rcFooter.customNote || '';
 
   // Generate QR Code SVG / Image URL
   let qrCodeImg = '';
-  if (opts.showQrCode && typeof qrcode !== 'undefined') {
-    try {
-      const qr = qrcode(0, 'M');
-      qr.addData(studentId);
-      qr.make();
-      qrCodeImg = qr.createImgTag(4, 0);
-    } catch (e) {}
+  if (opts.showQrCode) {
+    if (typeof qrcode !== 'undefined') {
+      try {
+        const qr = qrcode(0, 'M');
+        qr.addData(studentId);
+        qr.make();
+        qrCodeImg = qr.createImgTag(3.2, 0);
+      } catch (e) {}
+    }
+    if (!qrCodeImg) {
+      const upiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(studentId)}`;
+      qrCodeImg = `<img src="${upiUrl}" alt="QR Code" style="width: 90px; height: 90px; object-fit: contain;">`;
+    }
   }
 
   const isModern = opts.template === 'modern_glass';
@@ -93,25 +158,25 @@ export function buildAdmissionFormHTML(student, options = {}) {
   <style>
     @page {
       size: A4 portrait;
-      margin: 10mm;
+      margin: 8mm 10mm;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-    body { background: #fff; color: #2d3436; font-size: 13px; line-height: 1.4; padding: 10px; position: relative; }
+    body { background: #ffffff; color: #1e293b; font-size: 12px; line-height: 1.35; padding: 8px; position: relative; }
 
-    /* Watermark Stamp (Transparent Overlay) */
+    /* Watermark Stamp */
     .watermark-stamp {
       position: absolute;
-      top: 230px;
-      right: 50px;
+      top: 260px;
+      right: 40px;
       border: 3px dashed ${stampColor};
       color: ${stampColor};
-      padding: 6px 16px;
-      font-size: 0.95rem;
+      padding: 6px 14px;
+      font-size: 0.90rem;
       font-weight: 900;
       letter-spacing: 2px;
       text-transform: uppercase;
-      transform: rotate(-8deg);
-      opacity: 0.22;
+      transform: rotate(-7deg);
+      opacity: 0.20;
       border-radius: 8px;
       pointer-events: none;
       z-index: 1;
@@ -119,87 +184,106 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
     /* Template Header */
     .mg-header {
-      background: ${isClassic ? '#2c3e50' : isCompact ? '#0984e3' : 'linear-gradient(135deg, #6c5ce7, #00b894)'};
+      background: ${isClassic ? '#1e293b' : isCompact ? '#0284c7' : 'linear-gradient(135deg, #4f46e5, #059669)'};
       color: #ffffff;
-      padding: 16px 20px;
-      border-radius: ${isClassic ? '0' : '12px'};
+      padding: 14px 18px;
+      border-radius: ${isClassic ? '0' : '10px'};
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 18px;
-      border: ${isClassic ? '2px solid #1a252f' : 'none'};
+      margin-bottom: 12px;
     }
-    .mg-header h1 { font-size: 19px; font-weight: 800; letter-spacing: -0.5px; margin: 0; }
-    .mg-header p { font-size: 11px; opacity: 0.92; margin: 0; }
+    .mg-header h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; margin: 0; }
+    .mg-header p { font-size: 10.5px; opacity: 0.92; margin: 0; }
 
     /* Section Cards */
     .sec-card {
-      border: 1px solid #dfe6e9;
-      border-radius: 10px;
-      padding: 14px;
-      margin-bottom: 14px;
-      background: #fcfcfc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      background: #f8fafc;
       position: relative;
       z-index: 2;
     }
     .sec-title {
       font-weight: 800;
-      font-size: 13.5px;
-      color: ${isClassic ? '#2c3e50' : '#6c5ce7'};
-      border-bottom: 2px solid ${isClassic ? '#2c3e50' : '#6c5ce7'};
-      padding-bottom: 5px;
-      margin-bottom: 10px;
+      font-size: 12.5px;
+      color: ${isClassic ? '#1e293b' : '#4f46e5'};
+      border-bottom: 2px solid ${isClassic ? '#1e293b' : '#4f46e5'};
+      padding-bottom: 4px;
+      margin-bottom: 8px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     /* Grid Layouts */
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
 
-    .field-label { font-size: 10px; color: #636e72; font-weight: 600; text-transform: uppercase; }
-    .field-value { font-size: 12.5px; font-weight: 700; color: #2d3436; margin-top: 2px; }
+    .field-label { font-size: 9.5px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+    .field-value { font-size: 12px; font-weight: 700; color: #0f172a; margin-top: 1px; }
 
     /* Photo & Signature Frame */
-    .photo-box {
-      width: 105px;
-      height: 125px;
-      border: 2px dashed #b2bec3;
+    .photo-frame {
+      width: 125px;
+      height: 135px;
+      border: 1.5px solid #cbd5e1;
       border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #f1f2f6;
+      background: #ffffff;
       overflow: hidden;
       margin: 0 auto;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
-    .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-frame img { width: 100%; height: 100%; object-fit: cover; }
+
+    .qr-frame {
+      width: 125px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 6px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
 
     .sig-box {
-      width: 170px;
-      height: 55px;
-      border-bottom: 1.5px solid #2d3436;
+      width: 160px;
+      height: 50px;
+      border-bottom: 1.5px solid #334155;
       display: flex;
       align-items: flex-end;
       justify-content: center;
-      margin-top: 8px;
+      margin-top: 4px;
     }
-    .sig-box img { max-height: 50px; max-width: 100%; object-fit: contain; }
+    .sig-box img { max-height: 44px; max-width: 100%; object-fit: contain; }
 
     /* Rules Table */
-    .rules-list { font-size: 10.5px; color: #636e72; padding-left: 18px; margin-top: 4px; }
-    .rules-list li { margin-bottom: 3px; }
+    .rules-list { font-size: 10px; color: #475569; padding-left: 16px; margin-top: 4px; line-height: 1.4; }
+    .rules-list li { margin-bottom: 2px; }
 
     /* Footer Bar */
     .doc-footer {
-      margin-top: 20px;
-      border-top: 1px solid #dfe6e9;
-      padding-top: 10px;
+      margin-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 8px;
       display: flex;
       justify-content: space-between;
-      font-size: 10px;
-      color: #b2bec3;
+      font-size: 9.5px;
+      color: #94a3b8;
+    }
+
+    @media print {
+      body { padding: 0; background: #fff !important; }
+      .sec-card { background: #fff !important; break-inside: avoid; }
+      .mg-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   </style>
 </head>
@@ -209,36 +293,38 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
   <!-- Header -->
   <div class="mg-header">
-    <div style="display: flex; align-items: center; gap: 14px;">
-      ${logoUrl ? `<img src="${logoUrl}" style="max-height: 54px; max-width: 90px; object-fit: contain; background: #fff; padding: 4px; border-radius: 8px;">` : ''}
+    <div style="display: flex; align-items: center; gap: 12px;">
+      ${logoUrl ? `<img src="${logoUrl}" style="max-height: 50px; max-width: 80px; object-fit: contain; background: #fff; padding: 3px; border-radius: 6px;">` : ''}
       <div>
         <h1>${b.businessName}</h1>
-        <p>${b.tagline}</p>
-        <p style="margin-top: 4px; font-size: 11px;">📍 ${b.address} • 📞 ${b.phone} ${gstNumber ? `• GSTIN/Tax: ${gstNumber}` : ''}</p>
+        <p>${b.tagline || 'Silent Study Environment & Digital Library'}</p>
+        <p style="margin-top: 3px; font-size: 10px;">📍 ${b.address || ''} • 📞 ${b.phone || ''} ${gstNumber ? `• GSTIN: ${gstNumber}` : ''}</p>
       </div>
     </div>
-    <div style="text-align: right; background: rgba(255,255,255,0.22); padding: 8px 14px; border-radius: 8px; min-width: 155px; white-space: nowrap; flex-shrink: 0;">
-      <div style="font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;">Official Form Serial</div>
-      <div style="font-size: 15px; font-weight: 900; font-family: monospace; white-space: nowrap; margin: 1px 0;">${studentId}</div>
-      <div style="font-size: 11px; font-weight: 700; white-space: nowrap;">Date: ${joinedDate}</div>
+    <div style="text-align: right; background: rgba(255,255,255,0.22); padding: 6px 12px; border-radius: 6px; min-width: 145px; white-space: nowrap; flex-shrink: 0;">
+      <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;">Official Admission Form</div>
+      <div style="font-size: 14px; font-weight: 900; font-family: monospace; margin: 1px 0;">${studentId}</div>
+      <div style="font-size: 10px; font-weight: 700;">Date: ${joinedDate}</div>
     </div>
   </div>
 
-  <!-- Main Content Layout -->
-  <div style="display: grid; grid-template-columns: 1fr 130px; gap: 16px; margin-bottom: 14px;">
+  <!-- Top 2-Column Grid: Left: Personal + Seat Info | Right: Photo + QR Code -->
+  <div style="display: grid; grid-template-columns: 1fr 135px; gap: 12px; margin-bottom: 8px; align-items: start;">
     
-    <!-- Left Column: Personal & Academic Details -->
-    <div>
-      <!-- Personal Details -->
-      <div class="sec-card">
+    <!-- Left Column: Personal Information & Seat Allotment -->
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      
+      <!-- 1. Student Personal Information -->
+      <div class="sec-card" style="margin-bottom: 0;">
         <div class="sec-title">👤 Student Personal Information</div>
-        <div class="grid-3" style="margin-bottom: 10px;">
+        
+        <div class="grid-3" style="margin-bottom: 8px;">
           <div>
-            <div class="field-label">Full Name</div>
+            <div class="field-label">Full Student Name</div>
             <div class="field-value">${studentName}</div>
           </div>
           <div>
-            <div class="field-label">Mobile Phone</div>
+            <div class="field-label">Mobile Number</div>
             <div class="field-value">${phone}</div>
           </div>
           <div>
@@ -247,7 +333,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
           </div>
         </div>
 
-        <div class="grid-4">
+        <div class="grid-4" style="margin-bottom: 8px;">
           <div>
             <div class="field-label">Gender</div>
             <div class="field-value">${gender}</div>
@@ -257,27 +343,35 @@ export function buildAdmissionFormHTML(student, options = {}) {
             <div class="field-value">${dob}</div>
           </div>
           <div>
-            <div class="field-label">City & Pincode</div>
-            <div class="field-value">${city} (${pincode})</div>
+            <div class="field-label">Blood Group</div>
+            <div class="field-value">${bloodGroup || 'N/A'}</div>
           </div>
           <div>
-            <div class="field-label">State</div>
-            <div class="field-value">${state}</div>
+            <div class="field-label">City & State</div>
+            <div class="field-value">${city}${state && state !== 'N/A' ? ', ' + state : ''}</div>
           </div>
         </div>
+
+        ${fullAddress ? `
+          <div style="border-top: 1px dashed #e2e8f0; padding-top: 6px;">
+            <div class="field-label">Resident Address</div>
+            <div class="field-value" style="font-size: 11px;">${fullAddress}${pincode && pincode !== 'N/A' ? ' (PIN: ' + pincode + ')' : ''}</div>
+          </div>
+        ` : ''}
       </div>
 
-      <!-- Membership & Seat Allocation -->
-      <div class="sec-card">
+      <!-- 2. Study Centre & Seat Allocation -->
+      <div class="sec-card" style="margin-bottom: 0;">
         <div class="sec-title">🏢 Study Centre & Seat Allocation</div>
-        <div class="grid-3" style="margin-bottom: 10px;">
+        
+        <div class="grid-3" style="margin-bottom: 8px;">
           <div>
             <div class="field-label">Study Centre / Branch</div>
-            <div class="field-value" style="color: #6c5ce7;">${branchName}</div>
+            <div class="field-value" style="color: #4f46e5;">${branchName}</div>
           </div>
           <div>
-            <div class="field-label">Assigned Seat Number</div>
-            <div class="field-value" style="color: #00b894; font-size: 14px;">${seatNumber} (${seatZone})</div>
+            <div class="field-label">Assigned Desk / Seat</div>
+            <div class="field-value" style="color: #059669; font-size: 13px;">${seatNumber} (${seatZone})</div>
           </div>
           <div>
             <div class="field-label">Study Shift Timing</div>
@@ -296,139 +390,161 @@ export function buildAdmissionFormHTML(student, options = {}) {
           </div>
           <div>
             <div class="field-label">Validity Expiry Date</div>
-            <div class="field-value" style="color: #d63031;">${expiryDate}</div>
+            <div class="field-value" style="color: #dc2626;">${expiryDate}</div>
           </div>
         </div>
       </div>
 
     </div>
 
-    <!-- Right Column: Passport Photo & QR Code -->
-    <div style="text-align: center;">
-      ${opts.showPhoto ? `
-        <div style="margin-bottom: 12px;">
-          <div class="field-label" style="margin-bottom: 4px;">Passport Photo</div>
-          <div class="photo-box">
-            ${photoUrl ? `<img src="${photoUrl}" alt="Photo">` : `<span style="color:#b2bec3; font-size:9px;">SELFIE PHOTO</span>`}
-          </div>
+    <!-- Right Column: Passport Photo & Verification QR Code directly beneath it -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+      
+      <!-- Passport Photo Frame -->
+      <div style="width: 100%; text-align: center;">
+        <div class="field-label" style="margin-bottom: 3px; font-size: 8.5px;">PASSPORT PHOTO</div>
+        <div class="photo-frame">
+          ${photoUrl ? `<img src="${photoUrl}" alt="Photo">` : `<span style="color:#94a3b8; font-size:9px; font-weight:700;">AFFIX PHOTO</span>`}
         </div>
-      ` : ''}
+      </div>
 
-      ${opts.showQrCode && qrCodeImg ? `
-        <div>
-          <div class="field-label" style="margin-bottom: 4px;">Gate Barcode</div>
-          <div style="background: #fff; padding: 4px; border: 1px solid #dfe6e9; border-radius: 8px; display: inline-block;">
+      <!-- Generated Student Verification QR Code -->
+      <div style="width: 100%; text-align: center;">
+        <div class="field-label" style="margin-bottom: 3px; font-size: 8.5px;">VERIFY ID QR</div>
+        <div class="qr-frame" style="margin: 0 auto;">
+          <div style="display: flex; align-items: center; justify-content: center;">
             ${qrCodeImg}
           </div>
+          <div style="font-size: 8.5px; font-weight: 800; font-family: monospace; color: #475569; margin-top: 2px;">${studentId}</div>
         </div>
-      ` : ''}
+      </div>
+
     </div>
 
   </div>
 
-  <!-- Academic Goals & Fee Summary -->
-  ${opts.showPaymentDetails ? `
-    <div class="sec-card">
-      <div class="sec-title">🎯 Target Exams & Fee Settlement Summary</div>
-      <div class="grid-3">
-        <div>
-          <div class="field-label">Target Competitive Exams</div>
-          <div class="field-value">${exams}</div>
+  <!-- 3. Academic Goals, Target Competitive Exams & Guardian Contact -->
+  <div class="sec-card">
+    <div class="sec-title">🎯 Academic Goals, Target Exams & Emergency Contact</div>
+    
+    <div class="grid-3" style="margin-bottom: 8px;">
+      <div>
+        <div class="field-label">Target Competitive Exams</div>
+        <div class="field-value" style="color: #4f46e5;">
+          ${targetExamsList.length > 0 ? targetExamsList.join(', ') : 'General Competitive Exams / Self Study'}
         </div>
-        <div>
-          <div class="field-label">Payment Mode & Ref</div>
-          <div class="field-value">${(s.paymentMethod || 'UPI / Cash').toUpperCase()} ${s.transactionId ? '(' + s.transactionId + ')' : ''}</div>
-        </div>
-        <div>
-          <div class="field-label">Membership Status</div>
-          <div class="field-value" style="color: ${isPaid ? '#00b894' : '#fdcb6e'};">${status}</div>
+      </div>
+      <div>
+        <div class="field-label">College / Company / Occupation</div>
+        <div class="field-value">${occupation || 'Student / Aspirant'}</div>
+      </div>
+      <div>
+        <div class="field-label">Admission Status</div>
+        <div class="field-value" style="color: ${isPaid ? '#059669' : '#d97706'}; font-weight: 800;">
+          ${status} (${isPaid ? 'CONFIRMED' : 'PENDING'})
         </div>
       </div>
     </div>
-  ` : ''}
 
-  <!-- Form Builder Custom Questions & Answers -->
-  ${opts.showFormBuilderAnswers !== false ? `
+    ${emergencyName || emergencyPhone ? `
+      <div style="border-top: 1px dashed #e2e8f0; padding-top: 6px;" class="grid-3">
+        <div>
+          <div class="field-label">Guardian / Parent Name</div>
+          <div class="field-value">${emergencyName || 'N/A'}</div>
+        </div>
+        <div>
+          <div class="field-label">Emergency Phone</div>
+          <div class="field-value">📞 ${emergencyPhone || 'N/A'}</div>
+        </div>
+        <div>
+          <div class="field-label">Relationship</div>
+          <div class="field-value">${emergencyRelation}</div>
+        </div>
+      </div>
+    ` : ''}
+  </div>
+
+  <!-- 4. Government KYC & Document Proof Attachments -->
+  <div class="sec-card">
+    <div class="sec-title">🪪 KYC Verification & Government ID Attachments</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center;">
+      
+      <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <div style="font-weight: 800; font-size: 11.5px; color: #1e293b;">📑 ${idProofType}</div>
+          <div style="font-size: 10px; color: #475569; font-family: monospace; font-weight: 700; margin-top: 2px;">
+            ${idProofNumber ? `ID No: ${idProofNumber}` : 'Document Attached on Record'}
+          </div>
+        </div>
+        <span style="font-size: 9px; font-weight: 800; color: #059669; background: #d1fae5; padding: 3px 8px; border-radius: 4px; border: 1px solid #10b981;">
+          KYC VERIFIED ✓
+        </span>
+      </div>
+
+      <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <div style="font-weight: 800; font-size: 11.5px; color: #1e293b;">🏛️ Campus ID Allotment</div>
+          <div style="font-size: 10px; color: #475569; font-family: monospace; font-weight: 700; margin-top: 2px;">
+            RFID / Bio ID: ${s.rfidCardNumber || s.biometricId || studentId}
+          </div>
+        </div>
+        <span style="font-size: 9px; font-weight: 800; color: #4f46e5; background: #e0e7ff; padding: 3px 8px; border-radius: 4px; border: 1px solid #6366f1;">
+          ACTIVE ACCESS
+        </span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 5. Form Builder Custom Questions & Dynamic Answers (If Any) -->
+  ${customEntries.length > 0 ? `
     <div class="sec-card">
-      <div class="sec-title">📋 Form Builder Custom Questions & Answers</div>
+      <div class="sec-title">📋 Additional Registration Information</div>
       <div class="grid-2">
-        <div>
-          <div class="field-label">Father / Guardian Name</div>
-          <div class="field-value">${s.customFields?.['Father / Guardian Name'] || s.customFields?.fatherName || 'Suresh Sharma'}</div>
-        </div>
-        <div>
-          <div class="field-label">College / Institution</div>
-          <div class="field-value">${s.customFields?.['College / Institution'] || s.customFields?.college || 'Pune University Complex'}</div>
-        </div>
-        <div>
-          <div class="field-label">Emergency Contact Person</div>
-          <div class="field-value">${s.customFields?.['Emergency Contact Person'] || s.customFields?.emergencyContact || 'Ramesh Sharma (+91 98220 12345)'}</div>
-        </div>
-        <div>
-          <div class="field-label">Preparation Exam Category</div>
-          <div class="field-value">${s.customFields?.['Preparation Exam Category'] || s.customFields?.examCategory || 'UPSC Civil Services & MPSC State Services'}</div>
-        </div>
+        ${customEntries.map(e => `
+          <div style="margin-bottom: 4px;">
+            <div class="field-label">${escapeHTML(e.label)}</div>
+            <div class="field-value" style="font-size: 11.5px;">${escapeHTML(e.value)}</div>
+          </div>
+        `).join('')}
       </div>
     </div>
   ` : ''}
 
-  <!-- Uploaded Documents & ID Proof Attachments -->
-  ${opts.showUploadedDocuments !== false ? `
-    <div class="sec-card">
-      <div class="sec-title">📁 Uploaded Documents & ID Proof Attachments</div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-        <div style="background: #ffffff; border: 1px solid #dfe6e9; border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between;">
-          <div>
-            <div style="font-weight: 700; font-size: 11.5px; color: #2d3436;">📑 Government Aadhaar Card</div>
-            <div style="font-size: 9.5px; color: #636e72;">aadhaar_card_verified.pdf</div>
-          </div>
-          <span style="font-size: 9px; font-weight: 800; color: #00b894; background: rgba(0,184,148,0.12); padding: 2px 6px; border-radius: 4px;">VERIFIED ✓</span>
-        </div>
-        <div style="background: #ffffff; border: 1px solid #dfe6e9; border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between;">
-          <div>
-            <div style="font-weight: 700; font-size: 11.5px; color: #2d3436;">📑 College Student ID Card</div>
-            <div style="font-size: 9.5px; color: #636e72;">student_id_pass.png</div>
-          </div>
-          <span style="font-size: 9px; font-weight: 800; color: #00b894; background: rgba(0,184,148,0.12); padding: 2px 6px; border-radius: 4px;">VERIFIED ✓</span>
-        </div>
-      </div>
-    </div>
-  ` : ''}
-
-  <!-- Terms & Signature Section -->
+  <!-- 6. Discipline Code, Terms of Admission & Declaration -->
   ${opts.showRules ? `
     <div class="sec-card">
       <div class="sec-title">📜 Discipline Code & Student Declaration</div>
-      ${termsText ? `<p style="font-size: 11px; color: #4b5563; margin-bottom: 6px;">${termsText}</p>` : `
+      ${termsText ? `<div class="rules-list" style="margin-bottom: 6px;">${termsText}</div>` : `
       <ol class="rules-list">
         <li>Maintain complete silence in the study hall. Mobile phones must strictly be kept on Silent mode.</li>
-        <li>Seats are non-transferable without prior desk manager approval.</li>
-        <li>Eatables, tea, and open beverages are strictly prohibited inside the main reading room.</li>
-        <li>I agree to adhere to all library rules and timings set by the management.</li>
+        <li>Seats are reserved for the registered student and non-transferable without prior management approval.</li>
+        <li>Eatables, tea, and open beverages are strictly prohibited inside reading rooms.</li>
+        <li>I declare that the information provided is accurate and agree to adhere to all library rules and timings.</li>
       </ol>`}
-      ${customNote ? `<p style="font-size: 10.5px; color: #6c5ce7; font-weight: 600; margin-top: 6px;">Note: ${customNote}</p>` : ''}
+      ${customNote ? `<p style="font-size: 10px; color: #4f46e5; font-weight: 700; margin-top: 4px;">Notice: ${customNote}</p>` : ''}
 
-      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 16px; padding-top: 8px; border-top: 1px dashed #dfe6e9;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
         <div>
           <div class="field-label">Date & Place</div>
-          <div class="field-value">${joinedDate} • ${city}</div>
+          <div class="field-value">${joinedDate} • ${city !== 'N/A' ? city : 'Pune'}</div>
         </div>
 
         ${opts.showSignature ? `
           <div style="text-align: center;">
             <div class="field-label">Student Digital Signature</div>
             <div class="sig-box">
-              ${sigUrl ? `<img src="${sigUrl}" alt="Signature">` : `<span style="font-family:'Courier New', monospace; font-size:12px;">${studentName}</span>`}
+              ${sigUrl ? `<img src="${sigUrl}" alt="Signature">` : `<span style="font-family:'Courier New', monospace; font-size:11px; font-weight:700;">${studentName}</span>`}
             </div>
           </div>
         ` : ''}
 
         <div style="text-align: center;">
-          <div class="field-label">${rcFooter.signatureLabel || 'Authorized Stamp & Manager'}</div>
+          <div class="field-label">${rcFooter.signatureLabel || 'Authorized Seal & Signatory'}</div>
           <div class="sig-box" style="border-bottom-style: dotted; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            ${stampImageUrl ? `<img src="${stampImageUrl}" style="max-height: 45px; opacity: 0.85;">` : ''}
-            ${managerSigUrl ? `<img src="${managerSigUrl}" style="max-height: 40px;">` : ''}
-            ${!stampImageUrl && !managerSigUrl ? `<span style="font-size:10px; color:#b2bec3; font-weight:700;">LIBRARY SEAL</span>` : ''}
+            ${stampImageUrl ? `<img src="${stampImageUrl}" style="max-height: 42px; opacity: 0.85;">` : ''}
+            ${managerSigUrl ? `<img src="${managerSigUrl}" style="max-height: 38px;">` : ''}
+            ${!stampImageUrl && !managerSigUrl ? `<span style="font-size:9.5px; color:#94a3b8; font-weight:800; border:1px solid #cbd5e1; padding:2px 8px; border-radius:4px;">OFFICIAL SEAL</span>` : ''}
           </div>
         </div>
       </div>
@@ -437,8 +553,8 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
   <!-- Footer -->
   <div class="doc-footer">
-    <div>Generated via ${b.businessName || 'StudyLib Management System'} • Official Student Copy</div>
-    <div>Document Ref: ${studentId} • Page 1 of 1</div>
+    <div>Generated via ${b.businessName || 'StudyLib Management System'} • Official Admission Copy</div>
+    <div>Document Ref: ${studentId} • Verified Student Record</div>
   </div>
 
 </body>
