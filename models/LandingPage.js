@@ -188,7 +188,7 @@ const landingPageSchema = new mongoose.Schema({
 
   // Theme & Visual Presets Configuration
   theme: {
-    preset: { type: String, enum: ['modern_glass', 'academic_minimal', 'cyber_dark', 'warm_library', 'default'], default: 'modern_glass' },
+    preset: { type: String, enum: ['modern_glass', 'academic_minimal', 'academic_clean', 'cyber_dark', 'dark_cyber', 'warm_library', 'warm_cozy', 'default'], default: 'modern_glass' },
     primaryColor: { type: String, default: '#6c5ce7' },
     accentColor: { type: String, default: '#00b894' },
     secondaryColor: { type: String, default: '#3b82f6' },

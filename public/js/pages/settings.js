@@ -1126,116 +1126,371 @@ function renderWebsiteCmsStudio() {
   wrapper.className = 'card';
   wrapper.style.cssText = 'padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);';
 
+  const presetDefaults = {
+    modern_glass: {
+      primary: '#6c5ce7',
+      accent: '#00b894',
+      secondary: '#3b82f6',
+      font: 'Outfit, sans-serif'
+    },
+    academic_clean: {
+      primary: '#1e293b',
+      accent: '#0284c7',
+      secondary: '#64748b',
+      font: 'Inter, sans-serif'
+    },
+    dark_cyber: {
+      primary: '#06b6d4',
+      accent: '#10b981',
+      secondary: '#8b5cf6',
+      font: 'Plus Jakarta Sans, sans-serif'
+    },
+    warm_cozy: {
+      primary: '#b45309',
+      accent: '#d97706',
+      secondary: '#78350f',
+      font: 'Playfair Display, serif'
+    }
+  };
+
   let currentPreset = 'modern_glass';
+  let isMobilePreview = false;
 
   wrapper.innerHTML = `
     <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
       <div>
-        <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">🌐 Public Website CMS, 4 Theme Presets & Live Preview</h3>
-        <p class="text-muted small mb-0">Select theme presets, edit hero headlines, facilities, pricing cards, FAQs, and SEO tags with live split-screen preview.</p>
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-primary);">🌐 Public Website CMS, 4 Theme Presets & Live Split-Screen Studio</h3>
+        <p class="text-muted small mb-0">Select theme presets, customize color palettes, typography, hero banners, facilities, floating WhatsApp widgets, and SEO tags with instant live split-screen preview.</p>
       </div>
-      <div class="d-flex gap-2">
-        <a href="/landing" target="_blank" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">Open Live Website (/landing) ↗</a>
-        <button id="btn-save-website-cms" class="btn btn-sm btn-primary" style="font-weight: 800;">🚀 Publish Live Website</button>
+      <div class="d-flex gap-2 align-items-center">
+        <a href="/landing" target="_blank" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">👁️ Open Live Website (/landing) ↗</a>
+        <button id="btn-save-website-cms" class="btn btn-sm btn-primary" style="font-weight: 800; padding: 6px 18px;">🚀 Publish Live Website</button>
       </div>
     </div>
 
     <!-- 4 Selectable Theme Presets -->
     <div style="margin-bottom: 1.5rem;">
-      <label class="form-label" style="font-weight: 700; margin-bottom: 8px;">🎨 Select Visual Theme Preset</label>
+      <label class="form-label" style="font-weight: 800; font-size: 0.95rem; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+        <span>🎨</span> Select Visual Theme Preset
+      </label>
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;" id="theme-presets-grid">
-        <div class="card p-3 theme-preset-card active" data-preset="modern_glass" style="border: 2px solid var(--color-primary); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s;">
+        <div class="card p-3 theme-preset-card active" data-preset="modern_glass" style="border: 2px solid var(--color-primary); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
           <span style="font-size: 1.8rem; margin-bottom: 4px;">✨</span>
-          <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800;">Modern Glass</h5>
-          <small class="text-muted">Frosted glass & neon glow</small>
+          <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-text-primary);">Modern Glass</h5>
+          <small class="text-muted d-block">Frosted glass & neon emerald glow</small>
+          <div style="margin-top: 6px; display: flex; justify-content: center; gap: 4px;">
+            <span style="width: 12px; height: 12px; border-radius: 50%; background: #6c5ce7; display: inline-block;"></span>
+            <span style="width: 12px; height: 12px; border-radius: 50%; background: #00b894; display: inline-block;"></span>
+            <span style="width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; display: inline-block;"></span>
+          </div>
         </div>
-        <div class="card p-3 theme-preset-card" data-preset="academic_clean" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s;">
+
+        <div class="card p-3 theme-preset-card" data-preset="academic_clean" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
           <span style="font-size: 1.8rem; margin-bottom: 4px;">📖</span>
-          <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800;">Academic Clean</h5>
-          <small class="text-muted">High contrast & slate text</small>
+          <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-text-primary);">Academic Clean</h5>
+          <small class="text-muted d-block">High contrast slate & ocean teal</small>
+          <div style="margin-top: 6px; display: flex; justify-content: center; gap: 4px;">
+            <span style="width: 12px; height: 12px; border-radius: 50%; background: #1e293b; display: inline-block;"></span>
+            <span style="width: 12px; height: 12px; border-radius: 50%; background: #0284c7; display: inline-block;"></span>
+            <span style="width: 12px; height: 12px; border-radius: 50%; background: #64748b; display: inline-block;"></span>
+          </div>
         </div>
-        <div class="card p-3 theme-preset-card" data-preset="dark_cyber" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s;">
+
+        <div class="card p-3 theme-preset-card" data-preset="dark_cyber" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
           <span style="font-size: 1.8rem; margin-bottom: 4px;">⚡</span>
-          <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800;">Dark Cyber</h5>
-          <small class="text-muted">Obsidian & cyan borders</small>
+          <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-text-primary);">Dark Cyber</h5>
+          <small class="text-muted d-block">Deep obsidian & bright cyan glow</small>
+          <div style="margin-top: 6px; display: flex; justify-content: center; gap: 4px;">
+            <span style="width: 12px; height: 12px; border-radius: 50%; background: #06b6d4; display: inline-block;"></span>
+            <span style="width: 12px; height: 12px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+            <span style="width: 12px; height: 12px; border-radius: 50%; background: #0b0f19; border: 1px solid #333; display: inline-block;"></span>
+          </div>
         </div>
-        <div class="card p-3 theme-preset-card" data-preset="warm_cozy" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s;">
+
+        <div class="card p-3 theme-preset-card" data-preset="warm_cozy" style="border: 1px solid var(--color-border); background: var(--color-surface); text-align: center; cursor: pointer; transition: all 0.2s; border-radius: var(--radius-md);">
           <span style="font-size: 1.8rem; margin-bottom: 4px;">🏛️</span>
-          <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800;">Warm Cozy</h5>
-          <small class="text-muted">Parchment & amber wood</small>
+          <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-text-primary);">Warm Cozy</h5>
+          <small class="text-muted d-block">Parchment background & amber wood</small>
+          <div style="margin-top: 6px; display: flex; justify-content: center; gap: 4px;">
+            <span style="width: 12px; height: 12px; border-radius: 50%; background: #b45309; display: inline-block;"></span>
+            <span style="width: 12px; height: 12px; border-radius: 50%; background: #d97706; display: inline-block;"></span>
+            <span style="width: 12px; height: 12px; border-radius: 50%; background: #faf5ee; border: 1px solid #ccc; display: inline-block;"></span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Split-Screen Controls + Live Preview -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;" class="cms-split-layout">
+    <!-- Split-Screen Controls + Live Preview Layout -->
+    <div style="display: grid; grid-template-columns: 1fr 1.15fr; gap: 20px;" class="cms-split-layout">
       
-      <!-- Left Column: CMS Customizer Accordion -->
-      <div style="display: flex; flex-direction: column; gap: 14px;">
+      <!-- Left Column: All CMS Customization Accordions / Sections -->
+      <div style="display: flex; flex-direction: column; gap: 14px; max-height: 780px; overflow-y: auto; padding-right: 4px;">
         
-        <!-- Hero Section -->
+        <!-- Section 1: 🎨 Palette & Typography Overrides -->
         <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px;">🌟 Hero Section Headline</h5>
-          <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">Hero Headline Title</label>
-            <input type="text" id="cms-hero-title" class="form-control form-control-sm" value="Silence, Focus & Success at {library_name}">
-            <small class="text-muted">Use <code>{library_name}</code> to dynamically interpolate brand name</small>
-          </div>
-          <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">Hero Subtitle</label>
-            <input type="text" id="cms-hero-subtitle" class="form-control form-control-sm" value="India's premier air-conditioned self-study reading hall designed for competitive exam aspirants.">
-          </div>
-          <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">Announcement Marquee Ticker</label>
-            <input type="text" id="cms-hero-ticker" class="form-control form-control-sm" value="🎉 Admissions open for new batch! High-speed Wi-Fi, reserved desk allotment & 24/7 power backup.">
+          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>🎨</span> Color Palette & Typography Styling
+          </h5>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label class="form-label small" style="font-weight: 700;">Primary Color</label>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="color" id="cms-color-primary" class="form-control form-control-color p-0" value="#6c5ce7" style="width: 36px; height: 32px; cursor: pointer;">
+                <input type="text" id="cms-color-primary-text" class="form-control form-control-sm font-monospace" value="#6c5ce7" maxlength="7">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small" style="font-weight: 700;">Accent Color</label>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="color" id="cms-color-accent" class="form-control form-control-color p-0" value="#00b894" style="width: 36px; height: 32px; cursor: pointer;">
+                <input type="text" id="cms-color-accent-text" class="form-control form-control-sm font-monospace" value="#00b894" maxlength="7">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small" style="font-weight: 700;">Secondary Tint</label>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="color" id="cms-color-secondary" class="form-control form-control-color p-0" value="#3b82f6" style="width: 36px; height: 32px; cursor: pointer;">
+                <input type="text" id="cms-color-secondary-text" class="form-control form-control-sm font-monospace" value="#3b82f6" maxlength="7">
+              </div>
+            </div>
+            <div class="col-12 mt-2">
+              <label class="form-label small" style="font-weight: 700;">Typography Font Family</label>
+              <select id="cms-font-family" class="form-select form-select-sm">
+                <option value="Outfit, sans-serif">Outfit (Modern, Clean & Geometric)</option>
+                <option value="Inter, sans-serif">Inter (High Legibility & Academic)</option>
+                <option value="Poppins, sans-serif">Poppins (Friendly & Rounded)</option>
+                <option value="Plus Jakarta Sans, sans-serif">Plus Jakarta Sans (Tech & Sleek)</option>
+                <option value="Playfair Display, serif">Playfair Display (Warm & Classic Serif)</option>
+                <option value="Roboto, sans-serif">Roboto (Standard Sans)</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <!-- Facilities & Amenities -->
+        <!-- Section 2: 🌟 Hero Banner & Headline -->
         <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px;">⚡ Key Facility Badges</h5>
+          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>🌟</span> Hero Section Headline & Action CTAs
+          </h5>
+          <div class="form-group mb-2">
+            <label class="form-label small" style="font-weight: 700;">Hero Headline Title</label>
+            <input type="text" id="cms-hero-title" class="form-control form-control-sm" value="Premier Air-Conditioned Study Library & Reading Hall">
+            <small class="text-muted">Use <code>{library_name}</code> to dynamically display your business name</small>
+          </div>
+          <div class="form-group mb-2">
+            <label class="form-label small" style="font-weight: 700;">Hero Subtitle</label>
+            <input type="text" id="cms-hero-subtitle" class="form-control form-control-sm" value="Peaceful, Disciplined & Distraction-Free Study Environment for Competitive Exam Aspirants.">
+          </div>
+          <div class="form-group mb-2">
+            <label class="form-label small" style="font-weight: 700;">Announcement Marquee Alert Ticker</label>
+            <input type="text" id="cms-hero-ticker" class="form-control form-control-sm" value="⚡ Limited Seats Available for Morning & Full Day Shifts! Reserve Yours Today.">
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small" style="font-weight: 700;">Primary CTA Button</label>
+              <input type="text" id="cms-hero-cta-text" class="form-control form-control-sm" value="Book Your Seat / Register Now">
+            </div>
+            <div class="col-6">
+              <label class="form-label small" style="font-weight: 700;">Secondary CTA Button</label>
+              <input type="text" id="cms-hero-sec-text" class="form-control form-control-sm" value="Send Quick Enquiry">
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: ⚡ Key Facility Badges (6 Amenities) -->
+        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>⚡</span> Key Facility & Amenities Badges
+          </h5>
           <div class="row g-2">
             <div class="col-6"><input type="text" id="cms-fac-1" class="form-control form-control-sm" value="❄️ 100% Inverter AC Hall"></div>
             <div class="col-6"><input type="text" id="cms-fac-2" class="form-control form-control-sm" value="🚀 300 Mbps Optical Fiber Wi-Fi"></div>
             <div class="col-6"><input type="text" id="cms-fac-3" class="form-control form-control-sm" value="🔋 Zero-Interruption Power Backup"></div>
             <div class="col-6"><input type="text" id="cms-fac-4" class="form-control form-control-sm" value="📹 24x7 HD CCTV Surveillance"></div>
+            <div class="col-6"><input type="text" id="cms-fac-5" class="form-control form-control-sm" value="💧 Chilled & Hot RO Drinking Water"></div>
+            <div class="col-6"><input type="text" id="cms-fac-6" class="form-control form-control-sm" value="🔐 Personal Storage Lockers"></div>
           </div>
         </div>
 
-        <!-- SEO Meta Tags -->
+        <!-- Section 4: 📖 About & Library Information -->
         <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px;">🔍 SEO & Social Meta Tags</h5>
+          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>📖</span> About Section & Library Atmosphere
+          </h5>
           <div class="form-group mb-2">
-            <label class="form-label small" style="font-weight: 700;">Google Search Title</label>
-            <input type="text" id="cms-seo-title" class="form-control form-control-sm" value="Study Library & Reading Hall — Premium Self-Study Space">
+            <label class="form-label small" style="font-weight: 700;">About Headline Title</label>
+            <input type="text" id="cms-about-title" class="form-control form-control-sm" value="Why Choose Our Reading Hall?">
+          </div>
+          <div class="form-group mb-2">
+            <label class="form-label small" style="font-weight: 700;">About Narrative / Mission</label>
+            <textarea id="cms-about-desc" class="form-control form-control-sm" rows="3">Designed specifically for UPSC, MPSC, Banking, SSC, NEET/JEE, CA, and other exam aspirants. We provide ergonomic seating, high-speed Wi-Fi, pin-drop silence, and premium amenities to supercharge your study focus.</textarea>
           </div>
           <div class="form-group">
+            <label class="form-label small" style="font-weight: 700;">Daily Operating Hours Notice</label>
+            <input type="text" id="cms-opening-hours" class="form-control form-control-sm" value="Open Daily: 06:00 AM – 11:00 PM (365 Days)">
+          </div>
+        </div>
+
+        <!-- Section 5: 📱 Floating Quick Actions (WhatsApp & Direct Call) -->
+        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>📱</span> Floating Quick Action Widgets (WhatsApp & Call)
+          </h5>
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small" style="font-weight: 700;">Floating WhatsApp Support Number</label>
+              <input type="tel" id="cms-floating-whatsapp" class="form-control form-control-sm" placeholder="+91 98765 43210">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small" style="font-weight: 700;">Floating Direct Call Number</label>
+              <input type="tel" id="cms-floating-call" class="form-control form-control-sm" placeholder="+91 98765 43210">
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 6: 🔍 SEO, Social Graph & Google Maps -->
+        <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <h5 style="font-size: 0.95rem; font-weight: 800; color: var(--color-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+            <span>🔍</span> SEO, Social Share & Google Maps
+          </h5>
+          <div class="form-group mb-2">
+            <label class="form-label small" style="font-weight: 700;">Google Search Page Title</label>
+            <input type="text" id="cms-seo-title" class="form-control form-control-sm" value="Study Library & Reading Hall — Premium Self-Study Space">
+          </div>
+          <div class="form-group mb-2">
             <label class="form-label small" style="font-weight: 700;">Meta Description</label>
-            <textarea id="cms-seo-desc" class="form-control form-control-sm" rows="2">Join India's best reading hall with reserved seats, ergonomic chairs, and high speed Wi-Fi.</textarea>
+            <textarea id="cms-seo-desc" class="form-control form-control-sm" rows="2">Peaceful, air-conditioned study library with high-speed Wi-Fi, ergonomic seating, and 24x7 power backup.</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label small" style="font-weight: 700;">Google Maps Location Embed URL</label>
+            <input type="url" id="cms-map-embed" class="form-control form-control-sm" placeholder="https://www.google.com/maps/embed?...">
           </div>
         </div>
 
       </div>
 
-      <!-- Right Column: Live Iframe Preview -->
-      <div style="display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-secondary);">📱 Live Split-Screen Preview</span>
-          <div class="d-flex gap-1">
-            <button type="button" id="btn-preview-reload" class="btn btn-xs btn-outline-secondary" style="padding: 2px 6px;">🔄 Reload</button>
+      <!-- Right Column: Live Responsive Split-Screen Preview -->
+      <div style="display: flex; flex-direction: column; position: sticky; top: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+          <div class="d-flex align-items-center gap-2">
+            <span style="font-weight: 800; font-size: 0.9rem; color: var(--color-text-primary);">📱 Live Split-Screen Preview</span>
+            <span class="badge badge-success" style="font-size: 0.7rem; font-weight: 700;">⚡ Instant Sync</span>
+          </div>
+          <div class="d-flex gap-1 align-items-center">
+            <button type="button" id="btn-preview-mode-desktop" class="btn btn-xs btn-primary" style="padding: 2px 8px; font-weight: 700;">🖥️ Desktop</button>
+            <button type="button" id="btn-preview-mode-mobile" class="btn btn-xs btn-outline-secondary" style="padding: 2px 8px; font-weight: 700;">📱 Mobile</button>
+            <button type="button" id="btn-preview-reload" class="btn btn-xs btn-outline-secondary" style="padding: 2px 6px;" title="Hard Reload Preview">🔄</button>
           </div>
         </div>
-        <div style="width: 100%; height: 520px; border: 2px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-bg-secondary);">
-          <iframe id="cms-preview-frame" src="/landing?preview=true" style="width: 100%; height: 100%; border: none;"></iframe>
+
+        <div id="cms-preview-container" style="width: 100%; height: 720px; border: 2px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; background: #0f121d; display: flex; justify-content: center; align-items: center; transition: all 0.3s;">
+          <iframe id="cms-preview-frame" src="/landing?preview=true&theme=modern_glass" style="width: 100%; height: 100%; border: none; transition: width 0.3s ease;"></iframe>
         </div>
       </div>
 
     </div>
   `;
 
-  // Preset Selection & Preview Refresh Handler
-  setTimeout(() => {
+  // Attach interactive live preview listeners and fetch database config
+  setTimeout(async () => {
     const iframe = wrapper.querySelector('#cms-preview-frame');
+    const previewContainer = wrapper.querySelector('#cms-preview-container');
+
+    // Helper to send live updates to preview iframe
+    const dispatchLiveUpdate = () => {
+      if (!iframe || !iframe.contentWindow) return;
+      const primary = wrapper.querySelector('#cms-color-primary')?.value;
+      const accent = wrapper.querySelector('#cms-color-accent')?.value;
+      const secondary = wrapper.querySelector('#cms-color-secondary')?.value;
+      const font = wrapper.querySelector('#cms-font-family')?.value;
+      const heroTitle = wrapper.querySelector('#cms-hero-title')?.value;
+      const heroSubtitle = wrapper.querySelector('#cms-hero-subtitle')?.value;
+      const heroTicker = wrapper.querySelector('#cms-hero-ticker')?.value;
+
+      iframe.contentWindow.postMessage({
+        type: 'LIVE_CMS_UPDATE',
+        preset: currentPreset,
+        primaryColor: primary,
+        accentColor: accent,
+        secondaryColor: secondary,
+        fontFamily: font,
+        heroTitle: heroTitle,
+        heroSubtitle: heroSubtitle,
+        announcementTicker: heroTicker
+      }, '*');
+    };
+
+    // 1. Fetch active Landing Page config from MongoDB and populate fields
+    try {
+      const res = await api.get('/api/landing');
+      if (res.success && res.data) {
+        const { landing = {}, businessProfile = {} } = res.data;
+        if (landing.theme?.preset) {
+          currentPreset = landing.theme.preset;
+          wrapper.querySelectorAll('.theme-preset-card').forEach(c => {
+            if (c.dataset.preset === currentPreset) {
+              c.classList.add('active');
+              c.style.border = '2px solid var(--color-primary)';
+            } else {
+              c.classList.remove('active');
+              c.style.border = '1px solid var(--color-border)';
+            }
+          });
+        }
+        if (landing.theme?.primaryColor) {
+          wrapper.querySelector('#cms-color-primary').value = landing.theme.primaryColor;
+          wrapper.querySelector('#cms-color-primary-text').value = landing.theme.primaryColor;
+        }
+        if (landing.theme?.accentColor) {
+          wrapper.querySelector('#cms-color-accent').value = landing.theme.accentColor;
+          wrapper.querySelector('#cms-color-accent-text').value = landing.theme.accentColor;
+        }
+        if (landing.theme?.secondaryColor) {
+          wrapper.querySelector('#cms-color-secondary').value = landing.theme.secondaryColor;
+          wrapper.querySelector('#cms-color-secondary-text').value = landing.theme.secondaryColor;
+        }
+        if (landing.theme?.fontFamily) {
+          wrapper.querySelector('#cms-font-family').value = landing.theme.fontFamily;
+        }
+
+        if (landing.hero?.title) wrapper.querySelector('#cms-hero-title').value = landing.hero.title;
+        if (landing.hero?.subtitle) wrapper.querySelector('#cms-hero-subtitle').value = landing.hero.subtitle;
+        if (landing.hero?.tickerText) wrapper.querySelector('#cms-hero-ticker').value = landing.hero.tickerText;
+        if (landing.hero?.ctaPrimaryText) wrapper.querySelector('#cms-hero-cta-text').value = landing.hero.ctaPrimaryText;
+        if (landing.hero?.ctaSecondaryText) wrapper.querySelector('#cms-hero-sec-text').value = landing.hero.ctaSecondaryText;
+
+        if (landing.about?.title) wrapper.querySelector('#cms-about-title').value = landing.about.title;
+        if (landing.about?.description) wrapper.querySelector('#cms-about-desc').value = landing.about.description;
+        if (landing.contact?.openingHours) wrapper.querySelector('#cms-opening-hours').value = landing.contact.openingHours;
+
+        if (landing.floatingActions?.whatsappNumber || businessProfile.phone) {
+          wrapper.querySelector('#cms-floating-whatsapp').value = landing.floatingActions?.whatsappNumber || businessProfile.phone || '';
+        }
+        if (landing.floatingActions?.callNumber || businessProfile.phone) {
+          wrapper.querySelector('#cms-floating-call').value = landing.floatingActions?.callNumber || businessProfile.phone || '';
+        }
+
+        if (landing.seo?.metaTitle) wrapper.querySelector('#cms-seo-title').value = landing.seo.metaTitle;
+        if (landing.seo?.metaDescription) wrapper.querySelector('#cms-seo-desc').value = landing.seo.metaDescription;
+        if (businessProfile.mapEmbedUrl || landing.footer?.mapEmbedUrl) {
+          wrapper.querySelector('#cms-map-embed').value = businessProfile.mapEmbedUrl || landing.footer?.mapEmbedUrl || '';
+        }
+
+        if (Array.isArray(landing.facilities?.items)) {
+          landing.facilities.items.forEach((fac, idx) => {
+            const facInput = wrapper.querySelector(`#cms-fac-${idx + 1}`);
+            if (facInput && fac.title) facInput.value = `${fac.icon || '⚡'} ${fac.title}`;
+          });
+        }
+
+        // Set initial iframe preset
+        if (iframe) iframe.src = `/landing?preview=true&theme=${currentPreset}&t=${Date.now()}`;
+      }
+    } catch (err) {
+      console.warn('Failed to load landing config:', err);
+    }
+
+    // 2. Preset Selection Click Handlers
     wrapper.querySelectorAll('.theme-preset-card').forEach(card => {
       card.addEventListener('click', () => {
         wrapper.querySelectorAll('.theme-preset-card').forEach(c => {
@@ -1245,46 +1500,170 @@ function renderWebsiteCmsStudio() {
         card.classList.add('active');
         card.style.border = '2px solid var(--color-primary)';
         currentPreset = card.dataset.preset;
+
+        // Auto-update color pickers and typography to preset defaults
+        const defaults = presetDefaults[currentPreset] || presetDefaults.modern_glass;
+        wrapper.querySelector('#cms-color-primary').value = defaults.primary;
+        wrapper.querySelector('#cms-color-primary-text').value = defaults.primary;
+        wrapper.querySelector('#cms-color-accent').value = defaults.accent;
+        wrapper.querySelector('#cms-color-accent-text').value = defaults.accent;
+        wrapper.querySelector('#cms-color-secondary').value = defaults.secondary;
+        wrapper.querySelector('#cms-color-secondary-text').value = defaults.secondary;
+        wrapper.querySelector('#cms-font-family').value = defaults.font;
+
         if (iframe) {
           iframe.src = `/landing?preview=true&theme=${currentPreset}&t=${Date.now()}`;
         }
+        setTimeout(dispatchLiveUpdate, 150);
       });
+    });
+
+    // 3. Color Picker & Hex Sync
+    ['primary', 'accent', 'secondary'].forEach(type => {
+      const colorInput = wrapper.querySelector(`#cms-color-${type}`);
+      const textInput = wrapper.querySelector(`#cms-color-${type}-text`);
+      if (colorInput && textInput) {
+        colorInput.addEventListener('input', () => {
+          textInput.value = colorInput.value;
+          dispatchLiveUpdate();
+        });
+        textInput.addEventListener('input', () => {
+          if (textInput.value.startsWith('#') && textInput.value.length === 7) {
+            colorInput.value = textInput.value;
+            dispatchLiveUpdate();
+          }
+        });
+      }
+    });
+
+    // 4. Live Text Inputs Sync
+    ['#cms-font-family', '#cms-hero-title', '#cms-hero-subtitle', '#cms-hero-ticker'].forEach(sel => {
+      wrapper.querySelector(sel)?.addEventListener('input', dispatchLiveUpdate);
+    });
+
+    // 5. Desktop vs Mobile Preview Toggle
+    const btnDesktop = wrapper.querySelector('#btn-preview-mode-desktop');
+    const btnMobile = wrapper.querySelector('#btn-preview-mode-mobile');
+
+    btnDesktop?.addEventListener('click', () => {
+      isMobilePreview = false;
+      btnDesktop.classList.replace('btn-outline-secondary', 'btn-primary');
+      btnMobile.classList.replace('btn-primary', 'btn-outline-secondary');
+      if (iframe) {
+        iframe.style.width = '100%';
+        iframe.style.maxWidth = '100%';
+      }
+    });
+
+    btnMobile?.addEventListener('click', () => {
+      isMobilePreview = true;
+      btnMobile.classList.replace('btn-outline-secondary', 'btn-primary');
+      btnDesktop.classList.replace('btn-primary', 'btn-outline-secondary');
+      if (iframe) {
+        iframe.style.width = '375px';
+        iframe.style.maxWidth = '375px';
+        iframe.style.boxShadow = '0 0 20px rgba(0,0,0,0.5)';
+        iframe.style.borderRadius = '16px';
+      }
     });
 
     wrapper.querySelector('#btn-preview-reload')?.addEventListener('click', () => {
       if (iframe) iframe.src = `/landing?preview=true&theme=${currentPreset}&t=${Date.now()}`;
     });
 
-    // Save & Publish Website CMS Handler
+    // 6. Save & Publish Website CMS Handler
     wrapper.querySelector('#btn-save-website-cms')?.addEventListener('click', async () => {
+      const btnSave = wrapper.querySelector('#btn-save-website-cms');
+      UI.buttonLoading(btnSave, true, 'Publishing...');
+
       const heroTitle = wrapper.querySelector('#cms-hero-title')?.value?.trim();
       const heroSubtitle = wrapper.querySelector('#cms-hero-subtitle')?.value?.trim();
       const heroTicker = wrapper.querySelector('#cms-hero-ticker')?.value?.trim();
+      const heroCtaText = wrapper.querySelector('#cms-hero-cta-text')?.value?.trim();
+      const heroSecText = wrapper.querySelector('#cms-hero-sec-text')?.value?.trim();
+
+      const primaryColor = wrapper.querySelector('#cms-color-primary')?.value;
+      const accentColor = wrapper.querySelector('#cms-color-accent')?.value;
+      const secondaryColor = wrapper.querySelector('#cms-color-secondary')?.value;
+      const fontFamily = wrapper.querySelector('#cms-font-family')?.value;
+
+      const aboutTitle = wrapper.querySelector('#cms-about-title')?.value?.trim();
+      const aboutDesc = wrapper.querySelector('#cms-about-desc')?.value?.trim();
+      const openingHours = wrapper.querySelector('#cms-opening-hours')?.value?.trim();
+
+      const whatsappNumber = wrapper.querySelector('#cms-floating-whatsapp')?.value?.trim();
+      const callNumber = wrapper.querySelector('#cms-floating-call')?.value?.trim();
+
       const seoTitle = wrapper.querySelector('#cms-seo-title')?.value?.trim();
       const seoDesc = wrapper.querySelector('#cms-seo-desc')?.value?.trim();
+      const mapEmbed = wrapper.querySelector('#cms-map-embed')?.value?.trim();
+
+      // Collect Facility items
+      const facilityItems = [];
+      for (let i = 1; i <= 6; i++) {
+        const val = wrapper.querySelector(`#cms-fac-${i}`)?.value?.trim();
+        if (val) {
+          const parts = val.split(' ');
+          const icon = parts[0] || '⚡';
+          const title = parts.slice(1).join(' ') || val;
+          facilityItems.push({ icon, title, description: 'Premium study facility with uninterrupted comfort' });
+        }
+      }
 
       try {
         const payload = {
-          theme: { preset: currentPreset },
+          theme: {
+            preset: currentPreset,
+            primaryColor,
+            accentColor,
+            secondaryColor,
+            fontFamily
+          },
           hero: {
             title: heroTitle,
             subtitle: heroSubtitle,
-            announcementTicker: heroTicker
+            tickerText: heroTicker,
+            ctaPrimaryText: heroCtaText || 'Book Your Seat / Register Now',
+            ctaSecondaryText: heroSecText || 'Send Quick Enquiry'
+          },
+          facilities: {
+            enabled: true,
+            items: facilityItems
+          },
+          about: {
+            enabled: true,
+            title: aboutTitle,
+            description: aboutDesc
+          },
+          contact: {
+            enabled: true,
+            openingHours: openingHours || 'Open Daily: 06:00 AM – 11:00 PM (365 Days)'
+          },
+          floatingActions: {
+            enabled: true,
+            whatsappNumber: whatsappNumber || '',
+            callNumber: callNumber || ''
           },
           seo: {
             metaTitle: seoTitle,
             metaDescription: seoDesc
+          },
+          businessProfile: {
+            mapEmbedUrl: mapEmbed || ''
           }
         };
+
         const res = await api.put('/api/landing', payload);
         if (res.success) {
-          Toast.success('Public Website published live with new theme preset!');
+          Toast.success('Public Website published live with your customized theme preset!');
           if (iframe) iframe.src = `/landing?preview=true&theme=${currentPreset}&t=${Date.now()}`;
         } else {
           Toast.error(res.message || 'Failed to publish website');
         }
       } catch (err) {
-        Toast.error(err.message || 'Error saving website');
+        Toast.error(err.message || 'Error publishing website');
+      } finally {
+        UI.buttonLoading(btnSave, false);
       }
     });
   }, 50);
