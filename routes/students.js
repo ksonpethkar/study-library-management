@@ -203,21 +203,27 @@ router.post('/', validate([
 
     req.body.createdBy = req.user._id;
     
-    if (req.body.gender) {
-      const g = String(req.body.gender).toLowerCase().trim();
+    // Extract customFields before creating student
+    const customFieldsData = req.body.customFields;
+    delete req.body.customFields;
+
+    const rawGender = req.body.gender !== undefined ? req.body.gender : (customFieldsData && customFieldsData.gender);
+    if (rawGender) {
+      const g = String(rawGender).toLowerCase().trim();
       req.body.gender = ['male', 'female', 'other'].includes(g) ? g : undefined;
     }
     if (req.body.status) {
       req.body.status = String(req.body.status).toLowerCase().trim();
     }
 
+    const rawExams = req.body.targetExams !== undefined ? req.body.targetExams : (customFieldsData && (customFieldsData.targetExams || customFieldsData.target_exams || customFieldsData.competitive_exams));
+    if (rawExams !== undefined) {
+      req.body.targetExams = Array.isArray(rawExams) ? rawExams : String(rawExams).split(',').map(s => s.trim()).filter(Boolean);
+    }
+
     if (!req.body.studentId) {
       req.body.studentId = await generateStudentId({ branch: req.body.branch });
     }
-    
-    // Extract customFields before creating student
-    const customFieldsData = req.body.customFields;
-    delete req.body.customFields;
     
     const student = new Student(req.body);
     
@@ -314,16 +320,22 @@ router.put('/:id', validate([
     const oldSeat = student.seat ? String(student.seat) : null;
     const oldLocker = student.locker ? String(student.locker) : null;
 
-    if (req.body.gender) {
-      const g = String(req.body.gender).toLowerCase().trim();
+    const customFieldsData = req.body.customFields;
+    delete req.body.customFields;
+
+    const rawGender = req.body.gender !== undefined ? req.body.gender : (customFieldsData && customFieldsData.gender);
+    if (rawGender) {
+      const g = String(rawGender).toLowerCase().trim();
       req.body.gender = ['male', 'female', 'other'].includes(g) ? g : undefined;
     }
     if (req.body.status) {
       req.body.status = String(req.body.status).toLowerCase().trim();
     }
 
-    const customFieldsData = req.body.customFields;
-    delete req.body.customFields;
+    const rawExams = req.body.targetExams !== undefined ? req.body.targetExams : (customFieldsData && (customFieldsData.targetExams || customFieldsData.target_exams || customFieldsData.competitive_exams));
+    if (rawExams !== undefined) {
+      req.body.targetExams = Array.isArray(rawExams) ? rawExams : String(rawExams).split(',').map(s => s.trim()).filter(Boolean);
+    }
 
     Object.assign(student, req.body);
 

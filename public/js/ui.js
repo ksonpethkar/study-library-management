@@ -371,27 +371,35 @@ Modal.hide = function() {
   Modal.close();
 };
 
-// Global capture click listener for all Cancel / Close buttons inside any modal
+// Scoped click listener for Cancel / Close buttons inside modals
 if (typeof document !== 'undefined') {
   document.addEventListener('click', (e) => {
     const trigger = e.target.closest('[data-modal-close], [data-close-modal], .modal-close, .modal-close-btn, .modal-cancel, .btn-modal-close, .fb-cancel-modal-btn');
     if (trigger) {
       e.preventDefault();
       e.stopPropagation();
+      const parentDialog = trigger.closest('dialog, .modal-container, .modal');
+      if (parentDialog && parentDialog.id && parentDialog.id !== 'modal-container') {
+        try { if (typeof parentDialog.close === 'function') parentDialog.close(); } catch(e) {}
+        parentDialog.remove();
+        return;
+      }
       Modal.closeAll();
       return;
     }
 
-    // Auto-detect any Cancel or Close button inside a dialog/modal container
-    if (e.target.tagName === 'BUTTON' && (e.target.type === 'button' || !e.target.type)) {
-      const txt = e.target.textContent.trim().toLowerCase();
-      if (['cancel', 'close', '✖ cancel', '❌ cancel', 'dismiss', 'back'].includes(txt)) {
-        if (e.target.closest('dialog, #modal-container, .modal, .modal-container')) {
-          e.preventDefault();
-          e.stopPropagation();
-          Modal.closeAll();
-        }
+    // Handle explicit modal cancel buttons
+    const cancelBtn = e.target.closest('.modal-cancel-btn');
+    if (cancelBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const parentDialog = cancelBtn.closest('dialog, .modal-container, .modal');
+      if (parentDialog && parentDialog.id && parentDialog.id !== 'modal-container') {
+        try { if (typeof parentDialog.close === 'function') parentDialog.close(); } catch(e) {}
+        parentDialog.remove();
+        return;
       }
+      Modal.closeAll();
     }
   }, true);
 }

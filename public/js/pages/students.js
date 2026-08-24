@@ -543,20 +543,34 @@ export async function render() {
     // Helper to extract student field values
     function getVal(fieldName) {
       if (!student) return '';
-      if (student[fieldName] !== undefined && student[fieldName] !== null) return student[fieldName];
-      if (fieldName === 'idProofType') return student.idProof?.type || 'Aadhaar Card';
-      if (fieldName === 'idProofNumber') return student.idProof?.number || '';
-      if (fieldName === 'idProofImage') return student.idProof?.image || '';
-      if (fieldName === 'emergencyContactName') return student.emergencyContact?.name || '';
-      if (fieldName === 'emergencyContactPhone') return student.emergencyContact?.phone || '';
-      if (fieldName === 'emergencyContactRelation') return student.emergencyContact?.relation || '';
-      if (fieldName === 'dateOfBirth' && student.dateOfBirth) {
+      if (student[fieldName] !== undefined && student[fieldName] !== null && student[fieldName] !== '') return student[fieldName];
+      
+      const fn = (fieldName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (fn === 'targetexams' || fn === 'target_exams' || fn === 'competitiveexams' || fn === 'exams') {
+        return student.targetExams || student.customFields?.targetExams || student.customFields?.target_exams || '';
+      }
+      if (fn === 'gender') {
+        return student.gender || student.customFields?.gender || '';
+      }
+      if (fn === 'bloodgroup' || fn === 'blood') {
+        return student.bloodGroup || student.customFields?.bloodGroup || student.customFields?.blood_group || '';
+      }
+      if (fn === 'idprooftype') return student.idProof?.type || 'Aadhaar Card';
+      if (fn === 'idproofnumber') return student.idProof?.number || '';
+      if (fn === 'idproofimage' || fn === 'idproof') return student.idProof?.image || '';
+      if (fn === 'emergencycontactname') return student.emergencyContact?.name || '';
+      if (fn === 'emergencycontactphone' || fn === 'emergencycontact' || fn === 'parentphone') return student.emergencyContact?.phone || '';
+      if (fn === 'emergencycontactrelation') return student.emergencyContact?.relation || '';
+      if ((fn === 'dateofbirth' || fn === 'dob') && student.dateOfBirth) {
         const d = new Date(student.dateOfBirth);
         return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
       }
       if (student.customFields) {
-        if (student.customFields instanceof Map) return student.customFields.get(fieldName) || '';
-        if (typeof student.customFields === 'object') return student.customFields[fieldName] || '';
+        if (student.customFields instanceof Map) {
+          if (student.customFields.has(fieldName)) return student.customFields.get(fieldName) || '';
+        } else if (typeof student.customFields === 'object') {
+          if (student.customFields[fieldName] !== undefined && student.customFields[fieldName] !== null) return student.customFields[fieldName];
+        }
       }
       return '';
     }
@@ -1019,13 +1033,14 @@ export async function render() {
             data.phone = phoneVal;
             
             // Handle target exams array
-            const examsStr = data.targetExams || '';
-            data.targetExams = examsStr ? examsStr.split(',').filter(Boolean) : [];
+            const selectedExamsInput = m.element.querySelector('#selectedTargetExams');
+            const examsStr = selectedExamsInput ? selectedExamsInput.value : (data.targetExams || '');
+            data.targetExams = examsStr ? (Array.isArray(examsStr) ? examsStr : String(examsStr).split(',').map(s => s.trim()).filter(Boolean)) : [];
 
             // Capture all custom dynamic fields
             data.customFields = {};
             m.element.querySelectorAll('.custom-dyn-input').forEach(input => {
-              const fName = input.dataset.field;
+              const fName = input.dataset.field || input.name;
               if (fName) {
                 if (input.type === 'checkbox') {
                   data.customFields[fName] = input.checked;
@@ -1037,7 +1052,7 @@ export async function render() {
 
             // Capture radio buttons
             m.element.querySelectorAll('.custom-dyn-radio:checked').forEach(radio => {
-              const fName = radio.dataset.field;
+              const fName = radio.dataset.field || radio.name;
               if (fName) data.customFields[fName] = radio.value;
             });
 
@@ -1047,6 +1062,19 @@ export async function render() {
               const val = mount.querySelector('.mfp-hidden-value')?.value || '';
               if (val) data.customFields[fName] = val;
             });
+
+            // Explicitly sync core schema fields
+            ['gender', 'bloodGroup', 'occupation', 'collegeOrCompany', 'address', 'city', 'state', 'pincode', 'email', 'dateOfBirth'].forEach(k => {
+              if (data[k] === undefined && data.customFields[k] !== undefined) {
+                data[k] = data.customFields[k];
+              } else if (data[k] !== undefined && data.customFields[k] === undefined) {
+                data.customFields[k] = data[k];
+              }
+            });
+
+            if (data.gender) {
+              data.gender = String(data.gender).toLowerCase().trim();
+            }
 
             // Capture Passport Photo
             const photoVal = m.element.querySelector('#mount-student-photo .mfp-hidden-value')?.value;

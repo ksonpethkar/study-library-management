@@ -941,7 +941,7 @@ export class MediaFieldPicker {
       if (!val || typeof val !== 'string') return '';
       let clean = val.trim();
       if (!clean || clean === 'null' || clean === 'undefined' || clean === 'false') return '';
-      if (clean.startsWith('data:image')) {
+      if (clean.startsWith('data:image') || clean.startsWith('data:application/pdf') || clean.startsWith('data:')) {
         return clean;
       }
       if (clean.startsWith('uploads/') || clean.startsWith('uploads\\')) {
@@ -965,19 +965,28 @@ export class MediaFieldPicker {
         return `<span style="font-size: 2rem; line-height: 1; opacity: 0.85;">${defaultEmoji}</span>`;
       }
 
-      const safeSrc = cleanUrl.startsWith('data:image') ? cleanUrl : escapeHTML(cleanUrl);
+      if (cleanUrl.startsWith('data:application/pdf') || cleanUrl.toLowerCase().endsWith('.pdf')) {
+        return `
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; background: #fee2e2; border-radius: 6px;">
+            <span style="font-size: 1.6rem; line-height: 1;">📑</span>
+            <span style="font-size: 0.60rem; font-weight: 800; color: #dc2626; margin-top: 2px;">PDF DOC</span>
+          </div>
+        `;
+      }
+
+      const safeSrc = cleanUrl.startsWith('data:') ? cleanUrl : escapeHTML(cleanUrl);
       const fallbackUrl = preset === 'qr_code'
         ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=thecozycorner@okaxis`
         : `https://ui-avatars.com/api/?name=${encodeURIComponent(label.replace(/[^a-zA-Z0-9 ]/g, ''))}&background=6c5ce7&color=fff&size=128`;
 
-      return `<img src="${safeSrc}" alt="Preview" style="width: 100%; height: 100%; object-fit: contain; background: #fff; border-radius: 6px; padding: 2px;" onerror="this.onerror=null; this.src='${fallbackUrl}';">`;
+      return `<img src="${safeSrc}" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; background: #fff; border-radius: 6px;" onerror="this.onerror=null; this.src='${fallbackUrl}';">`;
     };
 
     wrapper.innerHTML = `
       <div style="background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 12px; padding: 14px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 10px;">
         <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(label)}</div>
         <div style="display: flex; align-items: center; gap: 14px;">
-          <div class="mfp-preview" style="width: 68px; height: 68px; border-radius: 10px; background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid var(--color-border); flex-shrink: 0; cursor: pointer; box-shadow: var(--shadow-sm);" title="Click to Change Image">
+          <div class="mfp-preview" style="width: 68px; height: 68px; border-radius: 10px; background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid var(--color-border); flex-shrink: 0; cursor: pointer; box-shadow: var(--shadow-sm);" title="Click to Change / View Image">
             ${renderPreview(value)}
           </div>
           <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
@@ -992,10 +1001,15 @@ export class MediaFieldPicker {
                 🗑️ Remove
               </button>
             </div>
-            <small style="color: var(--color-text-secondary); font-size: 0.72rem;">${preset === 'qr_code' ? '⚡ UPI QR for student fees' : preset === 'document' ? '📑 Clear KYC scan / photo' : '✨ 1:1 Transparent PNG / JPG'}</small>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <small style="color: var(--color-text-secondary); font-size: 0.72rem;">${preset === 'qr_code' ? '⚡ UPI QR for student fees' : preset === 'document' ? '📑 Clear KYC scan / photo' : '✨ 1:1 Transparent PNG / JPG'}</small>
+              <span class="mfp-view-link" style="${value ? 'display: inline-flex;' : 'display: none;'} align-items: center; gap: 3px; font-size: 0.72rem; font-weight: 700; color: var(--color-primary); cursor: pointer;">
+                👁️ View File
+              </span>
+            </div>
           </div>
         </div>
-        <input type="file" class="mfp-file-input" accept="image/*" style="display: none;">
+        <input type="file" class="mfp-file-input" accept="image/*,.pdf,application/pdf" style="display: none;">
         <input type="hidden" name="${name}" class="mfp-hidden-value" value="${escapeHTML(value)}">
       </div>
     `;
@@ -1005,11 +1019,13 @@ export class MediaFieldPicker {
     const preview = wrapper.querySelector('.mfp-preview');
     const removeBtn = wrapper.querySelector('.mfp-remove-btn');
     const uploadBtn = wrapper.querySelector('.mfp-upload-file-btn');
+    const viewLink = wrapper.querySelector('.mfp-view-link');
 
     const updateImageValue = async (dataUrl) => {
       hiddenInput.value = dataUrl || '';
       preview.innerHTML = renderPreview(dataUrl);
       removeBtn.style.display = dataUrl ? 'inline-block' : 'none';
+      if (viewLink) viewLink.style.display = dataUrl ? 'inline-flex' : 'none';
       uploadBtn.innerHTML = dataUrl ? '📁 Change' : '📁 Upload';
 
       hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1017,7 +1033,7 @@ export class MediaFieldPicker {
 
       if (onChange) onChange(dataUrl);
 
-      if (dataUrl && dataUrl.startsWith('data:image/')) {
+      if (dataUrl && (dataUrl.startsWith('data:image/') || dataUrl.startsWith('data:application/pdf'))) {
         try {
           const token = localStorage.getItem('sl_token') || localStorage.getItem('token');
           const headers = { 'Content-Type': 'application/json' };
@@ -1040,6 +1056,25 @@ export class MediaFieldPicker {
         }
       }
     };
+
+    // View file in new tab if clicked
+    viewLink?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const val = hiddenInput.value;
+      if (!val) return;
+      if (val.startsWith('data:')) {
+        const win = window.open();
+        if (win) {
+          if (val.startsWith('data:application/pdf')) {
+            win.document.write(`<iframe src="${val}" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>`);
+          } else {
+            win.document.write(`<img src="${val}" style="max-width:100%; max-height:100%; margin:auto; display:block;">`);
+          }
+        }
+      } else {
+        window.open(val, '_blank');
+      }
+    });
 
     // Clicking preview box also triggers upload
     preview.addEventListener('click', (e) => {
