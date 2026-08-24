@@ -202,6 +202,48 @@ router.post('/users', protect, async (req, res) => {
   }
 });
 
+// @route   PUT /api/auth/users/:id
+// @desc    Update staff user role, status or branch
+router.put('/users/:id', protect, async (req, res) => {
+  try {
+    const { name, role, isActive, phone, branch, password } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (name !== undefined) user.name = name;
+    if (role !== undefined) user.role = role;
+    if (isActive !== undefined) user.isActive = isActive;
+    if (phone !== undefined) user.phone = phone;
+    if (branch !== undefined) user.branch = branch || null;
+    if (password) user.password = password;
+
+    await user.save();
+    const updated = await User.findById(user._id).select('-password').populate('branch', 'name city').lean();
+    res.json({ success: true, data: updated, message: 'Staff member updated successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   DELETE /api/auth/users/:id
+// @desc    Delete staff user
+router.delete('/users/:id', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (user.role === 'owner') {
+      return res.status(403).json({ success: false, message: 'Cannot delete primary owner account' });
+    }
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Staff member deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // @route   GET /api/auth/check-setup
 // @desc    Check if first-time setup is needed
 router.get('/check-setup', async (req, res) => {

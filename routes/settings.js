@@ -361,7 +361,8 @@ const validateAdminProfile = validate([
 
 router.put('/admin-profile', validateAdminProfile, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const userId = req.user._id || req.user.id;
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -369,7 +370,7 @@ router.put('/admin-profile', validateAdminProfile, async (req, res) => {
     const { name, email, phone, avatar } = req.body;
 
     if (email && email !== user.email) {
-      const existingUser = await User.findOne({ email, _id: { $ne: req.user.id } }).lean();
+      const existingUser = await User.findOne({ email, _id: { $ne: userId } }).lean();
       if (existingUser) {
         return res.status(400).json({ success: false, message: 'Email is already in use by another account' });
       }
@@ -425,7 +426,8 @@ const validatePasswordUpdate = validate([
 router.post('/change-password', validatePasswordUpdate, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const user = await User.findById(req.user.id).select('+password');
+    const userId = req.user._id || req.user.id;
+    const user = await User.findById(userId).select('+password');
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }

@@ -741,86 +741,107 @@ function renderPortalUI(container, data, analytics = null) {
 
       const renderFrontCard = (isV) => {
         if (isV) {
+          // Vertical Front (CR80 Portrait: 254px x 400px)
           return `
             <div class="id-card-entity id-card-v id-card-front" style="
-              width: 250px; min-height: 390px; height: 390px; background: ${st.cardBg}; color: ${st.textColor};
+              width: 254px; min-height: 400px; height: 400px; background: ${st.cardBg}; color: ${st.textColor};
               border-radius: 14px; ${st.border}; overflow: hidden; box-shadow: ${st.cardShadow};
-              position: relative; display: flex; flex-direction: column; box-sizing: border-box;
+              position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
-              <div style="background: ${st.headerBg}; color: #fff; padding: 12px 10px; text-align: center;">
+              <!-- Top Curved Banner -->
+              <div style="background: ${st.headerBg}; color: #fff; padding: 10px 8px; text-align: center; position: relative;">
                 <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 2px;">
                   ${business.logo ? `<img src="${business.logo}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: cover; background: #fff;">` : `<span style="font-size: 1.1rem;">📚</span>`}
                   <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px;">${escapeHTML(business.businessName || 'Study Library')}</div>
                 </div>
-                <div style="font-size: 0.62rem; opacity: 0.9;">${escapeHTML(business.tagline || 'Student Membership Pass')}</div>
+                <div style="font-size: 0.62rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.tagline || 'Student Membership Pass')}</div>
               </div>
 
-              <div style="display: flex; flex-direction: column; align-items: center; padding: 10px 10px 4px 10px; text-align: center;">
-                <div style="width: 72px; height: 72px; border-radius: 12px; background: #eef2ff; border: 3px solid ${currentColor}; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 800; color: ${currentColor}; margin-bottom: 6px;">
+              <!-- Center Avatar & Name -->
+              <div style="display: flex; flex-direction: column; align-items: center; padding: 8px 10px 4px 10px; text-align: center;">
+                <div style="width: 68px; height: 68px; border-radius: 12px; background: #eef2ff; border: 2.5px solid ${currentColor}; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: ${currentColor}; margin-bottom: 4px; box-shadow: 0 3px 10px rgba(0,0,0,0.1);">
                   ${student.photo ? `<img src="${student.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
                 </div>
-                <div style="font-weight: 800; font-size: 0.95rem; line-height: 1.2; margin-bottom: 2px; color: ${st.textColor};">${escapeHTML(student.name)}</div>
-                <div style="background: ${st.badgeBg}; color: ${st.badgeColor}; padding: 1px 8px; border-radius: 4px; font-weight: 800; font-size: 0.68rem; font-family: monospace;">${escapeHTML(student.studentId || 'STU-MEMBER')}</div>
+                <div style="font-weight: 800; font-size: 0.88rem; line-height: 1.2; margin-bottom: 3px; color: ${st.textColor}; max-height: 2.4em; overflow: hidden; word-break: break-word;">${escapeHTML(student.name)}</div>
+                <div style="display: flex; gap: 4px; align-items: center; justify-content: center; flex-wrap: wrap;">
+                  <span style="background: ${st.badgeBg}; color: ${st.badgeColor}; padding: 1px 7px; border-radius: 4px; font-weight: 800; font-size: 0.68rem; font-family: monospace; letter-spacing: 0.5px;">${escapeHTML(student.studentId || 'STU-MEMBER')}</span>
+                  ${showBlood && bloodGroup ? `<span style="background: rgba(220,38,38,0.12); color: #dc2626; font-size: 0.65rem; font-weight: 800; padding: 1px 5px; border-radius: 4px;">🩸 ${escapeHTML(bloodGroup)}</span>` : ''}
+                </div>
               </div>
 
-              <div style="padding: 6px 12px; font-size: 0.72rem; flex: 1; display: flex; flex-direction: column; gap: 3px;">
+              <!-- Standardized Details Body -->
+              <div style="padding: 6px 12px; font-size: 0.72rem; flex: 1; display: flex; flex-direction: column; gap: 3.5px; line-height: 1.35;">
                 <div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Desk / Seat:</span> <strong style="color: ${currentColor};">${escapeHTML(seatNumber)}</strong></div>
-                <div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Plan:</span> <span>${escapeHTML(planName)}</span></div>
-                <div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Valid Till:</span> <strong style="color: #dc2626;">${escapeHTML(expiryDate)}</strong></div>
-                ${bloodGroup ? `<div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Blood:</span> <span class="badge" style="background: rgba(220,38,38,0.12); color: #dc2626; font-size: 0.65rem; padding: 1px 5px;">${escapeHTML(bloodGroup)}</span></div>` : ''}
+                <div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Shift Timing:</span> <span style="font-weight: 600;">${escapeHTML(shiftName)}</span></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Membership:</span> <span>${escapeHTML(planName)}</span></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Contact Phone:</span> <span>${escapeHTML(phone || '-')}</span></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Valid Until:</span> <strong style="color: #dc2626; font-weight: 800;">${escapeHTML(expiryDate)}</strong></div>
               </div>
 
-              <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 6px 10px; display: flex; justify-content: space-between; align-items: center;">
-                ${showQr ? `<img src="${qrCodeURL}" style="width: 44px; height: 44px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: #fff;">` : ''}
-                <div style="text-align: right; font-size: 0.6rem; color: ${st.subText};">
+              <!-- Bottom QR / Footer -->
+              <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 5px 10px; display: flex; justify-content: space-between; align-items: center;">
+                ${showQr ? `<img src="${qrCodeURL}" style="width: 44px; height: 44px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: #fff;">` : '<div></div>'}
+                <div style="text-align: right; font-size: 0.6rem; color: ${st.subText}; line-height: 1.3;">
                   <div style="font-weight: 800; color: ${currentColor}; letter-spacing: 0.5px;">STUDENT PASS</div>
+                  <div style="font-weight: 600;">Issued: ${escapeHTML(admissionDate)}</div>
                   <div>${escapeHTML(business.phone || '')}</div>
                 </div>
               </div>
             </div>
           `;
         } else {
+          // Horizontal Front (CR80 Landscape: 380px x 240px)
           return `
             <div class="id-card-entity id-card-h id-card-front" style="
-              width: 340px; min-height: 214px; height: 214px; background: ${st.cardBg}; color: ${st.textColor};
+              width: 380px; min-height: 240px; height: 240px; background: ${st.cardBg}; color: ${st.textColor};
               border-radius: 14px; ${st.border}; overflow: hidden; box-shadow: ${st.cardShadow};
-              position: relative; display: flex; flex-direction: column; box-sizing: border-box;
+              position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
+              <!-- Top Banner -->
               <div style="background: ${st.headerBg}; color: #fff; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                  ${business.logo ? `<img src="${business.logo}" style="width: 26px; height: 26px; border-radius: 4px; object-fit: cover; background: #fff; flex-shrink: 0;">` : `<span style="font-size: 1.1rem; flex-shrink: 0;">📚</span>`}
+                  ${business.logo ? `<img src="${business.logo}" style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover; background: #fff; flex-shrink: 0;">` : `<span style="font-size: 1.1rem; flex-shrink: 0;">📚</span>`}
                   <div style="min-width: 0;">
-                    <div style="font-weight: 800; font-size: 0.88rem; letter-spacing: 0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.businessName || 'Study Library')}</div>
-                    <div style="font-size: 0.62rem; opacity: 0.88;">${escapeHTML(business.tagline || 'Student Membership Card')}</div>
+                    <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.businessName || 'Study Library')}</div>
+                    <div style="font-size: 0.6rem; opacity: 0.88; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.tagline || 'Student Membership Card')}</div>
                   </div>
                 </div>
-                <span style="font-size: 0.62rem; font-weight: 800; background: rgba(255,255,255,0.22); padding: 2px 6px; border-radius: 3px;">STUDENT ID</span>
+                <span style="font-size: 0.62rem; font-weight: 800; background: rgba(255,255,255,0.22); padding: 2px 6px; border-radius: 3px; letter-spacing: 0.5px; white-space: nowrap;">STUDENT ID PASS</span>
               </div>
 
-              <div style="padding: 10px 12px; display: flex; gap: 10px; align-items: center; flex: 1;">
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0;">
-                  <div style="width: 64px; height: 64px; border-radius: 8px; background: #eef2ff; border: 2px solid ${currentColor}; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; color: ${currentColor};">
+              <!-- Body: Photo + Info Grid -->
+              <div style="padding: 10px 12px; display: flex; gap: 12px; align-items: center; flex: 1;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0;">
+                  <div style="width: 64px; height: 64px; border-radius: 10px; background: #eef2ff; border: 2px solid ${currentColor}; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; color: ${currentColor}; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                     ${student.photo ? `<img src="${student.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
                   </div>
-                  ${showQr ? `<img src="${qrCodeURL}" style="width: 42px; height: 42px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: #fff;">` : ''}
+                  ${showQr ? `<img src="${qrCodeURL}" style="width: 44px; height: 44px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: #fff;">` : ''}
                 </div>
 
                 <div style="flex: 1; min-width: 0;">
-                  <div style="font-weight: 800; font-size: 0.98rem; line-height: 1.15; margin-bottom: 2px; color: ${st.textColor}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(student.name)}</div>
-                  <div style="background: ${st.badgeBg}; color: ${st.badgeColor}; padding: 1px 6px; border-radius: 3px; display: inline-block; font-weight: 800; font-size: 0.68rem; font-family: monospace; margin-bottom: 4px;">${escapeHTML(student.studentId || 'STU-MEMBER')}</div>
+                  <!-- Full Student Name (Auto wrapped, never truncated with ...) -->
+                  <div style="font-weight: 800; font-size: 0.92rem; line-height: 1.2; margin-bottom: 2px; color: ${st.textColor}; word-break: break-word; max-height: 2.4em; overflow: hidden;">${escapeHTML(student.name)}</div>
+                  
+                  <div style="display: flex; gap: 4px; align-items: center; margin-bottom: 4px; flex-wrap: wrap;">
+                    <span style="background: ${st.badgeBg}; color: ${st.badgeColor}; padding: 1px 6px; border-radius: 3px; font-weight: 800; font-size: 0.65rem; font-family: monospace;">${escapeHTML(student.studentId || 'STU-MEMBER')}</span>
+                    ${showBlood && bloodGroup ? `<span style="background: rgba(220,38,38,0.12); color: #dc2626; font-size: 0.62rem; font-weight: 800; padding: 1px 5px; border-radius: 3px;">🩸 ${escapeHTML(bloodGroup)}</span>` : ''}
+                  </div>
 
-                  <div style="font-size: 0.72rem; display: grid; grid-template-columns: auto 1fr; row-gap: 2px; column-gap: 6px; line-height: 1.3;">
-                    <span style="color: ${st.subText}; font-weight: 600;">Desk:</span><strong style="color: ${currentColor};">${escapeHTML(seatNumber)}</strong>
-                    <span style="color: ${st.subText}; font-weight: 600;">Plan:</span><span>${escapeHTML(planName)}</span>
-                    <span style="color: ${st.subText}; font-weight: 600;">Phone:</span><span>${escapeHTML(student.phone || '-')}</span>
-                    <span style="color: ${st.subText}; font-weight: 600;">Valid:</span><strong style="color: #dc2626;">${escapeHTML(expiryDate)}</strong>
+                  <!-- Standardized Details Grid matching Vertical card exactly -->
+                  <div style="font-size: 0.70rem; display: grid; grid-template-columns: auto 1fr; row-gap: 2.5px; column-gap: 8px; line-height: 1.3;">
+                    <span style="color: ${st.subText}; font-weight: 600;">Desk / Seat:</span><strong style="color: ${currentColor};">${escapeHTML(seatNumber)}</strong>
+                    <span style="color: ${st.subText}; font-weight: 600;">Shift Timing:</span><span style="font-weight: 600;">${escapeHTML(shiftName)}</span>
+                    <span style="color: ${st.subText}; font-weight: 600;">Membership:</span><span>${escapeHTML(planName)}</span>
+                    <span style="color: ${st.subText}; font-weight: 600;">Contact Phone:</span><span>${escapeHTML(phone || '-')}</span>
+                    <span style="color: ${st.subText}; font-weight: 600;">Valid Until:</span><strong style="color: #dc2626; font-weight: 800;">${escapeHTML(expiryDate)}</strong>
                   </div>
                 </div>
               </div>
 
+              <!-- Footer -->
               <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 4px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.62rem; color: ${st.subText};">
                 <span>Issued: ${escapeHTML(admissionDate)}</span>
-                <span style="font-weight: 700;">NON-TRANSFERABLE</span>
+                <span style="font-weight: 700; letter-spacing: 0.5px;">NON-TRANSFERABLE</span>
                 <span>${escapeHTML(business.phone || '')}</span>
               </div>
             </div>
@@ -830,23 +851,26 @@ function renderPortalUI(container, data, analytics = null) {
 
       const renderBackCard = (isV) => {
         if (isV) {
+          // Vertical Back (CR80 Portrait: 254px x 400px)
           return `
             <div class="id-card-entity id-card-v id-card-back" style="
-              width: 250px; min-height: 390px; height: 390px; background: ${st.cardBg}; color: ${st.textColor};
+              width: 254px; min-height: 400px; height: 400px; background: ${st.cardBg}; color: ${st.textColor};
               border-radius: 14px; ${st.border}; overflow: hidden; box-shadow: ${st.cardShadow};
-              position: relative; display: flex; flex-direction: column; box-sizing: border-box;
+              position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
-              <div style="background: ${st.headerBg}; color: #fff; padding: 10px; text-align: center;">
-                <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.4px;">RULES &amp; EMERGENCY INFO</div>
-                <div style="font-size: 0.62rem; opacity: 0.88;">${escapeHTML(business.businessName || 'Study Library')}</div>
+              <!-- Top Banner -->
+              <div style="background: ${st.headerBg}; color: #fff; padding: 10px 8px; text-align: center;">
+                <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.4px;">RULES &amp; EMERGENCY CONTACT</div>
+                <div style="font-size: 0.62rem; opacity: 0.88; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.businessName || 'Study Library')}</div>
               </div>
 
-              <div style="padding: 8px 12px; font-size: 0.72rem; flex: 1; display: flex; flex-direction: column; gap: 6px;">
+              <!-- Emergency & Address Box -->
+              <div style="padding: 8px 12px; font-size: 0.72rem; flex: 1; display: flex; flex-direction: column; gap: 5px;">
                 ${showEmergency ? `
                   <div style="background: ${st.badgeBg}; padding: 6px 8px; border-radius: 6px; border-left: 3px solid ${currentColor};">
                     <div style="font-weight: 800; color: ${currentColor}; font-size: 0.68rem; margin-bottom: 2px;">🚨 EMERGENCY CONTACT</div>
-                    <div style="font-weight: 600;">${escapeHTML(emergencyName)} (${escapeHTML(emergencyRelation)})</div>
-                    <div style="font-family: monospace; font-weight: 700;">📞 ${escapeHTML(emergencyPhone)}</div>
+                    <div style="font-weight: 600; font-size: 0.68rem;">${escapeHTML(emergencyName)} (${escapeHTML(emergencyRelation)})</div>
+                    <div style="font-family: monospace; font-weight: 700; font-size: 0.68rem;">📞 ${escapeHTML(emergencyPhone)}</div>
                   </div>
                 ` : ''}
 
@@ -854,16 +878,18 @@ function renderPortalUI(container, data, analytics = null) {
                   <strong style="color: ${st.textColor};">📍 Resident Address:</strong> ${escapeHTML(address)}
                 </div>
 
-                <div style="border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 6px;">
-                  <div style="font-weight: 700; font-size: 0.68rem; color: ${st.textColor}; margin-bottom: 3px;">📖 Campus Regulations:</div>
-                  <ul style="margin: 0; padding-left: 14px; font-size: 0.64rem; color: ${st.subText}; line-height: 1.35;">
-                    <li>Card must be worn/presented upon entry.</li>
+                <!-- Rules List -->
+                <div style="border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 5px;">
+                  <div style="font-weight: 700; font-size: 0.68rem; color: ${st.textColor}; margin-bottom: 2px;">📖 Campus Regulations:</div>
+                  <ul style="margin: 0; padding-left: 14px; font-size: 0.63rem; color: ${st.subText}; line-height: 1.35;">
+                    <li>Card must be presented upon entry.</li>
                     <li>Strict pin-drop silence in reading hall.</li>
-                    <li>Entry prohibited after plan expiry date.</li>
-                    <li>Property damage will attract fines.</li>
+                    <li>Access restricted to allotted shift timing.</li>
+                    <li>Renew membership before plan expiry date.</li>
                   </ul>
                 </div>
 
+                <!-- Stamp / Signatory -->
                 ${showStamp ? `
                   <div style="margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; padding-top: 4px;">
                     <div style="border: 1.5px solid #059669; color: #059669; font-weight: 800; font-size: 0.58rem; padding: 2px 6px; border-radius: 4px; transform: rotate(-4deg); text-align: center;">
@@ -871,63 +897,73 @@ function renderPortalUI(container, data, analytics = null) {
                     </div>
                     <div style="text-align: center;">
                       <div style="width: 70px; border-bottom: 1px solid ${st.subText}; margin-bottom: 2px;"></div>
-                      <div style="font-size: 0.58rem; color: ${st.subText};">Auth. Signatory</div>
+                      <div style="font-size: 0.58rem; color: ${st.subText}; font-weight: 600;">Auth. Signatory</div>
                     </div>
                   </div>
                 ` : ''}
               </div>
 
-              <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 5px 10px; text-align: center; font-size: 0.62rem; color: ${st.subText};">
-                ${escapeHTML(business.phone || '')} • ${escapeHTML(business.address || '')}
+              <!-- Footer -->
+              <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 5px 10px; text-align: center; font-size: 0.60rem; color: ${st.subText}; line-height: 1.3;">
+                ${escapeHTML(business.phone ? `Helpline: ${business.phone}` : '')}${business.phone && business.address ? ' • ' : ''}${escapeHTML(business.address || '')}
               </div>
             </div>
           `;
         } else {
+          // Horizontal Back (CR80 Landscape: 380px x 240px)
           return `
             <div class="id-card-entity id-card-h id-card-back" style="
-              width: 340px; min-height: 214px; height: 214px; background: ${st.cardBg}; color: ${st.textColor};
+              width: 380px; min-height: 240px; height: 240px; background: ${st.cardBg}; color: ${st.textColor};
               border-radius: 14px; ${st.border}; overflow: hidden; box-shadow: ${st.cardShadow};
-              position: relative; display: flex; flex-direction: column; box-sizing: border-box;
+              position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
+              <!-- Top Banner -->
               <div style="background: ${st.headerBg}; color: #fff; padding: 7px 12px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 800; font-size: 0.85rem;">STUDENT TERMS &amp; EMERGENCY INFO</span>
-                <span style="font-size: 0.65rem; opacity: 0.9;">${escapeHTML(business.businessName || 'Study Library')}</span>
+                <span style="font-weight: 800; font-size: 0.82rem; letter-spacing: 0.3px;">RULES &amp; EMERGENCY CONTACT</span>
+                <span style="font-size: 0.65rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">${escapeHTML(business.businessName || 'Study Library')}</span>
               </div>
 
-              <div style="padding: 8px 12px; font-size: 0.72rem; display: flex; gap: 10px; flex: 1;">
-                <div style="flex: 1.2; display: flex; flex-direction: column; gap: 4px;">
+              <!-- Body: Emergency + Rules Grid -->
+              <div style="padding: 8px 12px; font-size: 0.70rem; display: flex; gap: 10px; flex: 1;">
+                <div style="flex: 1.3; display: flex; flex-direction: column; gap: 4px;">
                   ${showEmergency ? `
-                    <div style="background: ${st.badgeBg}; padding: 4px 6px; border-radius: 4px; font-size: 0.68rem;">
-                      <div style="font-weight: 800; color: ${currentColor};">🚨 Emergency: ${escapeHTML(emergencyName)}</div>
-                      <div style="font-family: monospace; font-weight: 700;">📞 ${escapeHTML(emergencyPhone)}</div>
+                    <div style="background: ${st.badgeBg}; padding: 4px 6px; border-radius: 4px; border-left: 3px solid ${currentColor}; font-size: 0.65rem;">
+                      <div style="font-weight: 800; color: ${currentColor};">🚨 EMERGENCY CONTACT</div>
+                      <div style="font-weight: 600;">${escapeHTML(emergencyName)} (${escapeHTML(emergencyRelation)}) • 📞 ${escapeHTML(emergencyPhone)}</div>
                     </div>
                   ` : ''}
+                  
                   <div style="font-size: 0.64rem; color: ${st.subText}; line-height: 1.3;">
-                    <strong>Address:</strong> ${escapeHTML(address)}
+                    <strong style="color: ${st.textColor};">📍 Resident Address:</strong> ${escapeHTML(address)}
                   </div>
-                  <ul style="margin: 0; padding-left: 12px; font-size: 0.62rem; color: ${st.subText}; line-height: 1.25;">
-                    <li>Carry card daily; non-transferable.</li>
-                    <li>Maintain strict pin-drop silence.</li>
-                    <li>Renew membership before due date.</li>
-                  </ul>
+                  
+                  <div style="border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 3px;">
+                    <div style="font-weight: 700; font-size: 0.64rem; color: ${st.textColor}; margin-bottom: 2px;">📖 Campus Regulations:</div>
+                    <ul style="margin: 0; padding-left: 12px; font-size: 0.60rem; color: ${st.subText}; line-height: 1.3;">
+                      <li>Card must be presented upon entry.</li>
+                      <li>Strict pin-drop silence in reading hall.</li>
+                      <li>Access restricted to allotted shift timing.</li>
+                      <li>Renew membership before expiry date.</li>
+                    </ul>
+                  </div>
                 </div>
 
-                <div style="flex: 0.8; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; border-left: 1px dashed rgba(0,0,0,0.1); padding-left: 8px;">
+                <div style="flex: 0.7; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; border-left: 1px dashed rgba(0,0,0,0.1); padding-left: 8px;">
                   ${showStamp ? `
-                    <div style="border: 1.5px solid #059669; color: #059669; font-weight: 800; font-size: 0.58rem; padding: 2px 5px; border-radius: 4px; transform: rotate(-5deg); margin-top: 4px;">
-                      VERIFIED PASS<br>OFFICIAL SEAL
+                    <div style="border: 1.5px solid #059669; color: #059669; font-weight: 800; font-size: 0.58rem; padding: 3px 6px; border-radius: 4px; transform: rotate(-4deg); margin-top: 6px;">
+                      OFFICIAL SEAL<br>PAID &amp; VERIFIED
                     </div>
-                    <div style="margin-top: auto;">
-                      <div style="width: 65px; border-bottom: 1px solid ${st.subText}; margin-bottom: 2px;"></div>
-                      <div style="font-size: 0.55rem; color: ${st.subText};">Auth Signatory</div>
+                    <div style="margin-top: auto; padding-bottom: 2px;">
+                      <div style="width: 70px; border-bottom: 1px solid ${st.subText}; margin-bottom: 2px;"></div>
+                      <div style="font-size: 0.56rem; color: ${st.subText}; font-weight: 600;">Auth. Signatory</div>
                     </div>
                   ` : ''}
                 </div>
               </div>
 
-              <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 4px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.62rem; color: ${st.subText};">
-                <span>Helpline: ${escapeHTML(business.phone || '')}</span>
-                <span>${escapeHTML(business.address || '')}</span>
+              <!-- Footer with No Text Overlap -->
+              <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 4px 12px; text-align: center; font-size: 0.60rem; color: ${st.subText}; line-height: 1.3;">
+                ${escapeHTML(business.phone ? `Helpline: ${business.phone}` : '')}${business.phone && business.address ? ' • ' : ''}${escapeHTML(business.address || '')}
               </div>
             </div>
           `;

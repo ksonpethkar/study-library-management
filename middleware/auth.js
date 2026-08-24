@@ -67,9 +67,11 @@ const protect = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'User account is inactive' });
     }
 
+    user.id = String(user._id);
+
     // If token was signed with role: 'student' (from student login), enforce student role in session
     if (decoded.role === 'student') {
-      req.user = { ...user, role: 'student' };
+      req.user = { ...user, role: 'student', id: String(user._id) };
     } else {
       req.user = user;
     }
@@ -97,6 +99,7 @@ const optionalAuth = async (req, res, next) => {
         if (user) setCachedUser(userId, user);
       }
       if (user && user.isActive) {
+        user.id = String(user._id);
         req.user = user;
       }
     }
