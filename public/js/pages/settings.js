@@ -2212,8 +2212,8 @@ function renderWebsiteCmsStudio() {
   wrapper.innerHTML = `
     <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
       <div>
-        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-primary);">🌐 Public Website CMS, 4 Theme Presets & Live Split-Screen Studio</h3>
-        <p class="text-muted small mb-0">Select theme presets, customize color palettes, typography, hero banners, facilities, floating WhatsApp widgets, and SEO tags with instant live split-screen preview.</p>
+        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-primary);">🌐 Master Landing Page CMS & Live Split-Screen Studio</h3>
+        <p class="text-muted small mb-0">100% Comprehensive Visual Customizer: Edit every single headline, paragraph, badge, button, facility, shift, testimonial, FAQ, rule, footer link, and SEO tag with live split-screen preview.</p>
       </div>
       <div class="d-flex gap-2 align-items-center">
         <a href="/landing" target="_blank" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">👁️ Open Live Website (/landing) ↗</a>
@@ -2277,14 +2277,14 @@ function renderWebsiteCmsStudio() {
     </div>
 
     <!-- Split-Screen Controls + Live Preview Layout -->
-    <div style="display: grid; grid-template-columns: 1.05fr 1.15fr; gap: 20px;" class="cms-split-layout">
+    <div style="display: grid; grid-template-columns: 1.15fr 1.05fr; gap: 20px;" class="cms-split-layout">
       
       <!-- Left Column: Collapsible Interactive Accordions -->
-      <div style="display: flex; flex-direction: column; gap: 12px; max-height: 820px; overflow-y: auto; padding-right: 6px;" id="cms-accordions-col">
+      <div style="display: flex; flex-direction: column; gap: 12px; max-height: 860px; overflow-y: auto; padding-right: 6px;" id="cms-accordions-col">
         
         <!-- Accordion Controls Toolbar -->
         <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 4px;">
-          <span style="font-size: 0.82rem; font-weight: 700; color: var(--color-text-secondary);">⚙️ Customization Sections</span>
+          <span style="font-size: 0.82rem; font-weight: 700; color: var(--color-text-secondary);">⚙️ 17 Full Page Customization Sections</span>
           <div class="d-flex gap-2">
             <button type="button" id="btn-cms-expand-all" class="btn btn-xs btn-outline-secondary" style="font-size: 0.72rem; padding: 2px 8px;">➕ Expand All</button>
             <button type="button" id="btn-cms-collapse-all" class="btn btn-xs btn-outline-secondary" style="font-size: 0.72rem; padding: 2px 8px;">➖ Collapse All</button>
@@ -2292,12 +2292,12 @@ function renderWebsiteCmsStudio() {
         </div>
 
         <!-- Section 1: 🎨 Palette & Typography Overrides -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: visible;">
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
-              <span>🎨</span> Color Palette & Typography Styling
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>🎨</span> 1. Color Palette & Typography Styling
             </h5>
-            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted); transition: transform 0.2s;">▲</span>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▲</span>
           </div>
           <div class="cms-accordion-body p-3 pt-0" style="display: block;">
             <div class="row g-2">
@@ -2337,98 +2337,503 @@ function renderWebsiteCmsStudio() {
           </div>
         </div>
 
-        <!-- Section 2: 🌟 Hero Banner & Headline -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: visible;">
+        <!-- Section 2: 📢 Announcement Ticker & Live Seat Availability -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
-              <span>🌟</span> Hero Section Headline & Action CTAs
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>📢</span> 2. Announcement Ticker & Live Seat Badge
             </h5>
-            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted); transition: transform 0.2s;">▲</span>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="cms-ticker-enabled" checked>
+              <label class="form-check-label small" for="cms-ticker-enabled" style="font-weight: 700;">Show Top Announcement Marquee Ticker</label>
+            </div>
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Ticker Marquee Message</label>
+              <input type="text" id="cms-hero-ticker" class="form-control form-control-sm" value="⚡ Special Discount on 3-Month & 6-Month Membership Plans! Book Your Reserved Seat Today.">
+            </div>
+            <div class="form-group">
+              <label class="form-label small" style="font-weight: 700;">Live Seat Availability Badge Text</label>
+              <input type="text" id="cms-live-seat-text" class="form-control form-control-sm" value="Only 12 Seats Left">
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: 🧭 Navbar & Header Action Buttons -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>🧭</span> 3. Navigation Bar & Header Actions
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Navbar Brand Name Override</label>
+              <input type="text" id="cms-nav-brand-name" class="form-control form-control-sm" placeholder="Leave blank to use Business Profile Name">
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Primary Button Text</label>
+                <input type="text" id="cms-nav-cta-primary-text" class="form-control form-control-sm" value="Register Now">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Primary Button Link</label>
+                <input type="text" id="cms-nav-cta-primary-link" class="form-control form-control-sm" value="/register">
+              </div>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Secondary Button Text</label>
+                <input type="text" id="cms-nav-cta-sec-text" class="form-control form-control-sm" value="Student Portal">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Secondary Button Link</label>
+                <input type="text" id="cms-nav-cta-sec-link" class="form-control form-control-sm" value="/student-login">
+              </div>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="cms-nav-dark-toggle" checked>
+              <label class="form-check-label small" for="cms-nav-dark-toggle" style="font-weight: 700;">Show Dark/Light Mode Switcher on Navbar</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: 🌟 Hero Section Headline, Buttons & Feature Badges -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>🌟</span> 4. Hero Section Headline, CTAs & Badges
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▲</span>
           </div>
           <div class="cms-accordion-body p-3 pt-0" style="display: block;">
             <div class="form-group mb-2">
-              <label class="form-label small" style="font-weight: 700;">Hero Headline Title</label>
+              <label class="form-label small" style="font-weight: 700;">Hero Main Title Headline</label>
               <input type="text" id="cms-hero-title" class="form-control form-control-sm" value="Premier Air-Conditioned Study Library & Reading Hall">
-              <small class="text-muted">Use <code>{library_name}</code> to dynamically display your business name</small>
+              <small class="text-muted">Use <code>{library_name}</code> for auto business name insertion</small>
             </div>
             <div class="form-group mb-2">
-              <label class="form-label small" style="font-weight: 700;">Hero Subtitle</label>
-              <input type="text" id="cms-hero-subtitle" class="form-control form-control-sm" value="Peaceful, Disciplined & Distraction-Free Study Environment for Competitive Exam Aspirants.">
+              <label class="form-label small" style="font-weight: 700;">Hero Subtitle / Description</label>
+              <textarea id="cms-hero-subtitle" class="form-control form-control-sm" rows="2">Peaceful, Disciplined & Distraction-Free Study Environment for UPSC, MPSC, Banking, SSC, NEET, JEE & CA Aspirants.</textarea>
             </div>
-            <div class="form-group mb-2">
-              <label class="form-label small" style="font-weight: 700;">Announcement Marquee Alert Ticker</label>
-              <input type="text" id="cms-hero-ticker" class="form-control form-control-sm" value="⚡ Limited Seats Available for Morning & Full Day Shifts! Reserve Yours Today.">
-            </div>
-            <div class="row g-2">
+            <div class="row g-2 mb-2">
               <div class="col-6">
-                <label class="form-label small" style="font-weight: 700;">Primary CTA Button</label>
-                <input type="text" id="cms-hero-cta-text" class="form-control form-control-sm" value="Book Your Seat / Register Now">
+                <label class="form-label small" style="font-weight: 700;">Hero Primary Button Text</label>
+                <input type="text" id="cms-hero-cta-text" class="form-control form-control-sm" value="Apply for Admission / Register Now">
               </div>
               <div class="col-6">
-                <label class="form-label small" style="font-weight: 700;">Secondary CTA Button</label>
+                <label class="form-label small" style="font-weight: 700;">Hero Primary Button URL</label>
+                <input type="text" id="cms-hero-cta-link" class="form-control form-control-sm" value="/register">
+              </div>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Hero Secondary Button Text</label>
                 <input type="text" id="cms-hero-sec-text" class="form-control form-control-sm" value="Send Quick Enquiry">
               </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Hero Secondary Button URL</label>
+                <input type="text" id="cms-hero-sec-link" class="form-control form-control-sm" value="#enquiry">
+              </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Section 3: ⚡ Key Facility Badges (6 Amenities) -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: visible;">
-          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
-              <span>⚡</span> Key Facility & Amenities Badges
-            </h5>
-            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted); transition: transform 0.2s;">▲</span>
-          </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: block;">
-            <p class="text-muted small mb-2">Customize the 6 feature badges displayed on your landing page:</p>
+            <label class="form-label small mt-1 mb-1" style="font-weight: 700;">4 Hero Highlight Badges</label>
             <div class="row g-2">
-              <div class="col-6"><input type="text" id="cms-fac-1" class="form-control form-control-sm" value="❄️ 100% Inverter AC Hall"></div>
-              <div class="col-6"><input type="text" id="cms-fac-2" class="form-control form-control-sm" value="🚀 300 Mbps Optical Fiber Wi-Fi"></div>
-              <div class="col-6"><input type="text" id="cms-fac-3" class="form-control form-control-sm" value="🔋 Zero-Interruption Power Backup"></div>
-              <div class="col-6"><input type="text" id="cms-fac-4" class="form-control form-control-sm" value="📹 24x7 HD CCTV Surveillance"></div>
-              <div class="col-6"><input type="text" id="cms-fac-5" class="form-control form-control-sm" value="💧 Chilled & Hot RO Drinking Water"></div>
-              <div class="col-6"><input type="text" id="cms-fac-6" class="form-control form-control-sm" value="🔐 Personal Storage Lockers"></div>
+              <div class="col-6"><input type="text" id="cms-hero-badge-1" class="form-control form-control-sm" value="🔒 24x7 CCTV Surveillance"></div>
+              <div class="col-6"><input type="text" id="cms-hero-badge-2" class="form-control form-control-sm" value="❄️ Dual AC Reading Halls"></div>
+              <div class="col-6"><input type="text" id="cms-hero-badge-3" class="form-control form-control-sm" value="📶 300 Mbps High-Speed Wi-Fi"></div>
+              <div class="col-6"><input type="text" id="cms-hero-badge-4" class="form-control form-control-sm" value="🔋 100% Power Backup"></div>
             </div>
           </div>
         </div>
 
-        <!-- Section 4: 📖 About & Library Information -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: visible;">
+        <!-- Section 5: ⚡ Key Facilities & Amenities (6 Cards) -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
-              <span>📖</span> About Section & Library Atmosphere
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>⚡</span> 5. Facilities & Amenities Cards (6 Cards)
             </h5>
-            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted); transition: transform 0.2s;">▲</span>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: block;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Section Title</label>
+                <input type="text" id="cms-fac-title" class="form-control form-control-sm" value="Premium Facilities & Amenities">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Section Subtitle</label>
+                <input type="text" id="cms-fac-subtitle" class="form-control form-control-sm" value="Designed with obsession for student comfort and maximum study stamina.">
+              </div>
+            </div>
+            <div id="cms-facilities-list" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- 6 Facility Inputs -->
+              ${[
+                { icon: '❄️', title: 'Central Air Conditioning', desc: 'Dual inverter ACs maintaining optimal 23°C temperature all year round.' },
+                { icon: '🚀', title: '300 Mbps Fiber Wi-Fi', desc: 'Enterprise dual-band optical internet with zero buffering for video lectures.' },
+                { icon: '🔋', title: '100% Power Backup', desc: 'Heavy-duty silent generator & online UPS ensuring zero power cut interruptions.' },
+                { icon: '🪑', title: 'Ergonomic Desk & Chair', desc: 'Extra-padded high-back lumbar support chairs for 14+ hours fatigue-free sitting.' },
+                { icon: '💡', title: 'Individual LED Desk Light', desc: 'Eye-friendly anti-glare reading lamps with dedicated charging sockets.' },
+                { icon: '💧', title: 'Hot & Cold RO Water', desc: 'Multi-stage RO purified water dispenser with tea & coffee pantry station.' }
+              ].map((f, i) => `
+                <div class="p-2 border rounded" style="background: var(--color-surface);">
+                  <div class="row g-1">
+                    <div class="col-2"><input type="text" id="cms-fac-icon-${i+1}" class="form-control form-control-sm text-center" value="${f.icon}"></div>
+                    <div class="col-10"><input type="text" id="cms-fac-title-${i+1}" class="form-control form-control-sm" value="${f.title}"></div>
+                    <div class="col-12"><input type="text" id="cms-fac-desc-${i+1}" class="form-control form-control-sm" value="${f.desc}"></div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 6: ⏰ Flexible Study Shifts & Timings -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>⏰</span> 6. Study Shifts & Timings Guide
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Section Title</label>
+                <input type="text" id="cms-shifts-title" class="form-control form-control-sm" value="Flexible Study Shifts">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Section Subtitle</label>
+                <input type="text" id="cms-shifts-subtitle" class="form-control form-control-sm" value="Choose the shift timing that matches your study routine and peak biological clock.">
+              </div>
+            </div>
+            <div id="cms-shifts-list" style="display: flex; flex-direction: column; gap: 8px;">
+              ${[
+                { icon: '🌅', name: 'Morning Shift', timing: '06:00 AM – 02:00 PM', desc: 'Early morning slot for fresh mental energy and peak focus.' },
+                { icon: '🌇', name: 'Evening Shift', timing: '02:00 PM – 10:00 PM', desc: 'Afternoon & evening slot ideal for college students and professionals.' },
+                { icon: '☀️', name: 'Full Day Prime', timing: '06:00 AM – 11:00 PM', desc: 'Complete 17-hour all-day reserved seat with dedicated charging desk.' },
+                { icon: '🌙', name: 'Night Owl Slot', timing: '10:00 PM – 06:00 AM', desc: 'Distraction-free overnight study hours for night preparation.' }
+              ].map((s, i) => `
+                <div class="p-2 border rounded" style="background: var(--color-surface);">
+                  <div class="row g-1 align-items-center">
+                    <div class="col-2"><input type="text" id="cms-shift-icon-${i+1}" class="form-control form-control-sm text-center" value="${s.icon}"></div>
+                    <div class="col-5"><input type="text" id="cms-shift-name-${i+1}" class="form-control form-control-sm font-weight-bold" value="${s.name}"></div>
+                    <div class="col-5"><input type="text" id="cms-shift-time-${i+1}" class="form-control form-control-sm font-monospace" value="${s.timing}"></div>
+                    <div class="col-12"><input type="text" id="cms-shift-desc-${i+1}" class="form-control form-control-sm" value="${s.desc}"></div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 7: 💳 Pricing & Membership Plans Header -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>💳</span> 7. Pricing & Membership Plans Header
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
             <div class="form-group mb-2">
-              <label class="form-label small" style="font-weight: 700;">About Headline Title</label>
-              <input type="text" id="cms-about-title" class="form-control form-control-sm" value="Why Choose Our Reading Hall?">
+              <label class="form-label small" style="font-weight: 700;">Section Badge / Tag</label>
+              <input type="text" id="cms-plans-badge" class="form-control form-control-sm" value="AFFORDABLE PRICING">
+            </div>
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Section Title</label>
+              <input type="text" id="cms-plans-title" class="form-control form-control-sm" value="Transparent & Student-Friendly Membership Plans">
+            </div>
+            <div class="form-group">
+              <label class="form-label small" style="font-weight: 700;">Section Subtitle</label>
+              <input type="text" id="cms-plans-subtitle" class="form-control form-control-sm" value="No hidden charges. Select your required shift & duration with instant digital booking.">
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 8: 📖 About Section, Highlights & Live Counters -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>📖</span> 8. About Section, Highlights & Live Counters
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">About Headline Title</label>
+                <input type="text" id="cms-about-title" class="form-control form-control-sm" value="About Our Study Library">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">About Subtitle</label>
+                <input type="text" id="cms-about-subtitle" class="form-control form-control-sm" value="Why Choose Our Reading Hall?">
+              </div>
             </div>
             <div class="form-group mb-2">
               <label class="form-label small" style="font-weight: 700;">About Narrative / Mission</label>
-              <textarea id="cms-about-desc" class="form-control form-control-sm" rows="3">Designed specifically for UPSC, MPSC, Banking, SSC, NEET/JEE, CA, and other exam aspirants. We provide ergonomic seating, high-speed Wi-Fi, pin-drop silence, and premium amenities to supercharge your study focus.</textarea>
+              <textarea id="cms-about-desc" class="form-control form-control-sm" rows="3">We understand the discipline, intense focus, and peace required for cracking India’s toughest competitive examinations. Our study space is engineered to eliminate all distractions so you can study 12 to 16 hours every day with maximum productivity.</textarea>
             </div>
-            <div class="form-group">
-              <label class="form-label small" style="font-weight: 700;">Daily Operating Hours Notice</label>
-              <input type="text" id="cms-opening-hours" class="form-control form-control-sm" value="Open Daily: 06:00 AM – 11:00 PM (365 Days)">
+            <label class="form-label small mt-1 mb-1" style="font-weight: 700;">4 Key Highlight Bullet Points</label>
+            <div class="row g-2 mb-2">
+              <div class="col-6"><input type="text" id="cms-about-hl-1" class="form-control form-control-sm" value="Ergonomic cushioned chairs with personal reading lamps & charging sockets"></div>
+              <div class="col-6"><input type="text" id="cms-about-hl-2" class="form-control form-control-sm" value="Individual study cubicles / cabins for complete privacy and noise isolation"></div>
+              <div class="col-6"><input type="text" id="cms-about-hl-3" class="form-control form-control-sm" value="Strict pin-drop silence policy enforced with round-the-clock supervision"></div>
+              <div class="col-6"><input type="text" id="cms-about-hl-4" class="form-control form-control-sm" value="Separate dining area with hot water kettle, microwave & RO water"></div>
+            </div>
+            <label class="form-label small mt-1 mb-1" style="font-weight: 700;">4 Live Statistics Counters</label>
+            <div class="row g-2">
+              <div class="col-3"><input type="text" id="cms-stat-num-1" class="form-control form-control-sm text-center font-weight-bold" value="100%"><input type="text" id="cms-stat-lbl-1" class="form-control form-control-sm text-center mt-1" value="Silence"></div>
+              <div class="col-3"><input type="text" id="cms-stat-num-2" class="form-control form-control-sm text-center font-weight-bold" value="300 Mbps"><input type="text" id="cms-stat-lbl-2" class="form-control form-control-sm text-center mt-1" value="Wi-Fi Speed"></div>
+              <div class="col-3"><input type="text" id="cms-stat-num-3" class="form-control form-control-sm text-center font-weight-bold" value="180+"><input type="text" id="cms-stat-lbl-3" class="form-control form-control-sm text-center mt-1" value="Selections"></div>
+              <div class="col-3"><input type="text" id="cms-stat-num-4" class="form-control form-control-sm text-center font-weight-bold" value="365 Days"><input type="text" id="cms-stat-lbl-4" class="form-control form-control-sm text-center mt-1" value="Open Daily"></div>
             </div>
           </div>
         </div>
 
-        <!-- Section 5: 📱 Floating Quick Actions (WhatsApp & Direct Call) -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: visible;">
+        <!-- Section 9: 🖼️ Photo Gallery & Showcase -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
-              <span>📱</span> Floating Quick Action Widgets (WhatsApp & Call)
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>🖼️</span> 9. Photo Gallery & Showcase
             </h5>
-            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted); transition: transform 0.2s;">▲</span>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: block;">
-            <div class="row g-2">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Section Title</label>
+                <input type="text" id="cms-gallery-title" class="form-control form-control-sm" value="Library Hall & Infrastructure Gallery">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Section Subtitle</label>
+                <input type="text" id="cms-gallery-subtitle" class="form-control form-control-sm" value="Take a visual tour inside our distraction-free study environment and premium seating.">
+              </div>
+            </div>
+            <div id="cms-gallery-list" style="display: flex; flex-direction: column; gap: 8px;">
+              ${[
+                { url: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=800&q=80', caption: 'Quiet Air-Conditioned Main Reading Hall', cat: 'Main Hall' },
+                { url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800&q=80', caption: 'Individual Focused Study Desks with Charging Ports', cat: 'Desks' },
+                { url: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=800&q=80', caption: 'Clean Dining, Refreshment & Discussion Zone', cat: 'Dining' },
+                { url: 'https://images.unsplash.com/photo-1568667256549-094345857637?w=800&q=80', caption: 'Secure Personal Storage Lockers Area', cat: 'Lockers' }
+              ].map((g, i) => `
+                <div class="p-2 border rounded" style="background: var(--color-surface);">
+                  <div class="row g-1">
+                    <div class="col-8"><input type="url" id="cms-gal-url-${i+1}" class="form-control form-control-sm font-monospace" value="${g.url}" placeholder="Image URL"></div>
+                    <div class="col-4"><input type="text" id="cms-gal-cat-${i+1}" class="form-control form-control-sm" value="${g.cat}" placeholder="Category"></div>
+                    <div class="col-12"><input type="text" id="cms-gal-cap-${i+1}" class="form-control form-control-sm" value="${g.caption}" placeholder="Caption"></div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 10: ⭐ Student Reviews & Google Trust Rating -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>⭐</span> 10. Student Reviews & Google Rating
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Section Title</label>
+                <input type="text" id="cms-test-title" class="form-control form-control-sm" value="What Our Students Say">
+              </div>
+              <div class="col-3">
+                <label class="form-label small" style="font-weight: 700;">Google Rating</label>
+                <input type="text" id="cms-test-rating" class="form-control form-control-sm text-center font-weight-bold" value="4.9">
+              </div>
+              <div class="col-3">
+                <label class="form-label small" style="font-weight: 700;">Review Count</label>
+                <input type="text" id="cms-test-count" class="form-control form-control-sm text-center" value="250+ Reviews">
+              </div>
+            </div>
+            <div id="cms-testimonials-list" style="display: flex; flex-direction: column; gap: 8px;">
+              ${[
+                { name: 'Aditya Sharma', exam: 'UPSC CSE Aspirant (AIR 142)', feedback: 'The pin-drop silence and ergonomic chair saved my back during 14-hour study sessions. Best reading hall in town!' },
+                { name: 'Priya Kulkarni', exam: 'MPSC State Services (Class 1)', feedback: 'Uninterrupted power backup and super fast Wi-Fi helped me watch all my online test series without a single glitch.' },
+                { name: 'Rohan Deshmukh', exam: 'Chartered Accountancy (CA Final)', feedback: 'Very peaceful atmosphere, well-disciplined students, and extremely cooperative staff. Highly recommended!' }
+              ].map((t, i) => `
+                <div class="p-2 border rounded" style="background: var(--color-surface);">
+                  <div class="row g-1">
+                    <div class="col-6"><input type="text" id="cms-test-name-${i+1}" class="form-control form-control-sm font-weight-bold" value="${t.name}"></div>
+                    <div class="col-6"><input type="text" id="cms-test-exam-${i+1}" class="form-control form-control-sm text-muted" value="${t.exam}"></div>
+                    <div class="col-12"><textarea id="cms-test-text-${i+1}" class="form-control form-control-sm" rows="2">${t.feedback}</textarea></div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 11: ❓ Frequently Asked Questions (FAQs) -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>❓</span> 11. Frequently Asked Questions (FAQs)
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Section Title</label>
+                <input type="text" id="cms-faqs-title" class="form-control form-control-sm" value="Frequently Asked Questions">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Section Subtitle</label>
+                <input type="text" id="cms-faqs-subtitle" class="form-control form-control-sm" value="Everything you need to know about joining and facilities.">
+              </div>
+            </div>
+            <div id="cms-faqs-list" style="display: flex; flex-direction: column; gap: 8px;">
+              ${[
+                { q: 'Can I choose my fixed desk and seat number?', a: 'Yes! You can choose your preferred desk location during admission, which remains reserved exclusively for you during your shift.' },
+                { q: 'Is high-speed Wi-Fi and power backup included in the fee?', a: 'Yes, 300 Mbps unlimited optical fiber internet and 24x7 100% generator power backup are completely free with all memberships.' },
+                { q: 'Is there a trial or 1-day demo available?', a: 'Yes, we offer a complimentary 1-day trial session so you can experience the silence, AC, and ergonomic comfort before enrolling.' },
+                { q: 'What documents are required for library admission?', a: 'You only need 1 government ID proof (Aadhaar / Voter ID / Driving License) and 1 passport size photograph.' }
+              ].map((f, i) => `
+                <div class="p-2 border rounded" style="background: var(--color-surface);">
+                  <div class="form-group mb-1">
+                    <input type="text" id="cms-faq-q-${i+1}" class="form-control form-control-sm font-weight-bold" value="${f.q}" placeholder="Question">
+                  </div>
+                  <div class="form-group mb-0">
+                    <textarea id="cms-faq-a-${i+1}" class="form-control form-control-sm" rows="2" placeholder="Answer">${f.a}</textarea>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 12: 📜 Library Rules & Code of Conduct -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>📜</span> 12. Library Rules & Code of Conduct
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Section Title</label>
+                <input type="text" id="cms-rules-title" class="form-control form-control-sm" value="Library Rules & Discipline Guidelines">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Section Subtitle</label>
+                <input type="text" id="cms-rules-subtitle" class="form-control form-control-sm" value="Adherence to these rules is compulsory to maintain a serene learning ecosystem.">
+              </div>
+            </div>
+            <label class="form-label small mb-1" style="font-weight: 700;">5 Core Discipline Rules</label>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              ${[
+                'Maintain absolute pin-drop silence in all study halls at all times.',
+                'Mobile phones must remain on silent mode. All phone calls must be taken outside the hall.',
+                'Do not reserve empty desks with bags or books when leaving for long breaks.',
+                'Eating snacks, cooked meals, and smoking are strictly forbidden inside reading halls.',
+                'Keep your desk tidy, switch off lights when leaving, and handle library furniture with care.'
+              ].map((r, i) => `
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text font-weight-bold" style="width: 32px; justify-content: center;">${i+1}</span>
+                  <input type="text" id="cms-rule-${i+1}" class="form-control form-control-sm" value="${r}">
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 13: 📝 Online Enquiry Form -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>📝</span> 13. Online Enquiry Section & Alert
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Enquiry Title</label>
+                <input type="text" id="cms-enquiry-title" class="form-control form-control-sm" value="Have Questions? Send Us an Enquiry">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Enquiry Subtitle</label>
+                <input type="text" id="cms-enquiry-subtitle" class="form-control form-control-sm" value="Fill out the quick form below and our team will get in touch with you via WhatsApp or Call.">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label small" style="font-weight: 700;">Custom Success Message on Form Submit</label>
+              <input type="text" id="cms-enquiry-success" class="form-control form-control-sm" value="Thank you! Your enquiry has been received. Our manager will contact you shortly.">
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 14: 📞 Contact Info, Operating Hours & Google Maps Location -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>📞</span> 14. Contact Info, Hours & Google Maps
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Contact Phone</label>
+                <input type="tel" id="cms-contact-phone" class="form-control form-control-sm" placeholder="+91 98765 43210">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">WhatsApp Support Number</label>
+                <input type="tel" id="cms-contact-wa" class="form-control form-control-sm" placeholder="+91 98765 43210">
+              </div>
+            </div>
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Official Email</label>
+                <input type="email" id="cms-contact-email" class="form-control form-control-sm" placeholder="info@studylibrary.com">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Daily Operating Hours Notice</label>
+                <input type="text" id="cms-opening-hours" class="form-control form-control-sm" value="06:00 AM – 11:00 PM (Daily)">
+              </div>
+            </div>
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Physical Address</label>
+              <input type="text" id="cms-contact-address" class="form-control form-control-sm" placeholder="Plot No. 12, Near Metro Station, Pune">
+            </div>
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Google Maps Embed Iframe URL</label>
+              <input type="url" id="cms-map-embed" class="form-control form-control-sm" placeholder="https://www.google.com/maps/embed?...">
+            </div>
+            <div class="form-group">
+              <label class="form-label small" style="font-weight: 700;">Google Maps Direct Navigation Link</label>
+              <input type="url" id="cms-map-direct" class="form-control form-control-sm" placeholder="https://maps.google.com/?q=...">
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 15: 📱 Floating Quick Actions Widget (Sticky WhatsApp & Call) -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>📱</span> 15. Floating Quick Action Buttons (Sticky WA & Call)
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="cms-floating-enabled" checked>
+              <label class="form-check-label small" for="cms-floating-enabled" style="font-weight: 700;">Enable Sticky WhatsApp & Call Buttons</label>
+            </div>
+            <div class="row g-2 mb-2">
               <div class="col-md-6">
-                <label class="form-label small" style="font-weight: 700;">Floating WhatsApp Support Number</label>
+                <label class="form-label small" style="font-weight: 700;">Floating WhatsApp Number</label>
                 <input type="tel" id="cms-floating-whatsapp" class="form-control form-control-sm" placeholder="+91 98765 43210">
               </div>
               <div class="col-md-6">
@@ -2436,18 +2841,62 @@ function renderWebsiteCmsStudio() {
                 <input type="tel" id="cms-floating-call" class="form-control form-control-sm" placeholder="+91 98765 43210">
               </div>
             </div>
+            <div class="form-group">
+              <label class="form-label small" style="font-weight: 700;">Pre-filled WhatsApp Welcome Message</label>
+              <input type="text" id="cms-floating-wa-msg" class="form-control form-control-sm" value="Hello! I am interested in library admission.">
+            </div>
           </div>
         </div>
 
-        <!-- Section 6: 🔍 SEO, Social Graph & Google Maps -->
-        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: visible;">
+        <!-- Section 16: 🦶 Footer, Quick Links & Copyright -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
           <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
-            <h5 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
-              <span>🔍</span> SEO, Social Share & Google Maps
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>🦶</span> 16. Footer, Quick Links & Copyright Notice
             </h5>
-            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted); transition: transform 0.2s;">▲</span>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
           </div>
-          <div class="cms-accordion-body p-3 pt-0" style="display: block;">
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Footer Organization Name</label>
+                <input type="text" id="cms-footer-org-name" class="form-control form-control-sm" placeholder="Leave blank to use Business Profile Name">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Footer Tagline</label>
+                <input type="text" id="cms-footer-tagline" class="form-control form-control-sm" value="Premier Air-Conditioned Reading Hall & Self-Study Space.">
+              </div>
+            </div>
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Copyright Text</label>
+              <input type="text" id="cms-footer-copy-text" class="form-control form-control-sm" value="Study Library Management System. All Rights Reserved.">
+            </div>
+            <label class="form-label small mb-1" style="font-weight: 700;">4 Footer Quick Navigation Links</label>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              ${[
+                { label: 'Online Admission', url: '/register' },
+                { label: 'Student Portal', url: '/student-login' },
+                { label: 'Gate Kiosk', url: '/kiosk' },
+                { label: 'Staff & Owner Login', url: '/#/' }
+              ].map((l, i) => `
+                <div class="row g-1">
+                  <div class="col-5"><input type="text" id="cms-qlink-lbl-${i+1}" class="form-control form-control-sm font-weight-bold" value="${l.label}"></div>
+                  <div class="col-7"><input type="text" id="cms-qlink-url-${i+1}" class="form-control form-control-sm font-monospace" value="${l.url}"></div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 17: 🔍 SEO Search Metadata, Social Share & Analytics -->
+        <div class="card cms-accordion-card" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+          <div class="cms-accordion-header p-3 d-flex justify-content-between align-items-center" style="cursor: pointer; user-select: none;">
+            <h5 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>🔍</span> 17. SEO Search Metadata & Social Graph
+            </h5>
+            <span class="cms-accordion-toggle" style="font-size: 0.85rem; font-weight: bold; color: var(--color-text-muted);">▼</span>
+          </div>
+          <div class="cms-accordion-body p-3 pt-0" style="display: none;">
             <div class="form-group mb-2">
               <label class="form-label small" style="font-weight: 700;">Google Search Page Title</label>
               <input type="text" id="cms-seo-title" class="form-control form-control-sm" value="Study Library & Reading Hall — Premium Self-Study Space">
@@ -2456,9 +2905,19 @@ function renderWebsiteCmsStudio() {
               <label class="form-label small" style="font-weight: 700;">Meta Description</label>
               <textarea id="cms-seo-desc" class="form-control form-control-sm" rows="2">Peaceful, air-conditioned study library with high-speed Wi-Fi, ergonomic seating, and 24x7 power backup.</textarea>
             </div>
-            <div class="form-group">
-              <label class="form-label small" style="font-weight: 700;">Google Maps Location Embed URL</label>
-              <input type="url" id="cms-map-embed" class="form-control form-control-sm" placeholder="https://www.google.com/maps/embed?...">
+            <div class="form-group mb-2">
+              <label class="form-label small" style="font-weight: 700;">Meta Keywords (comma separated)</label>
+              <input type="text" id="cms-seo-keywords" class="form-control form-control-sm" value="study library, reading hall, silent library, UPSC library, competitive exam study space">
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Google Analytics ID (G-XXXXX)</label>
+                <input type="text" id="cms-seo-ga" class="form-control form-control-sm font-monospace" placeholder="G-XXXXXXXXXX">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Meta Pixel ID</label>
+                <input type="text" id="cms-seo-pixel" class="form-control form-control-sm font-monospace" placeholder="1234567890">
+              </div>
             </div>
           </div>
         </div>
@@ -2479,7 +2938,7 @@ function renderWebsiteCmsStudio() {
           </div>
         </div>
 
-        <div id="cms-preview-container" style="width: 100%; height: 720px; border: 2px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; background: #0f121d; display: flex; justify-content: center; align-items: center; transition: all 0.3s;">
+        <div id="cms-preview-container" style="width: 100%; height: 760px; border: 2px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; background: #0f121d; display: flex; justify-content: center; align-items: center; transition: all 0.3s;">
           <iframe id="cms-preview-frame" src="/landing?preview=true&theme=modern_glass" style="width: 100%; height: 100%; border: none; transition: width 0.3s ease;"></iframe>
         </div>
       </div>
@@ -2490,7 +2949,6 @@ function renderWebsiteCmsStudio() {
   // Attach interactive live preview listeners and fetch database config
   setTimeout(async () => {
     const iframe = wrapper.querySelector('#cms-preview-frame');
-    const previewContainer = wrapper.querySelector('#cms-preview-container');
 
     // 0. Interactive Accordion Expand/Collapse Logic
     wrapper.querySelectorAll('.cms-accordion-header').forEach(header => {
@@ -2520,24 +2978,16 @@ function renderWebsiteCmsStudio() {
     // Helper to send live updates to preview iframe
     const dispatchLiveUpdate = () => {
       if (!iframe || !iframe.contentWindow) return;
-      const primary = wrapper.querySelector('#cms-color-primary')?.value;
-      const accent = wrapper.querySelector('#cms-color-accent')?.value;
-      const secondary = wrapper.querySelector('#cms-color-secondary')?.value;
-      const font = wrapper.querySelector('#cms-font-family')?.value;
-      const heroTitle = wrapper.querySelector('#cms-hero-title')?.value;
-      const heroSubtitle = wrapper.querySelector('#cms-hero-subtitle')?.value;
-      const heroTicker = wrapper.querySelector('#cms-hero-ticker')?.value;
-
       iframe.contentWindow.postMessage({
         type: 'LIVE_CMS_UPDATE',
         preset: currentPreset,
-        primaryColor: primary,
-        accentColor: accent,
-        secondaryColor: secondary,
-        fontFamily: font,
-        heroTitle: heroTitle,
-        heroSubtitle: heroSubtitle,
-        announcementTicker: heroTicker
+        primaryColor: wrapper.querySelector('#cms-color-primary')?.value,
+        accentColor: wrapper.querySelector('#cms-color-accent')?.value,
+        secondaryColor: wrapper.querySelector('#cms-color-secondary')?.value,
+        fontFamily: wrapper.querySelector('#cms-font-family')?.value,
+        heroTitle: wrapper.querySelector('#cms-hero-title')?.value,
+        heroSubtitle: wrapper.querySelector('#cms-hero-subtitle')?.value,
+        announcementTicker: wrapper.querySelector('#cms-hero-ticker')?.value
       }, '*');
     };
 
@@ -2546,6 +2996,8 @@ function renderWebsiteCmsStudio() {
       const res = await api.get('/api/landing');
       if (res.success && res.data) {
         const { landing = {}, businessProfile = {} } = res.data;
+
+        // Theme Preset
         if (landing.theme?.preset) {
           currentPreset = landing.theme.preset;
           wrapper.querySelectorAll('.theme-preset-card').forEach(c => {
@@ -2574,35 +3026,191 @@ function renderWebsiteCmsStudio() {
           wrapper.querySelector('#cms-font-family').value = landing.theme.fontFamily;
         }
 
+        // Ticker & Live Seat
+        if (landing.hero?.enableTicker !== undefined) wrapper.querySelector('#cms-ticker-enabled').checked = landing.hero.enableTicker;
+        if (landing.hero?.tickerText) wrapper.querySelector('#cms-hero-ticker').value = landing.hero.tickerText;
+        if (landing.hero?.liveSeatBadge?.text) wrapper.querySelector('#cms-live-seat-text').value = landing.hero.liveSeatBadge.text;
+
+        // Navbar
+        if (landing.navbar?.brandName) wrapper.querySelector('#cms-nav-brand-name').value = landing.navbar.brandName;
+        if (landing.navbar?.ctaPrimaryText) wrapper.querySelector('#cms-nav-cta-primary-text').value = landing.navbar.ctaPrimaryText;
+        if (landing.navbar?.ctaPrimaryLink) wrapper.querySelector('#cms-nav-cta-primary-link').value = landing.navbar.ctaPrimaryLink;
+        if (landing.navbar?.ctaSecondaryText) wrapper.querySelector('#cms-nav-cta-sec-text').value = landing.navbar.ctaSecondaryText;
+        if (landing.navbar?.ctaSecondaryLink) wrapper.querySelector('#cms-nav-cta-sec-link').value = landing.navbar.ctaSecondaryLink;
+        if (landing.navbar?.showDarkModeToggle !== undefined) wrapper.querySelector('#cms-nav-dark-toggle').checked = landing.navbar.showDarkModeToggle;
+
+        // Hero
         if (landing.hero?.title) wrapper.querySelector('#cms-hero-title').value = landing.hero.title;
         if (landing.hero?.subtitle) wrapper.querySelector('#cms-hero-subtitle').value = landing.hero.subtitle;
-        if (landing.hero?.tickerText) wrapper.querySelector('#cms-hero-ticker').value = landing.hero.tickerText;
         if (landing.hero?.ctaPrimaryText) wrapper.querySelector('#cms-hero-cta-text').value = landing.hero.ctaPrimaryText;
+        if (landing.hero?.ctaPrimaryLink) wrapper.querySelector('#cms-hero-cta-link').value = landing.hero.ctaPrimaryLink;
         if (landing.hero?.ctaSecondaryText) wrapper.querySelector('#cms-hero-sec-text').value = landing.hero.ctaSecondaryText;
+        if (landing.hero?.ctaSecondaryLink) wrapper.querySelector('#cms-hero-sec-link').value = landing.hero.ctaSecondaryLink;
+        if (Array.isArray(landing.hero?.badges)) {
+          landing.hero.badges.forEach((b, i) => {
+            const input = wrapper.querySelector(`#cms-hero-badge-${i + 1}`);
+            if (input) input.value = b;
+          });
+        }
 
+        // Facilities
+        if (landing.facilities?.title) wrapper.querySelector('#cms-fac-title').value = landing.facilities.title;
+        if (landing.facilities?.subtitle) wrapper.querySelector('#cms-fac-subtitle').value = landing.facilities.subtitle;
+        if (Array.isArray(landing.facilities?.items)) {
+          landing.facilities.items.forEach((fac, idx) => {
+            const i = idx + 1;
+            const iconInput = wrapper.querySelector(`#cms-fac-icon-${i}`);
+            const titleInput = wrapper.querySelector(`#cms-fac-title-${i}`);
+            const descInput = wrapper.querySelector(`#cms-fac-desc-${i}`);
+            if (iconInput && fac.icon) iconInput.value = fac.icon;
+            if (titleInput && fac.title) titleInput.value = fac.title;
+            if (descInput && fac.description) descInput.value = fac.description;
+          });
+        }
+
+        // Shifts
+        if (landing.shifts?.title) wrapper.querySelector('#cms-shifts-title').value = landing.shifts.title;
+        if (landing.shifts?.subtitle) wrapper.querySelector('#cms-shifts-subtitle').value = landing.shifts.subtitle;
+        if (Array.isArray(landing.shifts?.items)) {
+          landing.shifts.items.forEach((s, idx) => {
+            const i = idx + 1;
+            const iconInput = wrapper.querySelector(`#cms-shift-icon-${i}`);
+            const nameInput = wrapper.querySelector(`#cms-shift-name-${i}`);
+            const timeInput = wrapper.querySelector(`#cms-shift-time-${i}`);
+            const descInput = wrapper.querySelector(`#cms-shift-desc-${i}`);
+            if (iconInput && s.icon) iconInput.value = s.icon;
+            if (nameInput && s.name) nameInput.value = s.name;
+            if (timeInput && s.timing) timeInput.value = s.timing;
+            if (descInput && s.description) descInput.value = s.description;
+          });
+        }
+
+        // Plans
+        if (landing.pricing?.badge) wrapper.querySelector('#cms-plans-badge').value = landing.pricing.badge;
+        if (landing.pricing?.title) wrapper.querySelector('#cms-plans-title').value = landing.pricing.title;
+        if (landing.pricing?.subtitle) wrapper.querySelector('#cms-plans-subtitle').value = landing.pricing.subtitle;
+
+        // About
         if (landing.about?.title) wrapper.querySelector('#cms-about-title').value = landing.about.title;
+        if (landing.about?.subtitle) wrapper.querySelector('#cms-about-subtitle').value = landing.about.subtitle;
         if (landing.about?.description) wrapper.querySelector('#cms-about-desc').value = landing.about.description;
-        if (landing.contact?.openingHours) wrapper.querySelector('#cms-opening-hours').value = landing.contact.openingHours;
+        if (Array.isArray(landing.about?.highlightPoints)) {
+          landing.about.highlightPoints.forEach((hl, idx) => {
+            const input = wrapper.querySelector(`#cms-about-hl-${idx + 1}`);
+            if (input) input.value = hl;
+          });
+        }
+        if (Array.isArray(landing.about?.stats)) {
+          landing.about.stats.forEach((st, idx) => {
+            const i = idx + 1;
+            const numInput = wrapper.querySelector(`#cms-stat-num-${i}`);
+            const lblInput = wrapper.querySelector(`#cms-stat-lbl-${i}`);
+            if (numInput && st.number) numInput.value = st.number;
+            if (lblInput && st.label) lblInput.value = st.label;
+          });
+        }
 
+        // Gallery
+        if (landing.gallery?.title) wrapper.querySelector('#cms-gallery-title').value = landing.gallery.title;
+        if (landing.gallery?.subtitle) wrapper.querySelector('#cms-gallery-subtitle').value = landing.gallery.subtitle;
+        const galImages = landing.gallery?.images || landing.gallery?.items;
+        if (Array.isArray(galImages)) {
+          galImages.forEach((g, idx) => {
+            const i = idx + 1;
+            const urlInput = wrapper.querySelector(`#cms-gal-url-${i}`);
+            const catInput = wrapper.querySelector(`#cms-gal-cat-${i}`);
+            const capInput = wrapper.querySelector(`#cms-gal-cap-${i}`);
+            if (urlInput && g.url) urlInput.value = g.url;
+            if (catInput && g.category) catInput.value = g.category;
+            if (capInput && g.caption) capInput.value = g.caption;
+          });
+        }
+
+        // Testimonials
+        if (landing.testimonials?.title) wrapper.querySelector('#cms-test-title').value = landing.testimonials.title;
+        if (landing.testimonials?.googleRating) wrapper.querySelector('#cms-test-rating').value = landing.testimonials.googleRating;
+        if (landing.testimonials?.googleReviewsCount) wrapper.querySelector('#cms-test-count').value = landing.testimonials.googleReviewsCount;
+        if (Array.isArray(landing.testimonials?.items)) {
+          landing.testimonials.items.forEach((t, idx) => {
+            const i = idx + 1;
+            const nameInput = wrapper.querySelector(`#cms-test-name-${i}`);
+            const examInput = wrapper.querySelector(`#cms-test-exam-${i}`);
+            const textInput = wrapper.querySelector(`#cms-test-text-${i}`);
+            if (nameInput && t.name) nameInput.value = t.name;
+            if (examInput && t.exam) examInput.value = t.exam;
+            if (textInput && t.feedback) textInput.value = t.feedback;
+          });
+        }
+
+        // FAQs
+        if (landing.faqs?.title) wrapper.querySelector('#cms-faqs-title').value = landing.faqs.title;
+        if (landing.faqs?.subtitle) wrapper.querySelector('#cms-faqs-subtitle').value = landing.faqs.subtitle;
+        if (Array.isArray(landing.faqs?.items)) {
+          landing.faqs.items.forEach((f, idx) => {
+            const i = idx + 1;
+            const qInput = wrapper.querySelector(`#cms-faq-q-${i}`);
+            const aInput = wrapper.querySelector(`#cms-faq-a-${i}`);
+            if (qInput && f.question) qInput.value = f.question;
+            if (aInput && f.answer) aInput.value = f.answer;
+          });
+        }
+
+        // Rules
+        if (landing.rules?.title) wrapper.querySelector('#cms-rules-title').value = landing.rules.title;
+        if (landing.rules?.subtitle) wrapper.querySelector('#cms-rules-subtitle').value = landing.rules.subtitle;
+        if (Array.isArray(landing.rules?.items)) {
+          landing.rules.items.forEach((r, idx) => {
+            const input = wrapper.querySelector(`#cms-rule-${idx + 1}`);
+            if (input) input.value = r;
+          });
+        }
+
+        // Enquiry
+        if (landing.enquiry?.title) wrapper.querySelector('#cms-enquiry-title').value = landing.enquiry.title;
+        if (landing.enquiry?.subtitle) wrapper.querySelector('#cms-enquiry-subtitle').value = landing.enquiry.subtitle;
+        if (landing.enquiry?.successMessage) wrapper.querySelector('#cms-enquiry-success').value = landing.enquiry.successMessage;
+
+        // Contact
+        if (landing.contact?.phone || businessProfile.phone) wrapper.querySelector('#cms-contact-phone').value = landing.contact?.phone || businessProfile.phone || '';
+        if (landing.contact?.whatsapp || businessProfile.socialLinks?.whatsapp || businessProfile.phone) wrapper.querySelector('#cms-contact-wa').value = landing.contact?.whatsapp || businessProfile.socialLinks?.whatsapp || businessProfile.phone || '';
+        if (landing.contact?.email || businessProfile.email) wrapper.querySelector('#cms-contact-email').value = landing.contact?.email || businessProfile.email || '';
+        if (landing.contact?.openingHours) wrapper.querySelector('#cms-opening-hours').value = landing.contact.openingHours;
+        if (landing.contact?.address || businessProfile.address) wrapper.querySelector('#cms-contact-address').value = landing.contact?.address || businessProfile.address || '';
+        if (businessProfile.mapEmbedUrl || landing.footer?.mapEmbedUrl || landing.contact?.googleMapEmbedUrl) {
+          wrapper.querySelector('#cms-map-embed').value = businessProfile.mapEmbedUrl || landing.footer?.mapEmbedUrl || landing.contact?.googleMapEmbedUrl || '';
+        }
+        if (landing.footer?.mapDirectLink) wrapper.querySelector('#cms-map-direct').value = landing.footer.mapDirectLink;
+
+        // Floating Actions
+        if (landing.floatingActions?.enabled !== undefined) wrapper.querySelector('#cms-floating-enabled').checked = landing.floatingActions.enabled;
         if (landing.floatingActions?.whatsappNumber || businessProfile.phone) {
           wrapper.querySelector('#cms-floating-whatsapp').value = landing.floatingActions?.whatsappNumber || businessProfile.phone || '';
         }
         if (landing.floatingActions?.callNumber || businessProfile.phone) {
           wrapper.querySelector('#cms-floating-call').value = landing.floatingActions?.callNumber || businessProfile.phone || '';
         }
+        if (landing.floatingActions?.whatsappMessage) wrapper.querySelector('#cms-floating-wa-msg').value = landing.floatingActions.whatsappMessage;
 
-        if (landing.seo?.metaTitle) wrapper.querySelector('#cms-seo-title').value = landing.seo.metaTitle;
-        if (landing.seo?.metaDescription) wrapper.querySelector('#cms-seo-desc').value = landing.seo.metaDescription;
-        if (businessProfile.mapEmbedUrl || landing.footer?.mapEmbedUrl) {
-          wrapper.querySelector('#cms-map-embed').value = businessProfile.mapEmbedUrl || landing.footer?.mapEmbedUrl || '';
-        }
-
-        if (Array.isArray(landing.facilities?.items)) {
-          landing.facilities.items.forEach((fac, idx) => {
-            const facInput = wrapper.querySelector(`#cms-fac-${idx + 1}`);
-            if (facInput && fac.title) facInput.value = `${fac.icon || '⚡'} ${fac.title}`;
+        // Footer
+        if (landing.footer?.orgName) wrapper.querySelector('#cms-footer-org-name').value = landing.footer.orgName;
+        if (landing.footer?.tagline) wrapper.querySelector('#cms-footer-tagline').value = landing.footer.tagline;
+        if (landing.footer?.copyrightText) wrapper.querySelector('#cms-footer-copy-text').value = landing.footer.copyrightText;
+        if (Array.isArray(landing.footer?.quickLinks)) {
+          landing.footer.quickLinks.forEach((l, idx) => {
+            const i = idx + 1;
+            const lblInput = wrapper.querySelector(`#cms-qlink-lbl-${i}`);
+            const urlInput = wrapper.querySelector(`#cms-qlink-url-${i}`);
+            if (lblInput && l.label) lblInput.value = l.label;
+            if (urlInput && l.url) urlInput.value = l.url;
           });
         }
+
+        // SEO
+        if (landing.seo?.metaTitle) wrapper.querySelector('#cms-seo-title').value = landing.seo.metaTitle;
+        if (landing.seo?.metaDescription) wrapper.querySelector('#cms-seo-desc').value = landing.seo.metaDescription;
+        if (landing.seo?.metaKeywords) wrapper.querySelector('#cms-seo-keywords').value = landing.seo.metaKeywords;
+        if (landing.seo?.googleAnalyticsId) wrapper.querySelector('#cms-seo-ga').value = landing.seo.googleAnalyticsId;
+        if (landing.seo?.metaPixelId) wrapper.querySelector('#cms-seo-pixel').value = landing.seo.metaPixelId;
 
         // Set initial iframe preset
         if (iframe) iframe.src = `/landing?preview=true&theme=${currentPreset}&t=${Date.now()}`;
@@ -2622,7 +3230,6 @@ function renderWebsiteCmsStudio() {
         card.style.border = '2px solid var(--color-primary)';
         currentPreset = card.dataset.preset;
 
-        // Auto-update color pickers and typography to preset defaults
         const defaults = presetDefaults[currentPreset] || presetDefaults.modern_glass;
         wrapper.querySelector('#cms-color-primary').value = defaults.primary;
         wrapper.querySelector('#cms-color-primary-text').value = defaults.primary;
@@ -2634,12 +3241,6 @@ function renderWebsiteCmsStudio() {
 
         if (iframe) {
           iframe.src = `/landing?preview=true&theme=${currentPreset}&t=${Date.now()}`;
-        }
-        if (iframe && iframe.contentWindow) {
-          iframe.contentWindow.postMessage({
-            type: 'PRESET_CHANGE',
-            preset: currentPreset
-          }, '*');
         }
         setTimeout(dispatchLiveUpdate, 150);
       });
@@ -2698,91 +3299,225 @@ function renderWebsiteCmsStudio() {
       if (iframe) iframe.src = `/landing?preview=true&theme=${currentPreset}&t=${Date.now()}`;
     });
 
-    // 6. Save & Publish Website CMS Handler
+    // 6. Save & Publish Full 17-Section Website CMS Handler
     wrapper.querySelector('#btn-save-website-cms')?.addEventListener('click', async () => {
       const btnSave = wrapper.querySelector('#btn-save-website-cms');
       UI.buttonLoading(btnSave, true, 'Publishing...');
 
-      const heroTitle = wrapper.querySelector('#cms-hero-title')?.value?.trim();
-      const heroSubtitle = wrapper.querySelector('#cms-hero-subtitle')?.value?.trim();
-      const heroTicker = wrapper.querySelector('#cms-hero-ticker')?.value?.trim();
-      const heroCtaText = wrapper.querySelector('#cms-hero-cta-text')?.value?.trim();
-      const heroSecText = wrapper.querySelector('#cms-hero-sec-text')?.value?.trim();
-
-      const primaryColor = wrapper.querySelector('#cms-color-primary')?.value;
-      const accentColor = wrapper.querySelector('#cms-color-accent')?.value;
-      const secondaryColor = wrapper.querySelector('#cms-color-secondary')?.value;
-      const fontFamily = wrapper.querySelector('#cms-font-family')?.value;
-
-      const aboutTitle = wrapper.querySelector('#cms-about-title')?.value?.trim();
-      const aboutDesc = wrapper.querySelector('#cms-about-desc')?.value?.trim();
-      const openingHours = wrapper.querySelector('#cms-opening-hours')?.value?.trim();
-
-      const whatsappNumber = wrapper.querySelector('#cms-floating-whatsapp')?.value?.trim();
-      const callNumber = wrapper.querySelector('#cms-floating-call')?.value?.trim();
-
-      const seoTitle = wrapper.querySelector('#cms-seo-title')?.value?.trim();
-      const seoDesc = wrapper.querySelector('#cms-seo-desc')?.value?.trim();
-      const mapEmbed = wrapper.querySelector('#cms-map-embed')?.value?.trim();
-
-      // Collect Facility items
-      const facilityItems = [];
-      for (let i = 1; i <= 6; i++) {
-        const val = wrapper.querySelector(`#cms-fac-${i}`)?.value?.trim();
-        if (val) {
-          const parts = val.split(' ');
-          const icon = parts[0] || '⚡';
-          const title = parts.slice(1).join(' ') || val;
-          facilityItems.push({ icon, title, description: 'Premium study facility with uninterrupted comfort' });
-        }
-      }
-
       try {
+        // Collect Badges
+        const heroBadges = [
+          wrapper.querySelector('#cms-hero-badge-1')?.value?.trim(),
+          wrapper.querySelector('#cms-hero-badge-2')?.value?.trim(),
+          wrapper.querySelector('#cms-hero-badge-3')?.value?.trim(),
+          wrapper.querySelector('#cms-hero-badge-4')?.value?.trim()
+        ].filter(Boolean);
+
+        // Collect Facilities
+        const facilityItems = [];
+        for (let i = 1; i <= 6; i++) {
+          const icon = wrapper.querySelector(`#cms-fac-icon-${i}`)?.value?.trim() || '❄️';
+          const title = wrapper.querySelector(`#cms-fac-title-${i}`)?.value?.trim();
+          const desc = wrapper.querySelector(`#cms-fac-desc-${i}`)?.value?.trim() || '';
+          if (title) facilityItems.push({ icon, title, description: desc });
+        }
+
+        // Collect Shifts
+        const shiftItems = [];
+        for (let i = 1; i <= 4; i++) {
+          const icon = wrapper.querySelector(`#cms-shift-icon-${i}`)?.value?.trim() || '⏰';
+          const name = wrapper.querySelector(`#cms-shift-name-${i}`)?.value?.trim();
+          const timing = wrapper.querySelector(`#cms-shift-time-${i}`)?.value?.trim() || '';
+          const desc = wrapper.querySelector(`#cms-shift-desc-${i}`)?.value?.trim() || '';
+          if (name) shiftItems.push({ icon, name, timing, description: desc, enabled: true });
+        }
+
+        // Collect Highlights & Stats
+        const highlightPoints = [
+          wrapper.querySelector('#cms-about-hl-1')?.value?.trim(),
+          wrapper.querySelector('#cms-about-hl-2')?.value?.trim(),
+          wrapper.querySelector('#cms-about-hl-3')?.value?.trim(),
+          wrapper.querySelector('#cms-about-hl-4')?.value?.trim()
+        ].filter(Boolean);
+
+        const stats = [];
+        for (let i = 1; i <= 4; i++) {
+          const number = wrapper.querySelector(`#cms-stat-num-${i}`)?.value?.trim();
+          const label = wrapper.querySelector(`#cms-stat-lbl-${i}`)?.value?.trim();
+          if (number || label) stats.push({ number: number || '', label: label || '' });
+        }
+
+        // Collect Gallery Images
+        const galleryImages = [];
+        for (let i = 1; i <= 4; i++) {
+          const url = wrapper.querySelector(`#cms-gal-url-${i}`)?.value?.trim();
+          const cat = wrapper.querySelector(`#cms-gal-cat-${i}`)?.value?.trim() || 'Hall';
+          const cap = wrapper.querySelector(`#cms-gal-cap-${i}`)?.value?.trim() || '';
+          if (url) galleryImages.push({ url, category: cat, caption: cap });
+        }
+
+        // Collect Testimonials
+        const testimonialItems = [];
+        for (let i = 1; i <= 3; i++) {
+          const name = wrapper.querySelector(`#cms-test-name-${i}`)?.value?.trim();
+          const exam = wrapper.querySelector(`#cms-test-exam-${i}`)?.value?.trim() || 'Aspirant';
+          const feedback = wrapper.querySelector(`#cms-test-text-${i}`)?.value?.trim();
+          if (name && feedback) testimonialItems.push({ name, exam, feedback, rating: 5 });
+        }
+
+        // Collect FAQs
+        const faqItems = [];
+        for (let i = 1; i <= 4; i++) {
+          const q = wrapper.querySelector(`#cms-faq-q-${i}`)?.value?.trim();
+          const a = wrapper.querySelector(`#cms-faq-a-${i}`)?.value?.trim();
+          if (q && a) faqItems.push({ question: q, answer: a });
+        }
+
+        // Collect Rules
+        const ruleItems = [];
+        for (let i = 1; i <= 5; i++) {
+          const r = wrapper.querySelector(`#cms-rule-${i}`)?.value?.trim();
+          if (r) ruleItems.push(r);
+        }
+
+        // Collect Quick Links
+        const quickLinks = [];
+        for (let i = 1; i <= 4; i++) {
+          const label = wrapper.querySelector(`#cms-qlink-lbl-${i}`)?.value?.trim();
+          const url = wrapper.querySelector(`#cms-qlink-url-${i}`)?.value?.trim();
+          if (label && url) quickLinks.push({ label, url, openInNewTab: false });
+        }
+
         const payload = {
           theme: {
             preset: currentPreset,
-            primaryColor,
-            accentColor,
-            secondaryColor,
-            fontFamily
+            primaryColor: wrapper.querySelector('#cms-color-primary')?.value,
+            accentColor: wrapper.querySelector('#cms-color-accent')?.value,
+            secondaryColor: wrapper.querySelector('#cms-color-secondary')?.value,
+            fontFamily: wrapper.querySelector('#cms-font-family')?.value
           },
           hero: {
-            title: heroTitle,
-            subtitle: heroSubtitle,
-            tickerText: heroTicker,
-            ctaPrimaryText: heroCtaText || 'Book Your Seat / Register Now',
-            ctaSecondaryText: heroSecText || 'Send Quick Enquiry'
+            title: wrapper.querySelector('#cms-hero-title')?.value?.trim(),
+            subtitle: wrapper.querySelector('#cms-hero-subtitle')?.value?.trim(),
+            enableTicker: wrapper.querySelector('#cms-ticker-enabled')?.checked,
+            tickerText: wrapper.querySelector('#cms-hero-ticker')?.value?.trim(),
+            liveSeatBadge: {
+              enabled: true,
+              text: wrapper.querySelector('#cms-live-seat-text')?.value?.trim() || 'Only 12 Seats Left'
+            },
+            ctaPrimaryText: wrapper.querySelector('#cms-hero-cta-text')?.value?.trim() || 'Apply for Admission / Register Now',
+            ctaPrimaryLink: wrapper.querySelector('#cms-hero-cta-link')?.value?.trim() || '/register',
+            ctaSecondaryText: wrapper.querySelector('#cms-hero-sec-text')?.value?.trim() || 'Send Quick Enquiry',
+            ctaSecondaryLink: wrapper.querySelector('#cms-hero-sec-link')?.value?.trim() || '#enquiry',
+            badges: heroBadges
+          },
+          navbar: {
+            brandName: wrapper.querySelector('#cms-nav-brand-name')?.value?.trim() || '',
+            ctaPrimaryText: wrapper.querySelector('#cms-nav-cta-primary-text')?.value?.trim() || 'Register Now',
+            ctaPrimaryLink: wrapper.querySelector('#cms-nav-cta-primary-link')?.value?.trim() || '/register',
+            ctaSecondaryText: wrapper.querySelector('#cms-nav-cta-sec-text')?.value?.trim() || 'Student Portal',
+            ctaSecondaryLink: wrapper.querySelector('#cms-nav-cta-sec-link')?.value?.trim() || '/student-login',
+            showDarkModeToggle: wrapper.querySelector('#cms-nav-dark-toggle')?.checked
           },
           facilities: {
             enabled: true,
+            title: wrapper.querySelector('#cms-fac-title')?.value?.trim() || 'Premium Facilities & Amenities',
+            subtitle: wrapper.querySelector('#cms-fac-subtitle')?.value?.trim() || '',
             items: facilityItems
+          },
+          shifts: {
+            enabled: true,
+            title: wrapper.querySelector('#cms-shifts-title')?.value?.trim() || 'Flexible Study Shifts',
+            subtitle: wrapper.querySelector('#cms-shifts-subtitle')?.value?.trim() || '',
+            items: shiftItems
+          },
+          pricing: {
+            enabled: true,
+            badge: wrapper.querySelector('#cms-plans-badge')?.value?.trim() || 'PRICING',
+            title: wrapper.querySelector('#cms-plans-title')?.value?.trim() || 'Transparent & Student-Friendly Membership Plans',
+            subtitle: wrapper.querySelector('#cms-plans-subtitle')?.value?.trim() || ''
           },
           about: {
             enabled: true,
-            title: aboutTitle,
-            description: aboutDesc
+            title: wrapper.querySelector('#cms-about-title')?.value?.trim() || 'About Our Study Library',
+            subtitle: wrapper.querySelector('#cms-about-subtitle')?.value?.trim() || '',
+            description: wrapper.querySelector('#cms-about-desc')?.value?.trim() || '',
+            highlightPoints: highlightPoints,
+            stats: stats
+          },
+          gallery: {
+            enabled: true,
+            title: wrapper.querySelector('#cms-gallery-title')?.value?.trim() || 'Library Hall & Infrastructure Gallery',
+            subtitle: wrapper.querySelector('#cms-gallery-subtitle')?.value?.trim() || '',
+            images: galleryImages
+          },
+          testimonials: {
+            enabled: true,
+            title: wrapper.querySelector('#cms-test-title')?.value?.trim() || 'What Our Students Say',
+            googleRating: wrapper.querySelector('#cms-test-rating')?.value?.trim() || '4.9',
+            googleReviewsCount: wrapper.querySelector('#cms-test-count')?.value?.trim() || '250+ Reviews',
+            items: testimonialItems
+          },
+          faqs: {
+            enabled: true,
+            title: wrapper.querySelector('#cms-faqs-title')?.value?.trim() || 'Frequently Asked Questions',
+            subtitle: wrapper.querySelector('#cms-faqs-subtitle')?.value?.trim() || '',
+            items: faqItems
+          },
+          rules: {
+            enabled: true,
+            title: wrapper.querySelector('#cms-rules-title')?.value?.trim() || 'Library Rules & Discipline Guidelines',
+            subtitle: wrapper.querySelector('#cms-rules-subtitle')?.value?.trim() || '',
+            items: ruleItems
+          },
+          enquiry: {
+            enabled: true,
+            title: wrapper.querySelector('#cms-enquiry-title')?.value?.trim() || 'Have Questions? Send Us an Enquiry',
+            subtitle: wrapper.querySelector('#cms-enquiry-subtitle')?.value?.trim() || '',
+            successMessage: wrapper.querySelector('#cms-enquiry-success')?.value?.trim() || ''
           },
           contact: {
             enabled: true,
-            openingHours: openingHours || 'Open Daily: 06:00 AM – 11:00 PM (365 Days)'
+            phone: wrapper.querySelector('#cms-contact-phone')?.value?.trim() || '',
+            whatsapp: wrapper.querySelector('#cms-contact-wa')?.value?.trim() || '',
+            email: wrapper.querySelector('#cms-contact-email')?.value?.trim() || '',
+            address: wrapper.querySelector('#cms-contact-address')?.value?.trim() || '',
+            openingHours: wrapper.querySelector('#cms-opening-hours')?.value?.trim() || '',
+            googleMapEmbedUrl: wrapper.querySelector('#cms-map-embed')?.value?.trim() || ''
           },
           floatingActions: {
+            enabled: wrapper.querySelector('#cms-floating-enabled')?.checked,
+            whatsappNumber: wrapper.querySelector('#cms-floating-whatsapp')?.value?.trim() || '',
+            whatsappMessage: wrapper.querySelector('#cms-floating-wa-msg')?.value?.trim() || 'Hello! I am interested in library admission.',
+            callNumber: wrapper.querySelector('#cms-floating-call')?.value?.trim() || ''
+          },
+          footer: {
             enabled: true,
-            whatsappNumber: whatsappNumber || '',
-            callNumber: callNumber || ''
+            orgName: wrapper.querySelector('#cms-footer-org-name')?.value?.trim() || '',
+            tagline: wrapper.querySelector('#cms-footer-tagline')?.value?.trim() || '',
+            copyrightText: wrapper.querySelector('#cms-footer-copy-text')?.value?.trim() || '',
+            mapEmbedUrl: wrapper.querySelector('#cms-map-embed')?.value?.trim() || '',
+            mapDirectLink: wrapper.querySelector('#cms-map-direct')?.value?.trim() || '',
+            quickLinks: quickLinks
           },
           seo: {
-            metaTitle: seoTitle,
-            metaDescription: seoDesc
+            metaTitle: wrapper.querySelector('#cms-seo-title')?.value?.trim() || '',
+            metaDescription: wrapper.querySelector('#cms-seo-desc')?.value?.trim() || '',
+            metaKeywords: wrapper.querySelector('#cms-seo-keywords')?.value?.trim() || '',
+            googleAnalyticsId: wrapper.querySelector('#cms-seo-ga')?.value?.trim() || '',
+            metaPixelId: wrapper.querySelector('#cms-seo-pixel')?.value?.trim() || ''
           },
           businessProfile: {
-            mapEmbedUrl: mapEmbed || ''
+            mapEmbedUrl: wrapper.querySelector('#cms-map-embed')?.value?.trim() || '',
+            phone: wrapper.querySelector('#cms-contact-phone')?.value?.trim() || '',
+            email: wrapper.querySelector('#cms-contact-email')?.value?.trim() || '',
+            address: wrapper.querySelector('#cms-contact-address')?.value?.trim() || ''
           }
         };
 
         const res = await api.put('/api/landing', payload);
         if (res.success) {
-          Toast.success('Public Website published live with your customized theme preset!');
+          Toast.success('Public Website published live with all 17 customization sections!');
           if (iframe) iframe.src = `/landing?preview=true&theme=${currentPreset}&t=${Date.now()}`;
         } else {
           Toast.error(res.message || 'Failed to publish website');

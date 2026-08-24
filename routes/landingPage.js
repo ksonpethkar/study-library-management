@@ -243,7 +243,7 @@ router.put('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) 
     let config = await LandingPage.getPageConfig();
     
     // Deep update fields
-    const { hero, about, facilities, shifts, rules, gallery, faqs, testimonials, contact, enquiry, theme, footer, navbar, floatingActions, seo, businessProfile } = req.body;
+    const { hero, about, facilities, shifts, rules, gallery, faqs, testimonials, contact, enquiry, theme, footer, navbar, floatingActions, seo, pricing, businessProfile } = req.body;
 
     if (hero) config.hero = { ...config.hero.toObject(), ...hero };
     if (about) config.about = { ...config.about.toObject(), ...about };
@@ -260,6 +260,7 @@ router.put('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) 
     if (navbar) config.navbar = { ...config.navbar.toObject(), ...navbar };
     if (floatingActions) config.floatingActions = { ...config.floatingActions.toObject(), ...floatingActions };
     if (seo) config.seo = { ...config.seo.toObject(), ...seo };
+    if (pricing) config.pricing = { ...config.pricing.toObject(), ...pricing };
 
     // Publish / Draft toggle — instant without full form save
     if (req.body.isPublished !== undefined) {
