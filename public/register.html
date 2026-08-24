@@ -62,7 +62,7 @@
     }
     .admission-container {
       width: 100%;
-      max-width: 820px;
+      max-width: 860px;
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-xl);
@@ -82,16 +82,22 @@
     .stepper {
       display: flex;
       justify-content: space-between;
-      padding: 1.25rem 1.5rem;
+      padding: 1.25rem 1rem;
       background: var(--color-bg-secondary);
       border-bottom: 1px solid var(--color-border);
+      overflow-x: auto;
+      gap: 8px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
     }
     .step {
       text-align: center;
       flex: 1;
+      min-width: 68px;
       position: relative;
       opacity: 0.5;
       transition: all 0.3s;
+      cursor: pointer;
     }
     .step.active {
       opacity: 1;
@@ -110,8 +116,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 0.4rem;
+      margin: 0 auto 0.35rem;
       font-weight: 700;
+      font-size: 0.85rem;
       z-index: 2;
       position: relative;
     }
@@ -139,6 +146,14 @@
     }
     .step.completed::after {
       background: var(--color-success);
+    }
+    .step-label {
+      font-size: 0.72rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 85px;
+      margin: 0 auto;
     }
 
     .wizard-step-content {
@@ -178,15 +193,12 @@
       font-size: 1.05rem;
       font-weight: 700;
       color: var(--color-text-primary);
-      margin: 1.5rem 0 1rem 0;
+      margin: 0 0 1.25rem 0;
       display: flex;
       align-items: center;
       gap: 0.5rem;
       border-bottom: 1px solid var(--color-border);
       padding-bottom: 0.5rem;
-    }
-    .form-section-title:first-child {
-      margin-top: 0;
     }
 
     /* Calculator Card */
@@ -249,11 +261,6 @@
       transform: scale(1.15);
     }
 
-    .step-label {
-      font-size: 0.75rem;
-      transition: color 0.3s;
-    }
-
     /* Mobile Responsive Optimizations */
     @media (max-width: 640px) {
       body {
@@ -272,6 +279,9 @@
       .stepper {
         padding: 0.75rem 0.5rem;
       }
+      .step {
+        min-width: 58px;
+      }
       .step-number {
         width: 28px;
         height: 28px;
@@ -282,10 +292,8 @@
         top: 14px;
       }
       .step-label {
-        font-size: 0.68rem !important;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-size: 0.65rem !important;
+        max-width: 60px;
       }
       .wizard-step-content {
         padding: 1.25rem 0.85rem;
@@ -321,47 +329,6 @@
         min-height: 46px;
       }
     }
-
-    @media (max-width: 375px) {
-      body {
-        padding: 0.5rem 0.25rem;
-      }
-      .admission-header {
-        padding: 1.25rem 0.75rem;
-      }
-      .admission-header h1 {
-        font-size: 1.25rem !important;
-      }
-      .stepper {
-        padding: 0.5rem 0.25rem;
-      }
-      .step-number {
-        width: 24px;
-        height: 24px;
-        font-size: 0.75rem;
-      }
-      .step::after {
-        top: 12px;
-      }
-      .step-label {
-        font-size: 0.62rem !important;
-      }
-      .wizard-step-content {
-        padding: 1rem 0.65rem;
-      }
-      .exam-pill {
-        padding: 5px 10px;
-        font-size: 0.78rem;
-      }
-      .form-section-title {
-        font-size: 0.95rem;
-      }
-      .upi-intent-btn {
-        font-size: 0.75rem !important;
-        padding: 8px 2px !important;
-        min-height: 44px;
-      }
-    }
   </style>
 </head>
 <body>
@@ -372,387 +339,22 @@
         🌙
       </button>
       <div id="lib-logo-icon" style="font-size: 2.5rem; margin-bottom: 0.25rem;">📚</div>
-      <h1 id="lib-title" style="margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px;">The Cozy Corner Centre</h1>
-      <p id="lib-tagline" style="margin: 6px 0 0 0; opacity: 0.9; font-size: 0.95rem;">Premier Air-Conditioned Reading Hall & Self-Study Space</p>
+      <h1 id="lib-title" style="margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px;">Study Library</h1>
+      <p id="lib-tagline" style="margin: 6px 0 0 0; opacity: 0.9; font-size: 0.95rem;">Silence, Focus &amp; Success</p>
     </div>
 
     <div id="registration-form-wrap">
-      
-      <!-- Stepper Progress Dots -->
+      <!-- Dynamic Stepper Progress Bar -->
       <div class="stepper" id="wizard-stepper">
-        <div class="step active" id="stepper-1">
-          <div class="step-number">1</div>
-          <div class="step-label">Personal</div>
-        </div>
-        <div class="step" id="stepper-2">
-          <div class="step-number">2</div>
-          <div class="step-label">Goals & KYC</div>
-        </div>
-        <div class="step" id="stepper-3">
-          <div class="step-number">3</div>
-          <div class="step-label">Plan & Fee</div>
-        </div>
-        <div class="step" id="stepper-4">
-          <div class="step-number">4</div>
-          <div class="step-label">Payment</div>
-        </div>
-        <div class="step" id="stepper-5">
-          <div class="step-number">5</div>
-          <div class="step-label">Seat & Sign</div>
-        </div>
+        <div class="text-muted small p-2 text-center w-100">Loading registration steps...</div>
       </div>
 
+      <!-- Dynamic Wizard Form -->
       <form id="public-reg-form">
-        
-        <!-- ========================================== -->
-        <!-- Step 1: Study Centre & Personal Info -->
-        <!-- ========================================== -->
-        <div class="wizard-step-content active" id="step-1">
-          <div class="form-section-title"><span>👤</span> Step 1: Study Centre & Personal Info</div>
-          
-          <div id="duplicate-alert-box" class="alert alert-danger mb-3" style="display: none; padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.88rem; font-weight: 600; color: #dc3545; background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.2);"></div>
-
-          <!-- Preferred Study Centre / Branch (First Field as configured by Admin) -->
-          <div class="form-group mb-3">
-            <label class="form-label" style="font-weight: 600;">Preferred Study Centre / Branch *</label>
-            <select id="reg-branch" name="branch" class="form-select" required>
-              <option value="">-- Loading Active Branches... --</option>
-            </select>
-            <small class="text-muted">Select your nearest library study campus</small>
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-            <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Full Name *</label>
-              <input type="text" id="reg-name" name="name" class="form-control" placeholder="e.g. Rahul Sharma" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Mobile / WhatsApp Number *</label>
-              <input type="tel" id="reg-phone" name="phone" class="form-control" placeholder="10-digit WhatsApp number" required maxlength="10">
-            </div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-            <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Date of Birth *</label>
-              <input type="date" id="reg-dob" name="dob" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Email Address</label>
-              <input type="email" id="reg-email" name="email" class="form-control" placeholder="student@example.com">
-            </div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-            <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Gender *</label>
-              <select id="reg-gender" name="gender" class="form-select" required>
-                <option value="male" selected>Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Blood Group</label>
-              <select id="reg-blood-group" name="bloodGroup" class="form-select">
-                <option value="">-- Select Blood Group --</option>
-                <option value="A+">A+</option>
-                <option value="A-">A-</option>
-                <option value="B+">B+</option>
-                <option value="B-">B-</option>
-                <option value="O+">O+</option>
-                <option value="O-">O-</option>
-                <option value="AB+">AB+</option>
-                <option value="AB-">AB-</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Student Portal Password *</label>
-              <input type="password" id="reg-password" name="password" class="form-control" placeholder="Choose 6+ char password" required minlength="6">
-            </div>
-          </div>
-
-          <!-- Student Passport Photo in Step 1 (Matching Admin Form Builder) -->
-          <div class="mb-3">
-            <label class="form-label" style="font-weight: 600;">Student Passport Photo (Live Selfie Camera / File Upload)</label>
-            <div id="public-photo-mount"></div>
-            <small class="text-muted">Will be printed on your physical & mobile digital ID card</small>
-          </div>
-
-          <!-- Dynamic Custom Fields for Step 1 -->
-          <div id="step-1-custom-fields" class="dynamic-step-fields"></div>
-
-          <div class="btn-nav">
-            <div></div>
-            <button type="button" class="btn btn-primary btn-next" data-step="1">Continue to Next Step ➡️</button>
-          </div>
+        <div class="text-center p-4">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="text-muted mt-2">Loading admission form...</p>
         </div>
-
-        <!-- ========================================== -->
-        <!-- Step 2: Address, Academic Goals & KYC -->
-        <!-- ========================================== -->
-        <div class="wizard-step-content" id="step-2">
-          <div class="form-section-title"><span>📍</span> Step 2: Address & Emergency Contact</div>
-          
-          <!-- Address & Smart Pincode Auto-Fill -->
-          <div class="form-group mb-2">
-            <label class="form-label" style="font-weight: 600;">Full Residential Address</label>
-            <textarea id="reg-address" name="address" class="form-control" rows="2" placeholder="House/Flat No, Street, Landmark, Area"></textarea>
-          </div>
-
-          <div style="display: grid; grid-template-columns: 140px 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;" class="form-row-responsive">
-            <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Pincode ⚡</label>
-              <input type="text" id="reg-pincode" name="pincode" class="form-control" placeholder="411001" maxlength="6">
-            </div>
-            <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">City</label>
-              <input type="text" id="reg-city" name="city" class="form-control" placeholder="Auto-filled from pincode">
-            </div>
-            <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">State</label>
-              <input type="text" id="reg-state" name="state" class="form-control" placeholder="Auto-filled from pincode">
-            </div>
-          </div>
-
-          <!-- Emergency Contact -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-            <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Emergency Contact Person</label>
-              <input type="text" id="reg-emergency-name" name="emergencyName" class="form-control" placeholder="Parent / Guardian / Friend">
-            </div>
-            <div class="form-group">
-              <label class="form-label" style="font-weight: 600;">Emergency Phone Number</label>
-              <input type="tel" id="reg-emergency-phone" name="emergencyPhone" class="form-control" placeholder="10-digit emergency contact phone" maxlength="10">
-            </div>
-          </div>
-
-          <div class="form-section-title" style="margin-top: 1.5rem;"><span>🎯</span> Academic Goals & Identity Verification</div>
-
-          <label class="form-label" style="font-weight: 600; margin-bottom: 8px;">Target Competitive Exam</label>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem;" id="exam-pills-container">
-            <span class="exam-pill" data-exam="UPSC / Civil Services">UPSC Civil Services</span>
-            <span class="exam-pill" data-exam="State PSC / MPSC">State PSC / MPSC</span>
-            <span class="exam-pill" data-exam="SSC / CGL / CHSL">SSC / CGL</span>
-            <span class="exam-pill" data-exam="Banking / IBPS / SBI">Banking & RBI</span>
-            <span class="exam-pill" data-exam="JEE Mains / Advanced">IIT-JEE</span>
-            <span class="exam-pill" data-exam="NEET / Medical">NEET Medical</span>
-            <span class="exam-pill" data-exam="CA / CS / CMA">Chartered Accountancy (CA)</span>
-            <span class="exam-pill" data-exam="GATE / ESE">GATE / Engineering</span>
-            <span class="exam-pill" data-exam="Law / CLAT / Judiciary">Judiciary / CLAT</span>
-            <span class="exam-pill" data-exam="Defense / NDA / CDS">Defense / CDS</span>
-          </div>
-
-          <div class="form-group mb-3">
-            <label class="form-label" style="font-weight: 600;">College / Coaching Institute / Company</label>
-            <input type="text" id="reg-occupation" name="occupation" class="form-control" placeholder="e.g. Pune University / Chanakya Academy">
-          </div>
-
-          <!-- Dynamic Custom Fields for Step 2 -->
-          <div id="step-2-custom-fields" class="dynamic-step-fields"></div>
-
-          <div class="btn-nav">
-            <button type="button" class="btn btn-secondary btn-prev" data-step="2">⬅️ Back</button>
-            <button type="button" class="btn btn-primary btn-next" data-step="2">Continue to Next Step ➡️</button>
-          </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- Step 3: Plan & Dynamic Fee Calculator -->
-        <!-- ========================================== -->
-        <div class="wizard-step-content" id="step-3">
-          <div class="form-section-title"><span>⏰</span> Preferred Membership Plan & Shifts</div>
-          
-          <div class="form-group mb-3">
-            <label class="form-label" style="font-weight: 600;">Choose Membership Plan *</label>
-            <select id="reg-plan" name="plan" class="form-select" required>
-              <option value="">-- Choose Study Plan --</option>
-            </select>
-          </div>
-
-          <div id="reg-shift-wrapper" class="form-group mb-3" style="display: none;">
-            <label class="form-label" style="font-weight: 600;">Preferred Study Shift / Timing</label>
-            <select id="reg-shift" name="shift" class="form-select">
-              <option value="">-- Select Shift --</option>
-            </select>
-          </div>
-
-          <!-- Locker Add-on Option -->
-          <div class="form-group mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px 16px; border-radius: var(--radius-md);">
-            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 700; margin: 0; color: var(--color-text-primary);">
-              <input type="checkbox" id="reg-request-locker" name="requestLocker" style="width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer;">
-              <span>🔒 Add Personal Study Locker (+₹200/mo)</span>
-            </label>
-            <small class="text-muted" style="display: block; margin-left: 28px; margin-top: 4px; font-size: 0.8rem;">
-              Secure private key-allotted locker to safely keep heavy study books, notes & laptop.
-            </small>
-          </div>
-
-          <div class="form-group mb-4">
-            <label class="form-label" style="font-weight: 600;">Referral / Discount Coupon Code (Optional)</label>
-            <div style="display: flex; gap: 10px;">
-              <input type="text" id="reg-referral" name="referralCode" class="form-control" placeholder="Enter code (e.g. SAVE100 or FRIEND)">
-              <button type="button" class="btn btn-secondary" id="btn-apply-code" style="white-space: nowrap; font-weight: 600;">⚡ Apply Code</button>
-            </div>
-            <small id="referral-msg" style="color: var(--color-success); font-weight: 600; display: none; margin-top: 5px;"></small>
-          </div>
-
-          <!-- Dynamic Custom Fields for Step 3 -->
-          <div id="step-3-custom-fields" class="dynamic-step-fields"></div>
-
-          <!-- Live Calculator Card -->
-          <div class="calculator-card">
-            <div style="font-weight: 700; margin-bottom: 1rem; color: var(--color-primary); display: flex; justify-content: space-between; align-items: center;">
-              <span>💰 Live Fee Breakdown</span>
-              <span class="badge badge-primary" style="font-size: 0.72rem;">LIVE AUTO-CALC</span>
-            </div>
-            <div class="calc-row">
-              <span>Base Plan Price</span>
-              <span id="calc-plan-price" style="font-weight: 600;">₹0</span>
-            </div>
-            <div class="calc-row">
-              <span>Plan Duration</span>
-              <span id="calc-duration" style="font-weight: 600;">-</span>
-            </div>
-            <div class="calc-row" id="calc-shift-row" style="display: none;">
-              <span>Shift Adjustment</span>
-              <span id="calc-shift-rate" style="font-weight: 600;">1.0x</span>
-            </div>
-            <div class="calc-row" id="calc-locker-row" style="display: none; color: var(--color-primary);">
-              <span>Locker Rental Fee</span>
-              <span id="calc-locker-fee" style="font-weight: 600;">+₹0</span>
-            </div>
-            <div class="calc-row" style="color: var(--color-success);">
-              <span>Referral / Coupon Discount</span>
-              <span id="calc-discount" style="font-weight: 700;">-₹0</span>
-            </div>
-            <div class="calc-row calc-total">
-              <span>Net Total Payable</span>
-              <span id="calc-total">₹0</span>
-            </div>
-          </div>
-
-          <div class="btn-nav">
-            <button type="button" class="btn btn-secondary btn-prev" data-step="3">⬅️ Back</button>
-            <button type="button" class="btn btn-primary btn-next" data-step="3">Continue to Payment ➡️</button>
-          </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- Step 4: Payment Mode Selection -->
-        <!-- ========================================== -->
-        <div class="wizard-step-content" id="step-4">
-          <div class="form-section-title"><span>💳</span> Select Payment Option</div>
-          
-          <div id="payment-methods-radio-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 1.5rem;">
-            <!-- Rendered dynamically according to Admin custom settings -->
-          </div>
-
-          <!-- Dynamic Payment Sub-Option Panes -->
-          <div id="payment-methods-subpanes-container">
-            <!-- Rendered dynamically according to Admin custom settings -->
-          </div>
-
-          <!-- Dynamic Custom Fields for Step 4 -->
-          <div id="step-4-custom-fields" class="dynamic-step-fields"></div>
-
-          <div class="btn-nav">
-            <button type="button" class="btn btn-secondary btn-prev" data-step="4">⬅️ Back</button>
-            <button type="button" class="btn btn-primary btn-next" data-step="4">Verify & Pick Seat ➡️</button>
-          </div>
-        </div>
-
-        <!-- ========================================== -->
-        <!-- Step 5: Live Interactive Seat Map & Sign -->
-        <!-- ========================================== -->
-        <div class="wizard-step-content" id="step-5">
-          <div class="form-section-title"><span>🪑</span> Select Study Centre, Seat & Sign</div>
-          
-          <!-- Branch / Study Centre Selector (Live Seat Matrix Dynamic Connector) -->
-          <div class="form-group mb-4" style="background: var(--color-bg-secondary); border: 1.5px solid var(--color-primary); padding: 1.25rem; border-radius: var(--radius-lg);">
-            <label class="form-label" style="font-weight: 700; color: var(--color-primary); font-size: 0.95rem;">🏢 Select Preferred Study Centre / Branch *</label>
-            <select id="reg-branch" class="form-select" required style="font-weight: 600;">
-              <option value="default_main">Main Campus Centre — 🟢 Available Seats</option>
-            </select>
-            
-            <div id="branch-info-card" style="margin-top: 10px; padding: 10px 14px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: none;">
-              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <div>
-                  <span style="font-weight: 700;" id="bi-name">Main Centre</span>
-                  <span style="font-size: 0.8rem; color: var(--color-text-secondary); display: block;" id="bi-address">Pune, Maharashtra</span>
-                </div>
-                <div style="text-align: right;">
-                  <span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.85rem;" id="bi-seats-badge">
-                    🟢 Available Seats
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div style="margin-bottom: 1.25rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 8px;">
-              <label class="form-label" style="font-weight: 700; margin: 0;">Interactive Study Desk Map</label>
-              <div style="display: flex; gap: 12px; font-size: 0.8rem; font-weight: 600;">
-                <span>🟢 <span style="color: var(--color-success);">Available</span></span>
-                <span>🔴 <span style="color: var(--color-danger);">Occupied</span></span>
-                <span>🔵 <span style="color: var(--color-primary);">Selected</span></span>
-              </div>
-            </div>
-
-            <!-- Interactive Seat Grid Container -->
-            <div id="public-seat-grid-container" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; max-height: 280px; overflow-y: auto;">
-              <div class="text-center text-muted p-3">Loading available seats...</div>
-            </div>
-            
-            <input type="hidden" id="reg-selected-seat" name="seat" value="">
-            <div id="selected-seat-display" style="margin-top: 8px; font-weight: 700; font-size: 0.95rem; color: var(--color-primary);">
-              No seat selected yet (Optional — desk can assign on arrival if unselected)
-            </div>
-          </div>
-
-          <!-- Dynamic Custom Fields for Step 5 -->
-          <div id="step-5-custom-fields" class="dynamic-step-fields mb-4"></div>
-          <div id="custom-fields-inject" class="mb-4"></div>
-
-          <!-- Digital Signature Pad -->
-          <div class="mb-4">
-            <label class="form-label" style="font-weight: 600;">Digital Signature (Draw, Type or Touch) *</label>
-            <div id="public-signature-studio-mount"></div>
-          </div>
-
-          <!-- Scrollable Library Rules & Code of Conduct Box -->
-          <div class="mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
-            <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
-              <span>📜 Library Rules & Code of Conduct Agreement</span>
-              <span style="font-size: 0.78rem; font-weight: 600; background: var(--color-primary-bg); color: var(--color-primary); padding: 3px 8px; border-radius: 4px;">Mandatory Review</span>
-            </div>
-            
-            <div id="reg-rules-scroll-box" style="max-height: 160px; overflow-y: auto; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; font-size: 0.85rem; line-height: 1.6; color: var(--color-text-secondary);">
-              <ol style="margin: 0; padding-left: 1.2rem;">
-                <li style="margin-bottom: 6px;"><strong>Pin-Drop Silence:</strong> Strict silence must be maintained inside reading halls at all times. Whispering or phone calls inside study zones is strictly forbidden.</li>
-                <li style="margin-bottom: 6px;"><strong>Mobile Phone Protocol:</strong> Phones must be switched to silent or flight mode. Attend urgent phone calls outside reading halls in designated corridors.</li>
-                <li style="margin-bottom: 6px;"><strong>Assigned Desk & Shift Protocol:</strong> Occupy only your allotted desk number and adhere strictly to your registered shift timing (Morning, Evening, or Full Day).</li>
-                <li style="margin-bottom: 6px;"><strong>Cleanliness & Socket Safety:</strong> Keep your study desk clean. Turn off personal desk lights, fans, and socket chargers when leaving your seat.</li>
-                <li style="margin-bottom: 6px;"><strong>ID Pass & Gate Access:</strong> Carry your Student ID / Registration Pass for barcode/QR kiosk scanner check-in at the entrance.</li>
-                <li style="margin-bottom: 6px;"><strong>Fee Policy & Non-Refundability:</strong> Membership fees once paid are non-refundable. Long-term plans (6M+) permit a 15-day membership pause for exams.</li>
-              </ol>
-            </div>
-          </div>
-
-          <div class="form-group mb-4" style="background: var(--color-bg-secondary); padding: 14px 16px; border-radius: var(--radius-md); border: 1.5px solid var(--color-primary);">
-            <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; font-size: 0.88rem; color: var(--color-text-primary); margin: 0; line-height: 1.5; font-weight: 600;">
-              <input type="checkbox" id="reg-terms" required style="margin-top: 3px; width: 19px; height: 19px; accent-color: var(--color-primary); cursor: pointer;">
-              <span>I have read, understood, and agree to strictly abide by the <strong>Library Rules, Code of Conduct, and Payment Policies</strong>. <span style="color: var(--color-danger);">*</span></span>
-            </label>
-          </div>
-
-          <div class="btn-nav">
-            <button type="button" class="btn btn-secondary btn-prev" data-step="5">⬅️ Back</button>
-            <button type="submit" id="btn-submit-reg" class="btn btn-primary" style="font-size: 1.05rem; font-weight: 700; padding: 0.85rem;">🚀 Complete Registration & Get Admission Slip</button>
-          </div>
-        </div>
-
       </form>
     </div>
 
@@ -771,7 +373,7 @@
         
         <div style="text-align: center; border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 14px;">
           <div id="slip-business-name" style="font-weight: 800; font-size: 1.25rem; color: var(--color-primary);">Study Library</div>
-          <div id="slip-business-tagline" style="font-size: 0.78rem; color: var(--color-text-secondary);">Premier Reading Hall & Study Space</div>
+          <div id="slip-business-tagline" style="font-size: 0.78rem; color: var(--color-text-secondary);">Premier Reading Hall &amp; Study Space</div>
           <div id="slip-business-address" style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 2px;"></div>
         </div>
 
@@ -835,7 +437,7 @@
   <script type="module">
     import { SignatureStudio } from './js/signatureStudio.js';
     import { MediaFieldPicker } from './js/mediaStudio.js';
-    import { generateAdmissionFormPDF, previewAdmissionFormPDF } from './js/pdfGenerator.js';
+    import { previewAdmissionFormPDF } from './js/pdfGenerator.js';
     import { SmartIntelligence } from './js/utils/smartIntelligence.js';
 
     function escapeHTML(str) {
@@ -849,7 +451,8 @@
     }
 
     let currentStep = 1;
-    const totalSteps = 5;
+    let totalSteps = 8;
+    let activeWizardSections = [];
     let selectedPlanData = null;
     let selectedShiftData = null;
     let discountAmount = 0;
@@ -868,92 +471,11 @@
     let libraryBankDetails = {};
     let libraryPaymentInstructions = '';
     let businessProfileData = {};
+    let activeTemplateData = null;
+    let photoPicker = null;
+    let sigStudio = null;
+    const selectedExams = new Set();
 
-    function updateStepper() {
-      for (let i = 1; i <= totalSteps; i++) {
-        const stepDiv = document.getElementById(`step-${i}`);
-        const stepperDiv = document.getElementById(`stepper-${i}`);
-        
-        if (i === currentStep) {
-          stepDiv?.classList.add('active');
-          stepperDiv?.classList.add('active');
-          stepperDiv?.classList.remove('completed');
-        } else {
-          stepDiv?.classList.remove('active');
-          stepperDiv?.classList.remove('active');
-          if (i < currentStep) {
-            stepperDiv?.classList.add('completed');
-          } else {
-            stepperDiv?.classList.remove('completed');
-          }
-        }
-      }
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    document.querySelectorAll('.btn-next').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const step = parseInt(e.target.dataset.step);
-        const stepContent = document.getElementById(`step-${step}`);
-        
-        // Basic HTML5 validation for visible required fields
-        const inputs = stepContent.querySelectorAll('input[required], select[required], textarea[required]');
-        let valid = true;
-        for (const inp of inputs) {
-          if (inp.offsetParent !== null && !inp.checkValidity()) {
-            inp.reportValidity();
-              valid = false;
-            return;
-          }
-        }
-
-        // Step 1 Validation & Duplicate Check
-        if (step === 1) {
-          const isDup = await checkDuplicate();
-          if (!isDup) return;
-        }
-
-        // Step 3 Validation (Plan Selection)
-        if (step === 3) {
-          const planId = document.getElementById('reg-plan')?.value;
-          if (!planId) {
-            alert('Please select a study shift & membership plan to proceed.');
-            document.getElementById('reg-plan')?.focus();
-            return;
-          }
-        }
-
-        // Step 4 Validation (Payment Mode check)
-        if (step === 4) {
-          const mode = document.querySelector('input[name="reg-payment-mode"]:checked')?.value || 'upi';
-          if (mode === 'upi' && selectedPlanData) {
-            const utr = document.getElementById('reg-upi-ref')?.value?.trim();
-            if (!utr) {
-              alert('Please enter your 12-digit UPI UTR / Reference number to continue to seat choice.');
-              document.getElementById('reg-upi-ref')?.focus();
-              return;
-            }
-          }
-          loadPublicSeats();
-        }
-        
-        if (valid && step < totalSteps) {
-          currentStep++;
-          updateStepper();
-        }
-      });
-    });
-
-    document.querySelectorAll('.btn-prev').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (currentStep > 1) {
-          currentStep--;
-          updateStepper();
-        }
-      });
-    });
-
-    // Pincode Auto-Fill Engine
     const PIN_CLIENT_MAP = {
       '4135': { city: 'Latur / Ausa', state: 'Maharashtra' },
       '4136': { city: 'Dharashiv (Osmanabad)', state: 'Maharashtra' },
@@ -978,10 +500,6 @@
       '421': { city: 'Kalyan / Dombivli', state: 'Maharashtra' },
       '422': { city: 'Nashik', state: 'Maharashtra' },
       '440': { city: 'Nagpur', state: 'Maharashtra' },
-      '110': { city: 'New Delhi', state: 'Delhi' },
-      '121': { city: 'Faridabad', state: 'Haryana' },
-      '122': { city: 'Gurugram', state: 'Haryana' },
-      '201': { city: 'Noida / Ghaziabad', state: 'Uttar Pradesh' },
       '560': { city: 'Bengaluru', state: 'Karnataka' },
       '500': { city: 'Hyderabad', state: 'Telangana' },
       '600': { city: 'Chennai', state: 'Tamil Nadu' },
@@ -992,46 +510,32 @@
       '700': { city: 'Kolkata', state: 'West Bengal' }
     };
 
-    const regPincodeInput = document.getElementById('reg-pincode');
-    const handlePincodeLookup = async () => {
-      if (!regPincodeInput) return;
-      const pin = regPincodeInput.value.trim();
-      const cityEl = document.getElementById('reg-city');
-      const stateEl = document.getElementById('reg-state');
-      if (pin.length === 6 && /^\d+$/.test(pin)) {
-        // 0ms Synchronous local client lookup first
-        const p4 = pin.substring(0, 4);
-        const p3 = pin.substring(0, 3);
-        const localMatch = PIN_CLIENT_MAP[p4] || PIN_CLIENT_MAP[p3];
-        if (localMatch) {
-          if (cityEl) cityEl.value = localMatch.city;
-          if (stateEl) stateEl.value = localMatch.state;
-        }
-
-        if (cityEl && !cityEl.value) cityEl.placeholder = '⚡ Auto-filling...';
-        if (stateEl && !stateEl.value) stateEl.placeholder = '⚡ Auto-filling...';
-        try {
-          const res = await SmartIntelligence.lookupPincode(pin);
-          if (res && res.success) {
-            if (cityEl && res.city) cityEl.value = res.city;
-            if (stateEl && res.state) stateEl.value = res.state;
+    function updateStepper() {
+      for (let i = 1; i <= totalSteps; i++) {
+        const stepDiv = document.getElementById(`step-${i}`);
+        const stepperDiv = document.getElementById(`stepper-${i}`);
+        
+        if (i === currentStep) {
+          stepDiv?.classList.add('active');
+          stepperDiv?.classList.add('active');
+          stepperDiv?.classList.remove('completed');
+          if (stepperDiv) {
+            stepperDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
           }
-        } catch (e) {
-        } finally {
-          if (cityEl) cityEl.placeholder = 'Auto-filled from pincode';
-          if (stateEl) stateEl.placeholder = 'Auto-filled from pincode';
+        } else {
+          stepDiv?.classList.remove('active');
+          stepperDiv?.classList.remove('active');
+          if (i < currentStep) {
+            stepperDiv?.classList.add('completed');
+          } else {
+            stepperDiv?.classList.remove('completed');
+          }
         }
       }
-    };
-
-    if (regPincodeInput) {
-      ['input', 'blur', 'change', 'paste', 'keyup'].forEach(evt => {
-        regPincodeInput.addEventListener(evt, handlePincodeLookup);
-      });
-      if (regPincodeInput.value.trim().length === 6) handlePincodeLookup();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // Real-Time Duplicate Phone/Email Validator using SmartIntelligence
+    // Real-Time Duplicate Phone/Email Validator
     async function checkDuplicate() {
       const phone = document.getElementById('reg-phone')?.value.trim() || '';
       const email = document.getElementById('reg-email')?.value.trim() || '';
@@ -1057,12 +561,34 @@
       } catch (e) { return true; }
     }
 
-    ['input', 'blur', 'change', 'keyup'].forEach(evt => {
-      document.getElementById('reg-phone')?.addEventListener(evt, checkDuplicate);
-      document.getElementById('reg-email')?.addEventListener(evt, checkDuplicate);
-    });
+    // Pincode Lookup
+    async function handlePincodeLookup() {
+      const regPincodeInput = document.getElementById('reg-pincode');
+      if (!regPincodeInput) return;
+      const pin = regPincodeInput.value.trim();
+      const cityEl = document.getElementById('reg-city');
+      const stateEl = document.getElementById('reg-state');
+      if (pin.length === 6 && /^\d+$/.test(pin)) {
+        const p4 = pin.substring(0, 4);
+        const p3 = pin.substring(0, 3);
+        const localMatch = PIN_CLIENT_MAP[p4] || PIN_CLIENT_MAP[p3];
+        if (localMatch) {
+          if (cityEl) cityEl.value = localMatch.city;
+          if (stateEl) stateEl.value = localMatch.state;
+        }
+        if (cityEl && !cityEl.value) cityEl.placeholder = '⚡ Auto-filling...';
+        if (stateEl && !stateEl.value) stateEl.placeholder = '⚡ Auto-filling...';
+        try {
+          const res = await SmartIntelligence.lookupPincode(pin);
+          if (res && res.success) {
+            if (cityEl && res.city) cityEl.value = res.city;
+            if (stateEl && res.state) stateEl.value = res.state;
+          }
+        } catch (e) {}
+      }
+    }
 
-    // Live Public Seat Map Loader (Step 5)
+    // Live Public Seat Map Loader
     async function loadPublicSeats() {
       const seatContainer = document.getElementById('public-seat-grid-container');
       if (!seatContainer) return;
@@ -1100,32 +626,27 @@
         gridHtml += '</div>';
         seatContainer.innerHTML = gridHtml;
 
-        // Seat selection handler with toggle support
         seatContainer.querySelectorAll('.seat-picker-btn').forEach(btn => {
           btn.addEventListener('click', () => {
-            const currentSelected = document.getElementById('reg-selected-seat')?.value;
             const seatId = btn.dataset.id;
             const seatNo = btn.dataset.number;
-
+            const currentSelected = document.getElementById('reg-selected-seat')?.value;
+            
             seatContainer.querySelectorAll('.seat-picker-btn').forEach(b => {
-              if (!b.disabled) {
-                b.style.background = 'var(--color-surface)';
-                b.style.color = 'var(--color-text-primary)';
-                b.style.borderColor = 'var(--color-success)';
-                const ind = b.querySelector('span:first-child');
-                if (ind) {
-                  ind.style.background = 'var(--color-success)';
-                  ind.style.color = '#fff';
-                }
+              b.style.background = 'var(--color-surface)';
+              b.style.color = 'var(--color-text-primary)';
+              b.style.borderColor = 'var(--color-success)';
+              const ind = b.querySelector('span:first-child');
+              if (ind) {
+                ind.style.background = 'var(--color-success)';
+                ind.style.color = '#fff';
               }
             });
 
             if (currentSelected === seatId) {
-              // Deselect seat
               document.getElementById('reg-selected-seat').value = '';
               document.getElementById('selected-seat-display').textContent = 'No seat selected yet (Optional — desk can assign on arrival if unselected)';
             } else {
-              // Select seat
               btn.style.background = 'var(--color-primary)';
               btn.style.color = '#fff';
               btn.style.borderColor = 'var(--color-primary)';
@@ -1142,213 +663,6 @@
 
       } catch (e) {
         seatContainer.innerHTML = '<div class="text-center text-muted p-3">Could not load live seats. Desk will assign seat on arrival.</div>';
-      }
-    }
-
-    // Exam pills toggle
-    const selectedExams = new Set();
-    function setupExamPills(customList) {
-      const container = document.getElementById('exam-pills-container');
-      if (!container) return;
-
-      if (Array.isArray(customList) && customList.length > 0) {
-        container.innerHTML = customList.map(e => `
-          <span class="exam-pill ${selectedExams.has(e) ? 'selected' : ''}" data-exam="${escapeHTML(e)}">${escapeHTML(e)}</span>
-        `).join('');
-      }
-
-      container.querySelectorAll('.exam-pill').forEach(pill => {
-        pill.onclick = () => {
-          const exam = pill.dataset.exam;
-          if (!exam) return;
-          if (selectedExams.has(exam)) {
-            selectedExams.delete(exam);
-            pill.classList.remove('selected');
-          } else {
-            selectedExams.add(exam);
-            pill.classList.add('selected');
-          }
-        };
-      });
-    }
-    setupExamPills();
-
-    // Initialize Smart Photo Picker
-    let photoPicker = null;
-    const photoMount = document.getElementById('public-photo-mount');
-    if (photoMount) {
-      photoPicker = MediaFieldPicker.create({
-        label: 'Upload Photo or Snap Selfie with Live Camera',
-        preset: 'passport',
-        name: 'photo'
-      });
-      photoMount.appendChild(photoPicker);
-    }
-
-    // Initialize Smart Signature Studio
-    let sigStudio = null;
-    const sigMount = document.getElementById('public-signature-studio-mount');
-    if (sigMount) {
-      sigStudio = new SignatureStudio(sigMount, {
-        width: 440,
-        height: 150
-      });
-    }
-
-    document.getElementById('reg-name')?.addEventListener('input', (e) => {
-      if (sigStudio && sigStudio.activeTab === 'type') {
-        sigStudio.options.studentName = e.target.value;
-        const typeInput = sigMount?.querySelector('.sig-type-input');
-        if (typeInput) {
-          typeInput.value = e.target.value;
-          typeInput.dispatchEvent(new Event('input'));
-        }
-      }
-    });
-
-    // Calculator Logic
-    const planSelect = document.getElementById('reg-plan');
-    const shiftSelect = document.getElementById('reg-shift');
-    const lockerCheckbox = document.getElementById('reg-request-locker');
-
-    planSelect?.addEventListener('change', () => {
-      const planId = planSelect.value;
-      selectedPlanData = plansMap[planId] || null;
-      updateCalculator();
-    });
-
-    shiftSelect?.addEventListener('change', () => {
-      const shiftId = shiftSelect.value;
-      selectedShiftData = shiftsMap[shiftId] || null;
-      updateCalculator();
-    });
-
-    lockerCheckbox?.addEventListener('change', updateCalculator);
-
-    document.getElementById('btn-apply-code')?.addEventListener('click', async () => {
-      const code = document.getElementById('reg-referral')?.value.trim();
-      const planAmount = selectedPlanData ? Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0) : 0;
-      if (!code) return;
-      if (planAmount === 0) {
-        const refMsg = document.getElementById('referral-msg');
-        if (refMsg) {
-          refMsg.style.display = 'block';
-          refMsg.style.color = 'var(--color-danger)';
-          refMsg.textContent = 'Please select a plan first.';
-        }
-        return;
-      }
-      try {
-        const res = await fetch('/api/coupons/validate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, planAmount })
-        });
-        const json = await res.json();
-        const refMsg = document.getElementById('referral-msg');
-        if (json.success) {
-          discountAmount = json.discountAmount || 0;
-          if (refMsg) {
-            refMsg.style.display = 'block';
-            refMsg.style.color = 'var(--color-success)';
-            refMsg.textContent = `Code applied: ₹${discountAmount} Off!`;
-          }
-        } else {
-          discountAmount = 0;
-          if (refMsg) {
-            refMsg.style.display = 'block';
-            refMsg.style.color = 'var(--color-danger)';
-            refMsg.textContent = json.message || 'Invalid code.';
-          }
-        }
-      } catch (err) {
-        discountAmount = 0;
-        const refMsg = document.getElementById('referral-msg');
-        if (refMsg) {
-          refMsg.style.display = 'block';
-          refMsg.style.color = 'var(--color-danger)';
-          refMsg.textContent = 'Server error validating code.';
-        }
-      }
-      updateCalculator();
-    });
-
-    function updateCalculator() {
-      if (!selectedPlanData) {
-        document.getElementById('calc-plan-price').textContent = '₹0';
-        document.getElementById('calc-duration').textContent = '-';
-        document.getElementById('calc-total').textContent = '₹0';
-        document.getElementById('calc-shift-row').style.display = 'none';
-        document.getElementById('calc-locker-row').style.display = 'none';
-        return;
-      }
-
-      const basePrice = Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0);
-      const multiplier = selectedShiftData?.priceMultiplier ? Number(selectedShiftData.priceMultiplier) : 1.0;
-      const shiftRow = document.getElementById('calc-shift-row');
-      const shiftRateEl = document.getElementById('calc-shift-rate');
-
-      if (multiplier !== 1.0 && shiftRow && shiftRateEl) {
-        shiftRow.style.display = 'flex';
-        shiftRateEl.textContent = `${multiplier}x (₹${Math.round(basePrice * multiplier)})`;
-      } else if (shiftRow) {
-        shiftRow.style.display = 'none';
-      }
-
-      const isLocker = document.getElementById('reg-request-locker')?.checked;
-      const dynamicLockerRate = (typeof window.dynamicLockerFee === 'number') ? window.dynamicLockerFee : 200;
-      const lockerFee = isLocker ? dynamicLockerRate : 0;
-      const lockerRow = document.getElementById('calc-locker-row');
-      const lockerFeeEl = document.getElementById('calc-locker-fee');
-      if (lockerRow && lockerFeeEl) {
-        lockerRow.style.display = isLocker ? 'flex' : 'none';
-        lockerFeeEl.textContent = `+₹${lockerFee}`;
-      }
-
-      const priceWithShift = Math.round(basePrice * multiplier);
-      const grossAmount = priceWithShift + lockerFee;
-      const payable = Math.max(0, grossAmount - discountAmount);
-
-      document.getElementById('calc-plan-price').textContent = `₹${basePrice}`;
-      document.getElementById('calc-duration').textContent = `${selectedPlanData.duration} ${selectedPlanData.durationType || 'days'}`;
-      document.getElementById('calc-discount').textContent = `-₹${discountAmount}`;
-      document.getElementById('calc-total').textContent = `₹${payable}`;
-
-      // Update Step 4 Dynamic UPI QR
-      const qrMount = document.getElementById('admission-upi-qr-mount');
-      if (qrMount) {
-        const upiString = `upi://pay?pa=${encodeURIComponent(libraryUpiId)}&pn=${encodeURIComponent(libraryBusinessName)}&am=${payable}&cu=INR&tn=${encodeURIComponent('StudyLib Admission')}`;
-        
-        if (libraryCustomQrImage) {
-          const cleanQr = libraryCustomQrImage.startsWith('data:image') ? libraryCustomQrImage : (libraryCustomQrImage.startsWith('/') ? libraryCustomQrImage : '/' + libraryCustomQrImage);
-          qrMount.innerHTML = `
-            <div style="text-align: center;">
-              <img src="${cleanQr}" alt="Custom UPI QR" style="width: 180px; height: 180px; border-radius: 8px; object-fit: contain; border: 1px solid var(--color-border); display: block; margin: 0 auto 6px auto;">
-              <span class="badge badge-primary" style="font-size: 0.75rem;">Pay ₹${payable}</span>
-            </div>
-          `;
-        } else {
-          let qrDataUrl = '';
-          try {
-            if (typeof qrcode === 'function') {
-              const qr = qrcode(0, 'M');
-              qr.addData(upiString);
-              qr.make();
-              qrDataUrl = qr.createDataURL(5);
-            }
-          } catch(e) {}
-          
-          if (!qrDataUrl) {
-            qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiString)}`;
-          }
-
-          qrMount.innerHTML = `
-            <div style="text-align: center;">
-              <img src="${qrDataUrl}" alt="Dynamic UPI QR" style="width: 180px; height: 180px; border-radius: 8px; object-fit: contain; display: block; margin: 0 auto 6px auto;" onerror="this.onerror=null; this.src='https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(upiString)}';">
-              <span class="badge badge-primary" style="font-size: 0.75rem;">Pay ₹${payable} via Any UPI App</span>
-            </div>
-          `;
-        }
       }
     }
 
@@ -1422,413 +736,768 @@
       });
     }
 
-    document.getElementById('public-reg-form')?.addEventListener('change', evaluateLogic);
-    document.getElementById('public-reg-form')?.addEventListener('input', evaluateLogic);
-
-    function getStepForSection(section) {
-      if (!section) return 1;
-      const sec = String(section).trim().toLowerCase();
-      if (sec.includes('1') || sec === 'personal' || sec === 'contact' || sec === 'address' || sec === 'basic') return 1;
-      if (sec.includes('2') || sec === 'academic' || sec === 'kyc' || sec === 'verification' || sec === 'goals' || sec === 'documents' || sec === 'education') return 2;
-      if (sec.includes('3') || sec === 'plan' || sec === 'fees' || sec === 'membership' || sec === 'shift' || sec === 'pricing') return 3;
-      if (sec.includes('4') || sec === 'payment' || sec === 'billing' || sec === 'pay') return 4;
-      return 5;
-    }
-
-    // Sync Header Branding, Colors & Section Labels configured by Admin in FormBuilder
-    function syncTemplateBrandingAndSections(template, bp) {
-      if (!template) return;
-
-      // 1. Visual Theme Accent
-      if (template.theme?.primaryColor) {
-        document.documentElement.style.setProperty('--color-primary', template.theme.primaryColor);
-        document.documentElement.style.setProperty('--primary', template.theme.primaryColor);
+    function updateCalculator() {
+      if (!selectedPlanData) {
+        const planP = document.getElementById('calc-plan-price');
+        if (planP) planP.textContent = '₹0';
+        const dur = document.getElementById('calc-duration');
+        if (dur) dur.textContent = '-';
+        const tot = document.getElementById('calc-total');
+        if (tot) tot.textContent = '₹0';
+        const sRow = document.getElementById('calc-shift-row');
+        if (sRow) sRow.style.display = 'none';
+        const lRow = document.getElementById('calc-locker-row');
+        if (lRow) lRow.style.display = 'none';
+        return;
       }
 
-      // 2. Header Branding Studio Settings
-      const tb = template.branding;
-      if (tb) {
-        const titleEl = document.getElementById('lib-title');
-        if (titleEl && tb.headerText) titleEl.textContent = tb.headerText;
+      const basePrice = Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0);
+      const multiplier = selectedShiftData?.priceMultiplier ? Number(selectedShiftData.priceMultiplier) : 1.0;
+      const shiftRow = document.getElementById('calc-shift-row');
+      const shiftRateEl = document.getElementById('calc-shift-rate');
+
+      if (multiplier !== 1.0 && shiftRow && shiftRateEl) {
+        shiftRow.style.display = 'flex';
+        shiftRateEl.textContent = `${multiplier}x (₹${Math.round(basePrice * multiplier)})`;
+      } else if (shiftRow) {
+        shiftRow.style.display = 'none';
+      }
+
+      const isLocker = document.getElementById('reg-request-locker')?.checked;
+      const dynamicLockerRate = (typeof window.dynamicLockerFee === 'number') ? window.dynamicLockerFee : 200;
+      const lockerFee = isLocker ? dynamicLockerRate : 0;
+      const lockerRow = document.getElementById('calc-locker-row');
+      const lockerFeeEl = document.getElementById('calc-locker-fee');
+      if (lockerRow && lockerFeeEl) {
+        lockerRow.style.display = isLocker ? 'flex' : 'none';
+        lockerFeeEl.textContent = `+₹${lockerFee}`;
+      }
+
+      const priceWithShift = Math.round(basePrice * multiplier);
+      const grossAmount = priceWithShift + lockerFee;
+      const payable = Math.max(0, grossAmount - discountAmount);
+
+      const planP = document.getElementById('calc-plan-price');
+      if (planP) planP.textContent = `₹${basePrice}`;
+      const dur = document.getElementById('calc-duration');
+      if (dur) dur.textContent = `${selectedPlanData.duration} ${selectedPlanData.durationType || 'days'}`;
+      const disc = document.getElementById('calc-discount');
+      if (disc) disc.textContent = `-₹${discountAmount}`;
+      const tot = document.getElementById('calc-total');
+      if (tot) tot.textContent = `₹${payable}`;
+
+      // Update Dynamic UPI QR
+      const qrMount = document.getElementById('admission-upi-qr-mount');
+      if (qrMount) {
+        const upiString = `upi://pay?pa=${encodeURIComponent(libraryUpiId)}&pn=${encodeURIComponent(libraryBusinessName)}&am=${payable}&cu=INR&tn=${encodeURIComponent('StudyLib Admission')}`;
         
-        const tagEl = document.getElementById('lib-tagline');
-        if (tagEl && tb.tagline) tagEl.textContent = tb.tagline;
-
-        const mainHeader = document.getElementById('admission-main-header');
-        if (mainHeader && tb.alignment) mainHeader.style.textAlign = tb.alignment;
-
-        const logoEl = document.getElementById('lib-logo-icon');
-        if (logoEl) {
-          if (tb.showLogo === false) {
-            logoEl.style.display = 'none';
-          } else {
-            logoEl.style.display = 'block';
-            if (tb.logoSize) logoEl.style.fontSize = `${Math.round(parseInt(tb.logoSize, 10) * 0.6)}px`;
-          }
-        }
-
-        // Hero Banner Image
-        let bannerWrap = document.getElementById('admission-hero-banner');
-        if (tb.showBanner && tb.bannerImage) {
-          if (!bannerWrap) {
-            bannerWrap = document.createElement('div');
-            bannerWrap.id = 'admission-hero-banner';
-            bannerWrap.style.cssText = 'width: 100%; max-height: 220px; overflow: hidden; border-radius: 12px 12px 0 0; margin-bottom: 1rem;';
-            const cont = document.querySelector('.admission-container');
-            if (cont && mainHeader) cont.insertBefore(bannerWrap, mainHeader);
-          }
-          bannerWrap.innerHTML = `<img src="${escapeHTML(tb.bannerImage)}" alt="Admission Banner" style="width: 100%; height: 100%; object-fit: cover; max-height: 220px;">`;
-          bannerWrap.style.display = 'block';
-        } else if (bannerWrap) {
-          bannerWrap.style.display = 'none';
-        }
-      }
-
-      // 3. Sections & Stepper Custom Titles
-      if (Array.isArray(template.sections) && template.sections.length > 0) {
-        const secMap = {
-          personal: 1,
-          academic: 2,
-          plan: 3,
-          payment: 4,
-          seat: 5
-        };
-
-        template.sections.forEach((sec, idx) => {
-          const stepNum = secMap[sec.name] || (idx + 1);
-          if (stepNum >= 1 && stepNum <= 5) {
-            const stepperEl = document.getElementById(`stepper-${stepNum}`);
-            if (stepperEl) {
-              const labelEl = stepperEl.querySelector('.step-label');
-              if (labelEl && sec.label) {
-                labelEl.textContent = sec.label.replace(/^Step \d+:\s*/i, '').trim();
-              }
-              if (sec.isHidden) stepperEl.style.display = 'none';
-              else stepperEl.style.display = 'flex';
+        if (libraryCustomQrImage) {
+          const cleanQr = libraryCustomQrImage.startsWith('data:image') ? libraryCustomQrImage : (libraryCustomQrImage.startsWith('/') ? libraryCustomQrImage : '/' + libraryCustomQrImage);
+          qrMount.innerHTML = `
+            <div style="text-align: center;">
+              <img src="${cleanQr}" alt="Custom UPI QR" style="width: 180px; height: 180px; border-radius: 8px; object-fit: contain; border: 1px solid var(--color-border); display: block; margin: 0 auto 6px auto;">
+              <span class="badge badge-primary" style="font-size: 0.75rem;">Pay ₹${payable}</span>
+            </div>
+          `;
+        } else {
+          let qrDataUrl = '';
+          try {
+            if (typeof qrcode === 'function') {
+              const qr = qrcode(0, 'M');
+              qr.addData(upiString);
+              qr.make();
+              qrDataUrl = qr.createDataURL(5);
             }
-
-            const stepContent = document.getElementById(`step-${stepNum}`);
-            if (stepContent) {
-              const titleEl = stepContent.querySelector('.form-section-title');
-              if (titleEl && sec.label) {
-                const iconMap = { personal: '👤', academic: '🎯', plan: '⏰', payment: '💳', seat: '🪑', contact: '📍', kyc: '🪪' };
-                const icon = iconMap[sec.icon] || (sec.icon && sec.icon.length <= 4 ? sec.icon : '') || (stepNum === 1 ? '👤' : stepNum === 2 ? '📍' : stepNum === 3 ? '⏰' : stepNum === 4 ? '💳' : '🪑');
-                titleEl.innerHTML = `<span>${icon}</span> ${escapeHTML(sec.label)}`;
-              }
-              if (sec.isHidden) stepContent.style.display = 'none';
-            }
-          }
-        });
-      }
-
-      // 4. Submit button text
-      if (template.settings?.submitButtonText) {
-        const btnSubmit = document.getElementById('btn-submit-reg');
-        if (btnSubmit) btnSubmit.textContent = template.settings.submitButtonText;
-      }
-    }
-
-    // Sync System Core Fields (labels, placeholders, required status, active visibility)
-    function syncCoreFields(fields) {
-      if (!Array.isArray(fields)) return;
-
-      fields.forEach(f => {
-        const key = (f.fieldName || '').trim().toLowerCase();
-        const isHidden = f.isActive === false || f.isActive === 'false';
-        const isReq = Boolean(f.required);
-        const customLabel = f.label;
-        const customPlaceholder = f.placeholder;
-        const customHelp = f.helpText;
-
-        const applyCore = (inputId, wrapperQuery) => {
-          const inp = document.getElementById(inputId);
-          const wrap = wrapperQuery ? document.querySelector(wrapperQuery) : (inp ? inp.closest('.form-group') : null);
-          if (!wrap && !inp) return;
-
-          if (isHidden) {
-            if (wrap) wrap.style.display = 'none';
-            if (inp) {
-              inp.required = false;
-              inp.disabled = true;
-            }
-            return;
-          } else {
-            if (wrap) wrap.style.display = '';
-            if (inp) inp.disabled = false;
-          }
-
-          if (inp) {
-            if (customPlaceholder) inp.placeholder = customPlaceholder;
-            if (f.required !== undefined) inp.required = isReq;
-          }
-
-          if (wrap && customLabel) {
-            const lbl = wrap.querySelector('label.form-label');
-            if (lbl) {
-              lbl.innerHTML = `${escapeHTML(customLabel)}${isReq ? ' <span style="color: var(--color-danger);">*</span>' : ''}`;
-            }
-          }
-
-          if (wrap && customHelp) {
-            let helpEl = wrap.querySelector('.core-field-help-text');
-            if (!helpEl) {
-              helpEl = document.createElement('small');
-              helpEl.className = 'text-muted core-field-help-text';
-              helpEl.style.cssText = 'display: block; font-size: 0.75rem; margin-top: 3px;';
-              wrap.appendChild(helpEl);
-            }
-            helpEl.textContent = customHelp;
-          }
-        };
-
-        if (key === 'name' || key === 'fullname') applyCore('reg-name');
-        else if (key === 'phone' || key === 'mobile') applyCore('reg-phone');
-        else if (key === 'email') applyCore('reg-email');
-        else if (key === 'password') applyCore('reg-password');
-        else if (key === 'gender') applyCore('reg-gender');
-        else if (key === 'dob' || key === 'dateofbirth') applyCore('reg-dob');
-        else if (key === 'pincode') applyCore('reg-pincode');
-        else if (key === 'city') applyCore('reg-city');
-        else if (key === 'state') applyCore('reg-state');
-        else if (key === 'parentphone' || key === 'emergencycontact' || key === 'parent_phone') applyCore('reg-parent-phone');
-        else if (key === 'targetexams' || key === 'targetexam' || key === 'exam') {
-          const examWrap = document.getElementById('exam-pills-container');
-          if (examWrap && isHidden) examWrap.parentElement.style.display = 'none';
-          else if (examWrap) examWrap.parentElement.style.display = '';
-        } else if (key === 'photo' || key === 'selfie') {
-          const photoWrap = document.getElementById('public-photo-mount');
-          if (photoWrap && isHidden) photoWrap.parentElement.style.display = 'none';
-          else if (photoWrap) photoWrap.parentElement.style.display = '';
-        } else if (key === 'signature') {
-          const sigWrap = document.getElementById('sig-studio-mount');
-          if (sigWrap && isHidden) sigWrap.closest('.mb-4').style.display = 'none';
-          else if (sigWrap) sigWrap.closest('.mb-4').style.display = '';
-        }
-      });
-    }
-
-    // Dynamic Field Renderer for Admission Wizard
-    function renderCustomFields(fields, template) {
-      allCustomFields = fields;
-      
-      // 1. Sync Core Fields
-      syncCoreFields(fields);
-
-      const coreFieldKeys = new Set([
-        'name', 'phone', 'email', 'password', 'gender', 'dateofbirth', 'dob',
-        'pincode', 'city', 'state', 'targetexams', 'photo', 'signature',
-        'plan', 'shift', 'seat', 'terms', 'parentphone', 'parent_phone'
-      ]);
-
-      const step1Fields = [];
-      const step2Fields = [];
-      const step3Fields = [];
-      const step4Fields = [];
-      const step5Fields = [];
-
-      fields.forEach(f => {
-        if (f.isActive === false || f.isActive === 'false') return;
-        const slug = (f.fieldName || '').trim().toLowerCase();
-        if (coreFieldKeys.has(slug)) return;
-
-        const stepNum = getStepForSection(f.section);
-        if (stepNum === 1) step1Fields.push(f);
-        else if (stepNum === 2) step2Fields.push(f);
-        else if (stepNum === 3) step3Fields.push(f);
-        else if (stepNum === 4) step4Fields.push(f);
-        else step5Fields.push(f);
-      });
-
-      function buildFieldGroupHtml(fList) {
-        if (!fList || fList.length === 0) return '';
-        fList.sort((a, b) => (a.order || 0) - (b.order || 0));
-
-        let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem;">';
-        
-        fList.forEach(f => {
-          const reqMark = f.required ? ' <span style="color: var(--color-danger);">*</span>' : '';
-          const colStyle = (f.colSpan === 12 || f.colSpan === 2 || ['textarea', 'aadhaar_pan', 'signature_pad', 'exam_badge', 'multiselect'].includes(f.type)) ? 'grid-column: 1 / -1;' : '';
-          const helpText = f.helpText ? `<small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 3px;">${escapeHTML(f.helpText)}</small>` : '';
+          } catch(e) {}
           
-          const cond = f.conditional || (f.showIf ? { enabled: true, dependsOn: f.showIf.field || f.showIf.dependsOn, showWhen: f.showIf.value || f.showIf.showWhen, operator: f.showIf.operator } : null);
-          const isCondEnabled = cond && (cond.enabled !== false) && cond.dependsOn;
-          const depAttr = isCondEnabled ? `data-depends-on="${escapeHTML(cond.dependsOn)}" data-show-when="${escapeHTML(cond.showWhen)}" data-operator="${escapeHTML(cond.operator || 'equals')}"` : '';
-
-          let fieldInputHtml = '';
-
-          if (f.type === 'aadhaar_pan') {
-            fieldInputHtml = `
-              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-                <label class="form-label" style="font-weight: 600;">📑 ${escapeHTML(f.label)}${reqMark}</label>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 8px;">
-                  <div>
-                    <label class="form-label text-xs">ID Document Type</label>
-                    <select class="form-select form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}_type" name="cf_${escapeHTML(f.fieldName)}_type">
-                      <option value="Aadhaar Card">Aadhaar Card</option>
-                      <option value="PAN Card">PAN Card</option>
-                      <option value="Voter ID">Voter ID</option>
-                      <option value="Driving License">Driving License</option>
-                      <option value="College Student ID">College Student ID</option>
-                      <option value="Passport">Passport</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="form-label text-xs">Document Number</label>
-                    <input type="text" class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}_number" name="cf_${escapeHTML(f.fieldName)}_number" placeholder="e.g. Last 4 digits or ID no." ${f.required ? 'required' : ''}>
-                  </div>
-                </div>
-                <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}_image" data-label="Upload ID Proof Photo / Document" data-preset="document"></div>
-                ${helpText}
-              </div>
-            `;
-          } else if (f.type === 'photo_upload' || f.type === 'file') {
-            fieldInputHtml = `
-              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-                <label class="form-label" style="font-weight: 600;">📎 ${escapeHTML(f.label)}${reqMark}</label>
-                <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}" data-label="${escapeHTML(f.label)}" data-preset="${f.type === 'photo_upload' ? 'passport' : 'document'}"></div>
-                ${helpText}
-              </div>
-            `;
-          } else if (f.type === 'signature_pad') {
-            fieldInputHtml = `
-              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-                <label class="form-label" style="font-weight: 600;">✍️ ${escapeHTML(f.label)}${reqMark}</label>
-                <div class="custom-field-sig-mount" data-field="${escapeHTML(f.fieldName)}"></div>
-                ${helpText}
-              </div>
-            `;
-          } else if (f.type === 'blood_group') {
-            const bgOpts = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
-            fieldInputHtml = `
-              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-                <label class="form-label" style="font-weight: 600;">🩸 ${escapeHTML(f.label)}${reqMark}</label>
-                <select class="form-select custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
-                  <option value="">-- Select Blood Group --</option>
-                  ${bgOpts.map(bg => `<option value="${bg}">${bg}</option>`).join('')}
-                </select>
-                ${helpText}
-              </div>
-            `;
-          } else if (f.type === 'multiselect') {
-            fieldInputHtml = `
-              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-                <label class="form-label" style="font-weight: 600;">☑️ ${escapeHTML(f.label)}${reqMark}</label>
-                <div class="custom-dyn-multiselect-group" data-field="${escapeHTML(f.fieldName)}" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px;">
-                  ${(f.options || []).map(opt => `
-                    <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer; background: var(--color-bg-secondary); padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
-                      <input type="checkbox" class="custom-dyn-multiselect" value="${escapeHTML(opt)}" style="accent-color: var(--color-primary); width: 16px; height: 16px;">
-                      <span>${escapeHTML(opt)}</span>
-                    </label>
-                  `).join('')}
-                </div>
-                ${helpText}
-              </div>
-            `;
-          } else if (f.type === 'exam_badge') {
-            fieldInputHtml = `
-              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-                <label class="form-label" style="font-weight: 600;">🏷️ ${escapeHTML(f.label)}${reqMark}</label>
-                <div class="custom-dyn-badge-group" data-field="${escapeHTML(f.fieldName)}" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
-                  ${(f.options || []).map(opt => `
-                    <span class="exam-pill custom-dyn-badge" data-val="${escapeHTML(opt)}">${escapeHTML(opt)}</span>
-                  `).join('')}
-                </div>
-                ${helpText}
-              </div>
-            `;
-          } else if (f.type === 'star_rating') {
-            fieldInputHtml = `
-              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-                <label class="form-label" style="font-weight: 600;">⭐ ${escapeHTML(f.label)}${reqMark}</label>
-                <div class="star-rating-wrap" data-field="${escapeHTML(f.fieldName)}">
-                  <span class="star-rating-item" data-val="1">★</span>
-                  <span class="star-rating-item" data-val="2">★</span>
-                  <span class="star-rating-item" data-val="3">★</span>
-                  <span class="star-rating-item" data-val="4">★</span>
-                  <span class="star-rating-item" data-val="5">★</span>
-                </div>
-                <input type="hidden" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" value="5">
-                ${helpText}
-              </div>
-            `;
-          } else if (f.type === 'checkbox' || f.type === 'terms_checkbox') {
-            fieldInputHtml = `
-              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-                <div style="background: var(--color-bg-secondary); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; margin: 0;">
-                    <input type="checkbox" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" style="width: 17px; height: 17px; accent-color: var(--color-primary);" ${f.required ? 'required' : ''}>
-                    <span>${escapeHTML(f.label)}${reqMark}</span>
-                  </label>
-                  ${helpText}
-                </div>
-              </div>
-            `;
-          } else if (f.type === 'select') {
-            fieldInputHtml = `
-              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-                <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
-                <select class="form-select custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
-                  <option value="">-- Select --</option>
-                  ${(f.options || []).map(opt => `<option value="${escapeHTML(opt)}">${escapeHTML(opt)}</option>`).join('')}
-                </select>
-                ${helpText}
-              </div>
-            `;
-          } else if (f.type === 'radio') {
-            fieldInputHtml = `
-              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-                <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
-                <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px;">
-                  ${(f.options || []).map(opt => `
-                    <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.88rem; cursor: pointer;">
-                      <input type="radio" class="custom-dyn-radio" name="cf_${escapeHTML(f.fieldName)}" data-field="${escapeHTML(f.fieldName)}" value="${escapeHTML(opt)}">
-                      ${escapeHTML(opt)}
-                    </label>
-                  `).join('')}
-                </div>
-                ${helpText}
-              </div>
-            `;
-          } else if (f.type === 'textarea' || f.type === 'address_autocomplete') {
-            fieldInputHtml = `
-              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-                <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
-                <textarea class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" rows="2" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}></textarea>
-                ${helpText}
-              </div>
-            `;
-          } else {
-            const inputType = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : (f.type === 'email' ? 'email' : (f.type === 'phone' ? 'tel' : (f.type === 'url' ? 'url' : (f.type === 'color' ? 'color' : 'text'))))));
-            fieldInputHtml = `
-              <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-                <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
-                <input type="${inputType}" class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}>
-                ${helpText}
-              </div>
-            `;
+          if (!qrDataUrl) {
+            qrDataUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiString)}`;
           }
 
-          html += fieldInputHtml;
-        });
+          qrMount.innerHTML = `
+            <div style="text-align: center;">
+              <img src="${qrDataUrl}" alt="Dynamic UPI QR" style="width: 180px; height: 180px; border-radius: 8px; object-fit: contain; display: block; margin: 0 auto 6px auto;" onerror="this.onerror=null; this.src='https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(upiString)}';">
+              <span class="badge badge-primary" style="font-size: 0.75rem;">Pay ₹${payable} via Any UPI App</span>
+            </div>
+          `;
+        }
+      }
+    }
 
-        html += '</div>';
-        return html;
+    function buildFieldGroupHtml(fList) {
+      if (!fList || fList.length === 0) return '';
+      fList.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+      let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem;">';
+      
+      fList.forEach(f => {
+        const reqMark = f.required ? ' <span style="color: var(--color-danger);">*</span>' : '';
+        const colStyle = (f.colSpan === 12 || f.colSpan === 2 || ['textarea', 'aadhaar_pan', 'signature_pad', 'exam_badge', 'multiselect'].includes(f.type)) ? 'grid-column: 1 / -1;' : '';
+        const helpText = f.helpText ? `<small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 3px;">${escapeHTML(f.helpText)}</small>` : '';
+        
+        const cond = f.conditional || (f.showIf ? { enabled: true, dependsOn: f.showIf.field || f.showIf.dependsOn, showWhen: f.showIf.value || f.showIf.showWhen, operator: f.showIf.operator } : null);
+        const isCondEnabled = cond && (cond.enabled !== false) && cond.dependsOn;
+        const depAttr = isCondEnabled ? `data-depends-on="${escapeHTML(cond.dependsOn)}" data-show-when="${escapeHTML(cond.showWhen)}" data-operator="${escapeHTML(cond.operator || 'equals')}"` : '';
+
+        let fieldInputHtml = '';
+
+        if (f.type === 'aadhaar_pan') {
+          fieldInputHtml = `
+            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+              <label class="form-label" style="font-weight: 600;">📑 ${escapeHTML(f.label)}${reqMark}</label>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 8px;">
+                <div>
+                  <label class="form-label text-xs">ID Document Type</label>
+                  <select class="form-select form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}_type" name="cf_${escapeHTML(f.fieldName)}_type">
+                    <option value="Aadhaar Card">Aadhaar Card</option>
+                    <option value="PAN Card">PAN Card</option>
+                    <option value="Voter ID">Voter ID</option>
+                    <option value="Driving License">Driving License</option>
+                    <option value="College Student ID">College Student ID</option>
+                    <option value="Passport">Passport</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label text-xs">Document Number</label>
+                  <input type="text" class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}_number" name="cf_${escapeHTML(f.fieldName)}_number" placeholder="e.g. Last 4 digits or ID no." ${f.required ? 'required' : ''}>
+                </div>
+              </div>
+              <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}_image" data-label="Upload ID Proof Photo / Document" data-preset="document"></div>
+              ${helpText}
+            </div>
+          `;
+        } else if (f.type === 'photo_upload' || f.type === 'file') {
+          fieldInputHtml = `
+            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+              <label class="form-label" style="font-weight: 600;">📎 ${escapeHTML(f.label)}${reqMark}</label>
+              <div class="custom-field-media-mount" data-field="${escapeHTML(f.fieldName)}" data-label="${escapeHTML(f.label)}" data-preset="${f.type === 'photo_upload' ? 'passport' : 'document'}"></div>
+              ${helpText}
+            </div>
+          `;
+        } else if (f.type === 'signature_pad') {
+          fieldInputHtml = `
+            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+              <label class="form-label" style="font-weight: 600;">✍️ ${escapeHTML(f.label)}${reqMark}</label>
+              <div class="custom-field-sig-mount" data-field="${escapeHTML(f.fieldName)}"></div>
+              ${helpText}
+            </div>
+          `;
+        } else if (f.type === 'blood_group') {
+          const bgOpts = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+          fieldInputHtml = `
+            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+              <label class="form-label" style="font-weight: 600;">🩸 ${escapeHTML(f.label)}${reqMark}</label>
+              <select class="form-select custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
+                <option value="">-- Select Blood Group --</option>
+                ${bgOpts.map(bg => `<option value="${bg}">${bg}</option>`).join('')}
+              </select>
+              ${helpText}
+            </div>
+          `;
+        } else if (f.type === 'multiselect') {
+          fieldInputHtml = `
+            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+              <label class="form-label" style="font-weight: 600;">☑️ ${escapeHTML(f.label)}${reqMark}</label>
+              <div class="custom-dyn-multiselect-group" data-field="${escapeHTML(f.fieldName)}" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px;">
+                ${(f.options || []).map(opt => `
+                  <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer; background: var(--color-bg-secondary); padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+                    <input type="checkbox" class="custom-dyn-multiselect" value="${escapeHTML(opt)}" style="accent-color: var(--color-primary); width: 16px; height: 16px;">
+                    <span>${escapeHTML(opt)}</span>
+                  </label>
+                `).join('')}
+              </div>
+              ${helpText}
+            </div>
+          `;
+        } else if (f.type === 'exam_badge') {
+          fieldInputHtml = `
+            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+              <label class="form-label" style="font-weight: 600;">🏷️ ${escapeHTML(f.label)}${reqMark}</label>
+              <div class="custom-dyn-badge-group" data-field="${escapeHTML(f.fieldName)}" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+                ${(f.options || []).map(opt => `
+                  <span class="exam-pill custom-dyn-badge" data-val="${escapeHTML(opt)}">${escapeHTML(opt)}</span>
+                `).join('')}
+              </div>
+              ${helpText}
+            </div>
+          `;
+        } else if (f.type === 'star_rating') {
+          fieldInputHtml = `
+            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+              <label class="form-label" style="font-weight: 600;">⭐ ${escapeHTML(f.label)}${reqMark}</label>
+              <div class="star-rating-wrap" data-field="${escapeHTML(f.fieldName)}">
+                <span class="star-rating-item" data-val="1">★</span>
+                <span class="star-rating-item" data-val="2">★</span>
+                <span class="star-rating-item" data-val="3">★</span>
+                <span class="star-rating-item" data-val="4">★</span>
+                <span class="star-rating-item" data-val="5">★</span>
+              </div>
+              <input type="hidden" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" value="5">
+              ${helpText}
+            </div>
+          `;
+        } else if (f.type === 'checkbox' || f.type === 'terms_checkbox') {
+          fieldInputHtml = `
+            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+              <div style="background: var(--color-bg-secondary); padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; margin: 0;">
+                  <input type="checkbox" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" style="width: 17px; height: 17px; accent-color: var(--color-primary);" ${f.required ? 'required' : ''}>
+                  <span>${escapeHTML(f.label)}${reqMark}</span>
+                </label>
+                ${helpText}
+              </div>
+            </div>
+          `;
+        } else if (f.type === 'select') {
+          fieldInputHtml = `
+            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+              <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
+              <select class="form-select custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
+                <option value="">-- Select --</option>
+                ${(f.options || []).map(opt => `<option value="${escapeHTML(opt)}">${escapeHTML(opt)}</option>`).join('')}
+              </select>
+              ${helpText}
+            </div>
+          `;
+        } else if (f.type === 'radio') {
+          fieldInputHtml = `
+            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+              <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
+              <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px;">
+                ${(f.options || []).map(opt => `
+                  <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.88rem; cursor: pointer;">
+                    <input type="radio" class="custom-dyn-radio" name="cf_${escapeHTML(f.fieldName)}" data-field="${escapeHTML(f.fieldName)}" value="${escapeHTML(opt)}">
+                    ${escapeHTML(opt)}
+                  </label>
+                `).join('')}
+              </div>
+              ${helpText}
+            </div>
+          `;
+        } else if (f.type === 'textarea' || f.type === 'address_autocomplete') {
+          fieldInputHtml = `
+            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+              <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
+              <textarea class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" rows="2" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}></textarea>
+              ${helpText}
+            </div>
+          `;
+        } else {
+          const inputType = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : (f.type === 'time' ? 'time' : (f.type === 'email' ? 'email' : (f.type === 'phone' ? 'tel' : (f.type === 'url' ? 'url' : (f.type === 'color' ? 'color' : 'text'))))));
+          fieldInputHtml = `
+            <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+              <label class="form-label" style="font-weight: 600;">${escapeHTML(f.label)}${reqMark}</label>
+              <input type="${inputType}" class="form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="cf_${escapeHTML(f.fieldName)}" placeholder="${escapeHTML(f.placeholder || '')}" ${f.required ? 'required' : ''}>
+              ${helpText}
+            </div>
+          `;
+        }
+
+        html += fieldInputHtml;
+      });
+
+      html += '</div>';
+      return html;
+    }
+
+    // Dynamic Multi-Section Wizard Builder
+    function renderDynamicWizard(sections, fields, template) {
+      activeWizardSections = sections;
+      totalSteps = sections.length;
+      allCustomFields = fields;
+
+      const stepperEl = document.getElementById('wizard-stepper');
+      const formEl = document.getElementById('public-reg-form');
+
+      // 1. Build Stepper Navigation Bar
+      stepperEl.innerHTML = sections.map((sec, idx) => {
+        const stepNum = idx + 1;
+        const label = (sec.label || `Step ${stepNum}`).replace(/^Step \d+:\s*/i, '').trim();
+        return `
+          <div class="step ${stepNum === 1 ? 'active' : ''}" id="stepper-${stepNum}" data-step="${stepNum}">
+            <div class="step-number">${stepNum}</div>
+            <div class="step-label" title="${escapeHTML(label)}">${escapeHTML(label)}</div>
+          </div>
+        `;
+      }).join('');
+
+      // Stepper dot click navigation
+      stepperEl.querySelectorAll('.step').forEach(sEl => {
+        sEl.addEventListener('click', () => {
+          const targetStep = parseInt(sEl.dataset.step, 10);
+          if (targetStep < currentStep) {
+            currentStep = targetStep;
+            updateStepper();
+          }
+        });
+      });
+
+      // 2. Build Step Content Panels
+      let formHtml = '';
+
+      sections.forEach((sec, idx) => {
+        const stepNum = idx + 1;
+        const isFirst = stepNum === 1;
+        const isLast = stepNum === totalSteps;
+        const secName = sec.name;
+        const secFields = fields.filter(f => f.section === secName && f.isActive !== false);
+
+        const iconMap = {
+          personal: '👤', address: '📍', contact: '📍', kyc: '🪪', verification: '🪪',
+          academic: '🎯', goals: '🎯', plan: '⏰', payment: '💳', seat: '🪑', other: '📝', additional: '📋'
+        };
+        const icon = iconMap[sec.icon] || iconMap[secName] || (sec.icon && sec.icon.length <= 4 ? sec.icon : '📋');
+
+        let stepBodyHtml = '';
+
+        if (secName === 'personal') {
+          stepBodyHtml = `
+            <div id="duplicate-alert-box" class="alert alert-danger mb-3" style="display: none; padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.88rem; font-weight: 600; color: #dc3545; background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.2);"></div>
+
+            <!-- Preferred Study Centre / Branch -->
+            <div class="form-group mb-3">
+              <label class="form-label" style="font-weight: 600;">Preferred Study Centre / Branch *</label>
+              <select id="reg-branch" name="branch" class="form-select" required>
+                <option value="">-- Loading Active Branches... --</option>
+              </select>
+              <small class="text-muted">Select your nearest library study campus</small>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Full Name *</label>
+                <input type="text" id="reg-name" name="name" class="form-control" placeholder="e.g. Rahul Sharma" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Mobile / WhatsApp Number *</label>
+                <input type="tel" id="reg-phone" name="phone" class="form-control" placeholder="10-digit WhatsApp number" required maxlength="10">
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Date of Birth *</label>
+                <input type="date" id="reg-dob" name="dob" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Email Address</label>
+                <input type="email" id="reg-email" name="email" class="form-control" placeholder="student@example.com">
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Gender *</label>
+                <select id="reg-gender" name="gender" class="form-select" required>
+                  <option value="male" selected>Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Blood Group</label>
+                <select id="reg-blood-group" name="bloodGroup" class="form-select">
+                  <option value="">-- Select Blood Group --</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Student Portal Password *</label>
+                <input type="password" id="reg-password" name="password" class="form-control" placeholder="Choose 6+ char password" required minlength="6">
+              </div>
+            </div>
+
+            <!-- Student Passport Photo -->
+            <div class="mb-3">
+              <label class="form-label" style="font-weight: 600;">Student Passport Photo (Live Selfie Camera / File Upload)</label>
+              <div id="public-photo-mount"></div>
+              <small class="text-muted">Will be printed on your physical &amp; mobile digital ID card</small>
+            </div>
+
+            <!-- Dynamic Custom Fields for Personal Section -->
+            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
+          `;
+        } else if (secName === 'address' || secName === 'contact') {
+          stepBodyHtml = `
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">Full Residential Address</label>
+              <textarea id="reg-address" name="address" class="form-control" rows="2" placeholder="House/Flat No, Street, Landmark, Area"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 140px 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;" class="form-row-responsive">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Pincode ⚡</label>
+                <input type="text" id="reg-pincode" name="pincode" class="form-control" placeholder="411001" maxlength="6">
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">City</label>
+                <input type="text" id="reg-city" name="city" class="form-control" placeholder="Auto-filled from pincode">
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">State</label>
+                <input type="text" id="reg-state" name="state" class="form-control" placeholder="Auto-filled from pincode">
+              </div>
+            </div>
+
+            <!-- Emergency Contact -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Emergency Contact Person</label>
+                <input type="text" id="reg-emergency-name" name="emergencyName" class="form-control" placeholder="Parent / Guardian / Friend">
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Emergency Phone Number</label>
+                <input type="tel" id="reg-emergency-phone" name="emergencyPhone" class="form-control" placeholder="10-digit emergency contact phone" maxlength="10">
+              </div>
+            </div>
+
+            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
+          `;
+        } else if (secName === 'kyc' || secName === 'verification') {
+          stepBodyHtml = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Government ID Document Type</label>
+                <select id="reg-id-type" name="idProofType" class="form-select">
+                  <option value="Aadhaar Card">Aadhaar Card</option>
+                  <option value="PAN Card">PAN Card</option>
+                  <option value="Voter ID">Voter ID</option>
+                  <option value="Driving License">Driving License</option>
+                  <option value="College Student ID">College Student ID</option>
+                  <option value="Passport">Passport</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 600;">Government ID / Document Number</label>
+                <input type="text" id="reg-id-number" name="idProofNumber" class="form-control" placeholder="e.g. Last 4 digits or ID number">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" style="font-weight: 600;">Upload ID Proof Document / Scan</label>
+              <div id="public-idproof-mount"></div>
+              <small class="text-muted">Aadhaar, PAN, College ID or Driver's License</small>
+            </div>
+
+            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
+          `;
+        } else if (secName === 'academic' || secName === 'goals') {
+          stepBodyHtml = `
+            <label class="form-label" style="font-weight: 600; margin-bottom: 8px;">Target Competitive Exam / Purpose</label>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem;" id="exam-pills-container">
+              <span class="exam-pill" data-exam="UPSC / Civil Services">UPSC Civil Services</span>
+              <span class="exam-pill" data-exam="State PSC / MPSC">State PSC / MPSC</span>
+              <span class="exam-pill" data-exam="SSC / CGL / CHSL">SSC / CGL</span>
+              <span class="exam-pill" data-exam="Banking / IBPS / SBI">Banking &amp; RBI</span>
+              <span class="exam-pill" data-exam="JEE Mains / Advanced">IIT-JEE</span>
+              <span class="exam-pill" data-exam="NEET / Medical">NEET Medical</span>
+              <span class="exam-pill" data-exam="CA / CS / CMA">Chartered Accountancy (CA)</span>
+              <span class="exam-pill" data-exam="GATE / ESE">GATE / Engineering</span>
+              <span class="exam-pill" data-exam="Law / CLAT / Judiciary">Judiciary / CLAT</span>
+              <span class="exam-pill" data-exam="Defense / NDA / CDS">Defense / CDS</span>
+            </div>
+
+            <div class="form-group mb-3">
+              <label class="form-label" style="font-weight: 600;">College / Coaching Institute / Occupation</label>
+              <input type="text" id="reg-occupation" name="occupation" class="form-control" placeholder="e.g. Pune University / Chanakya Academy">
+            </div>
+
+            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
+          `;
+        } else if (secName === 'plan') {
+          stepBodyHtml = `
+            <div class="form-group mb-3">
+              <label class="form-label" style="font-weight: 600;">Choose Membership Plan *</label>
+              <select id="reg-plan" name="plan" class="form-select" required>
+                <option value="">-- Choose Study Plan --</option>
+              </select>
+            </div>
+
+            <div id="reg-shift-wrapper" class="form-group mb-3" style="display: none;">
+              <label class="form-label" style="font-weight: 600;">Preferred Study Shift / Timing</label>
+              <select id="reg-shift" name="shift" class="form-select">
+                <option value="">-- Select Shift --</option>
+              </select>
+            </div>
+
+            <!-- Locker Add-on Option -->
+            <div id="reg-locker-addon-wrap" class="form-group mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px 16px; border-radius: var(--radius-md);">
+              <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 700; margin: 0; color: var(--color-text-primary);">
+                <input type="checkbox" id="reg-request-locker" name="requestLocker" style="width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer;">
+                <span id="reg-locker-label">🔒 Add Personal Study Locker (+₹200/mo)</span>
+              </label>
+              <small id="reg-locker-desc" class="text-muted" style="display: block; margin-left: 28px; margin-top: 4px; font-size: 0.8rem;">
+                Secure private key-allotted locker to safely keep heavy study books, notes &amp; laptop.
+              </small>
+            </div>
+
+            <div class="form-group mb-4">
+              <label class="form-label" style="font-weight: 600;">Referral / Discount Coupon Code (Optional)</label>
+              <div style="display: flex; gap: 10px;">
+                <input type="text" id="reg-referral" name="referralCode" class="form-control" placeholder="Enter code (e.g. SAVE100 or FRIEND)">
+                <button type="button" class="btn btn-secondary" id="btn-apply-code" style="white-space: nowrap; font-weight: 600;">⚡ Apply Code</button>
+              </div>
+              <small id="referral-msg" style="color: var(--color-success); font-weight: 600; display: none; margin-top: 5px;"></small>
+            </div>
+
+            <!-- Dynamic Custom Fields for Plan Section -->
+            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
+
+            <!-- Live Calculator Card -->
+            <div class="calculator-card">
+              <div style="font-weight: 700; margin-bottom: 1rem; color: var(--color-primary); display: flex; justify-content: space-between; align-items: center;">
+                <span>💰 Live Fee Breakdown</span>
+                <span class="badge badge-primary" style="font-size: 0.72rem;">LIVE AUTO-CALC</span>
+              </div>
+              <div class="calc-row">
+                <span>Base Plan Price</span>
+                <span id="calc-plan-price" style="font-weight: 600;">₹0</span>
+              </div>
+              <div class="calc-row">
+                <span>Plan Duration</span>
+                <span id="calc-duration" style="font-weight: 600;">-</span>
+              </div>
+              <div class="calc-row" id="calc-shift-row" style="display: none;">
+                <span>Shift Adjustment</span>
+                <span id="calc-shift-rate" style="font-weight: 600;">1.0x</span>
+              </div>
+              <div class="calc-row" id="calc-locker-row" style="display: none; color: var(--color-primary);">
+                <span>Locker Rental Fee</span>
+                <span id="calc-locker-fee" style="font-weight: 600;">+₹0</span>
+              </div>
+              <div class="calc-row" style="color: var(--color-success);">
+                <span>Referral / Coupon Discount</span>
+                <span id="calc-discount" style="font-weight: 700;">-₹0</span>
+              </div>
+              <div class="calc-row calc-total">
+                <span>Net Total Payable</span>
+                <span id="calc-total">₹0</span>
+              </div>
+            </div>
+          `;
+        } else if (secName === 'payment') {
+          stepBodyHtml = `
+            <div id="payment-methods-radio-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 1.5rem;"></div>
+
+            <!-- Dynamic Payment Sub-Option Panes -->
+            <div id="payment-methods-subpanes-container"></div>
+
+            <!-- Dynamic Custom Fields for Payment Section -->
+            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
+          `;
+        } else if (secName === 'seat') {
+          stepBodyHtml = `
+            <div style="margin-bottom: 1.25rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 8px;">
+                <label class="form-label" style="font-weight: 700; margin: 0;">Interactive Study Desk Map</label>
+                <div style="display: flex; gap: 12px; font-size: 0.8rem; font-weight: 600;">
+                  <span>🟢 <span style="color: var(--color-success);">Available</span></span>
+                  <span>🔴 <span style="color: var(--color-danger);">Occupied</span></span>
+                  <span>🔵 <span style="color: var(--color-primary);">Selected</span></span>
+                </div>
+              </div>
+
+              <!-- Interactive Seat Grid Container -->
+              <div id="public-seat-grid-container" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; max-height: 280px; overflow-y: auto;">
+                <div class="text-center text-muted p-3">Loading available seats...</div>
+              </div>
+              
+              <input type="hidden" id="reg-selected-seat" name="seat" value="">
+              <div id="selected-seat-display" style="margin-top: 8px; font-weight: 700; font-size: 0.95rem; color: var(--color-primary);">
+                No seat selected yet (Optional — desk can assign on arrival if unselected)
+              </div>
+            </div>
+
+            <!-- Digital Signature Pad -->
+            <div class="mb-4">
+              <label class="form-label" style="font-weight: 600;">Digital Signature (Draw, Type or Touch) *</label>
+              <div id="public-signature-studio-mount"></div>
+            </div>
+
+            <!-- Scrollable Library Rules & Code of Conduct Box -->
+            <div class="mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+              <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+                <span>📜 Library Rules &amp; Code of Conduct Agreement</span>
+                <span style="font-size: 0.78rem; font-weight: 600; background: rgba(108, 92, 231, 0.1); color: var(--color-primary); padding: 3px 8px; border-radius: 4px;">Mandatory Review</span>
+              </div>
+              
+              <div id="reg-rules-scroll-box" style="max-height: 160px; overflow-y: auto; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; font-size: 0.85rem; line-height: 1.6; color: var(--color-text-secondary);">
+                <ol style="margin: 0; padding-left: 1.2rem;">
+                  <li style="margin-bottom: 6px;"><strong>Pin-Drop Silence:</strong> Strict silence must be maintained inside reading halls at all times. Whispering or phone calls inside study zones is strictly forbidden.</li>
+                  <li style="margin-bottom: 6px;"><strong>Mobile Phone Protocol:</strong> Phones must be switched to silent or flight mode. Attend urgent phone calls outside reading halls in designated corridors.</li>
+                  <li style="margin-bottom: 6px;"><strong>Assigned Desk &amp; Shift Protocol:</strong> Occupy only your allotted desk number and adhere strictly to your registered shift timing (Morning, Evening, or Full Day).</li>
+                  <li style="margin-bottom: 6px;"><strong>Cleanliness &amp; Socket Safety:</strong> Keep your study desk clean. Turn off personal desk lights, fans, and socket chargers when leaving your seat.</li>
+                  <li style="margin-bottom: 6px;"><strong>ID Pass &amp; Gate Access:</strong> Carry your Student ID / Registration Pass for barcode/QR kiosk scanner check-in at the entrance.</li>
+                  <li style="margin-bottom: 6px;"><strong>Fee Policy &amp; Non-Refundability:</strong> Membership fees once paid are non-refundable. Long-term plans (6M+) permit a 15-day membership pause for exams.</li>
+                </ol>
+              </div>
+            </div>
+
+            <div class="form-group mb-4" style="background: var(--color-bg-secondary); padding: 14px 16px; border-radius: var(--radius-md); border: 1.5px solid var(--color-primary);">
+              <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; font-size: 0.88rem; color: var(--color-text-primary); margin: 0; line-height: 1.5; font-weight: 600;">
+                <input type="checkbox" id="reg-terms" required style="margin-top: 3px; width: 19px; height: 19px; accent-color: var(--color-primary); cursor: pointer;">
+                <span>I have read, understood, and agree to strictly abide by the <strong>Library Rules, Code of Conduct, and Payment Policies</strong>. <span style="color: var(--color-danger);">*</span></span>
+              </label>
+            </div>
+
+            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">${buildFieldGroupHtml(secFields)}</div>
+          `;
+        } else {
+          // Custom / Additional Section
+          stepBodyHtml = `
+            <div id="step-${stepNum}-custom-fields" class="dynamic-step-fields">
+              ${secFields.length ? buildFieldGroupHtml(secFields) : '<div class="text-muted small p-3 text-center">No custom questions in this section.</div>'}
+            </div>
+          `;
+        }
+
+        // Navigation Bar for this Step
+        let navHtml = '';
+        if (isFirst && !isLast) {
+          navHtml = `
+            <div class="btn-nav">
+              <div></div>
+              <button type="button" class="btn btn-primary btn-next btn-lg" data-step="${stepNum}">Continue to Next Step ➡️</button>
+            </div>
+          `;
+        } else if (!isFirst && !isLast) {
+          navHtml = `
+            <div class="btn-nav">
+              <button type="button" class="btn btn-secondary btn-prev" data-step="${stepNum}">⬅️ Back</button>
+              <button type="button" class="btn btn-primary btn-next" data-step="${stepNum}">Continue to Next Step ➡️</button>
+            </div>
+          `;
+        } else {
+          // Last Step
+          navHtml = `
+            <div class="btn-nav">
+              ${!isFirst ? `<button type="button" class="btn btn-secondary btn-prev" data-step="${stepNum}">⬅️ Back</button>` : '<div></div>'}
+              <button type="submit" id="btn-submit-reg" class="btn btn-primary btn-lg" style="font-size: 1.05rem; font-weight: 700; padding: 0.85rem;">
+                🚀 ${escapeHTML(template?.settings?.submitButtonText || 'Complete Registration & Get Admission Slip')}
+              </button>
+            </div>
+          `;
+        }
+
+        formHtml += `
+          <div class="wizard-step-content ${isFirst ? 'active' : ''}" id="step-${stepNum}" data-section="${escapeHTML(secName)}">
+            <div class="form-section-title"><span>${icon}</span> ${escapeHTML(sec.label || `Step ${stepNum}`)}</div>
+            ${stepBodyHtml}
+            ${navHtml}
+          </div>
+        `;
+      });
+
+      formEl.innerHTML = formHtml;
+
+      // 3. Bind Navigation Buttons
+      formEl.querySelectorAll('.btn-next').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const step = parseInt(e.target.dataset.step, 10);
+          const stepContent = document.getElementById(`step-${step}`);
+          
+          if (!stepContent) return;
+
+          // HTML5 Validation for visible required fields
+          const inputs = stepContent.querySelectorAll('input[required], select[required], textarea[required]');
+          let valid = true;
+          for (const inp of inputs) {
+            if (inp.offsetParent !== null && !inp.checkValidity()) {
+              inp.reportValidity();
+              valid = false;
+              return;
+            }
+          }
+
+          // Step 1 / Personal Section Validation (Branch & Duplicate check)
+          const branchInp = stepContent.querySelector('#reg-branch');
+          if (branchInp && !branchInp.value) {
+            alert('Please select your preferred study centre / branch.');
+            branchInp.focus();
+            return;
+          }
+
+          const phoneInp = stepContent.querySelector('#reg-phone');
+          if (phoneInp) {
+            const isDup = await checkDuplicate();
+            if (!isDup) return;
+          }
+
+          // Plan Section Validation
+          const planInp = stepContent.querySelector('#reg-plan');
+          if (planInp && !planInp.value) {
+            alert('Please select a membership plan to proceed.');
+            planInp.focus();
+            return;
+          }
+
+          // Payment Section Validation
+          const pmMode = stepContent.querySelector('input[name="reg-payment-mode"]:checked')?.value;
+          if (pmMode === 'upi' && selectedPlanData) {
+            const utr = document.getElementById('reg-upi-ref')?.value?.trim();
+            if (!utr) {
+              alert('Please enter your 12-digit UPI UTR / Reference number to continue.');
+              document.getElementById('reg-upi-ref')?.focus();
+              return;
+            }
+          }
+
+          if (stepContent.getAttribute('data-section') === 'payment') {
+            loadPublicSeats();
+          }
+          
+          if (valid && step < totalSteps) {
+            currentStep++;
+            updateStepper();
+          }
+        });
+      });
+
+      formEl.querySelectorAll('.btn-prev').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (currentStep > 1) {
+            currentStep--;
+            updateStepper();
+          }
+        });
+      });
+
+      // 4. Mount Interactive Media & Studios
+      const photoMount = document.getElementById('public-photo-mount');
+      if (photoMount) {
+        photoPicker = MediaFieldPicker.create({
+          label: 'Upload Photo or Snap Selfie with Live Camera',
+          preset: 'passport',
+          name: 'photo'
+        });
+        photoMount.appendChild(photoPicker);
       }
 
-      // Inject into Step containers
-      const s1 = document.getElementById('step-1-custom-fields');
-      const s2 = document.getElementById('step-2-custom-fields');
-      const s3 = document.getElementById('step-3-custom-fields');
-      const s4 = document.getElementById('step-4-custom-fields');
-      const s5 = document.getElementById('step-5-custom-fields');
+      const idProofMount = document.getElementById('public-idproof-mount');
+      if (idProofMount) {
+        idProofMount.appendChild(MediaFieldPicker.create({
+          label: 'Upload ID Proof Scan / Document',
+          preset: 'document',
+          name: 'idProofImage'
+        }));
+      }
 
-      if (s1 && step1Fields.length > 0) s1.innerHTML = `<div class="form-section-title"><span>📝</span> Additional Details</div>` + buildFieldGroupHtml(step1Fields);
-      if (s2 && step2Fields.length > 0) s2.innerHTML = `<div class="form-section-title"><span>🪪</span> Verification & Credentials</div>` + buildFieldGroupHtml(step2Fields);
-      if (s3 && step3Fields.length > 0) s3.innerHTML = buildFieldGroupHtml(step3Fields);
-      if (s4 && step4Fields.length > 0) s4.innerHTML = buildFieldGroupHtml(step4Fields);
-      if (s5 && step5Fields.length > 0) s5.innerHTML = `<div class="form-section-title"><span>📋</span> Additional Information</div>` + buildFieldGroupHtml(step5Fields);
+      const sigMount = document.getElementById('public-signature-studio-mount');
+      if (sigMount) {
+        sigStudio = new SignatureStudio(sigMount, {
+          width: 440,
+          height: 150
+        });
+      }
 
-      // Mount dynamic MediaFieldPickers
+      // Mount dynamic MediaFieldPickers for custom fields
       document.querySelectorAll('.custom-field-media-mount').forEach(mount => {
         const fieldName = mount.dataset.field;
         const fieldLabel = mount.dataset.label;
@@ -1840,7 +1509,7 @@
         }));
       });
 
-      // Mount dynamic Signature Studios
+      // Mount dynamic Signature Studios for custom fields
       document.querySelectorAll('.custom-field-sig-mount').forEach(mount => {
         const fName = mount.dataset.field;
         if (fName) {
@@ -1848,21 +1517,25 @@
         }
       });
 
-      // Exam Badge Pills Interaction
-      document.querySelectorAll('.custom-dyn-badge').forEach(badge => {
-        badge.addEventListener('click', () => {
-          badge.classList.toggle('selected');
-          evaluateLogic();
+      // 5. Wire up Pincode Auto-Fill
+      const regPincodeInput = document.getElementById('reg-pincode');
+      if (regPincodeInput) {
+        ['input', 'blur', 'change', 'paste', 'keyup'].forEach(evt => {
+          regPincodeInput.addEventListener(evt, handlePincodeLookup);
         });
-      });
+        if (regPincodeInput.value.trim().length === 6) handlePincodeLookup();
+      }
 
-      // Initialize Star Rating widgets
+      // 6. Wire up Exam Pills
+      setupExamPills();
+
+      // 7. Wire up Star Ratings
       document.querySelectorAll('.star-rating-wrap').forEach(wrap => {
         const stars = wrap.querySelectorAll('.star-rating-item');
         const hiddenInp = wrap.nextElementSibling;
         stars.forEach(star => {
           star.addEventListener('click', () => {
-            const val = parseInt(star.dataset.val);
+            const val = parseInt(star.dataset.val, 10);
             if (hiddenInp) hiddenInp.value = val;
             stars.forEach((s, idx) => {
               if (idx < val) s.classList.add('active');
@@ -1874,12 +1547,96 @@
         stars.forEach(s => s.classList.add('active'));
       });
 
-      evaluateLogic();
+      // 8. Wire up Coupon & Calculator
+      const planSelect = document.getElementById('reg-plan');
+      const shiftSelect = document.getElementById('reg-shift');
+      const lockerCheckbox = document.getElementById('reg-request-locker');
 
-      // Bind Dynamic ID Proof Type & Number Validation
-      if (window.SmartIntelligence && typeof window.SmartIntelligence.bindDynamicIDProofValidation === 'function') {
-        window.SmartIntelligence.bindDynamicIDProofValidation(document);
+      planSelect?.addEventListener('change', () => {
+        const planId = planSelect.value;
+        selectedPlanData = plansMap[planId] || null;
+        updateCalculator();
+      });
+
+      shiftSelect?.addEventListener('change', () => {
+        const shiftId = shiftSelect.value;
+        selectedShiftData = shiftsMap[shiftId] || null;
+        updateCalculator();
+      });
+
+      lockerCheckbox?.addEventListener('change', updateCalculator);
+
+      document.getElementById('btn-apply-code')?.addEventListener('click', async () => {
+        const code = document.getElementById('reg-referral')?.value.trim();
+        const planAmount = selectedPlanData ? Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0) : 0;
+        if (!code) return;
+        if (planAmount === 0) {
+          const refMsg = document.getElementById('referral-msg');
+          if (refMsg) {
+            refMsg.style.display = 'block';
+            refMsg.style.color = 'var(--color-danger)';
+            refMsg.textContent = 'Please select a plan first.';
+          }
+          return;
+        }
+        try {
+          const res = await fetch('/api/coupons/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, planAmount })
+          });
+          const json = await res.json();
+          const refMsg = document.getElementById('referral-msg');
+          if (json.success) {
+            discountAmount = json.discountAmount || 0;
+            if (refMsg) {
+              refMsg.style.display = 'block';
+              refMsg.style.color = 'var(--color-success)';
+              refMsg.textContent = `Code applied: ₹${discountAmount} Off!`;
+            }
+          } else {
+            discountAmount = 0;
+            if (refMsg) {
+              refMsg.style.display = 'block';
+              refMsg.style.color = 'var(--color-danger)';
+              refMsg.textContent = json.message || 'Invalid code.';
+            }
+          }
+        } catch (err) {
+          discountAmount = 0;
+        }
+        updateCalculator();
+      });
+
+      // 9. Attach Form Submit
+      bindFormSubmit();
+      evaluateLogic();
+    }
+
+    function setupExamPills(customList) {
+      const container = document.getElementById('exam-pills-container');
+      if (!container) return;
+
+      if (Array.isArray(customList) && customList.length > 0) {
+        container.innerHTML = customList.map(e => `
+          <span class="exam-pill ${selectedExams.has(e) ? 'selected' : ''}" data-exam="${escapeHTML(e)}">${escapeHTML(e)}</span>
+        `).join('');
       }
+
+      container.querySelectorAll('.exam-pill').forEach(pill => {
+        pill.onclick = () => {
+          const exam = pill.dataset.exam;
+          if (!exam) return;
+          if (selectedExams.has(exam)) {
+            selectedExams.delete(exam);
+            pill.classList.remove('selected');
+          } else {
+            selectedExams.add(exam);
+            pill.classList.add('selected');
+          }
+          evaluateLogic();
+        };
+      });
     }
 
     function bindUpiIntentButtons() {
@@ -1912,7 +1669,246 @@
       });
     }
 
-    // Load Initial Public Config
+    function bindFormSubmit() {
+      const form = document.getElementById('public-reg-form');
+      if (!form) return;
+
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btn-submit-reg');
+
+        // 1. Validate Mandatory Terms Checkbox
+        const termsInp = document.getElementById('reg-terms');
+        if (termsInp && !termsInp.checked) {
+          alert('Please review and check the box agreeing to the Library Rules & Code of Conduct Agreement to complete registration.');
+          termsInp.focus();
+          return;
+        }
+
+        // 2. Validate Payment Mode Requirements
+        const pmMode = document.querySelector('input[name="reg-payment-mode"]:checked')?.value || 'upi';
+        const upiTxnId = document.getElementById('reg-upi-ref')?.value?.trim();
+
+        if (pmMode === 'upi' && selectedPlanData && !upiTxnId) {
+          alert('Please enter your 12-digit UPI Transaction ID / UTR number to complete registration.');
+          document.getElementById('reg-upi-ref')?.focus();
+          return;
+        }
+
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'Submitting Admission & Payment...';
+        }
+
+        const customFields = {};
+        document.querySelectorAll('.custom-dyn-input, .custom-dyn-radio').forEach(input => {
+          const name = input.dataset.field;
+          if (name) {
+            if (input.type === 'checkbox') {
+              customFields[name] = input.checked;
+            } else if (input.type === 'radio') {
+              if (input.checked) customFields[name] = input.value;
+            } else if (input.value) {
+              customFields[name] = input.value;
+            }
+          }
+        });
+
+        // Capture dynamic multiselect checkboxes
+        document.querySelectorAll('.custom-dyn-multiselect-group').forEach(group => {
+          const fName = group.dataset.field;
+          if (fName) {
+            const checkedVals = Array.from(group.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+            customFields[fName] = checkedVals;
+          }
+        });
+
+        // Capture dynamic exam badge pills
+        document.querySelectorAll('.custom-dyn-badge-group').forEach(group => {
+          const fName = group.dataset.field;
+          if (fName) {
+            const selectedBadges = Array.from(group.querySelectorAll('.custom-dyn-badge.selected')).map(b => b.dataset.val);
+            customFields[fName] = selectedBadges;
+          }
+        });
+
+        // Capture dynamic media fields
+        document.querySelectorAll('.custom-field-media-mount').forEach(mount => {
+          const fName = mount.dataset.field;
+          const val = mount.querySelector('.mfp-hidden-value')?.value;
+          if (fName && val) customFields[fName] = val;
+        });
+
+        // Capture dynamic signature studios
+        for (const [fName, sigInst] of Object.entries(customSigStudios)) {
+          const sigVal = sigInst.getValue();
+          if (sigVal) customFields[fName] = sigVal;
+        }
+
+        let txnId = '';
+        if (pmMode === 'upi') txnId = document.getElementById('reg-upi-ref')?.value?.trim() || '';
+        else if (pmMode === 'netbanking') txnId = document.getElementById('reg-nb-ref')?.value?.trim() || '';
+        else if (pmMode !== 'desk') {
+          txnId = document.getElementById(`reg-custom-ref-${pmMode}`)?.value?.trim() || '';
+        }
+
+        const payload = {
+          name: document.getElementById('reg-name')?.value.trim(),
+          phone: document.getElementById('reg-phone')?.value.trim(),
+          email: document.getElementById('reg-email')?.value.trim(),
+          password: document.getElementById('reg-password')?.value,
+          gender: document.getElementById('reg-gender')?.value,
+          dob: document.getElementById('reg-dob')?.value || null,
+          pincode: document.getElementById('reg-pincode')?.value?.trim() || '',
+          city: document.getElementById('reg-city')?.value?.trim() || '',
+          state: document.getElementById('reg-state')?.value?.trim() || '',
+          address: document.getElementById('reg-address')?.value?.trim() || '',
+          emergencyContact: {
+            name: document.getElementById('reg-emergency-name')?.value?.trim() || '',
+            phone: document.getElementById('reg-emergency-phone')?.value?.trim() || ''
+          },
+          occupation: document.getElementById('reg-occupation')?.value?.trim() || '',
+          idProofType: document.getElementById('reg-id-type')?.value || 'Aadhaar Card',
+          idProofNumber: document.getElementById('reg-id-number')?.value?.trim() || '',
+          idProofImage: document.querySelector('#public-idproof-mount .mfp-hidden-value')?.value || '',
+          bloodGroup: document.getElementById('reg-blood-group')?.value || '',
+          branch: (selectedBranchId && selectedBranchId !== 'default_main') ? selectedBranchId : null,
+          photo: photoPicker ? photoPicker.querySelector('.mfp-hidden-value')?.value || '' : '',
+          targetExams: Array.from(selectedExams),
+          plan: document.getElementById('reg-plan')?.value || null,
+          shift: document.getElementById('reg-shift')?.value || null,
+          seat: document.getElementById('reg-selected-seat')?.value || null,
+          requestLocker: document.getElementById('reg-request-locker')?.checked || false,
+          referralCode: document.getElementById('reg-referral')?.value.trim() || '',
+          signature: sigStudio ? sigStudio.getValue() : '',
+          paymentMethod: pmMode,
+          transactionId: txnId,
+          customFields
+        };
+
+        try {
+          const response = await fetch('/api/auth/public-register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const result = await response.json();
+
+          if (!response.ok || !result.success) {
+            alert(result.message || 'Registration failed. Please verify the entered information.');
+            if (btn) {
+              btn.disabled = false;
+              btn.textContent = '🚀 Complete Registration & Get Admission Slip';
+            }
+            return;
+          }
+
+          // Show Rich Celebration Slip or Waiting List Ticket
+          document.getElementById('registration-form-wrap').style.display = 'none';
+          document.getElementById('registration-success-wrap').style.display = 'block';
+          
+          const isWaiting = Boolean(result.isWaitingList);
+          const studentId = result.data?.studentId || (isWaiting ? `WAIT-${result.data?.priority || 1}` : 'CONFIRMED');
+          const seatNo = isWaiting ? '⏳ On Waiting List' : (result.data?.seatNumber || (payload.seat ? 'Reserved' : 'Assigned at Desk'));
+
+          document.getElementById('success-student-id').textContent = studentId;
+          document.getElementById('success-student-name').textContent = payload.name;
+          document.getElementById('success-seat-number').textContent = seatNo;
+          
+          const branchObj = branchesMap[payload.branch];
+          document.getElementById('success-branch-name').textContent = branchObj ? branchObj.name : (businessProfileData.businessName || 'Main Branch');
+          document.getElementById('success-plan-name').textContent = selectedPlanData ? selectedPlanData.name : 'Standard Plan';
+          
+          const shiftRow = document.getElementById('success-shift-row');
+          const shiftNameEl = document.getElementById('success-shift-name');
+          if ((selectedShiftData || result.data?.shiftName) && shiftRow && shiftNameEl) {
+            shiftRow.style.display = 'flex';
+            shiftNameEl.textContent = result.data?.shiftName || `${selectedShiftData.name} (${selectedShiftData.startTime} - ${selectedShiftData.endTime})`;
+          } else if (shiftRow) {
+            shiftRow.style.display = 'none';
+          }
+
+          const successTitle = document.getElementById('success-status-title');
+          const successMsg = document.getElementById('success-status-msg');
+          const paymentBadge = document.getElementById('success-payment-badge');
+
+          if (isWaiting) {
+            if (successTitle) successTitle.textContent = `⏳ Placed on Priority Waiting List (#${result.data?.priority || 1})`;
+            if (successMsg) successMsg.textContent = result.message || 'Your requested shift is at full capacity. We have added you to our priority queue. When a desk opens up, you will be notified instantly!';
+            if (paymentBadge) {
+              paymentBadge.textContent = `Waitlist Priority #${result.data?.priority || 1}`;
+              paymentBadge.className = 'badge badge-warning';
+            }
+          } else if (pmMode === 'upi' || pmMode === 'card' || pmMode === 'netbanking') {
+            if (successTitle) successTitle.textContent = '🎉 Admission Confirmed & Membership Active!';
+            if (successMsg) successMsg.textContent = 'Your payment has been logged and your student membership is active immediately. You can now login to your portal!';
+            if (paymentBadge) {
+              paymentBadge.textContent = `Paid (${pmMode.toUpperCase()})`;
+              paymentBadge.className = 'badge badge-success';
+            }
+          } else {
+            if (successTitle) successTitle.textContent = '⏳ Application Reserved (Pending Desk Fee)';
+            if (successMsg) successMsg.textContent = 'Your admission & seat have been pre-reserved. Please pay your fee at the front desk upon arrival to activate your desk membership.';
+            if (paymentBadge) {
+              paymentBadge.textContent = 'Pay at Desk (Pending)';
+              paymentBadge.className = 'badge badge-warning';
+            }
+          }
+
+          // Generate QR Code
+          try {
+            const qr = qrcode(0, 'M');
+            qr.addData(JSON.stringify({
+              studentId,
+              name: payload.name,
+              phone: payload.phone,
+              seat: seatNo
+            }));
+            qr.make();
+            document.getElementById('qr-code-mount').innerHTML = qr.createImgTag(4);
+          } catch(e) {
+            try {
+              const qr = qrcode(0, 'M');
+              qr.addData(studentId);
+              qr.make();
+              document.getElementById('qr-code-mount').innerHTML = qr.createImgTag(4);
+            } catch(e2) {}
+          }
+
+          const phone = result.data?.phone || payload.phone || '';
+          const waText = isWaiting
+            ? `Hello! I have joined the waiting list at ${libraryBusinessName}. My Waiting Ticket is ${studentId} (${payload.name}).`
+            : `Hello! I have registered online for admission at ${libraryBusinessName}. My Student ID is ${studentId} (${payload.name}).`;
+          const waMsg = encodeURIComponent(waText);
+          const waBtn = document.getElementById('btn-success-whatsapp');
+          if (waBtn) waBtn.href = `https://wa.me/${phone}?text=${waMsg}`;
+          
+          document.getElementById('btn-print-slip')?.addEventListener('click', async () => {
+            let rc = {};
+            try {
+              const cRes = await fetch('/api/system/public-config');
+              const cJson = await cRes.json();
+              rc = cJson.data?.receiptConfig || {};
+            } catch (e) {}
+
+            previewAdmissionFormPDF(result.data?.student || payload, {
+              business: businessProfileData,
+              receiptConfig: rc,
+              stampText: isWaiting ? `WAITING LIST • PRIORITY #${result.data?.priority || 1}` : undefined
+            });
+          });
+
+        } catch (error) {
+          alert('Network error. Please check your internet connection.');
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🚀 Complete Registration & Get Admission Slip';
+          }
+        }
+      };
+    }
+
+    // Load Initial Public Config & Hydrate Dynamic Wizard
     async function loadInitData() {
       try {
         let publicConfig = null;
@@ -1933,7 +1929,9 @@
 
         const bp = landingRes?.data?.businessProfile || publicConfig?.businessProfile || {};
         const activeTemplate = templateRes?.data || publicConfig?.template || null;
+        activeTemplateData = activeTemplate;
         businessProfileData = bp;
+
         if (bp?.businessName) {
           try { localStorage.setItem('sl_public_profile_cache', JSON.stringify(bp)); } catch(e) {}
           libraryBusinessName = bp.businessName;
@@ -1947,59 +1945,87 @@
           const slipTag = document.getElementById('slip-business-tagline');
           if (slipTag) slipTag.textContent = bp.tagline;
         }
-        if (bp?.address) {
-          const slipAddr = document.getElementById('slip-business-address');
-          if (slipAddr) slipAddr.textContent = `${bp.address}, ${bp.city || ''} • 📞 ${bp.phone || ''}`;
-        }
+        if (bp?.upiId) libraryUpiId = bp.upiId;
+        if (bp?.upiQrCode) libraryCustomQrImage = bp.upiQrCode;
+        if (bp?.bankDetails) libraryBankDetails = bp.bankDetails;
+        if (bp?.paymentInstructions) libraryPaymentInstructions = bp.paymentInstructions;
 
-        libraryUpiId = bp?.upiId || 'thecozycorner@okaxis';
-        libraryCustomQrImage = bp?.upiQrCode || '';
-        libraryBankDetails = bp?.bankDetails || {};
-        libraryPaymentInstructions = bp?.paymentInstructions || '';
-
-        // Dynamic Header Branding & Section Synchronization from FormBuilder Studio
-        if (activeTemplate) {
-          syncTemplateBrandingAndSections(activeTemplate, bp);
-        }
-
-        // 0. Populate Study Centre / Branch Dropdown Immediately
-        const rawBranches = Array.isArray(branchesRes?.data) ? branchesRes.data : (Array.isArray(publicConfig?.branches) ? publicConfig.branches : []);
-        const branches = (rawBranches.length > 0) ? rawBranches : [
-          {
-            _id: 'default_main',
-            name: bp?.businessName || 'Main Campus Centre',
-            city: bp?.city || 'Central City',
-            address: bp?.address || 'Main Reading Hall Complex',
-            phone: bp?.phone || '+91 9876543210',
-            totalSeats: 100,
-            availableSeats: 58
+        // Branding Sync
+        if (activeTemplate?.branding) {
+          const tb = activeTemplate.branding;
+          if (tb.headerText) document.getElementById('lib-title').textContent = tb.headerText;
+          if (tb.tagline) document.getElementById('lib-tagline').textContent = tb.tagline;
+          const mainHeader = document.getElementById('admission-main-header');
+          if (mainHeader && tb.alignment) mainHeader.style.textAlign = tb.alignment;
+          const logoEl = document.getElementById('lib-logo-icon');
+          if (logoEl) {
+            if (tb.showLogo === false) logoEl.style.display = 'none';
+            else {
+              logoEl.style.display = 'block';
+              if (tb.logoSize) logoEl.style.fontSize = `${Math.round(parseInt(tb.logoSize, 10) * 0.6)}px`;
+            }
           }
-        ];
+        }
 
+        // Custom Fields and Sections Partitioning
+        const rawFields = fieldsRes?.data?.fields || fieldsRes?.data || publicConfig?.customFields?.fields || publicConfig?.customFields || [];
+        const fields = Array.isArray(rawFields) ? rawFields : [];
+
+        // Build active sections list (from template or 8 standard sections + custom fields)
+        const templateSecs = (activeTemplate && Array.isArray(activeTemplate.sections) && activeTemplate.sections.length > 0)
+          ? activeTemplate.sections
+          : [
+              { name: 'personal', label: 'Step 1: Study Centre & Personal Info', icon: 'personal', order: 1, isSystem: true },
+              { name: 'address', label: 'Step 2: Address & Emergency Contact', icon: 'contact', order: 2, isSystem: false },
+              { name: 'kyc', label: 'Step 3: KYC & Verification', icon: 'kyc', order: 3, isSystem: false },
+              { name: 'academic', label: 'Step 4: Academic Goals & KYC Proof', icon: 'academic', order: 4, isSystem: false },
+              { name: 'plan', label: 'Step 5: Membership Plan & Fee Calculator', icon: 'plan', order: 5, isSystem: true },
+              { name: 'payment', label: 'Step 6: Dynamic Payment Selection', icon: 'payment', order: 6, isSystem: true },
+              { name: 'seat', label: 'Step 7: Seat Selection & Digital Signature', icon: 'seat', order: 7, isSystem: true },
+              { name: 'other', label: 'Step 8: Additional Information', icon: 'other', order: 8, isSystem: false }
+            ];
+
+        const sectionsMap = new Map();
+        templateSecs.forEach(s => sectionsMap.set(s.name, s));
+
+        fields.forEach(f => {
+          if (f.section && !sectionsMap.has(f.section)) {
+            sectionsMap.set(f.section, {
+              name: f.section,
+              label: f.sectionLabel || `Section: ${f.section.toUpperCase()}`,
+              icon: f.sectionIcon || 'other',
+              order: sectionsMap.size + 1,
+              isSystem: false
+            });
+          }
+        });
+
+        const activeSections = Array.from(sectionsMap.values())
+          .filter(s => s.isHidden !== true && s.isHidden !== 'true')
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        // Render Dynamic Multi-Step Wizard
+        renderDynamicWizard(activeSections, fields, activeTemplate);
+
+        // Populate Branches in Branch Selectors
+        const branches = Array.isArray(branchesRes?.data) ? branchesRes.data : (publicConfig?.branches || []);
         const branchSelect = document.getElementById('reg-branch');
-        if (branchSelect) {
-          branchSelect.innerHTML = '';
+        if (branchSelect && branches.length > 0) {
+          branchSelect.innerHTML = '<option value="">-- Choose Study Centre / Branch --</option>';
           branches.forEach((b, idx) => {
             branchesMap[b._id] = b;
             const opt = document.createElement('option');
             opt.value = b._id;
-            opt.textContent = `${b.name} (${b.city || 'Central'}) — 🟢 ${b.availableSeats !== undefined ? b.availableSeats : 42} Available Seats`;
-            if (idx === 0) opt.selected = true;
+            opt.textContent = `${b.name} (${b.city || 'Campus'}) — 🟢 ${b.availableSeats ?? 50} Available Seats`;
+            if (idx === 0) {
+              opt.selected = true;
+              selectedBranchId = b._id;
+            }
             branchSelect.appendChild(opt);
           });
-          
-          if (branches[0]) {
-            selectedBranchId = branches[0]._id;
-            updateBranchCard(branches[0]);
-          }
 
           branchSelect.onchange = () => {
-            const bId = branchSelect.value;
-            selectedBranchId = bId;
-            const bObj = branchesMap[bId];
-            if (bObj) updateBranchCard(bObj);
-            
-            // Reset selected seat & dynamically fetch live seats for new branch in real time
+            selectedBranchId = branchSelect.value;
             const seatInput = document.getElementById('reg-selected-seat');
             const seatDisplay = document.getElementById('selected-seat-display');
             if (seatInput) seatInput.value = '';
@@ -2008,19 +2034,71 @@
           };
         }
 
-        // Render Custom Fields safely with Live Form Builder Template Sync
-        const rawFields = fieldsRes?.data?.fields || fieldsRes?.data || publicConfig?.customFields?.fields || publicConfig?.customFields || [];
-        const fields = Array.isArray(rawFields) ? rawFields : [];
-        try {
-          renderCustomFields(fields, activeTemplate);
-        } catch (fErr) {
-          console.warn('Custom fields render note:', fErr);
+        // Shifts Dropdown with Multiplier
+        const rawShifts = Array.isArray(shiftsRes?.data) ? shiftsRes.data : [];
+        const shifts = rawShifts.filter(s => s.isActive !== false && s.isActive !== 'false');
+        const shiftWrapper = document.getElementById('reg-shift-wrapper');
+        const shiftDropdown = document.getElementById('reg-shift');
+        if (shifts.length > 0 && shiftDropdown && shiftWrapper) {
+          shiftWrapper.style.display = 'block';
+          shiftDropdown.innerHTML = '<option value="">-- Select Preferred Study Shift (Optional) --</option>';
+          shifts.forEach(s => {
+            shiftsMap[s._id] = s;
+            const multText = s.priceMultiplier && s.priceMultiplier !== 1.0 ? ` (${s.priceMultiplier}x rate)` : '';
+            const isFull = s.isFull || (s.maxCapacity > 0 && s.availableSlots <= 0);
+            const capText = isFull ? ' [🔴 FULL - Waitlist]' : (s.maxCapacity > 0 ? ` [🟢 ${s.availableSlots} Left]` : '');
+            const opt = document.createElement('option');
+            opt.value = s._id;
+            opt.textContent = `${s.name} (${s.startTime} - ${s.endTime})${multText}${capText}`;
+            if (isFull) opt.style.color = '#ef4444';
+            shiftDropdown.appendChild(opt);
+          });
         }
 
-        // Dynamically populate target competitive exams configured by Admin
-        const dynamicExams = bp?.targetExams || publicConfig?.targetExams || [];
-        if (dynamicExams.length > 0) {
-          setupExamPills(dynamicExams);
+        // Plans Dropdown
+        const rawPlans = Array.isArray(publicConfig?.plans) ? publicConfig.plans : (Array.isArray(plansRes?.data) ? plansRes.data : (landingRes?.data?.plans || []));
+        const filteredPlans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false');
+        const plans = (filteredPlans.length > 0) ? filteredPlans : [
+          { _id: 'plan_monthly', name: 'Monthly Full Day Plan', price: 1500, effectivePrice: 1500, duration: 1, durationType: 'months', shift: 'All Day (24 Hours)' },
+          { _id: 'plan_quarterly', name: 'Quarterly Prime Plan', price: 4200, effectivePrice: 4200, duration: 3, durationType: 'months', shift: 'All Day (24 Hours)' }
+        ];
+
+        const planSelect = document.getElementById('reg-plan');
+        if (plans && plans.length > 0 && planSelect) {
+          planSelect.innerHTML = '<option value="">-- Choose Study Shift &amp; Plan --</option>';
+          plans.forEach(p => {
+            const planId = p._id || p.id;
+            plansMap[planId] = p;
+            const opt = document.createElement('option');
+            opt.value = planId;
+            const price = Math.round(p.effectivePrice || p.price || 0);
+            const duration = `${p.duration || 30} ${p.durationType || 'days'}`;
+            const shiftStr = p.shift ? p.shift.toUpperCase() : 'ANY SHIFT';
+            const isFull = Boolean(p.isFull);
+            const fullTag = isFull ? ' [🔴 FULL - Waitlist]' : '';
+            opt.textContent = `${p.name} — ₹${price.toLocaleString('en-IN')}/${duration} (${shiftStr})${fullTag}`;
+            if (isFull) opt.style.color = '#ef4444';
+            planSelect.appendChild(opt);
+          });
+
+          // Pre-select first plan or URL plan parameter
+          const urlParams = new URLSearchParams(window.location.search);
+          const targetPlan = urlParams.get('plan') || urlParams.get('planId');
+          if (targetPlan) {
+            const decoded = decodeURIComponent(targetPlan).trim();
+            const matched = plans.find(p => 
+              (p._id && p._id.toString() === decoded) || 
+              (p.id && p.id.toString() === decoded) || 
+              (p.slug && p.slug.toLowerCase() === decoded.toLowerCase()) ||
+              (p.name && p.name.toLowerCase() === decoded.toLowerCase())
+            );
+            if (matched) {
+              const matchedId = matched._id || matched.id;
+              planSelect.value = matchedId;
+              selectedPlanData = matched;
+              updateCalculator();
+            }
+          }
         }
 
         // Render Payment Gateways
@@ -2185,360 +2263,27 @@
           }
 
           bindUpiIntentButtons();
-        } else if (radioGrid && subpanesContainer && activeMethods.length === 0) {
-          radioGrid.innerHTML = `
-            <div style="grid-column: 1 / -1; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 1.5rem; text-align: center;">
-              <div style="font-size: 2.2rem; margin-bottom: 6px;">🚫</div>
-              <h4 style="margin: 0 0 6px 0; font-size: 1.1rem; font-weight: 800; color: var(--color-danger);">
-                Online Payment Registration Currently Disabled
-              </h4>
-              <p style="margin: 0; font-size: 0.88rem; color: var(--color-text-secondary); line-height: 1.5;">
-                Online payments have been turned OFF by the library administration. Please visit the front reception desk to complete your registration & payment.
-              </p>
-            </div>
-          `;
-          subpanesContainer.innerHTML = '';
         }
 
-
-
-        // Shifts Dropdown & Multiplier with Capacity Indicators
-        const rawShifts = Array.isArray(shiftsRes?.data) ? shiftsRes.data : [];
-        const shifts = rawShifts.filter(s => s.isActive !== false && s.isActive !== 'false');
-        const shiftWrapper = document.getElementById('reg-shift-wrapper');
-        const shiftDropdown = document.getElementById('reg-shift');
-        if (shifts.length > 0 && shiftDropdown && shiftWrapper) {
-          shiftWrapper.style.display = 'block';
-          shiftDropdown.innerHTML = '<option value="">-- Select Preferred Study Shift (Optional) --</option>';
-          shifts.forEach(s => {
-            shiftsMap[s._id] = s;
-            const multText = s.priceMultiplier && s.priceMultiplier !== 1.0 ? ` (${s.priceMultiplier}x rate)` : '';
-            const isFull = s.isFull || (s.maxCapacity > 0 && s.availableSlots <= 0);
-            const capText = isFull ? ' [🔴 FULL - Waitlist]' : (s.maxCapacity > 0 ? ` [🟢 ${s.availableSlots} Left]` : '');
-            const opt = document.createElement('option');
-            opt.value = s._id;
-            opt.textContent = `${s.name} (${s.startTime} - ${s.endTime})${multText}${capText}`;
-            if (isFull) opt.style.color = '#ef4444';
-            shiftDropdown.appendChild(opt);
-          });
-        }
-
-        // Plans dropdown with Shift Capacity Indicators
-        const rawPlans = Array.isArray(publicConfig?.plans) ? publicConfig.plans : (Array.isArray(plansRes?.data) ? plansRes.data : (landingRes?.data?.plans || []));
-        const filteredPlans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false');
-        const plans = (filteredPlans.length > 0) ? filteredPlans : (rawPlans.length > 0 ? rawPlans : [
-          { _id: 'plan_monthly', name: 'Monthly Study Plan', price: 1000, effectivePrice: 700, duration: 1, durationType: 'months', shift: 'fullday' },
-          { _id: 'plan_quarterly', name: 'Quarterly Prime Plan', price: 4000, effectivePrice: 2400, duration: 3, durationType: 'months', shift: 'fullday' }
-        ]);
-
-        if (plans && plans.length > 0 && planSelect) {
-          planSelect.innerHTML = '<option value="">-- Choose Study Shift & Plan --</option>';
-          plans.forEach(p => {
-            const planId = p._id || p.id;
-            plansMap[planId] = p;
-            const opt = document.createElement('option');
-            opt.value = planId;
-            const price = Math.round(p.effectivePrice || p.price || 0);
-            const duration = `${p.duration || 30} ${p.durationType || 'days'}`;
-            const shiftStr = p.shift ? p.shift.toUpperCase() : 'ANY SHIFT';
-            const isFull = Boolean(p.isFull);
-            const fullTag = isFull ? ' [🔴 FULL - Waitlist]' : '';
-            opt.textContent = `${p.name} — ₹${price.toLocaleString('en-IN')}/${duration} (${shiftStr})${fullTag}`;
-            if (isFull) opt.style.color = '#ef4444';
-            planSelect.appendChild(opt);
-          });
-
-          // URL query param plan pre-selection
-          const urlParams = new URLSearchParams(window.location.search);
-          const targetPlan = urlParams.get('plan') || urlParams.get('planId');
-          if (targetPlan) {
-            const decoded = decodeURIComponent(targetPlan).trim();
-            const matched = plans.find(p => 
-              (p._id && p._id.toString() === decoded) || 
-              (p.id && p.id.toString() === decoded) || 
-              (p.slug && p.slug.toLowerCase() === decoded.toLowerCase()) ||
-              (p.name && p.name.toLowerCase() === decoded.toLowerCase())
-            );
-            if (matched) {
-              const matchedId = matched._id || matched.id;
-              planSelect.value = matchedId;
-              selectedPlanData = matched;
-              updateCalculator();
-            }
-          }
-        }
-
-        // ── Dynamic Locker Add-on Display & Pricing ──────────────────────
-        const lockerCfg = publicConfig?.locker || {
-          enableAddon: true,
-          monthlyFee: 200,
-          title: 'Add Personal Study Locker',
-          description: 'Secure private key-allotted locker to safely keep heavy study books, notes & laptop.'
-        };
-        window.dynamicLockerFee = Number(lockerCfg.monthlyFee) || 200;
-
-        const lockerWrap = document.getElementById('reg-locker-addon-wrap');
-        const lockerLabel = document.getElementById('reg-locker-label');
-        const lockerDesc = document.getElementById('reg-locker-desc');
-        const lockerChk = document.getElementById('reg-request-locker');
-
-        if (lockerWrap) {
-          if (lockerCfg.enableAddon === false || lockerCfg.enableAddon === 'false') {
-            lockerWrap.style.display = 'none';
-            if (lockerChk) lockerChk.checked = false;
-          } else {
-            lockerWrap.style.display = 'block';
-            if (lockerLabel) lockerLabel.textContent = `🔒 ${lockerCfg.title || 'Add Personal Study Locker'} (+₹${window.dynamicLockerFee}/mo)`;
-            if (lockerDesc) lockerDesc.textContent = lockerCfg.description || 'Secure private key-allotted locker to safely keep heavy study books, notes & laptop.';
-          }
-        }
-
-        // Render Dynamic Library Rules & Code of Conduct from Admin Settings
+        // Render Dynamic Library Rules from Admin Settings
         const rulesBox = document.getElementById('reg-rules-scroll-box');
-        const landingRules = landingData?.landing?.rules?.items || landingData?.rules?.items || bp?.rules || [];
+        const landingRules = landingRes?.data?.landing?.rules?.items || bp?.rules || [];
         if (rulesBox && Array.isArray(landingRules) && landingRules.length > 0) {
           rulesBox.innerHTML = '<ol style="margin: 0; padding-left: 1.2rem;">' + landingRules.map(r => `
             <li style="margin-bottom: 6px;"><strong>${escapeHTML(r.title || r.heading || 'Rule')}:</strong> ${escapeHTML(r.description || r.text || '')}</li>
           `).join('') + '</ol>';
         }
 
+        // Dynamic Exams
+        const dynamicExams = bp?.targetExams || publicConfig?.targetExams || [];
+        if (dynamicExams.length > 0) {
+          setupExamPills(dynamicExams);
+        }
+
       } catch (err) {
         console.error('Failed to init register page:', err);
-      } finally {
-        if (typeof window.dismissSystemPreloader === 'function') {
-          window.dismissSystemPreloader();
-        } else {
-          const p = document.getElementById('system-preloader');
-          if (p) {
-            p.style.opacity = '0';
-            setTimeout(() => { p.style.display = 'none'; }, 350);
-          }
-        }
       }
     }
-
-    // Submit handler
-    document.getElementById('public-reg-form')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('btn-submit-reg');
-
-      // 1. Validate Mandatory Terms & Code of Conduct Checkbox
-      const termsInp = document.getElementById('reg-terms');
-      if (!termsInp || !termsInp.checked) {
-        alert('Please review and check the box agreeing to the Library Rules & Code of Conduct Agreement to complete registration.');
-        currentStep = 5;
-        updateStepper();
-        termsInp?.focus();
-        return;
-      }
-
-      // 2. Validate Payment Mode Requirements
-      const pmMode = document.querySelector('input[name="reg-payment-mode"]:checked')?.value || 'upi';
-      const upiTxnId = document.getElementById('reg-upi-ref')?.value?.trim();
-
-      if (pmMode === 'upi' && selectedPlanData && !upiTxnId) {
-        alert('Please enter your 12-digit UPI Transaction ID / UTR number to complete registration.');
-        currentStep = 4;
-        updateStepper();
-        document.getElementById('reg-upi-ref')?.focus();
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = 'Submitting Admission & Payment...';
-
-      const customFields = {};
-      document.querySelectorAll('.custom-dyn-input, .custom-dyn-radio').forEach(input => {
-        const name = input.dataset.field;
-        if (name) {
-          if (input.type === 'checkbox') {
-            customFields[name] = input.checked;
-          } else if (input.type === 'radio') {
-            if (input.checked) customFields[name] = input.value;
-          } else if (input.value) {
-            customFields[name] = input.value;
-          }
-        }
-      });
-
-      // Capture dynamic multiselect checkboxes
-      document.querySelectorAll('.custom-dyn-multiselect-group').forEach(group => {
-        const fName = group.dataset.field;
-        if (fName) {
-          const checkedVals = Array.from(group.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
-          customFields[fName] = checkedVals;
-        }
-      });
-
-      // Capture dynamic exam badge pills
-      document.querySelectorAll('.custom-dyn-badge-group').forEach(group => {
-        const fName = group.dataset.field;
-        if (fName) {
-          const selectedBadges = Array.from(group.querySelectorAll('.custom-dyn-badge.selected')).map(b => b.dataset.val);
-          customFields[fName] = selectedBadges;
-        }
-      });
-
-      // Capture dynamic media fields
-      document.querySelectorAll('.custom-field-media-mount').forEach(mount => {
-        const fName = mount.dataset.field;
-        const val = mount.querySelector('.mfp-hidden-value')?.value;
-        if (fName && val) customFields[fName] = val;
-      });
-
-      // Capture dynamic signature studios
-      for (const [fName, sigInst] of Object.entries(customSigStudios)) {
-        const sigVal = sigInst.getValue();
-        if (sigVal) customFields[fName] = sigVal;
-      }
-
-      let txnId = '';
-      if (pmMode === 'upi') txnId = document.getElementById('reg-upi-ref')?.value?.trim() || '';
-      else if (pmMode === 'netbanking') txnId = document.getElementById('reg-nb-ref')?.value?.trim() || '';
-      else if (pmMode !== 'desk') {
-        txnId = document.getElementById(`reg-custom-ref-${pmMode}`)?.value?.trim() || '';
-      }
-
-      const payload = {
-        name: document.getElementById('reg-name')?.value.trim(),
-        phone: document.getElementById('reg-phone')?.value.trim(),
-        email: document.getElementById('reg-email')?.value.trim(),
-        password: document.getElementById('reg-password')?.value,
-        gender: document.getElementById('reg-gender')?.value,
-        dob: document.getElementById('reg-dob')?.value || null,
-        pincode: document.getElementById('reg-pincode')?.value?.trim() || '',
-        city: document.getElementById('reg-city')?.value?.trim() || '',
-        state: document.getElementById('reg-state')?.value?.trim() || '',
-        branch: (selectedBranchId && selectedBranchId !== 'default_main') ? selectedBranchId : null,
-        photo: photoPicker ? photoPicker.querySelector('.mfp-hidden-value')?.value || '' : '',
-        targetExams: Array.from(selectedExams),
-        plan: document.getElementById('reg-plan')?.value || null,
-        shift: document.getElementById('reg-shift')?.value || null,
-        seat: document.getElementById('reg-selected-seat')?.value || null,
-        requestLocker: document.getElementById('reg-request-locker')?.checked || false,
-        referralCode: document.getElementById('reg-referral')?.value.trim() || '',
-        signature: sigStudio ? sigStudio.getValue() : '',
-        paymentMethod: pmMode,
-        transactionId: txnId,
-        customFields
-      };
-
-      try {
-        const response = await fetch('/api/auth/public-register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-          alert(result.message || 'Registration failed. Please verify the entered information.');
-          btn.disabled = false;
-          btn.textContent = '🚀 Complete Registration & Get Admission Slip';
-          return;
-        }
-
-        // Show Rich Celebration Slip or Waiting List Ticket
-        document.getElementById('registration-form-wrap').style.display = 'none';
-        document.getElementById('registration-success-wrap').style.display = 'block';
-        
-        const isWaiting = Boolean(result.isWaitingList);
-        const studentId = result.data?.studentId || (isWaiting ? `WAIT-${result.data?.priority || 1}` : 'CONFIRMED');
-        const seatNo = isWaiting ? '⏳ On Waiting List' : (result.data?.seatNumber || (payload.seat ? 'Reserved' : 'Assigned at Desk'));
-
-        document.getElementById('success-student-id').textContent = studentId;
-        document.getElementById('success-student-name').textContent = payload.name;
-        document.getElementById('success-seat-number').textContent = seatNo;
-        
-        const branchObj = branchesMap[payload.branch];
-        document.getElementById('success-branch-name').textContent = branchObj ? branchObj.name : (businessProfileData.businessName || 'Main Branch');
-        document.getElementById('success-plan-name').textContent = selectedPlanData ? selectedPlanData.name : 'Standard Plan';
-        
-        const shiftRow = document.getElementById('success-shift-row');
-        const shiftNameEl = document.getElementById('success-shift-name');
-        if ((selectedShiftData || result.data?.shiftName) && shiftRow && shiftNameEl) {
-          shiftRow.style.display = 'flex';
-          shiftNameEl.textContent = result.data?.shiftName || `${selectedShiftData.name} (${selectedShiftData.startTime} - ${selectedShiftData.endTime})`;
-        } else if (shiftRow) {
-          shiftRow.style.display = 'none';
-        }
-
-        const successTitle = document.getElementById('success-status-title');
-        const successMsg = document.getElementById('success-status-msg');
-        const paymentBadge = document.getElementById('success-payment-badge');
-
-        if (isWaiting) {
-          if (successTitle) successTitle.textContent = `⏳ Placed on Priority Waiting List (#${result.data?.priority || 1})`;
-          if (successMsg) successMsg.textContent = result.message || 'Your requested shift is at full capacity. We have added you to our priority queue. When a desk opens up, you will be notified instantly!';
-          if (paymentBadge) {
-            paymentBadge.textContent = `Waitlist Priority #${result.data?.priority || 1}`;
-            paymentBadge.className = 'badge badge-warning';
-          }
-        } else if (pmMode === 'upi' || pmMode === 'card' || pmMode === 'netbanking') {
-          if (successTitle) successTitle.textContent = '🎉 Admission Confirmed & Membership Active!';
-          if (successMsg) successMsg.textContent = 'Your payment has been logged and your student membership is active immediately. You can now login to your portal!';
-          if (paymentBadge) {
-            paymentBadge.textContent = `Paid (${pmMode.toUpperCase()})`;
-            paymentBadge.className = 'badge badge-success';
-          }
-        } else {
-          if (successTitle) successTitle.textContent = '⏳ Application Reserved (Pending Desk Fee)';
-          if (successMsg) successMsg.textContent = 'Your admission & seat have been pre-reserved. Please pay your fee at the front desk upon arrival to activate your desk membership.';
-          if (paymentBadge) {
-            paymentBadge.textContent = 'Pay at Desk (Pending)';
-            paymentBadge.className = 'badge badge-warning';
-          }
-        }
-
-        // Generate QR Code
-        try {
-          const qr = qrcode(0, 'M');
-          qr.addData(JSON.stringify({
-            studentId,
-            name: payload.name,
-            phone: payload.phone,
-            seat: seatNo
-          }));
-          qr.make();
-          document.getElementById('qr-code-mount').innerHTML = qr.createImgTag(4);
-        } catch(e) {
-          try {
-            const qr = qrcode(0, 'M');
-            qr.addData(studentId);
-            qr.make();
-            document.getElementById('qr-code-mount').innerHTML = qr.createImgTag(4);
-          } catch(e2) {}
-        }
-
-        const phone = result.data?.phone || payload.phone || '';
-        const waText = isWaiting
-          ? `Hello! I have joined the waiting list at ${libraryBusinessName}. My Waiting Ticket is ${studentId} (${payload.name}).`
-          : `Hello! I have registered online for admission at ${libraryBusinessName}. My Student ID is ${studentId} (${payload.name}).`;
-        const waMsg = encodeURIComponent(waText);
-        const waBtn = document.getElementById('btn-success-whatsapp');
-        if (waBtn) waBtn.href = `https://wa.me/${phone}?text=${waMsg}`;
-        
-        document.getElementById('btn-print-slip')?.addEventListener('click', async () => {
-          let rc = {};
-          try {
-            const cRes = await fetch('/api/system/public-config');
-            const cJson = await cRes.json();
-            rc = cJson.data?.receiptConfig || {};
-          } catch (e) {}
-
-          previewAdmissionFormPDF(result.data?.student || payload, {
-            business: businessProfileData,
-            receiptConfig: rc,
-            stampText: isWaiting ? `WAITING LIST • PRIORITY #${result.data?.priority || 1}` : undefined
-          });
-        });
-
-      } catch (error) {
-        alert('Network error. Please check your internet connection.');
-        btn.disabled = false;
-        btn.textContent = '🚀 Complete Registration & Get Admission Slip';
-      }
-    });
 
     function applyRegisterTheme(theme) {
       const isDark = theme === 'dark';
