@@ -903,7 +903,7 @@ function renderSeatsGrid(seats, container) {
     
     // Card Click -> Open 360° Desk Details Modal
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.seat-select-cb') || e.target.closest('.btn-seat-quick-edit')) return;
+      if (e.target.closest('.seat-select-cb') || e.target.closest('.btn-seat-quick-edit') || e.target.closest('label') || e.target.closest('.custom-select-circle')) return;
       const seatId = card.getAttribute('data-id');
       const seat = seatsData.find(s => s._id === seatId);
       if (seat) open360DeskDetailsModal(seat, container);
@@ -915,17 +915,37 @@ function renderSeatsGrid(seats, container) {
     cb.addEventListener('change', (e) => {
       const sId = e.target.dataset.id;
       const card = e.target.closest('.seat-card');
+      const label = e.target.closest('label');
+      const circle = label?.querySelector('.custom-select-circle');
+      const svg = circle?.querySelector('svg');
+      const seat = seatsData.find(s => s._id === sId);
+      const zoneColor = seat?.zoneColor || 'var(--color-primary, #6c5ce7)';
+
       if (e.target.checked) {
         selectedSeatIds.add(sId);
         if (card) {
           card.style.boxShadow = '0 0 0 2.5px var(--color-primary)';
           card.style.background = 'var(--color-primary-bg)';
         }
+        if (circle) {
+          circle.style.backgroundColor = zoneColor;
+          circle.style.borderColor = zoneColor;
+        }
+        if (svg) {
+          svg.style.display = 'block';
+        }
       } else {
         selectedSeatIds.delete(sId);
         if (card) {
           card.style.boxShadow = '';
           card.style.background = 'var(--color-surface)';
+        }
+        if (circle) {
+          circle.style.backgroundColor = 'transparent';
+          circle.style.borderColor = zoneColor;
+        }
+        if (svg) {
+          svg.style.display = 'none';
         }
       }
       updateBulkActionBar(container);

@@ -1895,7 +1895,8 @@ input[type="checkbox"].round-checkbox:checked::after {
 }
 
 .students-table-container .student-select-cb:checked + .custom-select-circle,
-.students-table-container #selectAllStudents:checked + .custom-select-circle {
+.students-table-container #selectAllStudents:checked + .custom-select-circle,
+.seat-select-cb:checked + .custom-select-circle {
   opacity: 1 !important;
   transform: scale(1) !important;
   background-color: var(--color-primary, #6c5ce7) !important;
@@ -1903,7 +1904,8 @@ input[type="checkbox"].round-checkbox:checked::after {
 }
 
 .students-table-container .student-select-cb:checked + .custom-select-circle svg,
-.students-table-container #selectAllStudents:checked + .custom-select-circle svg {
+.students-table-container #selectAllStudents:checked + .custom-select-circle svg,
+.seat-select-cb:checked + .custom-select-circle svg {
   display: block !important;
 }
 
