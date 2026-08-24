@@ -2691,20 +2691,13 @@ export async function render() {
         </div>
 
         <!-- Dispatch Options Toggles -->
-        <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 1rem;">
+        <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
           <label style="font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
             <input type="checkbox" id="reset-toggle-wa" class="form-toggle" checked> 📲 Open Pre-filled WhatsApp Credential Link
           </label>
           <label style="font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
             <input type="checkbox" id="reset-toggle-email" class="form-toggle" ${student.email ? 'checked' : ''}> 📧 Send Credentials Notification via Email
           </label>
-        </div>
-
-        <!-- Prominent In-Modal Primary Save Button -->
-        <div>
-          <button type="button" id="btn-save-reset-password" class="btn btn-primary btn-lg" style="width: 100%; font-weight: 800; font-size: 1rem; padding: 12px; justify-content: center; display: flex; align-items: center; gap: 8px; border-radius: 10px;">
-            💾 Save & Update Password
-          </button>
         </div>
       </div>
     `;
@@ -2718,12 +2711,6 @@ export async function render() {
       if (!newPassword || newPassword.length < 4) {
         Toast.error('Password must be at least 4 characters long');
         return false;
-      }
-
-      const saveBtn = document.getElementById('btn-save-reset-password');
-      if (saveBtn) {
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Saving & Updating Password...';
       }
 
       try {
@@ -2743,18 +2730,10 @@ export async function render() {
           return true;
         } else {
           Toast.error(res.message || 'Failed to update password');
-          if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.textContent = '💾 Save & Update Password';
-          }
           return false;
         }
       } catch (err) {
         Toast.error(err.message || 'Password update failed');
-        if (saveBtn) {
-          saveBtn.disabled = false;
-          saveBtn.textContent = '💾 Save & Update Password';
-        }
         return false;
       }
     };
@@ -2783,9 +2762,6 @@ export async function render() {
       });
       document.getElementById('btn-toggle-reset-eye')?.addEventListener('click', () => {
         if (input) input.type = input.type === 'password' ? 'text' : 'password';
-      });
-      document.getElementById('btn-save-reset-password')?.addEventListener('click', () => {
-        executeSavePassword(modal);
       });
     }, 100);
   }
