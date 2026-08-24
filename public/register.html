@@ -1032,6 +1032,38 @@
         });
       });
 
+      // Core built-in fields that already have specialized dedicated widgets in standard sections
+      const CORE_BUILTIN_FIELD_NAMES = new Set([
+        'name', 'fullname', 'full_name', 'studentname', 'student_name',
+        'phone', 'mobile', 'whatsapp', 'mobilenumber', 'phone_number',
+        'dob', 'dateofbirth', 'date_of_birth', 'birthdate',
+        'email', 'emailaddress', 'email_address',
+        'gender', 'sex',
+        'bloodgroup', 'blood_group',
+        'password', 'studentpassword', 'portalpassword',
+        'photo', 'passportphoto', 'passport_photo', 'studentphoto', 'profile_photo', 'avatar',
+        'branch', 'branchid', 'studycentre', 'study_centre',
+        'address', 'residentialaddress', 'fulladdress',
+        'pincode', 'pin_code', 'zip', 'zipcode',
+        'city', 'state',
+        'emergencyname', 'emergency_name', 'emergencycontactname',
+        'emergencyphone', 'emergency_phone', 'emergencycontact', 'emergency_contact',
+        'idprooftype', 'id_proof_type', 'idtype', 'iddocumenttype',
+        'idproofnumber', 'id_proof_number', 'idnumber', 'aadhaarnumber', 'pannumber',
+        'idprooffront', 'idproofback', 'idproofdocument', 'iddocument',
+        'targetexam', 'targetexams', 'target_exam', 'target_exams', 'exam', 'exams',
+        'occupation', 'college', 'institute', 'company',
+        'plan', 'membership_plan', 'shift', 'study_shift', 'locker', 'requestlocker',
+        'signature', 'digitalsignature', 'digital_signature',
+        'terms', 'rules', 'agreement'
+      ]);
+
+      const isCoreField = (f) => {
+        if (!f) return false;
+        const slug = (f.fieldName || f.name || f.slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return CORE_BUILTIN_FIELD_NAMES.has(slug) || f.isSystemField === true;
+      };
+
       // 2. Build Step Content Panels
       let formHtml = '';
 
@@ -1040,7 +1072,14 @@
         const isFirst = stepNum === 1;
         const isLast = stepNum === totalSteps;
         const secName = sec.name;
-        const secFields = fields.filter(f => f.section === secName && f.isActive !== false);
+        
+        // Filter out duplicate core system fields in standard sections, while preserving truly custom admin fields
+        const secFields = fields.filter(f => {
+          if (f.section !== secName || f.isActive === false) return false;
+          const isStandardSection = ['personal', 'address', 'contact', 'kyc', 'verification', 'academic', 'goals', 'plan', 'payment', 'seat'].includes(secName);
+          if (isStandardSection && isCoreField(f)) return false;
+          return true;
+        });
 
         const iconMap = {
           personal: '👤', address: '📍', contact: '📍', kyc: '🪪', verification: '🪪',
