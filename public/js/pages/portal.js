@@ -3828,11 +3828,16 @@ export async function download1080pMobileIDPass(student, business = {}, initials
   // 3. Card Header Banner (Gradient matching primary brand)
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(cardX, cardY + cardR);
-  ctx.arcTo(cardX, cardY, cardX + cardR, cardY, cardR);
-  ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardR);
-  ctx.lineTo(cardX + cardW, cardY + 240);
-  ctx.lineTo(cardX, cardY + 240);
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(cardX, cardY, cardW, 240, [cardR, cardR, 0, 0]);
+  } else {
+    ctx.moveTo(cardX, cardY + cardR);
+    ctx.arcTo(cardX, cardY, cardX + cardR, cardY, cardR);
+    ctx.lineTo(cardX + cardW - cardR, cardY);
+    ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardR, cardR);
+    ctx.lineTo(cardX + cardW, cardY + 240);
+    ctx.lineTo(cardX, cardY + 240);
+  }
   ctx.closePath();
   ctx.clip();
 
@@ -4144,22 +4149,29 @@ export async function download1080pMobileIDPass(student, business = {}, initials
   const ribbonY = cardY + cardH - 68;
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(cardX, ribbonY);
-  ctx.lineTo(cardX + cardW, ribbonY);
-  ctx.arcTo(cardX + cardW, cardY + cardH, cardX + cardW - cardR, cardY + cardH, cardR);
-  ctx.arcTo(cardX, cardY + cardH, cardX, cardY + cardH - cardR, cardR);
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(cardX, ribbonY, cardW, 68, [0, 0, cardR, cardR]);
+  } else {
+    ctx.moveTo(cardX, ribbonY);
+    ctx.lineTo(cardX + cardW, ribbonY);
+    ctx.lineTo(cardX + cardW, cardY + cardH - cardR);
+    ctx.arcTo(cardX + cardW, cardY + cardH, cardX + cardW - cardR, cardY + cardH, cardR);
+    ctx.lineTo(cardX + cardR, cardY + cardH);
+    ctx.arcTo(cardX, cardY + cardH, cardX, cardY + cardH - cardR, cardR);
+    ctx.lineTo(cardX, ribbonY);
+  }
   ctx.closePath();
   ctx.fillStyle = '#f8fafc';
   ctx.fill();
   ctx.strokeStyle = '#e2e8f0';
   ctx.lineWidth = 1;
   ctx.stroke();
+  ctx.restore();
 
   ctx.textAlign = 'center';
   ctx.fillStyle = '#64748b';
   ctx.font = '600 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillText(`Issued: ${admissionDate} • Helpline: ${business.phone || '+91 98765 43210'} • Non-Transferable`, 540, ribbonY + 42);
-  ctx.restore();
 
   // 10. Outer Wallpaper Footer Note
   ctx.textAlign = 'center';
