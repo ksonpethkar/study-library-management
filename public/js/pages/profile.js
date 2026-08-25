@@ -121,9 +121,9 @@ function renderProfileUI(container, user) {
               </div>
             </div>
 
-            <div style="flex: 1; min-width: 0; word-break: break-word;">
+            <div style="flex: 1 1 220px; min-width: 220px;">
               <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                <h3 id="display-user-name" style="margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--color-text-primary); word-break: break-word;">${escapeHTML(user.name || 'Administrator')}</h3>
+                <h3 id="display-user-name" style="margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--color-text-primary); white-space: normal;">${escapeHTML(user.name || 'Administrator')}</h3>
               </div>
               <div id="display-user-email" style="color: var(--color-text-secondary); font-size: 0.9rem; margin-top: 2px; word-break: break-all;">${escapeHTML(user.email || '')}</div>
               

@@ -171,25 +171,27 @@ function renderPortalUI(container, data, analytics = null) {
       background: ${business.bannerImage ? `linear-gradient(135deg, rgba(108, 92, 231, 0.88), rgba(15, 23, 42, 0.82)), url('${business.bannerImage}') center/cover` : `linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(162, 155, 254, 0.05)), var(--color-surface)`};
       border: 1px solid var(--color-border);
       border-radius: var(--radius-lg);
-      padding: 1.5rem;
+      padding: 1.25rem 1.5rem;
       position: relative;
       overflow: hidden;
     ">
-      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.25rem; position: relative; z-index: 1;">
-        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; min-width: 0; flex: 1;">
+      <!-- Top Row: Student Profile Header & Renewal Action -->
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; position: relative; z-index: 1;">
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: nowrap; min-width: 280px; flex: 1 1 320px;">
           <div style="
-            width: 68px; height: 68px; border-radius: 50%;
+            width: 64px; height: 64px; border-radius: 50%;
             background: var(--color-primary-bg); color: var(--color-primary);
             font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; justify-content: center;
-            border: 2px solid var(--color-primary); flex-shrink: 0; overflow: hidden;
+            border: 2.5px solid var(--color-primary); flex-shrink: 0; overflow: hidden;
+            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.2);
           ">
             ${(student.photo || user?.avatar) ? `<img src="${escapeHTML(student.photo || user.avatar)}" alt="${escapeHTML(student.name)}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
           </div>
-          <div style="min-width: 0; flex: 1;">
-            <h2 style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 700; color: ${business.bannerImage ? '#ffffff' : 'var(--color-text-primary)'}; word-break: break-word; overflow-wrap: break-word; text-transform: capitalize;">
+          <div style="min-width: 180px; flex: 1;">
+            <h2 style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 700; color: ${business.bannerImage ? '#ffffff' : 'var(--color-text-primary)'}; white-space: normal; line-height: 1.35; text-transform: capitalize;">
               Welcome back, ${escapeHTML((student.name || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()))}!
             </h2>
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
               <span class="badge" style="background: rgba(0, 184, 148, 0.2); color: ${business.bannerImage ? '#a7f3d0' : 'var(--color-success)'}; font-family: monospace; font-weight: 700; font-size: 0.85rem;">
                 ${escapeHTML(student.studentId || 'STU-MEMBER')}
               </span>
@@ -201,42 +203,46 @@ function renderPortalUI(container, data, analytics = null) {
           </div>
         </div>
 
-        <!-- Quick Action Buttons Grid -->
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-start;">
-          <button id="btn-portal-profile" class="btn btn-outline-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
-            👤 Profile
-          </button>
-          <button id="btn-portal-leave" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
-            🌴 Leave
-          </button>
-          <button id="btn-portal-seat-change" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
-            💺 Change Seat
-          </button>
-          <button id="btn-portal-referral" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
-            🎁 Refer
-          </button>
-          <button id="btn-portal-idcard" class="btn btn-outline-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
-            🪪 Digital ID
-          </button>
-          <button id="btn-portal-notices" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
-            📢 Notices
-          </button>
-          <button id="btn-portal-holidays" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
-            📅 Holidays
-          </button>
-          <button id="btn-portal-lostfound" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
-            🔍 Lost &amp; Found
-          </button>
-          <button id="btn-portal-feedback" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
-            💬 Feedback
-          </button>
-          <button id="btn-portal-receipts-jump" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
-            🧾 Receipts
-          </button>
-          <button id="btn-portal-renew" class="btn btn-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
+        <!-- Primary Action Button -->
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          <button id="btn-portal-renew" class="btn btn-primary btn-sm" style="font-weight: 700; font-size: 0.85rem; padding: 7px 16px;">
             ⚡ Renew Plan
           </button>
         </div>
+      </div>
+
+      <!-- Quick Action Navigation Toolbar Row -->
+      <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid ${business.bannerImage ? 'rgba(255,255,255,0.15)' : 'var(--color-divider, rgba(0,0,0,0.08))'}; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-start; position: relative; z-index: 1;">
+        <button id="btn-portal-profile" class="btn btn-outline-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
+          👤 Profile
+        </button>
+        <button id="btn-portal-idcard" class="btn btn-outline-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
+          🪪 Digital ID
+        </button>
+        <button id="btn-portal-notices" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
+          📢 Notices
+        </button>
+        <button id="btn-portal-holidays" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
+          📅 Holidays
+        </button>
+        <button id="btn-portal-lostfound" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
+          🔍 Lost &amp; Found
+        </button>
+        <button id="btn-portal-feedback" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
+          💬 Feedback
+        </button>
+        <button id="btn-portal-receipts-jump" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
+          🧾 Receipts
+        </button>
+        <button id="btn-portal-seat-change" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
+          💺 Change Seat
+        </button>
+        <button id="btn-portal-leave" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
+          🌴 Leave
+        </button>
+        <button id="btn-portal-referral" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
+          🎁 Refer
+        </button>
       </div>
     </div>
 
