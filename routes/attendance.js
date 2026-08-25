@@ -28,6 +28,19 @@ router.get('/', protect, async (req, res) => {
   try {
     const { date, student, status, page = 1, limit = 50 } = req.query;
     const filter = {};
+    
+    // RBAC: If student role, isolate to own attendance only
+    if (req.user.role === 'student') {
+      const Student = require('../models/Student');
+      const sDoc = await Student.findOne({
+        $or: [{ email: req.user.email }, { phone: req.user.phone }, { _id: req.user.studentId || req.user.id || req.user._id }]
+      }).select('_id').lean();
+      if (!sDoc) return res.status(403).json({ success: false, message: 'Access denied' });
+      filter.student = sDoc._id;
+    } else {
+      if (student) filter.student = student;
+    }
+
     if (date) {
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
@@ -35,7 +48,6 @@ router.get('/', protect, async (req, res) => {
       endOfDay.setHours(23, 59, 59, 999);
       filter.date = { $gte: startOfDay, $lte: endOfDay };
     }
-    if (student) filter.student = student;
     if (status) filter.status = status;
 
     const total = await Attendance.countDocuments(filter);
@@ -57,8 +69,8 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
-// GET /today - Today's attendance
-router.get('/today', protect, async (req, res) => {
+// GET /today - Today's attendance (Staff & Admin only)
+router.get('/today', protect, roleCheck('owner', 'superadmin', 'admin', 'branch_manager', 'staff'), async (req, res) => {
   try {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -86,9 +98,23 @@ router.get('/today', protect, async (req, res) => {
 // GET /student/:studentId - Attendance history for a student
 router.get('/student/:studentId', protect, async (req, res) => {
   try {
-    const records = await Attendance.find({ student: req.params.studentId })
+    const Student = require('../models/Student');
+    const { studentId } = req.params;
+
+    // RBAC: If student role, ensure they only query their own record
+    if (req.user.role === 'student') {
+      const sDoc = await Student.findOne({
+        $or: [{ email: req.user.email }, { phone: req.user.phone }, { _id: req.user.studentId || req.user.id || req.user._id }]
+      }).select('_id').lean();
+      if (!sDoc || String(sDoc._id) !== String(studentId)) {
+        return res.status(403).json({ success: false, message: 'Access denied to other student attendance records' });
+      }
+    }
+
+    const records = await Attendance.find({ student: studentId })
       .populate('seat', 'seatNumber')
-      .sort({ date: -1 });
+      .sort({ date: -1 })
+      .lean();
 
     res.json({
       success: true,

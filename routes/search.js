@@ -91,7 +91,10 @@ router.post('/ocr-id-proof', async (req, res) => {
   }
 });
 
+const { roleCheck } = require('../middleware/roleCheck');
+
 router.use(protect);
+router.use(roleCheck('owner', 'superadmin', 'admin', 'branch_manager', 'staff'));
 
 // @route   GET /api/search
 // @desc    Global multi-source search across students, seats, plans, and payments

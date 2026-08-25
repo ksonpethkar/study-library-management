@@ -36,6 +36,7 @@ router.get('/public-available', async (req, res) => {
 
 // All remaining routes are protected
 router.use(protect);
+router.use(roleCheck('owner', 'superadmin', 'admin', 'branch_manager', 'staff'));
 
 // GET / - List seats with branch, zone, status, floor, type filters
 router.get('/', async (req, res) => {
