@@ -24,19 +24,23 @@ window.onerror = function (message, source, lineno, colno, error) {
 };
 
 window.onunhandledrejection = function (event) {
-  console.error('❌ Unhandled Promise Rejection:', event.reason);
   const reasonMsg = event.reason?.message || (typeof event.reason === 'string' ? event.reason : '');
   if (
+    !reasonMsg ||
     reasonMsg.includes('Transition was skipped') ||
     reasonMsg.includes('Transition was aborted') ||
     reasonMsg.includes('timeout in DOM update') ||
     reasonMsg.includes('AbortError') ||
-    reasonMsg.includes('canceled')
+    reasonMsg.includes('canceled') ||
+    reasonMsg.includes('Failed to fetch') ||
+    reasonMsg.includes('Network error') ||
+    reasonMsg.includes('Load failed') ||
+    reasonMsg.includes('network error')
   ) {
     return;
   }
   if (typeof document !== 'undefined' && document.body && typeof Toast !== 'undefined' && Toast.error) {
-    Toast.error(`Async Error: ${reasonMsg || 'An unhandled async error occurred.'}`);
+    Toast.error(`Async Error: ${reasonMsg}`);
   }
 };
 
