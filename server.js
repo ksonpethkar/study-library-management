@@ -118,7 +118,32 @@ const uploadsDir = path.join(__dirname, 'uploads');
 if (!require('fs').existsSync(uploadsDir)) {
   require('fs').mkdirSync(uploadsDir, { recursive: true });
 }
-app.use('/uploads', express.static(uploadsDir, { maxAge: '7d' }));
+
+// Persistent /uploads file server (Serves from local disk cache or auto-restores from MongoDB Atlas)
+app.use('/uploads', async (req, res, next) => {
+  const filename = path.basename(req.path);
+  if (!filename) return next();
+  const filePath = path.join(uploadsDir, filename);
+
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+
+  try {
+    const MediaFile = require('./models/MediaFile');
+    const media = await MediaFile.findOne({ filename }).lean();
+    if (media && media.data) {
+      try { await fs.promises.writeFile(filePath, media.data); } catch (e) {}
+      res.setHeader('Content-Type', media.mimeType || 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+      return res.send(media.data);
+    }
+  } catch (err) {
+    console.warn('Media fetch from DB warning:', err.message);
+  }
+
+  next();
+}, express.static(uploadsDir, { maxAge: '7d' }));
 
 // API Routes
 app.use('/api/upload', require('./routes/upload'));

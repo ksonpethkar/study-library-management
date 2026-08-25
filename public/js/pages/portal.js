@@ -181,7 +181,10 @@ function renderPortalUI(container, data, analytics = null) {
               box-shadow: 0 4px 14px ${isCheckedIn ? 'rgba(16, 185, 129, 0.35)' : 'rgba(108, 92, 231, 0.2)'};
               position: relative;
             ">
-              ${(student.photo || user?.avatar) ? `<img src="${escapeHTML(student.photo || user.avatar)}" alt="${escapeHTML(student.name)}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
+              ${(student.photo || user?.avatar) ? `
+                <img src="${escapeHTML(student.photo || user.avatar)}" alt="${escapeHTML(student.name)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 800;">${initials}</span>
+              ` : initials}
             </div>
             <div>
               <div style="font-size: 0.76rem; font-weight: 600; color: ${business.bannerImage ? 'rgba(255,255,255,0.85)' : 'var(--color-text-secondary)'}; display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">

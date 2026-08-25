@@ -48,6 +48,24 @@ router.post('/', async (req, res) => {
 
       await fs.promises.writeFile(targetPath, buffer);
 
+      // Persist to MongoDB Atlas so file survives container rebuilds/redeploys
+      try {
+        const MediaFile = require('../models/MediaFile');
+        await MediaFile.findOneAndUpdate(
+          { filename },
+          {
+            filename,
+            mimeType,
+            data: buffer,
+            size: buffer.length,
+            folder: folder || 'uploads'
+          },
+          { upsert: true, new: true }
+        );
+      } catch (dbErr) {
+        console.warn('Failed to save file to MongoDB MediaFile:', dbErr.message);
+      }
+
       const fileUrl = `/uploads/${filename}`;
       return res.json({
         success: true,
@@ -70,6 +88,35 @@ router.post('/', async (req, res) => {
   } catch (err) {
     console.error('Upload Error:', err);
     res.status(500).json({ success: false, message: 'Failed to save file' });
+  }
+});
+
+/**
+ * @route   GET /api/upload/:filename
+ * @desc    Serve or restore file from MongoDB Atlas
+ * @access  Public
+ */
+router.get('/:filename', async (req, res) => {
+  try {
+    const filename = path.basename(req.params.filename);
+    const targetPath = path.join(uploadsDir, filename);
+
+    if (fs.existsSync(targetPath)) {
+      return res.sendFile(targetPath);
+    }
+
+    const MediaFile = require('../models/MediaFile');
+    const media = await MediaFile.findOne({ filename }).lean();
+    if (media && media.data) {
+      try { await fs.promises.writeFile(targetPath, media.data); } catch (e) {}
+      res.setHeader('Content-Type', media.mimeType || 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+      return res.send(media.data);
+    }
+
+    res.status(404).json({ success: false, message: 'File not found' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
