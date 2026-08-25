@@ -218,6 +218,9 @@ function renderPortalUI(container, data, analytics = null) {
           <button id="btn-portal-idcard" class="btn btn-outline-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
             🪪 Digital ID
           </button>
+          <button id="btn-portal-receipts-jump" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
+            🧾 Receipts
+          </button>
           <button id="btn-portal-renew" class="btn btn-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
             ⚡ Renew Plan
           </button>
@@ -523,11 +526,12 @@ function renderPortalUI(container, data, analytics = null) {
     </div>
 
     <!-- Payment Receipts History Table -->
-    <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
-      <div class="card-header p-3" style="border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover);">
+    <div id="student-receipts-card" class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
+      <div class="card-header p-3" style="border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
         <h4 style="margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--color-text-primary);">
           💳 My Payment Receipts & Invoices
         </h4>
+        <span style="font-size: 0.8rem; color: var(--color-text-muted);">Official Tax & Fee Invoices</span>
       </div>
       <div class="card-body p-0">
         <div style="overflow-x: auto;">
@@ -539,7 +543,7 @@ function renderPortalUI(container, data, analytics = null) {
                 <th style="padding: 12px 16px;">Method</th>
                 <th style="padding: 12px 16px;">Amount</th>
                 <th style="padding: 12px 16px;">Status</th>
-                <th style="padding: 12px 16px;">Action</th>
+                <th style="padding: 12px 16px; text-align: right;">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -553,9 +557,9 @@ function renderPortalUI(container, data, analytics = null) {
                   <td style="padding: 12px 16px; text-transform: uppercase;">${escapeHTML(p.paymentMethod || 'UPI')}</td>
                   <td style="padding: 12px 16px; font-weight: 700; color: var(--color-success);">${SmartFormatters.currency(p.finalAmount)}</td>
                   <td style="padding: 12px 16px;"><span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success);">Paid</span></td>
-                  <td style="padding: 12px 16px;">
-                    <button class="btn btn-sm btn-outline-primary btn-view-receipt" data-receipt='${JSON.stringify(p)}' style="font-size: 0.75rem; padding: 2px 8px;">
-                      🖨️ Receipt
+                  <td style="padding: 12px 16px; text-align: right;">
+                    <button class="btn btn-sm btn-primary btn-view-receipt" data-receipt='${JSON.stringify(p)}' style="font-size: 0.8rem; padding: 4px 12px; font-weight: 600;">
+                      📥 Download / Print Receipt
                     </button>
                   </td>
                 </tr>
@@ -2324,40 +2328,180 @@ function renderPortalUI(container, data, analytics = null) {
     }
   });
 
+  // Jump to receipts
+  container.querySelector('#btn-portal-receipts-jump')?.addEventListener('click', () => {
+    const el = document.getElementById('student-receipts-card');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.4)';
+      setTimeout(() => { el.style.boxShadow = ''; }, 1500);
+    }
+  });
+
   // Attach Payment Receipt Click Handlers
   container.querySelectorAll('.btn-view-receipt').forEach(btn => {
     btn.addEventListener('click', () => {
       try {
         const p = JSON.parse(btn.dataset.receipt);
+        const receiptNo = p.receiptNumber || 'REC';
+        const formattedDate = new Date(p.paymentDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const paymentMode = (p.paymentMethod || 'UPI').toUpperCase();
+        const paidAmount = p.finalAmount !== undefined ? p.finalAmount : (p.amount || 0);
+        const baseAmount = p.amount !== undefined ? p.amount : paidAmount;
+        const discountAmount = p.discount || 0;
+        const planName = p.plan?.name || student.plan?.name || 'Study Membership';
+        const deskInfo = student.seat ? (student.seat.seatNumber || student.seat) : 'General Access';
+
         const receiptHtml = `
-          <div id="student-receipt-modal" style="padding: 20px; font-family: 'Outfit', sans-serif; background: #fff; color: #1a1a2e; border-radius: 8px;">
-            <div style="text-align: center; border-bottom: 2px dashed #ccc; padding-bottom: 12px; margin-bottom: 12px;">
-              <h3 style="margin: 0; color: #1e1b4b;">${escapeHTML(business.businessName || 'Study Library')}</h3>
-              <p style="font-size: 12px; color: #666; margin: 4px 0;">${escapeHTML(business.address || '')}</p>
-              <p style="font-size: 12px; color: #666;">Phone: ${escapeHTML(business.phone || '')}</p>
-              <div style="font-size: 14px; font-weight: 700; color: #6366f1; margin-top: 6px;">FEE PAYMENT RECEIPT</div>
+          <div id="student-receipt-modal" style="padding: 18px; font-family: 'Inter', Arial, sans-serif; background: #ffffff; color: #0f172a; border-radius: 8px;">
+            
+            <!-- Receipt Header -->
+            <div style="text-align: center; border-bottom: 2px dashed #cbd5e1; padding-bottom: 12px; margin-bottom: 12px;">
+              <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px;">
+                ${business.logo ? `<img src="${business.logo}" style="max-height: 38px; max-width: 60px; object-fit: contain;">` : ''}
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #1e1b4b;">${escapeHTML(business.businessName || 'Study Library Management')}</h3>
+              </div>
+              <p style="font-size: 11px; color: #475569; margin: 2px 0;">${escapeHTML(business.address || '')}</p>
+              <p style="font-size: 11px; color: #475569; margin: 2px 0;">📞 ${escapeHTML(business.phone || '')} ${business.gstNumber ? `• GSTIN: ${escapeHTML(business.gstNumber)}` : ''}</p>
+              <div style="display: inline-block; background: #e0e7ff; color: #3730a3; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 4px; margin-top: 6px; letter-spacing: 0.5px;">
+                OFFICIAL FEE PAYMENT RECEIPT
+              </div>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 8px; font-size: 13px; margin-bottom: 14px;">
-              <div><strong>Receipt #:</strong> ${escapeHTML(p.receiptNumber || 'REC')}</div>
-              <div style="text-align: right;"><strong>Date:</strong> ${new Date(p.paymentDate).toLocaleDateString('en-IN')}</div>
-              <div><strong>Student:</strong> ${escapeHTML(student.name)} (${student.studentId})</div>
-              <div style="text-align: right;"><strong>Payment Method:</strong> ${escapeHTML(p.paymentMethod || 'UPI').toUpperCase()}</div>
+
+            <!-- Receipt Metadata Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 11.5px; margin-bottom: 12px; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+              <div>
+                <div style="font-size: 9.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Receipt No.</div>
+                <div style="font-weight: 700; font-family: monospace; color: #0f172a;">${escapeHTML(receiptNo)}</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 9.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Payment Date</div>
+                <div style="font-weight: 600; color: #0f172a;">${formattedDate}</div>
+              </div>
+              <div>
+                <div style="font-size: 9.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Student Name</div>
+                <div style="font-weight: 700; color: #0f172a;">${escapeHTML(student.name)}</div>
+                <div style="font-size: 9.5px; color: #64748b; font-family: monospace;">ID: ${escapeHTML(student.studentId)}</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 9.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Seat / Desk</div>
+                <div style="font-weight: 600; color: #047857;">${escapeHTML(String(deskInfo))}</div>
+              </div>
             </div>
-            <div style="border-top: 1px solid #eee; border-bottom: 1px solid #eee; padding: 10px 0; margin-bottom: 14px; display: flex; justify-content: space-between; font-size: 15px; font-weight: 700;">
-              <span>Amount Paid:</span>
-              <span style="color: #059669;">₹${p.finalAmount || p.amount}</span>
+
+            <!-- Fee Line Item Table -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11.5px;">
+              <thead>
+                <tr style="border-bottom: 1.5px solid #cbd5e1; color: #475569; font-size: 10px; text-transform: uppercase;">
+                  <th style="padding: 6px 0; text-align: left;">Description</th>
+                  <th style="padding: 6px 0; text-align: right;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                  <td style="padding: 8px 0;">${escapeHTML(planName)}</td>
+                  <td style="padding: 8px 0; text-align: right; font-weight: 600;">₹${baseAmount}</td>
+                </tr>
+                ${discountAmount > 0 ? `
+                  <tr style="border-bottom: 1px solid #f1f5f9; color: #047857;">
+                    <td style="padding: 6px 0;">Discount Applied</td>
+                    <td style="padding: 6px 0; text-align: right; font-weight: 600;">-₹${discountAmount}</td>
+                  </tr>
+                ` : ''}
+                <tr style="border-top: 2px solid #0f172a; font-weight: 700; font-size: 13px;">
+                  <td style="padding: 8px 0;">Total Amount Paid</td>
+                  <td style="padding: 8px 0; text-align: right; color: #047857;">₹${paidAmount}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Payment Mode & Verification -->
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+              <div>
+                <span>Payment Mode: <strong style="color: #0f172a;">${escapeHTML(paymentMode)}</strong></span>
+                ${p.transactionId ? `<span style="margin-left: 6px; font-family: monospace;">(Txn: ${escapeHTML(p.transactionId)})</span>` : ''}
+              </div>
+              <span style="font-size: 9px; font-weight: 700; color: #047857; background: #d1fae5; padding: 2px 7px; border-radius: 3px; border: 1px solid #10b981;">
+                PAID & VERIFIED ✓
+              </span>
             </div>
-            <div style="text-align: center; font-size: 11px; color: #888; margin-top: 12px;">
-              Thank you for learning with us! This is a computer generated receipt.
+
+            <div style="text-align: center; font-size: 9.5px; color: #94a3b8; margin-top: 10px;">
+              This is an authorized computer-generated fee payment receipt.
             </div>
-            <div class="d-flex justify-content-center gap-2 mt-4 no-print">
-              <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Print Receipt</button>
+
+            <!-- Modal Action Buttons -->
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
               <button class="btn btn-secondary btn-sm" onclick="Modal.closeAll()">Close</button>
+              <button class="btn btn-primary btn-sm" id="btn-print-student-receipt-modal" style="font-weight: 600;">
+                📥 Download PDF / Print Receipt
+              </button>
             </div>
+
           </div>
         `;
-        new Modal({ title: `Receipt ${p.receiptNumber || ''}`, content: receiptHtml, size: 'sm' }).show();
+
+        Modal.show({
+          title: `Payment Receipt — ${receiptNo}`,
+          content: receiptHtml,
+          size: 'md'
+        });
+
+        // Wire isolated print / save as PDF
+        setTimeout(() => {
+          document.getElementById('btn-print-student-receipt-modal')?.addEventListener('click', () => {
+            const printWin = window.open('', '_blank', 'width=750,height=800');
+            if (!printWin) {
+              window.print();
+              return;
+            }
+            printWin.document.open();
+            printWin.document.write(`
+              <!DOCTYPE html>
+              <html lang="en">
+              <head>
+                <meta charset="UTF-8">
+                <title>Receipt — ${receiptNo}</title>
+                <link rel="preconnect" href="https://fonts.googleapis.com">
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+                <style>
+                  @page { size: A4 portrait; margin: 8mm; }
+                  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; }
+                  body {
+                    background: #ffffff !important;
+                    color: #0f172a !important;
+                    padding: 12px;
+                    width: 100%;
+                    max-width: 680px;
+                    margin: 0 auto;
+                    -webkit-font-smoothing: antialiased;
+                  }
+                  table { width: 100%; border-collapse: collapse; }
+                  @media print {
+                    body { width: 100%; max-width: 680px; margin: 0 auto; padding: 0; }
+                    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                  }
+                </style>
+              </head>
+              <body>
+                ${receiptHtml.replace(/<div style="display: flex; justify-content: flex-end;[\s\S]*?<\/div>\s*<\/div>$/, '</div>')}
+                <script>
+                  window.onload = function() {
+                    setTimeout(function() {
+                      window.print();
+                    }, 300);
+                  };
+                </script>
+              </body>
+              </html>
+            `);
+            printWin.document.close();
+          });
+        }, 100);
+
       } catch (e) {
+        console.error('Receipt click error:', e);
         Toast.error('Could not load receipt');
       }
     });
