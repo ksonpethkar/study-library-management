@@ -3186,19 +3186,83 @@ function renderPortalUI(container, data, analytics = null) {
                     </details>
                   </div>
                 ` : selectedPortalPayMode === 'bank_transfer' ? `
-                  <!-- Bank Transfer Details Card -->
-                  <div style="background: var(--color-surface, #ffffff); border: 1px solid var(--color-border); border-radius: 12px; padding: 14px;">
-                    <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary); margin-bottom: 8px;">🏛️ Library Bank Details</div>
-                    <div style="font-size: 0.82rem; display: flex; flex-direction: column; gap: 4px;">
-                      <div>Bank Name: <strong>${escapeHTML(q.bankDetails?.bankName || 'HDFC Bank')}</strong></div>
-                      <div>A/C Number: <strong style="font-family: monospace;">${escapeHTML(q.bankDetails?.accountNumber || '50200012345678')}</strong></div>
-                      <div>IFSC Code: <strong style="font-family: monospace;">${escapeHTML(q.bankDetails?.ifscCode || 'HDFC0000123')}</strong></div>
-                      <div>Account Holder: <strong>${escapeHTML(q.bankDetails?.accountHolderName || q.businessName || 'Study Library')}</strong></div>
+                  <!-- Smart Bank Transfer Details Card -->
+                  <div style="background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 14px; padding: 14px; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--color-border); padding-bottom: 6px;">
+                      <span style="font-weight: 800; font-size: 0.90rem; color: var(--color-primary);">🏛️ Library Bank Details (1-Tap Copy)</span>
+                      <button type="button" id="btn-portal-copy-all-bank" class="btn btn-xs btn-outline-primary" style="padding: 2px 8px; font-size: 0.75rem; border-radius: 6px;">📋 Copy All</button>
                     </div>
-                    <div class="mt-3">
-                      <label style="font-size: 0.82rem; font-weight: 700;">Bank Transfer Reference / UTR *</label>
-                      <input type="text" id="renewal-utr-input" class="form-control form-control-sm mt-1" placeholder="e.g. Bank Ref #984210" required>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; font-size: 0.82rem; margin-bottom: 10px;">
+                      <div style="background: var(--color-bg-secondary); padding: 6px 8px; border-radius: 8px;">
+                        <div style="font-size: 0.70rem; color: var(--color-text-muted);">Bank Name</div>
+                        <strong>${escapeHTML(q.bankDetails?.bankName || 'HDFC Bank')}</strong>
+                      </div>
+                      <div style="background: var(--color-bg-secondary); padding: 6px 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                          <div style="font-size: 0.70rem; color: var(--color-text-muted);">Account Number</div>
+                          <strong style="font-family: monospace; color: var(--color-primary);">${escapeHTML(q.bankDetails?.accountNumber || '50200012345678')}</strong>
+                        </div>
+                        <button type="button" class="btn btn-xs btn-outline-secondary btn-portal-copy-bank" data-copy="${escapeHTML(q.bankDetails?.accountNumber || '50200012345678')}" style="padding: 1px 5px; font-size: 0.70rem;">📋</button>
+                      </div>
+                      <div style="background: var(--color-bg-secondary); padding: 6px 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                          <div style="font-size: 0.70rem; color: var(--color-text-muted);">IFSC Code</div>
+                          <strong style="font-family: monospace; color: var(--color-primary);">${escapeHTML(q.bankDetails?.ifscCode || 'HDFC0000123')}</strong>
+                        </div>
+                        <button type="button" class="btn btn-xs btn-outline-secondary btn-portal-copy-bank" data-copy="${escapeHTML(q.bankDetails?.ifscCode || 'HDFC0000123')}" style="padding: 1px 5px; font-size: 0.70rem;">📋</button>
+                      </div>
+                      <div style="background: var(--color-bg-secondary); padding: 6px 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                          <div style="font-size: 0.70rem; color: var(--color-text-muted);">Account Holder</div>
+                          <strong>${escapeHTML(q.bankDetails?.accountHolderName || q.businessName || 'Study Library')}</strong>
+                        </div>
+                        <button type="button" class="btn btn-xs btn-outline-secondary btn-portal-copy-bank" data-copy="${escapeHTML(q.bankDetails?.accountHolderName || q.businessName || 'Study Library')}" style="padding: 1px 5px; font-size: 0.70rem;">📋</button>
+                      </div>
                     </div>
+
+                    <!-- 1-Tap Open Bank App Grid -->
+                    <div style="margin-bottom: 10px; text-align: center;">
+                      <div style="font-size: 0.78rem; font-weight: 700; color: var(--color-primary); margin-bottom: 6px;">
+                        📲 1-Tap Open Banking App
+                      </div>
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(85px, 1fr)); gap: 6px;">
+                        <button type="button" class="btn btn-sm btn-renewal-bank-intent" data-bank="sbi" style="background: #1a4d8c; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.78rem; padding: 6px 4px;">
+                          🏛️ SBI YONO
+                        </button>
+                        <button type="button" class="btn btn-sm btn-renewal-bank-intent" data-bank="hdfc" style="background: #004c8f; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.78rem; padding: 6px 4px;">
+                          🏛️ HDFC Bank
+                        </button>
+                        <button type="button" class="btn btn-sm btn-renewal-bank-intent" data-bank="icici" style="background: #b82b2b; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.78rem; padding: 6px 4px;">
+                          🏛️ ICICI Bank
+                        </button>
+                        <button type="button" class="btn btn-sm btn-renewal-bank-intent" data-bank="other" style="background: #0f766e; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.78rem; padding: 6px 4px;">
+                          🏛️ Other Bank
+                        </button>
+                      </div>
+
+                      <div id="renewal-nb-auto-status" style="display: none; margin-top: 8px; background: rgba(108, 92, 231, 0.08); border: 1.5px solid var(--color-primary); border-radius: 8px; padding: 8px; font-size: 0.80rem;"></div>
+                    </div>
+
+                    <!-- 📸 1-Tap Slip Upload Trigger -->
+                    <div style="background: var(--color-bg-secondary); border: 1.5px dashed var(--color-primary); border-radius: 10px; padding: 10px; text-align: center; margin-bottom: 8px;">
+                      <input type="file" id="renewal-slip-file-input" accept="image/*,application/pdf" style="display: none;">
+                      <button type="button" id="btn-renewal-slip-trigger" class="btn btn-sm btn-outline-primary" style="font-weight: 700; font-size: 0.80rem; border-radius: 6px; padding: 4px 12px;">
+                        📸 Attach Payment Screenshot / Slip
+                      </button>
+                      <div id="renewal-slip-preview" style="display: none; margin-top: 6px; font-size: 0.76rem; color: var(--color-success); font-weight: 700;"></div>
+                    </div>
+
+                    <!-- Collapsible Manual Reference Number Input -->
+                    <details style="text-align: left;">
+                      <summary style="cursor: pointer; font-size: 0.76rem; color: var(--color-text-muted);">
+                        ✏️ Or Enter Bank Ref manually
+                      </summary>
+                      <div style="margin-top: 6px; background: var(--color-bg-secondary); padding: 8px; border-radius: 8px; border: 1px solid var(--color-border);">
+                        <label style="font-size: 0.76rem; font-weight: 600; display: block; margin-bottom: 2px;">Bank NEFT / IMPS Reference *</label>
+                        <input type="text" id="renewal-utr-input" class="form-control form-control-sm" placeholder="e.g. Bank Ref #984210" maxlength="35">
+                      </div>
+                    </details>
                   </div>
                 ` : `
                   <!-- Pay at Desk Notice -->
@@ -3296,20 +3360,124 @@ function renderPortalUI(container, data, analytics = null) {
           };
         });
 
-        // Listen for return from UPI app in Renewal Modal
-        const onRenewalReturn = () => {
-          if (renewalTxnRef) {
-            const statusBanner = modalContent.querySelector('#renewal-auto-status');
+        // 1-Tap Copy buttons in Renewal Modal
+        modalContent.querySelectorAll('.btn-portal-copy-bank').forEach(btn => {
+          btn.onclick = (e) => {
+            e.preventDefault();
+            const text = btn.dataset.copy;
+            if (text) {
+              navigator.clipboard.writeText(text).then(() => {
+                const old = btn.textContent;
+                btn.textContent = '✅';
+                setTimeout(() => { btn.textContent = old; }, 1500);
+              }).catch(() => {});
+            }
+          };
+        });
+
+        const copyAllRenewalBtn = modalContent.querySelector('#btn-portal-copy-all-bank');
+        if (copyAllRenewalBtn) {
+          copyAllRenewalBtn.onclick = (e) => {
+            e.preventDefault();
+            const info = `Bank: ${q.bankDetails?.bankName || 'HDFC Bank'}\nA/C No: ${q.bankDetails?.accountNumber || '50200012345678'}\nIFSC: ${q.bankDetails?.ifscCode || 'HDFC0000123'}\nBeneficiary: ${q.bankDetails?.accountHolderName || q.businessName || 'Study Library'}`;
+            navigator.clipboard.writeText(info).then(() => {
+              copyAllRenewalBtn.textContent = '✅ Copied All!';
+              setTimeout(() => { copyAllRenewalBtn.textContent = '📋 Copy All'; }, 1500);
+            }).catch(() => {});
+          };
+        }
+
+        // Bank Apps Intent in Renewal Modal
+        modalContent.querySelectorAll('.btn-renewal-bank-intent').forEach(btn => {
+          btn.onclick = (e) => {
+            e.preventDefault();
+            const bank = btn.dataset.bank;
+            const studentPhone = student.phone || 'STU';
+            renewalTxnRef = `BNK_REN_${studentPhone.slice(-4)}_${Date.now().toString().slice(-6)}`;
+
+            const info = `${q.bankDetails?.accountNumber || '50200012345678'}`;
+            navigator.clipboard.writeText(info).catch(() => {});
+
+            const utrInp = modalContent.querySelector('#renewal-utr-input');
+            if (utrInp) utrInp.value = renewalTxnRef;
+
+            const statusBanner = modalContent.querySelector('#renewal-nb-auto-status');
             if (statusBanner) {
               statusBanner.style.display = 'block';
-              statusBanner.style.borderColor = 'var(--color-success)';
-              statusBanner.style.background = 'rgba(0, 184, 148, 0.08)';
               statusBanner.innerHTML = `
+                <div style="font-weight: 700; color: var(--color-primary); display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <span>⏳</span> <span>Opening ${bank.toUpperCase()} (A/C No Copied)...</span>
+                </div>
+                <small class="text-muted" style="display: block; margin-top: 2px;">Ref <code>${renewalTxnRef}</code> auto-assigned. Complete transfer and return here.</small>
+              `;
+            }
+
+            const bankUrls = {
+              sbi: 'https://www.onlinesbi.sbi/',
+              hdfc: 'https://netbanking.hdfcbank.com/netbanking/',
+              icici: 'https://infinity.icicibank.com/',
+              other: 'https://www.google.com/search?q=net+banking+login'
+            };
+            window.open(bankUrls[bank] || bankUrls.other, '_blank');
+          };
+        });
+
+        // 📸 1-Tap Slip Upload Trigger in Renewal Modal
+        const slipTrigger = modalContent.querySelector('#btn-renewal-slip-trigger');
+        const slipFileInp = modalContent.querySelector('#renewal-slip-file-input');
+        const slipPrev = modalContent.querySelector('#renewal-slip-preview');
+
+        if (slipTrigger && slipFileInp) {
+          slipTrigger.onclick = (e) => {
+            e.preventDefault();
+            slipFileInp.click();
+          };
+
+          slipFileInp.onchange = () => {
+            const file = slipFileInp.files?.[0];
+            if (file) {
+              const studentPhone = student.phone || 'STU';
+              renewalTxnRef = `SLIP_REN_${studentPhone.slice(-4)}_${Date.now().toString().slice(-6)}`;
+              const utrInp = modalContent.querySelector('#renewal-utr-input');
+              if (utrInp) utrInp.value = renewalTxnRef;
+
+              if (slipPrev) {
+                slipPrev.style.display = 'block';
+                slipPrev.innerHTML = `✅ Slip Attached: <strong>${escapeHTML(file.name)}</strong> (Ref: <code>${renewalTxnRef}</code>)`;
+              }
+            }
+          };
+        }
+
+        // Listen for return from UPI or Bank app in Renewal Modal
+        const onRenewalReturn = () => {
+          if (renewalTxnRef) {
+            const upiBanner = modalContent.querySelector('#renewal-auto-status');
+            if (upiBanner && selectedPortalPayMode === 'upi') {
+              upiBanner.style.display = 'block';
+              upiBanner.style.borderColor = 'var(--color-success)';
+              upiBanner.style.background = 'rgba(0, 184, 148, 0.08)';
+              upiBanner.innerHTML = `
                 <div style="font-weight: 800; color: var(--color-success); display: flex; align-items: center; justify-content: center; gap: 6px;">
                   <span>✅</span> <span>UPI App Payment Captured!</span>
                 </div>
                 <small style="display: block; margin-top: 3px; color: var(--color-text-secondary);">
                   Ref <code>${renewalTxnRef}</code> verified. Tap <strong>Confirm & Extend Membership</strong> below.
+                </small>
+              `;
+            }
+
+            const nbBanner = modalContent.querySelector('#renewal-nb-auto-status');
+            if (nbBanner && selectedPortalPayMode === 'bank_transfer') {
+              nbBanner.style.display = 'block';
+              nbBanner.style.borderColor = 'var(--color-success)';
+              nbBanner.style.background = 'rgba(0, 184, 148, 0.08)';
+              nbBanner.innerHTML = `
+                <div style="font-weight: 800; color: var(--color-success); display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <span>✅</span> <span>Bank Transfer Handshake Recorded!</span>
+                </div>
+                <small style="display: block; margin-top: 3px; color: var(--color-text-secondary);">
+                  Ref <code>${renewalTxnRef}</code> auto-attached. Tap <strong>Confirm & Extend Membership</strong> below.
                 </small>
               `;
             }
@@ -3323,7 +3491,7 @@ function renderPortalUI(container, data, analytics = null) {
           renewalSubmitForm.onsubmit = async (e) => {
             e.preventDefault();
             const utrInput = modalContent.querySelector('#renewal-utr-input');
-            const utrNumber = selectedPortalPayMode === 'desk' ? 'DESK_CASH' : (utrInput?.value?.trim() || renewalTxnRef || `UPI_${Date.now()}`);
+            const utrNumber = selectedPortalPayMode === 'desk' ? 'DESK_CASH' : (utrInput?.value?.trim() || renewalTxnRef || `BNK_${Date.now()}`);
             const selectedPlanId = planSelect ? planSelect.value : q.selectedPlanId;
             const selectedShiftId = shiftSelect ? shiftSelect.value : q.selectedShiftId;
             const applyWallet = walletCheckbox ? walletCheckbox.checked : q.isWalletApplied;

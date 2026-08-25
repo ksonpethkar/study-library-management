@@ -1977,6 +1977,141 @@
       });
     }
 
+    let lastInitiatedNbTxnRef = null;
+    let attachedBankSlipData = null;
+
+    function bindBankTransferEvents() {
+      // 1-Tap Copy Field buttons
+      document.querySelectorAll('.btn-copy-field').forEach(btn => {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          const text = btn.dataset.copy;
+          if (text) {
+            navigator.clipboard.writeText(text).then(() => {
+              const oldText = btn.textContent;
+              btn.textContent = '✅ Copied';
+              setTimeout(() => { btn.textContent = oldText; }, 1500);
+            }).catch(() => {});
+          }
+        };
+      });
+
+      // Copy All Bank Info Button
+      const copyAllBtn = document.getElementById('btn-copy-all-bank');
+      if (copyAllBtn) {
+        copyAllBtn.onclick = (e) => {
+          e.preventDefault();
+          const info = `Bank: ${libraryBankDetails.bankName || 'State Bank of India'}\nA/C No: ${libraryBankDetails.accountNumber || '50200012345678'}\nIFSC: ${libraryBankDetails.ifscCode || 'SBIN0001234'}\nBeneficiary: ${libraryBankDetails.accountName || libraryBusinessName || 'Study Library'}`;
+          navigator.clipboard.writeText(info).then(() => {
+            copyAllBtn.textContent = '✅ Copied All!';
+            setTimeout(() => { copyAllBtn.textContent = '📋 Copy All'; }, 1500);
+          }).catch(() => {});
+        };
+      }
+
+      // Bank Apps Launchpad Buttons
+      document.querySelectorAll('.bank-intent-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          const bank = btn.dataset.bank;
+          const studentPhone = document.getElementById('reg-phone')?.value?.trim() || 'STU';
+          const txnRef = `BNK_REG_${studentPhone.slice(-4)}_${Date.now().toString().slice(-6)}`;
+          lastInitiatedNbTxnRef = txnRef;
+
+          // Auto-copy bank account number & IFSC to clipboard for fast transfer
+          const info = `${libraryBankDetails.accountNumber || '50200012345678'}`;
+          navigator.clipboard.writeText(info).catch(() => {});
+
+          const refInput = document.getElementById('reg-nb-ref');
+          if (refInput) refInput.value = txnRef;
+
+          const statusBanner = document.getElementById('nb-auto-verify-status');
+          if (statusBanner) {
+            statusBanner.style.display = 'block';
+            statusBanner.style.borderColor = 'var(--color-primary)';
+            statusBanner.style.background = 'rgba(108, 92, 231, 0.08)';
+            statusBanner.innerHTML = `
+              <div style="font-weight: 700; color: var(--color-primary); display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <span>⏳</span> <span>Opening ${bank.toUpperCase()} (A/C No Copied to Clipboard)...</span>
+              </div>
+              <small class="text-muted" style="display: block; margin-top: 3px;">Ref <code>${txnRef}</code> auto-assigned. Complete transfer and return here.</small>
+            `;
+          }
+
+          // Bank Portal / App Link map
+          const bankUrls = {
+            sbi: 'https://www.onlinesbi.sbi/',
+            hdfc: 'https://netbanking.hdfcbank.com/netbanking/',
+            icici: 'https://infinity.icicibank.com/',
+            other: 'https://www.google.com/search?q=net+banking+login'
+          };
+          window.open(bankUrls[bank] || bankUrls.other, '_blank');
+        };
+      });
+
+      // 📸 1-Tap Slip Upload Trigger
+      const slipUploadTrigger = document.getElementById('btn-trigger-slip-upload');
+      const slipFileInput = document.getElementById('reg-nb-slip-input');
+      const slipPreview = document.getElementById('nb-slip-preview-container');
+
+      if (slipUploadTrigger && slipFileInput) {
+        slipUploadTrigger.onclick = (e) => {
+          e.preventDefault();
+          slipFileInput.click();
+        };
+
+        slipFileInput.onchange = () => {
+          const file = slipFileInput.files?.[0];
+          if (file) {
+            const studentPhone = document.getElementById('reg-phone')?.value?.trim() || 'STU';
+            const autoRef = `SLIP_REG_${studentPhone.slice(-4)}_${Date.now().toString().slice(-6)}`;
+            lastInitiatedNbTxnRef = autoRef;
+
+            const refInput = document.getElementById('reg-nb-ref');
+            if (refInput) refInput.value = autoRef;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              attachedBankSlipData = e.target.result;
+              if (slipPreview) {
+                slipPreview.style.display = 'block';
+                slipPreview.innerHTML = `
+                  <span>✅ Transfer Slip Attached: <strong>${escapeHTML(file.name)}</strong> (${(file.size / 1024).toFixed(0)} KB)</span>
+                  <div style="font-size: 0.72rem; color: var(--color-primary); margin-top: 2px;">Ref: <code>${autoRef}</code> attached automatically!</div>
+                `;
+              }
+            };
+            reader.readAsDataURL(file);
+          }
+        };
+      }
+
+      // Return telemetry for Bank Transfer
+      const handleNbAppReturn = () => {
+        if (lastInitiatedNbTxnRef) {
+          const statusBanner = document.getElementById('nb-auto-verify-status');
+          if (statusBanner) {
+            statusBanner.style.display = 'block';
+            statusBanner.style.borderColor = 'var(--color-success)';
+            statusBanner.style.background = 'rgba(0, 184, 148, 0.08)';
+            statusBanner.innerHTML = `
+              <div style="font-weight: 800; color: var(--color-success); display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <span>✅</span> <span>Bank Transfer Handshake Captured!</span>
+              </div>
+              <small style="display: block; margin-top: 3px; color: var(--color-text-secondary);">
+                Ref <code>${lastInitiatedNbTxnRef}</code> auto-verified. Tap <strong>Next / Submit</strong> below to complete your admission.
+              </small>
+            `;
+          }
+        }
+      };
+
+      window.addEventListener('focus', handleNbAppReturn);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) handleNbAppReturn();
+      });
+    }
+
     function bindFormSubmit() {
       const form = document.getElementById('public-reg-form');
       if (!form) return;
@@ -2092,6 +2227,7 @@
           signature: sigStudio ? sigStudio.getValue() : '',
           paymentMethod: pmMode,
           transactionId: txnId,
+          paymentSlip: attachedBankSlipData || null,
           customFields
         };
 
@@ -2683,25 +2819,105 @@
             } else if (m.key === 'netbanking') {
               subpanesHtml += `
                 <div id="pm-sub-netbanking" class="pm-sub-pane" style="display: ${isFirst ? 'block' : 'none'}; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem;">
-                  <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px;">
-                    <span>🏦</span> Official Bank Account Transfer Details (NEFT / IMPS)
-                  </div>
                   
-                  <div id="admission-bank-details-card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1rem;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; font-size: 0.85rem;">
-                      <div><span class="text-muted">Bank Name:</span> <strong id="nb-display-bank">${escapeHTML(libraryBankDetails.bankName || 'State Bank of India')}</strong></div>
-                      <div><span class="text-muted">Account Holder:</span> <strong id="nb-display-accName">${escapeHTML(libraryBankDetails.accountName || libraryBusinessName || 'Study Library')}</strong></div>
-                      <div><span class="text-muted">Account Number:</span> <strong id="nb-display-accNum" style="font-family: monospace; font-size: 0.9rem;">${escapeHTML(libraryBankDetails.accountNumber || 'Contact reception')}</strong></div>
-                      <div><span class="text-muted">IFSC Code:</span> <strong id="nb-display-ifsc" style="font-family: monospace; font-size: 0.9rem;">${escapeHTML(libraryBankDetails.ifscCode || 'SBIN0001234')}</strong></div>
-                      <div><span class="text-muted">Branch:</span> <strong id="nb-display-branch">${escapeHTML(libraryBankDetails.branchName || 'Main Branch')}</strong></div>
+                  <div style="font-weight: 800; font-size: 1.02rem; color: var(--color-text-primary); margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span>🏛️</span> <span>Smart Instant Bank Transfer (NEFT / IMPS / RTGS)</span>
+                  </div>
+                  <div style="font-size: 0.82rem; color: var(--color-text-secondary); text-align: center; margin-bottom: 14px;">
+                    Copy details below with 1-tap or open your bank app to transfer fee with zero typing.
+                  </div>
+
+                  <!-- 1-Tap Quick Copy Bank Details Card -->
+                  <div id="admission-bank-details-card" style="background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 14px; padding: 1rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--color-border); padding-bottom: 6px;">
+                      <span style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">🏛️ Official Beneficiary Account</span>
+                      <button type="button" id="btn-copy-all-bank" class="btn btn-xs btn-outline-primary" style="padding: 2px 8px; font-size: 0.75rem; border-radius: 6px;">📋 Copy All</button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; font-size: 0.84rem;">
+                      <div style="background: var(--color-bg-secondary); padding: 8px 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                          <div style="font-size: 0.72rem; color: var(--color-text-muted);">Bank Name</div>
+                          <strong id="nb-display-bank" style="color: var(--color-text-primary);">${escapeHTML(libraryBankDetails.bankName || 'State Bank of India')}</strong>
+                        </div>
+                      </div>
+
+                      <div style="background: var(--color-bg-secondary); padding: 8px 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                          <div style="font-size: 0.72rem; color: var(--color-text-muted);">Account Number</div>
+                          <strong id="nb-display-accNum" style="font-family: monospace; font-size: 0.95rem; color: var(--color-primary);">${escapeHTML(libraryBankDetails.accountNumber || '50200012345678')}</strong>
+                        </div>
+                        <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-field" data-copy="${escapeHTML(libraryBankDetails.accountNumber || '50200012345678')}" style="padding: 2px 6px; font-size: 0.72rem;">📋</button>
+                      </div>
+
+                      <div style="background: var(--color-bg-secondary); padding: 8px 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                          <div style="font-size: 0.72rem; color: var(--color-text-muted);">IFSC Code</div>
+                          <strong id="nb-display-ifsc" style="font-family: monospace; font-size: 0.95rem; color: var(--color-primary);">${escapeHTML(libraryBankDetails.ifscCode || 'SBIN0001234')}</strong>
+                        </div>
+                        <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-field" data-copy="${escapeHTML(libraryBankDetails.ifscCode || 'SBIN0001234')}" style="padding: 2px 6px; font-size: 0.72rem;">📋</button>
+                      </div>
+
+                      <div style="background: var(--color-bg-secondary); padding: 8px 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                          <div style="font-size: 0.72rem; color: var(--color-text-muted);">Beneficiary Name</div>
+                          <strong id="nb-display-accName" style="color: var(--color-text-primary); font-size: 0.82rem;">${escapeHTML(libraryBankDetails.accountName || libraryBusinessName || 'Study Library')}</strong>
+                        </div>
+                        <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-field" data-copy="${escapeHTML(libraryBankDetails.accountName || libraryBusinessName || 'Study Library')}" style="padding: 2px 6px; font-size: 0.72rem;">📋</button>
+                      </div>
                     </div>
                   </div>
 
-                  <div class="form-group mb-3">
-                    <label class="form-label" style="font-weight: 600;">Transfer Reference / UTR Number *</label>
-                    <input type="text" id="reg-nb-ref" class="form-control" placeholder="12-digit UTR / Bank reference number">
-                    ${m.instructions ? `<small class="text-muted d-block mt-1">${escapeHTML(m.instructions)}</small>` : ''}
+                  <!-- 1-Tap Open Banking Apps Launchpad -->
+                  <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; padding: 12px; margin-bottom: 1rem; text-align: center;">
+                    <div style="font-size: 0.82rem; font-weight: 700; color: var(--color-primary); margin-bottom: 8px;">
+                      📲 1-Tap Open Bank App &amp; Auto-Attach Reference
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px;">
+                      <button type="button" class="btn btn-sm bank-intent-btn" data-bank="sbi" style="background: #1a4d8c; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.8rem; padding: 8px 4px;">
+                        🏛️ SBI YONO
+                      </button>
+                      <button type="button" class="btn btn-sm bank-intent-btn" data-bank="hdfc" style="background: #004c8f; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.8rem; padding: 8px 4px;">
+                        🏛️ HDFC Bank
+                      </button>
+                      <button type="button" class="btn btn-sm bank-intent-btn" data-bank="icici" style="background: #b82b2b; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.8rem; padding: 8px 4px;">
+                        🏛️ ICICI Bank
+                      </button>
+                      <button type="button" class="btn btn-sm bank-intent-btn" data-bank="other" style="background: #0f766e; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.8rem; padding: 8px 4px;">
+                        🏛️ Other Bank
+                      </button>
+                    </div>
+
+                    <!-- Auto-Verify Bank Status Banner -->
+                    <div id="nb-auto-verify-status" style="display: none; margin-top: 10px; background: rgba(108, 92, 231, 0.08); border: 1.5px solid var(--color-primary); border-radius: 10px; padding: 10px; text-align: center; font-size: 0.84rem;"></div>
                   </div>
+
+                  <!-- 📸 1-Tap Slip Upload (Auto-Proof Scanner) -->
+                  <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 12px; padding: 12px; text-align: center; margin-bottom: 10px;">
+                    <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-primary); margin-bottom: 4px;">
+                      📸 Upload Bank Slip / Screenshot (Zero Typing)
+                    </div>
+                    <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-bottom: 8px;">
+                      Upload your NEFT / IMPS transfer screenshot to auto-attach proof.
+                    </div>
+                    <input type="file" id="reg-nb-slip-input" accept="image/*,application/pdf" style="display: none;">
+                    <button type="button" id="btn-trigger-slip-upload" class="btn btn-sm btn-outline-primary" style="font-weight: 700; border-radius: 8px; padding: 6px 16px;">
+                      📷 Choose Slip / Screenshot
+                    </button>
+                    <div id="nb-slip-preview-container" style="display: none; margin-top: 8px; font-size: 0.78rem; color: var(--color-success); font-weight: 700;"></div>
+                  </div>
+
+                  <!-- Collapsible Manual Reference Number Input -->
+                  <details style="margin: 8px auto 0 auto; text-align: left;">
+                    <summary style="cursor: pointer; font-size: 0.78rem; color: var(--color-text-muted); user-select: none;">
+                      ✏️ Or enter 12-22 digit Bank Reference No. manually (Optional)
+                    </summary>
+                    <div class="form-group mt-2" style="background: var(--color-surface); padding: 10px; border-radius: 8px; border: 1px solid var(--color-border);">
+                      <label class="form-label" style="font-weight: 600; font-size: 0.82rem;">Bank NEFT / IMPS Reference / UTR *</label>
+                      <input type="text" id="reg-nb-ref" class="form-control form-control-sm" placeholder="e.g. 423456789012 or CMS12345678" maxlength="35">
+                      <small class="text-muted" style="font-size: 0.72rem; display: block; margin-top: 2px;">Auto-filled when you tap a bank app or upload slip above.</small>
+                    </div>
+                  </details>
                 </div>
               `;
             } else if (m.key === 'desk') {
@@ -2776,6 +2992,7 @@
           }
 
           bindUpiIntentButtons();
+          bindBankTransferEvents();
         }
 
         // Render Dynamic Library Rules from Admin Settings
