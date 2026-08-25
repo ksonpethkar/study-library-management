@@ -1850,7 +1850,7 @@
             }
 
             // Dynamic Quick Links (Strictly follow saved configuration)
-            const qLinks = Array.isArray(landing.footer?.quickLinks) ? landing.footer.quickLinks : [];
+            const qLinks = Array.isArray(landing.footer?.quickLinks) ? landing.footer.quickLinks.filter(l => l && l.label && l.url) : [];
             const flc = document.getElementById('footer-links-container');
             if (flc) {
               if (qLinks.length > 0) {
@@ -1858,7 +1858,10 @@
                   <li><a href="${l.url}" ${l.openInNewTab ? 'target="_blank" rel="noopener"' : ''}>${escapeHTML(l.label)}</a></li>
                 `).join('');
               } else {
-                flc.innerHTML = '';
+                flc.innerHTML = `
+                  <li><a href="/register">Online Admission</a></li>
+                  <li><a href="/student-login">Student Portal</a></li>
+                `;
               }
             }
 
@@ -1972,9 +1975,17 @@
         if (Array.isArray(event.data.quickLinks)) {
           const flc = document.getElementById('footer-links-container');
           if (flc) {
-            flc.innerHTML = event.data.quickLinks.map(l => `
-              <li><a href="${l.url}" ${l.openInNewTab ? 'target="_blank" rel="noopener"' : ''}>${escapeHTML(l.label)}</a></li>
-            `).join('');
+            const activeLiveLinks = event.data.quickLinks.filter(l => l && l.label && l.url);
+            if (activeLiveLinks.length > 0) {
+              flc.innerHTML = activeLiveLinks.map(l => `
+                <li><a href="${l.url}" ${l.openInNewTab ? 'target="_blank" rel="noopener"' : ''}>${escapeHTML(l.label)}</a></li>
+              `).join('');
+            } else {
+              flc.innerHTML = `
+                <li><a href="/register">Online Admission</a></li>
+                <li><a href="/student-login">Student Portal</a></li>
+              `;
+            }
           }
         }
         if (event.data.footerTagline) {

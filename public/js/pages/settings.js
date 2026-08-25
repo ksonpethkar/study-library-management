@@ -3113,6 +3113,12 @@ function renderWebsiteCmsStudio() {
       }, '*');
     };
 
+    if (iframe) {
+      iframe.addEventListener('load', () => {
+        setTimeout(dispatchLiveUpdate, 350);
+      });
+    }
+
     // 1. Fetch active Landing Page config from MongoDB and populate fields
     try {
       const res = await api.get('/api/landing');

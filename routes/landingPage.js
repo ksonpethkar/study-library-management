@@ -23,7 +23,7 @@ const roleCheck = (...roles) => {
  * @desc    Get complete public landing page data (Hero, facilities, plans, gallery, rules, contact)
  * @access  Public
  */
-router.get('/', memoryCache.middleware(30), async (req, res) => {
+router.get('/', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     let landingConfig = null;
