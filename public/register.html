@@ -73,9 +73,75 @@
     .admission-header {
       background: linear-gradient(135deg, #6c5ce7, #a29bfe);
       color: #ffffff;
-      padding: 2.25rem 2rem;
+      padding: 1.5rem 1.5rem;
       text-align: center;
       position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .admission-header #lib-logo-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 0.5rem auto;
+      max-height: 80px;
+      max-width: 180px;
+    }
+    .admission-header #lib-logo-icon img,
+    .admission-header img {
+      max-height: 75px !important;
+      max-width: 160px !important;
+      width: auto !important;
+      height: auto !important;
+      object-fit: contain !important;
+      border-radius: 10px !important;
+      display: block !important;
+      margin: 0 auto !important;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+      background: #ffffff;
+      padding: 4px;
+    }
+    .plan-card-item {
+      background: var(--color-bg-secondary);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .plan-card-item:hover {
+      border-color: var(--color-primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    .plan-card-item.selected {
+      border-color: var(--color-primary);
+      background: rgba(108, 92, 231, 0.08);
+      box-shadow: 0 0 0 1px var(--color-primary);
+    }
+    .plan-card-item .plan-check-badge {
+      display: none;
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: var(--color-primary);
+      color: #fff;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      font-size: 0.75rem;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    .plan-card-item.selected .plan-check-badge {
+      display: flex;
     }
     
     /* Stepper */
@@ -765,12 +831,14 @@
 
       const isLocker = document.getElementById('reg-request-locker')?.checked;
       const dynamicLockerRate = (typeof window.dynamicLockerFee === 'number') ? window.dynamicLockerFee : 200;
-      const lockerFee = isLocker ? dynamicLockerRate : 0;
+      const dynamicLockerDeposit = (typeof window.dynamicLockerDeposit === 'number') ? window.dynamicLockerDeposit : 0;
+      const lockerFee = isLocker ? (dynamicLockerRate + dynamicLockerDeposit) : 0;
       const lockerRow = document.getElementById('calc-locker-row');
       const lockerFeeEl = document.getElementById('calc-locker-fee');
       if (lockerRow && lockerFeeEl) {
         lockerRow.style.display = isLocker ? 'flex' : 'none';
-        lockerFeeEl.textContent = `+₹${lockerFee}`;
+        const depositNote = dynamicLockerDeposit > 0 ? ` (incl. ₹${dynamicLockerDeposit} deposit)` : '';
+        lockerFeeEl.textContent = `+₹${lockerFee}${depositNote}`;
       }
 
       const priceWithShift = Math.round(basePrice * multiplier);
@@ -1310,9 +1378,15 @@
           `;
         } else if (secName === 'plan') {
           stepBodyHtml = `
-            <div class="form-group mb-3">
-              <label class="form-label" style="font-weight: 600;">Choose Membership Plan *</label>
-              <select id="reg-plan" name="plan" class="form-select" required>
+            <!-- Interactive Visual Plan Cards Grid -->
+            <div class="form-group mb-4">
+              <label class="form-label" style="font-weight: 700; font-size: 0.95rem; margin-bottom: 0.75rem;">Choose Membership Plan *</label>
+              <div id="plan-selection-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                <div class="text-center text-muted p-3 w-100" style="grid-column: 1 / -1;">
+                  <div class="spinner-border spinner-border-sm text-primary"></div> Loading available study plans...
+                </div>
+              </div>
+              <select id="reg-plan" name="plan" class="form-select" required style="display: none;">
                 <option value="">-- Choose Study Plan --</option>
               </select>
             </div>
@@ -1324,11 +1398,11 @@
               </select>
             </div>
 
-            <!-- Locker Add-on Option -->
-            <div id="reg-locker-addon-wrap" class="form-group mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px 16px; border-radius: var(--radius-md);">
+            <!-- Locker Add-on Option (Conditionally shown if enabled by admin) -->
+            <div id="reg-locker-addon-wrap" class="form-group mb-4" style="display: none; background: var(--color-bg-secondary); border: 1px solid var(--color-border); padding: 14px 16px; border-radius: var(--radius-md);">
               <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.92rem; font-weight: 700; margin: 0; color: var(--color-text-primary);">
                 <input type="checkbox" id="reg-request-locker" name="requestLocker" style="width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer;">
-                <span id="reg-locker-label">🔒 Add Personal Study Locker (+₹200/mo)</span>
+                <span id="reg-locker-label">🔒 Add Personal Study Locker</span>
               </label>
               <small id="reg-locker-desc" class="text-muted" style="display: block; margin-left: 28px; margin-top: 4px; font-size: 0.8rem;">
                 Secure private key-allotted locker to safely keep heavy study books, notes &amp; laptop.
@@ -2221,49 +2295,164 @@
           });
         }
 
-        // Plans Dropdown
+        // 1. Dynamic Locker Add-on Configuration from SystemSettings
+        const isLockerEnabled = (
+          publicConfig?.locker?.enableAddon !== false &&
+          publicConfig?.settings?.['locker.enableAddon'] !== false &&
+          publicConfig?.settings?.['portal.enableLockerRequests'] !== false &&
+          bp?.enableLocker !== false
+        );
+        const lockerFeeRate = (publicConfig?.locker?.monthlyFee || publicConfig?.settings?.['locker.monthlyFee'] || 200);
+        const lockerDeposit = (publicConfig?.locker?.deposit || publicConfig?.settings?.['locker.deposit'] || 0);
+        window.dynamicLockerFee = lockerFeeRate;
+        window.dynamicLockerDeposit = lockerDeposit;
+
+        const lockerWrap = document.getElementById('reg-locker-addon-wrap');
+        const lockerLabel = document.getElementById('reg-locker-label');
+        if (lockerWrap) {
+          if (isLockerEnabled) {
+            lockerWrap.style.display = 'block';
+            if (lockerLabel) {
+              const depositText = lockerDeposit > 0 ? ` + ₹${lockerDeposit} Refundable Deposit` : '';
+              lockerLabel.textContent = `🔒 Add Personal Study Locker (+₹${lockerFeeRate}/mo${depositText})`;
+            }
+          } else {
+            lockerWrap.style.display = 'none';
+          }
+        }
+
+        // 2. Interactive Plans Population & Visual Cards Grid
         const rawPlans = Array.isArray(publicConfig?.plans) ? publicConfig.plans : (Array.isArray(plansRes?.data) ? plansRes.data : (landingRes?.data?.plans || []));
-        const filteredPlans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false');
-        const plans = (filteredPlans.length > 0) ? filteredPlans : [
-          { _id: 'plan_monthly', name: 'Monthly Full Day Plan', price: 1500, effectivePrice: 1500, duration: 1, durationType: 'months', shift: 'All Day (24 Hours)' },
-          { _id: 'plan_quarterly', name: 'Quarterly Prime Plan', price: 4200, effectivePrice: 4200, duration: 3, durationType: 'months', shift: 'All Day (24 Hours)' }
-        ];
+        const filteredPlans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false' && p.isDeleted !== true);
+        const plans = (filteredPlans.length > 0) ? filteredPlans : (rawPlans.length > 0 ? rawPlans : [
+          { _id: 'plan_monthly', name: 'Monthly Full Day Plan', price: 1000, effectivePrice: 1000, duration: 1, durationType: 'months', shift: 'All Day (24 Hours)', features: ['WiFi', 'AC', 'Charging Point', 'RO Water'] },
+          { _id: 'plan_quarterly', name: 'Quarterly Prime Plan', price: 4000, effectivePrice: 4000, duration: 3, durationType: 'months', shift: 'All Day (24 Hours)', features: ['WiFi', 'AC', 'Charging Point', 'RO Water'] }
+        ]);
 
         const planSelect = document.getElementById('reg-plan');
-        if (plans && plans.length > 0 && planSelect) {
-          planSelect.innerHTML = '<option value="">-- Choose Study Shift &amp; Plan --</option>';
-          plans.forEach(p => {
+        const planCardsGrid = document.getElementById('plan-selection-cards-grid');
+
+        if (plans && plans.length > 0) {
+          if (planSelect) {
+            planSelect.innerHTML = '<option value="">-- Choose Study Shift &amp; Plan --</option>';
+          }
+          if (planCardsGrid) {
+            planCardsGrid.innerHTML = '';
+          }
+
+          plans.forEach((p, pIdx) => {
             const planId = p._id || p.id;
             plansMap[planId] = p;
-            const opt = document.createElement('option');
-            opt.value = planId;
             const price = Math.round(p.effectivePrice || p.price || 0);
             const duration = `${p.duration || 30} ${p.durationType || 'days'}`;
             const shiftStr = p.shift ? p.shift.toUpperCase() : 'ANY SHIFT';
             const isFull = Boolean(p.isFull);
             const fullTag = isFull ? ' [🔴 FULL - Waitlist]' : '';
-            opt.textContent = `${p.name} — ₹${price.toLocaleString('en-IN')}/${duration} (${shiftStr})${fullTag}`;
-            if (isFull) opt.style.color = '#ef4444';
-            planSelect.appendChild(opt);
+
+            // Add Option to hidden select
+            if (planSelect) {
+              const opt = document.createElement('option');
+              opt.value = planId;
+              opt.textContent = `${p.name} — ₹${price.toLocaleString('en-IN')}/${duration} (${shiftStr})${fullTag}`;
+              if (isFull) opt.style.color = '#ef4444';
+              planSelect.appendChild(opt);
+            }
+
+            // Render Visual Plan Card
+            if (planCardsGrid) {
+              const card = document.createElement('div');
+              card.className = `plan-card-item ${pIdx === 0 ? 'selected' : ''}`;
+              card.dataset.planId = planId;
+
+              const featuresHtml = (Array.isArray(p.features) && p.features.length > 0)
+                ? p.features.map(f => `<span class="badge" style="background: var(--color-surface); border: 1px solid var(--color-border); font-size: 0.72rem; padding: 3px 8px; border-radius: 12px; margin-right: 4px; margin-bottom: 4px; display: inline-block;">✓ ${escapeHTML(f)}</span>`).join('')
+                : '<span class="badge" style="background: var(--color-surface); border: 1px solid var(--color-border); font-size: 0.72rem; padding: 3px 8px; border-radius: 12px;">✓ WiFi • AC • Desk</span>';
+
+              card.innerHTML = `
+                <div class="plan-check-badge">✓</div>
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                    <div style="font-weight: 800; font-size: 1.05rem; color: var(--color-text-primary);">${escapeHTML(p.name)}</div>
+                    ${p.discount ? `<span class="badge" style="background: var(--color-success); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 12px;">${p.discount}% OFF</span>` : ''}
+                  </div>
+                  <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 10px;">
+                    ⏰ ${escapeHTML(shiftStr)} • 🗓️ ${duration}
+                  </div>
+                  <div style="margin-bottom: 12px;">
+                    ${featuresHtml}
+                  </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px dashed var(--color-border); padding-top: 10px; margin-top: 6px;">
+                  <div>
+                    <span style="font-size: 1.35rem; font-weight: 800; color: var(--color-primary);">₹${price.toLocaleString('en-IN')}</span>
+                    <span style="font-size: 0.78rem; color: var(--color-text-muted);"> / ${duration}</span>
+                  </div>
+                  <button type="button" class="btn btn-sm ${pIdx === 0 ? 'btn-primary' : 'btn-outline-primary'}" style="font-weight: 700; font-size: 0.8rem; padding: 4px 12px;">
+                    ${pIdx === 0 ? 'Selected ✓' : 'Select Plan'}
+                  </button>
+                </div>
+              `;
+
+              card.addEventListener('click', () => {
+                planCardsGrid.querySelectorAll('.plan-card-item').forEach(c => {
+                  c.classList.remove('selected');
+                  const btn = c.querySelector('button');
+                  if (btn) {
+                    btn.className = 'btn btn-sm btn-outline-primary';
+                    btn.textContent = 'Select Plan';
+                  }
+                });
+                card.classList.add('selected');
+                const btn = card.querySelector('button');
+                if (btn) {
+                  btn.className = 'btn btn-sm btn-primary';
+                  btn.textContent = 'Selected ✓';
+                }
+                if (planSelect) {
+                  planSelect.value = planId;
+                }
+                selectedPlanData = p;
+                updateCalculator();
+              });
+
+              planCardsGrid.appendChild(card);
+            }
           });
 
           // Pre-select first plan or URL plan parameter
           const urlParams = new URLSearchParams(window.location.search);
           const targetPlan = urlParams.get('plan') || urlParams.get('planId');
+          let matched = null;
           if (targetPlan) {
             const decoded = decodeURIComponent(targetPlan).trim();
-            const matched = plans.find(p => 
+            matched = plans.find(p => 
               (p._id && p._id.toString() === decoded) || 
               (p.id && p.id.toString() === decoded) || 
               (p.slug && p.slug.toLowerCase() === decoded.toLowerCase()) ||
               (p.name && p.name.toLowerCase() === decoded.toLowerCase())
             );
-            if (matched) {
-              const matchedId = matched._id || matched.id;
-              planSelect.value = matchedId;
-              selectedPlanData = matched;
-              updateCalculator();
+          }
+          if (!matched && plans.length > 0) {
+            matched = plans[0];
+          }
+
+          if (matched) {
+            const matchedId = matched._id || matched.id;
+            if (planSelect) planSelect.value = matchedId;
+            selectedPlanData = matched;
+            
+            if (planCardsGrid) {
+              planCardsGrid.querySelectorAll('.plan-card-item').forEach(c => {
+                const isSelected = c.dataset.planId === String(matchedId);
+                c.classList.toggle('selected', isSelected);
+                const btn = c.querySelector('button');
+                if (btn) {
+                  btn.className = isSelected ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline-primary';
+                  btn.textContent = isSelected ? 'Selected ✓' : 'Select Plan';
+                }
+              });
             }
+            updateCalculator();
           }
         }
 
