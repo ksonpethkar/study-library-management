@@ -274,7 +274,7 @@ function renderMasterHubUI(container, store) {
     memberships: () => renderMembershipsStudio(pay, adm, plans),
     formbuilder: () => renderFormBuilderStudio(container),
     centers_seats: () => renderCentersSeatsStudio(branches, shifts),
-    billing_receipt: () => renderBillingReceiptStudio(profile, billing, pay),
+    billing_receipt: () => renderBillingReceiptStudio(profile, billing, pay, store),
     modules_manager: () => renderModulesManagerStudio(),
     notifications: () => renderNotificationsStudio(notif, profile),
     operations: () => renderOperationsStudio(ops),
@@ -810,7 +810,7 @@ function renderCentersSeatsStudio(branches, shifts) {
 // -------------------------------------------------------------
 // 5. 🧾 POS Receipt Builder & Billing Studio
 // -------------------------------------------------------------
-function renderBillingReceiptStudio(profile, billing, pay) {
+function renderBillingReceiptStudio(profile, billing, pay, store) {
   const wrapper = document.createElement('div');
   wrapper.className = 'card';
   wrapper.style.cssText = 'padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);';
@@ -1184,17 +1184,29 @@ function renderBillingReceiptStudio(profile, billing, pay) {
         paper.style.width = '260px';
         paper.style.fontSize = '11px';
         paper.style.padding = '12px 10px';
+        paper.style.borderRadius = '0px';
+        paper.style.fontFamily = "'Courier New', Courier, monospace";
         if (formatBadge) formatBadge.textContent = 'POS Thermal 58mm';
       } else if (currentFormat === 'standardA4') {
         paper.style.width = '480px';
         paper.style.fontSize = '12px';
         paper.style.padding = '28px 24px';
+        paper.style.borderRadius = '4px';
         paper.style.fontFamily = 'var(--font-family, sans-serif)';
         if (formatBadge) formatBadge.textContent = 'Standard A4 Invoice';
+      } else if (currentFormat === 'modern_minimal') {
+        paper.style.width = '380px';
+        paper.style.fontSize = '12px';
+        paper.style.padding = '22px 20px';
+        paper.style.borderRadius = '12px';
+        paper.style.boxShadow = '0 10px 25px -5px rgba(0,0,0,0.15)';
+        paper.style.fontFamily = 'var(--font-family, sans-serif)';
+        if (formatBadge) formatBadge.textContent = 'Modern Digital Pass';
       } else {
         paper.style.width = '340px';
         paper.style.fontSize = '12.5px';
         paper.style.padding = '18px 16px';
+        paper.style.borderRadius = '0px';
         paper.style.fontFamily = "'Courier New', Courier, monospace";
         if (formatBadge) formatBadge.textContent = 'POS Thermal 80mm';
       }
@@ -1368,8 +1380,9 @@ function renderBillingReceiptStudio(profile, billing, pay) {
           billing.defaultTemplate = currentFormat;
           billing['billing.defaultTemplate'] = currentFormat;
         }
-        if (store && store.settings && store.settings.billing) {
-          store.settings.billing.defaultTemplate = currentFormat;
+        const activeStore = store || (typeof window !== 'undefined' ? window.store : null);
+        if (activeStore && activeStore.settings && activeStore.settings.billing) {
+          activeStore.settings.billing.defaultTemplate = currentFormat;
         }
         liveUpdateReceipt();
       });
