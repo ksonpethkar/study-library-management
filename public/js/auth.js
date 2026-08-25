@@ -158,6 +158,9 @@ export function initLoginPage() {
         const res = await api.post('/api/auth/login', { email, password });
         localStorage.setItem('sl_token', res.data.token);
         Toast.success('Logged in successfully');
+        const redirect = sessionStorage.getItem('sl_login_redirect') || '#/dashboard';
+        try { sessionStorage.removeItem('sl_login_redirect'); } catch (_) {}
+        window.location.hash = redirect;
         const App = await getApp();
         App.init(); // Re-init with token now present
       } catch (err) {

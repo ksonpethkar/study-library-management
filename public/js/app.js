@@ -283,6 +283,19 @@ class Application {
    */
   showLogin() {
     this._show('login-page');
+    // Ensure URL hash reflects login page instead of lingering protected routes like #/students
+    if (window.location.hash && window.location.hash !== '#/login') {
+      try {
+        if (window.location.hash !== '#/portal') {
+          sessionStorage.setItem('sl_login_redirect', window.location.hash);
+        }
+      } catch (_) {}
+      try {
+        history.replaceState(null, '', '#/login');
+      } catch (_) {
+        window.location.hash = '#/login';
+      }
+    }
     initLoginPage();
     Loading.hidePage();
   }
