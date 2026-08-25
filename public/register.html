@@ -1428,6 +1428,7 @@
           .filter(f => (f.section || 'personal') === secName && f.isActive !== false)
           .sort((a, b) => (a.order || 0) - (b.order || 0));
 
+        const defaultSysFields = getDefaultSystemFields();
         const iconMap = {
           personal: '👤', address: '📍', contact: '📍', kyc: '🪪', verification: '🪪',
           academic: '🎯', goals: '🎯', plan: '⏰', payment: '💳', seat: '🪑', other: '📝', additional: '📋'
@@ -1437,9 +1438,33 @@
         let stepBodyHtml = '';
 
         if (secName === 'personal') {
+          const effectivePersonalFields = (secFields && secFields.length > 0)
+            ? secFields
+            : defaultSysFields.filter(df => df.section === 'personal');
           stepBodyHtml = `
             <div id="duplicate-alert-box" class="alert alert-danger mb-3" style="display: none; padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.88rem; font-weight: 600; color: #dc3545; background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.2);"></div>
-            ${buildFieldGroupHtml(secFields)}
+            ${buildFieldGroupHtml(effectivePersonalFields)}
+          `;
+        } else if (secName === 'address' || secName === 'contact') {
+          const effectiveAddressFields = (secFields && secFields.length > 0)
+            ? secFields
+            : defaultSysFields.filter(df => df.section === 'address' || df.section === 'contact');
+          stepBodyHtml = `
+            ${buildFieldGroupHtml(effectiveAddressFields)}
+          `;
+        } else if (secName === 'kyc' || secName === 'verification') {
+          const effectiveKycFields = (secFields && secFields.length > 0)
+            ? secFields
+            : defaultSysFields.filter(df => df.section === 'kyc' || df.section === 'verification');
+          stepBodyHtml = `
+            ${buildFieldGroupHtml(effectiveKycFields)}
+          `;
+        } else if (secName === 'academic' || secName === 'goals') {
+          const effectiveAcademicFields = (secFields && secFields.length > 0)
+            ? secFields
+            : defaultSysFields.filter(df => df.section === 'academic' || df.section === 'goals');
+          stepBodyHtml = `
+            ${buildFieldGroupHtml(effectiveAcademicFields)}
           `;
         } else if (secName === 'plan') {
           stepBodyHtml = `
@@ -2456,20 +2481,56 @@
           }
         }
 
+        // Section Normalizer to eliminate naming mismatches between custom fields & template sections
+        const normalizeSection = (sec) => {
+          if (!sec) return 'personal';
+          const s = String(sec).toLowerCase().trim().replace(/[^a-z]/g, '');
+          if (s.includes('person') || s.includes('basic') || s.includes('profile')) return 'personal';
+          if (s.includes('address') || s.includes('contact') || s.includes('residen') || s.includes('emerg')) return 'address';
+          if (s.includes('kyc') || s.includes('verif') || s.includes('ident') || s.includes('doc')) return 'kyc';
+          if (s.includes('acad') || s.includes('goal') || s.includes('edu') || s.includes('exam')) return 'academic';
+          if (s.includes('plan') || s.includes('member') || s.includes('pack')) return 'plan';
+          if (s.includes('pay') || s.includes('fee') || s.includes('bank') || s.includes('upi')) return 'payment';
+          if (s.includes('seat') || s.includes('desk') || s.includes('sign')) return 'seat';
+          if (s.includes('other') || s.includes('addit') || s.includes('misc')) return 'other';
+          return sec;
+        };
+
         // Custom Fields and Sections Partitioning (Merge standard system fields + dynamic custom questions)
         const defaultFields = getDefaultSystemFields();
         const rawFields = publicConfig?.customFields?.fields || publicConfig?.customFields || [];
         const customFieldList = Array.isArray(rawFields) ? rawFields : [];
 
         const fieldsMap = new Map();
-        defaultFields.forEach(df => fieldsMap.set(df.name.toLowerCase(), { ...df }));
+        defaultFields.forEach(df => {
+          const k = df.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          fieldsMap.set(k, { ...df, section: normalizeSection(df.section) });
+        });
+
         customFieldList.forEach(cf => {
           if (cf && (cf.fieldName || cf.name)) {
-            const k = (cf.fieldName || cf.name).toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (fieldsMap.has(k)) {
-              fieldsMap.set(k, { ...fieldsMap.get(k), ...cf });
+            const rawName = cf.fieldName || cf.name;
+            const k = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const existing = fieldsMap.get(k);
+            const targetSection = normalizeSection(cf.section || existing?.section || 'other');
+            if (existing) {
+              fieldsMap.set(k, {
+                ...existing,
+                ...cf,
+                name: existing.name,
+                type: cf.type || existing.type,
+                label: cf.label || existing.label,
+                placeholder: cf.placeholder || existing.placeholder,
+                section: targetSection,
+                isActive: cf.isActive !== false
+              });
             } else {
-              fieldsMap.set(k, { ...cf, name: cf.fieldName || cf.name });
+              fieldsMap.set(k, {
+                ...cf,
+                name: rawName,
+                section: targetSection,
+                isActive: cf.isActive !== false
+              });
             }
           }
         });
@@ -2477,7 +2538,7 @@
 
         // Build active sections list (from template or 8 standard sections + custom fields)
         const templateSecs = (activeTemplate && Array.isArray(activeTemplate.sections) && activeTemplate.sections.length > 0)
-          ? activeTemplate.sections
+          ? activeTemplate.sections.map(s => ({ ...s, name: normalizeSection(s.name) }))
           : [
               { name: 'personal', label: 'Step 1: Study Centre & Personal Info', icon: 'personal', order: 1, isSystem: true },
               { name: 'address', label: 'Step 2: Address & Emergency Contact', icon: 'contact', order: 2, isSystem: false },
