@@ -471,6 +471,25 @@ router.post('/public-register', authLimiter, async (req, res) => {
       }
     }
 
+    // Extract nested fields
+    const customF = customFields || {};
+    const extractedBloodGroup = req.body.bloodGroup || customF.bloodGroup || customF.blood_group || customF.bloodgroup || customF.BloodGroup || '';
+    const extractedOccupation = req.body.occupation || req.body.collegeOrCompany || customF.occupation || customF.collegeOrCompany || '';
+    const extractedAddress = req.body.address || customF.address || '';
+    const extractedCity = req.body.city || customF.city || '';
+    const extractedState = req.body.state || customF.state || '';
+    const extractedPincode = req.body.pincode || customF.pincode || '';
+
+    const idp = req.body.idProof || {};
+    const extractedIdType = idp.type || req.body.idProofType || req.body['idProof.type'] || customF.idProofType || customF.id_proof_type || customF.idprooftype || 'Aadhaar Card';
+    const extractedIdNum = idp.number || req.body.idProofNumber || req.body['idProof.number'] || customF.idProofNumber || customF.id_proof_number || customF.idproofnumber || customF.aadhaar || customF.pan || '';
+    const extractedIdImg = idp.image || req.body.idProofImage || req.body['idProof.image'] || customF.idProofImage || customF.id_proof_image || customF.idproofimage || '';
+
+    const em = req.body.emergencyContact || {};
+    const extractedEmName = em.name || req.body.emergencyContactName || req.body['emergencyContact.name'] || customF.emergencyContactName || customF.parentName || customF.emergency_contact_name || '';
+    const extractedEmPhone = em.phone || req.body.emergencyContactPhone || req.body['emergencyContact.phone'] || req.body.emergencyContact || customF.emergencyContactPhone || customF.emergencyContact || customF.parentPhone || customF.emergency_contact_phone || customF.emergencycontact || '';
+    const extractedEmRel = em.relation || req.body.emergencyContactRelation || req.body['emergencyContact.relation'] || customF.emergencyContactRelation || customF.parentRelation || customF.emergency_contact_relation || 'Parent';
+
     // Create Student Document
     const newStudent = new Student({
       studentId,
@@ -486,6 +505,22 @@ router.post('/public-register', authLimiter, async (req, res) => {
       notes: finalNotes,
       photo: photo || '',
       signature: signature || '',
+      bloodGroup: String(extractedBloodGroup).trim(),
+      occupation: String(extractedOccupation).trim(),
+      address: String(extractedAddress).trim(),
+      city: String(extractedCity).trim(),
+      state: String(extractedState).trim(),
+      pincode: String(extractedPincode).trim(),
+      idProof: {
+        type: String(extractedIdType).trim(),
+        number: String(extractedIdNum).trim(),
+        image: String(extractedIdImg).trim()
+      },
+      emergencyContact: {
+        name: String(extractedEmName).trim(),
+        phone: String(extractedEmPhone).trim().replace(/[^0-9+]/g, ''),
+        relation: String(extractedEmRel).trim()
+      },
       customFields: customFields || {},
       status: initialStatus
     });

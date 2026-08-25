@@ -205,16 +205,54 @@ router.post('/', validate([
     req.body.createdBy = req.user._id;
     
     // Extract customFields before creating student
-    const customFieldsData = req.body.customFields;
+    const customFieldsData = req.body.customFields || {};
     delete req.body.customFields;
 
-    const rawGender = req.body.gender !== undefined ? req.body.gender : (customFieldsData && customFieldsData.gender);
+    const rawGender = req.body.gender !== undefined ? req.body.gender : (customFieldsData && (customFieldsData.gender || customFieldsData.Gender));
     if (rawGender) {
       const g = String(rawGender).toLowerCase().trim();
       req.body.gender = ['male', 'female', 'other'].includes(g) ? g : undefined;
     }
     if (req.body.status) {
       req.body.status = String(req.body.status).toLowerCase().trim();
+    }
+
+    const rawBloodGroup = req.body.bloodGroup !== undefined ? req.body.bloodGroup : (customFieldsData && (customFieldsData.bloodGroup || customFieldsData.blood_group || customFieldsData.BloodGroup || customFieldsData.bloodgroup));
+    if (rawBloodGroup !== undefined && rawBloodGroup !== '') {
+      req.body.bloodGroup = String(rawBloodGroup).trim();
+    }
+
+    const rawOccupation = req.body.occupation !== undefined ? req.body.occupation : (customFieldsData && (customFieldsData.occupation || customFieldsData.collegeOrCompany || customFieldsData.college_or_company));
+    if (rawOccupation !== undefined && rawOccupation !== '') {
+      req.body.occupation = String(rawOccupation).trim();
+    }
+
+    if (req.body.idProof || req.body.idProofType || req.body.idProofNumber || req.body.idProofImage || req.body['idProof.type'] || req.body['idProof.number'] || (customFieldsData && (customFieldsData.idProof || customFieldsData.id_proof || customFieldsData.idProofType || customFieldsData.id_proof_type || customFieldsData.idProofNumber || customFieldsData.id_proof_number || customFieldsData.idProofImage || customFieldsData.id_proof_image || customFieldsData.idprooftype || customFieldsData.idproofnumber || customFieldsData.idproofimage || customFieldsData.aadhaar || customFieldsData.pan))) {
+      const idp = req.body.idProof || {};
+      const idType = idp.type || req.body.idProofType || req.body['idProof.type'] || (customFieldsData && (customFieldsData.idProofType || customFieldsData.id_proof_type || customFieldsData['idProof.type'] || customFieldsData.idprooftype)) || 'Aadhaar Card';
+      const idNum = idp.number || req.body.idProofNumber || req.body['idProof.number'] || (customFieldsData && (customFieldsData.idProofNumber || customFieldsData.id_proof_number || customFieldsData['idProof.number'] || customFieldsData.idproofnumber || customFieldsData.aadhaar || customFieldsData.pan)) || '';
+      const idImg = idp.image || req.body.idProofImage || req.body['idProof.image'] || (customFieldsData && (customFieldsData.idProofImage || customFieldsData.id_proof_image || customFieldsData['idProof.image'] || customFieldsData.idproofimage)) || '';
+      req.body.idProof = { type: String(idType).trim(), number: String(idNum).trim(), image: String(idImg).trim() };
+      delete req.body['idProof.type'];
+      delete req.body['idProof.number'];
+      delete req.body['idProof.image'];
+      delete req.body.idProofType;
+      delete req.body.idProofNumber;
+      delete req.body.idProofImage;
+    }
+
+    if (req.body.emergencyContact || req.body.emergencyContactName || req.body.emergencyContactPhone || req.body.emergencyContactRelation || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContact || customFieldsData.emergency_contact || customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone || customFieldsData.emergencycontact || customFieldsData.emergencycontactphone || customFieldsData.parentphone))) {
+      const em = req.body.emergencyContact || {};
+      const emName = em.name || req.body.emergencyContactName || req.body['emergencyContact.name'] || (customFieldsData && (customFieldsData.emergencyContactName || customFieldsData.parentName || customFieldsData.emergency_contact_name || customFieldsData.emergencycontactname || customFieldsData.parentname)) || '';
+      const emPhone = em.phone || req.body.emergencyContactPhone || req.body.emergencyContact || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone || customFieldsData.emergencyContact || customFieldsData.emergencycontact || customFieldsData.emergencycontactphone || customFieldsData.parentphone)) || '';
+      const emRel = em.relation || req.body.emergencyContactRelation || req.body['emergencyContact.relation'] || (customFieldsData && (customFieldsData.emergencyContactRelation || customFieldsData.parentRelation || customFieldsData.emergency_contact_relation || customFieldsData.emergencycontactrelation || customFieldsData.parentrelation)) || 'Parent';
+      req.body.emergencyContact = { name: String(emName).trim(), phone: String(emPhone).trim().replace(/[^0-9+]/g, ''), relation: String(emRel).trim() };
+      delete req.body['emergencyContact.name'];
+      delete req.body['emergencyContact.phone'];
+      delete req.body['emergencyContact.relation'];
+      delete req.body.emergencyContactName;
+      delete req.body.emergencyContactPhone;
+      delete req.body.emergencyContactRelation;
     }
 
     const rawExams = req.body.targetExams !== undefined ? req.body.targetExams : (customFieldsData && (customFieldsData.targetExams || customFieldsData.target_exams || customFieldsData.competitive_exams));
@@ -347,36 +385,42 @@ router.put('/:id', validate([
       req.body.status = String(req.body.status).toLowerCase().trim();
     }
 
-    const rawBloodGroup = req.body.bloodGroup !== undefined ? req.body.bloodGroup : (customFieldsData && (customFieldsData.bloodGroup || customFieldsData.blood_group || customFieldsData.BloodGroup));
+    const rawBloodGroup = req.body.bloodGroup !== undefined ? req.body.bloodGroup : (customFieldsData && (customFieldsData.bloodGroup || customFieldsData.blood_group || customFieldsData.BloodGroup || customFieldsData.bloodgroup));
     if (rawBloodGroup !== undefined) {
-      req.body.bloodGroup = String(rawBloodGroup).trim();
+      student.bloodGroup = String(rawBloodGroup).trim();
+      student.markModified('bloodGroup');
+      delete req.body.bloodGroup;
     }
 
     const rawOccupation = req.body.occupation !== undefined ? req.body.occupation : (customFieldsData && (customFieldsData.occupation || customFieldsData.collegeOrCompany || customFieldsData.college_or_company));
     if (rawOccupation !== undefined) {
-      req.body.occupation = String(rawOccupation).trim();
+      student.occupation = String(rawOccupation).trim();
+      student.markModified('occupation');
+      delete req.body.occupation;
     }
 
-    if (req.body.idProof || req.body.idProofImage || req.body['idProof.type'] || req.body['idProof.number'] || (customFieldsData && (customFieldsData.idProof || customFieldsData.id_proof || customFieldsData.idProofType || customFieldsData.id_proof_type || customFieldsData.idProofNumber || customFieldsData.id_proof_number || customFieldsData.idProofImage || customFieldsData.id_proof_image))) {
+    if (req.body.idProof || req.body.idProofType || req.body.idProofNumber || req.body.idProofImage || req.body['idProof.type'] || req.body['idProof.number'] || (customFieldsData && (customFieldsData.idProof || customFieldsData.id_proof || customFieldsData.idProofType || customFieldsData.id_proof_type || customFieldsData.idProofNumber || customFieldsData.id_proof_number || customFieldsData.idProofImage || customFieldsData.id_proof_image || customFieldsData.idprooftype || customFieldsData.idproofnumber || customFieldsData.idproofimage || customFieldsData.aadhaar || customFieldsData.pan))) {
       const idp = req.body.idProof || {};
-      const idType = idp.type || req.body['idProof.type'] || (customFieldsData && (customFieldsData.idProofType || customFieldsData.id_proof_type || customFieldsData['idProof.type'])) || student.idProof?.type || 'Aadhaar Card';
-      const idNum = idp.number || req.body['idProof.number'] || (customFieldsData && (customFieldsData.idProofNumber || customFieldsData.id_proof_number || customFieldsData['idProof.number'])) || student.idProof?.number || '';
-      const idImg = idp.image || req.body.idProofImage || req.body['idProof.image'] || (customFieldsData && (customFieldsData.idProofImage || customFieldsData.id_proof_image || customFieldsData['idProof.image'])) || student.idProof?.image || '';
-      student.idProof = { type: idType, number: idNum, image: idImg };
+      const idType = idp.type || req.body.idProofType || req.body['idProof.type'] || (customFieldsData && (customFieldsData.idProofType || customFieldsData.id_proof_type || customFieldsData['idProof.type'] || customFieldsData.idprooftype)) || student.idProof?.type || 'Aadhaar Card';
+      const idNum = idp.number || req.body.idProofNumber || req.body['idProof.number'] || (customFieldsData && (customFieldsData.idProofNumber || customFieldsData.id_proof_number || customFieldsData['idProof.number'] || customFieldsData.idproofnumber || customFieldsData.aadhaar || customFieldsData.pan)) || student.idProof?.number || '';
+      const idImg = idp.image || req.body.idProofImage || req.body['idProof.image'] || (customFieldsData && (customFieldsData.idProofImage || customFieldsData.id_proof_image || customFieldsData['idProof.image'] || customFieldsData.idproofimage)) || student.idProof?.image || '';
+      student.idProof = { type: String(idType).trim(), number: String(idNum).trim(), image: String(idImg).trim() };
       student.markModified('idProof');
       delete req.body.idProof;
       delete req.body['idProof.type'];
       delete req.body['idProof.number'];
       delete req.body['idProof.image'];
+      delete req.body.idProofType;
+      delete req.body.idProofNumber;
       delete req.body.idProofImage;
     }
 
-    if (req.body.emergencyContact || req.body.emergencyContactPhone || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContact || customFieldsData.emergency_contact || customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone))) {
+    if (req.body.emergencyContact || req.body.emergencyContactName || req.body.emergencyContactPhone || req.body.emergencyContactRelation || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContact || customFieldsData.emergency_contact || customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone || customFieldsData.emergencycontact || customFieldsData.emergencycontactphone || customFieldsData.parentphone))) {
       const em = req.body.emergencyContact || {};
-      const emName = em.name || req.body.emergencyContactName || req.body['emergencyContact.name'] || (customFieldsData && (customFieldsData.emergencyContactName || customFieldsData.parentName || customFieldsData.emergency_contact_name)) || student.emergencyContact?.name || '';
-      const emPhone = em.phone || req.body.emergencyContactPhone || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone)) || student.emergencyContact?.phone || '';
-      const emRel = em.relation || req.body.emergencyContactRelation || req.body['emergencyContact.relation'] || (customFieldsData && (customFieldsData.emergencyContactRelation || customFieldsData.parentRelation || customFieldsData.emergency_contact_relation)) || student.emergencyContact?.relation || '';
-      student.emergencyContact = { name: emName, phone: emPhone, relation: emRel };
+      const emName = em.name || req.body.emergencyContactName || req.body['emergencyContact.name'] || (customFieldsData && (customFieldsData.emergencyContactName || customFieldsData.parentName || customFieldsData.emergency_contact_name || customFieldsData.emergencycontactname || customFieldsData.parentname)) || student.emergencyContact?.name || '';
+      const emPhone = em.phone || req.body.emergencyContactPhone || req.body.emergencyContact || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone || customFieldsData.emergencyContact || customFieldsData.emergencycontact || customFieldsData.emergencycontactphone || customFieldsData.parentphone)) || student.emergencyContact?.phone || '';
+      const emRel = em.relation || req.body.emergencyContactRelation || req.body['emergencyContact.relation'] || (customFieldsData && (customFieldsData.emergencyContactRelation || customFieldsData.parentRelation || customFieldsData.emergency_contact_relation || customFieldsData.emergencycontactrelation || customFieldsData.parentrelation)) || student.emergencyContact?.relation || 'Parent';
+      student.emergencyContact = { name: String(emName).trim(), phone: String(emPhone).trim().replace(/[^0-9+]/g, ''), relation: String(emRel).trim() };
       student.markModified('emergencyContact');
       delete req.body.emergencyContact;
       delete req.body['emergencyContact.name'];
@@ -389,7 +433,9 @@ router.put('/:id', validate([
 
     const rawExams = req.body.targetExams !== undefined ? req.body.targetExams : (customFieldsData && (customFieldsData.targetExams || customFieldsData.target_exams || customFieldsData.competitive_exams));
     if (rawExams !== undefined) {
-      req.body.targetExams = Array.isArray(rawExams) ? rawExams : String(rawExams).split(',').map(s => s.trim()).filter(Boolean);
+      student.targetExams = Array.isArray(rawExams) ? rawExams : String(rawExams).split(',').map(s => s.trim()).filter(Boolean);
+      student.markModified('targetExams');
+      delete req.body.targetExams;
     }
 
     Object.assign(student, req.body);

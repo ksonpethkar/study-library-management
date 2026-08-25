@@ -282,67 +282,67 @@ export class SmartIntelligence {
         type: 'aadhaar',
         name: 'Aadhaar Card',
         label: 'Aadhaar Card Number',
-        placeholder: 'Enter 12-digit Aadhaar Number (e.g. 1234 5678 9012)',
-        pattern: '^[2-9]{1}[0-9]{3}\\s?[0-9]{4}\\s?[0-9]{4}$',
-        regex: /^[2-9]{1}[0-9]{3}\s?[0-9]{4}\s?[0-9]{4}$/,
+        placeholder: 'Enter 12-digit Aadhaar (e.g. 5432 1098 7654)',
+        pattern: '^[2-9]{1}[0-9]{3}\\s?[0-9]{4}\\s?[0-9]{4}$|^[2-9]{1}[0-9]{11}$',
+        regex: /^[2-9]\d{3}\s?\d{4}\s?\d{4}$|^[2-9]\d{11}$/,
         formatFn: (v) => {
           const digits = String(v || '').replace(/\D/g, '').slice(0, 12);
           if (digits.length <= 4) return digits;
           if (digits.length <= 8) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
           return `${digits.slice(0, 4)} ${digits.slice(4, 8)} ${digits.slice(8)}`;
         },
-        errorMessage: 'Invalid Aadhaar Number! Must be a 12-digit number starting with 2-9.'
+        errorMessage: 'Invalid Aadhaar Number! Must be 12 digits (cannot start with 0 or 1, e.g. 5432 1098 7654).'
       };
     } else if (norm.includes('pan')) {
       return {
         type: 'pan',
         name: 'PAN Card',
         label: 'PAN Card Number',
-        placeholder: 'Enter 10-character PAN Number (e.g. ABCDE1234F)',
+        placeholder: 'Enter 10-character PAN (e.g. ABCDE1234F)',
         pattern: '^[A-Z]{5}[0-9]{4}[A-Z]{1}$',
         regex: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i,
         formatFn: (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10),
-        errorMessage: 'Invalid PAN Number! Must be 10 characters (5 letters, 4 digits, 1 letter, e.g. ABCDE1234F).'
+        errorMessage: 'Invalid PAN Number! Must be 10 characters: 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F).'
       };
     } else if (norm.includes('voter') || norm.includes('epic')) {
       return {
         type: 'voter',
         name: 'Voter ID Card',
         label: 'Voter ID / EPIC Number',
-        placeholder: 'Enter Voter ID / EPIC Number (e.g. ABC1234567)',
-        pattern: '^[A-Z]{3}[0-9]{7}$',
+        placeholder: 'Enter Voter ID (e.g. ABC1234567)',
+        pattern: '^[A-Z]{3}[0-9]{7}$|^[A-Z0-9\\/\\-]{6,16}$',
         regex: /^[A-Z]{3}[0-9]{7}$/i,
-        formatFn: (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10),
-        errorMessage: 'Invalid Voter ID! Must be 10 characters (3 letters followed by 7 digits, e.g. ABC1234567).'
+        formatFn: (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9\/\-]/g, '').slice(0, 14),
+        errorMessage: 'Invalid Voter ID! Standard EPIC format is 3 letters followed by 7 digits (e.g. ABC1234567).'
       };
     } else if (norm.includes('driving') || norm.includes('dl') || norm.includes('license')) {
       return {
         type: 'dl',
         name: 'Driving License',
         label: 'Driving License Number',
-        placeholder: 'Enter Driving License Number (e.g. MH1420110012345)',
-        pattern: '^[A-Z]{2}[0-9]{13}$',
-        regex: /^[A-Z]{2}[0-9A-Z\/\-]{8,16}$/i,
-        formatFn: (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9\/\-]/g, '').slice(0, 16),
-        errorMessage: 'Invalid Driving License Number! (e.g. MH1420110012345).'
+        placeholder: 'Enter DL Number (e.g. MH12 20180012345)',
+        pattern: '^[A-Z]{2}[0-9A-Z\\/\\-\\s]{8,18}$',
+        regex: /^[A-Z]{2}[0-9A-Z\/\-\s]{8,18}$/i,
+        formatFn: (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9\/\-\s]/g, '').slice(0, 18),
+        errorMessage: 'Invalid Driving License Number! Must start with 2-letter State code (e.g. MH12 20180012345).'
       };
     } else if (norm.includes('college') || norm.includes('student')) {
       return {
         type: 'college',
         name: 'College Student ID',
         label: 'College Student Roll No / ID Number',
-        placeholder: 'Enter College Student Roll No / ID Number (e.g. STU-98765)',
-        pattern: '^[A-Za-z0-9\\-\\/]{3,20}$',
-        regex: /^[A-Za-z0-9\-\/]{3,20}$/,
-        formatFn: (v) => String(v || '').slice(0, 20),
-        errorMessage: 'Enter a valid College Student Roll No or ID.'
+        placeholder: 'Enter Student Roll No / ID (e.g. STU-98765)',
+        pattern: '^[A-Za-z0-9\\-\\/]{3,25}$',
+        regex: /^[A-Za-z0-9\-\/]{3,25}$/,
+        formatFn: (v) => String(v || '').slice(0, 25),
+        errorMessage: 'Enter a valid Student ID Number (minimum 3 characters).'
       };
     } else if (norm.includes('passport')) {
       return {
         type: 'passport',
         name: 'Passport',
         label: 'Passport Number',
-        placeholder: 'Enter 8-character Passport Number (e.g. A1234567)',
+        placeholder: 'Enter 8-character Passport (e.g. A1234567)',
         pattern: '^[A-PR-WYa-pr-wy][0-9]{7}$',
         regex: /^[A-PR-WYa-pr-wy][0-9]{7}$/i,
         formatFn: (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8),
@@ -356,10 +356,26 @@ export class SmartIntelligence {
       label: `${idType || 'ID Proof'} Document Number`,
       placeholder: `Enter ${idType || 'ID Proof'} Number`,
       pattern: '.*',
-      regex: /.*/,
-      formatFn: (v) => v,
-      errorMessage: ''
+      regex: /^[A-Za-z0-9\/\-\s]{3,30}$/,
+      formatFn: (v) => String(v || '').slice(0, 30),
+      errorMessage: 'Invalid ID Proof document number format (minimum 3 characters).'
     };
+  }
+
+  /**
+   * Validates Government ID format.
+   * @param {string} idType 
+   * @param {string} idNumber 
+   * @returns {{isValid: boolean, message: string}}
+   */
+  static validateGovernmentID(idType = '', idNumber = '') {
+    if (!idNumber || !idNumber.trim()) return { isValid: true, message: '' };
+    const config = this.getIDProofConfig(idType);
+    const clean = idNumber.trim();
+    if (config.regex && !config.regex.test(clean)) {
+      return { isValid: false, message: config.errorMessage || `Invalid ${config.name} number format.` };
+    }
+    return { isValid: true, message: `✅ Valid ${config.name} format` };
   }
 
   /**
@@ -424,13 +440,13 @@ export class SmartIntelligence {
    * @param {HTMLElement|Document} rootEl 
    */
   static bindDynamicIDProofValidation(rootEl = document) {
-    const typeSelect = rootEl.querySelector('select[data-field="idprooftype"], select[name="idprooftype"], select[name="cf_idprooftype"], select[data-field="idproof_type"], select[name="cf_idproof_type"], select[name="idProofType"]');
-    const numInput = rootEl.querySelector('input[data-field="idproofnumber"], input[name="idproofnumber"], input[name="cf_idproofnumber"], input[data-field="idproof_number"], input[name="cf_idproof_number"], input[name="idProofNumber"]');
+    const typeSelect = rootEl.querySelector('select[name="idProof.type"], select[name="idProofType"], select[name="idprooftype"], select[data-field="idprooftype"], select[data-field="idProofType"], select[name="cf_idprooftype"], select[name="cf_idproof_type"], select[data-field="idproof_type"]');
+    const numInput = rootEl.querySelector('input[name="idProof.number"], input[name="idProofNumber"], input[name="idproofnumber"], input[data-field="idproofnumber"], input[data-field="idProofNumber"], input[name="cf_idproofnumber"], input[name="cf_idproof_number"], input[data-field="idproof_number"]');
 
     if (!typeSelect || !numInput) return;
 
     const numWrapper = numInput.closest('.form-group, .dynamic-field-wrapper, div');
-    const labelEl = numWrapper ? numWrapper.querySelector('label') : null;
+    const labelEl = numWrapper ? (numWrapper.querySelector('label') || document.querySelector('#idProofNumberLabel')) : null;
 
     let alertDiv = numWrapper ? numWrapper.querySelector('.id-proof-feedback-msg') : null;
     if (!alertDiv && numWrapper) {
@@ -456,35 +472,39 @@ export class SmartIntelligence {
         const formatted = config.formatFn(val);
         numInput.value = formatted;
         validateInput(formatted, config);
+      } else if (alertDiv) {
+        alertDiv.textContent = '';
       }
     }
 
     function validateInput(val, config) {
-      if (!val) {
+      if (!val || !val.trim()) {
         if (alertDiv) alertDiv.textContent = '';
         return;
       }
 
-      if (config.regex && !config.regex.test(val)) {
+      if (config.regex && !config.regex.test(val.trim())) {
         if (alertDiv) {
-          alertDiv.style.color = 'var(--color-danger)';
+          alertDiv.style.color = 'var(--color-danger, #ef4444)';
           alertDiv.textContent = `❌ ${config.errorMessage}`;
         }
       } else {
         if (alertDiv) {
-          alertDiv.style.color = 'var(--color-success)';
+          alertDiv.style.color = 'var(--color-success, #10b981)';
           alertDiv.textContent = `✅ Valid ${config.name} format`;
         }
       }
     }
 
     typeSelect.addEventListener('change', applyRules);
-    numInput.addEventListener('input', (e) => {
-      const selectedType = typeSelect.value || '';
-      const config = SmartIntelligence.getIDProofConfig(selectedType);
-      const formatted = config.formatFn(e.target.value);
-      e.target.value = formatted;
-      validateInput(formatted, config);
+    ['input', 'blur', 'keyup', 'paste'].forEach(evt => {
+      numInput.addEventListener(evt, (e) => {
+        const selectedType = typeSelect.value || '';
+        const config = SmartIntelligence.getIDProofConfig(selectedType);
+        const formatted = config.formatFn(e.target.value);
+        e.target.value = formatted;
+        validateInput(formatted, config);
+      });
     });
 
     applyRules();

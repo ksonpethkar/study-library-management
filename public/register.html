@@ -1718,13 +1718,17 @@
         }
       });
 
-      // 5. Wire up Pincode Auto-Fill
+      // 5. Wire up Pincode Auto-Fill & Government ID Validation
       const regPincodeInput = document.getElementById('reg-pincode');
       if (regPincodeInput) {
         ['input', 'blur', 'change', 'paste', 'keyup'].forEach(evt => {
           regPincodeInput.addEventListener(evt, handlePincodeLookup);
         });
         if (regPincodeInput.value.trim().length === 6) handlePincodeLookup();
+      }
+
+      if (typeof SmartIntelligence?.bindDynamicIDProofValidation === 'function') {
+        SmartIntelligence.bindDynamicIDProofValidation(document);
       }
 
       // 6. Wire up Exam Pills
@@ -2028,6 +2032,55 @@
           transactionId: txnId,
           customFields
         };
+
+        // Client-side validations
+        if (!payload.name || payload.name.trim().length < 2) {
+          alert('Please enter a valid Student Full Name (minimum 2 characters)');
+          if (btn) { btn.disabled = false; btn.textContent = '🚀 Complete Registration & Get Admission Slip'; }
+          return;
+        }
+
+        const cleanPhone = (payload.phone || '').replace(/[^0-9]/g, '');
+        if (cleanPhone.length < 10 || !/^[6-9]\d{9}$/.test(cleanPhone.slice(-10))) {
+          alert('Please enter a valid 10-digit Indian Mobile Number (starting with 6, 7, 8, or 9)');
+          if (btn) { btn.disabled = false; btn.textContent = '🚀 Complete Registration & Get Admission Slip'; }
+          return;
+        }
+
+        if (payload.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+          alert('Please enter a valid Email Address format (e.g. name@example.com)');
+          if (btn) { btn.disabled = false; btn.textContent = '🚀 Complete Registration & Get Admission Slip'; }
+          return;
+        }
+
+        if (payload.pincode && !/^[1-9][0-9]{5}$/.test(payload.pincode)) {
+          alert('Please enter a valid 6-digit Indian Postal PIN code (e.g. 411001)');
+          if (btn) { btn.disabled = false; btn.textContent = '🚀 Complete Registration & Get Admission Slip'; }
+          return;
+        }
+
+        if (payload.idProofNumber) {
+          const idValid = SmartIntelligence.validateGovernmentID(payload.idProofType, payload.idProofNumber);
+          if (!idValid.isValid) {
+            alert(idValid.message);
+            if (btn) { btn.disabled = false; btn.textContent = '🚀 Complete Registration & Get Admission Slip'; }
+            return;
+          }
+        }
+
+        if (payload.emergencyContact?.phone) {
+          const cleanEmPhone = payload.emergencyContact.phone.replace(/[^0-9]/g, '');
+          if (cleanEmPhone.length < 10 || !/^[6-9]\d{9}$/.test(cleanEmPhone.slice(-10))) {
+            alert('Please enter a valid 10-digit Mobile Number for Emergency Contact');
+            if (btn) { btn.disabled = false; btn.textContent = '🚀 Complete Registration & Get Admission Slip'; }
+            return;
+          }
+          if (cleanEmPhone.slice(-10) === cleanPhone.slice(-10)) {
+            alert('Emergency Contact phone number cannot be identical to your own student phone number. Please provide a Parent / Guardian mobile number.');
+            if (btn) { btn.disabled = false; btn.textContent = '🚀 Complete Registration & Get Admission Slip'; }
+            return;
+          }
+        }
 
         try {
           const response = await fetch('/api/auth/public-register', {

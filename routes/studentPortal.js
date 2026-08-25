@@ -1015,8 +1015,9 @@ router.put('/profile', async (req, res) => {
     if (email) updateData.email = email.trim();
     if (phone) updateData.phone = phone.trim();
     if (gender) updateData.gender = gender;
-    if (dob || dateOfBirth) updateData.dateOfBirth = new Date(dob || dateOfBirth);
-    if (bloodGroup) updateData.bloodGroup = bloodGroup.trim();
+    const customF = customFields || {};
+    const rawBlood = bloodGroup || req.body.blood_group || req.body.bloodgroup || customF.bloodGroup || customF.blood_group || customF.bloodgroup;
+    if (rawBlood !== undefined) updateData.bloodGroup = String(rawBlood).trim();
     if (targetExams) updateData.targetExams = Array.isArray(targetExams) ? targetExams : String(targetExams).split(',').map(e => e.trim()).filter(Boolean);
     if (collegeOrCompany || occupation) updateData.collegeOrCompany = (collegeOrCompany || occupation).trim();
     if (address) updateData.address = address.trim();
@@ -1024,19 +1025,19 @@ router.put('/profile', async (req, res) => {
     if (state) updateData.state = state.trim();
     if (pincode) updateData.pincode = pincode.trim();
 
-    if (emergencyContact || emergencyContactName || emergencyContactPhone) {
+    if (emergencyContact || emergencyContactName || emergencyContactPhone || req.body.emergency_contact || req.body.parentPhone || customF.emergencyContact || customF.emergencyContactPhone || customF.parentPhone) {
       updateData.emergencyContact = {
-        name: (emergencyContact?.name || emergencyContactName || student.emergencyContact?.name || '').trim(),
-        phone: (emergencyContact?.phone || emergencyContactPhone || student.emergencyContact?.phone || '').trim(),
-        relation: (emergencyContact?.relation || emergencyContactRelation || student.emergencyContact?.relation || 'Parent/Guardian').trim()
+        name: (emergencyContact?.name || emergencyContactName || req.body.emergencyContactName || req.body.parentName || customF.emergencyContactName || customF.parentName || student.emergencyContact?.name || '').trim(),
+        phone: (emergencyContact?.phone || emergencyContactPhone || req.body.emergencyContactPhone || req.body.emergencyContact || req.body.parentPhone || customF.emergencyContactPhone || customF.emergencyContact || customF.parentPhone || student.emergencyContact?.phone || '').trim(),
+        relation: (emergencyContact?.relation || emergencyContactRelation || req.body.emergencyContactRelation || req.body.parentRelation || customF.emergencyContactRelation || customF.parentRelation || student.emergencyContact?.relation || 'Parent/Guardian').trim()
       };
     }
 
-    if (idProof || idProofType || idProofNumber || idProofImage) {
+    if (idProof || idProofType || idProofNumber || idProofImage || req.body.id_proof_type || req.body.id_proof_number || req.body.idprooftype || req.body.idproofnumber || customF.idProofType || customF.idProofNumber || customF.idprooftype || customF.idproofnumber) {
       updateData.idProof = {
-        type: (idProof?.type || idProofType || student.idProof?.type || 'Aadhaar Card').trim(),
-        number: (idProof?.number || idProofNumber || student.idProof?.number || '').trim(),
-        image: (idProof?.image || idProofImage || student.idProof?.image || '').trim()
+        type: (idProof?.type || idProofType || req.body.id_proof_type || req.body.idprooftype || customF.idProofType || customF.idprooftype || student.idProof?.type || 'Aadhaar Card').trim(),
+        number: (idProof?.number || idProofNumber || req.body.id_proof_number || req.body.idproofnumber || customF.idProofNumber || customF.idproofnumber || student.idProof?.number || '').trim(),
+        image: (idProof?.image || idProofImage || req.body.id_proof_image || req.body.idproofimage || customF.idProofImage || customF.idproofimage || student.idProof?.image || '').trim()
       };
     }
 

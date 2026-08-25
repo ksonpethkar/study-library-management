@@ -553,21 +553,38 @@ export async function render() {
         return student.gender || student.customFields?.gender || student.customFields?.Gender || '';
       }
       if (fn === 'bloodgroup' || fn === 'blood' || fn === 'blood_group') {
-        return student.bloodGroup || student.customFields?.bloodGroup || student.customFields?.blood_group || student.customFields?.BloodGroup || '';
+        return student.bloodGroup || student.customFields?.bloodGroup || student.customFields?.blood_group || student.customFields?.bloodgroup || student.customFields?.BloodGroup || '';
       }
       if (fn === 'occupation' || fn === 'collegeorcompany' || fn === 'college_or_company') {
-        return student.occupation || student.collegeOrCompany || student.customFields?.occupation || student.customFields?.collegeOrCompany || '';
+        return student.occupation || student.collegeOrCompany || student.customFields?.occupation || student.customFields?.collegeOrCompany || student.customFields?.college_or_company || '';
       }
-      if (fn === 'idprooftype' || fn === 'id_proof_type' || fn === 'idtype') return student.idProof?.type || student.customFields?.idProofType || 'Aadhaar Card';
-      if (fn === 'idproofnumber' || fn === 'id_proof_number' || fn === 'idnumber' || fn === 'aadhaar' || fn === 'pan') return student.idProof?.number || student.customFields?.idProofNumber || student.customFields?.aadhaar || '';
-      if (fn === 'idproofimage' || fn === 'idproof' || fn === 'id_proof_image') return student.idProof?.image || student.customFields?.idProofImage || '';
-      if (fn === 'emergencycontactname' || fn === 'emergency_contact_name' || fn === 'parentname') return student.emergencyContact?.name || student.customFields?.emergencyContactName || student.customFields?.parentName || '';
-      if (fn === 'emergencycontactphone' || fn === 'emergencycontact' || fn === 'parentphone' || fn === 'emergency_contact_phone') return student.emergencyContact?.phone || student.customFields?.emergencyContactPhone || student.customFields?.parentPhone || '';
-      if (fn === 'emergencycontactrelation' || fn === 'emergency_contact_relation' || fn === 'parentrelation') return student.emergencyContact?.relation || student.customFields?.emergencyContactRelation || student.customFields?.parentRelation || '';
+      if (fn === 'idprooftype' || fn === 'id_proof_type' || fn === 'idtype') {
+        return student.idProof?.type || student.customFields?.idProofType || student.customFields?.id_proof_type || student.customFields?.idprooftype || 'Aadhaar Card';
+      }
+      if (fn === 'idproofnumber' || fn === 'id_proof_number' || fn === 'idnumber' || fn === 'aadhaar' || fn === 'pan') {
+        return student.idProof?.number || student.customFields?.idProofNumber || student.customFields?.id_proof_number || student.customFields?.idproofnumber || student.customFields?.aadhaar || student.customFields?.pan || '';
+      }
+      if (fn === 'idproofimage' || fn === 'idproof' || fn === 'id_proof_image') {
+        return student.idProof?.image || student.customFields?.idProofImage || student.customFields?.id_proof_image || student.customFields?.idproofimage || '';
+      }
+      if (fn === 'emergencycontactname' || fn === 'emergency_contact_name' || fn === 'parentname' || fn === 'fathername') {
+        return student.emergencyContact?.name || student.customFields?.emergencyContactName || student.customFields?.parentName || student.customFields?.fatherName || student.customFields?.emergency_contact_name || student.customFields?.emergencycontactname || '';
+      }
+      if (fn === 'emergencycontactphone' || fn === 'emergencycontact' || fn === 'parentphone' || fn === 'emergency_contact_phone') {
+        return student.emergencyContact?.phone || student.customFields?.emergencyContactPhone || student.customFields?.emergencyContact || student.customFields?.parentPhone || student.customFields?.emergency_contact_phone || student.customFields?.emergencycontactphone || '';
+      }
+      if (fn === 'emergencycontactrelation' || fn === 'emergency_contact_relation' || fn === 'parentrelation' || fn === 'relation') {
+        return student.emergencyContact?.relation || student.customFields?.emergencyContactRelation || student.customFields?.parentRelation || student.customFields?.emergency_contact_relation || student.customFields?.emergencycontactrelation || '';
+      }
       if ((fn === 'dateofbirth' || fn === 'dob') && student.dateOfBirth) {
         const d = new Date(student.dateOfBirth);
         return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
       }
+      if (fn === 'address') return student.address || student.customFields?.address || '';
+      if (fn === 'city') return student.city || student.customFields?.city || '';
+      if (fn === 'state') return student.state || student.customFields?.state || '';
+      if (fn === 'pincode') return student.pincode || student.customFields?.pincode || '';
+
       if (student.customFields) {
         if (student.customFields instanceof Map) {
           if (student.customFields.has(fieldName)) return student.customFields.get(fieldName) || '';
@@ -1029,8 +1046,8 @@ export async function render() {
             const phoneInput = form.querySelector('[name="phone"]');
 
             const nameVal = nameInput?.value?.trim();
-            if (!nameVal) {
-              Toast.warning('Please enter the Student Full Name');
+            if (!nameVal || nameVal.length < 2) {
+              Toast.warning('Please enter a valid Student Full Name (minimum 2 characters)');
               nameInput?.focus();
               return;
             }
@@ -1044,8 +1061,9 @@ export async function render() {
             if (phoneVal.startsWith('0') && phoneVal.length === 11) {
               phoneVal = phoneVal.slice(1);
             }
-            if (phoneVal.length < 10) {
-              Toast.warning('Please enter a valid 10-digit mobile number');
+            const cleanPhoneDigits = phoneVal.replace(/[^0-9]/g, '');
+            if (cleanPhoneDigits.length < 10 || !/^[6-9]\d{9}$/.test(cleanPhoneDigits.slice(-10))) {
+              Toast.warning('Please enter a valid 10-digit Indian mobile number (starting with 6, 7, 8, or 9)');
               phoneInput?.focus();
               return;
             }
@@ -1086,26 +1104,95 @@ export async function render() {
               if (val) data.customFields[fName] = val;
             });
 
-            // Explicitly sync core schema fields
-            ['gender', 'bloodGroup', 'occupation', 'collegeOrCompany', 'address', 'city', 'state', 'pincode', 'email', 'dateOfBirth'].forEach(k => {
-              if (data[k] === undefined && data.customFields[k] !== undefined) {
-                data[k] = data.customFields[k];
-              } else if (data[k] !== undefined && data.customFields[k] === undefined) {
-                data.customFields[k] = data[k];
-              }
-            });
+            const customF = data.customFields || {};
 
-            if (data.gender) {
-              data.gender = String(data.gender).toLowerCase().trim();
+            // 1. Blood Group
+            const extractedBloodGroup = data.bloodGroup || data.blood_group || data.bloodgroup || customF.bloodGroup || customF.blood_group || customF.bloodgroup || customF.BloodGroup || student?.bloodGroup || '';
+            if (extractedBloodGroup) {
+              data.bloodGroup = String(extractedBloodGroup).trim();
+              data.customFields.bloodGroup = data.bloodGroup;
+              data.customFields.bloodgroup = data.bloodGroup;
             }
 
-            // Capture Passport Photo
+            // 2. Gender
+            const extractedGender = data.gender || customF.gender || customF.Gender || student?.gender || '';
+            if (extractedGender) {
+              data.gender = String(extractedGender).toLowerCase().trim();
+            }
+
+            // 3. Occupation / College
+            const extractedOccupation = data.occupation || data.collegeOrCompany || data.college_or_company || customF.occupation || customF.collegeOrCompany || customF.college_or_company || student?.occupation || student?.collegeOrCompany || '';
+            if (extractedOccupation) {
+              data.occupation = String(extractedOccupation).trim();
+              data.collegeOrCompany = data.occupation;
+              data.customFields.occupation = data.occupation;
+            }
+
+            // 4. Address, City, State, Pincode
+            const extractedAddress = data.address || customF.address || student?.address || '';
+            if (extractedAddress) data.address = String(extractedAddress).trim();
+            const extractedCity = data.city || customF.city || student?.city || '';
+            if (extractedCity) data.city = String(extractedCity).trim();
+            const extractedState = data.state || customF.state || student?.state || '';
+            if (extractedState) data.state = String(extractedState).trim();
+            const extractedPincode = data.pincode || customF.pincode || student?.pincode || '';
+            if (extractedPincode) data.pincode = String(extractedPincode).trim();
+
+            // 5. Passport Photo & KYC ID Proof
             const photoVal = m.element.querySelector('#mount-student-photo .mfp-hidden-value')?.value;
             if (photoVal !== undefined) data.photo = photoVal;
 
-            // Capture KYC ID Proof image
             const kycVal = m.element.querySelector('#mount-student-idproof .mfp-hidden-value')?.value;
             if (kycVal !== undefined) data.idProofImage = kycVal;
+
+            const idType = data.idProofType || data['idProof.type'] || data['idProof[type]'] || data.id_proof_type || data.idprooftype || data.idType || customF.idProofType || customF.idprooftype || customF.id_proof_type || student?.idProof?.type || 'Aadhaar Card';
+            const idNum = data.idProofNumber || data['idProof.number'] || data['idProof[number]'] || data.id_proof_number || data.idproofnumber || data.idNumber || data.aadhaar || data.pan || customF.idProofNumber || customF.idproofnumber || customF.id_proof_number || customF.aadhaar || customF.pan || student?.idProof?.number || '';
+            const idImg = data.idProofImage || data['idProof.image'] || data['idProof[image]'] || data.id_proof_image || data.idproofimage || customF.idProofImage || customF.idproofimage || student?.idProof?.image || '';
+
+            data.idProof = {
+              type: String(idType).trim(),
+              number: String(idNum).trim(),
+              image: String(idImg).trim()
+            };
+            data.customFields.idProofType = data.idProof.type;
+            data.customFields.idprooftype = data.idProof.type;
+            data.customFields.idProofNumber = data.idProof.number;
+            data.customFields.idproofnumber = data.idProof.number;
+            data.customFields.idProofImage = data.idProof.image;
+            data.customFields.idproofimage = data.idProof.image;
+
+            delete data['idProof.type'];
+            delete data['idProof.number'];
+            delete data['idProof.image'];
+            delete data.idProofType;
+            delete data.idProofNumber;
+            delete data.idProofImage;
+
+            // 6. Emergency Contact
+            const emName = data.emergencyContactName || data['emergencyContact.name'] || data['emergencyContact[name]'] || data.parentName || data.parent_name || data.fatherName || customF.emergencyContactName || customF.parentName || customF.fatherName || customF.emergency_contact_name || customF.emergencycontactname || student?.emergencyContact?.name || '';
+            const emPhone = data.emergencyContactPhone || data['emergencyContact.phone'] || data['emergencyContact[phone]'] || data.emergencyContact || data.emergencycontact || data.parentPhone || data.parent_phone || customF.emergencyContactPhone || customF.emergencyContact || customF.emergencycontact || customF.parentPhone || customF.emergency_contact_phone || customF.emergencycontactphone || student?.emergencyContact?.phone || '';
+            const emRel = data.emergencyContactRelation || data['emergencyContact.relation'] || data['emergencyContact[relation]'] || data.parentRelation || data.parent_relation || customF.emergencyContactRelation || customF.parentRelation || customF.emergency_contact_relation || customF.emergencycontactrelation || student?.emergencyContact?.relation || 'Parent';
+
+            data.emergencyContact = {
+              name: String(emName).trim(),
+              phone: String(emPhone).trim().replace(/[^0-9+]/g, ''),
+              relation: String(emRel).trim()
+            };
+            data.customFields.emergencyContact = data.emergencyContact.phone;
+            data.customFields.emergencycontact = data.emergencyContact.phone;
+            data.customFields.emergencyContactPhone = data.emergencyContact.phone;
+            data.customFields.emergencycontactphone = data.emergencyContact.phone;
+            data.customFields.emergencyContactName = data.emergencyContact.name;
+            data.customFields.emergencycontactname = data.emergencyContact.name;
+            data.customFields.emergencyContactRelation = data.emergencyContact.relation;
+            data.customFields.emergencycontactrelation = data.emergencyContact.relation;
+
+            delete data['emergencyContact.name'];
+            delete data['emergencyContact.phone'];
+            delete data['emergencyContact.relation'];
+            delete data.emergencyContactName;
+            delete data.emergencyContactPhone;
+            delete data.emergencyContactRelation;
 
             // Capture Signature from SignatureStudio
             if (sigStudio) {
@@ -1118,22 +1205,40 @@ export async function render() {
             if (!data.seat) delete data.seat;
             if (!data.dateOfBirth) delete data.dateOfBirth;
 
-            // Reconstruct KYC idProof object
-            data.idProof = {
-              type: data['idProof.type'] || 'Aadhaar Card',
-              number: data['idProof.number'] || '',
-              image: data.idProofImage || student?.idProof?.image || ''
-            };
-            delete data['idProof.type'];
-            delete data['idProof.number'];
-            delete data.idProofImage;
+            // Strict Validation Checks:
+            // Email Validation
+            if (data.email && data.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
+              Toast.warning('Please enter a valid email address (e.g. name@example.com)');
+              return;
+            }
 
-            // Reconstruct emergency contact if present
-            data.emergencyContact = {
-              name: data['emergencyContactName'] || data['emergencyContact.name'] || student?.emergencyContact?.name || '',
-              phone: data['emergencyContactPhone'] || data['emergencyContact.phone'] || student?.emergencyContact?.phone || '',
-              relation: data['emergencyContactRelation'] || data['emergencyContact.relation'] || student?.emergencyContact?.relation || ''
-            };
+            // Pincode Validation
+            if (data.pincode && data.pincode.trim() && !/^[1-9][0-9]{5}$/.test(data.pincode.trim())) {
+              Toast.warning('Please enter a valid 6-digit Indian Postal PIN code (e.g. 411001)');
+              return;
+            }
+
+            // Government ID Validation
+            if (data.idProof.number && data.idProof.number.trim()) {
+              const idValidation = SmartIntelligence.validateGovernmentID(data.idProof.type, data.idProof.number.trim());
+              if (!idValidation.isValid) {
+                Toast.warning(idValidation.message);
+                return;
+              }
+            }
+
+            // Emergency Contact Phone Validation
+            if (data.emergencyContact.phone && data.emergencyContact.phone.trim()) {
+              const cleanEmPhone = data.emergencyContact.phone.trim().replace(/[^0-9]/g, '');
+              if (cleanEmPhone.length < 10 || !/^[6-9]\d{9}$/.test(cleanEmPhone.slice(-10))) {
+                Toast.warning('Please enter a valid 10-digit mobile number for Emergency Contact');
+                return;
+              }
+              if (cleanEmPhone.slice(-10) === cleanPhoneDigits.slice(-10)) {
+                Toast.warning('Emergency Contact number cannot be identical to the student’s own mobile number. Please provide a Parent / Guardian contact number.');
+                return;
+              }
+            }
 
             const prevStatus = student?.status;
             const prevSeat = student?.seat;
