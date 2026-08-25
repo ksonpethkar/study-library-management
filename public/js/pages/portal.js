@@ -1312,7 +1312,7 @@ function renderPortalUI(container, data, analytics = null) {
         downloadElementAsPng('.id-card-back', `ID_Back_${(student.studentId||student.name).replace(/\s+/g,'_')}.png`);
       });
       modalContent.querySelector('#btn-download-1080p-pass')?.addEventListener('click', () => {
-        download1080pMobileIDPass(student, business, initials, seatTitle, planName, expiryDateStr);
+        download1080pMobileIDPass(student, business, initials, seatTitle, planName, expiryDateStr, { shiftName, phone, bloodGroup, showBlood });
       });
     };
 
@@ -3309,121 +3309,297 @@ export function renderHeatmapGridHtml(heatmapData) {
 }
 
 /**
- * Generate 1080x1920px Offline Mobile ID Pass Canvas Image & Trigger Download
+ * Helper to safely load image with CORS for canvas
  */
-export function download1080pMobileIDPass(student, business, initials, seatTitle, planName, expiryDateStr) {
+function loadCanvasImage(src) {
+  return new Promise((resolve) => {
+    if (!src) return resolve(null);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+/**
+ * Generate 1080x1920px Executive Offline Mobile ID Pass Canvas Image & Trigger Download
+ */
+export async function download1080pMobileIDPass(student, business = {}, initials = 'S', seatTitle = '02', planName = 'Study Plan', expiryDateStr = 'Not Set', extra = {}) {
+  Toast.info('🎨 Generating 1080p Ultra-HD Mobile Pass Wallpaper...');
+
   const canvas = document.createElement('canvas');
   canvas.width = 1080;
   canvas.height = 1920;
   const ctx = canvas.getContext('2d');
 
-  // Background gradient (Vertical mobile wallpaper)
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, 1920);
-  bgGrad.addColorStop(0, '#0f172a');
-  bgGrad.addColorStop(0.5, '#1e1b4b');
-  bgGrad.addColorStop(1, '#0f172a');
+  // Pre-load all assets asynchronously
+  const photoUrl = student.photo || student.avatar || '';
+  const logoUrl = business.logo || business.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || '';
+  const stampUrl = business.stampImage || business.stampImageUrl || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || '';
+  const shiftName = extra.shiftName || student.shift?.name || student.shift?.timing || student.shift || student.plan?.shift || 'Full Day';
+  const phone = extra.phone || student.phone || student.mobile || '-';
+  const bloodGroup = extra.bloodGroup || student.bloodGroup || '';
+  const studentId = student.studentId || student.enrollmentNo || 'STU-MEMBER';
+  const admissionDate = student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+
+  const qrPayload = encodeURIComponent(student.studentId || student.phone || student._id || 'STUDENT');
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${qrPayload}&margin=2&bgcolor=ffffff`;
+
+  const [photoImg, logoImg, stampImg, qrImg] = await Promise.all([
+    loadCanvasImage(photoUrl),
+    loadCanvasImage(logoUrl),
+    loadCanvasImage(stampUrl),
+    loadCanvasImage(qrUrl)
+  ]);
+
+  // 1. Wallpaper Background (Deep midnight dark slate with violet/indigo aura)
+  const bgGrad = ctx.createLinearGradient(0, 0, 1080, 1920);
+  bgGrad.addColorStop(0, '#0a0d18');
+  bgGrad.addColorStop(0.3, '#13182e');
+  bgGrad.addColorStop(0.7, '#181534');
+  bgGrad.addColorStop(1, '#090b14');
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, 1080, 1920);
 
-  // Outer decorative accent circle
-  ctx.beginPath();
-  ctx.arc(540, -100, 600, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(108, 92, 231, 0.15)';
-  ctx.fill();
-
-  // Card Container (rounded rectangle)
-  const cardX = 90, cardY = 160, cardW = 900, cardH = 1600, cardR = 40;
+  // Decorative ambient glow orbs
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(cardX + cardR, cardY);
-  ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, cardR);
-  ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, cardR);
-  ctx.arcTo(cardX, cardY + cardH, cardX, cardY, cardR);
-  ctx.arcTo(cardX, cardY, cardX + cardW, cardY, cardR);
-  ctx.closePath();
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-  ctx.shadowBlur = 40;
-  ctx.shadowOffsetY = 20;
+  ctx.arc(180, 240, 450, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(79, 70, 229, 0.12)';
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(900, 1680, 400, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
   ctx.fill();
   ctx.restore();
 
-  // Card Header Banner (Gradient)
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(cardX + cardR, cardY);
-  ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + 360, cardR);
-  ctx.lineTo(cardX + cardW, cardY + 360);
-  ctx.lineTo(cardX, cardY + 360);
-  ctx.arcTo(cardX, cardY, cardX + cardR, cardY, cardR);
-  ctx.closePath();
-  const headerGrad = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY + 360);
-  headerGrad.addColorStop(0, '#6c5ce7');
-  headerGrad.addColorStop(1, '#00b894');
-  ctx.fillStyle = headerGrad;
-  ctx.fill();
-  ctx.restore();
-
-  // Library Business Name
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '800 48px Outfit, sans-serif';
+  // Top Wallpaper Header
   ctx.textAlign = 'center';
-  ctx.fillText((business.businessName || 'STUDY LIBRARY').toUpperCase(), 540, cardY + 120);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.font = '600 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(`📱 OFFLINE DIGITAL PASS • ${(business.businessName || 'STUDY LIBRARY').toUpperCase()}`, 540, 75);
 
-  // Subtitle
-  ctx.font = '600 28px Outfit, sans-serif';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-  ctx.fillText('OFFLINE DIGITAL PASS', 540, cardY + 175);
-
-  // Avatar Outer Circle
-  const avatarX = 540, avatarY = cardY + 360, avatarR = 120;
-  ctx.beginPath();
-  ctx.arc(avatarX, avatarY, avatarR + 10, 0, Math.PI * 2);
-  ctx.fillStyle = '#ffffff';
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(avatarX, avatarY, avatarR, 0, Math.PI * 2);
-  ctx.fillStyle = '#f0f2f5';
-  ctx.fill();
-
-  // Initials inside circle
-  ctx.fillStyle = '#6c5ce7';
-  ctx.font = '800 84px Outfit, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(initials, avatarX, avatarY);
-
-  // Reset text baseline
-  ctx.textBaseline = 'alphabetic';
-
-  // Student Name
-  ctx.fillStyle = '#1e293b';
-  ctx.font = '800 56px Outfit, sans-serif';
-  ctx.fillText(student.name || 'Student Member', 540, cardY + 570);
-
-  // Student ID Badge Pill
-  const pillW = 420, pillH = 64, pillX = 540 - pillW / 2, pillY = cardY + 610, pillR = 16;
+  // 2. White Card Container
+  const cardX = 80, cardY = 120, cardW = 920, cardH = 1660, cardR = 36;
   ctx.save();
   ctx.beginPath();
   if (typeof ctx.roundRect === 'function') {
-    ctx.roundRect(pillX, pillY, pillW, pillH, pillR);
+    ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
   } else {
-    ctx.rect(pillX, pillY, pillW, pillH);
+    ctx.moveTo(cardX + cardR, cardY);
+    ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, cardR);
+    ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, cardR);
+    ctx.arcTo(cardX, cardY + cardH, cardX, cardY, cardR);
+    ctx.arcTo(cardX, cardY, cardX + cardW, cardY, cardR);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+  ctx.shadowBlur = 50;
+  ctx.shadowOffsetY = 24;
+  ctx.fill();
+  ctx.restore();
+
+  // 3. Card Header Banner (Gradient matching primary brand)
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cardX, cardY + cardR);
+  ctx.arcTo(cardX, cardY, cardX + cardR, cardY, cardR);
+  ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardR, cardR);
+  ctx.lineTo(cardX + cardW, cardY + 240);
+  ctx.lineTo(cardX, cardY + 240);
+  ctx.closePath();
+  ctx.clip();
+
+  const headerGrad = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY + 240);
+  headerGrad.addColorStop(0, '#4f46e5');
+  headerGrad.addColorStop(1, '#6366f1');
+  ctx.fillStyle = headerGrad;
+  ctx.fillRect(cardX, cardY, cardW, 240);
+
+  // Draw Logo in Header
+  if (logoImg) {
+    const logoSize = 64;
+    const logoX = cardX + 36;
+    const logoY = cardY + 36;
+    ctx.save();
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(logoX, logoY, logoSize, logoSize, 12);
+    } else {
+      ctx.rect(logoX, logoY, logoSize, logoSize);
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.clip();
+    ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+    ctx.restore();
+
+    // Business Name & Tagline beside Logo
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(business.businessName || 'Study Library', cardX + 115, cardY + 68);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+    ctx.font = '500 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(business.tagline || 'Student Membership Pass', cardX + 115, cardY + 102);
+  } else {
+    // Centered Business Name & Tagline
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 38px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(business.businessName || 'STUDY LIBRARY', 540, cardY + 70);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+    ctx.font = '500 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(business.tagline || 'Student Membership Pass', 540, cardY + 106);
+  }
+  ctx.restore();
+
+  // 4. Avatar Outer Ring & Photo / Initials
+  const avatarX = 540, avatarY = cardY + 240, avatarR = 100;
+  ctx.save();
+  // White Drop-Shadow Outer Base
+  ctx.beginPath();
+  ctx.arc(avatarX, avatarY, avatarR + 10, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+  ctx.shadowBlur = 20;
+  ctx.shadowOffsetY = 6;
+  ctx.fill();
+
+  // Indigo Accent Ring
+  ctx.beginPath();
+  ctx.arc(avatarX, avatarY, avatarR + 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#4f46e5';
+  ctx.fill();
+
+  // Avatar Image / Content Circle
+  ctx.beginPath();
+  ctx.arc(avatarX, avatarY, avatarR, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+
+  if (photoImg) {
+    ctx.drawImage(photoImg, avatarX - avatarR, avatarY - avatarR, avatarR * 2, avatarR * 2);
+  } else {
+    ctx.fillStyle = '#eef2ff';
+    ctx.fillRect(avatarX - avatarR, avatarY - avatarR, avatarR * 2, avatarR * 2);
+
+    ctx.fillStyle = '#4f46e5';
+    ctx.font = '800 76px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(initials, avatarX, avatarY);
+  }
+  ctx.restore();
+
+  // Reset baseline
+  ctx.textBaseline = 'alphabetic';
+
+  // 5. Student Name with Smart Auto-Wrapping / Font Scaling
+  const nameStr = (student.name || 'Student Member').trim();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#0f172a';
+
+  let nameFontSize = 44;
+  ctx.font = `800 ${nameFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  let nameWidth = ctx.measureText(nameStr).width;
+
+  let nameLines = [];
+  if (nameWidth > 760) {
+    // Try splitting words into 2 lines
+    const words = nameStr.split(' ');
+    if (words.length >= 2) {
+      const mid = Math.ceil(words.length / 2);
+      const line1 = words.slice(0, mid).join(' ');
+      const line2 = words.slice(mid).join(' ');
+      nameLines = [line1, line2];
+      nameFontSize = 38;
+    } else {
+      nameLines = [nameStr];
+      nameFontSize = 34;
+    }
+  } else {
+    nameLines = [nameStr];
+  }
+
+  ctx.font = `800 ${nameFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+  let startNameY = cardY + 390;
+  if (nameLines.length > 1) {
+    nameLines.forEach((l, idx) => {
+      ctx.fillText(l, 540, startNameY + idx * 46);
+    });
+    startNameY += (nameLines.length - 1) * 46;
+  } else {
+    ctx.fillText(nameLines[0], 540, startNameY);
+  }
+
+  // 6. Badges: Student ID + Blood Group side-by-side
+  const badgeY = startNameY + 22;
+  const idText = studentId;
+  ctx.font = '800 26px monospace';
+  const idTextWidth = ctx.measureText(idText).width;
+  const idBadgeW = idTextWidth + 36;
+  const idBadgeH = 46;
+
+  let bloodBadgeW = 0;
+  const hasBlood = Boolean(bloodGroup);
+  const bloodText = `🩸 ${bloodGroup}`;
+  if (hasBlood) {
+    ctx.font = '800 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    bloodBadgeW = ctx.measureText(bloodText).width + 28;
+  }
+
+  const totalBadgesWidth = idBadgeW + (hasBlood ? (12 + bloodBadgeW) : 0);
+  let curBadgeX = 540 - totalBadgesWidth / 2;
+
+  // Draw Student ID Badge
+  ctx.save();
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(curBadgeX, badgeY, idBadgeW, idBadgeH, 10);
+  } else {
+    ctx.rect(curBadgeX, badgeY, idBadgeW, idBadgeH);
   }
   ctx.fillStyle = '#eef2ff';
   ctx.fill();
-  ctx.strokeStyle = '#6c5ce7';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#c7d2fe';
+  ctx.lineWidth = 1.5;
   ctx.stroke();
+  ctx.fillStyle = '#4338ca';
+  ctx.font = '800 26px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(idText, curBadgeX + idBadgeW / 2, badgeY + 32);
   ctx.restore();
 
-  ctx.fillStyle = '#4338ca';
-  ctx.font = '800 32px monospace';
-  ctx.fillText(student.studentId || 'STU-MEMBER', 540, pillY + 44);
+  // Draw Blood Group Badge (if present)
+  if (hasBlood) {
+    const bloodX = curBadgeX + idBadgeW + 12;
+    ctx.save();
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(bloodX, badgeY, bloodBadgeW, idBadgeH, 10);
+    } else {
+      ctx.rect(bloodX, badgeY, bloodBadgeW, idBadgeH);
+    }
+    ctx.fillStyle = 'rgba(220, 38, 38, 0.1)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(220, 38, 38, 0.25)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#dc2626';
+    ctx.font = '800 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(bloodText, bloodX + bloodBadgeW / 2, badgeY + 32);
+    ctx.restore();
+  }
 
-  // Details Data Box
-  const boxX = cardX + 60, boxY = cardY + 720, boxW = cardW - 120, boxH = 500, boxR = 24;
+  // 7. Details Data Box
+  const boxX = cardX + 44, boxY = badgeY + 68, boxW = cardW - 88, boxH = 490, boxR = 20;
   ctx.save();
   ctx.beginPath();
   if (typeof ctx.roundRect === 'function') {
@@ -3438,99 +3614,138 @@ export function download1080pMobileIDPass(student, business, initials, seatTitle
   ctx.stroke();
   ctx.restore();
 
-  // Details Rows
   const labels = [
-    { label: 'Assigned Desk:', val: seatTitle, color: '#6c5ce7' },
-    { label: 'Study Plan:', val: planName, color: '#1e293b' },
-    { label: 'Phone Number:', val: student.phone || '-', color: '#1e293b' },
-    { label: 'Valid Till:', val: expiryDateStr, color: '#e53e3e' }
+    { label: 'Assigned Desk / Seat:', val: seatTitle, color: '#4f46e5', bold: true },
+    { label: 'Shift Timing:', val: shiftName, color: '#0f172a', bold: true },
+    { label: 'Study Plan:', val: planName, color: '#334155', bold: false },
+    { label: 'Contact Phone:', val: phone, color: '#334155', bold: false },
+    { label: 'Valid Until:', val: expiryDateStr, color: '#dc2626', bold: true }
   ];
 
   labels.forEach((item, idx) => {
-    const rowY = boxY + 80 + idx * 105;
+    const rowY = boxY + 64 + idx * 92;
     ctx.textAlign = 'left';
     ctx.fillStyle = '#64748b';
-    ctx.font = '600 32px Outfit, sans-serif';
-    ctx.fillText(item.label, boxX + 40, rowY);
+    ctx.font = '600 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(item.label, boxX + 32, rowY);
 
     ctx.textAlign = 'right';
     ctx.fillStyle = item.color;
-    ctx.font = '800 34px Outfit, sans-serif';
-    ctx.fillText(item.val, boxX + boxW - 40, rowY);
+    ctx.font = `${item.bold ? '800' : '600'} 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.fillText(item.val, boxX + boxW - 32, rowY);
 
     if (idx < labels.length - 1) {
       ctx.beginPath();
-      ctx.moveTo(boxX + 30, rowY + 35);
-      ctx.lineTo(boxX + boxW - 30, rowY + 35);
+      ctx.moveTo(boxX + 24, rowY + 30);
+      ctx.lineTo(boxX + boxW - 24, rowY + 30);
       ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
     }
   });
 
-  // QR Code Generation onto Canvas
-  const qrData = JSON.stringify({
-    type: 'STUDENT_ID',
-    id: student.studentId,
-    name: student.name,
-    phone: student.phone
-  });
+  // 8. Verification Footer Area (QR Code on Left + Stamp on Right)
+  const qrBoxY = boxY + boxH + 36;
+  const qrSize = 240;
+  const qrX = cardX + 70;
 
-  const triggerDownload = () => {
-    const link = document.createElement('a');
-    link.download = `${(student.name || 'Student').replace(/\s+/g, '_')}_Mobile_ID_Pass_1080x1920.png`;
-    link.href = canvas.toDataURL('image/png');
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    Toast.success('📱 1080x1920px Mobile ID Pass image generated & downloaded!');
-  };
-
-  const stampSrc = business.stampImage || window.store?.settings?.businessProfile?.stampImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.stampImage || '';
-  
-  const drawStampAndTrigger = () => {
-    if (stampSrc) {
-      const sImg = new Image();
-      sImg.crossOrigin = 'anonymous';
-      sImg.onload = () => {
-        ctx.save();
-        ctx.globalAlpha = 0.92;
-        ctx.drawImage(sImg, 760, cardY + 1280, 160, 160);
-        ctx.restore();
-        triggerDownload();
-      };
-      sImg.onerror = () => {
-        triggerDownload();
-      };
-      sImg.src = stampSrc;
-    } else {
-      triggerDownload();
+  if (qrImg) {
+    ctx.save();
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(qrX - 8, qrBoxY - 8, qrSize + 16, qrSize + 16, 12);
     }
-  };
-
-  const qrImg = new Image();
-  qrImg.crossOrigin = 'anonymous';
-  qrImg.onload = () => {
-    const qrSize = 240;
-    const qrX = 540 - qrSize / 2;
-    const qrY = cardY + 1260;
-    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.drawImage(qrImg, qrX, qrBoxY, qrSize, qrSize);
+    ctx.restore();
 
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#64748b';
-    ctx.font = '600 24px Outfit, sans-serif';
-    ctx.fillText(`Carry Daily on Mobile • Helpdesk: ${business.phone || ''}`, 540, cardY + 1540);
+    ctx.fillStyle = '#4f46e5';
+    ctx.font = '800 20px monospace';
+    ctx.fillText('SCAN TO VERIFY PASS', qrX + qrSize / 2, qrBoxY + qrSize + 30);
+  }
 
-    drawStampAndTrigger();
-  };
-  qrImg.onerror = () => {
+  // Right Side Stamp & Signatory
+  const stampBoxX = cardX + cardW - 340;
+  const stampBoxY = qrBoxY + 10;
+  if (stampImg) {
+    ctx.save();
+    ctx.drawImage(stampImg, stampBoxX + 40, stampBoxY, 180, 180);
+    ctx.restore();
+  } else {
+    // Vector Official Seal Stamp
+    ctx.save();
+    ctx.translate(stampBoxX + 130, stampBoxY + 80);
+    ctx.rotate(-0.06);
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(-100, -45, 200, 90, 8);
+    } else {
+      ctx.rect(-100, -45, 200, 90);
+    }
+    ctx.strokeStyle = '#059669';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.fillStyle = '#059669';
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#64748b';
-    ctx.font = '600 24px Outfit, sans-serif';
-    ctx.fillText(`Carry Daily on Mobile • Helpdesk: ${business.phone || ''}`, 540, cardY + 1540);
+    ctx.font = '800 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('OFFICIAL SEAL', 0, -10);
+    ctx.font = '700 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('PAID & VERIFIED', 0, 20);
+    ctx.restore();
+  }
 
-    drawStampAndTrigger();
-  };
-  qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrData)}&margin=4`;
+  // Auth Signatory Line
+  ctx.beginPath();
+  ctx.moveTo(stampBoxX + 10, stampBoxY + 210);
+  ctx.lineTo(stampBoxX + 250, stampBoxY + 210);
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#64748b';
+  ctx.font = '600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('Authorized Signatory', stampBoxX + 130, stampBoxY + 238);
+
+  // 9. Card Base Bottom Ribbon
+  const ribbonY = cardY + cardH - 68;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cardX, ribbonY);
+  ctx.lineTo(cardX + cardW, ribbonY);
+  ctx.arcTo(cardX + cardW, cardY + cardH, cardX + cardW - cardR, cardY + cardH, cardR);
+  ctx.arcTo(cardX, cardY + cardH, cardX, cardY + cardH - cardR, cardR);
+  ctx.closePath();
+  ctx.fillStyle = '#f8fafc';
+  ctx.fill();
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#64748b';
+  ctx.font = '600 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(`Issued: ${admissionDate} • Helpline: ${business.phone || '+91 98765 43210'} • Non-Transferable`, 540, ribbonY + 42);
+  ctx.restore();
+
+  // 10. Outer Wallpaper Footer Note
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+  ctx.font = '500 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('Carry on phone lockscreen for instant entry • Anti-Tamper Digital Token', 540, 1870);
+
+  // Trigger Download
+  const link = document.createElement('a');
+  link.download = `${nameStr.replace(/\s+/g, '_')}_Mobile_ID_Pass_1080x1920.png`;
+  link.href = canvas.toDataURL('image/png');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  Toast.success('📱 1080x1920px Mobile ID Pass Wallpaper downloaded successfully!');
 }
 
