@@ -706,15 +706,6 @@ function renderPortalUI(container, data, analytics = null) {
     switchPortalTab('campus');
     if (typeof activateCampusTab === 'function') activateCampusTab('feedback');
   });
-  container.querySelector('#tile-portal-seat-change')?.addEventListener('click', () => {
-    container.querySelector('#btn-portal-seat-change')?.click();
-  });
-  container.querySelector('#tile-portal-leave')?.addEventListener('click', () => {
-    container.querySelector('#btn-portal-leave')?.click();
-  });
-  container.querySelector('#tile-portal-referral')?.addEventListener('click', () => {
-    container.querySelector('#btn-portal-referral')?.click();
-  });
 
   // Admin Switch Student Handler
   container.querySelector('#admin-switch-student')?.addEventListener('change', async (e) => {
@@ -2046,7 +2037,7 @@ function renderPortalUI(container, data, analytics = null) {
   });
 
   // Attach Leave Request Modal
-  container.querySelector('#btn-portal-leave')?.addEventListener('click', async () => {
+  const openLeaveModal = async () => {
     const modalContent = document.createElement('div');
     modalContent.innerHTML = `
       <form id="portal-leave-form" class="p-1 mb-4">
@@ -2078,40 +2069,40 @@ function renderPortalUI(container, data, analytics = null) {
     const leaveModal = new Modal({ title: '🌴 Leave & Absence Application', content: modalContent, size: 'md' });
     leaveModal.show();
 
-    async function loadLeaveHistory() {
-      const histContainer = modalContent.querySelector('#portal-leave-history');
+    // Load History
+    const loadLeaveHistory = async () => {
       try {
-        const res = await api.get('/api/student-portal/leave-requests');
-        const list = res.data || [];
-        if (list.length === 0) {
-          histContainer.innerHTML = `<p class="text-muted small text-center p-2">No leave applications submitted yet.</p>`;
-          return;
-        }
-        histContainer.innerHTML = list.map(l => `
-          <div class="p-2 mb-2" style="background: var(--color-bg-primary); border-radius: 6px; border: 1px solid var(--color-border); font-size: 0.85rem;">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <strong>${new Date(l.startDate).toLocaleDateString('en-IN')} - ${new Date(l.endDate).toLocaleDateString('en-IN')}</strong>
-              <span class="badge ${l.status === 'approved' ? 'badge-success' : l.status === 'rejected' ? 'badge-danger' : 'badge-warning'}" style="text-transform: uppercase; font-size: 0.7rem;">
-                ${l.status}
-              </span>
+        const res = await api.get('/api/student-portal/leave');
+        const historyContainer = modalContent.querySelector('#portal-leave-history');
+        if (res.success && res.data.length > 0) {
+          historyContainer.innerHTML = res.data.map(l => `
+            <div class="p-2 mb-2" style="background: var(--color-bg-secondary); border-radius: 6px; border: 1px solid var(--color-border); font-size: 0.85rem;">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <strong>${new Date(l.startDate).toLocaleDateString()} - ${new Date(l.endDate).toLocaleDateString()}</strong>
+                <span class="badge ${l.status === 'approved' ? 'badge-success' : (l.status === 'rejected' ? 'badge-danger' : 'badge-warning')}">
+                  ${l.status.toUpperCase()}
+                </span>
+              </div>
+              <div class="text-muted">${escapeHTML(l.reason)}</div>
             </div>
-            <div class="text-muted small">${escapeHTML(l.reason)}</div>
-            ${l.adminReply ? `<div style="color: var(--color-primary); font-size: 0.75rem; margin-top: 4px;">Admin: ${escapeHTML(l.adminReply)}</div>` : ''}
-          </div>
-        `).join('');
-      } catch (e) {
-        histContainer.innerHTML = `<p class="text-danger small text-center">Failed to load history</p>`;
+          `).join('');
+        } else {
+          historyContainer.innerHTML = '<div class="text-center p-3 text-muted">No past leave applications.</div>';
+        }
+      } catch (err) {
+        modalContent.querySelector('#portal-leave-history').innerHTML = '<div class="text-danger p-2">Failed to load history</div>';
       }
-    }
+    };
 
+    // Form Submit
     modalContent.querySelector('#portal-leave-form').onsubmit = async (e) => {
       e.preventDefault();
       const startDate = modalContent.querySelector('#leave-start').value;
       const endDate = modalContent.querySelector('#leave-end').value;
-      const reason = modalContent.querySelector('#leave-reason').value.trim();
+      const reason = modalContent.querySelector('#leave-reason').value;
 
       try {
-        await api.post('/api/student-portal/leave-request', { startDate, endDate, reason });
+        await api.post('/api/student-portal/leave', { startDate, endDate, reason });
         Toast.success('Leave application submitted!');
         modalContent.querySelector('#leave-reason').value = '';
         loadLeaveHistory();
@@ -2121,10 +2112,11 @@ function renderPortalUI(container, data, analytics = null) {
     };
 
     loadLeaveHistory();
-  });
+  };
+  container.querySelectorAll('#btn-portal-leave, #tile-portal-leave').forEach(el => el.addEventListener('click', openLeaveModal));
 
   // Attach Seat Change Modal
-  container.querySelector('#btn-portal-seat-change')?.addEventListener('click', async () => {
+  const openSeatChangeModal = async () => {
     const modalContent = document.createElement('div');
     modalContent.innerHTML = `
       <form id="portal-sc-form" class="p-1 mb-4">
@@ -2299,10 +2291,11 @@ function renderPortalUI(container, data, analytics = null) {
     };
 
     loadScHistory();
-  });
+  };
+  container.querySelectorAll('#btn-portal-seat-change, #tile-portal-seat-change').forEach(el => el.addEventListener('click', openSeatChangeModal));
 
   // Attach Smart Referral Studio Modal
-  container.querySelector('#btn-portal-referral')?.addEventListener('click', async () => {
+  const openReferralModal = async () => {
     const modalContent = document.createElement('div');
     modalContent.innerHTML = `
       <div style="font-family: 'Outfit', sans-serif;">
@@ -2484,7 +2477,8 @@ function renderPortalUI(container, data, analytics = null) {
     } catch (err) {
       modalContent.innerHTML = `<div class="text-danger p-4 text-center">Failed to load referral studio: ${escapeHTML(err.message)}</div>`;
     }
-  });
+  };
+  container.querySelectorAll('#btn-portal-referral, #tile-portal-referral').forEach(el => el.addEventListener('click', openReferralModal));
 
   // -------------------------------------------------------------------------
   // 🏛️ Campus Life & Utilities Hub Controller (Notices, Holidays, Lost&Found, Feedback)
