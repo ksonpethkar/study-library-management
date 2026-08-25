@@ -550,17 +550,20 @@ export async function render() {
         return student.targetExams || student.customFields?.targetExams || student.customFields?.target_exams || '';
       }
       if (fn === 'gender') {
-        return student.gender || student.customFields?.gender || '';
+        return student.gender || student.customFields?.gender || student.customFields?.Gender || '';
       }
-      if (fn === 'bloodgroup' || fn === 'blood') {
-        return student.bloodGroup || student.customFields?.bloodGroup || student.customFields?.blood_group || '';
+      if (fn === 'bloodgroup' || fn === 'blood' || fn === 'blood_group') {
+        return student.bloodGroup || student.customFields?.bloodGroup || student.customFields?.blood_group || student.customFields?.BloodGroup || '';
       }
-      if (fn === 'idprooftype') return student.idProof?.type || 'Aadhaar Card';
-      if (fn === 'idproofnumber') return student.idProof?.number || '';
-      if (fn === 'idproofimage' || fn === 'idproof') return student.idProof?.image || '';
-      if (fn === 'emergencycontactname') return student.emergencyContact?.name || '';
-      if (fn === 'emergencycontactphone' || fn === 'emergencycontact' || fn === 'parentphone') return student.emergencyContact?.phone || '';
-      if (fn === 'emergencycontactrelation') return student.emergencyContact?.relation || '';
+      if (fn === 'occupation' || fn === 'collegeorcompany' || fn === 'college_or_company') {
+        return student.occupation || student.collegeOrCompany || student.customFields?.occupation || student.customFields?.collegeOrCompany || '';
+      }
+      if (fn === 'idprooftype' || fn === 'id_proof_type' || fn === 'idtype') return student.idProof?.type || student.customFields?.idProofType || 'Aadhaar Card';
+      if (fn === 'idproofnumber' || fn === 'id_proof_number' || fn === 'idnumber' || fn === 'aadhaar' || fn === 'pan') return student.idProof?.number || student.customFields?.idProofNumber || student.customFields?.aadhaar || '';
+      if (fn === 'idproofimage' || fn === 'idproof' || fn === 'id_proof_image') return student.idProof?.image || student.customFields?.idProofImage || '';
+      if (fn === 'emergencycontactname' || fn === 'emergency_contact_name' || fn === 'parentname') return student.emergencyContact?.name || student.customFields?.emergencyContactName || student.customFields?.parentName || '';
+      if (fn === 'emergencycontactphone' || fn === 'emergencycontact' || fn === 'parentphone' || fn === 'emergency_contact_phone') return student.emergencyContact?.phone || student.customFields?.emergencyContactPhone || student.customFields?.parentPhone || '';
+      if (fn === 'emergencycontactrelation' || fn === 'emergency_contact_relation' || fn === 'parentrelation') return student.emergencyContact?.relation || student.customFields?.emergencyContactRelation || student.customFields?.parentRelation || '';
       if ((fn === 'dateofbirth' || fn === 'dob') && student.dateOfBirth) {
         const d = new Date(student.dateOfBirth);
         return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
@@ -568,8 +571,15 @@ export async function render() {
       if (student.customFields) {
         if (student.customFields instanceof Map) {
           if (student.customFields.has(fieldName)) return student.customFields.get(fieldName) || '';
+          // Also try case-insensitive check
+          for (const [k, v] of student.customFields.entries()) {
+            if (k.toLowerCase().replace(/[^a-z0-9]/g, '') === fn) return v || '';
+          }
         } else if (typeof student.customFields === 'object') {
           if (student.customFields[fieldName] !== undefined && student.customFields[fieldName] !== null) return student.customFields[fieldName];
+          for (const [k, v] of Object.entries(student.customFields)) {
+            if (k.toLowerCase().replace(/[^a-z0-9]/g, '') === fn) return v || '';
+          }
         }
       }
       return '';
@@ -653,6 +663,7 @@ export async function render() {
       }
 
       if (f.type === 'aadhaar_pan') {
+        const idTypeVal = String(getVal('idProofType') || '').toLowerCase();
         return `
           <div class="col-12 mt-2 dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 600;">📑 ${escapeHTML(f.label)}${reqMark}</label>
@@ -660,13 +671,13 @@ export async function render() {
               <div>
                 <label class="form-label text-xs">ID Proof Type</label>
                 <select class="form-select form-control" name="idProof.type">
-                  <option value="Aadhaar Card" ${getVal('idProofType') === 'Aadhaar Card' ? 'selected' : ''}>Aadhaar Card</option>
-                  <option value="PAN Card" ${getVal('idProofType') === 'PAN Card' ? 'selected' : ''}>PAN Card</option>
-                  <option value="Driving License" ${getVal('idProofType') === 'Driving License' ? 'selected' : ''}>Driving License</option>
-                  <option value="Voter ID" ${getVal('idProofType') === 'Voter ID' ? 'selected' : ''}>Voter ID</option>
-                  <option value="Passport" ${getVal('idProofType') === 'Passport' ? 'selected' : ''}>Passport</option>
-                  <option value="Student / College ID" ${getVal('idProofType') === 'Student / College ID' ? 'selected' : ''}>Student / College ID</option>
-                  <option value="Other Govt ID" ${getVal('idProofType') === 'Other Govt ID' ? 'selected' : ''}>Other Govt ID</option>
+                  <option value="Aadhaar Card" ${idTypeVal.includes('aadhaar') || idTypeVal === '' ? 'selected' : ''}>Aadhaar Card</option>
+                  <option value="PAN Card" ${idTypeVal.includes('pan') ? 'selected' : ''}>PAN Card</option>
+                  <option value="Driving License" ${idTypeVal.includes('driving') ? 'selected' : ''}>Driving License</option>
+                  <option value="Voter ID" ${idTypeVal.includes('voter') ? 'selected' : ''}>Voter ID</option>
+                  <option value="Passport" ${idTypeVal.includes('passport') ? 'selected' : ''}>Passport</option>
+                  <option value="Student / College ID" ${idTypeVal.includes('student') || idTypeVal.includes('college') ? 'selected' : ''}>Student / College ID</option>
+                  <option value="Other Govt ID" ${idTypeVal.includes('other') || idTypeVal.includes('govt') ? 'selected' : ''}>Other Govt ID</option>
                 </select>
               </div>
               <div>
@@ -710,7 +721,7 @@ export async function render() {
             <label class="form-label" style="font-weight: 600;">🎯 ${escapeHTML(f.label)}${reqMark}</label>
             <div id="exam-chips-container" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
               ${examsList.map(ex => {
-                const isSel = selectedArr.includes(ex);
+                const isSel = selectedArr.some(s => String(s).toLowerCase().trim() === String(ex).toLowerCase().trim());
                 return `
                   <button type="button" class="btn btn-sm exam-chip-btn ${isSel ? 'btn-primary' : 'btn-outline-secondary'}" data-exam="${ex}" style="border-radius: 16px; font-size: 0.8rem; padding: 3px 10px;">
                     ${ex}
@@ -726,12 +737,13 @@ export async function render() {
 
       if (f.type === 'blood_group') {
         const bgOptions = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+        const currentBg = String(val || '').toUpperCase().trim();
         return `
           <div class="${colClass} dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 500;">🩸 ${escapeHTML(f.label)}${reqMark}</label>
             <select class="form-select form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
               <option value="">-- Select Blood Group --</option>
-              ${bgOptions.map(bg => `<option value="${bg}" ${val === bg ? 'selected' : ''}>${bg}</option>`).join('')}
+              ${bgOptions.map(bg => `<option value="${bg}" ${currentBg === bg ? 'selected' : ''}>${bg}</option>`).join('')}
             </select>
             ${helpText}
           </div>
@@ -763,12 +775,13 @@ export async function render() {
       }
 
       if (f.type === 'select') {
+        const curVal = String(val || '').toLowerCase().trim();
         return `
           <div class="${colClass} dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
             <select class="form-select form-control custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" ${f.required ? 'required' : ''}>
               <option value="">-- Select --</option>
-              ${(f.options || []).map(opt => `<option value="${escapeHTML(opt)}" ${val === opt ? 'selected' : ''}>${escapeHTML(opt)}</option>`).join('')}
+              ${(f.options || []).map(opt => `<option value="${escapeHTML(opt)}" ${curVal === String(opt).toLowerCase().trim() ? 'selected' : ''}>${escapeHTML(opt)}</option>`).join('')}
             </select>
             ${helpText}
           </div>
@@ -776,13 +789,14 @@ export async function render() {
       }
 
       if (f.type === 'radio') {
+        const curVal = String(val || '').toLowerCase().trim();
         return `
           <div class="${colClass} dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 500;">${escapeHTML(f.label)}${reqMark}</label>
             <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px;">
               ${(f.options || []).map(opt => `
                 <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.88rem; cursor: pointer;">
-                  <input type="radio" class="custom-dyn-radio" name="${escapeHTML(f.fieldName)}" data-field="${escapeHTML(f.fieldName)}" value="${escapeHTML(opt)}" ${val === opt ? 'checked' : ''}>
+                  <input type="radio" class="custom-dyn-radio" name="${escapeHTML(f.fieldName)}" data-field="${escapeHTML(f.fieldName)}" value="${escapeHTML(opt)}" ${curVal === String(opt).toLowerCase().trim() ? 'checked' : ''}>
                   ${escapeHTML(opt)}
                 </label>
               `).join('')}
@@ -2847,9 +2861,6 @@ export async function render() {
           Toast.success(`Password updated for ${student.name}!`);
           if (sendWa && res.data?.whatsappUrl) {
             window.open(res.data.whatsappUrl, '_blank');
-          }
-          if (modalInstance && typeof modalInstance.close === 'function') {
-            modalInstance.close();
           }
           return true;
         } else {

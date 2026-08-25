@@ -338,13 +338,53 @@ router.put('/:id', validate([
     const customFieldsData = req.body.customFields;
     delete req.body.customFields;
 
-    const rawGender = req.body.gender !== undefined ? req.body.gender : (customFieldsData && customFieldsData.gender);
+    const rawGender = req.body.gender !== undefined ? req.body.gender : (customFieldsData && (customFieldsData.gender || customFieldsData.Gender));
     if (rawGender) {
       const g = String(rawGender).toLowerCase().trim();
       req.body.gender = ['male', 'female', 'other'].includes(g) ? g : undefined;
     }
     if (req.body.status) {
       req.body.status = String(req.body.status).toLowerCase().trim();
+    }
+
+    const rawBloodGroup = req.body.bloodGroup !== undefined ? req.body.bloodGroup : (customFieldsData && (customFieldsData.bloodGroup || customFieldsData.blood_group || customFieldsData.BloodGroup));
+    if (rawBloodGroup !== undefined) {
+      req.body.bloodGroup = String(rawBloodGroup).trim();
+    }
+
+    const rawOccupation = req.body.occupation !== undefined ? req.body.occupation : (customFieldsData && (customFieldsData.occupation || customFieldsData.collegeOrCompany || customFieldsData.college_or_company));
+    if (rawOccupation !== undefined) {
+      req.body.occupation = String(rawOccupation).trim();
+    }
+
+    if (req.body.idProof || req.body.idProofImage || req.body['idProof.type'] || req.body['idProof.number'] || (customFieldsData && (customFieldsData.idProof || customFieldsData.id_proof || customFieldsData.idProofType || customFieldsData.id_proof_type || customFieldsData.idProofNumber || customFieldsData.id_proof_number || customFieldsData.idProofImage || customFieldsData.id_proof_image))) {
+      const idp = req.body.idProof || {};
+      const idType = idp.type || req.body['idProof.type'] || (customFieldsData && (customFieldsData.idProofType || customFieldsData.id_proof_type || customFieldsData['idProof.type'])) || student.idProof?.type || 'Aadhaar Card';
+      const idNum = idp.number || req.body['idProof.number'] || (customFieldsData && (customFieldsData.idProofNumber || customFieldsData.id_proof_number || customFieldsData['idProof.number'])) || student.idProof?.number || '';
+      const idImg = idp.image || req.body.idProofImage || req.body['idProof.image'] || (customFieldsData && (customFieldsData.idProofImage || customFieldsData.id_proof_image || customFieldsData['idProof.image'])) || student.idProof?.image || '';
+      student.idProof = { type: idType, number: idNum, image: idImg };
+      student.markModified('idProof');
+      delete req.body.idProof;
+      delete req.body['idProof.type'];
+      delete req.body['idProof.number'];
+      delete req.body['idProof.image'];
+      delete req.body.idProofImage;
+    }
+
+    if (req.body.emergencyContact || req.body.emergencyContactPhone || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContact || customFieldsData.emergency_contact || customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone))) {
+      const em = req.body.emergencyContact || {};
+      const emName = em.name || req.body.emergencyContactName || req.body['emergencyContact.name'] || (customFieldsData && (customFieldsData.emergencyContactName || customFieldsData.parentName || customFieldsData.emergency_contact_name)) || student.emergencyContact?.name || '';
+      const emPhone = em.phone || req.body.emergencyContactPhone || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone)) || student.emergencyContact?.phone || '';
+      const emRel = em.relation || req.body.emergencyContactRelation || req.body['emergencyContact.relation'] || (customFieldsData && (customFieldsData.emergencyContactRelation || customFieldsData.parentRelation || customFieldsData.emergency_contact_relation)) || student.emergencyContact?.relation || '';
+      student.emergencyContact = { name: emName, phone: emPhone, relation: emRel };
+      student.markModified('emergencyContact');
+      delete req.body.emergencyContact;
+      delete req.body['emergencyContact.name'];
+      delete req.body['emergencyContact.phone'];
+      delete req.body['emergencyContact.relation'];
+      delete req.body.emergencyContactName;
+      delete req.body.emergencyContactPhone;
+      delete req.body.emergencyContactRelation;
     }
 
     const rawExams = req.body.targetExams !== undefined ? req.body.targetExams : (customFieldsData && (customFieldsData.targetExams || customFieldsData.target_exams || customFieldsData.competitive_exams));
@@ -355,11 +395,13 @@ router.put('/:id', validate([
     Object.assign(student, req.body);
 
     if (customFieldsData && typeof customFieldsData === 'object') {
+      if (!student.customFields) student.customFields = new Map();
       for (const [key, value] of Object.entries(customFieldsData)) {
         if (value !== undefined) {
           student.customFields.set(key, value);
         }
       }
+      student.markModified('customFields');
     }
 
     await student.save();

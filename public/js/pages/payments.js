@@ -842,13 +842,15 @@ export async function render(container) {
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" style="font-weight: 500;">Payment Method *</label>
-                        <select name="paymentMethod" class="form-select form-control" required>
-                            <option value="cash">Cash</option>
-                            <option value="upi" selected>UPI (GPay / PhonePe / Paytm)</option>
-                            <option value="bank_transfer">Bank Transfer (NEFT/IMPS)</option>
-                            <option value="card">Debit / Credit Card</option>
+                        <select name="paymentMethod" id="payMethodSelect" class="form-select form-control" required>
+                            <option value="cash">💵 Cash at Reception Desk</option>
+                            <option value="upi" selected>⚡ UPI (GPay / PhonePe / Paytm / BHIM)</option>
+                            <option value="bank_transfer">🏛️ Bank Transfer (NEFT / IMPS / RTGS)</option>
+                            <option value="card">💳 Debit / Credit Card (POS Terminal)</option>
                         </select>
                     </div>
+
+                    <div class="col-12" id="payMethodContext"></div>
                     
                     <div class="col-md-4">
                         <label class="form-label" style="font-weight: 500;">Amount (₹) *</label>
@@ -868,8 +870,8 @@ export async function render(container) {
                         <h4 id="finalAmountDisplay" style="margin: 0; color: var(--color-success, #00b894); font-size: 1.4rem; font-weight: 700;">₹0</h4>
                     </div>
                     
-                    <div class="col-md-6">
-                        <label class="form-label" style="font-weight: 500;">UPI / 12-Digit UTR Transaction ID</label>
+                    <div class="col-md-6" id="payTxnWrapper">
+                        <label class="form-label" id="payTxnLabel" style="font-weight: 500;">⚡ UPI / 12-Digit UTR Transaction ID</label>
                         <input type="text" name="transactionId" id="payTransactionId" class="form-control" placeholder="e.g. 12-digit UTR (e.g. 423456789012)" maxlength="30">
                         <small id="utrWarnMsg" class="text-danger" style="display: none; font-size: 0.75rem; margin-top: 3px; font-weight: 600;"></small>
                     </div>
@@ -900,6 +902,72 @@ export async function render(container) {
         const payLateFee = content.querySelector('#payLateFee');
         const finalDisplay = content.querySelector('#finalAmountDisplay');
         const studentSelect = content.querySelector('#studentSelect');
+        const payMethodSelect = content.querySelector('#payMethodSelect');
+        const payMethodContext = content.querySelector('#payMethodContext');
+        const payTxnLabel = content.querySelector('#payTxnLabel');
+        const payTxnInput = content.querySelector('#payTransactionId');
+        const utrWarnMsg = content.querySelector('#utrWarnMsg');
+
+        // Dynamic Payment Method UI Adapter
+        const updatePaymentMethodUI = () => {
+            const method = payMethodSelect?.value || 'upi';
+            const upiId = window.store?.settings?.businessProfile?.upiId || window.store?.profile?.upiId || '';
+
+            if (method === 'cash') {
+                if (payTxnLabel) payTxnLabel.innerHTML = '💵 Cash Collector Note / Register Slip (Optional)';
+                if (payTxnInput) payTxnInput.placeholder = 'e.g. Cash received at reception desk';
+                if (payMethodContext) {
+                    payMethodContext.innerHTML = `
+                        <div style="background: rgba(0, 184, 148, 0.1); border: 1px solid var(--color-success, #00b894); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                            <span>💵</span>
+                            <span><strong>Cash Payment:</strong> Instant official receipt generation. No transaction ID required.</span>
+                        </div>
+                    `;
+                }
+                if (utrWarnMsg) utrWarnMsg.style.display = 'none';
+            } else if (method === 'bank_transfer') {
+                if (payTxnLabel) payTxnLabel.innerHTML = '🏛️ Bank NEFT / IMPS / RTGS UTR Number *';
+                if (payTxnInput) payTxnInput.placeholder = 'e.g. Bank Ref # / IMPS Transaction Reference';
+                if (payMethodContext) {
+                    payMethodContext.innerHTML = `
+                        <div style="background: rgba(9, 132, 227, 0.1); border: 1px solid #0984e3; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                            <span>🏛️</span>
+                            <span><strong>Bank Transfer:</strong> Direct deposit / IMPS / NEFT into library bank account.</span>
+                        </div>
+                    `;
+                }
+                if (utrWarnMsg) utrWarnMsg.style.display = 'none';
+            } else if (method === 'card') {
+                if (payTxnLabel) payTxnLabel.innerHTML = '💳 POS Slip Code / Card Last 4 Digits';
+                if (payTxnInput) payTxnInput.placeholder = 'e.g. POS Auth Code #8492 or Card Ending 4321';
+                if (payMethodContext) {
+                    payMethodContext.innerHTML = `
+                        <div style="background: rgba(225, 112, 85, 0.1); border: 1px solid #e17055; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                            <span>💳</span>
+                            <span><strong>Card Swipe / Terminal:</strong> Credit or Debit card processed on POS machine.</span>
+                        </div>
+                    `;
+                }
+                if (utrWarnMsg) utrWarnMsg.style.display = 'none';
+            } else {
+                // Default: UPI
+                if (payTxnLabel) payTxnLabel.innerHTML = '⚡ UPI / 12-Digit UTR Transaction ID *';
+                if (payTxnInput) payTxnInput.placeholder = 'e.g. 12-digit UTR (e.g. 423456789012)';
+                if (payMethodContext) {
+                    payMethodContext.innerHTML = `
+                        <div style="background: rgba(108, 92, 231, 0.1); border: 1px solid var(--color-primary, #6c5ce7); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                            <span>📱 <strong>UPI Payment:</strong> Instant collection via GPay, PhonePe, Paytm, BHIM.</span>
+                            ${upiId ? `<span class="badge" style="background: var(--color-primary); color: #fff; font-family: monospace; font-size: 0.78rem;">UPI: ${escapeHTML(upiId)}</span>` : ''}
+                        </div>
+                    `;
+                }
+            }
+        };
+
+        if (payMethodSelect) {
+            payMethodSelect.addEventListener('change', updatePaymentMethodUI);
+            updatePaymentMethodUI();
+        }
 
         const calculateFinal = () => {
             const amount = parseFloat(payAmount.value) || 0;
@@ -932,10 +1000,13 @@ export async function render(container) {
             }
         }
         
-        const payTxnInput = content.querySelector('#payTransactionId');
-        const utrWarnMsg = content.querySelector('#utrWarnMsg');
-
         const validateUTR = async () => {
+            const method = payMethodSelect?.value || 'upi';
+            if (method !== 'upi') {
+                if (utrWarnMsg) utrWarnMsg.style.display = 'none';
+                return true;
+            }
+
             const txnVal = payTxnInput?.value?.trim() || '';
             if (!txnVal || !utrWarnMsg) {
                 if (utrWarnMsg) utrWarnMsg.style.display = 'none';
@@ -1027,16 +1098,17 @@ export async function render(container) {
                     </div>
                     <div class="col-12">
                         <label class="form-label" style="font-weight: 500;">Payment Method *</label>
-                        <select name="method" class="form-select form-control" required>
-                            <option value="cash">Cash</option>
-                            <option value="upi" selected>UPI (GPay / PhonePe / Paytm)</option>
-                            <option value="bank_transfer">Bank Transfer (NEFT/IMPS)</option>
-                            <option value="card">Debit / Credit Card</option>
+                        <select name="method" id="balancePayMethodSelect" class="form-select form-control" required>
+                            <option value="cash">💵 Cash at Reception Desk</option>
+                            <option value="upi" selected>⚡ UPI (GPay / PhonePe / Paytm / BHIM)</option>
+                            <option value="bank_transfer">🏛️ Bank Transfer (NEFT / IMPS / RTGS)</option>
+                            <option value="card">💳 Debit / Credit Card (POS Terminal)</option>
                         </select>
                     </div>
+                    <div class="col-12" id="balancePayMethodContext"></div>
                     <div class="col-12">
-                        <label class="form-label" style="font-weight: 500;">Transaction ID (Optional)</label>
-                        <input type="text" name="transactionId" class="form-control">
+                        <label class="form-label" id="balancePayTxnLabel" style="font-weight: 500;">⚡ UPI / 12-Digit UTR Transaction ID</label>
+                        <input type="text" name="transactionId" id="balancePayTxnInput" class="form-control" placeholder="e.g. 12-digit UTR (e.g. 423456789012)">
                     </div>
                     <div class="col-12 text-end mt-3 d-flex justify-content-end gap-2">
                         <button type="button" class="btn btn-secondary modal-close-btn" onclick="Modal.close()">Cancel</button>
@@ -1052,6 +1124,65 @@ export async function render(container) {
             size: 'md'
         });
         modal.show();
+
+        const balanceMethodSelect = content.querySelector('#balancePayMethodSelect');
+        const balanceMethodContext = content.querySelector('#balancePayMethodContext');
+        const balanceTxnLabel = content.querySelector('#balancePayTxnLabel');
+        const balanceTxnInput = content.querySelector('#balancePayTxnInput');
+
+        const updateBalanceMethodUI = () => {
+            const m = balanceMethodSelect?.value || 'upi';
+            if (m === 'cash') {
+                if (balanceTxnLabel) balanceTxnLabel.innerHTML = '💵 Cash Collector Note (Optional)';
+                if (balanceTxnInput) balanceTxnInput.placeholder = 'e.g. Cash received at reception desk';
+                if (balanceMethodContext) {
+                    balanceMethodContext.innerHTML = `
+                        <div style="background: rgba(0, 184, 148, 0.1); border: 1px solid var(--color-success, #00b894); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                            <span>💵</span>
+                            <span><strong>Cash Payment:</strong> Instant installment receipt generated.</span>
+                        </div>
+                    `;
+                }
+            } else if (m === 'bank_transfer') {
+                if (balanceTxnLabel) balanceTxnLabel.innerHTML = '🏛️ Bank NEFT / IMPS Reference Number';
+                if (balanceTxnInput) balanceTxnInput.placeholder = 'e.g. Bank Ref # / IMPS Transaction Reference';
+                if (balanceMethodContext) {
+                    balanceMethodContext.innerHTML = `
+                        <div style="background: rgba(9, 132, 227, 0.1); border: 1px solid #0984e3; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                            <span>🏛️</span>
+                            <span><strong>Bank Transfer:</strong> Direct deposit / IMPS / NEFT into library bank account.</span>
+                        </div>
+                    `;
+                }
+            } else if (m === 'card') {
+                if (balanceTxnLabel) balanceTxnLabel.innerHTML = '💳 POS Slip Code / Card Last 4 Digits';
+                if (balanceTxnInput) balanceTxnInput.placeholder = 'e.g. POS Auth Code #8492 or Card Ending 4321';
+                if (balanceMethodContext) {
+                    balanceMethodContext.innerHTML = `
+                        <div style="background: rgba(225, 112, 85, 0.1); border: 1px solid #e17055; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                            <span>💳</span>
+                            <span><strong>Card Swipe:</strong> Processed on POS terminal.</span>
+                        </div>
+                    `;
+                }
+            } else {
+                if (balanceTxnLabel) balanceTxnLabel.innerHTML = '⚡ UPI / 12-Digit UTR Transaction ID';
+                if (balanceTxnInput) balanceTxnInput.placeholder = 'e.g. 12-digit UTR (e.g. 423456789012)';
+                if (balanceMethodContext) {
+                    balanceMethodContext.innerHTML = `
+                        <div style="background: rgba(108, 92, 231, 0.1); border: 1px solid var(--color-primary, #6c5ce7); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+                            <span>📱</span>
+                            <span><strong>UPI Transfer:</strong> GPay, PhonePe, Paytm, BHIM.</span>
+                        </div>
+                    `;
+                }
+            }
+        };
+
+        if (balanceMethodSelect) {
+            balanceMethodSelect.addEventListener('change', updateBalanceMethodUI);
+            updateBalanceMethodUI();
+        }
         
         const form = content.querySelector('#payBalanceForm');
         form.addEventListener('submit', async (e) => {
