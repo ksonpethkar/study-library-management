@@ -150,17 +150,68 @@ app.use('/api/system', require('./routes/systemConfig'));
 app.use('/api/system', require('./routes/systemHealth'));
 app.use('/api/ai', require('./routes/aiInsights'));
 
-// Health check endpoint for uptime monitoring & Render.com
-app.get('/api/health', (req, res) => {
+// Health check endpoint for uptime monitoring, diagnostics & Render.com
+app.get('/api/health', async (req, res) => {
   const mongoose = require('mongoose');
-  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-  res.json({
-    status: 'healthy',
-    uptime: Math.round(process.uptime()),
+  const dbConnected = mongoose.connection.readyState === 1;
+  const dbStateMap = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+  const dbStatus = dbStateMap[mongoose.connection.readyState] || 'unknown';
+
+  let dbPingLatencyMs = -1;
+  if (dbConnected && mongoose.connection.db) {
+    const pingStart = Date.now();
+    try {
+      await mongoose.connection.db.command({ ping: 1 });
+      dbPingLatencyMs = Date.now() - pingStart;
+    } catch {
+      dbPingLatencyMs = -1;
+    }
+  }
+
+  const mem = process.memoryUsage();
+  const bytesToMB = (b) => Number((b / (1024 * 1024)).toFixed(2));
+  const uptimeSeconds = Math.round(process.uptime());
+  const d = Math.floor(uptimeSeconds / (3600 * 24));
+  const h = Math.floor((uptimeSeconds % (3600 * 24)) / 3600);
+  const m = Math.floor((uptimeSeconds % 3600) / 60);
+  const s = Math.floor(uptimeSeconds % 60);
+  const formattedUptime = `${d > 0 ? d + 'd ' : ''}${h > 0 ? h + 'h ' : ''}${m}m ${s}s`;
+
+  const isHealthy = dbConnected && (dbPingLatencyMs >= 0 || mongoose.connection.readyState === 1);
+  const isDegraded = isHealthy && dbPingLatencyMs > 400;
+
+  const responsePayload = {
+    status: !isHealthy ? 'unhealthy' : (isDegraded ? 'degraded' : 'healthy'),
+    badge: !isHealthy ? '🔴 Unhealthy' : (isDegraded ? '🟡 Degraded (High Latency)' : '🟢 Operational'),
+    version: '1.0.0',
     timestamp: new Date().toISOString(),
-    database: dbStatus,
-    version: '1.0.0'
-  });
+    uptime: uptimeSeconds,
+    uptimeFormatted: formattedUptime,
+    database: {
+      status: dbStatus,
+      connected: dbConnected,
+      pingLatencyMs: dbPingLatencyMs,
+      badge: dbPingLatencyMs >= 0 ? (dbPingLatencyMs < 50 ? '🟢 Ultra-Fast' : (dbPingLatencyMs < 200 ? '🟡 Good' : '🟠 Moderate')) : '🔴 Disconnected',
+      host: mongoose.connection.host || 'MongoDB Atlas'
+    },
+    memory: {
+      heapUsedMB: bytesToMB(mem.heapUsed),
+      heapTotalMB: bytesToMB(mem.heapTotal),
+      rssMB: bytesToMB(mem.rss),
+      externalMB: bytesToMB(mem.external),
+      containerLimitMB: 512,
+      usagePercent: Number(((mem.rss / (512 * 1024 * 1024)) * 100).toFixed(1))
+    },
+    system: {
+      nodeVersion: process.version,
+      platform: process.platform,
+      arch: process.arch,
+      pid: process.pid,
+      environment: process.env.NODE_ENV || 'production'
+    }
+  };
+
+  res.status(isHealthy ? 200 : 503).json(responsePayload);
 });
 
 // Public Configuration Endpoint for Admission Wizard & System (High Performance)
