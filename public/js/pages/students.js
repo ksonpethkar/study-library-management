@@ -1342,8 +1342,8 @@ export async function render() {
     });
 
     // Bind Dynamic ID Proof Type & Number Validation
-    if (window.SmartIntelligence && typeof window.SmartIntelligence.bindDynamicIDProofValidation === 'function') {
-      window.SmartIntelligence.bindDynamicIDProofValidation(modal.element);
+    if (SmartIntelligence && typeof SmartIntelligence.bindDynamicIDProofValidation === 'function') {
+      SmartIntelligence.bindDynamicIDProofValidation(modal.element);
     }
 
     // Setup Dynamic Payment Mode Adapter in Student Admission Modal

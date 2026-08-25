@@ -409,7 +409,6 @@ export class SmartIntelligence {
       return 'Passport';
     }
 
-    // 5. Driving License: 2-letter state code + 10-16 alphanumeric chars
     if (cleanAlphaNum.length >= 12 && cleanAlphaNum.length <= 18 && /^[A-Z]{2}[0-9A-Z]{10,16}$/.test(cleanAlphaNum)) {
       return 'Driving License';
     }
@@ -418,11 +417,145 @@ export class SmartIntelligence {
   }
 
   /**
-   * Scans an uploaded file or Base64 image URL to extract Government ID type & document number
-   * @param {File|Blob|string} fileOrDataUrl 
-   * @param {string} fallbackType 
-   * @returns {Promise<{detectedType: string|null, detectedNumber: string|null, confidence: number}>}
+   * Lazily loads Tesseract.js OCR engine on-demand
    */
+  static async loadTesseract() {
+    if (typeof window === 'undefined') return null;
+    if (window.Tesseract) return window.Tesseract;
+    if (window._tesseractPromise) return window._tesseractPromise;
+
+    window._tesseractPromise = new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      script.async = true;
+      script.onload = () => resolve(window.Tesseract || null);
+      script.onerror = () => resolve(null);
+      document.head.appendChild(script);
+    });
+
+    return window._tesseractPromise;
+  }
+
+  /**
+   * Preprocesses image on canvas for optimal OCR contrast and edge detection
+   */
+  static preprocessImageForOCR(imageSrc) {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined' || !imageSrc) return resolve(imageSrc);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          let w = img.width;
+          let h = img.height;
+          if (w > 1200 || h > 1200) {
+            if (w > h) {
+              h = Math.round((h * 1200) / w);
+              w = 1200;
+            } else {
+              w = Math.round((w * 1200) / h);
+              h = 1200;
+            }
+          }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.92));
+        } catch (e) {
+          resolve(imageSrc);
+        }
+      };
+      img.onerror = () => resolve(imageSrc);
+      img.src = imageSrc;
+    });
+  }
+
+  /**
+   * High-precision regex and heuristic parser for OCR text extracted from Government IDs
+   */
+  static extractIDFromOCRText(ocrText) {
+    if (!ocrText || typeof ocrText !== 'string') return null;
+    const cleanText = ocrText.replace(/\r\n/g, '\n').toUpperCase();
+
+    const panMatches = cleanText.match(/\b([A-Z]{5}\d{4}[A-Z]{1})\b/g);
+    if (panMatches && panMatches.length > 0) {
+      for (const p of panMatches) {
+        if (!['INCOM', 'INDIA', 'DEPTT', 'GOVT'].includes(p.slice(0, 5))) {
+          return {
+            detectedType: 'PAN Card',
+            detectedNumber: p,
+            rawText: cleanText
+          };
+        }
+      }
+      return {
+        detectedType: 'PAN Card',
+        detectedNumber: panMatches[0],
+        rawText: cleanText
+      };
+    }
+
+    const panCandidates = cleanText.match(/\b([A-Z0-9]{10})\b/g);
+    if (panCandidates) {
+      for (const cand of panCandidates) {
+        if (/^[A-Z]{3}[A-Z0-9]{2}[0-9OISB]{4}[A-Z0-9]$/.test(cand)) {
+          const part1 = cand.slice(0, 5).replace(/0/g, 'O').replace(/1/g, 'I');
+          const part2 = cand.slice(5, 9).replace(/O/g, '0').replace(/I/g, '1').replace(/S/g, '5').replace(/B/g, '8');
+          const part3 = cand.slice(9, 10).replace(/0/g, 'O').replace(/1/g, 'I');
+          const normalized = `${part1}${part2}${part3}`;
+          if (/^[A-Z]{5}\d{4}[A-Z]$/.test(normalized)) {
+            return {
+              detectedType: 'PAN Card',
+              detectedNumber: normalized,
+              rawText: cleanText
+            };
+          }
+        }
+      }
+    }
+
+    const aadhaarMatches = cleanText.match(/\b([2-9]\d{3})\s?(\d{4})\s?(\d{4})\b/g);
+    if (aadhaarMatches && aadhaarMatches.length > 0) {
+      const cleanAadhaar = aadhaarMatches[0].replace(/\s+/g, '');
+      return {
+        detectedType: 'Aadhaar Card',
+        detectedNumber: `${cleanAadhaar.slice(0, 4)} ${cleanAadhaar.slice(4, 8)} ${cleanAadhaar.slice(8)}`,
+        rawText: cleanText
+      };
+    }
+
+    const voterMatch = cleanText.match(/\b([A-Z]{3}\d{7})\b/);
+    if (voterMatch) {
+      return {
+        detectedType: 'Voter ID',
+        detectedNumber: voterMatch[1],
+        rawText: cleanText
+      };
+    }
+
+    const dlMatch = cleanText.match(/\b([A-Z]{2}[-\s]?\d{2}[-\s]?\d{4}[-\s]?\d{7})\b/) || cleanText.match(/\b([A-Z]{2}\d{13,15})\b/);
+    if (dlMatch) {
+      return {
+        detectedType: 'Driving License',
+        detectedNumber: dlMatch[1].replace(/\s+/g, ' '),
+        rawText: cleanText
+      };
+    }
+
+    const passMatch = cleanText.match(/\b([A-PR-WYa-pr-wy]\d{7})\b/);
+    if (passMatch) {
+      return {
+        detectedType: 'Passport',
+        detectedNumber: passMatch[1].toUpperCase(),
+        rawText: cleanText
+      };
+    }
+
+    return null;
+  }
+
   static async scanDocumentImage(fileOrDataUrl, fallbackType = '') {
     if (!fileOrDataUrl) return { detectedType: null, detectedNumber: null, confidence: 0 };
 
@@ -445,54 +578,45 @@ export class SmartIntelligence {
       }
     }
 
-    // 1. Client-Side instant pattern match from filename or text stream
-    const sourceStream = `${fileName} ${imageString.slice(0, 3000)}`;
-
-    const aadhaarMatch = sourceStream.match(/\b([2-9]\d{3})\s?(\d{4})\s?(\d{4})\b/) || sourceStream.match(/\b([2-9]\d{11})\b/);
-    if (aadhaarMatch) {
-      const clean = (aadhaarMatch[0] || '').replace(/\D/g, '');
-      if (clean.length === 12) {
+    if (fileName) {
+      const fnPan = fileName.match(/\b([A-Za-z]{5}\d{4}[A-Za-z]{1})\b/);
+      if (fnPan) return { detectedType: 'PAN Card', detectedNumber: fnPan[1].toUpperCase(), confidence: 0.98 };
+      
+      const fnAadhaarDigits = fileName.replace(/\D/g, '');
+      if (fnAadhaarDigits.length === 12 && /^[2-9]/.test(fnAadhaarDigits)) {
         return {
           detectedType: 'Aadhaar Card',
-          detectedNumber: `${clean.slice(0, 4)} ${clean.slice(4, 8)} ${clean.slice(8)}`,
+          detectedNumber: `${fnAadhaarDigits.slice(0, 4)} ${fnAadhaarDigits.slice(4, 8)} ${fnAadhaarDigits.slice(8)}`,
           confidence: 0.95
         };
       }
     }
 
-    const panMatch = sourceStream.match(/\b([A-Za-z]{5}\d{4}[A-Za-z]{1})\b/);
-    if (panMatch) {
-      return {
-        detectedType: 'PAN Card',
-        detectedNumber: panMatch[1].toUpperCase(),
-        confidence: 0.95
-      };
+    if (imageString && (imageString.startsWith('data:image/') || imageString.startsWith('blob:') || imageString.startsWith('http'))) {
+      try {
+        const Tesseract = await SmartIntelligence.loadTesseract();
+        if (Tesseract && Tesseract.recognize) {
+          const processedUrl = await SmartIntelligence.preprocessImageForOCR(imageString);
+          const ocrRes = await Tesseract.recognize(processedUrl, 'eng');
+          const rawOcrText = ocrRes?.data?.text || '';
+          
+          if (rawOcrText && rawOcrText.trim()) {
+            const parsed = SmartIntelligence.extractIDFromOCRText(rawOcrText);
+            if (parsed && parsed.detectedNumber) {
+              return { ...parsed, confidence: 0.97 };
+            }
+          }
+        }
+      } catch (ocrErr) {
+        console.warn('In-browser OCR processing notice:', ocrErr);
+      }
     }
 
-    const voterMatch = sourceStream.match(/\b([A-Za-z]{3}\d{7})\b/);
-    if (voterMatch) {
-      return {
-        detectedType: 'Voter ID',
-        detectedNumber: voterMatch[1].toUpperCase(),
-        confidence: 0.90
-      };
-    }
-
-    const passMatch = sourceStream.match(/\b([A-PR-WYa-pr-wy]\d{7})\b/);
-    if (passMatch) {
-      return {
-        detectedType: 'Passport',
-        detectedNumber: passMatch[1].toUpperCase(),
-        confidence: 0.90
-      };
-    }
-
-    // 2. Query backend OCR detector
     try {
       const res = await fetch('/api/search/ocr-id-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: imageString.slice(0, 10000), fileName })
+        body: JSON.stringify({ image: imageString.slice(0, 50000), fileName })
       });
       if (res.ok) {
         const json = await res.json();
@@ -500,20 +624,14 @@ export class SmartIntelligence {
           return json.data;
         }
       }
-    } catch (err) {
-      // Backend lookup fallback
-    }
+    } catch (err) {}
 
     return { detectedType: null, detectedNumber: null, confidence: 0 };
   }
 
-  /**
-   * Dynamically binds ID Proof Type select, Number input, and Auto-Fetch from Document Upload
-   * @param {HTMLElement|Document} rootEl 
-   */
   static bindDynamicIDProofValidation(rootEl = document) {
-    const typeSelect = rootEl.querySelector('select[name="idProof.type"], select[name="idProofType"], select[name="idprooftype"], select[data-field="idprooftype"], select[data-field="idProofType"], select[name="cf_idprooftype"], select[name="cf_idproof_type"], select[data-field="idproof_type"]');
-    const numInput = rootEl.querySelector('input[name="idProof.number"], input[name="idProofNumber"], input[name="idproofnumber"], input[data-field="idproofnumber"], input[data-field="idProofNumber"], input[name="cf_idproofnumber"], input[name="cf_idproof_number"], input[data-field="idproof_number"]');
+    const typeSelect = rootEl.querySelector('select[name="idProof.type"], select[name="idProofType"], select[name="idprooftype"], select[data-field="idprooftype"], select[data-field="idProofType"], select[name="cf_idprooftype"], select[name="cf_idproof_type"], select[data-field="idproof_type"], #reg-id-type');
+    const numInput = rootEl.querySelector('input[name="idProof.number"], input[name="idProofNumber"], input[name="idproofnumber"], input[data-field="idproofnumber"], input[data-field="idProofNumber"], input[name="cf_idproofnumber"], input[name="cf_idproof_number"], input[data-field="idproof_number"], #reg-id-number');
 
     if (!typeSelect || !numInput) return;
 
@@ -569,12 +687,9 @@ export class SmartIntelligence {
       }
     }
 
-    // Auto-switch dropdown type if typed or pasted value matches specific format
     function handleAutoTypeSwitch(val) {
-      if (!val || val.length < 5) return;
       const detected = SmartIntelligence.detectIDTypeFromNumber(val);
-      if (detected && typeSelect.value !== detected) {
-        // Find matching option in select
+      if (detected && detected !== typeSelect.value) {
         for (let i = 0; i < typeSelect.options.length; i++) {
           const opt = typeSelect.options[i];
           if (opt.value.toLowerCase().includes(detected.toLowerCase()) || detected.toLowerCase().includes(opt.value.toLowerCase())) {
@@ -599,73 +714,93 @@ export class SmartIntelligence {
       });
     });
 
-    // ── Auto-Fetch from ID Proof Document Upload ──────────────────────────
-    const idProofUploadContainer = rootEl.querySelector('#mount-student-idproof, #public-idproof-mount, #mount-portal-idproof, .custom-media-mount[data-field="idProofImage"], .custom-media-mount[data-field="idproofimage"]');
+    const handleDocumentUpload = async (imageSrcOrFile) => {
+      if (!imageSrcOrFile) return;
 
-    if (idProofUploadContainer) {
-      const handleDocumentUpload = async (imageSrcOrFile) => {
-        if (!imageSrcOrFile) return;
+      if (alertDiv) {
+        alertDiv.style.color = 'var(--color-primary, #6c5ce7)';
+        alertDiv.textContent = '🔍 Auto-scanning uploaded ID document for details...';
+      }
 
-        if (alertDiv) {
-          alertDiv.style.color = 'var(--color-primary, #6c5ce7)';
-          alertDiv.textContent = '🔍 Auto-scanning uploaded ID document for details...';
-        }
+      const scanRes = await SmartIntelligence.scanDocumentImage(imageSrcOrFile, typeSelect.value);
 
-        const scanRes = await SmartIntelligence.scanDocumentImage(imageSrcOrFile, typeSelect.value);
-
-        if (scanRes && scanRes.detectedNumber) {
-          if (scanRes.detectedType) {
-            for (let i = 0; i < typeSelect.options.length; i++) {
-              const opt = typeSelect.options[i];
-              if (opt.value.toLowerCase().includes(scanRes.detectedType.toLowerCase()) || scanRes.detectedType.toLowerCase().includes(opt.value.toLowerCase())) {
-                typeSelect.selectedIndex = i;
-                break;
-              }
+      if (scanRes && scanRes.detectedNumber) {
+        if (scanRes.detectedType) {
+          for (let i = 0; i < typeSelect.options.length; i++) {
+            const opt = typeSelect.options[i];
+            if (opt.value.toLowerCase().includes(scanRes.detectedType.toLowerCase()) || scanRes.detectedType.toLowerCase().includes(opt.value.toLowerCase())) {
+              typeSelect.selectedIndex = i;
+              break;
             }
           }
-
-          applyRules();
-          numInput.value = scanRes.detectedNumber;
-          numInput.dispatchEvent(new Event('input', { bubbles: true }));
-          numInput.dispatchEvent(new Event('change', { bubbles: true }));
-
-          // Green highlight visual feedback
-          numInput.style.borderColor = 'var(--color-success, #10b981)';
-          numInput.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.25)';
-          setTimeout(() => {
-            numInput.style.borderColor = '';
-            numInput.style.boxShadow = '';
-          }, 3000);
-
-          if (alertDiv) {
-            alertDiv.style.color = 'var(--color-success, #10b981)';
-            alertDiv.textContent = `✨ Auto-fetched ${scanRes.detectedType || 'ID'} (${scanRes.detectedNumber}) from document photo!`;
-          }
-        } else if (alertDiv && !numInput.value) {
-          alertDiv.style.color = 'var(--color-text-secondary, #888)';
-          alertDiv.textContent = '📑 Document attached. Enter ID proof number if not auto-detected.';
         }
-      };
 
-      // Watch file input
-      const fileInput = idProofUploadContainer.querySelector('.mfp-file-input, input[type="file"]');
-      if (fileInput) {
-        fileInput.addEventListener('change', (e) => {
-          const file = e.target.files?.[0];
-          if (file) handleDocumentUpload(file);
-        });
+        applyRules();
+        numInput.value = scanRes.detectedNumber;
+        numInput.dispatchEvent(new Event('input', { bubbles: true }));
+        numInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+        numInput.style.borderColor = 'var(--color-success, #10b981)';
+        numInput.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.25)';
+        setTimeout(() => {
+          numInput.style.borderColor = '';
+          numInput.style.boxShadow = '';
+        }, 3000);
+
+        if (alertDiv) {
+          alertDiv.style.color = 'var(--color-success, #10b981)';
+          alertDiv.textContent = `✨ Auto-fetched ${scanRes.detectedType || 'ID'} (${scanRes.detectedNumber}) via Smart Document OCR!`;
+        }
+      } else if (alertDiv && !numInput.value) {
+        alertDiv.style.color = 'var(--color-text-secondary, #888)';
+        alertDiv.textContent = '📑 Document attached. Enter ID proof number if not auto-detected.';
       }
+    };
 
-      // Watch hidden value
-      const hiddenInput = idProofUploadContainer.querySelector('.mfp-hidden-value, input[type="hidden"]');
-      if (hiddenInput) {
-        ['input', 'change'].forEach(evt => {
-          hiddenInput.addEventListener(evt, (e) => {
-            if (e.target.value) handleDocumentUpload(e.target.value);
+    const attachToUploadContainers = () => {
+      const uploadContainers = rootEl.querySelectorAll('#mount-student-idproof, #public-idproof-mount, #mount-portal-idproof, .custom-media-mount[data-field="idProofImage"], .custom-media-mount[data-field="idproofimage"], .media-field-picker[data-name="idProofImage"]');
+
+      uploadContainers.forEach(container => {
+        if (container._ocrBound) return;
+        container._ocrBound = true;
+
+        const fileInput = container.querySelector('.mfp-file-input, input[type="file"]');
+        if (fileInput) {
+          fileInput.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (file) handleDocumentUpload(file);
           });
+        }
+
+        const hiddenInput = container.querySelector('.mfp-hidden-value, input[type="hidden"]');
+        if (hiddenInput) {
+          ['input', 'change'].forEach(evt => {
+            hiddenInput.addEventListener(evt, (e) => {
+              if (e.target.value) handleDocumentUpload(e.target.value);
+            });
+          });
+        }
+
+        const observer = new MutationObserver(() => {
+          const img = container.querySelector('.mfp-preview-img, img');
+          const val = hiddenInput?.value || img?.src;
+          if (val && val !== container._lastScannedVal && !val.includes('data:image/svg')) {
+            container._lastScannedVal = val;
+            handleDocumentUpload(val);
+          }
         });
+        observer.observe(container, { childList: true, subtree: true });
+      });
+    };
+
+    attachToUploadContainers();
+
+    rootEl.addEventListener('change', (e) => {
+      if (e.target.matches('input[name="idProofImage"], .mfp-hidden-value[name="idProofImage"], #public-idproof-mount input')) {
+        if (e.target.files?.[0]) handleDocumentUpload(e.target.files[0]);
+        else if (e.target.value) handleDocumentUpload(e.target.value);
       }
-    }
+    });
 
     applyRules();
   }

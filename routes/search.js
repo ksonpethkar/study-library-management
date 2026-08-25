@@ -11,36 +11,39 @@ const { lookupPincode } = require('../utils/pincodeLookup');
 // @desc    Auto-detects and extracts Government ID proof type and document number from image/data (Public)
 router.post('/ocr-id-proof', async (req, res) => {
   try {
-    const { image, fileName } = req.body || {};
+    const { image, fileName, ocrText } = req.body || {};
     let detectedType = null;
     let detectedNumber = null;
     let confidence = 0;
 
-    const sourceText = `${fileName || ''} ${typeof image === 'string' ? image.slice(0, 1000) : ''}`;
-
-    // 1. Scan for Aadhaar (12 digits starting 2-9)
-    const aadhaarMatch = sourceText.match(/\b([2-9]\d{3})\s?(\d{4})\s?(\d{4})\b/);
-    if (aadhaarMatch) {
-      detectedType = 'Aadhaar Card';
-      detectedNumber = `${aadhaarMatch[1]} ${aadhaarMatch[2]} ${aadhaarMatch[3]}`;
-      confidence = 0.95;
-    } else {
-      const aadhaarRaw = sourceText.match(/\b([2-9]\d{11})\b/);
-      if (aadhaarRaw) {
-        const d = aadhaarRaw[1];
-        detectedType = 'Aadhaar Card';
-        detectedNumber = `${d.slice(0, 4)} ${d.slice(4, 8)} ${d.slice(8)}`;
-        confidence = 0.90;
-      }
+    let sourceText = `${fileName || ''} ${ocrText || ''}`;
+    if (typeof image === 'string' && !image.startsWith('data:image/')) {
+      sourceText += ` ${image}`;
     }
 
-    // 2. Scan for PAN Card (5 letters, 4 digits, 1 letter)
+    // 1. Scan for PAN Card (5 uppercase letters, 4 digits, 1 uppercase letter)
+    const panMatch = sourceText.match(/\b([A-Za-z]{5}\d{4}[A-Za-z]{1})\b/);
+    if (panMatch) {
+      detectedType = 'PAN Card';
+      detectedNumber = panMatch[1].toUpperCase();
+      confidence = 0.98;
+    }
+
+    // 2. Scan for Aadhaar (12 digits starting 2-9)
     if (!detectedNumber) {
-      const panMatch = sourceText.match(/\b([A-Za-z]{5}\d{4}[A-Za-z]{1})\b/);
-      if (panMatch) {
-        detectedType = 'PAN Card';
-        detectedNumber = panMatch[1].toUpperCase();
+      const aadhaarMatch = sourceText.match(/\b([2-9]\d{3})\s?(\d{4})\s?(\d{4})\b/);
+      if (aadhaarMatch) {
+        detectedType = 'Aadhaar Card';
+        detectedNumber = `${aadhaarMatch[1]} ${aadhaarMatch[2]} ${aadhaarMatch[3]}`;
         confidence = 0.95;
+      } else {
+        const aadhaarRaw = sourceText.match(/\b([2-9]\d{11})\b/);
+        if (aadhaarRaw) {
+          const d = aadhaarRaw[1];
+          detectedType = 'Aadhaar Card';
+          detectedNumber = `${d.slice(0, 4)} ${d.slice(4, 8)} ${d.slice(8)}`;
+          confidence = 0.90;
+        }
       }
     }
 
