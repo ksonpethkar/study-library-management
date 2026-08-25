@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
   try {
     const Student = require('../models/Student');
     const [plans, counts] = await Promise.all([
-      Plan.find({ isActive: true }).sort('displayOrder').lean(),
+      Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort('displayOrder').lean(),
       Student.aggregate([
         { $match: { status: 'active', plan: { $ne: null } } },
         { $group: { _id: '$plan', count: { $sum: 1 } } }
@@ -61,7 +61,7 @@ router.get('/all', async (req, res) => {
   try {
     const Student = require('../models/Student');
     const [plans, counts] = await Promise.all([
-      Plan.find().sort('displayOrder').lean(),
+      Plan.find({ isDeleted: { $ne: true } }).sort('displayOrder').lean(),
       Student.aggregate([
         { $match: { status: 'active', plan: { $ne: null } } },
         { $group: { _id: '$plan', count: { $sum: 1 } } }

@@ -35,7 +35,7 @@ router.get('/', memoryCache.middleware(30), async (req, res) => {
       [landingConfig, businessProfile, plans, shifts] = await Promise.all([
         LandingPage.getPageConfig().catch(() => LandingPage.getDefaults()),
         BusinessProfile.getProfile().catch(() => ({})),
-        Plan.find({ isActive: true }).sort({ displayOrder: 1, price: 1 }).catch(() => []),
+        Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort({ displayOrder: 1, price: 1 }).catch(() => []),
         Shift.find({ isActive: true }).catch(() => [])
       ]);
     } catch (dbErr) {

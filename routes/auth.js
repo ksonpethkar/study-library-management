@@ -697,11 +697,17 @@ router.post('/student-login', authLimiter, async (req, res) => {
 
     // Check corresponding User record if password was provided
     let user = null;
-    if (student.email) {
+    if (student.user) {
+      user = await User.findById(student.user).select('+password');
+    }
+    if (!user && student.email) {
       user = await User.findOne({ email: student.email.toLowerCase() }).select('+password');
     }
     if (!user && student.phone) {
-      user = await User.findOne({ phone: student.phone }).select('+password');
+      user = await User.findOne({ phone: student.phone.trim() }).select('+password');
+    }
+    if (!user && student.studentId) {
+      user = await User.findOne({ email: `${student.studentId.toLowerCase()}@studylib.local` }).select('+password');
     }
 
     // If student user exists and password is provided, verify password
@@ -729,12 +735,21 @@ router.post('/student-login', authLimiter, async (req, res) => {
         phone: student.phone,
         password: randomPwd,
         role: 'student',
+        student: student._id,
         isActive: true
       });
     }
 
-    user.lastLogin = Date.now();
-    await user.save({ validateBeforeSave: false });
+    // Ensure bidirectional link
+    if (!student.user || String(student.user) !== String(user._id)) {
+      student.user = user._id;
+      await Student.updateOne({ _id: student._id }, { $set: { user: user._id } });
+    }
+    if (!user.student || String(user.student) !== String(student._id)) {
+      await User.updateOne({ _id: user._id }, { $set: { student: student._id, lastLogin: Date.now() } });
+    } else {
+      await User.updateOne({ _id: user._id }, { $set: { lastLogin: Date.now() } });
+    }
 
     // Always sign student-scoped JWT token for student portal sessions
     const secret = process.env.JWT_SECRET || 'study-library-jwt-secret-key-2026-production';

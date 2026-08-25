@@ -25,6 +25,7 @@ const studentSchema = new mongoose.Schema({
   seat: { type: mongoose.Schema.Types.ObjectId, ref: 'Seat' },
   locker: { type: mongoose.Schema.Types.ObjectId, ref: 'Locker' },
   shift: { type: mongoose.Schema.Types.ObjectId, ref: 'Shift' },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   admissionDate: { type: Date, default: Date.now },
   expiryDate: { type: Date },
   status: {

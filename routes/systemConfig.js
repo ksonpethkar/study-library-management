@@ -67,7 +67,7 @@ router.get('/public-config', async (req, res) => {
       occupiedCountsRes
     ] = await Promise.allSettled([
       BusinessProfile.getProfile(),
-      Plan.find({ isActive: true }).sort({ displayOrder: 1, price: 1 }).lean(),
+      Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort({ displayOrder: 1, price: 1 }).lean(),
       Shift.find({ isActive: true }).sort({ startTime: 1, name: 1 }).lean(),
       Branch.find({ isActive: true }).lean(),
       CustomField.getActiveFields(),

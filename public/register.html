@@ -2340,16 +2340,19 @@
 
         // 2. Interactive Plans Population & Visual Cards Grid
         const rawPlans = Array.isArray(publicConfig?.plans) ? publicConfig.plans : (Array.isArray(plansRes?.data) ? plansRes.data : (landingRes?.data?.plans || []));
-        const filteredPlans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false' && p.isDeleted !== true);
-        const plans = (filteredPlans.length > 0) ? filteredPlans : (rawPlans.length > 0 ? rawPlans : [
-          { _id: 'plan_monthly', name: 'Monthly Full Day Plan', price: 1000, effectivePrice: 1000, duration: 1, durationType: 'months', shift: 'All Day (24 Hours)', features: ['WiFi', 'AC', 'Charging Point', 'RO Water'] },
-          { _id: 'plan_quarterly', name: 'Quarterly Prime Plan', price: 4000, effectivePrice: 4000, duration: 3, durationType: 'months', shift: 'All Day (24 Hours)', features: ['WiFi', 'AC', 'Charging Point', 'RO Water'] }
-        ]);
+        const plans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false' && p.isDeleted !== true);
 
         const planSelect = document.getElementById('reg-plan');
         const planCardsGrid = document.getElementById('plan-selection-cards-grid');
 
-        if (plans && plans.length > 0) {
+        if (plans.length === 0) {
+          if (planSelect) {
+            planSelect.innerHTML = '<option value="">-- No Active Plans Available --</option>';
+          }
+          if (planCardsGrid) {
+            planCardsGrid.innerHTML = '<div class="text-center text-muted p-4 w-100" style="grid-column: 1 / -1; font-weight: 600;">No active membership plans currently available. Please contact the front desk.</div>';
+          }
+        } else {
           if (planSelect) {
             planSelect.innerHTML = '<option value="">-- Choose Study Shift &amp; Plan --</option>';
           }

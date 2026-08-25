@@ -856,33 +856,8 @@
     </div>
 
     <div class="plans-grid" id="plans-container">
-      <div class="plan-card" style="position: relative;">
-        <span style="position: absolute; top: 12px; right: 12px; background: #00b894; color: #fff; font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 50px;">30% OFF</span>
-        <h3 class="plan-name" style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.75rem;">Monthly</h3>
-        <div class="plan-price-row" style="margin-bottom: 1.25rem;"><span class="plan-price" style="font-size: 2.2rem; font-weight: 900; color: #6c5ce7;">₹700</span><span class="plan-period" style="font-size: 0.85rem; color: var(--text-muted);"> / 1 Month</span></div>
-        <ul class="plan-features" style="list-style: none; padding: 0; margin-bottom: 1.5rem;">
-          <li style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 8px;"><span style="color: #00b894; font-weight: 800;">✓</span> <span>Seat Type: <strong>REGULAR</strong></span></li>
-          <li style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 8px;"><span style="color: #00b894; font-weight: 800;">✓</span> <span>Shift: <strong>FULLDAY</strong></span></li>
-          <li style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 8px;"><span style="color: #00b894; font-weight: 800;">✓</span> <span>WiFi</span></li>
-          <li style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 8px;"><span style="color: #00b894; font-weight: 800;">✓</span> <span>AC</span></li>
-          <li style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 8px;"><span style="color: #00b894; font-weight: 800;">✓</span> <span>Personal Charging Point</span></li>
-          <li style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 8px;"><span style="color: #00b894; font-weight: 800;">✓</span> <span>RO Water</span></li>
-        </ul>
-        <a href="/register" class="btn-hero-primary" style="justify-content: center; text-align: center; width: 100%; border-radius: 12px; font-weight: 800;">Register Now</a>
-      </div>
-      <div class="plan-card" style="position: relative;">
-        <span style="position: absolute; top: 12px; right: 12px; background: #00b894; color: #fff; font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 50px;">40% OFF</span>
-        <h3 class="plan-name" style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.75rem;">Quaterly</h3>
-        <div class="plan-price-row" style="margin-bottom: 1.25rem;"><span class="plan-price" style="font-size: 2.2rem; font-weight: 900; color: #6c5ce7;">₹2,400</span><span class="plan-period" style="font-size: 0.85rem; color: var(--text-muted);"> / 3 Months</span></div>
-        <ul class="plan-features" style="list-style: none; padding: 0; margin-bottom: 1.5rem;">
-          <li style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 8px;"><span style="color: #00b894; font-weight: 800;">✓</span> <span>Seat Type: <strong>PREMIUM</strong></span></li>
-          <li style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 8px;"><span style="color: #00b894; font-weight: 800;">✓</span> <span>Shift: <strong>FULLDAY</strong></span></li>
-          <li style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 8px;"><span style="color: #00b894; font-weight: 800;">✓</span> <span>WiFi</span></li>
-          <li style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 8px;"><span style="color: #00b894; font-weight: 800;">✓</span> <span>AC</span></li>
-          <li style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 8px;"><span style="color: #00b894; font-weight: 800;">✓</span> <span>Personal Charging Point</span></li>
-          <li style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-bottom: 8px;"><span style="color: #00b894; font-weight: 800;">✓</span> <span>RO Water</span></li>
-        </ul>
-        <a href="/register" class="btn-hero-primary" style="justify-content: center; text-align: center; width: 100%; border-radius: 12px; font-weight: 800;">Register Now</a>
+      <div class="text-center text-muted p-4 w-100" style="grid-column: 1 / -1;">
+        <div class="spinner-border spinner-border-sm text-primary"></div> Loading available study plans...
       </div>
     </div>
   </section>
@@ -1185,9 +1160,13 @@
     let allLandingPlans = [];
     function renderPlans(plans) {
       const plansList = plans || allLandingPlans;
-      if (!plansList || plansList.length === 0) return;
       const plansCont = document.getElementById('plans-container');
       if (!plansCont) return;
+
+      if (!plansList || plansList.length === 0) {
+        plansCont.innerHTML = '<div class="text-center text-muted p-4 w-100" style="grid-column: 1 / -1; font-weight: 600;">No active membership plans currently listed. Please contact the front desk for available plans.</div>';
+        return;
+      }
 
       plansCont.innerHTML = plansList.map((p) => {
         const finalPrice = Math.round(p.effectivePrice || p.price || 0);
@@ -1653,10 +1632,8 @@
               if (el) el.textContent = landing.pricing.subtitle;
             }
 
-            if (plans && plans.length > 0) {
-              allLandingPlans = plans;
-              renderPlans(plans);
-            }
+            allLandingPlans = plans || [];
+            renderPlans(allLandingPlans);
           }
         }
 

@@ -34,6 +34,10 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Branch',
   },
+  student: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Student',
+  },
   avatar: {
     type: String,
   },

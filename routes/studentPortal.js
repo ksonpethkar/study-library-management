@@ -1096,4 +1096,39 @@ router.post('/create-gateway-order', async (req, res) => {
   }
 });
 
+// @route   POST /api/student-portal/change-password
+// @desc    Change student login password/PIN
+// @access  Private (Student)
+router.post('/change-password', async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!newPassword || newPassword.trim().length < 4) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 4 characters long' });
+    }
+
+    const User = require('../models/User');
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User record not found' });
+    }
+
+    if (currentPassword && user.password) {
+      const isMatch = await user.comparePassword(currentPassword);
+      if (!isMatch) {
+        return res.status(400).json({ success: false, message: 'Current password is incorrect' });
+      }
+    }
+
+    user.password = newPassword.trim();
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully!'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
