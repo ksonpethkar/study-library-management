@@ -1705,8 +1705,14 @@ function renderPortalUI(container, data, analytics = null) {
         }
       };
 
-      btnSpUpload?.addEventListener('click', () => inputSpPhoto.click());
+      btnSpUpload?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        inputSpPhoto.click();
+      });
       inputSpPhoto?.addEventListener('change', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const file = e.target.files[0];
         if (!file) return;
         try {
@@ -1719,7 +1725,9 @@ function renderPortalUI(container, data, analytics = null) {
         }
       });
 
-      btnSpSelfie?.addEventListener('click', async () => {
+      btnSpSelfie?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         try {
           const selfie = await ImageCompressor.captureWebcam({ maxWidth: 300, maxHeight: 300, quality: 0.82 });
           await saveStudentPhoto(selfie, btnSpSelfie);

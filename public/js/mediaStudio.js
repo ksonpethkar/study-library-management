@@ -858,56 +858,17 @@ export class MediaStudio {
   }
 
   show() {
-    // Render in an independent dialog so parent modals (Student Edit, Profile, etc.) are never overwritten or closed
-    let dialog = document.getElementById('media-studio-modal');
-    if (!dialog) {
-      dialog = document.createElement('dialog');
-      dialog.id = 'media-studio-modal';
-      document.body.appendChild(dialog);
-    }
+    const widthMap = { passport: 'md', document: 'lg', general: 'lg' };
+    const size = widthMap[this.options.preset] || 'lg';
 
-    const widthMap = { passport: '640px', document: '850px', general: '750px' };
-    const rawW = widthMap[this.options.preset] || '800px';
-
-    dialog.style.cssText = `
-      padding: 0;
-      border: 1px solid var(--color-border, rgba(255,255,255,0.15));
-      border-radius: var(--radius-lg, 14px);
-      background: var(--color-surface, #1e2230);
-      color: var(--color-text-primary, #fff);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
-      width: min(${rawW}, 95vw);
-      max-width: 95vw;
-      height: fit-content !important;
-      min-height: 0 !important;
-      max-height: 90vh;
-      margin: auto;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      box-sizing: border-box;
-      z-index: 10000;
-    `;
-
-    dialog.innerHTML = `
-      <div class="modal-header" style="padding: 14px 20px; border-bottom: 1px solid var(--color-divider, rgba(255,255,255,0.08)); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
-        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary, #fff);">📸 ${escapeHTML(this.options.title || 'Photo & Media Studio')}</h3>
-        <button type="button" class="ms-close-btn" style="background: none; border: none; font-size: 1.4rem; color: var(--color-text-muted, #aaa); cursor: pointer; line-height: 1; padding: 4px;">&times;</button>
-      </div>
-      <div class="modal-body-container" style="padding: 18px 20px; max-height: calc(90vh - 80px); overflow-y: auto; flex: 1 1 auto;">
-      </div>
-    `;
-
-    const bodyContainer = dialog.querySelector('.modal-body-container');
-    bodyContainer.appendChild(this.modalContent);
-
-    dialog.querySelector('.ms-close-btn').addEventListener('click', () => this.close());
-    dialog.oncancel = () => this.close();
-
-    if (!dialog.open) {
-      dialog.showModal();
-    }
-    this.dialog = dialog;
+    this.dialog = Modal.show({
+      title: `📸 ${this.options.title || 'Photo & Media Studio'}`,
+      content: this.modalContent,
+      size,
+      onClose: () => {
+        this.stopCamera();
+      }
+    });
 
     if (this.options.value) {
       const img = new Image();
@@ -919,10 +880,7 @@ export class MediaStudio {
   close() {
     this.stopCamera();
     if (this.dialog) {
-      try {
-        if (this.dialog.open) this.dialog.close();
-      } catch (e) {}
-      this.dialog.remove();
+      Modal.close(this.dialog);
       this.dialog = null;
     }
   }
@@ -1078,12 +1036,14 @@ export class MediaFieldPicker {
 
     // Clicking preview box also triggers upload
     preview.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       fileInput.click();
     });
 
     // Direct File Upload click
     uploadBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       fileInput.click();
     });
@@ -1145,6 +1105,8 @@ export class MediaFieldPicker {
 
     // File Input change
     fileInput.addEventListener('change', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       const file = e.target.files[0];
       if (!file) return;
 
@@ -1166,6 +1128,7 @@ export class MediaFieldPicker {
 
     // Open Camera & Filter Studio
     wrapper.querySelector('.mfp-open-btn').addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       MediaStudio.open({
         title: label,
@@ -1179,6 +1142,7 @@ export class MediaFieldPicker {
 
     // Remove Image
     removeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       hiddenInput.value = '';
       fileInput.value = '';

@@ -335,19 +335,24 @@ Modal.show = function(opts) {
   
   if (closeBtn) closeBtn.onclick = closeHandler;
   
+  // Prevent native dialog auto-cancellation (which browsers fire when OS file pickers or camera permissions close)
   modal.oncancel = (e) => {
     e.preventDefault();
-    Modal.close(modal);
   };
   
-  modal.onclick = (e) => {
-    const rect = modal.getBoundingClientRect();
-    const isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
-      rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
-    if (!isInDialog) {
-      Modal.close(modal);
-    }
-  };
+  // Guard against accidental backdrop clicks closing data forms
+  if (opts && opts.backdropClose === true) {
+    let isMouseDownOnBackdrop = false;
+    modal.addEventListener('mousedown', (e) => {
+      isMouseDownOnBackdrop = (e.target === modal);
+    });
+    modal.addEventListener('mouseup', (e) => {
+      if (isMouseDownOnBackdrop && e.target === modal) {
+        Modal.close(modal);
+      }
+      isMouseDownOnBackdrop = false;
+    });
+  }
 
   // Push record to stack
   Modal._stack.push({

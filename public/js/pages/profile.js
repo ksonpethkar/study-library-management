@@ -341,11 +341,15 @@ function renderProfileUI(container, user) {
     }
   };
 
-  btnUploadFile?.addEventListener('click', () => {
+  btnUploadFile?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     inputAvatarFile.click();
   });
 
   inputAvatarFile?.addEventListener('change', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     const file = e.target.files[0];
     if (!file) return;
     try {
@@ -371,7 +375,9 @@ function renderProfileUI(container, user) {
     }
   });
 
-  btnTakeCam?.addEventListener('click', async () => {
+  btnTakeCam?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     try {
       const selfieDataUrl = await ImageCompressor.captureWebcam({ maxWidth: 300, maxHeight: 300, quality: 0.82 });
       Loading.button(btnTakeCam, true);
