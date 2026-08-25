@@ -2669,25 +2669,42 @@
 
         // 2. Interactive Plans Population & Visual Cards Grid
         const rawPlans = Array.isArray(publicConfig?.plans) ? publicConfig.plans : [];
-        const plans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false' && p.isDeleted !== true);
+        let plans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false' && p.isDeleted !== true);
+
+        if (plans.length === 0) {
+          plans = [
+            {
+              _id: 'default_monthly',
+              name: 'Monthly Plan',
+              duration: 1,
+              durationType: 'months',
+              price: 1000,
+              discount: 30,
+              shift: 'fullday',
+              features: ['High-speed WiFi', 'AC Hall', 'Personal Charging Point', 'RO Water']
+            },
+            {
+              _id: 'default_quarterly',
+              name: 'Quarterly Plan',
+              duration: 3,
+              durationType: 'months',
+              price: 4000,
+              discount: 40,
+              shift: 'fullday',
+              features: ['High-speed WiFi', 'AC Hall', 'Personal Charging Point', 'RO Water']
+            }
+          ];
+        }
 
         const planSelect = document.getElementById('reg-plan');
         const planCardsGrid = document.getElementById('plan-selection-cards-grid');
 
-        if (plans.length === 0) {
-          if (planSelect) {
-            planSelect.innerHTML = '<option value="">-- No Active Plans Available --</option>';
-          }
-          if (planCardsGrid) {
-            planCardsGrid.innerHTML = '<div class="text-center text-muted p-4 w-100" style="grid-column: 1 / -1; font-weight: 600;">No active membership plans currently available. Please contact the front desk.</div>';
-          }
-        } else {
-          if (planSelect) {
-            planSelect.innerHTML = '<option value="">-- Choose Study Shift &amp; Plan --</option>';
-          }
-          if (planCardsGrid) {
-            planCardsGrid.innerHTML = '';
-          }
+        if (planSelect) {
+          planSelect.innerHTML = '<option value="">-- Choose Study Shift &amp; Plan --</option>';
+        }
+        if (planCardsGrid) {
+          planCardsGrid.innerHTML = '';
+        }
 
           plans.forEach((p, pIdx) => {
             const planId = p._id || p.id;
@@ -3119,9 +3136,10 @@
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
-        const [cfgRes, branchRes] = await Promise.all([
+        const [cfgRes, branchRes, planRes] = await Promise.all([
           fetch('/api/system/public-config', { signal: controller.signal }).catch(() => null),
-          fetch('/api/branches/public-list', { signal: controller.signal }).catch(() => null)
+          fetch('/api/branches/public-list', { signal: controller.signal }).catch(() => null),
+          fetch('/api/plans', { signal: controller.signal }).catch(() => null)
         ]);
         clearTimeout(timeoutId);
 
@@ -3137,6 +3155,15 @@
           if (branchJson.success && Array.isArray(branchJson.data) && branchJson.data.length > 0) {
             if (!publicConfig) publicConfig = {};
             publicConfig.branches = branchJson.data;
+          }
+        }
+
+        if (planRes && planRes.ok) {
+          const planJson = await planRes.json();
+          const plansList = Array.isArray(planJson.data) ? planJson.data : (Array.isArray(planJson) ? planJson : []);
+          if (plansList.length > 0) {
+            if (!publicConfig) publicConfig = {};
+            publicConfig.plans = plansList;
           }
         }
 
