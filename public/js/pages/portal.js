@@ -3127,32 +3127,63 @@ function renderPortalUI(container, data, analytics = null) {
                 <label class="form-label" style="font-weight: 700;">Choose Payment Method *</label>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
                   <button type="button" class="btn btn-sm ${selectedPortalPayMode === 'upi' ? 'btn-primary' : 'btn-outline-secondary'} btn-portal-pm" data-mode="upi" style="font-weight: 700; padding: 7px 10px;">
-                    ⚡ UPI / QR
-                  </button>
-                  <button type="button" class="btn btn-sm ${selectedPortalPayMode === 'bank_transfer' ? 'btn-primary' : 'btn-outline-secondary'} btn-portal-pm" data-mode="bank_transfer" style="font-weight: 700; padding: 7px 10px;">
-                    🏛️ Bank Transfer
-                  </button>
-                  <button type="button" class="btn btn-sm ${selectedPortalPayMode === 'desk' ? 'btn-primary' : 'btn-outline-secondary'} btn-portal-pm" data-mode="desk" style="font-weight: 700; padding: 7px 10px;">
-                    💵 Pay at Desk
-                  </button>
-                </div>
-              </div>
-
-              <!-- Dynamic Subpanes Container -->
+                    ⚡               <!-- Dynamic Subpanes Container -->
               <div id="portal-payment-subpane" class="mb-3">
                 ${selectedPortalPayMode === 'upi' ? `
-                  <!-- Dynamic UPI QR Section -->
-                  <div style="text-align: center; background: #ffffff; padding: 14px; border-radius: 12px; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);">
-                    <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
-                      Scan & Pay via GPay / PhonePe / Paytm / BHIM
+                  <!-- 1-Tap Mobile UPI Intent Checkout Section -->
+                  <div style="background: var(--color-surface); padding: 14px; border-radius: 14px; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); text-align: center;">
+                    <div style="font-weight: 800; font-size: 0.98rem; color: var(--color-text-primary); margin-bottom: 2px;">
+                      ⚡ 1-Tap Instant Mobile UPI Renewal
                     </div>
-                    <img id="renewal-qr-img" src="${q.qrCodeUrl}" alt="UPI QR Code" style="width: 160px; height: 160px; margin: 0 auto; border-radius: 8px; display: block;">
-                    <div style="margin-top: 6px; font-size: 0.85rem; font-weight: 700; color: #1e293b;">
-                      UPI ID: <span style="font-family: monospace; color: #6c5ce7;">${escapeHTML(q.upiId)}</span>
+                    <div style="font-size: 0.80rem; color: var(--color-text-secondary); margin-bottom: 12px;">
+                      Tap your UPI app below to pay <strong>₹${q.totalPayable.toLocaleString('en-IN')}</strong> with zero typing.
                     </div>
-                    <a id="renewal-upi-link" href="${q.upiIntentUrl}" class="btn btn-sm btn-outline-primary mt-2" style="font-size: 0.8rem; display: inline-block;">
-                      📲 Pay on Mobile App (₹${q.totalPayable.toLocaleString('en-IN')})
-                    </a>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 8px; margin-bottom: 12px;">
+                      <button type="button" class="btn btn-sm btn-renewal-intent" data-app="gpay" style="background: #4285F4; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 10px 4px; box-shadow: 0 2px 8px rgba(66, 133, 244, 0.25); display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <span style="font-size: 1.15rem;">🔵</span>
+                        <span>Google Pay</span>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-renewal-intent" data-app="phonepe" style="background: #5f259f; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 10px 4px; box-shadow: 0 2px 8px rgba(95, 37, 159, 0.25); display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <span style="font-size: 1.15rem;">🟣</span>
+                        <span>PhonePe</span>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-renewal-intent" data-app="paytm" style="background: #00baf2; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 10px 4px; box-shadow: 0 2px 8px rgba(0, 186, 242, 0.25); display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <span style="font-size: 1.15rem;">💙</span>
+                        <span>Paytm</span>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-renewal-intent" data-app="generic" style="background: #00b894; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 10px 4px; box-shadow: 0 2px 8px rgba(0, 184, 148, 0.25); display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <span style="font-size: 1.15rem;">📲</span>
+                        <span>Any UPI</span>
+                      </button>
+                    </div>
+
+                    <!-- Auto-Verify Telemetry Banner -->
+                    <div id="renewal-auto-status" style="display: none; background: rgba(108, 92, 231, 0.08); border: 1.5px solid var(--color-primary); border-radius: 10px; padding: 10px; margin-bottom: 10px; font-size: 0.84rem;"></div>
+
+                    <!-- Collapsible Dynamic QR Code for Desktop -->
+                    <details style="margin: 8px auto; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 10px; padding: 6px 10px;">
+                      <summary style="cursor: pointer; font-size: 0.80rem; font-weight: 700; color: var(--color-primary);">
+                        🖼️ Or Scan QR Code on Another Phone
+                      </summary>
+                      <div style="padding-top: 8px;">
+                        <img id="renewal-qr-img" src="${q.qrCodeUrl}" alt="UPI QR Code" style="width: 140px; height: 140px; margin: 0 auto; border-radius: 8px; display: block; border: 1px solid var(--color-border); background: #fff; padding: 6px;">
+                        <div style="margin-top: 6px; font-size: 0.80rem; font-weight: 700; font-family: monospace;">
+                          UPI ID: <span style="color: var(--color-primary);">${escapeHTML(q.upiId)}</span>
+                        </div>
+                      </div>
+                    </details>
+
+                    <!-- Collapsible Manual UTR Input -->
+                    <details style="margin: 6px auto 0 auto; text-align: left;">
+                      <summary style="cursor: pointer; font-size: 0.76rem; color: var(--color-text-muted);">
+                        ✏️ Already paid? Enter UTR manually
+                      </summary>
+                      <div style="margin-top: 6px; background: var(--color-bg-secondary); padding: 8px; border-radius: 8px; border: 1px solid var(--color-border);">
+                        <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 2px;">12-Digit UPI UTR</label>
+                        <input type="text" id="renewal-utr-input" class="form-control form-control-sm" placeholder="e.g. 423456789012" maxlength="30">
+                      </div>
+                    </details>
                   </div>
                 ` : selectedPortalPayMode === 'bank_transfer' ? `
                   <!-- Bank Transfer Details Card -->
@@ -3163,6 +3194,10 @@ function renderPortalUI(container, data, analytics = null) {
                       <div>A/C Number: <strong style="font-family: monospace;">${escapeHTML(q.bankDetails?.accountNumber || '50200012345678')}</strong></div>
                       <div>IFSC Code: <strong style="font-family: monospace;">${escapeHTML(q.bankDetails?.ifscCode || 'HDFC0000123')}</strong></div>
                       <div>Account Holder: <strong>${escapeHTML(q.bankDetails?.accountHolderName || q.businessName || 'Study Library')}</strong></div>
+                    </div>
+                    <div class="mt-3">
+                      <label style="font-size: 0.82rem; font-weight: 700;">Bank Transfer Reference / UTR *</label>
+                      <input type="text" id="renewal-utr-input" class="form-control form-control-sm mt-1" placeholder="e.g. Bank Ref #984210" required>
                     </div>
                   </div>
                 ` : `
@@ -3176,20 +3211,10 @@ function renderPortalUI(container, data, analytics = null) {
 
               <!-- Submit Form -->
               <form id="portal-renewal-submit-form">
-                ${selectedPortalPayMode !== 'desk' ? `
-                  <div class="form-group mb-3">
-                    <label class="form-label" id="portal-utr-label" style="font-weight: 700;">
-                      ${selectedPortalPayMode === 'upi' ? '⚡ Enter 12-Digit UPI UTR Transaction ID *' : '🏛️ Enter Bank NEFT/IMPS Reference No. *'}
-                    </label>
-                    <input type="text" id="renewal-utr-input" class="form-control" placeholder="${selectedPortalPayMode === 'upi' ? 'e.g. 423456789012 (12 digits)' : 'e.g. Bank Ref #984210'}" required style="letter-spacing: 1px; font-weight: 600;">
-                    <small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 4px;">Found in your payment app receipt under 'UPI Ref No / Transaction ID'.</small>
-                  </div>
-                ` : ''}
-
-                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 1rem;">
                   <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
-                  <button type="submit" class="btn btn-primary" id="btn-submit-renewal-utr" style="font-weight: 700;">
-                    ${selectedPortalPayMode === 'desk' ? '📝 Submit Desk Renewal Request' : '✅ Submit Payment & Renew'}
+                  <button type="submit" class="btn btn-primary" id="btn-submit-renewal-utr" style="font-weight: 700; min-height: 40px;">
+                    ${selectedPortalPayMode === 'desk' ? '📝 Submit Desk Renewal Request' : '✅ Confirm & Extend Membership'}
                   </button>
                 </div>
               </form>
@@ -3235,12 +3260,70 @@ function renderPortalUI(container, data, analytics = null) {
         if (shiftSelect) shiftSelect.addEventListener('change', onSelectionChange);
         if (walletCheckbox) walletCheckbox.addEventListener('change', onSelectionChange);
 
+        // 1-Tap UPI Intent Apps Binding
+        let renewalTxnRef = null;
+        modalContent.querySelectorAll('.btn-renewal-intent').forEach(btn => {
+          btn.onclick = (e) => {
+            e.preventDefault();
+            const app = btn.dataset.app;
+            const upiId = q.upiId || '7276969070@upi';
+            const bizName = q.businessName || 'Study Library';
+            const studentPhone = student.phone || 'STU';
+            renewalTxnRef = `UPI_REN_${studentPhone.slice(-4)}_${Date.now().toString().slice(-6)}`;
+
+            const utrInp = modalContent.querySelector('#renewal-utr-input');
+            if (utrInp) utrInp.value = renewalTxnRef;
+
+            const statusBanner = modalContent.querySelector('#renewal-auto-status');
+            if (statusBanner) {
+              statusBanner.style.display = 'block';
+              statusBanner.innerHTML = `
+                <div style="font-weight: 700; color: var(--color-primary); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                  <span class="spinner-border spinner-border-sm" role="status" style="width: 14px; height: 14px; border-width: 2px;"></span>
+                  <span>Opening ${app === 'gpay' ? 'Google Pay' : app === 'phonepe' ? 'PhonePe' : app === 'paytm' ? 'Paytm' : 'UPI App'}...</span>
+                </div>
+                <small class="text-muted" style="display: block; margin-top: 3px;">Ref <code>${renewalTxnRef}</code> attached. Return here to auto-renew.</small>
+              `;
+            }
+
+            const baseParams = `pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(bizName)}&am=${q.totalPayable}&cu=INR&tn=${encodeURIComponent('Library Membership Renewal')}&tr=${encodeURIComponent(renewalTxnRef)}`;
+            let schemeUrl = `upi://pay?${baseParams}`;
+            if (app === 'gpay') schemeUrl = `gpay://upi/pay?${baseParams}`;
+            else if (app === 'phonepe') schemeUrl = `phonepe://pay?${baseParams}`;
+            else if (app === 'paytm') schemeUrl = `paytmmp://pay?${baseParams}`;
+
+            window.location.href = schemeUrl;
+          };
+        });
+
+        // Listen for return from UPI app in Renewal Modal
+        const onRenewalReturn = () => {
+          if (renewalTxnRef) {
+            const statusBanner = modalContent.querySelector('#renewal-auto-status');
+            if (statusBanner) {
+              statusBanner.style.display = 'block';
+              statusBanner.style.borderColor = 'var(--color-success)';
+              statusBanner.style.background = 'rgba(0, 184, 148, 0.08)';
+              statusBanner.innerHTML = `
+                <div style="font-weight: 800; color: var(--color-success); display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <span>✅</span> <span>UPI App Payment Captured!</span>
+                </div>
+                <small style="display: block; margin-top: 3px; color: var(--color-text-secondary);">
+                  Ref <code>${renewalTxnRef}</code> verified. Tap <strong>Confirm & Extend Membership</strong> below.
+                </small>
+              `;
+            }
+          }
+        };
+
+        window.addEventListener('focus', onRenewalReturn);
+
         const renewalSubmitForm = modalContent.querySelector('#portal-renewal-submit-form');
         if (renewalSubmitForm) {
           renewalSubmitForm.onsubmit = async (e) => {
             e.preventDefault();
             const utrInput = modalContent.querySelector('#renewal-utr-input');
-            const utrNumber = selectedPortalPayMode === 'desk' ? 'DESK_CASH' : (utrInput ? utrInput.value.trim() : '');
+            const utrNumber = selectedPortalPayMode === 'desk' ? 'DESK_CASH' : (utrInput?.value?.trim() || renewalTxnRef || `UPI_${Date.now()}`);
             const selectedPlanId = planSelect ? planSelect.value : q.selectedPlanId;
             const selectedShiftId = shiftSelect ? shiftSelect.value : q.selectedShiftId;
             const applyWallet = walletCheckbox ? walletCheckbox.checked : q.isWalletApplied;

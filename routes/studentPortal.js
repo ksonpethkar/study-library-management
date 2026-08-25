@@ -517,7 +517,7 @@ router.post('/punch', async (req, res) => {
 });
 
 // @route   POST /api/student-portal/renew
-// @desc    Student requests plan renewal
+// @desc    Student requests plan renewal with automated UPI intent or desk payment
 router.post('/renew', async (req, res) => {
   try {
     const student = await getStudentForUser(req.user, req);
@@ -525,16 +525,72 @@ router.post('/renew', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Student record not found' });
     }
 
+    const { planId, shiftId, months = 1, paymentMethod = 'upi', utrNumber, transactionId, amount, notes } = req.body;
+    const finalTxnId = (transactionId || utrNumber || '').trim();
+
+    let plan = null;
+    if (planId) {
+      plan = await Plan.findById(planId).lean();
+    } else if (student.plan) {
+      plan = await Plan.findById(student.plan).lean();
+    }
+
+    const payableAmount = Number(amount) || (plan ? (plan.price || plan.amount || 1000) * Number(months) : 1000);
+    const durationDays = Number(months) * 30;
+
+    // Calculate new validity range
+    const currentValid = student.validUntil || student.expiryDate;
+    const validFrom = (currentValid && new Date(currentValid) > new Date()) ? new Date(currentValid) : new Date();
+    const validUntil = new Date(validFrom.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+    const isPaidOnline = paymentMethod === 'upi' || paymentMethod === 'upi_gateway' || paymentMethod === 'bank_transfer' || paymentMethod === 'card';
+
+    const payment = new Payment({
+      student: student._id,
+      plan: plan ? plan._id : (student.plan || null),
+      amount: payableAmount,
+      finalAmount: payableAmount,
+      paymentMethod: paymentMethod === 'desk' ? 'cash' : (paymentMethod || 'upi'),
+      transactionId: finalTxnId || `UPI_${Date.now()}`,
+      referenceNumber: finalTxnId || `REF_${Date.now()}`,
+      status: isPaidOnline ? 'paid' : 'pending',
+      balanceDue: isPaidOnline ? 0 : payableAmount,
+      periodStart: validFrom,
+      periodEnd: validUntil,
+      branch: student.branch?._id || student.branch || null,
+      notes: notes || `Student Portal Renewal (${months} Month${months > 1 ? 's' : ''})`
+    });
+
+    await payment.save();
+
+    if (isPaidOnline) {
+      student.validUntil = validUntil;
+      student.expiryDate = validUntil;
+      student.status = 'active';
+      if (planId) student.plan = planId;
+      if (shiftId) student.shift = shiftId;
+      await student.save();
+    }
+
     await Notification.create({
-      title: `Plan Renewal Request: ${student.name}`,
-      message: `Student ${student.name} (${student.studentId || ''}) requested membership renewal. Contact: ${student.phone}`,
+      title: isPaidOnline ? `🎉 Renewal Confirmed: ${student.name}` : `Plan Renewal Request: ${student.name}`,
+      message: isPaidOnline 
+        ? `Student ${student.name} (${student.studentId || ''}) renewed plan for ${months} month(s) via UPI (₹${payableAmount}, Ref: ${payment.transactionId}).`
+        : `Student ${student.name} (${student.studentId || ''}) requested membership renewal via Desk payment. Contact: ${student.phone}`,
       type: 'payment',
       link: '#/payments'
     });
 
     res.json({
       success: true,
-      message: 'Renewal request submitted to the administration. We will confirm upon fee verification!'
+      message: isPaidOnline 
+        ? `🎉 Membership renewed successfully! 30 Days added to your plan.`
+        : `Renewal request submitted to the administration. Please complete payment at the front desk!`,
+      data: {
+        payment,
+        validUntil: student.validUntil || validUntil,
+        status: isPaidOnline ? 'active' : 'pending_desk'
+      }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
