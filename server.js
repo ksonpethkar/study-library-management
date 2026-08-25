@@ -268,6 +268,18 @@ app.get('/api/system/public-config', async (req, res) => {
           availableSeats: Math.max(0, totalSeats - occupiedSeats)
         };
       });
+    } else {
+      branches = [{
+        _id: 'default_main',
+        name: businessProfile?.businessName || 'Main Study Centre',
+        code: 'MAIN',
+        city: businessProfile?.city || 'Main Campus',
+        address: businessProfile?.address || 'Main Study Hall',
+        phone: businessProfile?.phone || '',
+        totalSeats: 100,
+        occupiedSeats: 0,
+        availableSeats: 100
+      }];
     }
 
     res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=60');
