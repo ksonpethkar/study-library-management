@@ -88,6 +88,7 @@ function formatPunchTime(val) {
 
 function renderPortalUI(container, data, analytics = null) {
   const { student, business, daysRemaining, totalHours, todayAttendance, payments } = data;
+  const user = window.store?.user || (typeof App !== 'undefined' && App.getUser ? App.getUser() : {}) || {};
 
   const initials = (student.name || 'S')
     .split(' ')
@@ -101,6 +102,7 @@ function renderPortalUI(container, data, analytics = null) {
   const seatBadge = hasSeat ? escapeHTML(student.seat.zone || 'Quiet Zone') : 'Open Access';
   const planName = student.plan?.name || 'Standard Reading Room Plan';
   const planPrice = student.plan?.price || 0;
+  const shiftName = student.shift?.name || student.shift?.timing || student.shift || student.plan?.shift || 'Full Day';
   const expiryDateStr = student.expiryDate ? new Date(student.expiryDate).toLocaleDateString('en-IN') : 'Not Set';
 
   const examTags = (student.targetExams && student.targetExams.length > 0)
