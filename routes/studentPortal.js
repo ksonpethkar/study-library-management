@@ -8,7 +8,7 @@ const Payment = require('../models/Payment');
 const Attendance = require('../models/Attendance');
 const BusinessProfile = require('../models/BusinessProfile');
 const Notification = require('../models/Notification');
-const { Referral, LeaveRequest, SeatChangeRequest } = require('../models/Operations');
+const { Referral, LeaveRequest, SeatChangeRequest, Announcement, Holiday, LostFound, Feedback } = require('../models/Operations');
 const ReferralConfig = require('../models/ReferralConfig');
 
 // @route   POST /api/student-portal/webhook/payment-captured
@@ -1131,6 +1131,107 @@ router.post('/change-password', async (req, res) => {
       success: true,
       message: 'Password changed successfully!'
     });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ----------------------------------------------------
+// 📢 Student Notice Board & Announcements
+// ----------------------------------------------------
+router.get('/announcements', protect, async (req, res) => {
+  try {
+    const student = await Student.findOne({ user: req.user._id }).lean();
+    const query = {
+      $or: [
+        { branch: { $exists: false } },
+        { branch: null }
+      ]
+    };
+    if (student && student.branch) {
+      query.$or.push({ branch: student.branch });
+    }
+    const announcements = await Announcement.find(query).sort({ isPinned: -1, createdAt: -1 }).lean();
+    res.json({ success: true, data: announcements });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ----------------------------------------------------
+// 📅 Student Holiday Calendar
+// ----------------------------------------------------
+router.get('/holidays', protect, async (req, res) => {
+  try {
+    const holidays = await Holiday.find().sort({ date: 1, startDate: 1 }).lean();
+    res.json({ success: true, data: holidays });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ----------------------------------------------------
+// 🔍 Student Lost & Found Hub
+// ----------------------------------------------------
+router.get('/lost-found', protect, async (req, res) => {
+  try {
+    const items = await LostFound.find().sort({ createdAt: -1 }).limit(50).lean();
+    res.json({ success: true, data: items });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/lost-found', protect, async (req, res) => {
+  try {
+    const student = await Student.findOne({ user: req.user._id }).lean();
+    const { itemName, description, category, foundLocation, status } = req.body;
+    if (!itemName) {
+      return res.status(400).json({ success: false, message: 'Item name is required' });
+    }
+    const item = await LostFound.create({
+      itemName,
+      description: `${description || ''} (Reported by: ${student?.name || req.user.name})`.trim(),
+      category: category || 'other',
+      foundLocation: foundLocation || 'Library Campus',
+      status: status || 'found',
+      claimedBy: ''
+    });
+    res.json({ success: true, data: item, message: 'Lost & Found report submitted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ----------------------------------------------------
+// 💬 Student Feedback & Helpdesk
+// ----------------------------------------------------
+router.get('/feedback', protect, async (req, res) => {
+  try {
+    const student = await Student.findOne({ user: req.user._id }).lean();
+    const studentName = student?.name || req.user.name;
+    const feedbacks = await Feedback.find({ studentName }).sort({ createdAt: -1 }).lean();
+    res.json({ success: true, data: feedbacks });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/feedback', protect, async (req, res) => {
+  try {
+    const student = await Student.findOne({ user: req.user._id }).lean();
+    const { category, rating, message } = req.body;
+    if (!message) {
+      return res.status(400).json({ success: false, message: 'Feedback message cannot be empty' });
+    }
+    const fb = await Feedback.create({
+      studentName: student?.name || req.user.name,
+      category: category || 'other',
+      rating: Number(rating) || 5,
+      message: message.trim(),
+      status: 'pending'
+    });
+    res.json({ success: true, data: fb, message: 'Thank you! Your feedback has been submitted to management.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

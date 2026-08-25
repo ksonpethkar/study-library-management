@@ -218,6 +218,18 @@ function renderPortalUI(container, data, analytics = null) {
           <button id="btn-portal-idcard" class="btn btn-outline-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
             🪪 Digital ID
           </button>
+          <button id="btn-portal-notices" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
+            📢 Notices
+          </button>
+          <button id="btn-portal-holidays" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
+            📅 Holidays
+          </button>
+          <button id="btn-portal-lostfound" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
+            🔍 Lost &amp; Found
+          </button>
+          <button id="btn-portal-feedback" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
+            💬 Feedback
+          </button>
           <button id="btn-portal-receipts-jump" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 10px;">
             🧾 Receipts
           </button>
@@ -522,6 +534,39 @@ function renderPortalUI(container, data, analytics = null) {
           <input type="checkbox" id="portal-push-toggle">
           <span class="switch-slider"></span>
         </label>
+      </div>
+    </div>
+
+    <!-- 🏛️ Campus Life & Student Support Services Card -->
+    <div id="student-campus-hub-card" class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
+      <div class="card-header p-3" style="border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.3rem;">🏛️</span>
+          <div>
+            <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--color-text-primary);">
+              Campus Notice Board, Holidays, Lost &amp; Found &amp; Student Feedback
+            </h4>
+            <span style="font-size: 0.78rem; color: var(--color-text-secondary);">Real-time library circulars, scheduled holiday closures, campus lost items, and support</span>
+          </div>
+        </div>
+        
+        <!-- Tab Navigation Bar -->
+        <div class="btn-group btn-group-sm" id="campus-hub-tabs" role="tablist">
+          <button type="button" class="btn btn-primary btn-campus-tab active" data-tab="notices" style="font-weight: 700;">📢 Notice Board</button>
+          <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="holidays" style="font-weight: 700;">📅 Holiday Calendar</button>
+          <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="lostfound" style="font-weight: 700;">🔍 Lost &amp; Found</button>
+          <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="feedback" style="font-weight: 700;">💬 Student Feedback</button>
+        </div>
+      </div>
+
+      <div class="card-body p-3">
+        <!-- Dynamic Tab Panes Mount -->
+        <div id="campus-tab-content-container">
+          <div class="text-center p-4 text-muted">
+            <div class="loading-spinner mb-2" style="margin: 0 auto;"></div>
+            Loading campus announcements...
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2330,6 +2375,329 @@ function renderPortalUI(container, data, analytics = null) {
       modalContent.innerHTML = `<div class="text-danger p-4 text-center">Failed to load referral studio: ${escapeHTML(err.message)}</div>`;
     }
   });
+
+  // -------------------------------------------------------------------------
+  // 🏛️ Campus Life & Utilities Hub Controller (Notices, Holidays, Lost&Found, Feedback)
+  // -------------------------------------------------------------------------
+  const campusTabs = container.querySelectorAll('.btn-campus-tab');
+  const campusContent = container.querySelector('#campus-tab-content-container');
+
+  async function activateCampusTab(tabKey) {
+    campusTabs.forEach(b => {
+      if (b.dataset.tab === tabKey) {
+        b.className = 'btn btn-primary btn-campus-tab active';
+      } else {
+        b.className = 'btn btn-outline-secondary btn-campus-tab';
+      }
+    });
+
+    if (!campusContent) return;
+    campusContent.innerHTML = `<div class="text-center p-4 text-muted"><div class="loading-spinner mb-2" style="margin: 0 auto;"></div>Loading...</div>`;
+
+    if (tabKey === 'notices') {
+      try {
+        const res = await api.get('/api/student-portal/announcements');
+        const notices = res.data || [];
+        if (notices.length === 0) {
+          campusContent.innerHTML = `<div class="text-center p-4 text-muted">No campus circulars or notice board alerts at this time.</div>`;
+          return;
+        }
+        campusContent.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            ${notices.map(n => `
+              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid ${n.isPinned ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: var(--radius-md); box-shadow: ${n.isPinned ? '0 4px 12px rgba(99, 102, 241, 0.12)' : 'none'};">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; flex-wrap: wrap;">
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    ${n.isPinned ? `<span class="badge" style="background: #f59e0b; color: #fff; font-weight: 800; font-size: 0.72rem;">📌 PINNED</span>` : ''}
+                    <h5 style="margin: 0; font-size: 0.98rem; font-weight: 700; color: var(--color-text-primary);">${escapeHTML(n.title)}</h5>
+                    <span class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--color-primary); font-size: 0.72rem; text-transform: uppercase;">${escapeHTML(n.category || 'general')}</span>
+                  </div>
+                  <span style="font-size: 0.75rem; color: var(--color-text-muted); white-space: nowrap;">${new Date(n.createdAt).toLocaleDateString('en-IN')} (${SmartFormatters.timeAgo(n.createdAt)})</span>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--color-text-primary); line-height: 1.5; white-space: pre-wrap;">${escapeHTML(n.message)}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        campusContent.innerHTML = `<div class="text-danger p-3 text-center">Failed to load notices: ${escapeHTML(err.message)}</div>`;
+      }
+    } else if (tabKey === 'holidays') {
+      try {
+        const res = await api.get('/api/student-portal/holidays');
+        const holidays = res.data || [];
+        if (holidays.length === 0) {
+          campusContent.innerHTML = `<div class="text-center p-4 text-muted">No scheduled holidays or library closures found. Reading rooms open on standard hours!</div>`;
+          return;
+        }
+        campusContent.innerHTML = `
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+            ${holidays.map(h => {
+              const hDate = new Date(h.date || h.startDate || Date.now());
+              const diffDays = Math.ceil((hDate - new Date()) / (1000 * 60 * 60 * 24));
+              return `
+                <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px;">
+                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary);">${escapeHTML(h.title)}</div>
+                    <span class="badge ${h.isLibraryClosed ? 'badge-danger' : 'badge-warning'}" style="font-size: 0.7rem;">
+                      ${h.isLibraryClosed ? '🔴 Closed' : '🟡 Timings Revised'}
+                    </span>
+                  </div>
+                  <div style="font-size: 0.82rem; color: var(--color-primary); font-weight: 700; margin-bottom: 4px;">
+                    📅 ${hDate.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                    ${diffDays > 0 ? `<small class="text-muted">(${diffDays} days away)</small>` : (diffDays === 0 ? `<small class="text-danger">(Today)</small>` : '')}
+                  </div>
+                  ${h.timingOverride ? `<div style="font-size: 0.78rem; color: var(--color-text-secondary);">⏰ Shift Timing: <strong>${escapeHTML(h.timingOverride)}</strong></div>` : ''}
+                  ${h.description ? `<div style="font-size: 0.78rem; color: var(--color-text-muted); margin-top: 4px;">${escapeHTML(h.description)}</div>` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      } catch (err) {
+        campusContent.innerHTML = `<div class="text-danger p-3 text-center">Failed to load holiday calendar: ${escapeHTML(err.message)}</div>`;
+      }
+    } else if (tabKey === 'lostfound') {
+      try {
+        const res = await api.get('/api/student-portal/lost-found');
+        const items = res.data || [];
+        campusContent.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary);">
+              Items found inside study rooms, silent cabins &amp; washrooms. Check with manager desk to claim.
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-report-lost-item" style="font-weight: 700;">
+              ➕ Report Lost/Found Item
+            </button>
+          </div>
+          ${items.length === 0 ? `
+            <div class="text-center p-4 text-muted">No lost or unclaimed items recorded currently.</div>
+          ` : `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+              ${items.map(item => `
+                <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px;">
+                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary);">${escapeHTML(item.itemName)}</div>
+                    <span class="badge ${item.status === 'claimed' ? 'badge-success' : 'badge-warning'}" style="font-size: 0.7rem; text-transform: uppercase;">
+                      ${item.status === 'claimed' ? '✅ Claimed' : '🟢 Found / Available'}
+                    </span>
+                  </div>
+                  <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-bottom: 4px;">
+                    📍 Found Location: <strong>${escapeHTML(item.foundLocation || 'Library')}</strong>
+                  </div>
+                  ${item.description ? `<div style="font-size: 0.78rem; color: var(--color-text-muted);">${escapeHTML(item.description)}</div>` : ''}
+                  <div style="font-size: 0.72rem; color: var(--color-text-muted); margin-top: 6px;">
+                    Reported on: ${new Date(item.foundDate || item.createdAt).toLocaleDateString('en-IN')}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `}
+        `;
+
+        campusContent.querySelector('#btn-report-lost-item')?.addEventListener('click', () => {
+          showReportLostModal();
+        });
+      } catch (err) {
+        campusContent.innerHTML = `<div class="text-danger p-3 text-center">Failed to load lost & found items: ${escapeHTML(err.message)}</div>`;
+      }
+    } else if (tabKey === 'feedback') {
+      try {
+        const res = await api.get('/api/student-portal/feedback');
+        const feedbacks = res.data || [];
+        campusContent.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="font-size: 0.85rem; color: var(--color-text-secondary);">
+              Your suggestions &amp; queries help us maintain 5-star study conditions.
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-submit-new-feedback" style="font-weight: 700;">
+              ✍️ Submit Feedback / Query
+            </button>
+          </div>
+          ${feedbacks.length === 0 ? `
+            <div class="text-center p-4 text-muted">You haven't submitted any feedback yet. Have a request or issue? Click the button above to contact management!</div>
+          ` : `
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              ${feedbacks.map(f => `
+                <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="font-weight: 700; font-size: 0.9rem; text-transform: uppercase; color: var(--color-primary);">${escapeHTML(f.category || 'General')}</span>
+                      <span>${'⭐'.repeat(Math.max(1, Math.min(5, f.rating || 5)))}</span>
+                    </div>
+                    <span class="badge ${f.status === 'resolved' ? 'badge-success' : 'badge-warning'}" style="font-size: 0.7rem; text-transform: uppercase;">
+                      ${escapeHTML(f.status || 'Pending')}
+                    </span>
+                  </div>
+                  <div style="font-size: 0.85rem; color: var(--color-text-primary); line-height: 1.4; margin: 4px 0;">${escapeHTML(f.message)}</div>
+                  ${f.adminReply ? `
+                    <div style="background: rgba(108, 92, 231, 0.08); border-left: 3px solid var(--color-primary); padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; margin-top: 6px;">
+                      <strong style="color: var(--color-primary);">Management Reply:</strong> ${escapeHTML(f.adminReply)}
+                    </div>
+                  ` : ''}
+                  <div style="font-size: 0.72rem; color: var(--color-text-muted); margin-top: 6px;">
+                    Submitted: ${new Date(f.createdAt).toLocaleDateString('en-IN')} (${SmartFormatters.timeAgo(f.createdAt)})
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `}
+        `;
+
+        campusContent.querySelector('#btn-submit-new-feedback')?.addEventListener('click', () => {
+          showSubmitFeedbackModal();
+        });
+      } catch (err) {
+        campusContent.innerHTML = `<div class="text-danger p-3 text-center">Failed to load feedback: ${escapeHTML(err.message)}</div>`;
+      }
+    }
+  }
+
+  function showReportLostModal() {
+    const modalContent = document.createElement('div');
+    modalContent.innerHTML = `
+      <form id="form-report-lost" style="font-family: 'Outfit', sans-serif;">
+        <div class="mb-3">
+          <label class="form-label" style="font-weight: 700;">Item Name *</label>
+          <input type="text" id="lost-itemName" class="form-control" placeholder="e.g. Boat Earbuds, Casio Calculator, Blue Water Bottle" required>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label" style="font-weight: 600;">Category</label>
+            <select id="lost-category" class="form-select">
+              <option value="electronics">📱 Electronics / Charger</option>
+              <option value="books">📚 Books / Notes</option>
+              <option value="stationery">✏️ Stationery / Calculator</option>
+              <option value="clothing">👕 Clothing / Bag / Bottle</option>
+              <option value="other">📦 Other</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" style="font-weight: 600;">Location Found / Lost</label>
+            <input type="text" id="lost-location" class="form-control" placeholder="e.g. Cabin 02, Discussion Hall">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" style="font-weight: 600;">Item Description / Markings</label>
+          <textarea id="lost-desc" class="form-control" rows="2" placeholder="Color, brand, identifying details"></textarea>
+        </div>
+        <div class="d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="Modal.closeAll()">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm" style="font-weight: 700;">Submit Report</button>
+        </div>
+      </form>
+    `;
+    const m = new Modal({ title: '🔍 Report Lost / Found Item', content: modalContent, size: 'md' });
+    m.show();
+
+    modalContent.querySelector('#form-report-lost').onsubmit = async (e) => {
+      e.preventDefault();
+      const itemName = modalContent.querySelector('#lost-itemName').value.trim();
+      const category = modalContent.querySelector('#lost-category').value;
+      const foundLocation = modalContent.querySelector('#lost-location').value.trim();
+      const description = modalContent.querySelector('#lost-desc').value.trim();
+
+      try {
+        const res = await api.post('/api/student-portal/lost-found', { itemName, category, foundLocation, description });
+        if (res.success) {
+          Toast.success('Lost & Found item reported!');
+          m.close();
+          activateCampusTab('lostfound');
+        } else {
+          Toast.error(res.message);
+        }
+      } catch (err) {
+        Toast.error(err.message || 'Failed to submit report');
+      }
+    };
+  }
+
+  function showSubmitFeedbackModal() {
+    const modalContent = document.createElement('div');
+    modalContent.innerHTML = `
+      <form id="form-submit-feedback" style="font-family: 'Outfit', sans-serif;">
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label" style="font-weight: 700;">Category *</label>
+            <select id="fb-category" class="form-select">
+              <option value="cleanliness">🧹 Cleanliness & Washrooms</option>
+              <option value="ac_wifi">❄️ AC & High-Speed Wi-Fi</option>
+              <option value="noise">🤫 Noise / Silence Maintenance</option>
+              <option value="seats">💺 Desk / Ergonomic Seating</option>
+              <option value="management">👥 Management & Staff Support</option>
+              <option value="other">💬 General Suggestion</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" style="font-weight: 700;">Overall Satisfaction Rating</label>
+            <select id="fb-rating" class="form-select">
+              <option value="5">⭐⭐⭐⭐⭐ Excellent (5/5)</option>
+              <option value="4">⭐⭐⭐⭐ Good (4/5)</option>
+              <option value="3">⭐⭐⭐ Average (3/5)</option>
+              <option value="2">⭐⭐ Needs Improvement (2/5)</option>
+              <option value="1">⭐ Poor (1/5)</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" style="font-weight: 700;">Your Message / Query *</label>
+          <textarea id="fb-message" class="form-control" rows="3" placeholder="Tell us how we can make your study experience better..." required></textarea>
+        </div>
+        <div class="d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="Modal.closeAll()">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm" style="font-weight: 700;">Send to Management</button>
+        </div>
+      </form>
+    `;
+    const m = new Modal({ title: '💬 Student Feedback & Helpdesk', content: modalContent, size: 'md' });
+    m.show();
+
+    modalContent.querySelector('#form-submit-feedback').onsubmit = async (e) => {
+      e.preventDefault();
+      const category = modalContent.querySelector('#fb-category').value;
+      const rating = modalContent.querySelector('#fb-rating').value;
+      const message = modalContent.querySelector('#fb-message').value.trim();
+
+      try {
+        const res = await api.post('/api/student-portal/feedback', { category, rating, message });
+        if (res.success) {
+          Toast.success('Feedback submitted! Thank you!');
+          m.close();
+          activateCampusTab('feedback');
+        } else {
+          Toast.error(res.message);
+        }
+      } catch (err) {
+        Toast.error(err.message || 'Failed to submit feedback');
+      }
+    };
+  }
+
+  // Attach Tab Switchers
+  campusTabs.forEach(b => {
+    b.addEventListener('click', () => {
+      activateCampusTab(b.dataset.tab);
+    });
+  });
+
+  // Top Action Button Jump Listeners
+  function jumpToCampusTab(tabKey) {
+    const card = document.getElementById('student-campus-hub-card');
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.4)';
+      setTimeout(() => { card.style.boxShadow = ''; }, 1500);
+      activateCampusTab(tabKey);
+    }
+  }
+
+  container.querySelector('#btn-portal-notices')?.addEventListener('click', () => jumpToCampusTab('notices'));
+  container.querySelector('#btn-portal-holidays')?.addEventListener('click', () => jumpToCampusTab('holidays'));
+  container.querySelector('#btn-portal-lostfound')?.addEventListener('click', () => jumpToCampusTab('lostfound'));
+  container.querySelector('#btn-portal-feedback')?.addEventListener('click', () => jumpToCampusTab('feedback'));
+
+  // Initialize Default Tab
+  activateCampusTab('notices');
 
   // Jump to receipts
   container.querySelector('#btn-portal-receipts-jump')?.addEventListener('click', () => {
