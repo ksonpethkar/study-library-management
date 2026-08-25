@@ -854,6 +854,7 @@ function renderPortalUI(container, data, analytics = null) {
       };
 
       const renderBackCard = (isV) => {
+        const st = getThemeStyles(currentColor, currentTheme);
         if (isV) {
           // Vertical Back (CR80 Portrait: 254px x 400px)
           return `

@@ -24,19 +24,32 @@ export function buildAdmissionFormHTML(student, options = {}) {
     showUploadedDocuments: true,
     showPaymentDetails: true,
     showRules: true,
-    showWatermarkStamp: true,
-    business: {
-      businessName: 'Study Library & Reading Hall',
-      tagline: 'Silent Study Environment & Digital Library',
-      address: 'Central Campus Complex, Pune, Maharashtra',
-      phone: '+91 9876543210',
-      email: 'contact@studylib.com'
-    }
+    showWatermarkStamp: true
   };
 
   const opts = { ...defaults, ...options };
   const s = student || {};
-  const b = opts.business || (window.store?.settings?.businessProfile) || defaults.business;
+
+  // Dynamically resolve organization / business profile with zero hardcoding
+  let cachedProfile = {};
+  try {
+    cachedProfile = JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}');
+  } catch (e) {}
+
+  const sysBiz = window.store?.settings?.businessProfile || window.store?.profile || cachedProfile || {};
+  const passedBiz = (options.business && (options.business.businessName || options.business.name)) ? options.business : null;
+  const activeBiz = passedBiz || sysBiz;
+
+  const b = {
+    businessName: activeBiz.businessName || activeBiz.name || 'Study Library Management',
+    tagline: activeBiz.tagline || 'Self Study & Reading Room',
+    address: activeBiz.address || '',
+    phone: activeBiz.phone || '',
+    email: activeBiz.email || '',
+    logo: activeBiz.logo || activeBiz.logoUrl || '',
+    stampImage: activeBiz.stampImage || activeBiz.stamp || ''
+  };
+
   const rc = opts.receiptConfig || (window.store?.settings?.receipt) || {};
   const rcHeader = rc.header || {};
   const rcFooter = rc.footer || {};
@@ -676,6 +689,20 @@ export function previewAdmissionFormPDF(student, options = {}) {
   }
 
   updateIframePreview();
+
+  // Async dynamic settings revalidation to ensure 100% fresh organisation branding
+  if (!currentOpts.business || !currentOpts.business.businessName || currentOpts.business.businessName === 'Study Library Management') {
+    (async () => {
+      try {
+        const res = await (window.api ? window.api.get('/api/settings') : fetch('/api/settings').then(r => r.json()));
+        if (res?.success && res?.data?.businessProfile) {
+          currentOpts.business = res.data.businessProfile;
+          if (res.data.receipt) currentOpts.receiptConfig = res.data.receipt;
+          updateIframePreview();
+        }
+      } catch (e) {}
+    })();
+  }
 
   // Template switch handler
   modal.querySelector('#pdf-prev-preset')?.addEventListener('change', (e) => {
