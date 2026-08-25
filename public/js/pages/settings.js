@@ -220,7 +220,7 @@ function renderMasterHubUI(container, store) {
       overflow: visible;
       transition: all 0.2s ease;
     }
-    .settings-accordion-header {
+    .settings-accordion-header, .cms-accordion-header {
       padding: 12px 16px;
       display: flex;
       justify-content: space-between;
@@ -230,11 +230,12 @@ function renderMasterHubUI(container, store) {
       background: var(--color-surface-hover);
       border-bottom: 1px solid var(--color-border);
       border-radius: var(--radius-md) var(--radius-md) 0 0;
+      transition: background 0.15s ease;
     }
-    .settings-accordion-header:hover {
+    .settings-accordion-header:hover, .cms-accordion-header:hover {
       background: var(--color-bg-secondary);
     }
-    .settings-accordion-header h5, .settings-accordion-header h4 {
+    .settings-accordion-header h5, .settings-accordion-header h4, .cms-accordion-header h5, .cms-accordion-header h4 {
       margin: 0;
       font-size: 0.95rem;
       font-weight: 800;
@@ -243,13 +244,19 @@ function renderMasterHubUI(container, store) {
       align-items: center;
       gap: 6px;
     }
-    .settings-accordion-toggle {
-      font-size: 0.85rem;
+    .settings-accordion-toggle, .cms-accordion-toggle {
+      font-size: 0.9rem;
       font-weight: bold;
       color: var(--color-text-muted);
-      transition: transform 0.2s ease;
+      transition: transform 0.2s ease, color 0.15s ease;
+      padding: 4px 8px;
+      border-radius: 4px;
     }
-    .settings-accordion-body {
+    .settings-accordion-header:hover .settings-accordion-toggle, .cms-accordion-header:hover .cms-accordion-toggle {
+      color: var(--color-primary);
+      background: rgba(108, 92, 231, 0.08);
+    }
+    .settings-accordion-body, .cms-accordion-body {
       padding: 16px;
       display: block;
     }
@@ -3069,37 +3076,6 @@ function renderWebsiteCmsStudio() {
       });
     });
 
-    // 0.2 Interactive Accordion Expand/Collapse Logic
-    wrapper.querySelectorAll('.cms-accordion-header').forEach(header => {
-      header.addEventListener('click', () => {
-        const body = header.nextElementSibling;
-        const icon = header.querySelector('.cms-accordion-toggle');
-        if (body.style.display === 'none') {
-          body.style.display = 'block';
-          if (icon) icon.textContent = '▲';
-        } else {
-          body.style.display = 'none';
-          if (icon) icon.textContent = '▼';
-        }
-      });
-    });
-
-    wrapper.querySelector('#btn-cms-expand-all')?.addEventListener('click', () => {
-      wrapper.querySelectorAll('.cms-accordion-card').forEach(c => {
-        if (c.style.display !== 'none') {
-          const b = c.querySelector('.cms-accordion-body');
-          const t = c.querySelector('.cms-accordion-toggle');
-          if (b) b.style.display = 'block';
-          if (t) t.textContent = '▲';
-        }
-      });
-    });
-
-    wrapper.querySelector('#btn-cms-collapse-all')?.addEventListener('click', () => {
-      wrapper.querySelectorAll('.cms-accordion-body').forEach(b => b.style.display = 'none');
-      wrapper.querySelectorAll('.cms-accordion-toggle').forEach(t => t.textContent = '▼');
-    });
-
     // Helper to send live updates to preview iframe
     const dispatchLiveUpdate = () => {
       if (!iframe || !iframe.contentWindow) return;
@@ -3980,13 +3956,16 @@ function initStudioAccordions(scope) {
     header.dataset.accordionBound = 'true';
 
     header.addEventListener('click', (e) => {
-      // Ignore click if user clicked directly on form controls inside header
-      if (e.target.closest('button, input, select, a, .form-switch, .form-check, label.form-check-label')) return;
-      const body = header.nextElementSibling;
+      // Ignore click if user clicked directly on form inputs or switches inside header
+      if (e.target.closest('input, select, .form-switch, .form-check, label.form-check-label') && !e.target.closest('.settings-accordion-toggle, .cms-accordion-toggle')) return;
+      
+      const card = header.closest('.settings-accordion-card, .cms-accordion-card') || header.parentElement;
+      const body = header.nextElementSibling || card.querySelector('.settings-accordion-body, .cms-accordion-body');
       const caret = header.querySelector('.settings-accordion-toggle, .cms-accordion-toggle');
       if (!body) return;
 
-      if (body.style.display === 'none') {
+      const isClosed = !body.style.display || body.style.display === 'none' || window.getComputedStyle(body).display === 'none';
+      if (isClosed) {
         body.style.display = 'block';
         if (caret) caret.textContent = '▲';
       } else {
