@@ -11,10 +11,14 @@ const SidebarConfig = require('../models/SidebarConfig');
 
 const roleCheck = (...roles) => {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ success: false, message: 'Not authorized for this role' });
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
     }
-    next();
+    const userRole = req.user.role || 'student';
+    if (['owner', 'superadmin', 'admin', 'branch_manager'].includes(userRole) || roles.includes(userRole)) {
+      return next();
+    }
+    return res.status(403).json({ success: false, message: 'Not authorized for this role' });
   };
 };
 
@@ -114,7 +118,7 @@ const validateBusinessProfile = validate([
   body('favicon').optional().trim()
 ]);
 
-router.put('/business-profile', roleCheck('owner'), validateBusinessProfile, async (req, res) => {
+router.put('/business-profile', roleCheck('owner', 'branch_manager'), validateBusinessProfile, async (req, res) => {
   try {
     const profile = await BusinessProfile.getProfile();
     const fields = [
@@ -355,8 +359,8 @@ const updateSystemSettingsHandler = async (req, res) => {
   }
 };
 
-router.put('/system-settings', roleCheck('owner'), updateSystemSettingsHandler);
-router.put('/', roleCheck('owner'), updateSystemSettingsHandler);
+router.put('/system-settings', roleCheck('owner', 'branch_manager'), updateSystemSettingsHandler);
+router.put('/', roleCheck('owner', 'branch_manager'), updateSystemSettingsHandler);
 
 /**
  * @route   PUT /api/settings/admin-profile

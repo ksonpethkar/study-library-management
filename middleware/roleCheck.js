@@ -1,9 +1,13 @@
 const roleCheck = (...roles) => {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ success: false, message: `User role ${req.user ? req.user.role : 'none'} is not authorized to access this route` });
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
     }
-    next();
+    const userRole = req.user.role || 'student';
+    if (['owner', 'superadmin', 'admin', 'branch_manager'].includes(userRole) || roles.includes(userRole)) {
+      return next();
+    }
+    return res.status(403).json({ success: false, message: `User role ${userRole} is not authorized to access this route` });
   };
 };
 
