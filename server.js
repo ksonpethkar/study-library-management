@@ -163,7 +163,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Public Configuration Endpoint for Admission Wizard & System
+// Public Configuration Endpoint for Admission Wizard & System (High Performance)
 app.get('/api/system/public-config', async (req, res) => {
   try {
     const BusinessProfile = require('./models/BusinessProfile');
@@ -172,18 +172,18 @@ app.get('/api/system/public-config', async (req, res) => {
     const Plan = require('./models/Plan');
     const Shift = require('./models/Shift');
     const Branch = require('./models/Branch');
-
-    await CustomField.seedDefaultFields().catch(() => {});    const SystemSetting = require('./models/SystemSetting');
+    const SystemSetting = require('./models/SystemSetting');
     const Seat = require('./models/Seat');
+
     const [businessProfile, customFields, template, plans, shifts, rawBranches, occupiedCounts, systemSettingsList] = await Promise.all([
       BusinessProfile.getProfile().catch(() => ({})),
       CustomField.getActiveFields().catch(() => []),
       FormTemplate.getActiveTemplate().catch(() => null),
-      Plan.find({ isActive: true }).sort('displayOrder').lean().catch(() => []),
+      Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort('displayOrder').lean().catch(() => []),
       Shift.find({ isActive: true }).sort('startTime').lean().catch(() => []),
       Branch.find({ isActive: true }).lean().catch(() => []),
       Seat.aggregate([
-        { $match: { status: 'occupied', isActive: true, branch: { $ne: null } } },
+        { $match: { status: 'occupied', isActive: true, isDeleted: { $ne: true }, branch: { $ne: null } } },
         { $group: { _id: '$branch', count: { $sum: 1 } } }
       ]).catch(() => []),
       SystemSetting.find().lean().catch(() => [])
@@ -198,14 +198,6 @@ app.get('/api/system/public-config', async (req, res) => {
       title: settingsMap['locker.title'] || 'Add Personal Study Locker',
       description: settingsMap['locker.description'] || 'Secure private key-allotted locker to safely keep heavy study books, notes & laptop.'
     };
-
-    let finalPlans = plans;
-    if (!finalPlans || finalPlans.length === 0) {
-      finalPlans = [
-        { _id: 'plan_monthly', name: 'Monthly Study Plan (16 Hrs)', price: 1200, duration: 30, durationType: 'days', shift: 'fullday', isActive: true },
-        { _id: 'plan_quarterly', name: 'Quarterly Prime Plan', price: 3200, duration: 90, durationType: 'days', shift: 'fullday', isActive: true }
-      ];
-    }
 
     let branches = [];
     if (rawBranches && rawBranches.length > 0) {
@@ -225,28 +217,17 @@ app.get('/api/system/public-config', async (req, res) => {
           availableSeats: Math.max(0, totalSeats - occupiedSeats)
         };
       });
-    } else {
-      branches = [{
-        _id: 'default_main',
-        name: 'Main Campus Central',
-        code: 'MAIN',
-        city: 'Central City',
-        address: 'Main Reading Hall Complex',
-        phone: '+91 9876543210',
-        totalSeats: 50,
-        occupiedSeats: 1,
-        availableSeats: 49
-      }];
     }
 
+    res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=60');
     res.json({
       success: true,
       data: {
         businessProfile,
         customFields,
         template,
-        plans: finalPlans,
-        shifts,
+        plans: plans || [],
+        shifts: shifts || [],
         branches,
         locker: lockerConfig
       }

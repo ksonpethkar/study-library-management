@@ -2151,32 +2151,15 @@
       };
     }
 
-    // Load Initial Public Config & Hydrate Dynamic Wizard
-    async function loadInitData() {
+    // Hydrate Dynamic Admission Wizard from Public Configuration
+    function hydrateWizard(publicConfig = {}) {
       try {
-        let publicConfig = null;
-        try {
-          const cfgRes = await fetch('/api/system/public-config');
-          const cfgJson = await cfgRes.json();
-          if (cfgJson.success && cfgJson.data) publicConfig = cfgJson.data;
-        } catch (e) {}
-
-        const [landingRes, plansRes, shiftsRes, fieldsRes, branchesRes, templateRes] = await Promise.all([
-          publicConfig?.businessProfile ? Promise.resolve({ data: { businessProfile: publicConfig.businessProfile } }) : fetch('/api/landing').then(r => r.json()).catch(() => null),
-          publicConfig?.plans ? Promise.resolve({ data: publicConfig.plans }) : fetch('/api/plans').then(r => r.json()).catch(() => null),
-          publicConfig?.shifts ? Promise.resolve({ data: publicConfig.shifts }) : fetch('/api/shifts').then(r => r.json()).catch(() => null),
-          publicConfig?.customFields ? Promise.resolve({ data: publicConfig.customFields }) : fetch('/api/custom-fields/all').then(r => r.json()).catch(() => fetch('/api/custom-fields').then(r => r.json()).catch(() => null)),
-          publicConfig?.branches ? Promise.resolve({ data: publicConfig.branches }) : fetch('/api/branches/public-list').then(r => r.json()).catch(() => null),
-          publicConfig?.template ? Promise.resolve({ data: publicConfig.template }) : fetch('/api/custom-fields/templates/active').then(r => r.json()).catch(() => null)
-        ]);
-
-        const bp = landingRes?.data?.businessProfile || publicConfig?.businessProfile || {};
-        const activeTemplate = templateRes?.data || publicConfig?.template || null;
+        const bp = publicConfig?.businessProfile || {};
+        const activeTemplate = publicConfig?.template || null;
         activeTemplateData = activeTemplate;
         businessProfileData = bp;
 
         if (bp?.businessName) {
-          try { localStorage.setItem('sl_public_profile_cache', JSON.stringify(bp)); } catch(e) {}
           libraryBusinessName = bp.businessName;
           document.getElementById('lib-title').textContent = bp.businessName;
           document.title = `Online Admission — ${bp.businessName}`;
@@ -2195,12 +2178,10 @@
 
         // Branding Sync
         const logoUrl = bp?.logo || publicConfig?.logo || activeTemplate?.branding?.logoUrl || '';
-        const bannerUrl = bp?.bannerImage || publicConfig?.bannerImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.bannerImage || '';
+        const bannerUrl = bp?.bannerImage || publicConfig?.bannerImage || '';
         const logoEl = document.getElementById('lib-logo-icon');
-        if (logoEl) {
-          if (logoUrl) {
-            logoEl.innerHTML = `<img src="${logoUrl}" alt="Logo" style="max-height: 56px; max-width: 140px; object-fit: contain; margin-bottom: 0.25rem;">`;
-          }
+        if (logoEl && logoUrl) {
+          logoEl.innerHTML = `<img src="${logoUrl}" alt="Logo" style="max-height: 56px; max-width: 140px; object-fit: contain; margin-bottom: 0.25rem;">`;
         }
 
         const mainHeader = document.getElementById('admission-main-header');
@@ -2225,7 +2206,7 @@
         }
 
         // Custom Fields and Sections Partitioning
-        const rawFields = fieldsRes?.data?.fields || fieldsRes?.data || publicConfig?.customFields?.fields || publicConfig?.customFields || [];
+        const rawFields = publicConfig?.customFields?.fields || publicConfig?.customFields || [];
         const fields = Array.isArray(rawFields) ? rawFields : [];
 
         // Build active sections list (from template or 8 standard sections + custom fields)
@@ -2265,7 +2246,7 @@
         renderDynamicWizard(activeSections, fields, activeTemplate);
 
         // Populate Branches in Branch Selectors
-        const branches = Array.isArray(branchesRes?.data) ? branchesRes.data : (publicConfig?.branches || []);
+        const branches = Array.isArray(publicConfig?.branches) ? publicConfig.branches : [];
         const branchSelect = document.getElementById('reg-branch');
         if (branchSelect && branches.length > 0) {
           branchSelect.innerHTML = '<option value="">-- Choose Study Centre / Branch --</option>';
@@ -2292,7 +2273,7 @@
         }
 
         // Shifts Dropdown with Multiplier
-        const rawShifts = Array.isArray(shiftsRes?.data) ? shiftsRes.data : [];
+        const rawShifts = Array.isArray(publicConfig?.shifts) ? publicConfig.shifts : [];
         const shifts = rawShifts.filter(s => s.isActive !== false && s.isActive !== 'false');
         const shiftWrapper = document.getElementById('reg-shift-wrapper');
         const shiftDropdown = document.getElementById('reg-shift');
@@ -2339,7 +2320,7 @@
         }
 
         // 2. Interactive Plans Population & Visual Cards Grid
-        const rawPlans = Array.isArray(publicConfig?.plans) ? publicConfig.plans : (Array.isArray(plansRes?.data) ? plansRes.data : (landingRes?.data?.plans || []));
+        const rawPlans = Array.isArray(publicConfig?.plans) ? publicConfig.plans : [];
         const plans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false' && p.isDeleted !== true);
 
         const planSelect = document.getElementById('reg-plan');
@@ -2645,7 +2626,7 @@
 
         // Render Dynamic Library Rules from Admin Settings
         const rulesBox = document.getElementById('reg-rules-scroll-box');
-        const landingRules = landingRes?.data?.landing?.rules?.items || bp?.rules || [];
+        const landingRules = publicConfig?.rules || bp?.rules || [];
         if (rulesBox && Array.isArray(landingRules) && landingRules.length > 0) {
           rulesBox.innerHTML = '<ol style="margin: 0; padding-left: 1.2rem;">' + landingRules.map(r => `
             <li style="margin-bottom: 6px;"><strong>${escapeHTML(r.title || r.heading || 'Rule')}:</strong> ${escapeHTML(r.description || r.text || '')}</li>
@@ -2659,7 +2640,42 @@
         }
 
       } catch (err) {
-        console.error('Failed to init register page:', err);
+        console.error('Failed to hydrate wizard:', err);
+      }
+    }
+
+    // Load Public Config with SWR (Instant 0ms Cache + Single High-Speed Fetch)
+    async function loadInitData() {
+      let publicConfig = null;
+      try {
+        const cached = localStorage.getItem('sl_public_config_cache');
+        if (cached) {
+          publicConfig = JSON.parse(cached);
+        }
+      } catch (e) {}
+
+      // Instant 0ms First Paint
+      if (publicConfig) {
+        hydrateWizard(publicConfig);
+      } else {
+        // Render standard wizard immediately so user NEVER sees stuck loading screen
+        hydrateWizard({});
+      }
+
+      // Revalidate in background with 3.5s timeout
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const cfgRes = await fetch('/api/system/public-config', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        const cfgJson = await cfgRes.json();
+        if (cfgJson.success && cfgJson.data) {
+          publicConfig = cfgJson.data;
+          try { localStorage.setItem('sl_public_config_cache', JSON.stringify(publicConfig)); } catch (e) {}
+          hydrateWizard(publicConfig);
+        }
+      } catch (e) {
+        console.warn('Background public config fetch timed out or offline, using cached/default state');
       }
     }
 
