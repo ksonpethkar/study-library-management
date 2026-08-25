@@ -1584,17 +1584,6 @@
             ${navHtml}
           </div>
         `;
-      }); </div>
-          `;
-        }
-
-        formHtml += `
-          <div class="wizard-step-content ${isFirst ? 'active' : ''}" id="step-${stepNum}" data-section="${escapeHTML(secName)}">
-            <div class="form-section-title"><span>${icon}</span> ${escapeHTML(sec.label || `Step ${stepNum}`)}</div>
-            ${stepBodyHtml}
-            ${navHtml}
-          </div>
-        `;
       });
 
       formEl.innerHTML = formHtml;
