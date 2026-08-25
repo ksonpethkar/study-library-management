@@ -1704,7 +1704,64 @@ export async function render(container) {
 
             // Handle Print Button
             receiptDiv.querySelector('#btn-print-receipt-action')?.addEventListener('click', () => {
-                window.print();
+                const receiptContent = receiptBox.innerHTML;
+                const isThermal80 = activeTemplate === 'thermal_80';
+                const isThermal58 = activeTemplate === 'thermal_58';
+                const pageSize = isThermal58 ? '58mm auto' : isThermal80 ? '80mm auto' : 'A4 portrait';
+                const pageMargin = isThermal58 || isThermal80 ? '0' : '6mm';
+                const maxWidth = isThermal58 ? '56mm' : isThermal80 ? '78mm' : '720px';
+                const fontStack = isThermal58 || isThermal80 ? "'Courier New', monospace" : "'Inter', Arial, Helvetica, sans-serif";
+
+                const printWin = window.open('', '_blank', 'width=750,height=800');
+                if (!printWin) {
+                    window.print();
+                    return;
+                }
+
+                printWin.document.open();
+                printWin.document.write(`
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>Receipt — ${payment?.receiptNumber || 'Receipt'}</title>
+                        <link rel="preconnect" href="https://fonts.googleapis.com">
+                        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+                        <style>
+                            @page { size: ${pageSize}; margin: ${pageMargin}; }
+                            * { box-sizing: border-box; margin: 0; padding: 0; }
+                            body {
+                                background: #ffffff !important;
+                                color: #000000 !important;
+                                font-family: ${fontStack};
+                                padding: ${isThermal58 || isThermal80 ? '2mm' : '8px'};
+                                width: 100%;
+                                max-width: ${maxWidth};
+                                margin: 0 auto;
+                                -webkit-font-smoothing: antialiased;
+                            }
+                            table { width: 100%; border-collapse: collapse; }
+                            img { max-width: 100%; }
+                            @media print {
+                                body { width: 100%; max-width: ${maxWidth}; margin: 0 auto; padding: 0; background: #fff !important; }
+                                * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${receiptContent}
+                        <script>
+                            window.onload = function() {
+                                setTimeout(function() {
+                                    window.print();
+                                }, 300);
+                            };
+                        </script>
+                    </body>
+                    </html>
+                `);
+                printWin.document.close();
             });
 
             receiptDiv.querySelector('#btn-share-whatsapp-receipt')?.addEventListener('click', async () => {

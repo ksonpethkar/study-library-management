@@ -1428,7 +1428,54 @@ export async function render(container) {
       const btnPrint = document.getElementById('btnPrintReceiptModal');
       if (btnPrint) {
         btnPrint.onclick = () => {
-          window.print();
+          const printWin = window.open('', '_blank', 'width=750,height=800');
+          if (!printWin) {
+            window.print();
+            return;
+          }
+          printWin.document.open();
+          printWin.document.write(`
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <title>Receipt — ${r.receiptNumber || 'Fee Receipt'}</title>
+              <link rel="preconnect" href="https://fonts.googleapis.com">
+              <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+              <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+              <style>
+                @page { size: A4 portrait; margin: 8mm; }
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body {
+                  background: #ffffff !important;
+                  color: #000000 !important;
+                  font-family: 'Inter', Arial, Helvetica, sans-serif;
+                  padding: 10px;
+                  width: 100%;
+                  max-width: 720px;
+                  margin: 0 auto;
+                  -webkit-font-smoothing: antialiased;
+                }
+                table { width: 100%; border-collapse: collapse; }
+                @media print {
+                  body { width: 100%; max-width: 720px; margin: 0 auto; padding: 0; }
+                  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+              </style>
+            </head>
+            <body>
+              ${receiptContent}
+              <script>
+                window.onload = function() {
+                  setTimeout(function() {
+                    window.print();
+                  }, 300);
+                };
+              </script>
+            </body>
+            </html>
+          `);
+          printWin.document.close();
         };
       }
 

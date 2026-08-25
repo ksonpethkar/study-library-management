@@ -6,13 +6,51 @@
     --color-surface: #ffffff !important;
     --color-border: #cccccc !important;
   }
-  /* Hide non-printable elements */
-  #sidebar, 
-  #main-header, 
-  #mobile-nav, 
-  #search-palette,
-  .toast-container,
-  .modal-backdrop,
+
+  /* When printing while a modal or receipt is open */
+  body.modal-open #sidebar,
+  body.modal-open #main-header,
+  body.modal-open #mobile-nav,
+  body.modal-open #search-palette,
+  body.modal-open .toast-container,
+  body.modal-open .main-content,
+  body.modal-open #main-content {
+    display: none !important;
+  }
+
+  body.modal-open .modal-backdrop,
+  body.modal-open #modal-backdrop,
+  body.modal-open .modal-dialog,
+  body.modal-open .modal,
+  body.modal-open .modal-body {
+    display: block !important;
+    position: static !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  body.modal-open .modal-header,
+  body.modal-open .modal-footer,
+  body.modal-open .modal-close,
+  body.modal-open .btn,
+  body.modal-open .receipt-toolbar {
+    display: none !important;
+  }
+
+  /* Hide non-printable elements in standard page print */
+  body:not(.modal-open) #sidebar, 
+  body:not(.modal-open) #main-header, 
+  body:not(.modal-open) #mobile-nav, 
+  body:not(.modal-open) #search-palette,
+  body:not(.modal-open) .toast-container,
+  body:not(.modal-open) .modal-backdrop:not(.active),
   .btn:not(.print-visible),
   .pagination,
   .tabs,
@@ -22,12 +60,14 @@
 
   /* Reset layout for printing */
   body {
-    background: #fff;
-    color: #000;
-    font-size: 12pt;
-    line-height: 1.5;
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 11pt;
+    line-height: 1.4;
     margin: 0;
     padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .app-container {
