@@ -1850,6 +1850,10 @@
             }
 
             // Dynamic Quick Links (Strictly follow saved configuration)
+            if (landing.footer?.linksHeading) {
+              const flh = document.getElementById('footer-links-heading');
+              if (flh) flh.textContent = landing.footer.linksHeading;
+            }
             const qLinks = Array.isArray(landing.footer?.quickLinks) ? landing.footer.quickLinks.filter(l => l && l.label && l.url) : [];
             const flc = document.getElementById('footer-links-container');
             if (flc) {
@@ -1861,6 +1865,8 @@
                 flc.innerHTML = `
                   <li><a href="/register">Online Admission</a></li>
                   <li><a href="/student-login">Student Portal</a></li>
+                  <li><a href="/kiosk">Gate Kiosk</a></li>
+                  <li><a href="/#/">Staff & Owner Login</a></li>
                 `;
               }
             }
@@ -1972,6 +1978,10 @@
           const tText = document.getElementById('ticker-text');
           if (tText) tText.textContent = event.data.announcementTicker;
         }
+        if (event.data.footerLinksHeading) {
+          const flh = document.getElementById('footer-links-heading');
+          if (flh) flh.textContent = event.data.footerLinksHeading;
+        }
         if (Array.isArray(event.data.quickLinks)) {
           const flc = document.getElementById('footer-links-container');
           if (flc) {
@@ -1984,6 +1994,8 @@
               flc.innerHTML = `
                 <li><a href="/register">Online Admission</a></li>
                 <li><a href="/student-login">Student Portal</a></li>
+                <li><a href="/kiosk">Gate Kiosk</a></li>
+                <li><a href="/#/">Staff & Owner Login</a></li>
               `;
             }
           }

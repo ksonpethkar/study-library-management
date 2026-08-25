@@ -136,6 +136,8 @@ const landingPageSchema = new mongoose.Schema({
   // Footer & Quick Links Customization
   footer: {
     enabled: { type: Boolean, default: true },
+    showLinks: { type: Boolean, default: true },
+    linksHeading: { type: String, default: 'Quick Links' },
     orgName: { type: String, default: '' },
     tagline: { type: String, default: 'Premier Air-Conditioned Reading Hall & Self-Study Space.' },
     quickLinks: [{

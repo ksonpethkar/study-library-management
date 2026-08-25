@@ -2919,23 +2919,45 @@ function renderWebsiteCmsStudio() {
                 <input type="text" id="cms-footer-tagline" class="form-control form-control-sm" value="Premier Air-Conditioned Reading Hall & Self-Study Space.">
               </div>
             </div>
-            <div class="form-group mb-2">
-              <label class="form-label small" style="font-weight: 700;">Copyright Text</label>
-              <input type="text" id="cms-footer-copy-text" class="form-control form-control-sm" value="Study Library Management System. All Rights Reserved.">
+            <div class="row g-2 mb-2">
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Quick Links Column Heading</label>
+                <input type="text" id="cms-footer-links-heading" class="form-control form-control-sm" value="Quick Links" placeholder="e.g. Quick Links, Student Portals">
+              </div>
+              <div class="col-6">
+                <label class="form-label small" style="font-weight: 700;">Copyright Notice</label>
+                <input type="text" id="cms-footer-copy-text" class="form-control form-control-sm" value="Study Library Management System. All Rights Reserved.">
+              </div>
             </div>
-            <label class="form-label small mb-1" style="font-weight: 700;">4 Footer Quick Navigation Links</label>
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-              ${[
-                { label: 'Online Admission', url: '/register' },
-                { label: 'Student Portal', url: '/student-login' },
-                { label: 'Gate Kiosk', url: '/kiosk' },
-                { label: 'Staff & Owner Login', url: '/#/' }
-              ].map((l, i) => `
-                <div class="row g-1">
-                  <div class="col-5"><input type="text" id="cms-qlink-lbl-${i+1}" class="form-control form-control-sm font-weight-bold" value="${l.label}"></div>
-                  <div class="col-7"><input type="text" id="cms-qlink-url-${i+1}" class="form-control form-control-sm font-monospace" value="${l.url}"></div>
+
+            <!-- Dynamic Quick Links Management -->
+            <div class="mb-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px; margin-top: 10px;">
+              <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <div>
+                  <label class="form-label small mb-0" style="font-weight: 800; color: var(--color-primary);">🔗 Custom Footer Quick Navigation Links</label>
+                  <div class="text-muted" style="font-size: 0.72rem;">Add, edit, reorder or remove navigation links dynamically displayed in the landing footer.</div>
                 </div>
-              `).join('')}
+                <button type="button" id="btn-add-cms-qlink" class="btn btn-xs btn-outline-primary" style="font-weight: 700;">
+                  ➕ Add New Link
+                </button>
+              </div>
+
+              <!-- Quick Links Preset Shortcuts -->
+              <div class="mb-2 d-flex flex-wrap gap-1 align-items-center" style="background: var(--color-bg-secondary); padding: 6px 10px; border-radius: var(--radius-sm); border: 1px dashed var(--color-border);">
+                <span style="font-size: 0.72rem; font-weight: 700; color: var(--color-text-muted);">Quick Presets:</span>
+                <button type="button" class="btn btn-xs btn-ghost btn-preset-qlink" data-label="Online Admission" data-url="/register">+ Online Admission</button>
+                <button type="button" class="btn btn-xs btn-ghost btn-preset-qlink" data-label="Student Portal" data-url="/student-login">+ Student Portal</button>
+                <button type="button" class="btn btn-xs btn-ghost btn-preset-qlink" data-label="Gate Kiosk" data-url="/kiosk">+ Gate Kiosk</button>
+                <button type="button" class="btn btn-xs btn-ghost btn-preset-qlink" data-label="Staff & Admin Login" data-url="/#/">+ Staff Login</button>
+                <button type="button" class="btn btn-xs btn-ghost btn-preset-qlink" data-label="Fee Plans" data-url="#pricing">+ Fee Plans</button>
+                <button type="button" class="btn btn-xs btn-ghost btn-preset-qlink" data-label="Study Shifts" data-url="#shifts">+ Shifts</button>
+                <button type="button" class="btn btn-xs btn-ghost btn-preset-qlink" data-label="Contact & Location" data-url="#contact">+ Contact</button>
+              </div>
+
+              <!-- Quick Links Container -->
+              <div id="cms-qlinks-container" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Dynamically populated rows -->
+              </div>
             </div>
           </div>
         </div>
@@ -3076,15 +3098,18 @@ function renderWebsiteCmsStudio() {
       });
     });
 
+    // Dynamic Quick Links State & Renderer
+    let currentQuickLinks = [
+      { label: 'Online Admission', url: '/register', openInNewTab: false },
+      { label: 'Student Portal', url: '/student-login', openInNewTab: false },
+      { label: 'Gate Kiosk', url: '/kiosk', openInNewTab: false },
+      { label: 'Staff & Owner Login', url: '/#/', openInNewTab: false }
+    ];
+
     // Helper to send live updates to preview iframe
     const dispatchLiveUpdate = () => {
       if (!iframe || !iframe.contentWindow) return;
-      const liveQLinks = [];
-      for (let i = 1; i <= 4; i++) {
-        const label = wrapper.querySelector(`#cms-qlink-lbl-${i}`)?.value?.trim();
-        const url = wrapper.querySelector(`#cms-qlink-url-${i}`)?.value?.trim();
-        if (label && url) liveQLinks.push({ label, url, openInNewTab: false });
-      }
+      const validLinks = currentQuickLinks.filter(l => l && l.label && l.url);
 
       iframe.contentWindow.postMessage({
         type: 'LIVE_CMS_UPDATE',
@@ -3096,11 +3121,94 @@ function renderWebsiteCmsStudio() {
         heroTitle: wrapper.querySelector('#cms-hero-title')?.value,
         heroSubtitle: wrapper.querySelector('#cms-hero-subtitle')?.value,
         announcementTicker: wrapper.querySelector('#cms-hero-ticker')?.value,
-        quickLinks: liveQLinks,
+        footerLinksHeading: wrapper.querySelector('#cms-footer-links-heading')?.value?.trim() || 'Quick Links',
+        quickLinks: validLinks,
         footerTagline: wrapper.querySelector('#cms-footer-tagline')?.value,
         navBrand: wrapper.querySelector('#cms-nav-brand-name')?.value
       }, '*');
     };
+
+    const renderQuickLinksRows = () => {
+      const cont = wrapper.querySelector('#cms-qlinks-container');
+      if (!cont) return;
+      if (currentQuickLinks.length === 0) {
+        cont.innerHTML = `
+          <div class="text-center p-3 text-muted" style="font-size: 0.8rem; border: 1px dashed var(--color-border); border-radius: var(--radius-sm);">
+            No links added yet. Click <strong>➕ Add New Link</strong> or a quick preset above.
+          </div>
+        `;
+        return;
+      }
+      cont.innerHTML = currentQuickLinks.map((l, i) => `
+        <div class="cms-qlink-row row g-2 align-items-center p-2" data-index="${i}" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+          <div class="col-4">
+            <input type="text" class="form-control form-control-sm qlink-input-label font-weight-bold" placeholder="Link Text (e.g. Online Admission)" value="${escapeHTML(l.label || '')}">
+          </div>
+          <div class="col-4">
+            <input type="text" class="form-control form-control-sm font-monospace qlink-input-url" placeholder="URL (e.g. /register or #pricing)" value="${escapeHTML(l.url || '')}">
+          </div>
+          <div class="col-2 d-flex align-items-center">
+            <label class="form-check-label small mb-0 d-flex align-items-center gap-1" style="font-size: 0.72rem; cursor: pointer; white-space: nowrap;">
+              <input type="checkbox" class="form-check-input qlink-input-newtab" ${l.openInNewTab ? 'checked' : ''} style="margin: 0;">
+              <span>↗ Tab</span>
+            </label>
+          </div>
+          <div class="col-2 text-end">
+            <button type="button" class="btn btn-xs btn-outline-danger btn-delete-qlink" data-index="${i}" title="Delete link" style="padding: 2px 7px;">
+              🗑️
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      // Wire row input listeners
+      cont.querySelectorAll('.qlink-input-label').forEach((inp, idx) => {
+        inp.addEventListener('input', (e) => {
+          if (currentQuickLinks[idx]) currentQuickLinks[idx].label = e.target.value;
+          dispatchLiveUpdate();
+        });
+      });
+      cont.querySelectorAll('.qlink-input-url').forEach((inp, idx) => {
+        inp.addEventListener('input', (e) => {
+          if (currentQuickLinks[idx]) currentQuickLinks[idx].url = e.target.value;
+          dispatchLiveUpdate();
+        });
+      });
+      cont.querySelectorAll('.qlink-input-newtab').forEach((inp, idx) => {
+        inp.addEventListener('change', (e) => {
+          if (currentQuickLinks[idx]) currentQuickLinks[idx].openInNewTab = e.target.checked;
+          dispatchLiveUpdate();
+        });
+      });
+      cont.querySelectorAll('.btn-delete-qlink').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.index, 10);
+          currentQuickLinks.splice(idx, 1);
+          renderQuickLinksRows();
+          dispatchLiveUpdate();
+        });
+      });
+    };
+
+    // Add New Link Button
+    wrapper.querySelector('#btn-add-cms-qlink')?.addEventListener('click', () => {
+      currentQuickLinks.push({ label: 'New Link', url: '/', openInNewTab: false });
+      renderQuickLinksRows();
+      dispatchLiveUpdate();
+    });
+
+    // Preset Shortcut Buttons
+    wrapper.querySelectorAll('.btn-preset-qlink').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const label = btn.dataset.label;
+        const url = btn.dataset.url;
+        if (!currentQuickLinks.some(l => l.url === url)) {
+          currentQuickLinks.push({ label, url, openInNewTab: false });
+          renderQuickLinksRows();
+          dispatchLiveUpdate();
+        }
+      });
+    });
 
     if (iframe) {
       iframe.addEventListener('load', () => {
@@ -3312,15 +3420,18 @@ function renderWebsiteCmsStudio() {
         if (landing.footer?.orgName) wrapper.querySelector('#cms-footer-org-name').value = landing.footer.orgName;
         if (landing.footer?.tagline) wrapper.querySelector('#cms-footer-tagline').value = landing.footer.tagline;
         if (landing.footer?.copyrightText) wrapper.querySelector('#cms-footer-copy-text').value = landing.footer.copyrightText;
-        if (Array.isArray(landing.footer?.quickLinks)) {
-          landing.footer.quickLinks.forEach((l, idx) => {
-            const i = idx + 1;
-            const lblInput = wrapper.querySelector(`#cms-qlink-lbl-${i}`);
-            const urlInput = wrapper.querySelector(`#cms-qlink-url-${i}`);
-            if (lblInput && l.label) lblInput.value = l.label;
-            if (urlInput && l.url) urlInput.value = l.url;
-          });
+        if (landing.footer?.linksHeading) {
+          const flhInp = wrapper.querySelector('#cms-footer-links-heading');
+          if (flhInp) flhInp.value = landing.footer.linksHeading;
         }
+        if (Array.isArray(landing.footer?.quickLinks) && landing.footer.quickLinks.length > 0) {
+          currentQuickLinks = landing.footer.quickLinks.map(l => ({
+            label: l.label || '',
+            url: l.url || '',
+            openInNewTab: Boolean(l.openInNewTab)
+          }));
+        }
+        renderQuickLinksRows();
 
         // SEO
         if (landing.seo?.metaTitle) wrapper.querySelector('#cms-seo-title').value = landing.seo.metaTitle;
@@ -3505,12 +3616,13 @@ function renderWebsiteCmsStudio() {
         }
 
         // Collect Quick Links
-        const quickLinks = [];
-        for (let i = 1; i <= 4; i++) {
-          const label = wrapper.querySelector(`#cms-qlink-lbl-${i}`)?.value?.trim();
-          const url = wrapper.querySelector(`#cms-qlink-url-${i}`)?.value?.trim();
-          if (label && url) quickLinks.push({ label, url, openInNewTab: false });
-        }
+        const validQuickLinks = currentQuickLinks
+          .map(l => ({
+            label: l.label?.trim() || '',
+            url: l.url?.trim() || '',
+            openInNewTab: Boolean(l.openInNewTab)
+          }))
+          .filter(l => l.label && l.url);
 
         const payload = {
           theme: {
@@ -3617,12 +3729,14 @@ function renderWebsiteCmsStudio() {
           },
           footer: {
             enabled: true,
+            showLinks: true,
+            linksHeading: wrapper.querySelector('#cms-footer-links-heading')?.value?.trim() || 'Quick Links',
             orgName: wrapper.querySelector('#cms-footer-org-name')?.value?.trim() || '',
             tagline: wrapper.querySelector('#cms-footer-tagline')?.value?.trim() || '',
             copyrightText: wrapper.querySelector('#cms-footer-copy-text')?.value?.trim() || '',
             mapEmbedUrl: wrapper.querySelector('#cms-map-embed')?.value?.trim() || '',
             mapDirectLink: wrapper.querySelector('#cms-map-direct')?.value?.trim() || '',
-            quickLinks: quickLinks
+            quickLinks: validQuickLinks
           },
           seo: {
             metaTitle: wrapper.querySelector('#cms-seo-title')?.value?.trim() || '',
