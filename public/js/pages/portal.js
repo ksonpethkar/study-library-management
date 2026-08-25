@@ -784,37 +784,40 @@ function renderPortalUI(container, data, analytics = null) {
             cardBg: 'linear-gradient(145deg, #1e2230 0%, #111420 100%)',
             textColor: '#f8fafc',
             subText: '#94a3b8',
-            border: `2px solid ${color}`,
+            border: `2.5px solid ${color}`,
+            outline: `1.5px dashed #475569`,
             headerBg: `linear-gradient(135deg, ${color}, #0f172a)`,
             footerBg: '#0f172a',
             badgeBg: 'rgba(255,255,255,0.1)',
             badgeColor: '#fff',
-            cardShadow: '0 14px 36px rgba(0,0,0,0.6)'
+            cardShadow: '0 10px 28px rgba(0,0,0,0.5)'
           };
         }
         if (theme === 'minimal') {
           return {
             cardBg: '#ffffff',
-            textColor: '#1e293b',
-            subText: '#64748b',
-            border: `2px solid ${color}`,
+            textColor: '#0f172a',
+            subText: '#475569',
+            border: `2.5px solid #0f172a`,
+            outline: `1.5px dashed #64748b`,
             headerBg: color,
             footerBg: '#f8fafc',
             badgeBg: `${color}18`,
             badgeColor: color,
-            cardShadow: '0 10px 30px rgba(0,0,0,0.1)'
+            cardShadow: '0 8px 24px rgba(0,0,0,0.14)'
           };
         }
         return {
-          cardBg: 'linear-gradient(145deg, #ffffff 60%, #f4f3ff 100%)',
-          textColor: '#1e1b4b',
+          cardBg: 'linear-gradient(145deg, #ffffff 60%, #f8faff 100%)',
+          textColor: '#0f172a',
           subText: '#475569',
-          border: `2.5px solid ${color}`,
-          headerBg: `linear-gradient(135deg, ${color}, ${color}dd)`,
+          border: `2.5px solid #0f172a`,
+          outline: `1.5px dashed #64748b`,
+          headerBg: `linear-gradient(135deg, ${color}, ${color}ee)`,
           footerBg: '#f8fafc',
           badgeBg: `${color}18`,
           badgeColor: color,
-          cardShadow: `0 14px 36px ${color}30`
+          cardShadow: `0 8px 24px rgba(15, 23, 42, 0.16)`
         };
       };
 
@@ -826,7 +829,7 @@ function renderPortalUI(container, data, analytics = null) {
           return `
             <div class="id-card-entity id-card-v id-card-front" style="
               width: 254px; min-height: 400px; height: 400px; background: ${st.cardBg}; color: ${st.textColor};
-              border-radius: 14px; ${st.border}; overflow: hidden; box-shadow: ${st.cardShadow};
+              border-radius: 12px; ${st.border}; outline: ${st.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${st.cardShadow};
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Curved Banner -->
@@ -875,7 +878,7 @@ function renderPortalUI(container, data, analytics = null) {
           return `
             <div class="id-card-entity id-card-h id-card-front" style="
               width: 380px; min-height: 240px; height: 240px; background: ${st.cardBg}; color: ${st.textColor};
-              border-radius: 14px; ${st.border}; overflow: hidden; box-shadow: ${st.cardShadow};
+              border-radius: 12px; ${st.border}; outline: ${st.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${st.cardShadow};
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Banner -->
@@ -937,7 +940,7 @@ function renderPortalUI(container, data, analytics = null) {
           return `
             <div class="id-card-entity id-card-v id-card-back" style="
               width: 254px; min-height: 400px; height: 400px; background: ${st.cardBg}; color: ${st.textColor};
-              border-radius: 14px; ${st.border}; overflow: hidden; box-shadow: ${st.cardShadow};
+              border-radius: 12px; ${st.border}; outline: ${st.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${st.cardShadow};
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Banner -->
@@ -1002,7 +1005,7 @@ function renderPortalUI(container, data, analytics = null) {
           return `
             <div class="id-card-entity id-card-h id-card-back" style="
               width: 380px; min-height: 240px; height: 240px; background: ${st.cardBg}; color: ${st.textColor};
-              border-radius: 14px; ${st.border}; overflow: hidden; box-shadow: ${st.cardShadow};
+              border-radius: 12px; ${st.border}; outline: ${st.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${st.cardShadow};
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Banner -->
@@ -1048,15 +1051,15 @@ function renderPortalUI(container, data, analytics = null) {
                       `}
                     </div>
                     <div style="margin-top: auto; padding-bottom: 2px;">
-                      <div style="width: 70px; border-bottom: 1px solid ${st.subText}; margin-bottom: 2px;"></div>
-                      <div style="font-size: 0.56rem; color: ${st.subText}; font-weight: 600;">Auth. Signatory</div>
+                      <div style="width: 65px; border-bottom: 1px solid ${st.subText}; margin-bottom: 2px; margin-left: auto; margin-right: auto;"></div>
+                      <div style="font-size: 0.55rem; color: ${st.subText}; font-weight: 600;">Auth. Signatory</div>
                     </div>
                   ` : ''}
                 </div>
               </div>
 
-              <!-- Footer with No Text Overlap -->
-              <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 4px 12px; text-align: center; font-size: 0.60rem; color: ${st.subText}; line-height: 1.3;">
+              <!-- Footer -->
+              <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 4px 12px; text-align: center; font-size: 0.60rem; color: ${st.subText};">
                 ${escapeHTML(business.phone ? `Helpline: ${business.phone}` : '')}${business.phone && business.address ? ' • ' : ''}${escapeHTML(business.address || '')}
               </div>
             </div>
@@ -1200,13 +1203,17 @@ function renderPortalUI(container, data, analytics = null) {
         </div>
 
         <style>
+          .id-card-entity {
+            box-sizing: border-box !important;
+            transition: all 0.2s ease;
+          }
           @media print {
             body * { visibility: hidden !important; }
             #id-card-render-stage, #id-card-render-stage * { visibility: visible !important; }
             #id-card-render-stage {
               position: fixed !important;
               left: 50% !important;
-              top: 20px !important;
+              top: 40px !important;
               transform: translateX(-50%) !important;
               width: 100% !important;
               box-shadow: none !important;
@@ -1220,13 +1227,18 @@ function renderPortalUI(container, data, analytics = null) {
               flex-direction: row !important;
               align-items: center !important;
               justify-content: center !important;
-              gap: 20px !important;
+              gap: 36px !important;
               flex-wrap: nowrap !important;
             }
             .id-cut-separator {
               display: flex !important;
             }
             .id-card-entity {
+              border: 2.5px solid #000000 !important;
+              outline: 1.5px dashed #475569 !important;
+              outline-offset: 5px !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
               box-shadow: none !important;
               break-inside: avoid !important;
               page-break-inside: avoid !important;
@@ -3381,7 +3393,7 @@ export async function download1080pMobileIDPass(student, business = {}, initials
   ctx.font = '600 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   ctx.fillText(`📱 OFFLINE DIGITAL PASS • ${(business.businessName || 'STUDY LIBRARY').toUpperCase()}`, 540, 75);
 
-  // 2. White Card Container
+  // 2. White Card Container with Prominent Perimeter Border & Scissor Outline
   const cardX = 80, cardY = 120, cardW = 920, cardH = 1660, cardR = 36;
   ctx.save();
   ctx.beginPath();
@@ -3400,6 +3412,23 @@ export async function download1080pMobileIDPass(student, business = {}, initials
   ctx.shadowBlur = 50;
   ctx.shadowOffsetY = 24;
   ctx.fill();
+
+  // Solid dark high-contrast perimeter border
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.restore();
+
+  // Outer dashed scissor cutting / alignment guide
+  ctx.save();
+  ctx.setLineDash([16, 10]);
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(cardX - 14, cardY - 14, cardW + 28, cardH + 28, cardR + 10);
+  }
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
   ctx.restore();
 
   // 3. Card Header Banner (Gradient matching primary brand)

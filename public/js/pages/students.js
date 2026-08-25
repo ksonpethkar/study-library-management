@@ -2356,7 +2356,6 @@ export async function render() {
     let currentColor = '#4f46e5';
     let currentTheme = 'gradient';
     let showQr = true;
-    let showBarcode = true;
     let showBlood = Boolean(bloodGroup);
     let showEmergency = true;
     let showStamp = true;
@@ -2375,51 +2374,55 @@ export async function render() {
             cardBg: 'linear-gradient(145deg, #1e2230 0%, #111420 100%)',
             textColor: '#f8fafc',
             subText: '#94a3b8',
-            border: `2px solid ${color}`,
+            border: `2.5px solid ${color}`,
+            outline: `1.5px dashed #475569`,
             headerBg: `linear-gradient(135deg, ${color}, #0f172a)`,
             footerBg: '#0f172a',
             badgeBg: 'rgba(255,255,255,0.1)',
             badgeColor: '#fff',
-            cardShadow: `0 14px 36px rgba(0,0,0,0.6)`
+            cardShadow: `0 10px 28px rgba(0,0,0,0.5)`
           };
         }
         if (theme === 'minimal') {
           return {
             cardBg: '#ffffff',
-            textColor: '#1e293b',
+            textColor: '#0f172a',
             subText: '#64748b',
-            border: `2px solid ${color}`,
+            border: `2.5px solid #0f172a`,
+            outline: `1.5px dashed #64748b`,
             headerBg: color,
             footerBg: '#f8fafc',
             badgeBg: `${color}18`,
             badgeColor: color,
-            cardShadow: `0 10px 30px rgba(0,0,0,0.1)`
+            cardShadow: `0 8px 24px rgba(0,0,0,0.14)`
           };
         }
         if (theme === 'glass') {
           return {
-            cardBg: 'linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,244,255,0.96))',
+            cardBg: 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,244,255,0.98))',
             textColor: '#0f172a',
             subText: '#475569',
-            border: `2px solid ${color}`,
+            border: `2.5px solid #0f172a`,
+            outline: `1.5px dashed #64748b`,
             headerBg: `linear-gradient(135deg, ${color}, ${color}cc)`,
             footerBg: '#f1f5f9',
             badgeBg: `${color}20`,
             badgeColor: color,
-            cardShadow: `0 14px 34px ${color}35`
+            cardShadow: `0 8px 24px rgba(15, 23, 42, 0.16)`
           };
         }
         // Default gradient
         return {
-          cardBg: 'linear-gradient(145deg, #ffffff 60%, #f4f3ff 100%)',
-          textColor: '#1e1b4b',
+          cardBg: 'linear-gradient(145deg, #ffffff 60%, #f8faff 100%)',
+          textColor: '#0f172a',
           subText: '#475569',
-          border: `2.5px solid ${color}`,
-          headerBg: `linear-gradient(135deg, ${color}, ${color}dd)`,
+          border: `2.5px solid #0f172a`,
+          outline: `1.5px dashed #64748b`,
+          headerBg: `linear-gradient(135deg, ${color}, ${color}ee)`,
           footerBg: '#f8fafc',
           badgeBg: `${color}18`,
           badgeColor: color,
-          cardShadow: `0 14px 36px ${color}30`
+          cardShadow: `0 8px 24px rgba(15, 23, 42, 0.16)`
         };
       };
 
@@ -2431,7 +2434,7 @@ export async function render() {
           return `
             <div class="id-card-entity id-card-v id-card-front" style="
               width: 254px; min-height: 400px; height: 400px; background: ${st.cardBg}; color: ${st.textColor};
-              border-radius: 14px; ${st.border}; overflow: hidden; box-shadow: ${st.cardShadow};
+              border-radius: 12px; ${st.border}; outline: ${st.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${st.cardShadow};
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Curved Banner -->
@@ -2480,7 +2483,7 @@ export async function render() {
           return `
             <div class="id-card-entity id-card-h id-card-front" style="
               width: 380px; min-height: 240px; height: 240px; background: ${st.cardBg}; color: ${st.textColor};
-              border-radius: 14px; ${st.border}; overflow: hidden; box-shadow: ${st.cardShadow};
+              border-radius: 12px; ${st.border}; outline: ${st.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${st.cardShadow};
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Banner -->
@@ -2543,7 +2546,7 @@ export async function render() {
           return `
             <div class="id-card-entity id-card-v id-card-back" style="
               width: 254px; min-height: 400px; height: 400px; background: ${st.cardBg}; color: ${st.textColor};
-              border-radius: 14px; ${st.border}; overflow: hidden; box-shadow: ${st.cardShadow};
+              border-radius: 12px; ${st.border}; outline: ${st.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${st.cardShadow};
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Banner -->
@@ -2608,7 +2611,7 @@ export async function render() {
           return `
             <div class="id-card-entity id-card-h id-card-back" style="
               width: 380px; min-height: 240px; height: 240px; background: ${st.cardBg}; color: ${st.textColor};
-              border-radius: 14px; ${st.border}; overflow: hidden; box-shadow: ${st.cardShadow};
+              border-radius: 12px; ${st.border}; outline: ${st.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${st.cardShadow};
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Banner -->
@@ -2654,7 +2657,7 @@ export async function render() {
                       `}
                     </div>
                     <div style="margin-top: auto; padding-bottom: 2px;">
-                      <div style="width: 70px; border-bottom: 1px solid ${st.subText}; margin-bottom: 2px;"></div>
+                      <div style="width: 70px; border-bottom: 1px solid ${st.subText}; margin-bottom: 2px; margin-left: auto; margin-right: auto;"></div>
                       <div style="font-size: 0.56rem; color: ${st.subText}; font-weight: 600;">Auth. Signatory</div>
                     </div>
                   ` : ''}
@@ -2724,12 +2727,15 @@ export async function render() {
                 border: 1.5px solid var(--color-border, #374151);
                 border-radius: 20px;
                 padding: 4px 8px;
-                font-size: 0.78rem;
-                line-height: 1;
-                color: var(--color-text-secondary, #94a3b8);
+                font-size: 0.85rem;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 z-index: 2;
-              " title="Fold / Cut Line">✂️</span>
+              ">
+                ✂️
+              </span>
             </div>
 
             <!-- Back Column -->
@@ -2742,77 +2748,59 @@ export async function render() {
       }
 
       modalContent.innerHTML = `
-        <div style="display: flex; flex-direction: column; gap: 14px;">
-
-          <!-- Studio Toolbar Controls -->
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Top Studio Toolbar -->
           <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
-              
-              <!-- 1. Orientation Toggle -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <!-- Orientation Toggle -->
               <div style="display: flex; align-items: center; gap: 6px;">
-                <label style="font-size: 0.8rem; font-weight: 700; margin: 0;">📐 Orientation:</label>
+                <span style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-secondary);">Orientation:</span>
                 <div class="btn-group btn-group-sm" role="group">
-                  <button type="button" class="btn ${currentOrientation === 'horizontal' ? 'btn-primary' : 'btn-outline-secondary'} btn-opt-horiz" style="font-size: 0.76rem; font-weight: 700;">🔄 Horizontal (CR80)</button>
-                  <button type="button" class="btn ${currentOrientation === 'vertical' ? 'btn-primary' : 'btn-outline-secondary'} btn-opt-vert" style="font-size: 0.76rem; font-weight: 700;">📱 Vertical (Portrait)</button>
+                  <button type="button" class="btn ${currentOrientation === 'horizontal' ? 'btn-primary' : 'btn-outline-secondary'} btn-opt-horiz" style="font-weight: 700;">
+                    💳 Landscape (CR80)
+                  </button>
+                  <button type="button" class="btn ${currentOrientation === 'vertical' ? 'btn-primary' : 'btn-outline-secondary'} btn-opt-vert" style="font-weight: 700;">
+                    🪪 Portrait (CR80)
+                  </button>
                 </div>
               </div>
 
-              <!-- 2. Side View Selector -->
+              <!-- Side Toggle -->
               <div style="display: flex; align-items: center; gap: 6px;">
-                <label style="font-size: 0.8rem; font-weight: 700; margin: 0;">📑 Card Side:</label>
+                <span style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-secondary);">View:</span>
                 <div class="btn-group btn-group-sm" role="group">
-                  <button type="button" class="btn ${currentSide === 'front' ? 'btn-primary' : 'btn-outline-secondary'} btn-side-front" style="font-size: 0.76rem; font-weight: 700;">🪪 Front</button>
-                  <button type="button" class="btn ${currentSide === 'back' ? 'btn-primary' : 'btn-outline-secondary'} btn-side-back" style="font-size: 0.76rem; font-weight: 700;">📄 Back</button>
-                  <button type="button" class="btn ${currentSide === 'dual' ? 'btn-primary' : 'btn-outline-secondary'} btn-side-dual" style="font-size: 0.76rem; font-weight: 700;">📑 Both Sides (Printable)</button>
+                  <button type="button" class="btn ${currentSide === 'front' ? 'btn-primary' : 'btn-outline-secondary'} btn-side-front" style="font-weight: 700;">Front</button>
+                  <button type="button" class="btn ${currentSide === 'back' ? 'btn-primary' : 'btn-outline-secondary'} btn-side-back" style="font-weight: 700;">Back</button>
+                  <button type="button" class="btn ${currentSide === 'dual' ? 'btn-primary' : 'btn-outline-secondary'} btn-side-dual" style="font-weight: 700;">Both Sides</button>
                 </div>
               </div>
 
-            </div>
-
-            <!-- Customization Toggles -->
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-top: 1px solid var(--color-border); padding-top: 10px;">
+              <!-- Color & Theme Picker -->
               <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <div>
-                  <label style="font-size: 0.75rem; font-weight: 700; display: block; margin-bottom: 2px;">Color Theme</label>
-                  <div style="display: flex; align-items: center; gap: 6px;">
-                    <input type="color" id="id-studio-color" value="${currentColor}" style="width: 32px; height: 28px; border: none; padding: 0; cursor: pointer; border-radius: 4px;">
-                    <select id="id-studio-theme-select" class="form-select form-select-sm" style="font-size: 0.78rem; min-width: 120px;">
-                      <option value="gradient" ${currentTheme === 'gradient' ? 'selected' : ''}>🟣 Purple Indigo</option>
-                      <option value="dark" ${currentTheme === 'dark' ? 'selected' : ''}>⚫ Dark Slate Pro</option>
-                      <option value="minimal" ${currentTheme === 'minimal' ? 'selected' : ''}>⚪ Minimal Classic</option>
-                      <option value="glass" ${currentTheme === 'glass' ? 'selected' : ''}>✨ Clean Glass</option>
-                    </select>
-                  </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <label for="id-studio-color" style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-secondary); margin: 0;">Accent:</label>
+                  <input type="color" id="id-studio-color" value="${currentColor}" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--color-border); cursor: pointer; padding: 2px;">
                 </div>
 
-                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 14px;">
-                  <label class="form-check form-switch mb-0" style="font-size: 0.78rem; cursor: pointer;">
-                    <input class="form-check-input" type="checkbox" id="toggle-id-qr" ${showQr ? 'checked' : ''}>
-                    <span>QR Code</span>
-                  </label>
-                  <label class="form-check form-switch mb-0" style="font-size: 0.78rem; cursor: pointer;">
-                    <input class="form-check-input" type="checkbox" id="toggle-id-blood" ${showBlood ? 'checked' : ''}>
-                    <span>Blood Group</span>
-                  </label>
-                  <label class="form-check form-switch mb-0" style="font-size: 0.78rem; cursor: pointer;">
-                    <input class="form-check-input" type="checkbox" id="toggle-id-emergency" ${showEmergency ? 'checked' : ''}>
-                    <span>Parent Contact</span>
-                  </label>
-                  <label class="form-check form-switch mb-0" style="font-size: 0.78rem; cursor: pointer;">
-                    <input class="form-check-input" type="checkbox" id="toggle-id-stamp" ${showStamp ? 'checked' : ''}>
-                    <span>Seal &amp; Sign</span>
-                  </label>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <label for="id-studio-theme" style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-secondary); margin: 0;">Theme:</label>
+                  <select id="id-studio-theme" class="form-select form-select-sm" style="font-weight: 600; width: auto;">
+                    <option value="gradient" ${currentTheme === 'gradient' ? 'selected' : ''}>✨ Executive Vibrant</option>
+                    <option value="dark" ${currentTheme === 'dark' ? 'selected' : ''}>⚫ Dark Slate Pro</option>
+                    <option value="minimal" ${currentTheme === 'minimal' ? 'selected' : ''}>⚪ Minimal Classic</option>
+                    <option value="glass" ${currentTheme === 'glass' ? 'selected' : ''}>💎 Frosted Glass</option>
+                  </select>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Live Card Stage -->
+          <!-- Studio Render Canvas Area -->
           <div id="id-card-render-stage" style="padding: 14px 10px; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle, rgba(108,92,231,0.06) 0%, transparent 70%); border-radius: var(--radius-md); overflow-x: auto; width: 100%; box-sizing: border-box;">
             ${previewHtml}
           </div>
 
-          <!-- Export Actions Toolbar -->
+          <!-- Bottom Action Buttons Grid -->
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-top: 1px solid var(--color-border); padding-top: 12px;">
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <button type="button" class="btn btn-primary btn-sm" id="btn-download-front-png" style="font-weight: 700;">
@@ -2821,29 +2809,32 @@ export async function render() {
               <button type="button" class="btn btn-outline-primary btn-sm" id="btn-download-back-png" style="font-weight: 700;">
                 📥 Download Back
               </button>
-              <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-download-dual-png" style="font-weight: 700;">
-                📑 Download Combined Dual Card
+              <button type="button" class="btn btn-outline-info btn-sm" id="btn-download-1080p-pass" style="font-weight: 700;">
+                📱 1080p Wallpaper Pass
               </button>
             </div>
 
             <div style="display: flex; gap: 8px; align-items: center;">
-              <button type="button" class="btn btn-success btn-sm" id="btn-print-id-card" style="font-weight: 800; padding: 6px 18px;">
-                🖨️ Print ID Pass (Front + Back)
+              <button type="button" class="btn btn-success btn-sm" id="btn-print-admin-id-card" style="font-weight: 800; padding: 6px 18px;">
+                🖨️ Print ID Card (Front + Back)
               </button>
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-close-id-studio">Close</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-close-admin-id-studio">Close</button>
             </div>
           </div>
-
         </div>
 
         <style>
+          .id-card-entity {
+            box-sizing: border-box !important;
+            transition: all 0.2s ease;
+          }
           @media print {
             body * { visibility: hidden !important; }
             #id-card-render-stage, #id-card-render-stage * { visibility: visible !important; }
             #id-card-render-stage {
               position: fixed !important;
               left: 50% !important;
-              top: 20px !important;
+              top: 40px !important;
               transform: translateX(-50%) !important;
               width: 100% !important;
               box-shadow: none !important;
@@ -2857,7 +2848,7 @@ export async function render() {
               flex-direction: row !important;
               align-items: center !important;
               justify-content: center !important;
-              gap: 20px !important;
+              gap: 36px !important;
               flex-wrap: nowrap !important;
             }
             .id-cut-separator {
