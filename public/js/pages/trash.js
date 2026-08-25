@@ -4,9 +4,8 @@
  * across all system modules with explicit safety confirmation dialogs.
  */
 
-import { api } from '../api.js';
+import api from '../api.js';
 import { Toast, Modal, escapeHTML } from '../ui.js';
-import { store } from '../store.js';
 
 let currentTab = 'all';
 let currentSearch = '';

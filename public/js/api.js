@@ -81,4 +81,5 @@ class ApiClient {
 }
 
 const api = new ApiClient();
+export { api, ApiClient };
 export default api;
