@@ -586,73 +586,230 @@ export async function render(container) {
   // 1. Fetch saved widget configuration
   activeWidgetConfig = await getWidgetConfig();
 
+  const currentHour = new Date().getHours();
+  const timeGreeting = currentHour < 12 ? '🌅 Good Morning' : (currentHour < 17 ? '🌤️ Good Afternoon' : '🌙 Good Evening');
+
   // 2. Render base page skeleton
   content.innerHTML = `
-    <div class="page-header mb-3">
-      <div>
-        <h1 style="margin: 0; font-weight: 700;">${t('nav.dashboard', 'Dashboard')}</h1>
-        <p class="text-muted small mb-0" style="margin-top: 4px;">Welcome back, ${escapeHTML(user.name)}! Here is your study library live overview.</p>
-      </div>
-      <div class="d-flex gap-2 flex-wrap mt-2">
-        <button id="btn-refresh-dashboard" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-2" style="font-weight: 600;">
-          🔄 Refresh
-        </button>
-        ${canCustomize ? `
-          <button id="btn-customize-dashboard" class="btn btn-sm btn-primary d-flex align-items-center gap-2" style="font-weight: 600;">
-            ⚙️ Customize Widgets
-          </button>
-        ` : ''}
-        <a href="/kiosk" target="_blank" class="btn btn-sm btn-outline" style="border-color: #6366f1; color: #818cf8; font-weight: 600;">
-          📲 Launch Kiosk
-        </a>
-      </div>
-    </div>
-
-    <!-- Dynamic Dashboard Layout Section -->
-    <div id="dashboard-layout-root">
-      ${buildDashboardLayoutHTML(activeWidgetConfig)}
-    </div>
-
-    <!-- Live Attendance Overview & Expiring Soon Secondary Row -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+    <div class="portal-container">
       
-      <!-- Live Overview & Hourly Activity -->
-      <div class="card">
-        <div class="card-header flex-between">
-          <h5 style="margin: 0; font-size: 1.05rem; font-weight: 600;">🔔 Real-Time Attendance Pulse</h5>
-          <span class="badge badge-success" style="animation: pulse 2s infinite;">● Live</span>
-        </div>
-        <div class="card-body">
-          <div class="d-flex flex-column gap-3 mb-4">
-            <div class="p-3" style="background: var(--color-bg-secondary, rgba(255,255,255,0.04)); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-              <span>Currently Studying Inside:</span>
-              <strong id="dash-present-today" style="font-size: 1.2rem; color: var(--color-primary, #6c5ce7);">0 Students</strong>
+      <!-- Top Welcome & Master Action Header -->
+      <div class="card mb-3 p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 220px;">
+            <div style="
+              width: 52px; height: 52px; border-radius: 50%;
+              background: var(--color-primary-bg); color: var(--color-primary);
+              font-size: 1.3rem; font-weight: 800; display: flex; align-items: center; justify-content: center;
+              border: 2px solid var(--color-primary); flex-shrink: 0;
+              box-shadow: 0 4px 12px rgba(108, 92, 231, 0.2);
+            ">
+              👑
             </div>
-            <div class="p-3" style="background: var(--color-bg-secondary, rgba(255,255,255,0.04)); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-              <span>Available Desks:</span>
-              <strong id="dash-available-seats" class="text-success">0 Available</strong>
-            </div>
-            <div class="p-3" style="background: var(--color-bg-secondary, rgba(255,255,255,0.04)); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-              <span>Active Subscriptions:</span>
-              <strong id="dash-active-subs" class="text-info">0</strong>
+            <div>
+              <div style="font-size: 0.76rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 2px;">
+                ${timeGreeting}, ${escapeHTML(user.name)}!
+              </div>
+              <h1 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-text-primary); line-height: 1.2;">
+                ${t('nav.dashboard', 'Admin Console')}
+              </h1>
+              <div style="font-size: 0.78rem; color: var(--color-text-muted); margin-top: 2px; font-weight: 600;">
+                Live Study Library Command Centre
+              </div>
             </div>
           </div>
-          <canvas id="dashboard-chart" style="width: 100%; height: 180px;"></canvas>
+
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <button id="btn-refresh-dashboard" class="btn btn-outline-secondary btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border-radius: 10px;">
+              🔄 Refresh
+            </button>
+            ${canCustomize ? `
+              <button id="btn-customize-dashboard" class="btn btn-outline-primary btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border-radius: 10px;">
+                ⚙️ Widgets
+              </button>
+            ` : ''}
+            <a href="/kiosk" target="_blank" class="btn btn-primary btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 14px; border-radius: 10px;">
+              📲 Kiosk
+            </a>
+          </div>
         </div>
       </div>
 
-      <!-- Expiring Soon (Next 7 Days) Widget with WhatsApp Trigger -->
-      <div class="card">
-        <div class="card-header flex-between">
-          <h5 style="margin: 0; font-size: 1.05rem; font-weight: 600;">⏰ Memberships Expiring in 7 Days</h5>
-          <a href="#/students" class="text-xs text-primary" style="text-decoration: none;">View All</a>
+      <!-- 1. Executive Summary Hero Pass Card -->
+      <div class="admin-hero-card mb-3">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 1; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.85; font-weight: 700;">
+              Live Library Occupancy
+            </div>
+            <div style="font-size: 1.85rem; font-weight: 900; line-height: 1.1; margin-top: 2px; text-shadow: 0 2px 8px rgba(0,0,0,0.2);" id="dash-hero-occ">
+              0 / 0 Seats
+            </div>
+            <div style="font-size: 0.78rem; opacity: 0.92; margin-top: 2px; font-weight: 600;" id="dash-hero-checkin">
+              🟢 0 students checked in right now
+            </div>
+          </div>
+
+          <!-- Today's Revenue Pill -->
+          <div style="text-align: right;">
+            <span style="background: rgba(255,255,255,0.22); backdrop-filter: blur(8px); padding: 5px 12px; border-radius: 20px; font-weight: 800; font-size: 0.84rem; letter-spacing: 0.3px; border: 1px solid rgba(255,255,255,0.3); display: inline-block;" id="dash-hero-revenue">
+              ₹0 Today
+            </span>
+            <div style="font-size: 0.72rem; opacity: 0.88; margin-top: 4px; font-weight: 600;" id="dash-hero-students">
+              0 Active Members
+            </div>
+          </div>
         </div>
-        <div class="card-body p-0" id="dash-expiring-container" style="max-height: 380px; overflow-y: auto;">
-          <div class="p-4 text-center text-muted">Checking upcoming expiries...</div>
+
+        <!-- Occupancy Gauge Progress Line -->
+        <div style="margin-top: 14px; background: rgba(0,0,0,0.25); height: 6px; border-radius: 4px; overflow: hidden; position: relative; z-index: 1;">
+          <div id="dash-hero-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #34d399, #a7f3d0); border-radius: 4px; transition: width 0.6s ease;"></div>
+        </div>
+
+        <!-- Quick 1-Tap Admin Action Triggers -->
+        <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,0.25); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; position: relative; z-index: 1;">
+          <a href="#/students" class="btn btn-sm btn-success" style="font-weight: 800; font-size: 0.84rem; padding: 7px 16px; border-radius: 10px; text-decoration: none; flex: 1 1 140px; text-align: center;">
+            ➕ New Admission
+          </a>
+          <a href="#/payments" class="btn btn-sm" style="background: rgba(255,255,255,0.22); color: #ffffff; border: 1px solid rgba(255,255,255,0.4); font-weight: 700; font-size: 0.82rem; padding: 7px 14px; border-radius: 10px; backdrop-filter: blur(8px); text-decoration: none; flex: 1 1 120px; text-align: center;">
+            💳 Collect Fee
+          </a>
+          <a href="#/notifications" class="btn btn-sm" style="background: rgba(255,255,255,0.22); color: #ffffff; border: 1px solid rgba(255,255,255,0.4); font-weight: 700; font-size: 0.82rem; padding: 7px 14px; border-radius: 10px; backdrop-filter: blur(8px); text-decoration: none; flex: 1 1 120px; text-align: center;">
+            📢 Broadcast
+          </a>
+        </div>
+      </div>
+
+      <!-- 2. Admin Quick Launchpad Grid (8 Responsive Micro-Tiles) -->
+      <div style="
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 82px), 1fr));
+        gap: 8px;
+        margin-bottom: 1.25rem;
+      ">
+        <a href="#/students" class="admin-app-tile" title="Manage Students & Admissions">
+          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.08)); color: #6366f1;">🎓</div>
+          <div class="admin-tile-label">Students</div>
+        </a>
+        <a href="#/seats" class="admin-app-tile" title="Seat Matrix & Floor Plan">
+          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08)); color: #10b981;">💺</div>
+          <div class="admin-tile-label">Seats</div>
+        </a>
+        <a href="#/payments" class="admin-app-tile" title="Fee Collections & Invoices">
+          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0.08)); color: #0ea5e9;">💳</div>
+          <div class="admin-tile-label">Payments</div>
+        </a>
+        <a href="#/attendance" class="admin-app-tile" title="Live Attendance & RFID Log">
+          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(20, 184, 166, 0.08)); color: #14b8a6;">👥</div>
+          <div class="admin-tile-label">Attendance</div>
+        </a>
+        <a href="#/expenses" class="admin-app-tile" title="Expenses & Daily P&L">
+          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(236, 72, 153, 0.08)); color: #ec4899;">📊</div>
+          <div class="admin-tile-label">Expenses</div>
+        </a>
+        <a href="#/notifications" class="admin-app-tile" title="Send WhatsApp & Push Alerts">
+          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08)); color: #f59e0b;">📢</div>
+          <div class="admin-tile-label">Broadcast</div>
+        </a>
+        <a href="#/reports" class="admin-app-tile" title="Business Analytics & Tax Reports">
+          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08)); color: #a855f7;">📈</div>
+          <div class="admin-tile-label">Reports</div>
+        </a>
+        <a href="#/settings" class="admin-app-tile" title="System & POS Configuration">
+          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(100, 116, 139, 0.18), rgba(100, 116, 139, 0.08)); color: #64748b;">⚙️</div>
+          <div class="admin-tile-label">Settings</div>
+        </a>
+      </div>
+
+      <!-- 3. Segmented Tab Navigation Track -->
+      <div class="portal-tab-track">
+        <button type="button" class="portal-tab-pill active" data-admin-tab="live-ops">
+          📊 Operations & KPI
+        </button>
+        <button type="button" class="portal-tab-pill" data-admin-tab="expiring">
+          ⏳ Expiring Soon
+        </button>
+        <button type="button" class="portal-tab-pill" data-admin-tab="pulse">
+          📈 Analytics & Trends
+        </button>
+      </div>
+
+      <!-- TAB PANE 1: Operations & Dynamic KPI -->
+      <div id="pane-admin-live-ops" class="admin-tab-pane">
+        <div id="dashboard-layout-root">
+          ${buildDashboardLayoutHTML(activeWidgetConfig)}
+        </div>
+      </div>
+
+      <!-- TAB PANE 2: Expiring Soon List -->
+      <div id="pane-admin-expiring" class="admin-tab-pane" style="display: none;">
+        <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
+          <div class="card-header p-3" style="border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
+            <h5 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--color-text-primary);">⏰ Memberships Expiring in 7 Days</h5>
+            <a href="#/students" class="btn btn-sm btn-outline-primary" style="font-size: 0.78rem; padding: 4px 10px; font-weight: 600; text-decoration: none;">View All Students</a>
+          </div>
+          <div class="card-body p-0" id="dash-expiring-container" style="max-height: 480px; overflow-y: auto;">
+            <div class="p-4 text-center text-muted">Checking upcoming expiries...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB PANE 3: Analytics & Real-Time Pulse -->
+      <div id="pane-admin-pulse" class="admin-tab-pane" style="display: none;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1.25rem;">
+          <!-- Live Overview & Hourly Activity -->
+          <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
+            <div class="card-header p-3 flex-between" style="border-bottom: 1px solid var(--color-divider);">
+              <h5 style="margin: 0; font-size: 1.02rem; font-weight: 700;">🔔 Real-Time Attendance Pulse</h5>
+              <span class="badge badge-success" style="font-weight: 700; font-size: 0.72rem;">● Live</span>
+            </div>
+            <div class="card-body p-3">
+              <div class="d-flex flex-column gap-2 mb-3">
+                <div class="p-2 px-3" style="background: var(--color-bg-secondary); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem;">
+                  <span>Currently Studying Inside:</span>
+                  <strong id="dash-present-today" style="font-size: 1.1rem; color: var(--color-primary);">0 Students</strong>
+                </div>
+                <div class="p-2 px-3" style="background: var(--color-bg-secondary); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem;">
+                  <span>Available Desks:</span>
+                  <strong id="dash-available-seats" class="text-success" style="font-size: 1.1rem;">0 Available</strong>
+                </div>
+                <div class="p-2 px-3" style="background: var(--color-bg-secondary); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem;">
+                  <span>Active Subscriptions:</span>
+                  <strong id="dash-active-subs" class="text-info" style="font-size: 1.1rem;">0</strong>
+                </div>
+              </div>
+              <canvas id="dashboard-chart" style="width: 100%; height: 180px;"></canvas>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   `;
+
+  // Segmented Tab Switcher Logic for Admin
+  const adminTabPills = content.querySelectorAll('.portal-tab-pill[data-admin-tab]');
+  const adminTabPanes = {
+    'live-ops': content.querySelector('#pane-admin-live-ops'),
+    'expiring': content.querySelector('#pane-admin-expiring'),
+    'pulse': content.querySelector('#pane-admin-pulse')
+  };
+
+  const switchAdminTab = (tabKey) => {
+    adminTabPills.forEach(pill => {
+      pill.classList.toggle('active', pill.getAttribute('data-admin-tab') === tabKey);
+    });
+    Object.keys(adminTabPanes).forEach(k => {
+      if (adminTabPanes[k]) {
+        adminTabPanes[k].style.display = (k === tabKey) ? 'block' : 'none';
+      }
+    });
+  };
+
+  adminTabPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      switchAdminTab(pill.getAttribute('data-admin-tab'));
+    });
+  });
 
   // Attach Customize click handlers
   const attachCustomizeHandlers = () => {
@@ -713,6 +870,25 @@ export async function render(container) {
     const revenueData = (revenueRes.status === 'fulfilled' && revenueRes.value?.data) ? revenueRes.value.data : {};
     const allStudents = (studentsListRes.status === 'fulfilled' && studentsListRes.value?.data?.students) ? studentsListRes.value.data.students : (Array.isArray(studentsListRes.value?.data) ? studentsListRes.value.data : []);
 
+    // 3. Populate Executive Hero Card
+    const elHeroOcc = document.getElementById('dash-hero-occ');
+    const elHeroCheckin = document.getElementById('dash-hero-checkin');
+    const elHeroRevenue = document.getElementById('dash-hero-revenue');
+    const elHeroStudents = document.getElementById('dash-hero-students');
+    const elHeroProgressBar = document.getElementById('dash-hero-progress-bar');
+
+    const occupiedSeats = seatStats.occupied ?? 0;
+    const totalSeats = seatStats.total ?? 0;
+    const availSeats = seatStats.available ?? Math.max(0, totalSeats - occupiedSeats);
+    const occPct = totalSeats > 0 ? Math.round((occupiedSeats / totalSeats) * 100) : 0;
+    const presentNow = attData.stats?.totalPresent || attData.stats?.totalCheckedIn || 0;
+
+    if (elHeroOcc) elHeroOcc.textContent = `${occupiedSeats} / ${totalSeats} Seats (${occPct}%)`;
+    if (elHeroCheckin) elHeroCheckin.textContent = `🟢 ${presentNow} students currently studying inside`;
+    if (elHeroRevenue) elHeroRevenue.textContent = `${formatCurrency(payStats.todayRevenue)} Today`;
+    if (elHeroStudents) elHeroStudents.textContent = `${studentStats.active || 0} Active Members`;
+    if (elHeroProgressBar) elHeroProgressBar.style.width = `${Math.min(100, Math.max(0, occPct))}%`;
+
     // 4. Populate KPI 1: Active Students
     const elActiveStudents = document.getElementById('dash-kpi-active-students');
     const elTotalStudentsSub = document.getElementById('dash-kpi-total-students-sub');
@@ -722,10 +898,6 @@ export async function render(container) {
     // 5. Populate KPI 2: Available Seats & Occupancy
     const elAvailSeats = document.getElementById('dash-kpi-available-seats');
     const elSeatsSub = document.getElementById('dash-kpi-seats-sub');
-    const occupiedSeats = seatStats.occupied ?? 0;
-    const totalSeats = seatStats.total ?? 0;
-    const availSeats = seatStats.available ?? Math.max(0, totalSeats - occupiedSeats);
-    const occPct = totalSeats > 0 ? Math.round((occupiedSeats / totalSeats) * 100) : 0;
     if (elAvailSeats) elAvailSeats.textContent = `${availSeats} Available`;
     if (elSeatsSub) elSeatsSub.textContent = `${occupiedSeats} / ${totalSeats} Occupied (${occPct}%)`;
 
