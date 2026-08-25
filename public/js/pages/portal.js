@@ -685,6 +685,9 @@ function renderPortalUI(container, data, analytics = null) {
     const stampImgUrl = business.stampImage || business.stampImageUrl || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.stampImage || '';
     const logoImgUrl = business.logo || business.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.logo || '';
 
+    const qrPayload = encodeURIComponent(student.studentId || student.enrollmentNo || student.phone || student._id || 'STUDENT');
+    const qrCodeURL = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrPayload}&margin=2&bgcolor=ffffff`;
+
     let currentOrientation = 'horizontal';
     let currentSide = 'dual';
     let currentColor = '#4f46e5';
@@ -1277,50 +1280,68 @@ function renderPortalUI(container, data, analytics = null) {
       ]);
 
       const customFieldsList = Array.isArray(fieldsRes.data) ? fieldsRes.data : [];
-      const templateData = tplRes?.data || {};
-      const templateSections = (templateData.sections && templateData.sections.length > 0)
-        ? templateData.sections.filter(s => !s.isHidden).sort((a, b) => (a.order || 0) - (b.order || 0))
-        : [
-            { name: 'personal', label: 'Personal & Contact Information', icon: '👤' },
-            { name: 'academic', label: 'Academic Goals & Preparation', icon: '🎯' },
-            { name: 'contact', label: 'Address & Emergency Contacts', icon: '📍' },
-            { name: 'kyc', label: 'KYC & Identity Verification', icon: '🪪' },
-            { name: 'other', label: 'Additional Information & Preferences', icon: '📋' }
-          ];
-
       const cfMap = (student.customFields && typeof student.customFields === 'object') ? student.customFields : {};
 
-      // Standard / Core fields helper
-      const getStudentVal = (key) => {
-        if (student[key] !== undefined && student[key] !== null) return student[key];
-        if (cfMap[key] !== undefined && cfMap[key] !== null) return cfMap[key];
+      // Smart value resolver across direct schema fields and custom fields map
+      const getVal = (...keys) => {
+        for (const k of keys) {
+          if (student[k] !== undefined && student[k] !== null && student[k] !== '') return student[k];
+          if (cfMap[k] !== undefined && cfMap[k] !== null && cfMap[k] !== '') return cfMap[k];
+          const lowerK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+          for (const [ck, cv] of Object.entries(cfMap)) {
+            if (ck.toLowerCase().replace(/[^a-z0-9]/g, '') === lowerK && cv !== undefined && cv !== null && cv !== '') {
+              return cv;
+            }
+          }
+        }
         return '';
       };
 
-      // Custom fields grouping by template sections
-      const iconMap = { personal: '👤', academic: '🎯', plan: '⏰', payment: '💳', seat: '🪑', contact: '📍', kyc: '🪪', address: '📍' };
-      const sections = templateSections.map(s => ({
-        key: (s.name || s.key || '').toLowerCase(),
-        label: s.label || s.name,
-        icon: iconMap[s.icon] || (s.icon && s.icon.length <= 4 ? s.icon : '') || '📝',
-        fields: []
-      }));
+      const dobVal = getVal('dob', 'dateOfBirth', 'birthDate');
+      const formattedDob = dobVal ? (new Date(dobVal).toString() !== 'Invalid Date' ? new Date(dobVal).toLocaleDateString('en-IN') : dobVal) : 'N/A';
+      const bloodVal = getVal('bloodGroup', 'blood_group');
+      const addressVal = getVal('address', 'residentialAddress') || [student.address, student.city, student.state, student.pincode].filter(Boolean).join(', ') || 'N/A';
+      const pincodeVal = getVal('pincode', 'pinCode', 'postalCode') || 'N/A';
+      const cityVal = getVal('city', 'town') || '';
+      const stateVal = getVal('state', 'province') || '';
+      const emNameVal = getVal('emergencyContactName', 'emergencyName') || student.emergencyContact?.name || 'N/A';
+      const emPhoneVal = getVal('emergencyContactPhone', 'emergencyPhone') || student.emergencyContact?.phone || 'N/A';
+      const emRelVal = getVal('emergencyContactRelation', 'emergencyRelation') || student.emergencyContact?.relation || 'Parent / Guardian';
 
-      if (!sections.some(s => s.key === 'other')) {
-        sections.push({ key: 'other', label: 'Additional Information & Preferences', icon: '📋', fields: [] });
-      }
+      // KYC
+      const idTypeVal = getVal('idProofType', 'idType') || student.idProof?.type || 'Aadhaar Card';
+      const idNumVal = getVal('idProofNumber', 'idNumber') || student.idProof?.number || '';
+      const idImgVal = getVal('idProofImage', 'idProof', 'idProofPhoto') || student.idProof?.image || '';
 
-      const coreKeys = new Set(['name', 'phone', 'email', 'gender', 'dob', 'dateOfBirth', 'photo', 'signature', 'plan', 'seat', 'status']);
-      
-      customFieldsList.forEach(f => {
-        if (f.isActive === false) return;
-        const fKey = (f.fieldName || '').trim();
-        if (coreKeys.has(fKey.toLowerCase())) return;
-        const val = cfMap[fKey] !== undefined ? cfMap[fKey] : (student[fKey] !== undefined ? student[fKey] : '');
-        const sec = (f.section || 'other').toLowerCase();
-        let targetSec = sections.find(s => s.key === sec);
-        if (!targetSec) targetSec = sections[sections.length - 1];
-        targetSec.fields.push({ ...f, value: val });
+      // Academic
+      const rawExams = getVal('targetExams', 'targetExam') || student.targetExams || [];
+      const examsList = Array.isArray(rawExams) ? rawExams : (String(rawExams).split(',').map(s => s.trim()).filter(Boolean));
+      const collegeVal = getVal('college', 'collegeName', 'institute', 'university') || '';
+      const qualVal = getVal('qualification', 'highestQualification', 'degree') || '';
+      const remarksVal = getVal('remarks', 'notes', 'specialRemarks') || '';
+
+      // Truly extra custom fields
+      const standardKeys = new Set([
+        'name', 'fullname', 'phone', 'mobile', 'whatsapp', 'email', 'gender', 'sex',
+        'dob', 'dateofbirth', 'birthdate', 'bloodgroup', 'blood_group',
+        'address', 'residentialaddress', 'pincode', 'postalcode', 'city', 'state',
+        'emergencyname', 'emergencycontactname', 'emergencyphone', 'emergencycontactphone', 'emergencyrelation', 'emergencycontactrelation',
+        'idtype', 'idprooftype', 'idnumber', 'idproofnumber', 'idproof', 'idproofimage', 'idproofphoto',
+        'targetexam', 'targetexams', 'college', 'collegename', 'institute', 'university', 'qualification', 'highestqualification',
+        'branch', 'plan', 'shift', 'seat', 'password', 'photo', 'signature', 'status', 'remarks', 'specialremarks', 'notes'
+      ]);
+
+      const extraCustomFields = [];
+      Object.entries(cfMap).forEach(([k, v]) => {
+        const normKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!standardKeys.has(normKey) && v !== undefined && v !== null && v !== '') {
+          const def = customFieldsList.find(f => f.fieldName?.toLowerCase().replace(/[^a-z0-9]/g, '') === normKey);
+          extraCustomFields.push({
+            label: def?.label || def?.fieldLabel || k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
+            value: v,
+            type: def?.type || 'text'
+          });
+        }
       });
 
       function formatVal(f, val) {
@@ -1352,53 +1373,51 @@ function renderPortalUI(container, data, analytics = null) {
         return `<strong>${escapeHTML(val)}</strong>`;
       }
 
-      // Build section HTML
+      // Build Clean, Beautiful Section Cards
       let sectionsHtml = '';
 
-      // Standard Personal & Contact Section
+      // 1. Personal & Contact Details Card
       sectionsHtml += `
         <div class="mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
-          <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-            <span>👤</span> Personal & Identification Details
+          <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+            <span>👤</span> Personal &amp; Emergency Contact Details
           </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; font-size: 0.88rem;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 14px; font-size: 0.88rem;">
             <div><span class="text-muted d-block small">Full Name</span><strong>${escapeHTML(student.name)}</strong></div>
             <div><span class="text-muted d-block small">Mobile Phone (WhatsApp)</span><strong>${escapeHTML(SmartFormatters.phone(student.phone))}</strong> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(student.phone || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">📋</button></div>
             <div><span class="text-muted d-block small">Email Address</span><strong>${escapeHTML(student.email || 'N/A')}</strong></div>
             <div><span class="text-muted d-block small">Gender</span><strong style="text-transform: capitalize;">${escapeHTML(student.gender || 'N/A')}</strong></div>
-            <div><span class="text-muted d-block small">Date of Birth</span><strong>${student.dob ? new Date(student.dob).toLocaleDateString('en-IN') : (student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString('en-IN') : 'N/A')}</strong></div>
-            <div><span class="text-muted d-block small">Blood Group</span>${student.bloodGroup ? `<span class="badge" style="background: rgba(239, 68, 68, 0.12); color: var(--color-danger); font-weight: 700;">🩸 ${escapeHTML(student.bloodGroup)}</span>` : '<span class="text-muted small">Not specified</span>'}</div>
-            <div><span class="text-muted d-block small">Pincode</span><strong>${escapeHTML(student.pincode || 'N/A')}</strong></div>
-            <div><span class="text-muted d-block small">City & State</span><strong>${escapeHTML(student.city || '')}${student.state ? ', ' + escapeHTML(student.state) : ''}</strong></div>
+            <div><span class="text-muted d-block small">Date of Birth</span><strong>${escapeHTML(formattedDob)}</strong></div>
+            <div><span class="text-muted d-block small">Blood Group</span>${bloodVal ? `<span class="badge" style="background: rgba(239, 68, 68, 0.12); color: var(--color-danger); font-weight: 700;">🩸 ${escapeHTML(bloodVal)}</span>` : '<span class="text-muted small">Not specified</span>'}</div>
+            <div style="grid-column: 1 / -1;"><span class="text-muted d-block small">Residential / Hostel Address</span><strong>${escapeHTML(addressVal)}</strong></div>
+            <div><span class="text-muted d-block small">City &amp; State</span><strong>${escapeHTML(cityVal || student.city || '')}${stateVal || student.state ? ', ' + escapeHTML(stateVal || student.state) : ''}</strong></div>
+            <div><span class="text-muted d-block small">Pincode</span><strong>${escapeHTML(pincodeVal)}</strong></div>
+            <div><span class="text-muted d-block small">Emergency Contact</span><strong>${escapeHTML(emNameVal)} (${escapeHTML(emRelVal)})</strong></div>
+            <div><span class="text-muted d-block small">Emergency Phone</span><strong>${escapeHTML(SmartFormatters.phone(emPhoneVal))}</strong> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(emPhoneVal || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Emergency Phone">📋</button></div>
           </div>
         </div>
       `;
 
-      // Standard Academic & KYC Section
-      const examsList = Array.isArray(student.targetExams) ? student.targetExams : [];
+      // 2. Government ID & KYC Verification Card
       sectionsHtml += `
         <div class="mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
-          <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-            <span>🎯</span> Academic Goals & Identity Verification
+          <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+            <span>🪪</span> Government ID &amp; KYC Verification
           </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; font-size: 0.88rem;">
-            <div>
-              <span class="text-muted d-block small">Target Exams</span>
-              <div>${examsList.length > 0 ? examsList.map(e => `<span class="badge badge-primary me-1 mb-1">${escapeHTML(e)}</span>`).join('') : '<span class="text-muted small">None selected</span>'}</div>
-            </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 14px; font-size: 0.88rem;">
             <div>
               <span class="text-muted d-block small">ID Proof Type</span>
-              <strong>${escapeHTML(student.idProof?.type || 'Aadhaar Card')}</strong>
+              <strong>${escapeHTML(idTypeVal)}</strong>
             </div>
             <div>
-              <span class="text-muted d-block small">ID Proof Number</span>
-              <strong style="font-family: monospace;">${escapeHTML((student.idProof?.type === 'Aadhaar Card' || student.idProof?.type === 'Aadhaar' || !student.idProof?.type) ? SmartFormatters.aadhaar(student.idProof?.number) : (student.idProof?.number || 'Verified'))}</strong>
-              ${student.idProof?.number ? `<button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(student.idProof.number)}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy ID Proof Number">📋</button>` : ''}
+              <span class="text-muted d-block small">ID Proof Document Number</span>
+              <strong style="font-family: monospace; letter-spacing: 0.5px;">${escapeHTML((idTypeVal === 'Aadhaar Card' || idTypeVal === 'Aadhaar' || !idTypeVal) ? SmartFormatters.aadhaar(idNumVal) : (idNumVal || 'Verified'))}</strong>
+              ${idNumVal ? `<button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(idNumVal)}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy ID Proof Number">📋</button>` : ''}
             </div>
-            ${student.idProof?.image ? `
+            ${idImgVal ? `
               <div>
-                <span class="text-muted d-block small">ID Proof Scan</span>
-                <a href="${student.idProof.image.startsWith('/') ? student.idProof.image : '/' + student.idProof.image}" target="_blank" class="btn btn-xs btn-outline-primary mt-1">
+                <span class="text-muted d-block small">ID Proof Document Upload</span>
+                <a href="${idImgVal.startsWith('/') ? idImgVal : '/' + idImgVal}" target="_blank" class="btn btn-xs btn-outline-primary mt-1" style="font-weight: 600;">
                   🔍 View Document Scan
                 </a>
               </div>
@@ -1407,25 +1426,57 @@ function renderPortalUI(container, data, analytics = null) {
         </div>
       `;
 
-      // Custom Field Groupings
-      sections.forEach(sec => {
-        if (sec.fields.length === 0) return;
+      // 3. Academic Goals & Education Card
+      sectionsHtml += `
+        <div class="mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
+          <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+            <span>🎯</span> Academic Goals &amp; Education
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 14px; font-size: 0.88rem;">
+            <div>
+              <span class="text-muted d-block small">Target Competitive Exams</span>
+              <div>${examsList.length > 0 ? examsList.map(e => `<span class="badge badge-primary me-1 mb-1" style="font-weight: 700;">${escapeHTML(e)}</span>`).join('') : '<span class="text-muted small">None specified</span>'}</div>
+            </div>
+            ${collegeVal ? `
+              <div>
+                <span class="text-muted d-block small">College / Institute / Company</span>
+                <strong>${escapeHTML(collegeVal)}</strong>
+              </div>
+            ` : ''}
+            ${qualVal ? `
+              <div>
+                <span class="text-muted d-block small">Highest Qualification</span>
+                <strong>${escapeHTML(qualVal)}</strong>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+
+      // 4. Additional Information & Custom Fields Card (if any)
+      if (remarksVal || extraCustomFields.length > 0) {
         sectionsHtml += `
           <div class="mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
-            <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-              <span>${sec.icon || '📝'}</span> ${escapeHTML(sec.label)}
+            <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+              <span>📝</span> Additional Information &amp; Preferences
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; font-size: 0.88rem;">
-              ${sec.fields.map(f => `
-                <div style="${(f.colSpan === 12 || f.colSpan === 2 || f.type === 'textarea') ? 'grid-column: 1 / -1;' : ''}">
-                  <span class="text-muted d-block small" style="margin-bottom: 2px;">${escapeHTML(f.label)}</span>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; font-size: 0.88rem;">
+              ${remarksVal ? `
+                <div style="grid-column: 1 / -1;">
+                  <span class="text-muted d-block small">Special Remarks / Notes</span>
+                  <strong>${escapeHTML(remarksVal)}</strong>
+                </div>
+              ` : ''}
+              ${extraCustomFields.map(f => `
+                <div>
+                  <span class="text-muted d-block small">${escapeHTML(f.label)}</span>
                   <div>${formatVal(f, f.value)}</div>
                 </div>
               `).join('')}
             </div>
           </div>
         `;
-      });
+      }
 
       // Digital Signature Section if available
       if (student.signature) {

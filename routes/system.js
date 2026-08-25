@@ -9,6 +9,7 @@ const SystemSetting = require('../models/SystemSetting');
 const ReceiptConfig = require('../models/ReceiptConfig');
 const FormTemplate = require('../models/FormTemplate');
 const CustomField = require('../models/CustomField');
+const Branch = require('../models/Branch');
 const memoryCache = require('../utils/memoryCache');
 
 /**
@@ -18,7 +19,7 @@ const memoryCache = require('../utils/memoryCache');
  */
 router.get('/public-config', memoryCache.middleware(30), async (req, res) => {
   try {
-    const [businessProfile, allShifts, allPlans, todayStats, receiptConfig, rawSettings, activeTemplate, allFields] = await Promise.all([
+    const [businessProfile, allShifts, allPlans, todayStats, receiptConfig, rawSettings, activeTemplate, allFields, allBranches] = await Promise.all([
       BusinessProfile.getProfile(),
       Shift.find({ isActive: true }).sort({ startTime: 1, name: 1 }),
       Plan.find({ isActive: true }).sort('displayOrder').lean(),
@@ -26,11 +27,12 @@ router.get('/public-config', memoryCache.middleware(30), async (req, res) => {
       ReceiptConfig.getConfig(),
       SystemSetting.find().lean().catch(() => []),
       FormTemplate.getActiveTemplate().catch(() => null),
-      CustomField.find({ isActive: true }).sort({ order: 1 }).lean().catch(() => [])
+      CustomField.find({ isActive: true }).sort({ order: 1 }).lean().catch(() => []),
+      Branch.find({ isActive: true }).lean().catch(() => [])
     ]);
 
     // Calculate active student enrollment & full status for each shift
-    const activeStudents = await Student.find({ status: 'active' }).populate('plan', 'shift name');
+    const activeStudents = await Student.find({ status: 'active' }).select('shift plan').populate('plan', 'shift name').lean();
     
     // Count active students per shift
     const shiftStudentCount = {};
@@ -131,6 +133,9 @@ router.get('/public-config', memoryCache.middleware(30), async (req, res) => {
         registrationNumber: businessProfile.registrationNumber || '',
         upiId: businessProfile.upiId || 'thecozycorner@okaxis',
         upiQrCode: businessProfile.upiQrCode || '',
+        bankDetails: businessProfile.bankDetails || {},
+        businessProfile: businessProfile,
+        branches: allBranches,
         shifts: shiftsWithCapacity,
         plans: allPlans,
         template: activeTemplate,

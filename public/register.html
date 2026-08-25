@@ -910,6 +910,41 @@
       }
     }
 
+    function getDefaultSystemFields() {
+      return [
+        // Step 1: Study Centre & Personal Info (personal)
+        { name: 'branch', label: 'Study Centre / Branch', type: 'branch', section: 'personal', required: true, order: 1, width: 'full' },
+        { name: 'name', label: 'Student Full Name', type: 'text', section: 'personal', required: true, order: 2, placeholder: 'e.g. Rahul Sharma', width: 'half' },
+        { name: 'phone', label: 'Primary WhatsApp / Mobile Number', type: 'tel', section: 'personal', required: true, order: 3, placeholder: '10-digit WhatsApp number', width: 'half' },
+        { name: 'email', label: 'Email Address', type: 'email', section: 'personal', required: true, order: 4, placeholder: 'student@example.com', width: 'half' },
+        { name: 'dob', label: 'Date of Birth', type: 'date', section: 'personal', required: true, order: 5, width: 'half' },
+        { name: 'gender', label: 'Gender', type: 'select', section: 'personal', required: true, order: 6, options: ['Male', 'Female', 'Other'], width: 'half' },
+        { name: 'bloodGroup', label: 'Blood Group', type: 'blood_group', section: 'personal', required: false, order: 7, width: 'half' },
+        { name: 'password', label: 'Student Portal Password', type: 'password', section: 'personal', required: true, order: 8, placeholder: 'Choose 6+ char password', width: 'half' },
+        { name: 'photo', label: 'Student Passport Photo / Live Selfie', type: 'photo_upload', section: 'personal', required: false, order: 9, width: 'full' },
+
+        // Step 2: Address & Emergency Contact (address)
+        { name: 'address', label: 'Full Residential / Hostel Address', type: 'textarea', section: 'address', required: true, order: 1, placeholder: 'House/Flat No, Street, Landmark, Area', width: 'full' },
+        { name: 'pincode', label: 'Pincode', type: 'text', section: 'address', required: true, order: 2, placeholder: '411001', width: 'third' },
+        { name: 'city', label: 'City', type: 'text', section: 'address', required: true, order: 3, placeholder: 'e.g. Pune', width: 'third' },
+        { name: 'state', label: 'State', type: 'text', section: 'address', required: true, order: 4, placeholder: 'e.g. Maharashtra', width: 'third' },
+        { name: 'emergencyName', label: 'Emergency Contact Person Name', type: 'text', section: 'address', required: true, order: 5, placeholder: 'Parent / Guardian / Friend', width: 'half' },
+        { name: 'emergencyPhone', label: 'Emergency Contact Mobile Number', type: 'tel', section: 'address', required: true, order: 6, placeholder: '10-digit emergency contact phone', width: 'half' },
+
+        // Step 3: KYC & Verification (kyc)
+        { name: 'idProofType', label: 'Government ID Document Proof & Verification', type: 'aadhaar_pan', section: 'kyc', required: false, order: 1, width: 'full' },
+
+        // Step 4: Academic Goals & Education (academic)
+        { name: 'targetExams', label: 'Target Competitive Exam / Study Purpose', type: 'exam_badge', section: 'academic', required: true, order: 1, width: 'full' },
+        { name: 'college', label: 'College / Institute / Company Name', type: 'text', section: 'academic', required: false, order: 2, placeholder: 'e.g. Pune University / COEP', width: 'half' },
+        { name: 'qualification', label: 'Highest Education Level', type: 'text', section: 'academic', required: false, order: 3, placeholder: 'e.g. Graduate / Post-Graduate / 12th', width: 'half' },
+
+        // Step 8: Additional Information (other)
+        { name: 'referralSource', label: 'How did you hear about us?', type: 'select', section: 'other', required: false, order: 1, options: ['Friends / Student Referral', 'Google Maps / Search', 'Social Media (Instagram / Facebook)', 'Library Poster / Banner', 'Walk-in / Word of Mouth', 'Other'], width: 'half' },
+        { name: 'remarks', label: 'Special Requests / Notes / Remarks', type: 'textarea', section: 'other', required: false, order: 2, placeholder: 'Any special requests or accommodation notes...', width: 'full' }
+      ];
+    }
+
     function renderDynamicFieldHtml(f) {
       if (!f) return '';
       const name = (f.fieldName || f.name || '').trim();
@@ -1344,6 +1379,18 @@
       const stepperEl = document.getElementById('wizard-stepper');
       const formEl = document.getElementById('public-reg-form');
 
+      // Preserve existing user-entered values
+      const preservedValues = {};
+      if (formEl) {
+        formEl.querySelectorAll('input, select, textarea').forEach(el => {
+          if (el.name) {
+            if (el.type === 'checkbox') preservedValues[el.name] = el.checked;
+            else if (el.type === 'radio') { if (el.checked) preservedValues[el.name] = el.value; }
+            else if (el.value) preservedValues[el.name] = el.value;
+          }
+        });
+      }
+
       // 1. Build Stepper Navigation Bar
       stepperEl.innerHTML = sections.map((sec, idx) => {
         const stepNum = idx + 1;
@@ -1587,6 +1634,21 @@
       });
 
       formEl.innerHTML = formHtml;
+
+      // Restore user-entered values
+      Object.entries(preservedValues).forEach(([name, val]) => {
+        if (val === undefined || val === '') return;
+        const el = formEl.querySelector(`[name="${name}"]`);
+        if (el) {
+          if (el.type === 'checkbox') el.checked = Boolean(val);
+          else if (el.type === 'radio') {
+            const rad = formEl.querySelector(`[name="${name}"][value="${val}"]`);
+            if (rad) rad.checked = true;
+          } else {
+            el.value = val;
+          }
+        }
+      });
 
       // 3. Bind Navigation Buttons
       formEl.querySelectorAll('.btn-next').forEach(btn => {
@@ -2248,9 +2310,24 @@
           }
         }
 
-        // Custom Fields and Sections Partitioning
+        // Custom Fields and Sections Partitioning (Merge standard system fields + dynamic custom questions)
+        const defaultFields = getDefaultSystemFields();
         const rawFields = publicConfig?.customFields?.fields || publicConfig?.customFields || [];
-        const fields = Array.isArray(rawFields) ? rawFields : [];
+        const customFieldList = Array.isArray(rawFields) ? rawFields : [];
+
+        const fieldsMap = new Map();
+        defaultFields.forEach(df => fieldsMap.set(df.name.toLowerCase(), { ...df }));
+        customFieldList.forEach(cf => {
+          if (cf && (cf.fieldName || cf.name)) {
+            const k = (cf.fieldName || cf.name).toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (fieldsMap.has(k)) {
+              fieldsMap.set(k, { ...fieldsMap.get(k), ...cf });
+            } else {
+              fieldsMap.set(k, { ...cf, name: cf.fieldName || cf.name });
+            }
+          }
+        });
+        const fields = Array.from(fieldsMap.values());
 
         // Build active sections list (from template or 8 standard sections + custom fields)
         const templateSecs = (activeTemplate && Array.isArray(activeTemplate.sections) && activeTemplate.sections.length > 0)
