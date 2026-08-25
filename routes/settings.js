@@ -276,6 +276,7 @@ const updateSystemSettingsHandler = async (req, res) => {
       }
     }
 
+    const bulkOps = [];
     for (const [key, value] of Object.entries(flatUpdates)) {
       const def = keyDefinitions[key];
       const targetKey = def ? def.key : key;
@@ -303,18 +304,26 @@ const updateSystemSettingsHandler = async (req, res) => {
         }
       }
 
-      await SystemSetting.findOneAndUpdate(
-        { key: targetKey },
-        {
-          category,
-          key: targetKey,
-          value: parsedValue,
-          label,
-          type: targetType,
-          isEditable: true
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
+      bulkOps.push({
+        updateOne: {
+          filter: { key: targetKey },
+          update: {
+            $set: {
+              category,
+              key: targetKey,
+              value: parsedValue,
+              label,
+              type: targetType,
+              isEditable: true
+            }
+          },
+          upsert: true
+        }
+      });
+    }
+
+    if (bulkOps.length > 0) {
+      await SystemSetting.bulkWrite(bulkOps);
     }
 
     // Return updated categorized settings
