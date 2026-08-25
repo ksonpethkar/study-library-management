@@ -910,9 +910,9 @@ function renderPortalUI(container, data, analytics = null) {
         };
       };
 
-      const st = getThemeStyles(currentColor, currentTheme);
-
       const renderFrontCard = (isV) => {
+        const st = getThemeStyles(currentColor, currentTheme);
+        const cardPhotoSrc = student.photo || student.avatar || user?.photo || user?.avatar || window.store?.user?.photo || window.store?.user?.avatar || (document.querySelector('#sp-avatar-img')?.src) || '';
         if (isV) {
           // Vertical Front (CR80 Portrait: 254px x 400px)
           return `
@@ -922,10 +922,10 @@ function renderPortalUI(container, data, analytics = null) {
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Curved Banner -->
-              <div style="background: ${st.headerBg}; color: #fff; padding: 10px 8px; text-align: center; position: relative;">
+              <div style="background: ${st.headerBg}; color: #fff; padding: 8px 10px; text-align: center; position: relative;">
                 <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 2px;">
-                  ${logoImgUrl ? `<img src="${logoImgUrl}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: contain; background: #fff;">` : `<span style="font-size: 1.1rem;">📚</span>`}
-                  <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px;">${escapeHTML(business.businessName || 'Study Library')}</div>
+                  ${logoImgUrl ? `<img src="${logoImgUrl}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: contain; background: #fff;">` : ''}
+                  <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.businessName || 'Study Library')}</div>
                 </div>
                 <div style="font-size: 0.62rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.tagline || 'Student Membership Pass')}</div>
               </div>
@@ -933,7 +933,7 @@ function renderPortalUI(container, data, analytics = null) {
               <!-- Center Avatar & Name -->
               <div style="display: flex; flex-direction: column; align-items: center; padding: 8px 10px 4px 10px; text-align: center;">
                 <div style="width: 68px; height: 68px; border-radius: 12px; background: #eef2ff; border: 2.5px solid ${currentColor}; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: ${currentColor}; margin-bottom: 4px; box-shadow: 0 3px 10px rgba(0,0,0,0.1);">
-                  ${student.photo ? `<img src="${student.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
+                  ${cardPhotoSrc ? `<img src="${cardPhotoSrc}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
                 </div>
                 <div style="font-weight: 800; font-size: 0.88rem; line-height: 1.2; margin-bottom: 3px; color: ${st.textColor}; max-height: 2.4em; overflow: hidden; word-break: break-word;">${escapeHTML(student.name)}</div>
                 <div style="display: flex; gap: 4px; align-items: center; justify-content: center; flex-wrap: wrap;">
@@ -973,7 +973,7 @@ function renderPortalUI(container, data, analytics = null) {
               <!-- Top Banner -->
               <div style="background: ${st.headerBg}; color: #fff; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                  ${logoImgUrl ? `<img src="${logoImgUrl}" style="width: 24px; height: 24px; border-radius: 4px; object-fit: contain; background: #fff; flex-shrink: 0;">` : `<span style="font-size: 1.1rem; flex-shrink: 0;">📚</span>`}
+                  ${logoImgUrl ? `<img src="${logoImgUrl}" style="width: 24px; height: 24px; border-radius: 4px; object-fit: contain; background: #fff; flex-shrink: 0;">` : ''}
                   <div style="min-width: 0;">
                     <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.businessName || 'Study Library')}</div>
                     <div style="font-size: 0.6rem; opacity: 0.88; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.tagline || 'Student Membership Card')}</div>
@@ -986,7 +986,7 @@ function renderPortalUI(container, data, analytics = null) {
               <div style="padding: 10px 12px; display: flex; gap: 12px; align-items: center; flex: 1;">
                 <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0;">
                   <div style="width: 64px; height: 64px; border-radius: 10px; background: #eef2ff; border: 2px solid ${currentColor}; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; color: ${currentColor}; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    ${student.photo ? `<img src="${student.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
+                    ${cardPhotoSrc ? `<img src="${cardPhotoSrc}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
                   </div>
                   ${showQr ? `<img src="${qrCodeURL}" style="width: 44px; height: 44px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: #fff;">` : ''}
                 </div>
@@ -3496,16 +3496,48 @@ export function renderHeatmapGridHtml(heatmapData) {
 }
 
 /**
- * Helper to safely load image with CORS for canvas
+ * Helper to safely load image with CORS for canvas with DOM element caching and retry fallback
  */
 function loadCanvasImage(src) {
   return new Promise((resolve) => {
-    if (!src) return resolve(null);
+    if (!src || typeof src !== 'string') return resolve(null);
+
+    const trimmed = src.trim();
+    if (!trimmed) return resolve(null);
+
+    // 1. If an <img> in the current DOM already loaded this src, use it directly!
+    const existingImg = Array.from(document.querySelectorAll('img')).find(
+      el => el.complete && el.naturalWidth > 0 && (el.src === trimmed || el.getAttribute('src') === trimmed || el.src.endsWith(trimmed))
+    );
+    if (existingImg) {
+      return resolve(existingImg);
+    }
+
+    // 2. Normalize relative path if needed
+    let cleanSrc = trimmed;
+    if (!cleanSrc.startsWith('http') && !cleanSrc.startsWith('data:') && !cleanSrc.startsWith('blob:') && !cleanSrc.startsWith('/')) {
+      cleanSrc = '/' + cleanSrc;
+    }
+
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // Only set crossOrigin for external http(s) URLs, not for data or blob URIs
+    if (!cleanSrc.startsWith('data:') && !cleanSrc.startsWith('blob:')) {
+      img.crossOrigin = 'anonymous';
+    }
+
     img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = src;
+    img.onerror = () => {
+      // Retry without crossOrigin for same-origin relative paths
+      if (img.crossOrigin) {
+        const retryImg = new Image();
+        retryImg.onload = () => resolve(retryImg);
+        retryImg.onerror = () => resolve(null);
+        retryImg.src = cleanSrc;
+      } else {
+        resolve(null);
+      }
+    };
+    img.src = cleanSrc;
   });
 }
 
@@ -3520,11 +3552,26 @@ export async function download1080pMobileIDPass(student, business = {}, initials
   canvas.height = 1920;
   const ctx = canvas.getContext('2d');
 
-  // Pre-load all assets asynchronously
-  const photoUrl = student.photo || student.avatar || '';
-  const logoUrl = business.logo || business.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || '';
+  // Pre-load all assets asynchronously with deep fallback resolution
+  const photoUrl = student.photo || student.avatar || student.profilePhoto || student.selfie || (window.store?.user?.photo) || (window.store?.user?.avatar) || (document.querySelector('#sp-avatar-img')?.src) || (document.querySelector('.portal-profile-avatar img')?.src) || '';
+  const logoUrl = business.logo || business.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || (document.querySelector('.brand-logo img')?.src) || '';
   const stampUrl = business.stampImage || business.stampImageUrl || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || '';
-  const shiftName = extra.shiftName || student.shift?.name || student.shift?.timing || student.shift || student.plan?.shift || 'Full Day';
+  
+  // Format Shift Name nicely
+  let rawShift = extra.shiftName || student.shift?.name || student.shift?.timing || student.shift || student.plan?.shift || 'Full Day';
+  if (typeof rawShift === 'string') {
+    if (rawShift.toLowerCase() === 'fullday') rawShift = 'Full Day';
+    else rawShift = rawShift.replace(/\b\w/g, l => l.toUpperCase());
+  }
+  const shiftName = rawShift;
+
+  // Format Plan Name in Title Case
+  let rawPlan = planName || student.plan?.name || 'Study Plan';
+  if (typeof rawPlan === 'string') {
+    rawPlan = rawPlan.replace(/\b\w/g, l => l.toUpperCase());
+  }
+  const formattedPlanName = rawPlan;
+
   const phone = extra.phone || student.phone || student.mobile || '-';
   const bloodGroup = extra.bloodGroup || student.bloodGroup || '';
   const studentId = student.studentId || student.enrollmentNo || 'STU-MEMBER';
@@ -3611,7 +3658,7 @@ export async function download1080pMobileIDPass(student, business = {}, initials
   ctx.beginPath();
   ctx.moveTo(cardX, cardY + cardR);
   ctx.arcTo(cardX, cardY, cardX + cardR, cardY, cardR);
-  ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardR, cardR);
+  ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardR);
   ctx.lineTo(cardX + cardW, cardY + 240);
   ctx.lineTo(cardX, cardY + 240);
   ctx.closePath();
@@ -3649,7 +3696,7 @@ export async function download1080pMobileIDPass(student, business = {}, initials
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
     ctx.font = '500 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(business.tagline || 'Student Membership Pass', cardX + 115, cardY + 102);
+    ctx.fillText(business.tagline || 'Silence, Focus and Success', cardX + 115, cardY + 102);
   } else {
     // Centered Business Name & Tagline
     ctx.textAlign = 'center';
@@ -3659,11 +3706,11 @@ export async function download1080pMobileIDPass(student, business = {}, initials
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
     ctx.font = '500 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(business.tagline || 'Student Membership Pass', 540, cardY + 106);
+    ctx.fillText(business.tagline || 'Silence, Focus and Success', 540, cardY + 106);
   }
   ctx.restore();
 
-  // 4. Avatar Outer Ring & Photo / Initials
+  // 4. Avatar Outer Ring & Photo / Initials (with perfect aspect-ratio cover crop)
   const avatarX = 540, avatarY = cardY + 240, avatarR = 100;
   ctx.save();
   // White Drop-Shadow Outer Base
@@ -3688,7 +3735,12 @@ export async function download1080pMobileIDPass(student, business = {}, initials
   ctx.clip();
 
   if (photoImg) {
-    ctx.drawImage(photoImg, avatarX - avatarR, avatarY - avatarR, avatarR * 2, avatarR * 2);
+    const nw = photoImg.naturalWidth || photoImg.width || 200;
+    const nh = photoImg.naturalHeight || photoImg.height || 200;
+    const minDim = Math.min(nw, nh);
+    const sx = (nw - minDim) / 2;
+    const sy = (nh - minDim) / 2;
+    ctx.drawImage(photoImg, sx, sy, minDim, minDim, avatarX - avatarR, avatarY - avatarR, avatarR * 2, avatarR * 2);
   } else {
     ctx.fillStyle = '#eef2ff';
     ctx.fillRect(avatarX - avatarR, avatarY - avatarR, avatarR * 2, avatarR * 2);

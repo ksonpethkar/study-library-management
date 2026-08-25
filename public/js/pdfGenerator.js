@@ -180,9 +180,9 @@ export function buildAdmissionFormHTML(student, options = {}) {
   }
 
   // Photo & Signature & Stamp URLs
-  const photoUrl = s.photo || s.photoUrl || s.customFields?.photo || s.customFields?.passport_photo || s.avatar || '';
-  const sigUrl = s.signature || s.signatureUrl || s.customFields?.signature || '';
   const winStore = typeof window !== 'undefined' ? window.store : null;
+  const photoUrl = s.photo || s.photoUrl || s.customFields?.photo || s.customFields?.passport_photo || s.avatar || winStore?.user?.photo || winStore?.user?.avatar || '';
+  const sigUrl = s.signature || s.signatureUrl || s.customFields?.signature || '';
   const logoUrl = rcHeader.logoUrl || b.logo || b.logoUrl || winStore?.profile?.logo || winStore?.settings?.businessProfile?.logo || cachedProfile?.logo || '';
   const stampImageUrl = rcFooter.stampImage || b.stampImage || b.stamp || winStore?.profile?.stampImage || winStore?.settings?.businessProfile?.stampImage || cachedProfile?.stampImage || '';
   const managerSigUrl = rcFooter.signatureImage || '';
