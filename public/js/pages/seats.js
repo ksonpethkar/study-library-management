@@ -270,18 +270,24 @@ export async function render() {
       actions: [
         {
           icon: '➕',
-          label: 'Add Seat',
-          onClick: () => { const btn = container.querySelector('#addSeatBtn, [id*="addSeat"]'); if (btn) btn.click(); }
+          label: 'Add Seats',
+          onClick: () => {
+            showAddSeatsModal(container);
+          }
         },
         {
           icon: '🗺️',
-          label: 'Seat Map',
-          onClick: () => { const btn = container.querySelector('[data-tab="seats"], .hub-tab-btn'); if (btn) btn.click(); }
+          label: 'Seat Map Grid',
+          onClick: () => {
+            switchHubTab(container, 'seats');
+          }
         },
         {
           icon: '📊',
           label: 'Occupancy Report',
-          onClick: () => { window.location.hash = '#/reports'; }
+          onClick: () => {
+            window.location.hash = '#/reports';
+          }
         }
       ]
     });

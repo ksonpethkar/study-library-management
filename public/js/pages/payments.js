@@ -1962,12 +1962,23 @@ export async function render(container) {
           {
             icon: '➕',
             label: 'Collect Fee',
-            onClick: () => { const btn = container.querySelector('#collectPaymentBtn, [id*="collectFee"], [id*="collect"]'); if (btn) btn.click(); }
+            onClick: () => {
+              showCollectModal();
+            }
+          },
+          {
+            icon: '📥',
+            label: 'Export CSV',
+            onClick: () => {
+              exportPaymentsCSV();
+            }
           },
           {
             icon: '📊',
             label: 'Revenue Report',
-            onClick: () => { const btn = container.querySelector('#exportReportBtn, [id*="export"]'); if (btn) btn.click(); else window.location.hash = '#/reports'; }
+            onClick: () => {
+              window.location.hash = '#/reports';
+            }
           }
         ]
       });

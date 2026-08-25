@@ -3109,17 +3109,62 @@ export async function render() {
         {
           icon: '➕',
           label: 'Add Student',
-          onClick: () => { const btn = container.querySelector('#addStudentBtn'); if (btn) btn.click(); }
+          onClick: () => {
+            showStudentForm();
+          }
         },
         {
           icon: '⏳',
           label: 'Waiting List',
-          onClick: () => { const tab = container.querySelector('[data-tab="waiting"]'); if (tab) tab.click(); }
+          onClick: () => {
+            window.location.hash = '#/operations';
+          }
         },
         {
           icon: '📤',
           label: 'Export Students',
-          onClick: () => { const btn = container.querySelector('#exportStudentsBtn, [id*="export"]'); if (btn) btn.click(); }
+          onClick: () => {
+            const list = state.students || [];
+            if (list.length === 0) {
+              Toast.info('No students loaded to export');
+              return;
+            }
+            const headers = ['Student ID', 'Full Name', 'Phone', 'Email', 'Plan', 'Seat', 'Blood Group', 'Gender', 'Status', 'Expiry Date'];
+            const rows = list.map(s => [
+              `"${s.studentId || ''}"`,
+              `"${(s.name || '').replace(/"/g, '""')}"`,
+              `"${s.phone || ''}"`,
+              `"${s.email || ''}"`,
+              `"${s.plan?.name || ''}"`,
+              `"${s.seat?.seatNumber || ''}"`,
+              `"${s.bloodGroup || ''}"`,
+              `"${s.gender || ''}"`,
+              `"${s.status || ''}"`,
+              `"${s.expiryDate ? new Date(s.expiryDate).toLocaleDateString('en-IN') : ''}"`
+            ]);
+            const csv = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `students_export_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            Toast.success(`Exported ${list.length} student(s) to CSV`);
+          }
+        },
+        {
+          icon: '🔍',
+          label: 'Search Student',
+          onClick: () => {
+            const searchInput = container.querySelector('#studentSearch') || document.querySelector('#studentSearch');
+            if (searchInput) {
+              searchInput.focus();
+              searchInput.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
         }
       ]
     });

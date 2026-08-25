@@ -389,6 +389,31 @@ export async function render() {
     if (cancelBtn) cancelBtn.addEventListener('click', hidePlanModal);
   }, 0);
 
+  // Mount context-aware FAB for Plans page
+  if (typeof window !== 'undefined' && window.FAB) {
+    window.FAB.mount({
+      icon: '💳',
+      label: 'Plan Actions',
+      color: 'var(--color-primary, #6c5ce7)',
+      actions: [
+        {
+          icon: '➕',
+          label: 'Create Plan',
+          onClick: () => {
+            showPlanModal();
+          }
+        },
+        {
+          icon: '🎟️',
+          label: 'Add Coupon',
+          onClick: () => {
+            showCouponModal();
+          }
+        }
+      ]
+    });
+  }
+
   return container;
 }
 

@@ -1041,6 +1041,45 @@ export async function render(container) {
       });
     }
 
+    // Mount context-aware FAB for Dashboard page
+    if (typeof window !== 'undefined' && window.FAB) {
+      window.FAB.mount({
+        icon: '🚀',
+        label: 'Dashboard Quick Actions',
+        color: 'var(--color-primary, #6c5ce7)',
+        actions: [
+          {
+            icon: '🎓',
+            label: 'New Admission',
+            onClick: () => {
+              window.location.hash = '#/students';
+            }
+          },
+          {
+            icon: '💳',
+            label: 'Collect Fee',
+            onClick: () => {
+              window.location.hash = '#/payments';
+            }
+          },
+          {
+            icon: '⏱️',
+            label: 'Live Attendance',
+            onClick: () => {
+              window.location.hash = '#/attendance';
+            }
+          },
+          {
+            icon: '🪑',
+            label: 'Seating Hub',
+            onClick: () => {
+              window.location.hash = '#/seats';
+            }
+          }
+        ]
+      });
+    }
+
   } catch (err) {
     console.error('Error fetching dashboard statistics:', err);
   }

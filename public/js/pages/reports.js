@@ -399,6 +399,38 @@ export async function render(container) {
   initEventHandlers();
   await loadAllData();
 
+  // Mount context-aware FAB for Reports page
+  if (typeof window !== 'undefined' && window.FAB) {
+    window.FAB.mount({
+      icon: '📊',
+      label: 'Reports & Export Actions',
+      color: '#6c5ce7',
+      actions: [
+        {
+          icon: '📥',
+          label: 'Tally XML Export',
+          onClick: () => {
+            downloadTallyXml();
+          }
+        },
+        {
+          icon: '📑',
+          label: 'GST Sales Summary',
+          onClick: () => {
+            downloadGstReport();
+          }
+        },
+        {
+          icon: '🖨️',
+          label: 'Print Analytics',
+          onClick: () => {
+            window.print();
+          }
+        }
+      ]
+    });
+  }
+
   return container;
 
   /**

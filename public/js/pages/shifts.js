@@ -182,6 +182,31 @@ export async function render() {
     initShiftsPage(container);
   }, 0);
 
+  // Mount context-aware FAB for Shifts page
+  if (typeof window !== 'undefined' && window.FAB) {
+    window.FAB.mount({
+      icon: '🕒',
+      label: 'Shift Actions',
+      color: 'var(--color-primary, #6c5ce7)',
+      actions: [
+        {
+          icon: '➕',
+          label: 'Add Shift',
+          onClick: () => {
+            openShiftModal();
+          }
+        },
+        {
+          icon: '🪑',
+          label: 'Seating Hub',
+          onClick: () => {
+            window.location.hash = '#/seats';
+          }
+        }
+      ]
+    });
+  }
+
   return container;
 }
 

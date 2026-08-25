@@ -1762,5 +1762,43 @@ export async function render() {
   // Initial load
   loadCurrentTab();
 
+  // Mount context-aware FAB for Operations page
+  if (typeof window !== 'undefined' && window.FAB) {
+    window.FAB.mount({
+      icon: '⚡',
+      label: 'Operations Actions',
+      color: '#6c5ce7',
+      actions: [
+        {
+          icon: '⏳',
+          label: 'Waiting List',
+          onClick: () => {
+            currentTab = 'waiting';
+            container.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'waiting'));
+            loadCurrentTab();
+          }
+        },
+        {
+          icon: '📢',
+          label: 'Broadcast Notice',
+          onClick: () => {
+            currentTab = 'announcements';
+            container.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'announcements'));
+            loadCurrentTab();
+          }
+        },
+        {
+          icon: '🎁',
+          label: 'Referrals Lead',
+          onClick: () => {
+            currentTab = 'referrals';
+            container.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'referrals'));
+            loadCurrentTab();
+          }
+        }
+      ]
+    });
+  }
+
   return container;
 }

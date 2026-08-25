@@ -101,17 +101,28 @@ export function render() {
         {
           icon: '✅',
           label: 'Mark Present',
-          onClick: () => { const input = container.querySelector('#student-search'); if (input) { input.focus(); input.scrollIntoView({ behavior: 'smooth' }); } }
+          onClick: () => {
+            const input = container.querySelector('#student-search') || document.querySelector('#student-search');
+            if (input) {
+              input.focus();
+              input.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
         },
         {
           icon: '🖥️',
           label: 'Open Kiosk',
-          onClick: () => { window.open('/kiosk', '_blank'); }
+          onClick: () => {
+            window.open('/kiosk.html', '_blank');
+          }
         },
         {
-          icon: '📅',
+          icon: '📥',
           label: 'Export Logs',
-          onClick: () => { const btn = container.querySelector('[id*="export"], [id*="Export"]'); if (btn) btn.click(); }
+          onClick: () => {
+            const btn = container.querySelector('#btn-export-attendance-csv') || document.querySelector('#btn-export-attendance-csv');
+            if (btn) btn.click();
+          }
         }
       ]
     });

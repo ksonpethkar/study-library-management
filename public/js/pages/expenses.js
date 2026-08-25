@@ -819,5 +819,38 @@ export async function render(container) {
     document.body.removeChild(link);
   });
 
+  // Mount context-aware FAB for Expenses page
+  if (typeof window !== 'undefined' && window.FAB) {
+    window.FAB.mount({
+      icon: '💸',
+      label: 'Expense Actions',
+      color: '#e17055',
+      actions: [
+        {
+          icon: '➕',
+          label: 'Add Expense',
+          onClick: () => {
+            showExpenseModal();
+          }
+        },
+        {
+          icon: '🏷️',
+          label: 'Categories',
+          onClick: () => {
+            showCategoryManager();
+          }
+        },
+        {
+          icon: '📥',
+          label: 'Export CSV',
+          onClick: () => {
+            const btn = page.querySelector('#btn-export-expenses') || document.querySelector('#btn-export-expenses');
+            if (btn) btn.click();
+          }
+        }
+      ]
+    });
+  }
+
   await loadData();
 }

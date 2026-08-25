@@ -1790,15 +1790,29 @@ export const FAB = {
       item.setAttribute('aria-label', action.label || '');
       item.style.transitionDelay = `${idx * 45}ms`;
       item.innerHTML = `
-        <span class="fab-speed-label">${action.label || ''}</span>
-        <span class="fab-speed-icon">${action.icon || '+'}</span>
+        <span class="fab-speed-label">${escapeHTML(action.label || '')}</span>
+        <span class="fab-speed-icon">${action.icon || '⚡'}</span>
       `;
-      item.onclick = (e) => {
-        e.stopPropagation();
+      
+      const fireAction = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         this._closeSpeedDial();
-        if (typeof action.onClick === 'function') action.onClick();
-        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+        if (typeof action.onClick === 'function') {
+          setTimeout(() => {
+            try {
+              action.onClick();
+            } catch (err) {
+              console.error('Error executing FAB action:', err);
+            }
+          }, 50);
+        }
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(12);
       };
+
+      item.addEventListener('click', fireAction);
       speedDial.appendChild(item);
     });
 
@@ -1830,7 +1844,7 @@ export const FAB = {
         requestAnimationFrame(() => {
           const currentY = window.scrollY;
           const diff = currentY - this._lastScrollY;
-          if (diff > 50 && currentY > 150) {
+          if (diff > 60 && currentY > 150) {
             fab.classList.add('fab-hidden');
             this._closeSpeedDial();
           } else if (diff < -20) {
@@ -1862,7 +1876,9 @@ export const FAB = {
     const speedDial = this._el.querySelector('.fab-speed-dial');
     if (speedDial) speedDial.removeAttribute('aria-hidden');
     const items = this._el.querySelectorAll('.fab-speed-item');
-    items.forEach((item, i) => { setTimeout(() => item.classList.add('visible'), i * 45); });
+    items.forEach((item, i) => {
+      setTimeout(() => item.classList.add('visible'), i * 35);
+    });
   },
 
   _closeSpeedDial() {
