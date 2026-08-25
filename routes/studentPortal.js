@@ -648,6 +648,45 @@ router.get('/leave-requests', async (req, res) => {
   }
 });
 
+// @route   GET /api/student-portal/branches
+// @desc    Get active branches / study centres for student portal
+router.get('/branches', async (req, res) => {
+  try {
+    const Branch = require('../models/Branch');
+    const branches = await Branch.find({ isActive: true, isDeleted: { $ne: true } })
+      .select('name code city address phone totalSeats')
+      .sort('name')
+      .lean();
+    res.json({ success: true, data: branches || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   GET /api/student-portal/available-seats
+// @desc    Get all available/vacant desks for student portal seat transfer selection
+router.get('/available-seats', async (req, res) => {
+  try {
+    const { branch } = req.query;
+    let filter = {
+      isActive: true,
+      isDeleted: { $ne: true },
+      status: { $in: ['available', 'vacant'] }
+    };
+    if (branch && branch !== 'all' && branch !== 'default_main') {
+      filter.branch = branch;
+    }
+    const seats = await Seat.find(filter)
+      .select('seatNumber zone floor status type priceMultiplier branch seatType')
+      .populate('branch', 'name code city')
+      .sort('seatNumber')
+      .lean();
+    res.json({ success: true, data: seats || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // @route   POST /api/student-portal/seat-change
 // @desc    Submit a seat change / transfer request
 router.post('/seat-change', async (req, res) => {

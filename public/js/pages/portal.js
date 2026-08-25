@@ -2181,20 +2181,20 @@ function renderPortalUI(container, data, analytics = null) {
     let allBranches = [];
     let allSeats = [];
 
-    // Load Branches & Vacant Desks
+    // Load Branches & Vacant Desks using Student Portal & Public APIs
     try {
       const [bRes, sRes] = await Promise.all([
-        api.get('/api/branches').catch(() => ({ data: [] })),
-        api.get('/api/seats').catch(() => ({ data: [] }))
+        api.get('/api/student-portal/branches').catch(() => api.get('/api/branches/public-list')).catch(() => ({ data: [] })),
+        api.get('/api/student-portal/available-seats').catch(() => api.get('/api/seats/public-available')).catch(() => ({ data: [] }))
       ]);
 
       allBranches = Array.isArray(bRes.data) ? bRes.data : (bRes.data?.branches || []);
       allSeats = Array.isArray(sRes.data) ? sRes.data : (sRes.data?.seats || []);
 
       if (allBranches.length > 0) {
-        branchSelect.innerHTML = allBranches.map(b => `
-          <option value="${b._id}" ${String(b._id) === String(student.branch?._id || student.branch) ? 'selected' : ''}>
-            ${escapeHTML(b.name)} ${b.city ? '(' + b.city + ')' : ''}
+        branchSelect.innerHTML = allBranches.map((b, idx) => `
+          <option value="${b._id}" ${String(b._id) === String(student.branch?._id || student.branch) || (idx === 0 && !student.branch) ? 'selected' : ''}>
+            ${escapeHTML(b.name)} ${b.city ? '(' + escapeHTML(b.city) + ')' : ''}
           </option>
         `).join('');
       } else {
@@ -2209,10 +2209,11 @@ function renderPortalUI(container, data, analytics = null) {
     function populateVacantSeats() {
       const selectedBranchId = branchSelect.value;
       const vacant = allSeats.filter(s => {
-        if (s.status !== 'vacant') return false;
+        const isVacant = s.status === 'available' || s.status === 'vacant';
+        if (!isVacant) return false;
         if (!selectedBranchId) return true;
         const bId = s.branch?._id || s.branch;
-        return String(bId) === String(selectedBranchId);
+        return !bId || String(bId) === String(selectedBranchId) || selectedBranchId === 'default_main';
       });
 
       if (vacantBadge) {
@@ -2221,10 +2222,10 @@ function renderPortalUI(container, data, analytics = null) {
       }
 
       if (vacant.length > 0) {
-        seatSelect.innerHTML = `<option value="">-- Any Available Vacant Desk --</option>` +
+        seatSelect.innerHTML = `<option value="">-- Select Specific Available Desk (or Any Vacant) --</option>` +
           vacant.map(s => `
             <option value="${s._id}" data-num="${escapeHTML(s.seatNumber)}">
-              Desk ${escapeHTML(s.seatNumber)} — ${escapeHTML(s.zone || 'General')} (Vacant)
+              Desk ${escapeHTML(s.seatNumber)} — ${escapeHTML(s.zone || 'General Zone')} (🟢 Vacant)
             </option>
           `).join('');
       } else {
