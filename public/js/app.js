@@ -313,9 +313,23 @@ class Application {
     // Update user avatar image or initials
     this.updateUserAvatarHeader();
     window.updateProfileAvatar = (newAvatarUrl) => {
-      if (store.user) store.user.avatar = newAvatarUrl;
-      this.updateUserAvatarHeader();
+      if (store.user) {
+        store.user.avatar = newAvatarUrl;
+        store.user.photo = newAvatarUrl;
+      }
+      try {
+        const u = JSON.parse(localStorage.getItem('sl_user') || '{}');
+        u.avatar = newAvatarUrl;
+        u.photo = newAvatarUrl;
+        localStorage.setItem('sl_user', JSON.stringify(u));
+      } catch(e) {}
+      this.updateUserAvatarHeader(newAvatarUrl);
     };
+
+    window.addEventListener('user-updated', (e) => {
+      const avatarUrl = e?.detail?.avatar;
+      this.updateUserAvatarHeader(avatarUrl);
+    });
 
     // Adapt sidebar for role (Student vs Admin/Staff) & render database config
     try {
@@ -464,19 +478,26 @@ class Application {
     }
   }
 
-  updateUserAvatarHeader() {
+  updateUserAvatarHeader(overrideUrl = null) {
     const avatarEl = document.getElementById('user-avatar');
     if (!avatarEl) return;
 
-    const imgUrl = store.user?.avatar || store.user?.photo;
-    const name = store.user?.name || 'User';
-    const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    let user = store.user;
+    try {
+      if (!user) user = JSON.parse(localStorage.getItem('sl_user') || '{}');
+    } catch(e) {}
+
+    const imgUrl = overrideUrl || user?.avatar || user?.photo;
+    const name = user?.name || 'User';
+    const initials = name.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'U';
 
     if (imgUrl) {
       avatarEl.style.overflow = 'hidden';
       avatarEl.style.padding = '0';
-      avatarEl.innerHTML = `<img src="${imgUrl}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.remove(); document.getElementById('user-avatar').textContent='${initials}';">`;
+      const cleanUrl = imgUrl.startsWith('/') || imgUrl.startsWith('http') || imgUrl.startsWith('data:') ? imgUrl : `/${imgUrl}`;
+      avatarEl.innerHTML = `<img src="${cleanUrl}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.remove(); document.getElementById('user-avatar').textContent='${initials}';">`;
     } else {
+      avatarEl.innerHTML = '';
       avatarEl.textContent = initials;
     }
   }

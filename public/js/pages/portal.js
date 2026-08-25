@@ -107,6 +107,27 @@ function renderPortalUI(container, data, analytics = null) {
     ? student.targetExams.map(ex => `<span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary); font-size: 0.75rem;">${escapeHTML(ex)}</span>`).join('')
     : '<span class="text-muted small">General Self-Study</span>';
 
+  // Immediately synchronize student photo into top-right header user-avatar
+  if (student.photo) {
+    const avatarEl = document.getElementById('user-avatar');
+    if (avatarEl) {
+      const cleanPhotoUrl = student.photo.startsWith('/') || student.photo.startsWith('http') || student.photo.startsWith('data:') ? student.photo : `/${student.photo}`;
+      avatarEl.style.overflow = 'hidden';
+      avatarEl.style.padding = '0';
+      avatarEl.innerHTML = `<img src="${cleanPhotoUrl}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.remove(); document.getElementById('user-avatar').textContent='${initials}';">`;
+    }
+    try {
+      const user = JSON.parse(localStorage.getItem('sl_user') || '{}');
+      user.photo = student.photo;
+      user.avatar = student.photo;
+      localStorage.setItem('sl_user', JSON.stringify(user));
+      if (window.store && window.store.user) {
+        window.store.user.photo = student.photo;
+        window.store.user.avatar = student.photo;
+      }
+    } catch(e) {}
+  }
+
   const isCheckedIn = todayAttendance && todayAttendance.checkIn && !todayAttendance.checkOut;
   const punchStatusText = isCheckedIn
     ? `🟢 Currently Checked In since <strong>${formatPunchTime(todayAttendance.checkIn)}</strong>`
