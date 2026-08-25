@@ -707,6 +707,8 @@ function renderPortalUI(container, data, analytics = null) {
     const emergencyRelation = student.emergencyContact?.relation || 'Parent';
     const address = [student.address, student.city, student.state, student.pincode].filter(Boolean).join(', ') || 'Campus Residential';
     const bloodGroup = student.bloodGroup || '';
+    const shiftName = student.shift?.name || student.shift?.timing || student.shift || student.plan?.shift || 'Full Day';
+    const phone = student.phone || student.mobile || '';
     const stampImgUrl = business.stampImage || business.stampImageUrl || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.stampImage || '';
     const logoImgUrl = business.logo || business.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.logo || '';
 
@@ -720,6 +722,7 @@ function renderPortalUI(container, data, analytics = null) {
     let showQr = true;
     let showEmergency = true;
     let showStamp = true;
+    let showBlood = Boolean(bloodGroup);
 
     const modalContent = document.createElement('div');
     modalContent.className = 'id-card-studio-wrapper';
