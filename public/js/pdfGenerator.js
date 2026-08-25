@@ -210,6 +210,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
   const isModern = opts.template === 'modern_glass';
   const isClassic = opts.template === 'classic_formal';
   const isCompact = opts.template === 'compact_card';
+  const hasAnnexure = opts.showUploadedDocuments && uploadedDocEntries.length > 0;
 
   return `
 <!DOCTYPE html>
@@ -217,28 +218,62 @@ export function buildAdmissionFormHTML(student, options = {}) {
 <head>
   <meta charset="UTF-8">
   <title>Official Admission Form — ${studentId} (${studentName})</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     @page {
       size: A4 portrait;
       margin: 8mm 10mm;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, Arial, sans-serif; }
-    body { background: #ffffff; color: #0f172a; font-size: 11.5px; line-height: 1.35; padding: 8px; position: relative; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: geometricPrecision;
+    }
+    body {
+      background: #ffffff;
+      color: #0f172a;
+      font-size: 11px;
+      line-height: 1.35;
+      padding: 0;
+      position: relative;
+    }
+
+    .page-container {
+      width: 100%;
+      min-height: 270mm;
+      box-sizing: border-box;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .page-break {
+      page-break-before: always;
+      break-before: page;
+      margin-top: 15px;
+    }
 
     /* Watermark Stamp */
     .watermark-stamp {
       position: absolute;
-      top: 260px;
+      top: 240px;
       right: 35px;
       border: 3px dashed ${stampColor};
       color: ${stampColor};
       padding: 6px 14px;
-      font-size: 0.88rem;
-      font-weight: 900;
+      font-size: 0.85rem;
+      font-weight: 800;
       letter-spacing: 2px;
       text-transform: uppercase;
       transform: rotate(-7deg);
-      opacity: 0.22;
+      opacity: 0.18;
       border-radius: 8px;
       pointer-events: none;
       z-index: 1;
@@ -248,425 +283,468 @@ export function buildAdmissionFormHTML(student, options = {}) {
     .mg-header {
       background: ${isClassic ? '#1e293b' : isCompact ? '#0284c7' : 'linear-gradient(135deg, #4338ca, #059669)'};
       color: #ffffff;
-      padding: 12px 18px;
-      border-radius: ${isClassic ? '0' : '10px'};
+      padding: 10px 16px;
+      border-radius: ${isClassic ? '0' : '8px'};
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 7px;
     }
-    .mg-header h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; margin: 0; line-height: 1.2; }
-    .mg-header p { font-size: 10.5px; opacity: 0.95; margin: 0; }
+    .mg-header h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; margin: 0; line-height: 1.2; }
+    .mg-header p { font-size: 10px; opacity: 0.95; margin: 0; }
 
     /* Section Cards */
     .sec-card {
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 9px 12px;
-      margin-bottom: 9px;
+      border: 1.2px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 7px 11px;
+      margin-bottom: 6px;
       background: #f8fafc;
       position: relative;
       z-index: 2;
-      page-break-inside: avoid;
     }
     .sec-title {
       font-weight: 800;
-      font-size: 12px;
+      font-size: 11.5px;
       color: ${isClassic ? '#1e293b' : '#4338ca'};
-      border-bottom: 2px solid ${isClassic ? '#1e293b' : '#4338ca'};
+      border-bottom: 1.5px solid ${isClassic ? '#1e293b' : '#4338ca'};
       padding-bottom: 3px;
-      margin-bottom: 7px;
+      margin-bottom: 5px;
       text-transform: uppercase;
-      letter-spacing: 0.4px;
+      letter-spacing: 0.3px;
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
     /* Grid Layouts */
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
+    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 7px; }
 
-    .field-label { font-size: 9.5px; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
-    .field-value { font-size: 11.5px; font-weight: 700; color: #0f172a; margin-top: 1px; word-break: break-word; }
+    .field-label { font-size: 8.5px; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: 0.25px; }
+    .field-value { font-size: 11px; font-weight: 700; color: #0f172a; margin-top: 1px; word-break: break-word; }
 
-    /* Photo & Signature Frame */
+    /* Photo & QR Frame */
     .photo-frame {
-      width: 125px;
-      height: 135px;
+      width: 115px;
+      height: 125px;
       border: 1.5px solid #94a3b8;
-      border-radius: 8px;
+      border-radius: 7px;
       display: flex;
       align-items: center;
       justify-content: center;
       background: #ffffff;
       overflow: hidden;
       margin: 0 auto;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
     .photo-frame img { width: 100%; height: 100%; object-fit: cover; }
 
     .qr-frame {
-      width: 125px;
+      width: 115px;
       border: 1.5px solid #94a3b8;
-      border-radius: 8px;
+      border-radius: 7px;
       background: #ffffff;
-      padding: 5px;
+      padding: 4px;
       text-align: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
 
     .sig-box {
       width: 160px;
-      height: 48px;
+      height: 44px;
       border-bottom: 1.5px solid #334155;
       display: flex;
       align-items: flex-end;
       justify-content: center;
-      margin-top: 3px;
+      margin-top: 2px;
     }
-    .sig-box img { max-height: 42px; max-width: 100%; object-fit: contain; }
+    .sig-box img { max-height: 38px; max-width: 100%; object-fit: contain; }
 
-    /* Uploaded Document Frame */
-    .doc-preview-card {
+    /* Uploaded Document Frame (Annexure Full Page) */
+    .annexure-header {
+      background: linear-gradient(135deg, #1e293b, #334155);
+      color: #ffffff;
+      padding: 10px 16px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .doc-preview-card-full {
       border: 1.5px solid #cbd5e1;
       border-radius: 8px;
       background: #ffffff;
-      padding: 8px;
+      padding: 12px;
       text-align: center;
-      page-break-inside: avoid;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 720px;
     }
-    .doc-preview-img {
-      max-height: 220px;
+    .doc-preview-img-full {
+      max-height: 680px;
       width: 100%;
       object-fit: contain;
       border-radius: 6px;
-      border: 1px solid #e2e8f0;
       background: #f8fafc;
     }
 
     /* Rules Table */
-    .rules-list { font-size: 9.5px; color: #334155; padding-left: 15px; margin-top: 3px; line-height: 1.4; }
-    .rules-list li { margin-bottom: 2px; }
+    .rules-list { font-size: 9px; color: #334155; padding-left: 14px; margin-top: 2px; line-height: 1.35; }
+    .rules-list li { margin-bottom: 1.5px; }
 
     /* Footer Bar */
     .doc-footer {
-      margin-top: 10px;
+      margin-top: 6px;
       border-top: 1px solid #cbd5e1;
-      padding-top: 6px;
+      padding-top: 5px;
       display: flex;
       justify-content: space-between;
-      font-size: 9px;
+      font-size: 8.5px;
       color: #64748b;
     }
 
     @media print {
       body { padding: 0; background: #fff !important; }
-      .sec-card { background: #fff !important; border-color: #94a3b8; break-inside: avoid; page-break-inside: avoid; }
+      .page-container { min-height: 270mm; }
+      .sec-card { background: #fff !important; border-color: #94a3b8; }
       .mg-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .doc-preview-card { break-inside: avoid; page-break-inside: avoid; }
+      .annexure-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-break { page-break-before: always; break-before: page; margin-top: 0; }
     }
   </style>
 </head>
 <body>
 
-  ${opts.showWatermarkStamp ? `<div class="watermark-stamp">${stampText}</div>` : ''}
+  <!-- ==================== PAGE 1: OFFICIAL ADMISSION CERTIFICATE & FORM ==================== -->
+  <div class="page-container">
+    <div>
+      ${opts.showWatermarkStamp ? `<div class="watermark-stamp">${stampText}</div>` : ''}
 
-  <!-- Header -->
-  <div class="mg-header">
-    <div style="display: flex; align-items: center; gap: 12px;">
-      ${logoUrl ? `<img src="${logoUrl}" style="max-height: 48px; max-width: 75px; object-fit: contain; background: #fff; padding: 2px; border-radius: 6px;">` : ''}
-      <div>
-        <h1>${b.businessName}</h1>
-        <p>${b.tagline || 'Self Study & Reading Room'}</p>
-        <p style="margin-top: 2px; font-size: 9.5px;">📍 ${b.address || ''} • 📞 ${b.phone || ''} ${gstNumber ? `• GSTIN: ${gstNumber}` : ''}</p>
+      <!-- Header -->
+      <div class="mg-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          ${logoUrl ? `<img src="${logoUrl}" style="max-height: 44px; max-width: 70px; object-fit: contain; background: #fff; padding: 2px; border-radius: 6px;">` : ''}
+          <div>
+            <h1>${b.businessName}</h1>
+            <p>${b.tagline || 'Silence, Focus and Success'}</p>
+            <p style="margin-top: 2px; font-size: 9px;">📍 ${b.address || ''} • 📞 ${b.phone || ''} ${gstNumber ? `• GSTIN: ${gstNumber}` : ''}</p>
+          </div>
+        </div>
+        <div style="text-align: right; background: rgba(255,255,255,0.22); padding: 5px 12px; border-radius: 6px; min-width: 145px; white-space: nowrap; flex-shrink: 0;">
+          <div style="font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">OFFICIAL ADMISSION FORM</div>
+          <div style="font-size: 13.5px; font-weight: 900; font-family: monospace; margin: 1px 0;">${studentId}</div>
+          <div style="font-size: 9.5px; font-weight: 700;">Date: ${joinedDate}</div>
+        </div>
       </div>
-    </div>
-    <div style="text-align: right; background: rgba(255,255,255,0.22); padding: 5px 12px; border-radius: 6px; min-width: 145px; white-space: nowrap; flex-shrink: 0;">
-      <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">OFFICIAL ADMISSION FORM</div>
-      <div style="font-size: 14px; font-weight: 900; font-family: monospace; margin: 1px 0;">${studentId}</div>
-      <div style="font-size: 10px; font-weight: 700;">Date: ${joinedDate}</div>
-    </div>
-  </div>
 
-  <!-- Top 2-Column Grid: Left: Personal + Seat Info | Right: Photo + QR Code -->
-  <div style="display: grid; grid-template-columns: 1fr 135px; gap: 10px; margin-bottom: 8px; align-items: start;">
-    
-    <!-- Left Column: Personal Information & Seat Allotment -->
-    <div style="display: flex; flex-direction: column; gap: 8px;">
-      
-      <!-- 1. Student Personal Information -->
-      <div class="sec-card" style="margin-bottom: 0;">
-        <div class="sec-title">👤 Student Personal Information</div>
+      <!-- Top 2-Column Grid: Left: Personal + Seat Info | Right: Photo + QR Code -->
+      <div style="display: grid; grid-template-columns: 1fr 125px; gap: 8px; margin-bottom: 6px; align-items: start;">
         
-        <div class="grid-3" style="margin-bottom: 6px;">
+        <!-- Left Column: Personal Information & Seat Allotment -->
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          
+          <!-- 1. Student Personal Information -->
+          <div class="sec-card" style="margin-bottom: 0;">
+            <div class="sec-title">👤 Student Personal Information</div>
+            
+            <div class="grid-3" style="margin-bottom: 5px;">
+              <div>
+                <div class="field-label">Full Student Name</div>
+                <div class="field-value">${studentName}</div>
+              </div>
+              <div>
+                <div class="field-label">Mobile Number</div>
+                <div class="field-value">📞 ${phone}</div>
+              </div>
+              <div>
+                <div class="field-label">Email Address</div>
+                <div class="field-value">${email}</div>
+              </div>
+            </div>
+
+            <div class="grid-4" style="margin-bottom: 5px;">
+              <div>
+                <div class="field-label">Gender</div>
+                <div class="field-value">${gender}</div>
+              </div>
+              <div>
+                <div class="field-label">Date of Birth</div>
+                <div class="field-value" style="color: #4338ca; font-weight: 800;">${dob}</div>
+              </div>
+              <div>
+                <div class="field-label">Blood Group</div>
+                <div class="field-value" style="color: #dc2626; font-weight: 800;">${bloodGroup}</div>
+              </div>
+              <div>
+                <div class="field-label">City & State</div>
+                <div class="field-value">${city}${state && state !== 'N/A' ? ', ' + state : ''}</div>
+              </div>
+            </div>
+
+            ${fullAddress ? `
+              <div style="border-top: 1px dashed #cbd5e1; padding-top: 4px;">
+                <div class="field-label">Resident / Permanent Address</div>
+                <div class="field-value" style="font-size: 10.5px;">${fullAddress}${pincode && pincode !== 'N/A' ? ' (PIN: ' + pincode + ')' : ''}</div>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- 2. Study Centre, Shift & Seating Allocation -->
+          <div class="sec-card" style="margin-bottom: 0;">
+            <div class="sec-title">🏢 Study Centre & Seating Allocation</div>
+            
+            <div class="grid-3" style="margin-bottom: 5px;">
+              <div>
+                <div class="field-label">Campus / Branch</div>
+                <div class="field-value" style="color: #4338ca;">${branchName}</div>
+              </div>
+              <div>
+                <div class="field-label">Assigned Desk / Seat</div>
+                <div class="field-value" style="color: #059669; font-size: 12px;">${seatNumber} (${seatZone}${seatFloor})</div>
+              </div>
+              <div>
+                <div class="field-label">Study Shift & Timings</div>
+                <div class="field-value">${shiftTimingStr}</div>
+              </div>
+            </div>
+
+            <div class="grid-4">
+              <div>
+                <div class="field-label">Membership Plan</div>
+                <div class="field-value">${planName} ${planDuration ? '(' + planDuration + ')' : ''}</div>
+              </div>
+              <div>
+                <div class="field-label">Plan Fee Amount</div>
+                <div class="field-value" style="color: #059669;">${planPrice || 'Standard Rate'}</div>
+              </div>
+              <div>
+                <div class="field-label">Admission Date</div>
+                <div class="field-value">${joinedDate}</div>
+              </div>
+              <div>
+                <div class="field-label">Validity Expiry Date</div>
+                <div class="field-value" style="color: #dc2626; font-weight: 800;">${expiryDate}</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Passport Photo & Verification QR Code -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+          
+          <!-- Passport Photo Frame -->
+          <div style="width: 100%; text-align: center;">
+            <div class="field-label" style="margin-bottom: 2px; font-size: 8px;">PASSPORT PHOTO</div>
+            <div class="photo-frame">
+              ${photoUrl ? `<img src="${photoUrl}" alt="Photo">` : `<span style="color:#94a3b8; font-size:9px; font-weight:700;">AFFIX PHOTO</span>`}
+            </div>
+          </div>
+
+          <!-- Generated Student Verification QR Code -->
+          <div style="width: 100%; text-align: center;">
+            <div class="field-label" style="margin-bottom: 2px; font-size: 8px;">VERIFY ID QR</div>
+            <div class="qr-frame" style="margin: 0 auto;">
+              <div style="display: flex; align-items: center; justify-content: center;">
+                ${qrCodeImg}
+              </div>
+              <div style="font-size: 8px; font-weight: 800; font-family: monospace; color: #475569; margin-top: 1px;">${studentId}</div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- 3. Academic Focus, Locker & Guardian Emergency Contact -->
+      <div class="sec-card">
+        <div class="sec-title">🎯 Academic Goals, Facilities & Emergency Contact</div>
+        
+        <div class="grid-3" style="margin-bottom: 5px;">
           <div>
-            <div class="field-label">Full Student Name</div>
-            <div class="field-value">${studentName}</div>
+            <div class="field-label">Target Competitive Exams</div>
+            <div class="field-value" style="color: #4338ca;">
+              ${targetExamsList.length > 0 ? targetExamsList.join(', ') : 'General Competitive Exams / Self Study'}
+            </div>
           </div>
           <div>
-            <div class="field-label">Mobile Number</div>
-            <div class="field-value">📞 ${phone}</div>
+            <div class="field-label">College / Company / Occupation</div>
+            <div class="field-value">${occupation}</div>
           </div>
           <div>
-            <div class="field-label">Email Address</div>
-            <div class="field-value">${email}</div>
+            <div class="field-label">Locker & Access Card</div>
+            <div class="field-value">${lockerNumber ? `Locker #${lockerNumber}` : 'No Locker Assigned'} • Bio/RFID: ${s.rfidCardNumber || s.biometricCardNumber || s.biometricId || 'N/A'}</div>
           </div>
         </div>
 
-        <div class="grid-4" style="margin-bottom: 6px;">
-          <div>
-            <div class="field-label">Gender</div>
-            <div class="field-value">${gender}</div>
-          </div>
-          <div>
-            <div class="field-label">Date of Birth</div>
-            <div class="field-value" style="color: #4338ca; font-weight: 800;">${dob}</div>
-          </div>
-          <div>
-            <div class="field-label">Blood Group</div>
-            <div class="field-value" style="color: #dc2626; font-weight: 800;">${bloodGroup}</div>
-          </div>
-          <div>
-            <div class="field-label">City & State</div>
-            <div class="field-value">${city}${state && state !== 'N/A' ? ', ' + state : ''}</div>
-          </div>
-        </div>
-
-        ${fullAddress ? `
-          <div style="border-top: 1px dashed #cbd5e1; padding-top: 5px;">
-            <div class="field-label">Resident / Permanent Address</div>
-            <div class="field-value" style="font-size: 11px;">${fullAddress}${pincode && pincode !== 'N/A' ? ' (PIN: ' + pincode + ')' : ''}</div>
+        ${emergencyName || emergencyPhone ? `
+          <div style="border-top: 1px dashed #cbd5e1; padding-top: 4px;" class="grid-3">
+            <div>
+              <div class="field-label">Guardian / Parent Name</div>
+              <div class="field-value">${emergencyName || 'N/A'}</div>
+            </div>
+            <div>
+              <div class="field-label">Guardian Contact Phone</div>
+              <div class="field-value">📞 ${emergencyPhone || 'N/A'}</div>
+            </div>
+            <div>
+              <div class="field-label">Relationship</div>
+              <div class="field-value">${emergencyRelation}</div>
+            </div>
           </div>
         ` : ''}
       </div>
 
-      <!-- 2. Study Centre, Shift & Seating Allocation -->
-      <div class="sec-card" style="margin-bottom: 0;">
-        <div class="sec-title">🏢 Study Centre & Seating Allocation</div>
-        
-        <div class="grid-3" style="margin-bottom: 6px;">
-          <div>
-            <div class="field-label">Campus / Branch</div>
-            <div class="field-value" style="color: #4338ca;">${branchName}</div>
+      <!-- 4. Government KYC & Identity Proof Verification -->
+      <div class="sec-card">
+        <div class="sec-title">🪪 Government ID Proof & KYC Verification</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center;">
+          
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <div style="font-weight: 800; font-size: 11px; color: #0f172a;">📑 ${idProofType}</div>
+              <div style="font-size: 10px; color: #334155; font-family: monospace; font-weight: 700; margin-top: 1px;">
+                ${idProofNumber ? `ID Number: ${idProofNumber}` : 'Document Attached on Record'}
+              </div>
+            </div>
+            <span style="font-size: 8.5px; font-weight: 800; color: #059669; background: #d1fae5; padding: 2px 7px; border-radius: 4px; border: 1px solid #10b981;">
+              KYC VERIFIED ✓
+            </span>
           </div>
-          <div>
-            <div class="field-label">Assigned Desk / Seat</div>
-            <div class="field-value" style="color: #059669; font-size: 12.5px;">${seatNumber} (${seatZone}${seatFloor})</div>
-          </div>
-          <div>
-            <div class="field-label">Study Shift & Timings</div>
-            <div class="field-value">${shiftTimingStr}</div>
-          </div>
-        </div>
 
-        <div class="grid-4">
-          <div>
-            <div class="field-label">Membership Plan</div>
-            <div class="field-value">${planName} ${planDuration ? '(' + planDuration + ')' : ''}</div>
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <div style="font-weight: 800; font-size: 11px; color: #0f172a;">📋 Admission & Fee Status</div>
+              <div style="font-size: 10px; color: #334155; font-family: monospace; font-weight: 700; margin-top: 1px;">
+                Status: ${status} (${isPaid ? 'CONFIRMED' : 'PROVISIONAL'})
+              </div>
+            </div>
+            <span style="font-size: 8.5px; font-weight: 800; color: ${isPaid ? '#059669' : '#d97706'}; background: ${isPaid ? '#d1fae5' : '#fef3c7'}; padding: 2px 7px; border-radius: 4px; border: 1px solid ${isPaid ? '#10b981' : '#f59e0b'};">
+              ${isPaid ? 'ACTIVE ACCESS' : 'PENDING'}
+            </span>
           </div>
-          <div>
-            <div class="field-label">Plan Fee Amount</div>
-            <div class="field-value" style="color: #059669;">${planPrice || 'Standard Rate'}</div>
-          </div>
-          <div>
-            <div class="field-label">Admission Date</div>
-            <div class="field-value">${joinedDate}</div>
-          </div>
-          <div>
-            <div class="field-label">Validity Expiry Date</div>
-            <div class="field-value" style="color: #dc2626; font-weight: 800;">${expiryDate}</div>
-          </div>
+
         </div>
       </div>
 
+      <!-- 5. Form Builder Custom Questions & Dynamic Answers (If Any) -->
+      ${customEntries.length > 0 ? `
+        <div class="sec-card">
+          <div class="sec-title">📋 Additional Registration Information</div>
+          <div class="grid-2">
+            ${customEntries.map(e => `
+              <div style="margin-bottom: 2px;">
+                <div class="field-label">${escapeHTML(e.label)}</div>
+                <div class="field-value" style="font-size: 10.5px;">${escapeHTML(e.value)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- 6. Discipline Code, Terms of Admission & Declaration -->
+      ${opts.showRules ? `
+        <div class="sec-card">
+          <div class="sec-title">📜 Discipline Code & Student Declaration</div>
+          ${termsText ? `<div class="rules-list" style="margin-bottom: 4px;">${termsText}</div>` : `
+          <ol class="rules-list">
+            <li>Maintain complete silence in the study hall. Mobile phones must strictly be kept on Silent mode.</li>
+            <li>Seats are reserved for the registered student and non-transferable without prior management approval.</li>
+            <li>Eatables, tea, and open beverages are strictly prohibited inside reading rooms.</li>
+            <li>I declare that the information provided is accurate and agree to adhere to all library rules and timings.</li>
+          </ol>`}
+          ${customNote ? `<p style="font-size: 9px; color: #4338ca; font-weight: 700; margin-top: 2px;">Notice: ${customNote}</p>` : ''}
+
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 6px; padding-top: 5px; border-top: 1px dashed #cbd5e1;">
+            <div>
+              <div class="field-label">Date & Place</div>
+              <div class="field-value">${joinedDate} • ${city !== 'N/A' ? city : 'Campus'}</div>
+            </div>
+
+            ${opts.showSignature ? `
+              <div style="text-align: center;">
+                <div class="field-label">Student Digital Signature</div>
+                <div class="sig-box">
+                  ${sigUrl ? `<img src="${sigUrl}" alt="Signature">` : `<span style="font-family:'Courier New', monospace; font-size:11px; font-weight:700;">${studentName}</span>`}
+                </div>
+              </div>
+            ` : ''}
+
+            <div style="text-align: center;">
+              <div class="field-label">${rcFooter.signatureLabel || 'Authorized Seal & Signatory'}</div>
+              <div class="sig-box" style="border-bottom-style: dotted; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                ${stampImageUrl ? `<img src="${stampImageUrl}" style="max-height: 38px; opacity: 0.92;">` : ''}
+                ${managerSigUrl ? `<img src="${managerSigUrl}" style="max-height: 34px;">` : ''}
+                ${!stampImageUrl && !managerSigUrl ? `<span style="font-size:8.5px; color:#64748b; font-weight:800; border:1px solid #cbd5e1; padding:2px 8px; border-radius:4px;">OFFICIAL SEAL</span>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
     </div>
 
-    <!-- Right Column: Passport Photo & Verification QR Code -->
-    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-      
-      <!-- Passport Photo Frame -->
-      <div style="width: 100%; text-align: center;">
-        <div class="field-label" style="margin-bottom: 3px; font-size: 8.5px;">PASSPORT PHOTO</div>
-        <div class="photo-frame">
-          ${photoUrl ? `<img src="${photoUrl}" alt="Photo">` : `<span style="color:#94a3b8; font-size:9px; font-weight:700;">AFFIX PHOTO</span>`}
-        </div>
-      </div>
-
-      <!-- Generated Student Verification QR Code -->
-      <div style="width: 100%; text-align: center;">
-        <div class="field-label" style="margin-bottom: 3px; font-size: 8.5px;">VERIFY ID QR</div>
-        <div class="qr-frame" style="margin: 0 auto;">
-          <div style="display: flex; align-items: center; justify-content: center;">
-            ${qrCodeImg}
-          </div>
-          <div style="font-size: 8.5px; font-weight: 800; font-family: monospace; color: #475569; margin-top: 2px;">${studentId}</div>
-        </div>
-      </div>
-
-    </div>
-
-  </div>
-
-  <!-- 3. Academic Focus, Locker & Guardian Emergency Contact -->
-  <div class="sec-card">
-    <div class="sec-title">🎯 Academic Goals, Facilities & Emergency Contact</div>
-    
-    <div class="grid-3" style="margin-bottom: 6px;">
-      <div>
-        <div class="field-label">Target Competitive Exams</div>
-        <div class="field-value" style="color: #4338ca;">
-          ${targetExamsList.length > 0 ? targetExamsList.join(', ') : 'General Competitive Exams / Self Study'}
-        </div>
-      </div>
-      <div>
-        <div class="field-label">College / Company / Occupation</div>
-        <div class="field-value">${occupation}</div>
-      </div>
-      <div>
-        <div class="field-label">Locker & Access Card</div>
-        <div class="field-value">${lockerNumber ? `Locker #${lockerNumber}` : 'No Locker Assigned'} • Bio/RFID: ${s.rfidCardNumber || s.biometricCardNumber || s.biometricId || 'N/A'}</div>
-      </div>
-    </div>
-
-    ${emergencyName || emergencyPhone ? `
-      <div style="border-top: 1px dashed #cbd5e1; padding-top: 5px;" class="grid-3">
-        <div>
-          <div class="field-label">Guardian / Parent Name</div>
-          <div class="field-value">${emergencyName || 'N/A'}</div>
-        </div>
-        <div>
-          <div class="field-label">Guardian Contact Phone</div>
-          <div class="field-value">📞 ${emergencyPhone || 'N/A'}</div>
-        </div>
-        <div>
-          <div class="field-label">Relationship</div>
-          <div class="field-value">${emergencyRelation}</div>
-        </div>
-      </div>
-    ` : ''}
-  </div>
-
-  <!-- 4. Government KYC & Identity Proof Verification -->
-  <div class="sec-card">
-    <div class="sec-title">🪪 Government ID Proof & KYC Verification</div>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center;">
-      
-      <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
-        <div>
-          <div style="font-weight: 800; font-size: 11.5px; color: #0f172a;">📑 ${idProofType}</div>
-          <div style="font-size: 10.5px; color: #334155; font-family: monospace; font-weight: 700; margin-top: 2px;">
-            ${idProofNumber ? `ID Number: ${idProofNumber}` : 'Document Attached on Record'}
-          </div>
-        </div>
-        <span style="font-size: 9px; font-weight: 800; color: #059669; background: #d1fae5; padding: 3px 8px; border-radius: 4px; border: 1px solid #10b981;">
-          KYC VERIFIED ✓
-        </span>
-      </div>
-
-      <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
-        <div>
-          <div style="font-weight: 800; font-size: 11.5px; color: #0f172a;">📋 Admission & Fee Status</div>
-          <div style="font-size: 10.5px; color: #334155; font-family: monospace; font-weight: 700; margin-top: 2px;">
-            Status: ${status} (${isPaid ? 'CONFIRMED' : 'PROVISIONAL'})
-          </div>
-        </div>
-        <span style="font-size: 9px; font-weight: 800; color: ${isPaid ? '#059669' : '#d97706'}; background: ${isPaid ? '#d1fae5' : '#fef3c7'}; padding: 3px 8px; border-radius: 4px; border: 1px solid ${isPaid ? '#10b981' : '#f59e0b'};">
-          ${isPaid ? 'ACTIVE ACCESS' : 'PENDING'}
-        </span>
-      </div>
-
+    <!-- Page 1 Footer -->
+    <div class="doc-footer">
+      <div>Generated via ${b.businessName || 'Study Library Management'} • ${hasAnnexure ? 'Page 1 of 2 (Official Admission Form)' : 'Official Admission & Registration Record'}</div>
+      <div>Document Ref: ${studentId} • Verified Student Copy</div>
     </div>
   </div>
 
-  <!-- 5. Form Builder Custom Questions & Dynamic Answers (If Any) -->
-  ${customEntries.length > 0 ? `
-    <div class="sec-card">
-      <div class="sec-title">📋 Additional Registration Information</div>
-      <div class="grid-2">
-        ${customEntries.map(e => `
-          <div style="margin-bottom: 3px;">
-            <div class="field-label">${escapeHTML(e.label)}</div>
-            <div class="field-value" style="font-size: 11px;">${escapeHTML(e.value)}</div>
+  <!-- ==================== PAGE 2: ANNEXURE — ATTACHED KYC DOCUMENT SCAN ==================== -->
+  ${hasAnnexure ? `
+    ${uploadedDocEntries.map((doc, idx) => `
+      <div class="page-container page-break">
+        <div>
+          <!-- Annexure Header -->
+          <div class="annexure-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              ${logoUrl ? `<img src="${logoUrl}" style="max-height: 40px; max-width: 65px; object-fit: contain; background: #fff; padding: 2px; border-radius: 6px;">` : ''}
+              <div>
+                <h1 style="font-size: 15px; font-weight: 800; margin: 0;">${b.businessName}</h1>
+                <p style="font-size: 9.5px; opacity: 0.9; margin: 0;">ANNEXURE ${uploadedDocEntries.length > 1 ? String.fromCharCode(65 + idx) : 'A'} — GOVERNMENT ID & KYC VERIFICATION PROOF</p>
+              </div>
+            </div>
+            <div style="text-align: right; background: rgba(255,255,255,0.18); padding: 4px 10px; border-radius: 6px;">
+              <div style="font-size: 8px; text-transform: uppercase; font-weight: 700;">STUDENT IDENTIFICATION</div>
+              <div style="font-size: 12px; font-weight: 900; font-family: monospace;">${studentId}</div>
+            </div>
           </div>
-        `).join('')}
-      </div>
-    </div>
-  ` : ''}
 
-  <!-- 6. ATTACHED & UPLOADED DOCUMENTS GALLERY SECTION -->
-  ${opts.showUploadedDocuments && uploadedDocEntries.length > 0 ? `
-    <div class="sec-card doc-gallery-section" style="page-break-inside: avoid;">
-      <div class="sec-title">📑 Attached KYC Documents & Uploaded Verification Proofs</div>
-      <div style="display: grid; grid-template-columns: ${uploadedDocEntries.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))'}; gap: 10px;">
-        ${uploadedDocEntries.map(doc => `
-          <div class="doc-preview-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px;">
-              <span style="font-size: 10px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+          <!-- Document Full-Page Display Frame -->
+          <div class="doc-preview-card-full">
+            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1.5px dashed #cbd5e1; padding-bottom: 6px;">
+              <span style="font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
                 📄 ${escapeHTML(doc.label)}
               </span>
-              <span style="font-size: 8.5px; font-weight: 700; color: #059669; background: #d1fae5; padding: 2px 6px; border-radius: 3px;">
-                VERIFIED ATTACHMENT
+              <span style="font-size: 9px; font-weight: 800; color: #059669; background: #d1fae5; padding: 3px 8px; border-radius: 4px; border: 1px solid #10b981;">
+                OFFICIAL RECORD ATTACHMENT ✓
               </span>
             </div>
-            <div style="text-align: center; max-height: 230px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: 6px;">
-              <img src="${doc.url}" alt="${escapeHTML(doc.label)}" class="doc-preview-img" style="max-height: 220px; width: 100%; object-fit: contain;">
+            
+            <div style="flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; background: #ffffff; padding: 6px; min-height: 660px;">
+              <img src="${doc.url}" alt="${escapeHTML(doc.label)}" class="doc-preview-img-full">
             </div>
-            <div style="font-size: 8.5px; color: #64748b; margin-top: 4px; font-family: monospace;">
-              Document Reference: ${studentId} • Record ID Proof Scan
+
+            <div style="width: 100%; font-size: 9px; color: #64748b; margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 6px; font-family: monospace; display: flex; justify-content: space-between;">
+              <span>Document Reference: ${studentId} • Verified KYC Record Proof</span>
+              <span>Name: ${studentName} • Date: ${joinedDate}</span>
             </div>
           </div>
-        `).join('')}
-      </div>
-    </div>
-  ` : ''}
-
-  <!-- 7. Discipline Code, Terms of Admission & Declaration -->
-  ${opts.showRules ? `
-    <div class="sec-card" style="page-break-inside: avoid;">
-      <div class="sec-title">📜 Discipline Code & Student Declaration</div>
-      ${termsText ? `<div class="rules-list" style="margin-bottom: 5px;">${termsText}</div>` : `
-      <ol class="rules-list">
-        <li>Maintain complete silence in the study hall. Mobile phones must strictly be kept on Silent mode.</li>
-        <li>Seats are reserved for the registered student and non-transferable without prior management approval.</li>
-        <li>Eatables, tea, and open beverages are strictly prohibited inside reading rooms.</li>
-        <li>I declare that the information provided is accurate and agree to adhere to all library rules and timings.</li>
-      </ol>`}
-      ${customNote ? `<p style="font-size: 9.5px; color: #4338ca; font-weight: 700; margin-top: 3px;">Notice: ${customNote}</p>` : ''}
-
-      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #cbd5e1;">
-        <div>
-          <div class="field-label">Date & Place</div>
-          <div class="field-value">${joinedDate} • ${city !== 'N/A' ? city : 'Campus'}</div>
         </div>
 
-        ${opts.showSignature ? `
-          <div style="text-align: center;">
-            <div class="field-label">Student Digital Signature</div>
-            <div class="sig-box">
-              ${sigUrl ? `<img src="${sigUrl}" alt="Signature">` : `<span style="font-family:'Courier New', monospace; font-size:11px; font-weight:700;">${studentName}</span>`}
-            </div>
-          </div>
-        ` : ''}
-
-        <div style="text-align: center;">
-          <div class="field-label">${rcFooter.signatureLabel || 'Authorized Seal & Signatory'}</div>
-          <div class="sig-box" style="border-bottom-style: dotted; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            ${stampImageUrl ? `<img src="${stampImageUrl}" style="max-height: 40px; opacity: 0.90;">` : ''}
-            ${managerSigUrl ? `<img src="${managerSigUrl}" style="max-height: 36px;">` : ''}
-            ${!stampImageUrl && !managerSigUrl ? `<span style="font-size:9px; color:#64748b; font-weight:800; border:1px solid #cbd5e1; padding:2px 8px; border-radius:4px;">OFFICIAL SEAL</span>` : ''}
-          </div>
+        <!-- Page 2 Footer -->
+        <div class="doc-footer">
+          <div>Generated via ${b.businessName || 'Study Library Management'} • Page ${2 + idx} of ${1 + uploadedDocEntries.length} (Verified KYC Document)</div>
+          <div>Document Ref: ${studentId} • Official Verification Attachment</div>
         </div>
       </div>
-    </div>
+    `).join('')}
   ` : ''}
-
-  <!-- Footer -->
-  <div class="doc-footer">
-    <div>Generated via ${b.businessName || 'Study Library Management'} • Official Admission & Registration Record</div>
-    <div>Document Ref: ${studentId} • Verified Student Copy</div>
-  </div>
 
 </body>
 </html>
