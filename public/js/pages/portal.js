@@ -6,6 +6,7 @@ import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerat
 import { PushNotifications } from '../utils/pushNotifications.js';
 import { renderHeatmap, renderBehaviorBadge, calculateBehaviorScore } from '../utils/attendanceHeatmap.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
+import { SmartIntelligence } from '../utils/smartIntelligence.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -1752,6 +1753,9 @@ function renderPortalUI(container, data, analytics = null) {
           }
         }
       });
+
+      // Bind Dynamic ID Proof Validation & Document Auto-Fetch
+      SmartIntelligence.bindDynamicIDProofValidation(modalContent);
 
       // Submit Profile KYC Completion Form
       modalContent.querySelector('#form-student-kyc-complete')?.addEventListener('submit', async (e) => {

@@ -379,64 +379,136 @@ export class SmartIntelligence {
   }
 
   /**
-   * Scans Base64 image data URL or document text stream for candidate ID numbers.
-   * @param {string} imageSrc 
-   * @param {string} idType 
-   * @returns {{detectedNumber: string|null, confidence: number}}
+   * Auto-infers the Government ID Proof Type from a typed or pasted number
+   * @param {string} inputVal 
+   * @returns {string|null} "Aadhaar Card" | "PAN Card" | "Voter ID" | "Driving License" | "Passport" | null
    */
-  static extractIDFromImage(imageSrc = '', idType = '') {
-    if (!imageSrc || typeof imageSrc !== 'string') {
-      return { detectedNumber: null, confidence: 0 };
+  static detectIDTypeFromNumber(inputVal = '') {
+    if (!inputVal) return null;
+    const raw = String(inputVal).trim();
+    const cleanDigits = raw.replace(/\D/g, '');
+    const cleanAlphaNum = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+
+    // 1. Aadhaar: exactly 12 digits (starting with 2-9)
+    if (cleanDigits.length === 12 && /^[2-9]\d{11}$/.test(cleanDigits)) {
+      return 'Aadhaar Card';
     }
 
-    const config = this.getIDProofConfig(idType);
+    // 2. PAN Card: 5 uppercase letters + 4 digits + 1 letter (10 chars)
+    if (cleanAlphaNum.length === 10 && /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanAlphaNum)) {
+      return 'PAN Card';
+    }
 
-    if (config.type === 'aadhaar') {
-      const m = imageSrc.match(/[2-9]\d{3}\s?\d{4}\s?\d{4}/);
-      if (m) {
-        const clean = m[0].replace(/\s/g, '');
-        return { detectedNumber: `${clean.slice(0,4)} ${clean.slice(4,8)} ${clean.slice(8)}`, confidence: 0.95 };
+    // 3. Voter ID / EPIC: 3 letters + 7 digits
+    if (cleanAlphaNum.length === 10 && /^[A-Z]{3}[0-9]{7}$/.test(cleanAlphaNum)) {
+      return 'Voter ID';
+    }
+
+    // 4. Passport: 1 letter + 7 digits (8 chars)
+    if (cleanAlphaNum.length === 8 && /^[A-PR-WYa-pr-wy][0-9]{7}$/i.test(cleanAlphaNum)) {
+      return 'Passport';
+    }
+
+    // 5. Driving License: 2-letter state code + 10-16 alphanumeric chars
+    if (cleanAlphaNum.length >= 12 && cleanAlphaNum.length <= 18 && /^[A-Z]{2}[0-9A-Z]{10,16}$/.test(cleanAlphaNum)) {
+      return 'Driving License';
+    }
+
+    return null;
+  }
+
+  /**
+   * Scans an uploaded file or Base64 image URL to extract Government ID type & document number
+   * @param {File|Blob|string} fileOrDataUrl 
+   * @param {string} fallbackType 
+   * @returns {Promise<{detectedType: string|null, detectedNumber: string|null, confidence: number}>}
+   */
+  static async scanDocumentImage(fileOrDataUrl, fallbackType = '') {
+    if (!fileOrDataUrl) return { detectedType: null, detectedNumber: null, confidence: 0 };
+
+    let imageString = '';
+    let fileName = '';
+
+    if (typeof fileOrDataUrl === 'string') {
+      imageString = fileOrDataUrl;
+    } else if (fileOrDataUrl instanceof File || fileOrDataUrl instanceof Blob) {
+      fileName = fileOrDataUrl.name || '';
+      try {
+        imageString = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result || '');
+          reader.onerror = () => resolve('');
+          reader.readAsDataURL(fileOrDataUrl);
+        });
+      } catch (e) {
+        imageString = '';
       }
-    } else if (config.type === 'pan') {
-      const m = imageSrc.match(/[A-Za-z]{5}\d{4}[A-Za-z]{1}/);
-      if (m) return { detectedNumber: m[0].toUpperCase(), confidence: 0.95 };
-    } else if (config.type === 'voter') {
-      const m = imageSrc.match(/[A-Za-z]{3}\d{7}/);
-      if (m) return { detectedNumber: m[0].toUpperCase(), confidence: 0.95 };
-    } else if (config.type === 'passport') {
-      const m = imageSrc.match(/[A-PR-WYa-pr-wy]\d{7}/);
-      if (m) return { detectedNumber: m[0].toUpperCase(), confidence: 0.95 };
     }
 
-    return { detectedNumber: null, confidence: 0 };
+    // 1. Client-Side instant pattern match from filename or text stream
+    const sourceStream = `${fileName} ${imageString.slice(0, 3000)}`;
+
+    const aadhaarMatch = sourceStream.match(/\b([2-9]\d{3})\s?(\d{4})\s?(\d{4})\b/) || sourceStream.match(/\b([2-9]\d{11})\b/);
+    if (aadhaarMatch) {
+      const clean = (aadhaarMatch[0] || '').replace(/\D/g, '');
+      if (clean.length === 12) {
+        return {
+          detectedType: 'Aadhaar Card',
+          detectedNumber: `${clean.slice(0, 4)} ${clean.slice(4, 8)} ${clean.slice(8)}`,
+          confidence: 0.95
+        };
+      }
+    }
+
+    const panMatch = sourceStream.match(/\b([A-Za-z]{5}\d{4}[A-Za-z]{1})\b/);
+    if (panMatch) {
+      return {
+        detectedType: 'PAN Card',
+        detectedNumber: panMatch[1].toUpperCase(),
+        confidence: 0.95
+      };
+    }
+
+    const voterMatch = sourceStream.match(/\b([A-Za-z]{3}\d{7})\b/);
+    if (voterMatch) {
+      return {
+        detectedType: 'Voter ID',
+        detectedNumber: voterMatch[1].toUpperCase(),
+        confidence: 0.90
+      };
+    }
+
+    const passMatch = sourceStream.match(/\b([A-PR-WYa-pr-wy]\d{7})\b/);
+    if (passMatch) {
+      return {
+        detectedType: 'Passport',
+        detectedNumber: passMatch[1].toUpperCase(),
+        confidence: 0.90
+      };
+    }
+
+    // 2. Query backend OCR detector
+    try {
+      const res = await fetch('/api/search/ocr-id-proof', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: imageString.slice(0, 10000), fileName })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data && json.data.detectedNumber) {
+          return json.data;
+        }
+      }
+    } catch (err) {
+      // Backend lookup fallback
+    }
+
+    return { detectedType: null, detectedNumber: null, confidence: 0 };
   }
 
   /**
-   * Verifies if typed ID number matches document uploaded photo ID number.
-   * @param {string} typedNumber 
-   * @param {string} documentNumber 
-   * @returns {{isMatch: boolean, message: string}}
-   */
-  static verifyIDNumberMatch(typedNumber = '', documentNumber = '') {
-    const cleanTyped = String(typedNumber || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    const cleanDoc = String(documentNumber || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-
-    if (!cleanTyped || !cleanDoc) {
-      return { isMatch: true, message: '' };
-    }
-
-    if (cleanTyped === cleanDoc || cleanDoc.includes(cleanTyped) || cleanTyped.includes(cleanDoc)) {
-      return { isMatch: true, message: '✅ Document ID Verified! Entered number matches uploaded photo.' };
-    }
-
-    return {
-      isMatch: false,
-      message: `⚠️ Document ID Mismatch Warning: Entered number (${typedNumber}) does not match the number detected in your uploaded document (${documentNumber}). Please verify!`
-    };
-  }
-
-  /**
-   * Dynamically binds ID Proof Type select, Number input, and Upload document listener
+   * Dynamically binds ID Proof Type select, Number input, and Auto-Fetch from Document Upload
    * @param {HTMLElement|Document} rootEl 
    */
   static bindDynamicIDProofValidation(rootEl = document) {
@@ -453,6 +525,7 @@ export class SmartIntelligence {
       alertDiv = document.createElement('div');
       alertDiv.className = 'id-proof-feedback-msg mt-1 small';
       alertDiv.style.fontWeight = '600';
+      alertDiv.style.transition = 'all 0.3s ease';
       numWrapper.appendChild(alertDiv);
     }
 
@@ -496,9 +569,28 @@ export class SmartIntelligence {
       }
     }
 
+    // Auto-switch dropdown type if typed or pasted value matches specific format
+    function handleAutoTypeSwitch(val) {
+      if (!val || val.length < 5) return;
+      const detected = SmartIntelligence.detectIDTypeFromNumber(val);
+      if (detected && typeSelect.value !== detected) {
+        // Find matching option in select
+        for (let i = 0; i < typeSelect.options.length; i++) {
+          const opt = typeSelect.options[i];
+          if (opt.value.toLowerCase().includes(detected.toLowerCase()) || detected.toLowerCase().includes(opt.value.toLowerCase())) {
+            typeSelect.selectedIndex = i;
+            applyRules();
+            break;
+          }
+        }
+      }
+    }
+
     typeSelect.addEventListener('change', applyRules);
+
     ['input', 'blur', 'keyup', 'paste'].forEach(evt => {
       numInput.addEventListener(evt, (e) => {
+        handleAutoTypeSwitch(e.target.value);
         const selectedType = typeSelect.value || '';
         const config = SmartIntelligence.getIDProofConfig(selectedType);
         const formatted = config.formatFn(e.target.value);
@@ -506,6 +598,74 @@ export class SmartIntelligence {
         validateInput(formatted, config);
       });
     });
+
+    // ── Auto-Fetch from ID Proof Document Upload ──────────────────────────
+    const idProofUploadContainer = rootEl.querySelector('#mount-student-idproof, #public-idproof-mount, #mount-portal-idproof, .custom-media-mount[data-field="idProofImage"], .custom-media-mount[data-field="idproofimage"]');
+
+    if (idProofUploadContainer) {
+      const handleDocumentUpload = async (imageSrcOrFile) => {
+        if (!imageSrcOrFile) return;
+
+        if (alertDiv) {
+          alertDiv.style.color = 'var(--color-primary, #6c5ce7)';
+          alertDiv.textContent = '🔍 Auto-scanning uploaded ID document for details...';
+        }
+
+        const scanRes = await SmartIntelligence.scanDocumentImage(imageSrcOrFile, typeSelect.value);
+
+        if (scanRes && scanRes.detectedNumber) {
+          if (scanRes.detectedType) {
+            for (let i = 0; i < typeSelect.options.length; i++) {
+              const opt = typeSelect.options[i];
+              if (opt.value.toLowerCase().includes(scanRes.detectedType.toLowerCase()) || scanRes.detectedType.toLowerCase().includes(opt.value.toLowerCase())) {
+                typeSelect.selectedIndex = i;
+                break;
+              }
+            }
+          }
+
+          applyRules();
+          numInput.value = scanRes.detectedNumber;
+          numInput.dispatchEvent(new Event('input', { bubbles: true }));
+          numInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+          // Green highlight visual feedback
+          numInput.style.borderColor = 'var(--color-success, #10b981)';
+          numInput.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.25)';
+          setTimeout(() => {
+            numInput.style.borderColor = '';
+            numInput.style.boxShadow = '';
+          }, 3000);
+
+          if (alertDiv) {
+            alertDiv.style.color = 'var(--color-success, #10b981)';
+            alertDiv.textContent = `✨ Auto-fetched ${scanRes.detectedType || 'ID'} (${scanRes.detectedNumber}) from document photo!`;
+          }
+        } else if (alertDiv && !numInput.value) {
+          alertDiv.style.color = 'var(--color-text-secondary, #888)';
+          alertDiv.textContent = '📑 Document attached. Enter ID proof number if not auto-detected.';
+        }
+      };
+
+      // Watch file input
+      const fileInput = idProofUploadContainer.querySelector('.mfp-file-input, input[type="file"]');
+      if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+          const file = e.target.files?.[0];
+          if (file) handleDocumentUpload(file);
+        });
+      }
+
+      // Watch hidden value
+      const hiddenInput = idProofUploadContainer.querySelector('.mfp-hidden-value, input[type="hidden"]');
+      if (hiddenInput) {
+        ['input', 'change'].forEach(evt => {
+          hiddenInput.addEventListener(evt, (e) => {
+            if (e.target.value) handleDocumentUpload(e.target.value);
+          });
+        });
+      }
+    }
 
     applyRules();
   }
