@@ -105,10 +105,13 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// GET /managers — Return list of active managers/users for branch assignment
+// GET /managers — Return list of active managers/staff for branch assignment
 router.get('/managers', async (req, res) => {
   try {
-    const managers = await User.find({ isActive: true })
+    const managers = await User.find({
+      isActive: true,
+      role: { $in: ['branch_manager', 'owner', 'staff', 'admin'] }
+    })
       .select('name email phone role avatar')
       .sort('name').lean();
     res.json({

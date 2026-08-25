@@ -140,37 +140,24 @@ async function runTests() {
   // ── TEST 3: RBAC Boundary Test (Student Token vs Admin Token) ───────────────
   console.log(`\n${colors.bold}--- Test Suite 3: RBAC Boundary & Role Enforcement ---${colors.reset}`);
   
-  // Create or find Test Users
-  let studentUser = await User.findOne({ email: 'qa_smoke_student@test.local' });
-  if (!studentUser) {
-    studentUser = await User.create({
-      name: 'QA Test Student',
-      email: 'qa_smoke_student@test.local',
-      password: 'TestPassword123!',
-      role: 'student',
-      isActive: true
-    });
-  }
-
-  let adminUser = await User.findOne({ email: 'qa_smoke_admin@test.local' });
-  if (!adminUser) {
-    adminUser = await User.create({
-      name: 'QA Test Admin',
-      email: 'qa_smoke_admin@test.local',
-      password: 'TestPassword123!',
-      role: 'owner',
-      isActive: true
-    });
-  }
-
-  const studentToken = jwt.sign(
-    { id: studentUser._id, role: studentUser.role, email: studentUser.email },
+  const realAdmin = await User.findOne({ role: 'owner' }) || await User.findOne({});
+  const adminToken = jwt.sign(
+    { id: realAdmin?._id, role: realAdmin?.role || 'owner', email: realAdmin?.email },
     jwtSecret,
     { expiresIn: '1h' }
   );
 
-  const adminToken = jwt.sign(
-    { id: adminUser._id, role: adminUser.role, email: adminUser.email },
+  // Temporary student user for RBAC test (deleted immediately after)
+  let testStudentUser = await User.create({
+    name: 'Temporary Smoke Test Student',
+    email: `tmp_rbac_${Date.now()}@test.local`,
+    password: 'TestPassword123!',
+    role: 'student',
+    isActive: true
+  });
+
+  const studentToken = jwt.sign(
+    { id: testStudentUser._id, role: 'student', email: testStudentUser.email },
     jwtSecret,
     { expiresIn: '1h' }
   );
@@ -193,6 +180,9 @@ async function runTests() {
       recordResult('RBAC Student Role', `GET ${ep} with Student Token -> 403 Forbidden`, false, `Error: ${err.message}`);
     }
   }
+
+  // Delete test student user immediately
+  await User.deleteOne({ _id: testStudentUser._id });
 
   // Verify admin gets 200 OK
   for (const ep of rbacEndpoints) {
