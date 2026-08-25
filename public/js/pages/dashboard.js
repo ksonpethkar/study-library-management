@@ -636,26 +636,36 @@ export async function render(container) {
       </div>
 
       <!-- 1. Executive Summary Hero Pass Card -->
-      <div class="admin-hero-card mb-3">
+      <div class="admin-hero-card mb-3" style="
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #0f766e 100%) !important;
+        color: #ffffff !important;
+        border-radius: 20px;
+        padding: 1.25rem 1.5rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 12px 36px rgba(49, 46, 129, 0.32);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-sizing: border-box;
+      ">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 1; flex-wrap: wrap; gap: 12px;">
           <div>
-            <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.85; font-weight: 700;">
+            <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.85; font-weight: 700; color: #ffffff;">
               Live Library Occupancy
             </div>
-            <div style="font-size: 1.85rem; font-weight: 900; line-height: 1.1; margin-top: 2px; text-shadow: 0 2px 8px rgba(0,0,0,0.2);" id="dash-hero-occ">
+            <div style="font-size: 1.85rem; font-weight: 900; line-height: 1.1; margin-top: 2px; text-shadow: 0 2px 8px rgba(0,0,0,0.2); color: #ffffff;" id="dash-hero-occ">
               0 / 0 Seats
             </div>
-            <div style="font-size: 0.78rem; opacity: 0.92; margin-top: 2px; font-weight: 600;" id="dash-hero-checkin">
+            <div style="font-size: 0.78rem; opacity: 0.92; margin-top: 2px; font-weight: 600; color: #ffffff;" id="dash-hero-checkin">
               🟢 0 students checked in right now
             </div>
           </div>
 
           <!-- Today's Revenue Pill -->
           <div style="text-align: right;">
-            <span style="background: rgba(255,255,255,0.22); backdrop-filter: blur(8px); padding: 5px 12px; border-radius: 20px; font-weight: 800; font-size: 0.84rem; letter-spacing: 0.3px; border: 1px solid rgba(255,255,255,0.3); display: inline-block;" id="dash-hero-revenue">
+            <span style="background: rgba(255,255,255,0.22); backdrop-filter: blur(8px); padding: 5px 12px; border-radius: 20px; font-weight: 800; font-size: 0.84rem; letter-spacing: 0.3px; border: 1px solid rgba(255,255,255,0.3); display: inline-block; color: #ffffff;" id="dash-hero-revenue">
               ₹0 Today
             </span>
-            <div style="font-size: 0.72rem; opacity: 0.88; margin-top: 4px; font-weight: 600;" id="dash-hero-students">
+            <div style="font-size: 0.72rem; opacity: 0.88; margin-top: 4px; font-weight: 600; color: #ffffff;" id="dash-hero-students">
               0 Active Members
             </div>
           </div>
@@ -687,49 +697,49 @@ export async function render(container) {
         gap: 8px;
         margin-bottom: 1.25rem;
       ">
-        <a href="#/students" class="admin-app-tile" title="Manage Students & Admissions">
-          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.08)); color: #6366f1;">🎓</div>
-          <div class="admin-tile-label">Students</div>
+        <a href="#/students" class="admin-app-tile" title="Manage Students & Admissions" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.08)); color: #6366f1;">🎓</div>
+          <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Students</div>
         </a>
-        <a href="#/seats" class="admin-app-tile" title="Seat Matrix & Floor Plan">
-          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08)); color: #10b981;">💺</div>
-          <div class="admin-tile-label">Seats</div>
+        <a href="#/seats" class="admin-app-tile" title="Seat Matrix & Floor Plan" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08)); color: #10b981;">💺</div>
+          <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Seats</div>
         </a>
-        <a href="#/payments" class="admin-app-tile" title="Fee Collections & Invoices">
-          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0.08)); color: #0ea5e9;">💳</div>
-          <div class="admin-tile-label">Payments</div>
+        <a href="#/payments" class="admin-app-tile" title="Fee Collections & Invoices" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0.08)); color: #0ea5e9;">💳</div>
+          <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Payments</div>
         </a>
-        <a href="#/attendance" class="admin-app-tile" title="Live Attendance & RFID Log">
-          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(20, 184, 166, 0.08)); color: #14b8a6;">👥</div>
-          <div class="admin-tile-label">Attendance</div>
+        <a href="#/attendance" class="admin-app-tile" title="Live Attendance & RFID Log" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(20, 184, 166, 0.08)); color: #14b8a6;">👥</div>
+          <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Attendance</div>
         </a>
-        <a href="#/expenses" class="admin-app-tile" title="Expenses & Daily P&L">
-          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(236, 72, 153, 0.08)); color: #ec4899;">📊</div>
-          <div class="admin-tile-label">Expenses</div>
+        <a href="#/expenses" class="admin-app-tile" title="Expenses & Daily P&L" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(236, 72, 153, 0.08)); color: #ec4899;">📊</div>
+          <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Expenses</div>
         </a>
-        <a href="#/notifications" class="admin-app-tile" title="Send WhatsApp & Push Alerts">
-          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08)); color: #f59e0b;">📢</div>
-          <div class="admin-tile-label">Broadcast</div>
+        <a href="#/notifications" class="admin-app-tile" title="Send WhatsApp & Push Alerts" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08)); color: #f59e0b;">📢</div>
+          <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Broadcast</div>
         </a>
-        <a href="#/reports" class="admin-app-tile" title="Business Analytics & Tax Reports">
-          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08)); color: #a855f7;">📈</div>
-          <div class="admin-tile-label">Reports</div>
+        <a href="#/reports" class="admin-app-tile" title="Business Analytics & Tax Reports" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08)); color: #a855f7;">📈</div>
+          <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Reports</div>
         </a>
-        <a href="#/settings" class="admin-app-tile" title="System & POS Configuration">
-          <div class="admin-tile-icon" style="background: linear-gradient(135deg, rgba(100, 116, 139, 0.18), rgba(100, 116, 139, 0.08)); color: #64748b;">⚙️</div>
-          <div class="admin-tile-label">Settings</div>
+        <a href="#/settings" class="admin-app-tile" title="System & POS Configuration" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(100, 116, 139, 0.18), rgba(100, 116, 139, 0.08)); color: #64748b;">⚙️</div>
+          <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Settings</div>
         </a>
       </div>
 
       <!-- 3. Segmented Tab Navigation Track -->
-      <div class="portal-tab-track">
-        <button type="button" class="portal-tab-pill active" data-admin-tab="live-ops">
+      <div class="portal-tab-track" style="display: flex; background: var(--color-bg-secondary); padding: 4px; border-radius: 14px; border: 1px solid var(--color-border); margin-bottom: 1.25rem; gap: 4px; overflow-x: auto;">
+        <button type="button" class="portal-tab-pill active" data-admin-tab="live-ops" style="flex: 1; min-width: 110px; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; border-radius: 10px; border: none; cursor: pointer; background: var(--color-surface); color: var(--color-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.12); transition: all 0.2s; white-space: nowrap; padding: 6px 12px;">
           📊 Operations & KPI
         </button>
-        <button type="button" class="portal-tab-pill" data-admin-tab="expiring">
+        <button type="button" class="portal-tab-pill" data-admin-tab="expiring" style="flex: 1; min-width: 110px; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; border-radius: 10px; border: none; cursor: pointer; background: transparent; color: var(--color-text-secondary); transition: all 0.2s; white-space: nowrap; padding: 6px 12px;">
           ⏳ Expiring Soon
         </button>
-        <button type="button" class="portal-tab-pill" data-admin-tab="pulse">
+        <button type="button" class="portal-tab-pill" data-admin-tab="pulse" style="flex: 1; min-width: 110px; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; border-radius: 10px; border: none; cursor: pointer; background: transparent; color: var(--color-text-secondary); transition: all 0.2s; white-space: nowrap; padding: 6px 12px;">
           📈 Analytics & Trends
         </button>
       </div>
@@ -796,7 +806,11 @@ export async function render(container) {
 
   const switchAdminTab = (tabKey) => {
     adminTabPills.forEach(pill => {
-      pill.classList.toggle('active', pill.getAttribute('data-admin-tab') === tabKey);
+      const isActive = pill.getAttribute('data-admin-tab') === tabKey;
+      pill.classList.toggle('active', isActive);
+      pill.style.background = isActive ? 'var(--color-surface)' : 'transparent';
+      pill.style.color = isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)';
+      pill.style.boxShadow = isActive ? '0 2px 8px rgba(0, 0, 0, 0.12)' : 'none';
     });
     Object.keys(adminTabPanes).forEach(k => {
       if (adminTabPanes[k]) {

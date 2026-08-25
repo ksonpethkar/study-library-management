@@ -211,33 +211,43 @@ function renderPortalUI(container, data, analytics = null) {
       </div>
 
       <!-- 2. Smart Pass & Active Desk Card (Apple Wallet Inspired) -->
-      <div class="portal-pass-card mb-3">
+      <div class="portal-pass-card mb-3" style="
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #0f766e 100%) !important;
+        color: #ffffff !important;
+        border-radius: 20px;
+        padding: 1.25rem 1.5rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 12px 36px rgba(49, 46, 129, 0.32);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-sizing: border-box;
+      ">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 1; flex-wrap: wrap; gap: 10px;">
           <div>
-            <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.85; font-weight: 700;">
+            <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.85; font-weight: 700; color: #ffffff;">
               Allotted Study Desk
             </div>
-            <div style="font-size: 1.85rem; font-weight: 900; line-height: 1.1; margin-top: 2px; text-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+            <div style="font-size: 1.85rem; font-weight: 900; line-height: 1.1; margin-top: 2px; text-shadow: 0 2px 8px rgba(0,0,0,0.2); color: #ffffff;">
               ${seatTitle}
             </div>
-            <div style="font-size: 0.78rem; opacity: 0.92; margin-top: 2px; font-weight: 600;">
-              Shift: <span>${escapeHTML(shiftName)}</span> • Plan: <span>${escapeHTML(planName)}</span>
+            <div style="font-size: 0.78rem; opacity: 0.92; margin-top: 2px; font-weight: 600; color: #ffffff;">
+              Shift: <span style="color: #a7f3d0; font-weight: 700;">${escapeHTML(shiftName)}</span> • Plan: <span style="color: #c7d2fe; font-weight: 700;">${escapeHTML(planName)}</span>
             </div>
           </div>
 
           <!-- Plan Expiry Pill -->
           <div style="text-align: right;">
-            <span style="background: rgba(255,255,255,0.22); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: 20px; font-weight: 800; font-size: 0.78rem; letter-spacing: 0.3px; border: 1px solid rgba(255,255,255,0.3); display: inline-block;">
+            <span style="background: rgba(255,255,255,0.22); backdrop-filter: blur(8px); padding: 5px 12px; border-radius: 20px; font-weight: 800; font-size: 0.82rem; letter-spacing: 0.3px; border: 1px solid rgba(255,255,255,0.35); display: inline-block; color: #ffffff;">
               ⏳ ${daysRemaining} ${daysRemaining === 1 ? 'Day' : 'Days'} Left
             </span>
-            <div style="font-size: 0.72rem; opacity: 0.88; margin-top: 4px; font-weight: 600;">
+            <div style="font-size: 0.72rem; opacity: 0.90; margin-top: 4px; font-weight: 600; color: #ffffff;">
               Valid till ${expiryDateStr}
             </div>
           </div>
         </div>
 
         <!-- Validity Progress Bar inside Pass -->
-        <div style="margin-top: 14px; background: rgba(0,0,0,0.25); height: 6px; border-radius: 4px; overflow: hidden; position: relative; z-index: 1;">
+        <div style="margin-top: 14px; background: rgba(0,0,0,0.3); height: 6px; border-radius: 4px; overflow: hidden; position: relative; z-index: 1;">
           <div style="height: 100%; width: ${Math.max(5, Math.min(100, (daysRemaining / 30) * 100))}%; background: linear-gradient(90deg, #34d399, #a7f3d0); border-radius: 4px;"></div>
         </div>
 
@@ -251,9 +261,9 @@ function renderPortalUI(container, data, analytics = null) {
           </button>
 
           <button id="btn-portal-idcard" class="btn btn-sm" style="
-            background: rgba(255,255,255,0.22); color: #ffffff; border: 1px solid rgba(255,255,255,0.4);
-            font-weight: 700; font-size: 0.82rem; padding: 8px 16px; border-radius: 12px; backdrop-filter: blur(8px);
-            flex: 1 1 140px; min-height: 42px;
+            background: rgba(255,255,255,0.25); color: #ffffff !important; border: 1px solid rgba(255,255,255,0.45);
+            font-weight: 700; font-size: 0.84rem; padding: 8px 16px; border-radius: 12px; backdrop-filter: blur(8px);
+            flex: 1 1 140px; min-height: 42px; text-shadow: 0 1px 3px rgba(0,0,0,0.3);
           ">
             🪪 View Digital ID Pass
           </button>
@@ -292,57 +302,57 @@ function renderPortalUI(container, data, analytics = null) {
         gap: 8px;
         margin-bottom: 1.25rem;
       ">
-        <div class="portal-app-tile" id="tile-portal-idcard" title="Open Digital ID Card Studio">
-          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.08)); color: #6366f1;">🪪</div>
-          <div class="portal-tile-label">ID Pass</div>
+        <div class="portal-app-tile" id="tile-portal-idcard" title="Open Digital ID Card Studio" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="portal-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.08)); color: #6366f1;">🪪</div>
+          <div class="portal-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">ID Pass</div>
         </div>
-        <div class="portal-app-tile" id="tile-portal-renew" title="Renew Membership Plan">
-          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08)); color: #10b981;">⚡</div>
-          <div class="portal-tile-label">Renew</div>
+        <div class="portal-app-tile" id="tile-portal-renew" title="Renew Membership Plan" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="portal-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08)); color: #10b981;">⚡</div>
+          <div class="portal-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Renew</div>
         </div>
-        <div class="portal-app-tile" id="tile-portal-receipts" title="View Fee Receipts & Invoices">
-          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0.08)); color: #0ea5e9;">🧾</div>
-          <div class="portal-tile-label">Receipts</div>
+        <div class="portal-app-tile" id="tile-portal-receipts" title="View Fee Receipts & Invoices" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="portal-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0.08)); color: #0ea5e9;">🧾</div>
+          <div class="portal-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Receipts</div>
         </div>
-        <div class="portal-app-tile" id="tile-portal-notices" title="Read Campus Notices">
-          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08)); color: #f59e0b;">📢</div>
-          <div class="portal-tile-label">Notices</div>
+        <div class="portal-app-tile" id="tile-portal-notices" title="Read Campus Notices" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="portal-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08)); color: #f59e0b;">📢</div>
+          <div class="portal-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Notices</div>
         </div>
-        <div class="portal-app-tile" id="tile-portal-holidays" title="Check Holiday Calendar">
-          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(236, 72, 153, 0.08)); color: #ec4899;">📅</div>
-          <div class="portal-tile-label">Holidays</div>
+        <div class="portal-app-tile" id="tile-portal-holidays" title="Check Holiday Calendar" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="portal-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(236, 72, 153, 0.08)); color: #ec4899;">📅</div>
+          <div class="portal-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Holidays</div>
         </div>
-        <div class="portal-app-tile" id="tile-portal-lostfound" title="Lost & Found Hub">
-          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(20, 184, 166, 0.08)); color: #14b8a6;">🔍</div>
-          <div class="portal-tile-label">Lost/Found</div>
+        <div class="portal-app-tile" id="tile-portal-lostfound" title="Lost & Found Hub" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="portal-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(20, 184, 166, 0.08)); color: #14b8a6;">🔍</div>
+          <div class="portal-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Lost/Found</div>
         </div>
-        <div class="portal-app-tile" id="tile-portal-feedback" title="Submit Support Feedback">
-          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08)); color: #a855f7;">💬</div>
-          <div class="portal-tile-label">Feedback</div>
+        <div class="portal-app-tile" id="tile-portal-feedback" title="Submit Support Feedback" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="portal-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08)); color: #a855f7;">💬</div>
+          <div class="portal-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Feedback</div>
         </div>
-        <div class="portal-app-tile" id="tile-portal-seat-change" title="Request Seat Transfer">
-          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(59, 130, 246, 0.08)); color: #3b82f6;">💺</div>
-          <div class="portal-tile-label">Shift/Seat</div>
+        <div class="portal-app-tile" id="tile-portal-seat-change" title="Request Seat Transfer" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="portal-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(59, 130, 246, 0.08)); color: #3b82f6;">💺</div>
+          <div class="portal-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Shift/Seat</div>
         </div>
-        <div class="portal-app-tile" id="tile-portal-leave" title="Apply for Leave">
-          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.18), rgba(249, 115, 22, 0.08)); color: #f97316;">🌴</div>
-          <div class="portal-tile-label">Leave App</div>
+        <div class="portal-app-tile" id="tile-portal-leave" title="Apply for Leave" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="portal-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(249, 115, 22, 0.18), rgba(249, 115, 22, 0.08)); color: #f97316;">🌴</div>
+          <div class="portal-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Leave App</div>
         </div>
-        <div class="portal-app-tile" id="tile-portal-referral" title="Refer a Friend">
-          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.18), rgba(234, 179, 8, 0.08)); color: #eab308;">🎁</div>
-          <div class="portal-tile-label">Referral</div>
+        <div class="portal-app-tile" id="tile-portal-referral" title="Refer a Friend" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
+          <div class="portal-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(234, 179, 8, 0.18), rgba(234, 179, 8, 0.08)); color: #eab308;">🎁</div>
+          <div class="portal-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Referral</div>
         </div>
       </div>
 
       <!-- 5. Segmented Tab Navigation Track -->
-      <div class="portal-tab-track">
-        <button type="button" class="portal-tab-pill active" data-portal-tab="overview">
+      <div class="portal-tab-track" style="display: flex; background: var(--color-bg-secondary); padding: 4px; border-radius: 14px; border: 1px solid var(--color-border); margin-bottom: 1.25rem; gap: 4px; overflow-x: auto;">
+        <button type="button" class="portal-tab-pill active" data-portal-tab="overview" style="flex: 1; min-width: 110px; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; border-radius: 10px; border: none; cursor: pointer; background: var(--color-surface); color: var(--color-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.12); transition: all 0.2s; white-space: nowrap; padding: 6px 12px;">
           🏠 Overview & Streaks
         </button>
-        <button type="button" class="portal-tab-pill" data-portal-tab="campus">
+        <button type="button" class="portal-tab-pill" data-portal-tab="campus" style="flex: 1; min-width: 110px; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; border-radius: 10px; border: none; cursor: pointer; background: transparent; color: var(--color-text-secondary); transition: all 0.2s; white-space: nowrap; padding: 6px 12px;">
           🏛️ Campus Life
         </button>
-        <button type="button" class="portal-tab-pill" data-portal-tab="receipts">
+        <button type="button" class="portal-tab-pill" data-portal-tab="receipts" style="flex: 1; min-width: 110px; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; border-radius: 10px; border: none; cursor: pointer; background: transparent; color: var(--color-text-secondary); transition: all 0.2s; white-space: nowrap; padding: 6px 12px;">
           🧾 Fee Receipts
         </button>
       </div>
@@ -648,7 +658,11 @@ function renderPortalUI(container, data, analytics = null) {
 
   const switchPortalTab = (tabKey) => {
     portalTabPills.forEach(pill => {
-      pill.classList.toggle('active', pill.getAttribute('data-portal-tab') === tabKey);
+      const isActive = pill.getAttribute('data-portal-tab') === tabKey;
+      pill.classList.toggle('active', isActive);
+      pill.style.background = isActive ? 'var(--color-surface)' : 'transparent';
+      pill.style.color = isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)';
+      pill.style.boxShadow = isActive ? '0 2px 8px rgba(0, 0, 0, 0.12)' : 'none';
     });
     Object.keys(portalTabPanes).forEach(k => {
       if (portalTabPanes[k]) {
