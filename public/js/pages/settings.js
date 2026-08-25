@@ -3090,6 +3090,13 @@ function renderWebsiteCmsStudio() {
     // Helper to send live updates to preview iframe
     const dispatchLiveUpdate = () => {
       if (!iframe || !iframe.contentWindow) return;
+      const liveQLinks = [];
+      for (let i = 1; i <= 4; i++) {
+        const label = wrapper.querySelector(`#cms-qlink-lbl-${i}`)?.value?.trim();
+        const url = wrapper.querySelector(`#cms-qlink-url-${i}`)?.value?.trim();
+        if (label && url) liveQLinks.push({ label, url, openInNewTab: false });
+      }
+
       iframe.contentWindow.postMessage({
         type: 'LIVE_CMS_UPDATE',
         preset: currentPreset,
@@ -3099,7 +3106,10 @@ function renderWebsiteCmsStudio() {
         fontFamily: wrapper.querySelector('#cms-font-family')?.value,
         heroTitle: wrapper.querySelector('#cms-hero-title')?.value,
         heroSubtitle: wrapper.querySelector('#cms-hero-subtitle')?.value,
-        announcementTicker: wrapper.querySelector('#cms-hero-ticker')?.value
+        announcementTicker: wrapper.querySelector('#cms-hero-ticker')?.value,
+        quickLinks: liveQLinks,
+        footerTagline: wrapper.querySelector('#cms-footer-tagline')?.value,
+        navBrand: wrapper.querySelector('#cms-nav-brand-name')?.value
       }, '*');
     };
 
@@ -3377,7 +3387,14 @@ function renderWebsiteCmsStudio() {
     });
 
     // 4. Live Text Inputs Sync
-    ['#cms-font-family', '#cms-hero-title', '#cms-hero-subtitle', '#cms-hero-ticker'].forEach(sel => {
+    [
+      '#cms-font-family', '#cms-hero-title', '#cms-hero-subtitle', '#cms-hero-ticker',
+      '#cms-footer-tagline', '#cms-nav-brand-name',
+      '#cms-qlink-lbl-1', '#cms-qlink-url-1',
+      '#cms-qlink-lbl-2', '#cms-qlink-url-2',
+      '#cms-qlink-lbl-3', '#cms-qlink-url-3',
+      '#cms-qlink-lbl-4', '#cms-qlink-url-4'
+    ].forEach(sel => {
       wrapper.querySelector(sel)?.addEventListener('input', dispatchLiveUpdate);
     });
 
@@ -3629,7 +3646,9 @@ function renderWebsiteCmsStudio() {
 
         const res = await api.put('/api/landing', payload);
         if (res.success) {
+          try { localStorage.removeItem('sl_public_profile_cache'); } catch(e) {}
           Toast.success('Public Website published live with all 17 customization sections!');
+          dispatchLiveUpdate();
           if (iframe) iframe.src = `/landing?preview=true&theme=${currentPreset}&t=${Date.now()}`;
         } else {
           Toast.error(res.message || 'Failed to publish website');

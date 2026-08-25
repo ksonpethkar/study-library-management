@@ -1067,12 +1067,7 @@
 
       <div>
         <h4 style="font-weight: 700; margin-bottom: 1.5rem; font-size:1.1rem;" id="footer-links-heading">Quick Links</h4>
-        <ul class="footer-links" id="footer-links-container">
-          <li><a href="/register" style="color: var(--primary);">Online Admission</a></li>
-          <li><a href="/student-login">Student Portal</a></li>
-          <li><a href="/kiosk">Gate Kiosk</a></li>
-          <li><a href="/#/" style="font-size:0.85rem; opacity:0.7;">Staff & Owner Login</a></li>
-        </ul>
+        <ul class="footer-links" id="footer-links-container"></ul>
       </div>
 
       <div class="footer-map" id="footer-map-container">
@@ -1877,18 +1872,17 @@
               }
             }
 
-            // Dynamic Quick Links
-            const qLinks = (landing.footer?.quickLinks && landing.footer.quickLinks.length > 0) ? landing.footer.quickLinks : [
-              { label: 'Online Admission', url: '/register', openInNewTab: false },
-              { label: 'Student Portal', url: '/student-login', openInNewTab: false },
-              { label: 'Gate Kiosk', url: '/kiosk', openInNewTab: false },
-              { label: 'Staff & Owner Login', url: '/#/', openInNewTab: false }
-            ];
+            // Dynamic Quick Links (Strictly follow saved configuration)
+            const qLinks = Array.isArray(landing.footer?.quickLinks) ? landing.footer.quickLinks : [];
             const flc = document.getElementById('footer-links-container');
             if (flc) {
-              flc.innerHTML = qLinks.map(l => `
-                <li><a href="${l.url}" ${l.openInNewTab ? 'target="_blank" rel="noopener"' : ''}>${l.label}</a></li>
-              `).join('');
+              if (qLinks.length > 0) {
+                flc.innerHTML = qLinks.map(l => `
+                  <li><a href="${l.url}" ${l.openInNewTab ? 'target="_blank" rel="noopener"' : ''}>${escapeHTML(l.label)}</a></li>
+                `).join('');
+              } else {
+                flc.innerHTML = '';
+              }
             }
 
             if (landing.footer?.copyrightText) {
@@ -1994,9 +1988,25 @@
           const hSub = document.getElementById('hero-subtitle');
           if (hSub) hSub.textContent = event.data.heroSubtitle;
         }
-        if (event.data.announcementTicker) {
+        if (event.data.announcementTicker !== undefined) {
           const tText = document.getElementById('ticker-text');
           if (tText) tText.textContent = event.data.announcementTicker;
+        }
+        if (Array.isArray(event.data.quickLinks)) {
+          const flc = document.getElementById('footer-links-container');
+          if (flc) {
+            flc.innerHTML = event.data.quickLinks.map(l => `
+              <li><a href="${l.url}" ${l.openInNewTab ? 'target="_blank" rel="noopener"' : ''}>${escapeHTML(l.label)}</a></li>
+            `).join('');
+          }
+        }
+        if (event.data.footerTagline) {
+          const fTag = document.getElementById('footer-tagline');
+          if (fTag) fTag.textContent = event.data.footerTagline;
+        }
+        if (event.data.navBrand) {
+          const navBrand = document.getElementById('nav-brand-name');
+          if (navBrand) navBrand.textContent = event.data.navBrand;
         }
       }
     });

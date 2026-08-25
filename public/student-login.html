@@ -110,6 +110,30 @@
       box-shadow: var(--shadow-lg);
       animation: slideIn 0.3s ease forwards;
     }
+    @media (max-width: 540px) {
+      body {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        min-height: 100dvh !important;
+        justify-content: flex-start !important;
+        background: var(--color-surface) !important;
+      }
+      .portal-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        min-height: 100dvh !important;
+      }
+      .portal-header {
+        padding: 2rem 1.5rem 1.5rem 1.5rem !important;
+      }
+      .portal-body {
+        padding: 1.5rem 1.25rem !important;
+      }
+    }
   </style>
 </head>
 <body>

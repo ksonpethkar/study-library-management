@@ -203,46 +203,43 @@ landingPageSchema.statics.getPageConfig = async function() {
     config = await this.create(defaults);
   } else {
     let needsSave = false;
-    if (!config.footer) {
+    if (config.footer === undefined || config.footer === null) {
       config.footer = defaults.footer;
       needsSave = true;
-    } else if (!Array.isArray(config.footer.quickLinks) || config.footer.quickLinks.length === 0) {
-      config.footer.quickLinks = defaults.footer.quickLinks;
-      needsSave = true;
     }
-    if (!config.navbar) {
+    if (config.navbar === undefined || config.navbar === null) {
       config.navbar = defaults.navbar;
       needsSave = true;
     }
-    if (!config.floatingActions) {
+    if (config.floatingActions === undefined || config.floatingActions === null) {
       config.floatingActions = defaults.floatingActions;
       needsSave = true;
     }
-    if (!config.seo) {
+    if (config.seo === undefined || config.seo === null) {
       config.seo = defaults.seo;
       needsSave = true;
     }
-    if (!config.faqs || !Array.isArray(config.faqs.items) || config.faqs.items.length === 0) {
+    if (config.faqs === undefined || config.faqs === null) {
       config.faqs = defaults.faqs;
       needsSave = true;
     }
-    if (!config.facilities || !Array.isArray(config.facilities.items) || config.facilities.items.length === 0) {
+    if (config.facilities === undefined || config.facilities === null) {
       config.facilities = defaults.facilities;
       needsSave = true;
     }
-    if (!config.shifts || !Array.isArray(config.shifts.items) || config.shifts.items.length === 0) {
+    if (config.shifts === undefined || config.shifts === null) {
       config.shifts = defaults.shifts;
       needsSave = true;
     }
-    if (!config.rules || !Array.isArray(config.rules.items) || config.rules.items.length === 0) {
+    if (config.rules === undefined || config.rules === null) {
       config.rules = defaults.rules;
       needsSave = true;
     }
-    if (!config.gallery || !Array.isArray(config.gallery.images) || config.gallery.images.length === 0) {
+    if (config.gallery === undefined || config.gallery === null) {
       config.gallery = defaults.gallery;
       needsSave = true;
     }
-    if (!config.testimonials || !Array.isArray(config.testimonials.items) || config.testimonials.items.length === 0) {
+    if (config.testimonials === undefined || config.testimonials === null) {
       config.testimonials = defaults.testimonials;
       needsSave = true;
     }

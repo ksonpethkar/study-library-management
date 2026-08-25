@@ -327,26 +327,42 @@
       transform: scale(1.15);
     }
 
-    /* Mobile Responsive Optimizations */
-    @media (max-width: 640px) {
+    /* Mobile Responsive Optimizations & Full Screen Fit */
+    @media (max-width: 768px) {
       body {
-        padding: 0.75rem 0.5rem;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: 100dvh !important;
+        display: block !important;
+        background: var(--color-bg-primary) !important;
       }
       .admission-container {
-        border-radius: var(--radius-lg);
-        margin-bottom: 1rem;
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 0 !important;
+        border: none !important;
+        margin: 0 !important;
+        margin-bottom: 0 !important;
+        box-shadow: none !important;
+        min-height: 100dvh !important;
+        background: var(--color-surface) !important;
       }
       .admission-header {
-        padding: 1.5rem 1rem;
+        border-radius: 0 !important;
+        padding: 1.25rem 1rem !important;
       }
       .admission-header h1 {
-        font-size: 1.4rem !important;
+        font-size: 1.35rem !important;
       }
       .stepper {
         padding: 0.75rem 0.5rem;
+        background: var(--color-bg-secondary);
+        border-bottom: 1px solid var(--color-border);
       }
       .step {
-        min-width: 58px;
+        min-width: 54px;
       }
       .step-number {
         width: 28px;
@@ -359,10 +375,10 @@
       }
       .step-label {
         font-size: 0.65rem !important;
-        max-width: 60px;
+        max-width: 58px;
       }
       .wizard-step-content {
-        padding: 1.25rem 0.85rem;
+        padding: 1.25rem 1rem !important;
       }
       .form-row-responsive {
         grid-template-columns: 1fr !important;
@@ -370,12 +386,13 @@
       }
       .btn-nav {
         margin-top: 1.5rem;
-        gap: 8px;
+        gap: 10px;
       }
       .btn-nav .btn {
-        min-height: 46px;
-        padding: 0.65rem 1rem;
-        font-size: 0.95rem;
+        min-height: 48px !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 0.95rem !important;
+        touch-action: manipulation !important;
       }
       .btn-nav .btn-prev {
         min-width: 80px;

@@ -2060,3 +2060,84 @@ body.virtual-keyboard-open textarea:focus,
 body.virtual-keyboard-open select:focus {
   scroll-margin-bottom: 30px;
 }
+
+/* ==========================================================================
+   Full-Screen Screen-Fitting & Mobile App UI Touch Optimizations
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Edge-to-edge full width adaptation */
+  body {
+    padding-left: env(safe-area-inset-left, 0px) !important;
+    padding-right: env(safe-area-inset-right, 0px) !important;
+  }
+
+  #main-content,
+  .main-content,
+  #content-area,
+  .app-container,
+  .dashboard-container,
+  .content-card,
+  .data-table-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .admission-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+    border: none !important;
+    margin-bottom: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .portal-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Reliable finger touch targets for all interactive buttons & controls */
+  button,
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-outline-primary,
+  .btn-outline-secondary,
+  .btn-danger,
+  .btn-success,
+  .action-btn,
+  .nav-item,
+  .mobile-nav-item,
+  .tab-item,
+  .dropdown-item,
+  .step-footer .btn,
+  .ops-tab-btn,
+  .plan-card-item {
+    min-height: 44px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(108, 92, 231, 0.15);
+  }
+
+  /* Input fields full touch friendliness */
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+    font-size: 16px !important;
+    touch-action: manipulation;
+  }
+
+  /* Smooth momentum touch scrolling for list cards and tables */
+  .table-responsive,
+  .modal-body,
+  .sidebar,
+  .content-area {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+}

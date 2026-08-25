@@ -255,12 +255,26 @@ router.put('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) 
     if (testimonials) config.testimonials = { ...config.testimonials.toObject(), ...testimonials };
     if (contact) config.contact = { ...config.contact.toObject(), ...contact };
     if (enquiry) config.enquiry = { ...config.enquiry.toObject(), ...enquiry };
-    if (theme) config.theme = { ...config.theme.toObject(), ...theme };
-    if (footer) config.footer = { ...config.footer.toObject(), ...footer };
-    if (navbar) config.navbar = { ...config.navbar.toObject(), ...navbar };
-    if (floatingActions) config.floatingActions = { ...config.floatingActions.toObject(), ...floatingActions };
-    if (seo) config.seo = { ...config.seo.toObject(), ...seo };
-    if (pricing) config.pricing = { ...config.pricing.toObject(), ...pricing };
+    if (theme) config.theme = { ...(config.theme?.toObject?.() || {}), ...theme };
+    if (footer) {
+      const existingFooter = config.footer?.toObject?.() || {};
+      config.footer = {
+        ...existingFooter,
+        ...footer,
+        quickLinks: Array.isArray(footer.quickLinks) ? footer.quickLinks : (existingFooter.quickLinks || [])
+      };
+    }
+    if (navbar) {
+      const existingNav = config.navbar?.toObject?.() || {};
+      config.navbar = {
+        ...existingNav,
+        ...navbar,
+        customNavLinks: Array.isArray(navbar.customNavLinks) ? navbar.customNavLinks : (existingNav.customNavLinks || [])
+      };
+    }
+    if (floatingActions) config.floatingActions = { ...(config.floatingActions?.toObject?.() || {}), ...floatingActions };
+    if (seo) config.seo = { ...(config.seo?.toObject?.() || {}), ...seo };
+    if (pricing) config.pricing = { ...(config.pricing?.toObject?.() || {}), ...pricing };
 
     // Publish / Draft toggle — instant without full form save
     if (req.body.isPublished !== undefined) {
@@ -293,7 +307,9 @@ router.put('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) 
     }
 
     await config.save();
+    memoryCache.clear();
 
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({
       success: true,
       data: {
