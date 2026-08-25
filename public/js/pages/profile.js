@@ -103,8 +103,8 @@ function renderProfileUI(container, user) {
             
             <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
               <div id="profile-avatar-display" style="width: 96px; height: 96px; border-radius: 50%; background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: 700; box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35); overflow: hidden; border: 3px solid var(--color-surface); position: relative;">
-                <img id="profile-avatar-img" src="${escapeHTML(user.avatar || '')}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; display: ${user.avatar ? 'block' : 'none'};" onerror="this.style.display='none'; document.getElementById('profile-avatar-initials').style.display='block';">
-                <span id="profile-avatar-initials" style="display: ${user.avatar ? 'none' : 'block'};">${escapeHTML(initials)}</span>
+                <img id="profile-avatar-img" src="${escapeHTML(user.avatar || user.photo || '')}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; display: ${(user.avatar || user.photo) ? 'block' : 'none'};" onerror="this.style.display='none'; const initEl = document.getElementById('profile-avatar-initials'); if (initEl) initEl.style.display='block';">
+                <span id="profile-avatar-initials" style="display: ${(user.avatar || user.photo) ? 'none' : 'block'};">${escapeHTML(initials)}</span>
               </div>
 
               <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;">
@@ -114,7 +114,7 @@ function renderProfileUI(container, user) {
                 <button type="button" id="btn-take-avatar-cam" class="btn btn-xs btn-primary" style="font-weight: 600; padding: 4px 10px; font-size: 0.78rem;">
                   📸 Live Selfie
                 </button>
-                <button type="button" id="btn-remove-avatar" class="btn btn-xs btn-outline-danger" style="font-weight: 600; padding: 4px 10px; font-size: 0.78rem; display: ${user.avatar ? 'inline-flex' : 'none'};">
+                <button type="button" id="btn-remove-avatar" class="btn btn-xs btn-outline-danger" style="font-weight: 600; padding: 4px 10px; font-size: 0.78rem; display: ${(user.avatar || user.photo) ? 'inline-flex' : 'none'};">
                   🗑️ Remove
                 </button>
                 <input type="file" id="input-avatar-file" accept="image/*" style="display: none;">
@@ -141,7 +141,6 @@ function renderProfileUI(container, user) {
 
           <!-- Edit Profile Form -->
           <form id="form-edit-profile">
-            <input type="hidden" id="profile-avatar" value="${escapeHTML(user.avatar || '')}">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
               
               <div class="form-group">

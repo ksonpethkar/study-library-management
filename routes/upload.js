@@ -108,10 +108,20 @@ router.get('/:filename', async (req, res) => {
     const MediaFile = require('../models/MediaFile');
     const media = await MediaFile.findOne({ filename }).lean();
     if (media && media.data) {
-      try { await fs.promises.writeFile(targetPath, media.data); } catch (e) {}
-      res.setHeader('Content-Type', media.mimeType || 'image/jpeg');
-      res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
-      return res.send(media.data);
+      let imageBuffer = media.data;
+      if (imageBuffer && imageBuffer.buffer && !Buffer.isBuffer(imageBuffer)) {
+        imageBuffer = Buffer.from(imageBuffer.buffer);
+      } else if (imageBuffer && !Buffer.isBuffer(imageBuffer)) {
+        imageBuffer = Buffer.from(imageBuffer);
+      }
+
+      if (imageBuffer && Buffer.isBuffer(imageBuffer)) {
+        try { await fs.promises.writeFile(targetPath, imageBuffer); } catch (e) {}
+        res.setHeader('Content-Type', media.mimeType || 'image/jpeg');
+        res.setHeader('Content-Length', imageBuffer.length);
+        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+        return res.end(imageBuffer);
+      }
     }
 
     res.status(404).json({ success: false, message: 'File not found' });
