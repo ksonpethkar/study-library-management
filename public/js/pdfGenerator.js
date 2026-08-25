@@ -220,20 +220,21 @@ export function buildAdmissionFormHTML(student, options = {}) {
   <title>Official Admission Form — ${studentId} (${studentName})</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     @page {
       size: A4 portrait;
-      margin: 8mm 10mm;
+      margin: 6mm 8mm;
     }
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, Helvetica, sans-serif;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
-      text-rendering: geometricPrecision;
+      text-rendering: optimizeLegibility;
+      letter-spacing: normal;
     }
     body {
       background: #ffffff;
@@ -244,14 +245,23 @@ export function buildAdmissionFormHTML(student, options = {}) {
       position: relative;
     }
 
-    .page-container {
+    /* Outer Executive Certificate Border Frame */
+    .page-frame {
       width: 100%;
-      min-height: 270mm;
+      height: 278mm;
+      min-height: 278mm;
       box-sizing: border-box;
+      border: 2.5px solid #1e293b;
+      outline: 1px solid #94a3b8;
+      outline-offset: -5px;
+      border-radius: 8px;
+      padding: 10px 13px;
       position: relative;
+      background: #ffffff;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
 
     .page-break {
@@ -260,20 +270,31 @@ export function buildAdmissionFormHTML(student, options = {}) {
       margin-top: 15px;
     }
 
+    /* Auto-Fit Flex Container to eliminate blank bottom spaces */
+    .page-content-flow {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      flex: 1;
+      min-height: 0;
+      gap: 7px;
+      margin-bottom: 4px;
+    }
+
     /* Watermark Stamp */
     .watermark-stamp {
       position: absolute;
-      top: 240px;
-      right: 35px;
+      top: 250px;
+      right: 40px;
       border: 3px dashed ${stampColor};
       color: ${stampColor};
       padding: 6px 14px;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 800;
       letter-spacing: 2px;
       text-transform: uppercase;
       transform: rotate(-7deg);
-      opacity: 0.18;
+      opacity: 0.16;
       border-radius: 8px;
       pointer-events: none;
       z-index: 1;
@@ -281,32 +302,35 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
     /* Template Header */
     .mg-header {
-      background: ${isClassic ? '#1e293b' : isCompact ? '#0284c7' : 'linear-gradient(135deg, #4338ca, #059669)'};
+      background: ${isClassic ? '#1e293b' : isCompact ? '#0284c7' : 'linear-gradient(135deg, #3730a3, #047857)'};
       color: #ffffff;
-      padding: 10px 16px;
-      border-radius: ${isClassic ? '0' : '8px'};
+      padding: 10px 14px;
+      border-radius: 6px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 7px;
+      flex-shrink: 0;
     }
-    .mg-header h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; margin: 0; line-height: 1.2; }
+    .mg-header h1 { font-size: 16.5px; font-weight: 700; margin: 0; line-height: 1.2; }
     .mg-header p { font-size: 10px; opacity: 0.95; margin: 0; }
 
-    /* Section Cards */
+    /* Section Cards with Dynamic Auto-Fit Expansion */
     .sec-card {
-      border: 1.2px solid #cbd5e1;
-      border-radius: 7px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
       padding: 7px 11px;
-      margin-bottom: 6px;
       background: #f8fafc;
       position: relative;
       z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      flex: 1 0 auto;
     }
     .sec-title {
-      font-weight: 800;
-      font-size: 11.5px;
-      color: ${isClassic ? '#1e293b' : '#4338ca'};
+      font-weight: 700;
+      font-size: 11px;
+      color: ${isClassic ? '#1e293b' : '#3730a3'};
       border-bottom: 1.5px solid ${isClassic ? '#1e293b' : '#4338ca'};
       padding-bottom: 3px;
       margin-bottom: 5px;
@@ -315,22 +339,23 @@ export function buildAdmissionFormHTML(student, options = {}) {
       display: flex;
       align-items: center;
       gap: 6px;
+      flex-shrink: 0;
     }
 
     /* Grid Layouts */
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
-    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 7px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px 10px; }
+    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px 8px; }
 
-    .field-label { font-size: 8.5px; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: 0.25px; }
-    .field-value { font-size: 11px; font-weight: 700; color: #0f172a; margin-top: 1px; word-break: break-word; }
+    .field-label { font-size: 8.5px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.25px; }
+    .field-value { font-size: 11px; font-weight: 600; color: #0f172a; margin-top: 1px; word-break: break-word; }
 
     /* Photo & QR Frame */
     .photo-frame {
-      width: 115px;
-      height: 125px;
+      width: 110px;
+      height: 118px;
       border: 1.5px solid #94a3b8;
-      border-radius: 7px;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -342,9 +367,9 @@ export function buildAdmissionFormHTML(student, options = {}) {
     .photo-frame img { width: 100%; height: 100%; object-fit: cover; }
 
     .qr-frame {
-      width: 115px;
+      width: 110px;
       border: 1.5px solid #94a3b8;
-      border-radius: 7px;
+      border-radius: 6px;
       background: #ffffff;
       padding: 4px;
       text-align: center;
@@ -352,44 +377,46 @@ export function buildAdmissionFormHTML(student, options = {}) {
     }
 
     .sig-box {
-      width: 160px;
-      height: 44px;
+      width: 155px;
+      height: 40px;
       border-bottom: 1.5px solid #334155;
       display: flex;
       align-items: flex-end;
       justify-content: center;
       margin-top: 2px;
     }
-    .sig-box img { max-height: 38px; max-width: 100%; object-fit: contain; }
+    .sig-box img { max-height: 36px; max-width: 100%; object-fit: contain; }
 
-    /* Uploaded Document Frame (Annexure Full Page) */
+    /* Annexure Full Page Frame */
     .annexure-header {
       background: linear-gradient(135deg, #1e293b, #334155);
       color: #ffffff;
-      padding: 10px 16px;
-      border-radius: 8px;
+      padding: 10px 14px;
+      border-radius: 6px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      flex-shrink: 0;
     }
     .doc-preview-card-full {
-      border: 1.5px solid #cbd5e1;
-      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
       background: #ffffff;
-      padding: 12px;
+      padding: 10px;
       text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 720px;
+      justify-content: space-between;
+      flex: 1;
+      min-height: 228mm;
+      margin: 6px 0;
     }
     .doc-preview-img-full {
-      max-height: 680px;
+      max-height: 205mm;
       width: 100%;
       object-fit: contain;
-      border-radius: 6px;
+      border-radius: 4px;
       background: #f8fafc;
     }
 
@@ -399,18 +426,18 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
     /* Footer Bar */
     .doc-footer {
-      margin-top: 6px;
       border-top: 1px solid #cbd5e1;
-      padding-top: 5px;
+      padding-top: 4px;
       display: flex;
       justify-content: space-between;
       font-size: 8.5px;
       color: #64748b;
+      flex-shrink: 0;
     }
 
     @media print {
       body { padding: 0; background: #fff !important; }
-      .page-container { min-height: 270mm; }
+      .page-frame { height: 278mm; min-height: 278mm; max-height: 278mm; border: 2.5px solid #1e293b; outline: 1px solid #94a3b8; }
       .sec-card { background: #fff !important; border-color: #94a3b8; }
       .mg-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .annexure-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -421,38 +448,38 @@ export function buildAdmissionFormHTML(student, options = {}) {
 <body>
 
   <!-- ==================== PAGE 1: OFFICIAL ADMISSION CERTIFICATE & FORM ==================== -->
-  <div class="page-container">
-    <div>
-      ${opts.showWatermarkStamp ? `<div class="watermark-stamp">${stampText}</div>` : ''}
+  <div class="page-frame">
+    ${opts.showWatermarkStamp ? `<div class="watermark-stamp">${stampText}</div>` : ''}
 
-      <!-- Header -->
+    <div class="page-content-flow">
+      <!-- 1. Header -->
       <div class="mg-header">
         <div style="display: flex; align-items: center; gap: 10px;">
-          ${logoUrl ? `<img src="${logoUrl}" style="max-height: 44px; max-width: 70px; object-fit: contain; background: #fff; padding: 2px; border-radius: 6px;">` : ''}
+          ${logoUrl ? `<img src="${logoUrl}" style="max-height: 42px; max-width: 65px; object-fit: contain; background: #fff; padding: 2px; border-radius: 4px;">` : ''}
           <div>
             <h1>${b.businessName}</h1>
             <p>${b.tagline || 'Silence, Focus and Success'}</p>
             <p style="margin-top: 2px; font-size: 9px;">📍 ${b.address || ''} • 📞 ${b.phone || ''} ${gstNumber ? `• GSTIN: ${gstNumber}` : ''}</p>
           </div>
         </div>
-        <div style="text-align: right; background: rgba(255,255,255,0.22); padding: 5px 12px; border-radius: 6px; min-width: 145px; white-space: nowrap; flex-shrink: 0;">
-          <div style="font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">OFFICIAL ADMISSION FORM</div>
-          <div style="font-size: 13.5px; font-weight: 900; font-family: monospace; margin: 1px 0;">${studentId}</div>
-          <div style="font-size: 9.5px; font-weight: 700;">Date: ${joinedDate}</div>
+        <div style="text-align: right; background: rgba(255,255,255,0.22); padding: 4px 10px; border-radius: 5px; min-width: 140px; white-space: nowrap; flex-shrink: 0;">
+          <div style="font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">OFFICIAL ADMISSION FORM</div>
+          <div style="font-size: 13px; font-weight: 700; font-family: monospace; margin: 1px 0;">${studentId}</div>
+          <div style="font-size: 9px; font-weight: 600;">Date: ${joinedDate}</div>
         </div>
       </div>
 
-      <!-- Top 2-Column Grid: Left: Personal + Seat Info | Right: Photo + QR Code -->
-      <div style="display: grid; grid-template-columns: 1fr 125px; gap: 8px; margin-bottom: 6px; align-items: start;">
+      <!-- 2. Top 2-Column Grid: Left (Personal + Seat Info) | Right (Photo + QR Code) -->
+      <div style="display: grid; grid-template-columns: 1fr 118px; gap: 8px; align-items: stretch;">
         
         <!-- Left Column: Personal Information & Seat Allotment -->
-        <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; flex-direction: column; gap: 6px; justify-content: space-between;">
           
-          <!-- 1. Student Personal Information -->
+          <!-- Student Personal Information -->
           <div class="sec-card" style="margin-bottom: 0;">
             <div class="sec-title">👤 Student Personal Information</div>
             
-            <div class="grid-3" style="margin-bottom: 5px;">
+            <div class="grid-3" style="margin-bottom: 4px;">
               <div>
                 <div class="field-label">Full Student Name</div>
                 <div class="field-value">${studentName}</div>
@@ -467,18 +494,18 @@ export function buildAdmissionFormHTML(student, options = {}) {
               </div>
             </div>
 
-            <div class="grid-4" style="margin-bottom: 5px;">
+            <div class="grid-4" style="margin-bottom: 4px;">
               <div>
                 <div class="field-label">Gender</div>
                 <div class="field-value">${gender}</div>
               </div>
               <div>
                 <div class="field-label">Date of Birth</div>
-                <div class="field-value" style="color: #4338ca; font-weight: 800;">${dob}</div>
+                <div class="field-value" style="color: #3730a3; font-weight: 700;">${dob}</div>
               </div>
               <div>
                 <div class="field-label">Blood Group</div>
-                <div class="field-value" style="color: #dc2626; font-weight: 800;">${bloodGroup}</div>
+                <div class="field-value" style="color: #dc2626; font-weight: 700;">${bloodGroup}</div>
               </div>
               <div>
                 <div class="field-label">City & State</div>
@@ -487,25 +514,25 @@ export function buildAdmissionFormHTML(student, options = {}) {
             </div>
 
             ${fullAddress ? `
-              <div style="border-top: 1px dashed #cbd5e1; padding-top: 4px;">
+              <div style="border-top: 1px dashed #cbd5e1; padding-top: 3px;">
                 <div class="field-label">Resident / Permanent Address</div>
-                <div class="field-value" style="font-size: 10.5px;">${fullAddress}${pincode && pincode !== 'N/A' ? ' (PIN: ' + pincode + ')' : ''}</div>
+                <div class="field-value" style="font-size: 10px;">${fullAddress}${pincode && pincode !== 'N/A' ? ' (PIN: ' + pincode + ')' : ''}</div>
               </div>
             ` : ''}
           </div>
 
-          <!-- 2. Study Centre, Shift & Seating Allocation -->
+          <!-- Study Centre, Shift & Seating Allocation -->
           <div class="sec-card" style="margin-bottom: 0;">
             <div class="sec-title">🏢 Study Centre & Seating Allocation</div>
             
-            <div class="grid-3" style="margin-bottom: 5px;">
+            <div class="grid-3" style="margin-bottom: 4px;">
               <div>
                 <div class="field-label">Campus / Branch</div>
-                <div class="field-value" style="color: #4338ca;">${branchName}</div>
+                <div class="field-value" style="color: #3730a3;">${branchName}</div>
               </div>
               <div>
                 <div class="field-label">Assigned Desk / Seat</div>
-                <div class="field-value" style="color: #059669; font-size: 12px;">${seatNumber} (${seatZone}${seatFloor})</div>
+                <div class="field-value" style="color: #047857; font-size: 11.5px;">${seatNumber} (${seatZone}${seatFloor})</div>
               </div>
               <div>
                 <div class="field-label">Study Shift & Timings</div>
@@ -520,7 +547,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
               </div>
               <div>
                 <div class="field-label">Plan Fee Amount</div>
-                <div class="field-value" style="color: #059669;">${planPrice || 'Standard Rate'}</div>
+                <div class="field-value" style="color: #047857;">${planPrice || 'Standard Rate'}</div>
               </div>
               <div>
                 <div class="field-label">Admission Date</div>
@@ -528,7 +555,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
               </div>
               <div>
                 <div class="field-label">Validity Expiry Date</div>
-                <div class="field-value" style="color: #dc2626; font-weight: 800;">${expiryDate}</div>
+                <div class="field-value" style="color: #dc2626; font-weight: 700;">${expiryDate}</div>
               </div>
             </div>
           </div>
@@ -536,13 +563,13 @@ export function buildAdmissionFormHTML(student, options = {}) {
         </div>
 
         <!-- Right Column: Passport Photo & Verification QR Code -->
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 6px;">
           
           <!-- Passport Photo Frame -->
           <div style="width: 100%; text-align: center;">
             <div class="field-label" style="margin-bottom: 2px; font-size: 8px;">PASSPORT PHOTO</div>
             <div class="photo-frame">
-              ${photoUrl ? `<img src="${photoUrl}" alt="Photo">` : `<span style="color:#94a3b8; font-size:9px; font-weight:700;">AFFIX PHOTO</span>`}
+              ${photoUrl ? `<img src="${photoUrl}" alt="Photo">` : `<span style="color:#94a3b8; font-size:8.5px; font-weight:600;">AFFIX PHOTO</span>`}
             </div>
           </div>
 
@@ -553,7 +580,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
               <div style="display: flex; align-items: center; justify-content: center;">
                 ${qrCodeImg}
               </div>
-              <div style="font-size: 8px; font-weight: 800; font-family: monospace; color: #475569; margin-top: 1px;">${studentId}</div>
+              <div style="font-size: 7.5px; font-weight: 700; font-family: monospace; color: #475569; margin-top: 1px;">${studentId}</div>
             </div>
           </div>
 
@@ -565,10 +592,10 @@ export function buildAdmissionFormHTML(student, options = {}) {
       <div class="sec-card">
         <div class="sec-title">🎯 Academic Goals, Facilities & Emergency Contact</div>
         
-        <div class="grid-3" style="margin-bottom: 5px;">
+        <div class="grid-3" style="margin-bottom: 4px;">
           <div>
             <div class="field-label">Target Competitive Exams</div>
-            <div class="field-value" style="color: #4338ca;">
+            <div class="field-value" style="color: #3730a3;">
               ${targetExamsList.length > 0 ? targetExamsList.join(', ') : 'General Competitive Exams / Self Study'}
             </div>
           </div>
@@ -583,7 +610,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
         </div>
 
         ${emergencyName || emergencyPhone ? `
-          <div style="border-top: 1px dashed #cbd5e1; padding-top: 4px;" class="grid-3">
+          <div style="border-top: 1px dashed #cbd5e1; padding-top: 3px;" class="grid-3">
             <div>
               <div class="field-label">Guardian / Parent Name</div>
               <div class="field-value">${emergencyName || 'N/A'}</div>
@@ -605,26 +632,26 @@ export function buildAdmissionFormHTML(student, options = {}) {
         <div class="sec-title">🪪 Government ID Proof & KYC Verification</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center;">
           
-          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 5px; padding: 5px 9px; display: flex; align-items: center; justify-content: space-between;">
             <div>
-              <div style="font-weight: 800; font-size: 11px; color: #0f172a;">📑 ${idProofType}</div>
-              <div style="font-size: 10px; color: #334155; font-family: monospace; font-weight: 700; margin-top: 1px;">
+              <div style="font-weight: 700; font-size: 10.5px; color: #0f172a;">📑 ${idProofType}</div>
+              <div style="font-size: 9.5px; color: #334155; font-family: monospace; font-weight: 600; margin-top: 1px;">
                 ${idProofNumber ? `ID Number: ${idProofNumber}` : 'Document Attached on Record'}
               </div>
             </div>
-            <span style="font-size: 8.5px; font-weight: 800; color: #059669; background: #d1fae5; padding: 2px 7px; border-radius: 4px; border: 1px solid #10b981;">
+            <span style="font-size: 8px; font-weight: 700; color: #047857; background: #d1fae5; padding: 2px 6px; border-radius: 3px; border: 1px solid #10b981;">
               KYC VERIFIED ✓
             </span>
           </div>
 
-          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 5px; padding: 5px 9px; display: flex; align-items: center; justify-content: space-between;">
             <div>
-              <div style="font-weight: 800; font-size: 11px; color: #0f172a;">📋 Admission & Fee Status</div>
-              <div style="font-size: 10px; color: #334155; font-family: monospace; font-weight: 700; margin-top: 1px;">
+              <div style="font-weight: 700; font-size: 10.5px; color: #0f172a;">📋 Admission & Fee Status</div>
+              <div style="font-size: 9.5px; color: #334155; font-family: monospace; font-weight: 600; margin-top: 1px;">
                 Status: ${status} (${isPaid ? 'CONFIRMED' : 'PROVISIONAL'})
               </div>
             </div>
-            <span style="font-size: 8.5px; font-weight: 800; color: ${isPaid ? '#059669' : '#d97706'}; background: ${isPaid ? '#d1fae5' : '#fef3c7'}; padding: 2px 7px; border-radius: 4px; border: 1px solid ${isPaid ? '#10b981' : '#f59e0b'};">
+            <span style="font-size: 8px; font-weight: 700; color: ${isPaid ? '#047857' : '#d97706'}; background: ${isPaid ? '#d1fae5' : '#fef3c7'}; padding: 2px 6px; border-radius: 3px; border: 1px solid ${isPaid ? '#10b981' : '#f59e0b'};">
               ${isPaid ? 'ACTIVE ACCESS' : 'PENDING'}
             </span>
           </div>
@@ -632,7 +659,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
         </div>
       </div>
 
-      <!-- 5. Form Builder Custom Questions & Dynamic Answers (If Any) -->
+      <!-- 5. Form Builder Custom Questions & Dynamic Answers (Auto-Fit Expansion) -->
       ${customEntries.length > 0 ? `
         <div class="sec-card">
           <div class="sec-title">📋 Additional Registration Information</div>
@@ -640,7 +667,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
             ${customEntries.map(e => `
               <div style="margin-bottom: 2px;">
                 <div class="field-label">${escapeHTML(e.label)}</div>
-                <div class="field-value" style="font-size: 10.5px;">${escapeHTML(e.value)}</div>
+                <div class="field-value" style="font-size: 10px;">${escapeHTML(e.value)}</div>
               </div>
             `).join('')}
           </div>
@@ -651,16 +678,16 @@ export function buildAdmissionFormHTML(student, options = {}) {
       ${opts.showRules ? `
         <div class="sec-card">
           <div class="sec-title">📜 Discipline Code & Student Declaration</div>
-          ${termsText ? `<div class="rules-list" style="margin-bottom: 4px;">${termsText}</div>` : `
+          ${termsText ? `<div class="rules-list" style="margin-bottom: 3px;">${termsText}</div>` : `
           <ol class="rules-list">
             <li>Maintain complete silence in the study hall. Mobile phones must strictly be kept on Silent mode.</li>
             <li>Seats are reserved for the registered student and non-transferable without prior management approval.</li>
             <li>Eatables, tea, and open beverages are strictly prohibited inside reading rooms.</li>
             <li>I declare that the information provided is accurate and agree to adhere to all library rules and timings.</li>
           </ol>`}
-          ${customNote ? `<p style="font-size: 9px; color: #4338ca; font-weight: 700; margin-top: 2px;">Notice: ${customNote}</p>` : ''}
+          ${customNote ? `<p style="font-size: 8.5px; color: #3730a3; font-weight: 600; margin-top: 2px;">Notice: ${customNote}</p>` : ''}
 
-          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 6px; padding-top: 5px; border-top: 1px dashed #cbd5e1;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #cbd5e1;">
             <div>
               <div class="field-label">Date & Place</div>
               <div class="field-value">${joinedDate} • ${city !== 'N/A' ? city : 'Campus'}</div>
@@ -670,7 +697,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
               <div style="text-align: center;">
                 <div class="field-label">Student Digital Signature</div>
                 <div class="sig-box">
-                  ${sigUrl ? `<img src="${sigUrl}" alt="Signature">` : `<span style="font-family:'Courier New', monospace; font-size:11px; font-weight:700;">${studentName}</span>`}
+                  ${sigUrl ? `<img src="${sigUrl}" alt="Signature">` : `<span style="font-family: Arial, sans-serif; font-size:10.5px; font-weight:600;">${studentName}</span>`}
                 </div>
               </div>
             ` : ''}
@@ -678,9 +705,9 @@ export function buildAdmissionFormHTML(student, options = {}) {
             <div style="text-align: center;">
               <div class="field-label">${rcFooter.signatureLabel || 'Authorized Seal & Signatory'}</div>
               <div class="sig-box" style="border-bottom-style: dotted; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                ${stampImageUrl ? `<img src="${stampImageUrl}" style="max-height: 38px; opacity: 0.92;">` : ''}
-                ${managerSigUrl ? `<img src="${managerSigUrl}" style="max-height: 34px;">` : ''}
-                ${!stampImageUrl && !managerSigUrl ? `<span style="font-size:8.5px; color:#64748b; font-weight:800; border:1px solid #cbd5e1; padding:2px 8px; border-radius:4px;">OFFICIAL SEAL</span>` : ''}
+                ${stampImageUrl ? `<img src="${stampImageUrl}" style="max-height: 36px; opacity: 0.92;">` : ''}
+                ${managerSigUrl ? `<img src="${managerSigUrl}" style="max-height: 32px;">` : ''}
+                ${!stampImageUrl && !managerSigUrl ? `<span style="font-size:8px; color:#64748b; font-weight:700; border:1px solid #cbd5e1; padding:2px 6px; border-radius:3px;">OFFICIAL SEAL</span>` : ''}
               </div>
             </div>
           </div>
@@ -698,42 +725,40 @@ export function buildAdmissionFormHTML(student, options = {}) {
   <!-- ==================== PAGE 2: ANNEXURE — ATTACHED KYC DOCUMENT SCAN ==================== -->
   ${hasAnnexure ? `
     ${uploadedDocEntries.map((doc, idx) => `
-      <div class="page-container page-break">
-        <div>
-          <!-- Annexure Header -->
-          <div class="annexure-header">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              ${logoUrl ? `<img src="${logoUrl}" style="max-height: 40px; max-width: 65px; object-fit: contain; background: #fff; padding: 2px; border-radius: 6px;">` : ''}
-              <div>
-                <h1 style="font-size: 15px; font-weight: 800; margin: 0;">${b.businessName}</h1>
-                <p style="font-size: 9.5px; opacity: 0.9; margin: 0;">ANNEXURE ${uploadedDocEntries.length > 1 ? String.fromCharCode(65 + idx) : 'A'} — GOVERNMENT ID & KYC VERIFICATION PROOF</p>
-              </div>
-            </div>
-            <div style="text-align: right; background: rgba(255,255,255,0.18); padding: 4px 10px; border-radius: 6px;">
-              <div style="font-size: 8px; text-transform: uppercase; font-weight: 700;">STUDENT IDENTIFICATION</div>
-              <div style="font-size: 12px; font-weight: 900; font-family: monospace;">${studentId}</div>
+      <div class="page-frame page-break">
+        <!-- Annexure Header -->
+        <div class="annexure-header">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            ${logoUrl ? `<img src="${logoUrl}" style="max-height: 38px; max-width: 60px; object-fit: contain; background: #fff; padding: 2px; border-radius: 4px;">` : ''}
+            <div>
+              <h1 style="font-size: 14.5px; font-weight: 700; margin: 0;">${b.businessName}</h1>
+              <p style="font-size: 9px; opacity: 0.9; margin: 0;">ANNEXURE ${uploadedDocEntries.length > 1 ? String.fromCharCode(65 + idx) : 'A'} — GOVERNMENT ID & KYC VERIFICATION PROOF</p>
             </div>
           </div>
+          <div style="text-align: right; background: rgba(255,255,255,0.18); padding: 4px 10px; border-radius: 5px;">
+            <div style="font-size: 7.5px; text-transform: uppercase; font-weight: 700;">STUDENT IDENTIFICATION</div>
+            <div style="font-size: 12px; font-weight: 700; font-family: monospace;">${studentId}</div>
+          </div>
+        </div>
 
-          <!-- Document Full-Page Display Frame -->
-          <div class="doc-preview-card-full">
-            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1.5px dashed #cbd5e1; padding-bottom: 6px;">
-              <span style="font-size: 11px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
-                📄 ${escapeHTML(doc.label)}
-              </span>
-              <span style="font-size: 9px; font-weight: 800; color: #059669; background: #d1fae5; padding: 3px 8px; border-radius: 4px; border: 1px solid #10b981;">
-                OFFICIAL RECORD ATTACHMENT ✓
-              </span>
-            </div>
-            
-            <div style="flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; background: #ffffff; padding: 6px; min-height: 660px;">
-              <img src="${doc.url}" alt="${escapeHTML(doc.label)}" class="doc-preview-img-full">
-            </div>
+        <!-- Document Full-Page Display Frame (Auto-Fit to A4) -->
+        <div class="doc-preview-card-full">
+          <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px;">
+            <span style="font-size: 10.5px; font-weight: 700; color: #1e293b; text-transform: uppercase;">
+              📄 ${escapeHTML(doc.label)}
+            </span>
+            <span style="font-size: 8.5px; font-weight: 700; color: #047857; background: #d1fae5; padding: 2px 7px; border-radius: 3px; border: 1px solid #10b981;">
+              OFFICIAL RECORD ATTACHMENT ✓
+            </span>
+          </div>
+          
+          <div style="flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; background: #ffffff; padding: 4px;">
+            <img src="${doc.url}" alt="${escapeHTML(doc.label)}" class="doc-preview-img-full">
+          </div>
 
-            <div style="width: 100%; font-size: 9px; color: #64748b; margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 6px; font-family: monospace; display: flex; justify-content: space-between;">
-              <span>Document Reference: ${studentId} • Verified KYC Record Proof</span>
-              <span>Name: ${studentName} • Date: ${joinedDate}</span>
-            </div>
+          <div style="width: 100%; font-size: 8.5px; color: #64748b; margin-top: 4px; border-top: 1px solid #e2e8f0; padding-top: 4px; font-family: monospace; display: flex; justify-content: space-between;">
+            <span>Document Reference: ${studentId} • Verified KYC Record Proof</span>
+            <span>Name: ${studentName} • Date: ${joinedDate}</span>
           </div>
         </div>
 
