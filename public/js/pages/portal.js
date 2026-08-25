@@ -128,6 +128,8 @@ function renderPortalUI(container, data, analytics = null) {
     } catch(e) {}
   }
 
+  const currentHour = new Date().getHours();
+  const timeGreeting = currentHour < 12 ? '🌅 Good Morning' : (currentHour < 17 ? '🌤️ Good Afternoon' : '🌙 Good Evening');
   const isCheckedIn = todayAttendance && todayAttendance.checkIn && !todayAttendance.checkOut;
   const punchStatusText = isCheckedIn
     ? `🟢 Currently Checked In since <strong>${formatPunchTime(todayAttendance.checkIn)}</strong>`
@@ -136,493 +138,567 @@ function renderPortalUI(container, data, analytics = null) {
     : `⚪ Not checked in today`;
 
   container.innerHTML = `
-    <!-- Admin Preview Banner -->
-    ${data.isAdmin ? `
-      <div class="card p-3 mb-4" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(0, 184, 148, 0.08)); border: 1px solid var(--color-primary); border-radius: var(--radius-lg); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 1.5rem;">👑</span>
-          <div>
-            <div style="font-weight: 700; color: var(--color-primary); font-size: 0.95rem;">Admin Inspection Mode — Student Portal Experience</div>
-            <div style="font-size: 0.8rem; color: var(--color-text-secondary);">You are logged in as Administrator. Inspecting live student view for <strong>${escapeHTML(student.name)}</strong>.</div>
-          </div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 0.82rem; font-weight: 600;">Switch Student:</label>
-          <select id="admin-switch-student" class="form-select form-control form-control-sm" style="min-width: 220px; font-weight: 600;">
-            ${(data.allStudents || []).map(s => `
-              <option value="${s._id}" ${String(s._id) === String(student._id) ? 'selected' : ''}>
-                ${escapeHTML(s.name)} (${s.studentId || s.phone})
-              </option>
-            `).join('')}
-          </select>
-          <a href="#/students" class="btn btn-outline-secondary btn-sm" style="font-weight: 600;">➔ Students Directory</a>
-        </div>
-      </div>
-    ` : ''}
-
-    <!-- Contextual Guidance Tip Banner -->
-    <div style="background: rgba(108, 92, 231, 0.06); border: 1px solid rgba(108, 92, 231, 0.2); border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
-      <span style="font-size: 1.1rem;">💡</span>
-      <span><strong>Tip:</strong> Check your study consistency gauge, download digital ID card, or request seat transfers directly from your portal.</span>
-    </div>
-
-    <!-- Top Welcome Banner -->
-    <div class="card mb-4" id="portal-welcome-banner" style="
-      background: ${business.bannerImage ? `linear-gradient(135deg, rgba(108, 92, 231, 0.88), rgba(15, 23, 42, 0.82)), url('${business.bannerImage}') center/cover` : `linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(162, 155, 254, 0.05)), var(--color-surface)`};
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-lg);
-      padding: 1.25rem 1.5rem;
-      position: relative;
-      overflow: hidden;
-    ">
-      <!-- Top Row: Student Profile Header & Renewal Action -->
-      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; position: relative; z-index: 1;">
-        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: nowrap; min-width: 280px; flex: 1 1 320px;">
-          <div style="
-            width: 64px; height: 64px; border-radius: 50%;
-            background: var(--color-primary-bg); color: var(--color-primary);
-            font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; justify-content: center;
-            border: 2.5px solid var(--color-primary); flex-shrink: 0; overflow: hidden;
-            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.2);
-          ">
-            ${(student.photo || user?.avatar) ? `<img src="${escapeHTML(student.photo || user.avatar)}" alt="${escapeHTML(student.name)}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
-          </div>
-          <div style="min-width: 180px; flex: 1;">
-            <h2 style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 700; color: ${business.bannerImage ? '#ffffff' : 'var(--color-text-primary)'}; white-space: normal; line-height: 1.35; text-transform: capitalize;">
-              Welcome back, ${escapeHTML((student.name || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()))}!
-            </h2>
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
-              <span class="badge" style="background: rgba(0, 184, 148, 0.2); color: ${business.bannerImage ? '#a7f3d0' : 'var(--color-success)'}; font-family: monospace; font-weight: 700; font-size: 0.85rem;">
-                ${escapeHTML(student.studentId || 'STU-MEMBER')}
-              </span>
-              <span style="color: ${business.bannerImage ? 'rgba(255,255,255,0.85)' : 'var(--color-text-secondary)'}; font-size: 0.85rem;">• ${escapeHTML(business.businessName || 'Study Library')}</span>
-            </div>
-            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-              ${examTags}
-            </div>
-          </div>
-        </div>
-
-        <!-- Primary Action Button -->
-        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-          <button id="btn-portal-renew" class="btn btn-primary btn-sm" style="font-weight: 700; font-size: 0.85rem; padding: 7px 16px;">
-            ⚡ Renew Plan
-          </button>
-        </div>
-      </div>
-
-      <!-- Quick Action Navigation Toolbar Row -->
-      <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid ${business.bannerImage ? 'rgba(255,255,255,0.15)' : 'var(--color-divider, rgba(0,0,0,0.08))'}; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-start; position: relative; z-index: 1;">
-        <button id="btn-portal-profile" class="btn btn-outline-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
-          👤 Profile
-        </button>
-        <button id="btn-portal-idcard" class="btn btn-outline-primary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
-          🪪 Digital ID
-        </button>
-        <button id="btn-portal-notices" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
-          📢 Notices
-        </button>
-        <button id="btn-portal-holidays" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
-          📅 Holidays
-        </button>
-        <button id="btn-portal-lostfound" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
-          🔍 Lost &amp; Found
-        </button>
-        <button id="btn-portal-feedback" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
-          💬 Feedback
-        </button>
-        <button id="btn-portal-receipts-jump" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
-          🧾 Receipts
-        </button>
-        <button id="btn-portal-seat-change" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
-          💺 Change Seat
-        </button>
-        <button id="btn-portal-leave" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
-          🌴 Leave
-        </button>
-        <button id="btn-portal-referral" class="btn btn-outline-secondary btn-sm" style="font-weight: 600; font-size: 0.8rem; padding: 6px 12px;">
-          🎁 Refer
-        </button>
-      </div>
-    </div>
-
-    <!-- ⚠️ Mandatory Profile & KYC Completion Card (Rendered when profile < 100%) -->
-    ${(student.profileCompletion < 100 || !student.isProfileComplete) ? `
-      <div class="card mb-4 p-4" style="background: rgba(245, 158, 11, 0.08); border: 1.5px solid rgba(245, 158, 11, 0.35); border-radius: var(--radius-lg);">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-          <div style="display: flex; align-items: center; gap: 12px; max-width: 650px;">
-            <div style="font-size: 2.2rem;">⚠️</div>
+    <div class="portal-container">
+      <!-- Admin Preview Banner -->
+      ${data.isAdmin ? `
+        <div class="card p-3 mb-3" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(0, 184, 148, 0.08)); border: 1px solid var(--color-primary); border-radius: var(--radius-lg); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.5rem;">👑</span>
             <div>
-              <h4 style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 800; color: #f59e0b;">
-                Action Required: Complete Your Student Profile & KYC Upload (${student.profileCompletion || 60}% Complete)
-              </h4>
-              <p style="margin: 0; font-size: 0.82rem; color: var(--color-text-secondary); line-height: 1.4;">
-                Your walk-in admission is pre-active! Please upload your Profile Photo Selfie and Aadhaar KYC proof to unlock your official Digital Offline ID Card Pass.
-              </p>
-              <div style="margin-top: 8px; width: 100%; max-width: 380px; height: 6px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden;">
-                <div style="height: 100%; width: ${student.profileCompletion || 60}%; background: linear-gradient(90deg, #f59e0b, #00b894); border-radius: 4px;"></div>
-              </div>
+              <div style="font-weight: 700; color: var(--color-primary); font-size: 0.95rem;">Admin Inspection Mode — Student Portal Experience</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-secondary);">You are logged in as Administrator. Inspecting live student view for <strong>${escapeHTML(student.name)}</strong>.</div>
             </div>
           </div>
-          <button id="btn-portal-complete-kyc" class="btn btn-warning" style="font-weight: 700; font-size: 0.85rem; padding: 8px 16px;">
-            ✏️ Upload Photo & Complete KYC Now
-          </button>
-        </div>
-      </div>
-    ` : ''}
-
-    <!-- 3 Stat Widgets Grid (Auto-Fit & Responsive) -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-      
-      <!-- Seat Card -->
-      <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; flex-direction: column; justify-content: space-between;">
-        <div>
-          <div class="text-muted small mb-1" style="font-weight: 600;">💺 Assigned Study Desk</div>
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span style="font-size: 1.55rem; font-weight: 800; color: var(--color-primary);">${seatTitle}</span>
-            <span class="badge ${hasSeat ? 'badge-primary' : 'badge-secondary'}" style="font-size: 0.75rem;">${seatBadge}</span>
-          </div>
-        </div>
-        <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 8px;">
-          ${hasSeat ? 'Dedicated reserved cabin desk with personal power socket & reading light.' : 'Flexible open reading hall access with ergonomic seating.'}
-        </div>
-      </div>
-
-      <!-- Plan Expiry Card -->
-      <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; flex-direction: column; justify-content: space-between;">
-        <div>
-          <div class="text-muted small mb-1" style="font-weight: 600;">⏳ Membership Validity</div>
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span style="font-size: 1.55rem; font-weight: 800; color: ${daysRemaining <= 3 ? 'var(--color-danger)' : 'var(--color-success)'};">
-              ${daysRemaining} ${daysRemaining === 1 ? 'Day' : 'Days'}
-            </span>
-            <span class="badge ${daysRemaining <= 0 ? 'badge-danger' : 'badge-success'}" style="font-size: 0.75rem;">
-              ${daysRemaining <= 0 ? 'Expired / Due' : 'Active Plan'}
-            </span>
-          </div>
-        </div>
-        <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 8px;">
-          Plan: <strong>${escapeHTML(planName)}</strong> (Valid till ${expiryDateStr})
-        </div>
-      </div>
-
-      <!-- Study Hours Card -->
-      <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; flex-direction: column; justify-content: space-between;">
-        <div>
-          <div class="text-muted small mb-1" style="font-weight: 600;">📈 Total Study Time</div>
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span style="font-size: 1.55rem; font-weight: 800; color: var(--color-info);">${totalHours} hrs</span>
-            <span class="badge badge-info" style="font-size: 0.75rem;">Logged</span>
-          </div>
-        </div>
-        <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 8px;">
-          Consistency: <strong>${analytics ? analytics.consistencyScore + '%' : '94%'}</strong> (${analytics ? (analytics.totalDaysPresent + (analytics.totalDaysPresent === 1 ? ' day' : ' days')) : 'Active'} this month)
-        </div>
-      </div>
-
-    </div>
-
-    <!-- 🧠 AI Study Analytics & Consistency Score Card -->
-    <div class="card mb-4 p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); position: relative;">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 1.5rem;">🧠</span>
-          <div>
-            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary);">
-              AI Study Analytics & Consistency Score
-            </h3>
-            <p style="margin: 0; font-size: 0.8rem; color: var(--color-text-secondary);">
-              90-day learning habits, peak study hours & attendance discipline
-            </p>
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
-          <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.8rem; padding: 5px 10px; border-radius: 6px;">
-            ${escapeHTML(analytics?.peakStudyHours?.badge || '🌅 Peak Time: 08:00 AM – 02:00 PM')}
-          </span>
-          <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--color-warning); font-weight: 700; font-size: 0.8rem; padding: 5px 10px; border-radius: 6px;">
-            🔥 ${analytics?.currentStreak || 0} ${analytics?.currentStreak === 1 ? 'Day' : 'Days'} Streak
-          </span>
-          <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--color-primary); font-weight: 700; font-size: 0.8rem; padding: 5px 10px; border-radius: 6px;">
-            🏆 Best: ${analytics?.longestStreak || 0} ${analytics?.longestStreak === 1 ? 'Day' : 'Days'}
-          </span>
-        </div>
-      </div>
-
-      <!-- Main Layout: Score Gauge + Heatmap + AI Recommendation -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 1.5rem; align-items: center;">
-        <!-- Circular / Gauge Consistency Score -->
-        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 12px 14px; background: var(--color-bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-          ${renderGaugeScoreSvg(analytics?.consistencyScore || 0)}
-          <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-top: 4px;">
-            Avg: <strong>${escapeHTML(analytics?.averageDailyDuration?.formatted || '0m')}</strong> / day
-          </div>
-          <div style="font-size: 0.75rem; color: var(--color-text-muted);">
-            ${analytics?.totalDaysPresent || 0} / 30 days present
-          </div>
-        </div>
-
-        <!-- 30-Day Heatmap & AI Tip -->
-        <div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span style="font-size: 0.85rem; font-weight: 700; color: var(--color-text-primary);">
-              📅 30-Day Attendance Heatmap
-            </span>
-            <span style="font-size: 0.75rem; color: var(--color-text-muted);">
-              Hover squares to inspect daily duration
-            </span>
-          </div>
-
-          ${renderHeatmapGridHtml(analytics?.heatmap || [])}
-
-          <!-- Dynamic AI Recommendation Note / Tip Pill -->
-          <div style="
-            margin-top: 12px;
-            padding: 10px 14px;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(16, 185, 129, 0.08));
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-          ">
-            <span style="font-size: 1.25rem; flex-shrink: 0;">💡</span>
-            <div style="font-size: 0.85rem; color: var(--color-text-primary); line-height: 1.4;">
-              <strong>AI Study Tip:</strong> ${escapeHTML(analytics?.aiRecommendation || analytics?.aiStudyTip || 'Consistency is the key to cracking competitive exams. Try regular study blocks every morning!')}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 🏆 Achievements & Badges Studio Card -->
-    <div class="card mb-4 p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 1.6rem;">🏆</span>
-          <div>
-            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary);">
-              Achievements & Badges Studio
-            </h3>
-            <p style="margin: 0; font-size: 0.8rem; color: var(--color-text-secondary);">
-              Track your learning milestones, study streaks, and unlock special library honors
-            </p>
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-          <span class="badge" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(239, 68, 68, 0.15)); color: #d97706; font-weight: 800; font-size: 0.85rem; padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(245, 158, 11, 0.4);">
-            🔥 ${student.studyStreakDays || 0} Day Streak
-          </span>
-          <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--color-primary); font-weight: 700; font-size: 0.85rem; padding: 6px 12px; border-radius: 20px;">
-            🎖️ ${(student.badges || []).length} / 4 Badges Unlocked
-          </span>
-        </div>
-      </div>
-
-      <!-- Active / Earned Badges Showcase Row -->
-      ${(student.badges && student.badges.length > 0) ? `
-        <div class="mb-4" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(16, 185, 129, 0.06)); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: var(--radius-md); padding: 12px 16px;">
-          <div style="font-size: 0.82rem; font-weight: 700; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-            🌟 Active Earned Badges
-          </div>
-          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            ${student.badges.map(b => `
-              <div style="display: flex; align-items: center; gap: 8px; background: var(--color-surface); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);">
-                <span style="font-size: 1.3rem;">${escapeHTML(b.icon || '🏅')}</span>
-                <div>
-                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(b.title)}</div>
-                  <div style="font-size: 0.7rem; color: var(--color-success); font-weight: 600;">Earned ${new Date(b.earnedAt || Date.now()).toLocaleDateString('en-IN')}</div>
-                </div>
-              </div>
-            `).join('')}
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-size: 0.82rem; font-weight: 600;">Switch Student:</label>
+            <select id="admin-switch-student" class="form-select form-control form-control-sm" style="min-width: 220px; font-weight: 600;">
+              ${(data.allStudents || []).map(s => `
+                <option value="${s._id}" ${String(s._id) === String(student._id) ? 'selected' : ''}>
+                  ${escapeHTML(s.name)} (${s.studentId || s.phone})
+                </option>
+              `).join('')}
+            </select>
+            <a href="#/students" class="btn btn-outline-secondary btn-sm" style="font-weight: 600;">➔ Students Directory</a>
           </div>
         </div>
       ` : ''}
 
-      <!-- 4 Badges & Progress Bars Grid -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1rem;">
-        ${(() => {
-          const badgeProgress = data?.badgeProgress || analytics?.badgeProgress || [];
-          return [
-            { badgeId: 'early_bird', title: '🌅 Early Bird', icon: '🌅', description: 'Checked in before 07:00 AM 5+ times', target: 5, unit: 'check-ins' },
-            { badgeId: 'study_warrior', title: '⚔️ 100-Hour Study Warrior', icon: '⚔️', description: 'Total study hours >= 100', target: 100, unit: 'hrs' },
-            { badgeId: 'night_owl', title: '🦉 Night Owl', icon: '🦉', description: 'Checked in after 08:00 PM 5+ times', target: 5, unit: 'check-ins' },
-            { badgeId: 'streak_champion', title: '🏆 30-Day Streak Champion', icon: '🏆', description: 'Consecutive attendance streak >= 30 days', target: 30, unit: 'days' }
-          ].map(b => {
-            const earnedBadge = (student.badges || []).find(eb => eb.badgeId === b.badgeId);
-            const isEarned = !!earnedBadge;
-            
-            let progVal = 0;
-            if (badgeProgress && Array.isArray(badgeProgress)) {
-              const bp = badgeProgress.find(p => p.badgeId === b.badgeId);
-              if (bp) progVal = bp.progress || 0;
-            }
-            if (isEarned) progVal = Math.max(progVal, b.target);
+      <!-- 1. Mobile-First Welcome & Identity Bar -->
+      <div class="card mb-3 p-3" id="portal-welcome-banner" style="
+        background: ${business.bannerImage ? `linear-gradient(135deg, rgba(108, 92, 231, 0.90), rgba(15, 23, 42, 0.85)), url('${business.bannerImage}') center/cover` : 'var(--color-surface)'};
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+      ">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 240px; flex: 1 1 auto;">
+            <div style="
+              width: 58px; height: 58px; border-radius: 50%;
+              background: var(--color-primary-bg); color: var(--color-primary);
+              font-size: 1.4rem; font-weight: 800; display: flex; align-items: center; justify-content: center;
+              border: 2.5px solid ${isCheckedIn ? '#10b981' : 'var(--color-primary)'}; flex-shrink: 0; overflow: hidden;
+              box-shadow: 0 4px 14px ${isCheckedIn ? 'rgba(16, 185, 129, 0.35)' : 'rgba(108, 92, 231, 0.2)'};
+              position: relative;
+            ">
+              ${(student.photo || user?.avatar) ? `<img src="${escapeHTML(student.photo || user.avatar)}" alt="${escapeHTML(student.name)}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
+            </div>
+            <div>
+              <div style="font-size: 0.76rem; font-weight: 600; color: ${business.bannerImage ? 'rgba(255,255,255,0.85)' : 'var(--color-text-secondary)'}; display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+                <span>${timeGreeting}</span>
+                <span class="badge ${isCheckedIn ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 10px;">
+                  ${isCheckedIn ? '🟢 Active in Hall' : '⚪ Checked Out'}
+                </span>
+              </div>
+              <h2 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: ${business.bannerImage ? '#ffffff' : 'var(--color-text-primary)'}; white-space: normal; line-height: 1.25; text-transform: capitalize;">
+                ${escapeHTML((student.name || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()))}
+              </h2>
+              <div style="font-size: 0.78rem; color: ${business.bannerImage ? '#a7f3d0' : 'var(--color-text-muted)'}; margin-top: 2px; font-family: monospace; font-weight: 600;">
+                ${escapeHTML(student.studentId || 'STU-MEMBER')} • ${escapeHTML(business.businessName || 'Study Library')}
+              </div>
+            </div>
+          </div>
 
-            const percent = Math.min(100, Math.round((progVal / b.target) * 100));
+          <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+            <button id="btn-portal-profile" class="btn btn-outline-secondary btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border-radius: 10px;">
+              👤 Profile
+            </button>
+            <button id="btn-portal-renew" class="btn btn-primary btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 14px; border-radius: 10px;">
+              ⚡ Renew
+            </button>
+          </div>
+        </div>
+      </div>
 
-            return `
-              <div style="background: var(--color-bg-secondary); border: 1px solid ${isEarned ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
-                ${isEarned ? `
-                  <div style="position: absolute; top: 8px; right: 8px; background: var(--color-success); color: white; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 10px; text-transform: uppercase;">
-                    Unlocked
-                  </div>
-                ` : ''}
-                <div>
-                  <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-                    <span style="font-size: 1.8rem; opacity: ${isEarned ? '1' : '0.6'};">${b.icon}</span>
-                    <div>
-                      <div style="font-weight: 700; font-size: 0.95rem; color: ${isEarned ? 'var(--color-primary)' : 'var(--color-text-primary)'};">
-                        ${escapeHTML(b.title)}
+      <!-- 2. Smart Pass & Active Desk Card (Apple Wallet Inspired) -->
+      <div class="portal-pass-card mb-3">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 1; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.85; font-weight: 700;">
+              Allotted Study Desk
+            </div>
+            <div style="font-size: 1.85rem; font-weight: 900; line-height: 1.1; margin-top: 2px; text-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+              ${seatTitle}
+            </div>
+            <div style="font-size: 0.78rem; opacity: 0.92; margin-top: 2px; font-weight: 600;">
+              Shift: <span>${escapeHTML(shiftName)}</span> • Plan: <span>${escapeHTML(planName)}</span>
+            </div>
+          </div>
+
+          <!-- Plan Expiry Pill -->
+          <div style="text-align: right;">
+            <span style="background: rgba(255,255,255,0.22); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: 20px; font-weight: 800; font-size: 0.78rem; letter-spacing: 0.3px; border: 1px solid rgba(255,255,255,0.3); display: inline-block;">
+              ⏳ ${daysRemaining} ${daysRemaining === 1 ? 'Day' : 'Days'} Left
+            </span>
+            <div style="font-size: 0.72rem; opacity: 0.88; margin-top: 4px; font-weight: 600;">
+              Valid till ${expiryDateStr}
+            </div>
+          </div>
+        </div>
+
+        <!-- Validity Progress Bar inside Pass -->
+        <div style="margin-top: 14px; background: rgba(0,0,0,0.25); height: 6px; border-radius: 4px; overflow: hidden; position: relative; z-index: 1;">
+          <div style="height: 100%; width: ${Math.max(5, Math.min(100, (daysRemaining / 30) * 100))}%; background: linear-gradient(90deg, #34d399, #a7f3d0); border-radius: 4px;"></div>
+        </div>
+
+        <!-- Pass Actions Row: 1-Tap Punch In/Out + ID Pass -->
+        <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,0.25); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: relative; z-index: 1;">
+          <button id="btn-self-punch" class="btn btn-sm ${isCheckedIn ? 'btn-danger' : 'btn-success'}" style="
+            font-weight: 800; font-size: 0.86rem; padding: 8px 18px; border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.25); border: none; flex: 1 1 180px; min-height: 42px;
+          ">
+            ${isCheckedIn ? '🔴 Punch-Out (Leave)' : (todayAttendance && todayAttendance.checkOut ? '🟢 Punch-In Again' : '🟢 1-Tap Attendance Punch')}
+          </button>
+
+          <button id="btn-portal-idcard" class="btn btn-sm" style="
+            background: rgba(255,255,255,0.22); color: #ffffff; border: 1px solid rgba(255,255,255,0.4);
+            font-weight: 700; font-size: 0.82rem; padding: 8px 16px; border-radius: 12px; backdrop-filter: blur(8px);
+            flex: 1 1 140px; min-height: 42px;
+          ">
+            🪪 View Digital ID Pass
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. Mandatory Profile & KYC Completion Card (Rendered when profile < 100%) -->
+      ${(student.profileCompletion < 100 || !student.isProfileComplete) ? `
+        <div class="card mb-3 p-3" style="background: rgba(245, 158, 11, 0.08); border: 1.5px solid rgba(245, 158, 11, 0.35); border-radius: var(--radius-lg);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 12px; max-width: 650px;">
+              <div style="font-size: 2rem;">⚠️</div>
+              <div>
+                <h4 style="margin: 0 0 4px 0; font-size: 0.98rem; font-weight: 800; color: #f59e0b;">
+                  Action Required: Complete Profile & KYC Upload (${student.profileCompletion || 60}%)
+                </h4>
+                <p style="margin: 0; font-size: 0.80rem; color: var(--color-text-secondary); line-height: 1.35;">
+                  Upload your Profile Selfie and Aadhaar KYC proof to unlock official Digital Offline ID Card Pass.
+                </p>
+                <div style="margin-top: 6px; width: 100%; max-width: 320px; height: 5px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden;">
+                  <div style="height: 100%; width: ${student.profileCompletion || 60}%; background: linear-gradient(90deg, #f59e0b, #00b894); border-radius: 4px;"></div>
+                </div>
+              </div>
+            </div>
+            <button id="btn-portal-complete-kyc" class="btn btn-warning btn-sm" style="font-weight: 700; font-size: 0.82rem; padding: 6px 14px; border-radius: 10px;">
+              ✏️ Upload KYC
+            </button>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- 4. Modern App Launcher Grid (10 Colorful Gradient Tiles) -->
+      <div style="
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 88px), 1fr));
+        gap: 8px;
+        margin-bottom: 1.25rem;
+      ">
+        <div class="portal-app-tile" id="tile-portal-idcard" title="Open Digital ID Card Studio">
+          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.08)); color: #6366f1;">🪪</div>
+          <div class="portal-tile-label">ID Pass</div>
+        </div>
+        <div class="portal-app-tile" id="tile-portal-renew" title="Renew Membership Plan">
+          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08)); color: #10b981;">⚡</div>
+          <div class="portal-tile-label">Renew</div>
+        </div>
+        <div class="portal-app-tile" id="tile-portal-receipts" title="View Fee Receipts & Invoices">
+          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0.08)); color: #0ea5e9;">🧾</div>
+          <div class="portal-tile-label">Receipts</div>
+        </div>
+        <div class="portal-app-tile" id="tile-portal-notices" title="Read Campus Notices">
+          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08)); color: #f59e0b;">📢</div>
+          <div class="portal-tile-label">Notices</div>
+        </div>
+        <div class="portal-app-tile" id="tile-portal-holidays" title="Check Holiday Calendar">
+          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(236, 72, 153, 0.08)); color: #ec4899;">📅</div>
+          <div class="portal-tile-label">Holidays</div>
+        </div>
+        <div class="portal-app-tile" id="tile-portal-lostfound" title="Lost & Found Hub">
+          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(20, 184, 166, 0.08)); color: #14b8a6;">🔍</div>
+          <div class="portal-tile-label">Lost/Found</div>
+        </div>
+        <div class="portal-app-tile" id="tile-portal-feedback" title="Submit Support Feedback">
+          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08)); color: #a855f7;">💬</div>
+          <div class="portal-tile-label">Feedback</div>
+        </div>
+        <div class="portal-app-tile" id="tile-portal-seat-change" title="Request Seat Transfer">
+          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(59, 130, 246, 0.08)); color: #3b82f6;">💺</div>
+          <div class="portal-tile-label">Shift/Seat</div>
+        </div>
+        <div class="portal-app-tile" id="tile-portal-leave" title="Apply for Leave">
+          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.18), rgba(249, 115, 22, 0.08)); color: #f97316;">🌴</div>
+          <div class="portal-tile-label">Leave App</div>
+        </div>
+        <div class="portal-app-tile" id="tile-portal-referral" title="Refer a Friend">
+          <div class="portal-tile-icon" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.18), rgba(234, 179, 8, 0.08)); color: #eab308;">🎁</div>
+          <div class="portal-tile-label">Referral</div>
+        </div>
+      </div>
+
+      <!-- 5. Segmented Tab Navigation Track -->
+      <div class="portal-tab-track">
+        <button type="button" class="portal-tab-pill active" data-portal-tab="overview">
+          🏠 Overview & Streaks
+        </button>
+        <button type="button" class="portal-tab-pill" data-portal-tab="campus">
+          🏛️ Campus Life
+        </button>
+        <button type="button" class="portal-tab-pill" data-portal-tab="receipts">
+          🧾 Fee Receipts
+        </button>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- TAB PANE 1: Overview & Streaks                              -->
+      <!-- ============================================================ -->
+      <div id="pane-portal-overview" class="portal-tab-pane">
+        <!-- 3 Quick Metrics Row -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; margin-bottom: 1.25rem;">
+          <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--color-text-secondary);">🔥 Study Streak</div>
+            <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-warning); margin-top: 2px;">
+              ${analytics?.currentStreak || student.studyStreakDays || 0} Days
+            </div>
+            <div style="font-size: 0.70rem; color: var(--color-text-muted);">Best Streak: ${analytics?.longestStreak || 1} days</div>
+          </div>
+          <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--color-text-secondary);">📈 Total Study Time</div>
+            <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-info); margin-top: 2px;">
+              ${totalHours} hrs
+            </div>
+            <div style="font-size: 0.70rem; color: var(--color-text-muted);">${analytics?.totalDaysPresent || 1} days present this month</div>
+          </div>
+          <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--color-text-secondary);">🎖️ Badges Unlocked</div>
+            <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-primary); margin-top: 2px;">
+              ${(student.badges || []).length} / 4
+            </div>
+            <div style="font-size: 0.70rem; color: var(--color-text-muted);">Library honors & achievements</div>
+          </div>
+        </div>
+
+        <!-- AI Study Analytics & Consistency Score Card -->
+        <div class="card mb-4 p-3 p-md-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.5rem;">🧠</span>
+              <div>
+                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--color-text-primary);">
+                  AI Study Analytics & Consistency Score
+                </h3>
+                <p style="margin: 0; font-size: 0.78rem; color: var(--color-text-secondary);">
+                  90-day learning habits, peak study hours & attendance discipline
+                </p>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+              <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.76rem; padding: 4px 8px; border-radius: 6px;">
+                ${escapeHTML(analytics?.peakStudyHours?.badge || '🌅 Peak: 08:00 AM – 02:00 PM')}
+              </span>
+              <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--color-warning); font-weight: 700; font-size: 0.76rem; padding: 4px 8px; border-radius: 6px;">
+                🔥 ${analytics?.currentStreak || 0} Day Streak
+              </span>
+            </div>
+          </div>
+
+          <!-- Main Layout: Score Gauge + Heatmap + AI Recommendation -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 1.25rem; align-items: center;">
+            <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 12px 14px; background: var(--color-bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+              ${renderGaugeScoreSvg(analytics?.consistencyScore || 0)}
+              <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-top: 4px;">
+                Avg: <strong>${escapeHTML(analytics?.averageDailyDuration?.formatted || '0m')}</strong> / day
+              </div>
+              <div style="font-size: 0.75rem; color: var(--color-text-muted);">
+                ${analytics?.totalDaysPresent || 0} / 30 days present
+              </div>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-size: 0.84rem; font-weight: 700; color: var(--color-text-primary);">
+                  📅 30-Day Attendance Heatmap
+                </span>
+                <span style="font-size: 0.72rem; color: var(--color-text-muted);">
+                  Daily study intensity
+                </span>
+              </div>
+
+              ${renderHeatmapGridHtml(analytics?.heatmap || [])}
+
+              <div style="
+                margin-top: 10px;
+                padding: 8px 12px;
+                background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(16, 185, 129, 0.08));
+                border: 1px solid rgba(99, 102, 241, 0.2);
+                border-radius: var(--radius-md);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+              ">
+                <span style="font-size: 1.15rem; flex-shrink: 0;">💡</span>
+                <div style="font-size: 0.80rem; color: var(--color-text-primary); line-height: 1.35;">
+                  <strong>AI Study Tip:</strong> ${escapeHTML(analytics?.aiRecommendation || analytics?.aiStudyTip || 'Consistency is the key to cracking competitive exams. Try regular study blocks every morning!')}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 🏆 Achievements & Badges Studio Card -->
+        <div class="card mb-4 p-3 p-md-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.5rem;">🏆</span>
+              <div>
+                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--color-text-primary);">
+                  Achievements & Badges Studio
+                </h3>
+                <p style="margin: 0; font-size: 0.78rem; color: var(--color-text-secondary);">
+                  Milestones, study streaks, and special honors
+                </p>
+              </div>
+            </div>
+
+            <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--color-primary); font-weight: 700; font-size: 0.80rem; padding: 4px 10px; border-radius: 12px;">
+              🎖️ ${(student.badges || []).length} / 4 Badges Unlocked
+            </span>
+          </div>
+
+          <!-- 4 Badges Progress Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px;">
+            ${(() => {
+              const badgeProgress = data?.badgeProgress || analytics?.badgeProgress || [];
+              return [
+                { badgeId: 'early_bird', title: '🌅 Early Bird', icon: '🌅', description: 'Checked in before 07:00 AM 5+ times', target: 5, unit: 'check-ins' },
+                { badgeId: 'study_warrior', title: '⚔️ 100-Hr Warrior', icon: '⚔️', description: 'Total study hours >= 100', target: 100, unit: 'hrs' },
+                { badgeId: 'night_owl', title: '🦉 Night Owl', icon: '🦉', description: 'Checked in after 08:00 PM 5+ times', target: 5, unit: 'check-ins' },
+                { badgeId: 'streak_champion', title: '🏆 30-Day Streak', icon: '🏆', description: 'Consecutive attendance streak >= 30 days', target: 30, unit: 'days' }
+              ].map(b => {
+                const earnedBadge = (student.badges || []).find(eb => eb.badgeId === b.badgeId);
+                const isEarned = !!earnedBadge;
+                
+                let progVal = 0;
+                if (badgeProgress && Array.isArray(badgeProgress)) {
+                  const bp = badgeProgress.find(p => p.badgeId === b.badgeId);
+                  if (bp) progVal = bp.progress || 0;
+                }
+                if (isEarned) progVal = Math.max(progVal, b.target);
+                const percent = Math.min(100, Math.round((progVal / b.target) * 100));
+
+                return `
+                  <div style="background: var(--color-bg-secondary); border: 1px solid ${isEarned ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+                    ${isEarned ? `
+                      <div style="position: absolute; top: 6px; right: 6px; background: var(--color-success); color: white; font-size: 0.60rem; font-weight: 800; padding: 2px 6px; border-radius: 8px; text-transform: uppercase;">
+                        Unlocked
                       </div>
-                      <div style="font-size: 0.75rem; color: var(--color-text-secondary);">
-                        ${escapeHTML(b.description)}
+                    ` : ''}
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <span style="font-size: 1.5rem; opacity: ${isEarned ? '1' : '0.6'};">${b.icon}</span>
+                        <div>
+                          <div style="font-weight: 700; font-size: 0.88rem; color: ${isEarned ? 'var(--color-primary)' : 'var(--color-text-primary)'};">
+                            ${escapeHTML(b.title)}
+                          </div>
+                          <div style="font-size: 0.72rem; color: var(--color-text-secondary);">
+                            ${escapeHTML(b.description)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style="margin-top: 10px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; margin-bottom: 3px; font-weight: 600;">
+                        <span style="color: var(--color-text-muted);">Progress</span>
+                        <span style="color: ${isEarned ? 'var(--color-success)' : 'var(--color-primary)'};">${progVal} / ${b.target} (${percent}%)</span>
+                      </div>
+                      <div style="height: 5px; background: var(--color-surface); border-radius: 4px; overflow: hidden;">
+                        <div style="width: ${percent}%; height: 100%; background: ${isEarned ? 'var(--color-success)' : 'var(--color-primary)'}; border-radius: 4px;"></div>
                       </div>
                     </div>
                   </div>
-                </div>
+                `;
+              }).join('');
+            })()}
+          </div>
+        </div>
 
-                <div style="margin-top: 12px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; margin-bottom: 4px; font-weight: 600;">
-                    <span style="color: var(--color-text-muted);">Progress</span>
-                    <span style="color: ${isEarned ? 'var(--color-success)' : 'var(--color-primary)'};">${progVal} / ${b.target} ${b.unit} (${percent}%)</span>
-                  </div>
-                  <div style="height: 6px; background: var(--color-surface); border-radius: 4px; overflow: hidden;">
-                    <div style="width: ${percent}%; height: 100%; background: ${isEarned ? 'var(--color-success)' : 'var(--color-primary)'}; border-radius: 4px; transition: width 0.4s ease;"></div>
-                  </div>
+        <!-- Push Notifications Mini Card -->
+        <div class="card mb-4 p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.6rem;">🔔</span>
+              <div>
+                <div style="font-weight: 700; font-size: 0.92rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span>Mobile Push Notifications</span>
+                  <span id="portal-push-badge" class="badge" style="font-size: 0.70rem; padding: 2px 6px; border-radius: 10px; border: 1px solid currentColor;">
+                    Checking...
+                  </span>
+                </div>
+                <div style="font-size: 0.76rem; color: var(--color-text-secondary); margin-top: 1px;">
+                  Instant lock-screen reminders for seat expiry, announcements & receipts.
                 </div>
               </div>
-            `;
-          }).join('');
-        })()}
-      </div>
-    </div>
-
-    <!-- Attendance Self-Puncher Card -->
-    <div class="card mb-4 p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-        <div>
-          <h3 style="margin: 0 0 4px 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary);">
-            ⏱️ Self Attendance Punch
-          </h3>
-          <p style="margin: 0; font-size: 0.85rem; color: var(--color-text-secondary);">
-            ${punchStatusText}
-          </p>
-        </div>
-
-        <button id="btn-self-punch" class="btn ${isCheckedIn ? 'btn-danger' : 'btn-success'}" style="font-weight: 700; padding: 0.65rem 1.5rem;">
-          ${isCheckedIn ? '🔴 Punch-Out Now' : (todayAttendance && todayAttendance.checkOut ? '🟢 Check In Again' : '🟢 Punch-In (Check In)')}
-        </button>
-      </div>
-    </div>
-
-    <!-- Native Mobile Push Notifications Card -->
-    <div class="card mb-4 p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-          <div style="font-size: 2rem;">🔔</div>
-          <div>
-            <div style="font-weight: 700; font-size: 1.05rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-              <span>🔔 Enable Native Mobile Push Notifications</span>
-              <span id="portal-push-badge" class="badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; border: 1px solid currentColor;">
-                Checking...
-              </span>
             </div>
-            <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: var(--color-text-secondary);">
-              Get instant OS lock screen alerts for seat renewals, fee receipts, and library announcements.
-            </p>
+
+            <label class="switch-label" style="margin: 0;">
+              <input type="checkbox" id="portal-push-toggle">
+              <span class="switch-slider"></span>
+            </label>
           </div>
         </div>
-
-        <label class="switch-label" style="margin: 0;">
-          <input type="checkbox" id="portal-push-toggle">
-          <span class="switch-slider"></span>
-        </label>
       </div>
-    </div>
 
-    <!-- 🏛️ Campus Life & Student Support Services Card -->
-    <div id="student-campus-hub-card" class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
-      <div class="card-header p-3" style="border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 1.3rem;">🏛️</span>
-          <div>
-            <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--color-text-primary);">
-              Campus Notice Board, Holidays, Lost &amp; Found &amp; Student Feedback
+      <!-- ============================================================ -->
+      <!-- TAB PANE 2: Campus Life Hub                                 -->
+      <!-- ============================================================ -->
+      <div id="pane-portal-campus" class="portal-tab-pane" style="display: none;">
+        <div id="student-campus-hub-card" class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
+          <div class="card-header p-3" style="border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.3rem;">🏛️</span>
+              <div>
+                <h4 style="margin: 0; font-size: 1.02rem; font-weight: 700; color: var(--color-text-primary);">
+                  Campus Notice Board & Services
+                </h4>
+                <span style="font-size: 0.76rem; color: var(--color-text-secondary);">Circulars, holiday closures, lost items, and support</span>
+              </div>
+            </div>
+            
+            <div class="btn-group btn-group-sm" id="campus-hub-tabs" role="tablist">
+              <button type="button" class="btn btn-primary btn-campus-tab active" data-tab="notices" style="font-weight: 700;">📢 Notices</button>
+              <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="holidays" style="font-weight: 700;">📅 Holidays</button>
+              <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="lostfound" style="font-weight: 700;">🔍 Lost &amp; Found</button>
+              <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="feedback" style="font-weight: 700;">💬 Feedback</button>
+            </div>
+          </div>
+
+          <div class="card-body p-3">
+            <div id="campus-tab-content-container">
+              <div class="text-center p-4 text-muted">
+                <div class="loading-spinner mb-2" style="margin: 0 auto;"></div>
+                Loading campus announcements...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- TAB PANE 3: Fee Receipts & Invoices                         -->
+      <!-- ============================================================ -->
+      <div id="pane-portal-receipts" class="portal-tab-pane" style="display: none;">
+        <div id="student-receipts-card" class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
+          <div class="card-header p-3" style="border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="margin: 0; font-size: 1.02rem; font-weight: 700; color: var(--color-text-primary);">
+              💳 My Payment Receipts & Invoices
             </h4>
-            <span style="font-size: 0.78rem; color: var(--color-text-secondary);">Real-time library circulars, scheduled holiday closures, campus lost items, and support</span>
+            <span style="font-size: 0.78rem; color: var(--color-text-muted);">Official Tax & Fee Invoices</span>
           </div>
-        </div>
-        
-        <!-- Tab Navigation Bar -->
-        <div class="btn-group btn-group-sm" id="campus-hub-tabs" role="tablist">
-          <button type="button" class="btn btn-primary btn-campus-tab active" data-tab="notices" style="font-weight: 700;">📢 Notice Board</button>
-          <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="holidays" style="font-weight: 700;">📅 Holiday Calendar</button>
-          <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="lostfound" style="font-weight: 700;">🔍 Lost &amp; Found</button>
-          <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="feedback" style="font-weight: 700;">💬 Student Feedback</button>
-        </div>
-      </div>
-
-      <div class="card-body p-3">
-        <!-- Dynamic Tab Panes Mount -->
-        <div id="campus-tab-content-container">
-          <div class="text-center p-4 text-muted">
-            <div class="loading-spinner mb-2" style="margin: 0 auto;"></div>
-            Loading campus announcements...
+          <div class="card-body p-0">
+            <div style="overflow-x: auto;">
+              <table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="border-bottom: 1px solid var(--color-divider); text-align: left; font-size: 0.82rem; color: var(--color-text-muted);">
+                    <th style="padding: 10px 14px;">Receipt #</th>
+                    <th style="padding: 10px 14px;">Date</th>
+                    <th style="padding: 10px 14px;">Method</th>
+                    <th style="padding: 10px 14px;">Amount</th>
+                    <th style="padding: 10px 14px;">Status</th>
+                    <th style="padding: 10px 14px; text-align: right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${payments && payments.length > 0 ? payments.map(p => `
+                    <tr style="border-bottom: 1px solid var(--color-divider); font-size: 0.88rem;">
+                      <td style="padding: 10px 14px; font-family: monospace; font-weight: 700;">
+                        ${escapeHTML(p.receiptNumber || 'REC')}
+                        <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(p.receiptNumber || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Receipt #">📋</button>
+                      </td>
+                      <td style="padding: 10px 14px;">${new Date(p.paymentDate).toLocaleDateString('en-IN')} <small class="text-muted">(${SmartFormatters.timeAgo(p.paymentDate)})</small></td>
+                      <td style="padding: 10px 14px; text-transform: uppercase;">${escapeHTML(p.paymentMethod || 'UPI')}</td>
+                      <td style="padding: 10px 14px; font-weight: 700; color: var(--color-success);">${SmartFormatters.currency(p.finalAmount)}</td>
+                      <td style="padding: 10px 14px;"><span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success);">Paid</span></td>
+                      <td style="padding: 10px 14px; text-align: right;">
+                        <button class="btn btn-sm btn-primary btn-view-receipt" data-receipt='${JSON.stringify(p)}' style="font-size: 0.78rem; padding: 4px 10px; font-weight: 600;">
+                          📥 Download / Print
+                        </button>
+                      </td>
+                    </tr>
+                  `).join('') : `
+                    <tr><td colspan="6" class="p-4 text-center text-muted">No past payments recorded yet.</td></tr>
+                  `}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Payment Receipts History Table -->
-    <div id="student-receipts-card" class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
-      <div class="card-header p-3" style="border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
-        <h4 style="margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--color-text-primary);">
-          💳 My Payment Receipts & Invoices
-        </h4>
-        <span style="font-size: 0.8rem; color: var(--color-text-muted);">Official Tax & Fee Invoices</span>
-      </div>
-      <div class="card-body p-0">
-        <div style="overflow-x: auto;">
-          <table class="table data-table mb-0" style="width: 100%; border-collapse: collapse;">
-            <thead>
-              <tr style="border-bottom: 1px solid var(--color-divider); text-align: left; font-size: 0.85rem; color: var(--color-text-muted);">
-                <th style="padding: 12px 16px;">Receipt #</th>
-                <th style="padding: 12px 16px;">Date</th>
-                <th style="padding: 12px 16px;">Method</th>
-                <th style="padding: 12px 16px;">Amount</th>
-                <th style="padding: 12px 16px;">Status</th>
-                <th style="padding: 12px 16px; text-align: right;">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${payments && payments.length > 0 ? payments.map(p => `
-                <tr style="border-bottom: 1px solid var(--color-divider); font-size: 0.9rem;">
-                  <td style="padding: 12px 16px; font-family: monospace; font-weight: 700;">
-                    ${escapeHTML(p.receiptNumber || 'REC')}
-                    <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(p.receiptNumber || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Receipt #">📋</button>
-                  </td>
-                  <td style="padding: 12px 16px;">${new Date(p.paymentDate).toLocaleDateString('en-IN')} <small class="text-muted">(${SmartFormatters.timeAgo(p.paymentDate)})</small></td>
-                  <td style="padding: 12px 16px; text-transform: uppercase;">${escapeHTML(p.paymentMethod || 'UPI')}</td>
-                  <td style="padding: 12px 16px; font-weight: 700; color: var(--color-success);">${SmartFormatters.currency(p.finalAmount)}</td>
-                  <td style="padding: 12px 16px;"><span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success);">Paid</span></td>
-                  <td style="padding: 12px 16px; text-align: right;">
-                    <button class="btn btn-sm btn-primary btn-view-receipt" data-receipt='${JSON.stringify(p)}' style="font-size: 0.8rem; padding: 4px 12px; font-weight: 600;">
-                      📥 Download / Print Receipt
-                    </button>
-                  </td>
-                </tr>
-              `).join('') : `
-                <tr><td colspan="6" class="p-4 text-center text-muted">No past payments recorded yet.</td></tr>
-              `}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
   `;
+
+  // -----------------------------------------------------------------
+  // Segmented Tab Switcher Logic
+  // -----------------------------------------------------------------
+  const portalTabPills = container.querySelectorAll('.portal-tab-pill');
+  const portalTabPanes = {
+    overview: container.querySelector('#pane-portal-overview'),
+    campus: container.querySelector('#pane-portal-campus'),
+    receipts: container.querySelector('#pane-portal-receipts')
+  };
+
+  const switchPortalTab = (tabKey) => {
+    portalTabPills.forEach(pill => {
+      pill.classList.toggle('active', pill.getAttribute('data-portal-tab') === tabKey);
+    });
+    Object.keys(portalTabPanes).forEach(k => {
+      if (portalTabPanes[k]) {
+        portalTabPanes[k].style.display = (k === tabKey) ? 'block' : 'none';
+      }
+    });
+    if (tabKey === 'campus' && typeof activateCampusTab === 'function') {
+      activateCampusTab('notices');
+    }
+  };
+
+  portalTabPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      switchPortalTab(pill.getAttribute('data-portal-tab'));
+    });
+  });
+
+  // App Launcher Tiles Wiring
+  container.querySelector('#tile-portal-idcard')?.addEventListener('click', () => {
+    container.querySelector('#btn-portal-idcard')?.click();
+  });
+  container.querySelector('#tile-portal-renew')?.addEventListener('click', () => {
+    container.querySelector('#btn-portal-renew')?.click();
+  });
+  container.querySelector('#tile-portal-receipts')?.addEventListener('click', () => {
+    switchPortalTab('receipts');
+  });
+  container.querySelector('#tile-portal-notices')?.addEventListener('click', () => {
+    switchPortalTab('campus');
+    if (typeof activateCampusTab === 'function') activateCampusTab('notices');
+  });
+  container.querySelector('#tile-portal-holidays')?.addEventListener('click', () => {
+    switchPortalTab('campus');
+    if (typeof activateCampusTab === 'function') activateCampusTab('holidays');
+  });
+  container.querySelector('#tile-portal-lostfound')?.addEventListener('click', () => {
+    switchPortalTab('campus');
+    if (typeof activateCampusTab === 'function') activateCampusTab('lostfound');
+  });
+  container.querySelector('#tile-portal-feedback')?.addEventListener('click', () => {
+    switchPortalTab('campus');
+    if (typeof activateCampusTab === 'function') activateCampusTab('feedback');
+  });
+  container.querySelector('#tile-portal-seat-change')?.addEventListener('click', () => {
+    container.querySelector('#btn-portal-seat-change')?.click();
+  });
+  container.querySelector('#tile-portal-leave')?.addEventListener('click', () => {
+    container.querySelector('#btn-portal-leave')?.click();
+  });
+  container.querySelector('#tile-portal-referral')?.addEventListener('click', () => {
+    container.querySelector('#btn-portal-referral')?.click();
+  });
 
   // Admin Switch Student Handler
   container.querySelector('#admin-switch-student')?.addEventListener('change', async (e) => {
