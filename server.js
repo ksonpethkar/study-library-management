@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const fs = require('fs');
 const connectDB = require('./config/db');
 const { generalLimiter } = require('./middleware/rateLimiter');
 const { errorHandler, initProcessErrorHandlers } = require('./middleware/errorMiddleware');
@@ -251,17 +252,24 @@ app.get('/api/system/public-config', async (req, res) => {
     const SystemSetting = require('./models/SystemSetting');
     const Seat = require('./models/Seat');
 
-    const [businessProfile, customFields, template, plans, shifts, rawBranches, occupiedCounts, systemSettingsList] = await Promise.all([
+    const [businessProfile, customFields, template, plans, shifts, rawBranches, seatStats, totalSystemSeats, availableSystemSeats, systemSettingsList] = await Promise.all([
       BusinessProfile.getProfile().catch(() => ({})),
       CustomField.getActiveFields().catch(() => []),
       FormTemplate.getActiveTemplate().catch(() => null),
       Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort('displayOrder').lean().catch(() => []),
       Shift.find({ isActive: true }).sort('startTime').lean().catch(() => []),
-      Branch.find({ isActive: true }).lean().catch(() => []),
+      Branch.find({ isActive: true, isDeleted: { $ne: true } }).lean().catch(() => []),
       Seat.aggregate([
-        { $match: { status: 'occupied', isActive: true, isDeleted: { $ne: true }, branch: { $ne: null } } },
-        { $group: { _id: '$branch', count: { $sum: 1 } } }
+        { $match: { isActive: true, isDeleted: { $ne: true } } },
+        { $group: {
+            _id: '$branch',
+            total: { $sum: 1 },
+            occupied: { $sum: { $cond: [{ $eq: ['$status', 'occupied'] }, 1, 0] } },
+            available: { $sum: { $cond: [{ $in: ['$status', ['available', 'vacant']] }, 1, 0] } }
+        }}
       ]).catch(() => []),
+      Seat.countDocuments({ isActive: true, isDeleted: { $ne: true } }).catch(() => 0),
+      Seat.countDocuments({ isActive: true, isDeleted: { $ne: true }, status: { $in: ['available', 'vacant'] } }).catch(() => 0),
       SystemSetting.find().lean().catch(() => [])
     ]);
 
@@ -277,10 +285,12 @@ app.get('/api/system/public-config', async (req, res) => {
 
     let branches = [];
     if (rawBranches && rawBranches.length > 0) {
-      const occupiedMap = new Map((occupiedCounts || []).map(c => [String(c._id), c.count]));
+      const statsMap = new Map((seatStats || []).map(c => [String(c._id), c]));
       branches = rawBranches.map(b => {
-        const occupiedSeats = occupiedMap.get(String(b._id)) || 0;
-        const totalSeats = b.totalSeats || 50;
+        const stat = statsMap.get(String(b._id));
+        const totalSeats = stat ? stat.total : (b.totalSeats || totalSystemSeats || 59);
+        const occupiedSeats = stat ? stat.occupied : 0;
+        const availableSeats = stat ? stat.available : Math.max(0, totalSeats - occupiedSeats);
         return {
           _id: b._id,
           name: b.name,
@@ -290,20 +300,22 @@ app.get('/api/system/public-config', async (req, res) => {
           phone: b.phone || '',
           totalSeats,
           occupiedSeats,
-          availableSeats: Math.max(0, totalSeats - occupiedSeats)
+          availableSeats
         };
       });
     } else {
+      const liveTotal = totalSystemSeats || 59;
+      const liveAvail = availableSystemSeats || 57;
       branches = [{
         _id: 'default_main',
-        name: businessProfile?.businessName || 'Main Study Centre',
+        name: businessProfile?.businessName || 'Cozy Corner (Main Centre)',
         code: 'MAIN',
-        city: businessProfile?.city || 'Main Campus',
+        city: businessProfile?.city || 'PARLI',
         address: businessProfile?.address || 'Main Study Hall',
         phone: businessProfile?.phone || '',
-        totalSeats: 100,
-        occupiedSeats: 0,
-        availableSeats: 100
+        totalSeats: liveTotal,
+        occupiedSeats: Math.max(0, liveTotal - liveAvail),
+        availableSeats: liveAvail
       }];
     }
 

@@ -26,41 +26,52 @@ const roleCheck = (...roles) => {
 router.get('/public-list', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
-    const [branches, occupiedCounts, profile] = await Promise.all([
+    const [branches, seatStats, profile, totalSystemSeats, availableSystemSeats] = await Promise.all([
       Branch.find({ isActive: true, isDeleted: { $ne: true } })
         .select('name code city address phone totalSeats amenities image banner')
         .lean(),
       Seat.aggregate([
-        { $match: { status: 'occupied', isActive: true, branch: { $ne: null }, isDeleted: { $ne: true } } },
-        { $group: { _id: '$branch', count: { $sum: 1 } } }
+        { $match: { isActive: true, isDeleted: { $ne: true } } },
+        { $group: {
+            _id: '$branch',
+            total: { $sum: 1 },
+            occupied: { $sum: { $cond: [{ $eq: ['$status', 'occupied'] }, 1, 0] } },
+            available: { $sum: { $cond: [{ $in: ['$status', ['available', 'vacant']] }, 1, 0] } }
+        }}
       ]),
-      BusinessProfile.getProfile().catch(() => ({}))
+      BusinessProfile.getProfile().catch(() => ({})),
+      Seat.countDocuments({ isActive: true, isDeleted: { $ne: true } }).catch(() => 0),
+      Seat.countDocuments({ isActive: true, isDeleted: { $ne: true }, status: { $in: ['available', 'vacant'] } }).catch(() => 0)
     ]);
 
     if (!branches || branches.length === 0) {
+      const liveTotal = totalSystemSeats || 59;
+      const liveAvail = availableSystemSeats || 57;
       return res.json({
         success: true,
         data: [{
           _id: 'default_main',
-          name: profile?.businessName || 'Main Study Centre',
+          name: profile?.businessName || 'Cozy Corner (Main Centre)',
           code: 'MAIN',
           city: profile?.city || 'Main Campus',
           address: profile?.address || 'Main Study Hall',
           phone: profile?.phone || '',
-          totalSeats: 100,
-          occupiedSeats: 0,
-          availableSeats: 100
+          totalSeats: liveTotal,
+          occupiedSeats: Math.max(0, liveTotal - liveAvail),
+          availableSeats: liveAvail
         }]
       });
     }
 
-    const occupiedMap = new Map(occupiedCounts.map(c => [String(c._id), c.count]));
+    const statsMap = new Map((seatStats || []).map(s => [String(s._id), s]));
     const data = branches.map(b => {
-      const occupiedSeats = occupiedMap.get(String(b._id)) || 0;
-      const totalSeats = b.totalSeats || 50;
-      const availableSeats = Math.max(0, totalSeats - occupiedSeats);
+      const stat = statsMap.get(String(b._id));
+      const totalSeats = stat ? stat.total : (b.totalSeats || totalSystemSeats || 59);
+      const occupiedSeats = stat ? stat.occupied : 0;
+      const availableSeats = stat ? stat.available : Math.max(0, totalSeats - occupiedSeats);
       return {
         ...b,
+        totalSeats,
         occupiedSeats,
         availableSeats
       };

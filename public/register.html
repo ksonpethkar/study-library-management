@@ -966,12 +966,12 @@
         const availableBranches = Object.values(branchesMap);
         let optsHtml = '';
         if (availableBranches.length > 0) {
-          optsHtml = '<option value="">-- Choose Study Centre / Branch --</option>' + availableBranches.map((b, idx) => `
-            <option value="${b._id}" ${idx === 0 ? 'selected' : ''}>${escapeHTML(b.name)} (${escapeHTML(b.city || 'Campus')}) — 🟢 ${b.availableSeats ?? 50} Available Seats</option>
+          optsHtml = availableBranches.map((b, idx) => `
+            <option value="${b._id}" ${idx === 0 ? 'selected' : ''}>${escapeHTML(b.name)} (${escapeHTML(b.city || 'Campus')}) — 🟢 ${b.availableSeats ?? 57} Available Seats</option>
           `).join('');
         } else {
           optsHtml = `
-            <option value="default_main" selected>${escapeHTML(libraryBusinessName || 'The Cozy Corner Centre - Main Campus')} — 🟢 100 Available Seats</option>
+            <option value="default_main" selected>${escapeHTML(libraryBusinessName || 'The Cozy Corner Centre')} — 🟢 57 Available Seats</option>
           `;
         }
         return `
@@ -2588,21 +2588,21 @@
         if (branches.length === 0) {
           branches = [{
             _id: 'default_main',
-            name: bp?.businessName || libraryBusinessName || 'The Cozy Corner Centre - Main Campus',
-            city: bp?.city || 'Main Campus',
-            totalSeats: 100,
-            availableSeats: 100
+            name: bp?.businessName || libraryBusinessName || 'The Cozy Corner Centre',
+            city: bp?.city || 'PARLI',
+            totalSeats: 59,
+            availableSeats: 57
           }];
         }
 
         const branchSelect = document.getElementById('reg-branch');
         if (branchSelect) {
-          branchSelect.innerHTML = '<option value="">-- Choose Study Centre / Branch --</option>';
+          branchSelect.innerHTML = '';
           branches.forEach((b, idx) => {
             branchesMap[b._id] = b;
             const opt = document.createElement('option');
             opt.value = b._id;
-            opt.textContent = `${b.name} (${b.city || 'Campus'}) — 🟢 ${b.availableSeats ?? 50} Available Seats`;
+            opt.textContent = `${b.name} (${b.city || 'Campus'}) — 🟢 ${b.availableSeats ?? 57} Available Seats`;
             if (idx === 0) {
               opt.selected = true;
               selectedBranchId = b._id;
