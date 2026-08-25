@@ -111,7 +111,7 @@ const customFieldSchema = new mongoose.Schema({
   
   // Field behavior
   isReadOnly: { type: Boolean, default: false },
-  colSpan: { type: Number, default: 1, min: 1, max: 2 }  // 1 = half width, 2 = full width
+  colSpan: { type: Number, default: 12, min: 1, max: 12 }  // 6 = half width, 12 = full width (also supports 1, 2)
 }, {
   timestamps: true
 });

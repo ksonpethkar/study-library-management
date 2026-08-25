@@ -99,10 +99,10 @@ router.get('/:id', async (req, res) => {
   try {
     const student = await Student.findById(req.params.id)
       .populate('plan', 'name price duration durationType shift')
-      .populate('seat', 'seatNumber zone status branch')
+      .populate('seat', 'seatNumber zone status branch floor')
       .populate('locker', 'lockerNumber monthlyFee status')
       .populate('shift', 'name startTime endTime code')
-      .populate('branch', 'name code city address')
+      .populate('branch', 'name code city address phone image logo')
       .lean();
       
     if (!student) {

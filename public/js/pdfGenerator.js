@@ -32,17 +32,19 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
   // Dynamically resolve organization / business profile with zero hardcoding
   let cachedProfile = {};
-  try {
-    cachedProfile = JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}');
-  } catch (e) {}
+  if (typeof localStorage !== 'undefined') {
+    try {
+      cachedProfile = JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}');
+    } catch (e) {}
+  }
 
-  const sysBiz = window.store?.settings?.businessProfile || window.store?.profile || cachedProfile || {};
+  const sysBiz = (typeof window !== 'undefined' ? (window.store?.settings?.businessProfile || window.store?.profile) : null) || cachedProfile || {};
   const passedBiz = (options.business && (options.business.businessName || options.business.name)) ? options.business : null;
   const activeBiz = passedBiz || sysBiz;
 
   const b = {
-    businessName: activeBiz.businessName || activeBiz.name || 'Study Library Management',
-    tagline: activeBiz.tagline || 'Self Study & Reading Room',
+    businessName: activeBiz.businessName || activeBiz.name || 'The Cozy Corner Centre',
+    tagline: activeBiz.tagline || 'Silence, Focus and Success',
     address: activeBiz.address || '',
     phone: activeBiz.phone || '',
     email: activeBiz.email || '',
@@ -50,34 +52,60 @@ export function buildAdmissionFormHTML(student, options = {}) {
     stampImage: activeBiz.stampImage || activeBiz.stamp || ''
   };
 
-  const rc = opts.receiptConfig || (window.store?.settings?.receipt) || {};
+  const rc = opts.receiptConfig || (typeof window !== 'undefined' ? window.store?.settings?.receipt : null) || {};
   const rcHeader = rc.header || {};
   const rcFooter = rc.footer || {};
 
   const studentId = s.studentId || 'STU-2026-0001';
   const studentName = s.name || 'Student Name';
   const phone = s.phone || 'N/A';
+  const alternatePhone = s.whatsappPhone || s.alternatePhone || s.customFields?.whatsapp || s.customFields?.alternate_phone || s.customFields?.alt_phone || '';
   const email = s.email || 'N/A';
+
+  // 1. Date of Birth Resolution (Inspect root, customFields, Map, and aliases)
   const rawDob = s.dateOfBirth || s.dob || s.birthDate || (s.customFields && (s.customFields.dateOfBirth || s.customFields.dob || s.customFields.dateofbirth || s.customFields.date_of_birth || s.customFields.birthDate || (s.customFields instanceof Map ? (s.customFields.get('dateOfBirth') || s.customFields.get('dob') || s.customFields.get('dateofbirth')) : null)));
   const parsedDob = rawDob ? new Date(rawDob) : null;
-  const dob = parsedDob && !isNaN(parsedDob.getTime()) ? parsedDob.toLocaleDateString('en-IN') : 'N/A';
-  const bloodGroup = s.bloodGroup || s.customFields?.bloodGroup || s.customFields?.blood_group || '';
-  const pincode = s.pincode || 'N/A';
-  const city = s.city || 'N/A';
-  const state = s.state || 'N/A';
-  const fullAddress = s.address || s.customFields?.address || '';
-  const occupation = s.occupation || s.collegeOrCompany || s.customFields?.occupation || s.customFields?.college || '';
+  const dob = parsedDob && !isNaN(parsedDob.getTime()) ? parsedDob.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A';
 
+  const gender = (s.gender || 'Other').toUpperCase();
+  const bloodGroup = s.bloodGroup || s.customFields?.bloodGroup || s.customFields?.blood_group || s.customFields?.bloodgroup || 'N/A';
+  const pincode = s.pincode || s.customFields?.pincode || 'N/A';
+  const city = s.city || s.customFields?.city || 'N/A';
+  const state = s.state || s.customFields?.state || 'N/A';
+  const fullAddress = s.address || s.customFields?.address || '';
+  const occupation = s.occupation || s.collegeOrCompany || s.customFields?.occupation || s.customFields?.college || s.customFields?.company || 'Student / Aspirant';
+
+  // Branch & Campus Details
   const branchName = s.branch?.name || s.branchName || 'Main Branch';
+  const branchAddress = s.branch?.address || '';
+
+  // Seating, Shift & Membership Details
   const planName = s.plan?.name || s.planName || 'Standard Study Membership';
-  const shiftName = (s.shift?.name || s.plan?.shift || s.shift || 'FULL DAY').toUpperCase();
+  const planPrice = s.plan?.price !== undefined ? `₹ ${s.plan.price}` : (s.feeAmount ? `₹ ${s.feeAmount}` : '');
+  const planDuration = s.plan?.duration ? `${s.plan.duration} ${s.plan.durationType || 'month(s)'}` : '';
+  
+  let shiftTimingStr = '';
+  if (s.shift && (s.shift.startTime || s.shift.endTime)) {
+    shiftTimingStr = `${s.shift.name || 'Shift'} (${s.shift.startTime || ''} - ${s.shift.endTime || ''})`;
+  } else if (s.plan?.shift) {
+    shiftTimingStr = String(s.plan.shift).toUpperCase();
+  } else if (s.shift) {
+    shiftTimingStr = typeof s.shift === 'string' ? s.shift.toUpperCase() : (s.shift.name || 'FULL DAY').toUpperCase();
+  } else {
+    shiftTimingStr = 'FULL DAY SHIFT';
+  }
+
   const seatNumber = s.seat?.seatNumber || s.seatNumber || 'Floating Desk';
   const seatZone = s.seat?.zone || s.seatZone || 'General Zone';
+  const seatFloor = s.seat?.floor ? ` • Floor: ${s.seat.floor}` : '';
+  const lockerNumber = s.locker?.lockerNumber || s.lockerNumber || s.customFields?.lockerNumber || s.customFields?.locker || '';
 
   const joinedDate = s.admissionDate || s.joinedDate || s.createdAt 
-    ? new Date(s.admissionDate || s.joinedDate || s.createdAt).toLocaleDateString('en-IN') 
-    : new Date().toLocaleDateString('en-IN');
-  const expiryDate = s.expiryDate ? new Date(s.expiryDate).toLocaleDateString('en-IN') : 'N/A';
+    ? new Date(s.admissionDate || s.joinedDate || s.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) 
+    : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const expiryDate = s.expiryDate 
+    ? new Date(s.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) 
+    : 'N/A';
   const status = (s.status || 'active').toUpperCase();
 
   const isPaid = status === 'ACTIVE' || status === 'PAID';
@@ -96,47 +124,67 @@ export function buildAdmissionFormHTML(student, options = {}) {
   }
 
   // Emergency / Guardian Contacts
-  const emergencyName = s.emergencyContact?.name || s.emergencyContactName || s.customFields?.['Emergency Contact Name'] || s.customFields?.['Father / Guardian Name'] || s.customFields?.fatherName || '';
-  const emergencyPhone = s.emergencyContact?.phone || s.emergencyContactPhone || s.customFields?.['Emergency Contact Phone'] || s.customFields?.['Parent Phone'] || '';
-  const emergencyRelation = s.emergencyContact?.relation || s.emergencyContactRelation || s.customFields?.['Relation'] || 'Parent / Guardian';
+  const emergencyName = s.emergencyContact?.name || s.emergencyContactName || s.customFields?.['Emergency Contact Name'] || s.customFields?.['Father / Guardian Name'] || s.customFields?.fatherName || s.customFields?.parentName || '';
+  const emergencyPhone = s.emergencyContact?.phone || s.emergencyContactPhone || s.customFields?.['Emergency Contact Phone'] || s.customFields?.['Parent Phone'] || s.customFields?.parentPhone || '';
+  const emergencyRelation = s.emergencyContact?.relation || s.emergencyContactRelation || s.customFields?.['Relation'] || s.customFields?.parentRelation || 'Parent / Guardian';
 
   // Government ID Proof & KYC Details
-  const idProofType = s.idProof?.type || s.idProofType || s.customFields?.idProofType || 'Aadhaar Card';
-  const idProofNumber = s.idProof?.number || s.idProofNumber || s.customFields?.idProofNumber || '';
-  const idProofImage = s.idProof?.image || s.idProofImage || s.customFields?.idProofImage || s.customFields?.idProof || '';
+  const idProofType = s.idProof?.type || s.idProofType || s.customFields?.idProofType || s.customFields?.id_proof_type || s.customFields?.idprooftype || 'Aadhaar Card';
+  const idProofNumber = s.idProof?.number || s.idProofNumber || s.customFields?.idProofNumber || s.customFields?.id_proof_number || s.customFields?.idproofnumber || s.customFields?.aadhaar || s.customFields?.pan || '';
+  const idProofImage = s.idProof?.image || s.idProofImage || s.customFields?.idProofImage || s.customFields?.id_proof_image || s.customFields?.idproofimage || s.customFields?.idProof || s.customFields?.id_proof || '';
 
-  // Form Builder Custom Fields Extraction (Exclude core fields)
+  // Form Builder Custom Fields & Uploaded Document Attachments Extraction
   const customEntries = [];
+  const uploadedDocEntries = [];
+
   const coreExcluded = new Set([
     'name', 'phone', 'email', 'gender', 'dob', 'dateofbirth', 'photo', 'signature', 'seat', 'plan', 'status',
     'idproofimage', 'idproof', 'idprooftype', 'idproofnumber', 'targetexams', 'target_exams', 'competitive_exams',
     'address', 'city', 'state', 'pincode', 'bloodgroup', 'blood_group', 'emergencycontact', 'emergencycontactname',
-    'emergencycontactphone', 'emergencycontactrelation', 'parentphone', 'fathername', 'rfidcardnumber', 'biometricid'
+    'emergencycontactphone', 'emergencycontactrelation', 'parentphone', 'fathername', 'rfidcardnumber', 'biometricid',
+    'whatsapp', 'alternatephone', 'altphone', 'lockernumber', 'occupation', 'collegeorcompany', 'college', 'company'
   ]);
+
+  function processCustomField(key, val) {
+    if (val === undefined || val === null || val === '') return;
+    const cleanKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (coreExcluded.has(cleanKey)) return;
+
+    const strVal = String(val).trim();
+    // Check if value is an uploaded image / document
+    if (strVal.startsWith('data:image/') || strVal.startsWith('http://') || strVal.startsWith('https://') || strVal.startsWith('/uploads/') || strVal.includes('res.cloudinary.com')) {
+      uploadedDocEntries.push({ label: key, url: strVal });
+    } else {
+      customEntries.push({ label: key, value: typeof val === 'boolean' ? (val ? 'Yes' : 'No') : strVal });
+    }
+  }
 
   if (s.customFields) {
     if (s.customFields instanceof Map) {
       for (const [k, v] of s.customFields.entries()) {
-        const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (!coreExcluded.has(cleanKey) && v !== undefined && v !== null && v !== '') {
-          customEntries.push({ label: k, value: typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v) });
-        }
+        processCustomField(k, v);
       }
     } else if (typeof s.customFields === 'object') {
       for (const [k, v] of Object.entries(s.customFields)) {
-        const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (!coreExcluded.has(cleanKey) && v !== undefined && v !== null && v !== '') {
-          customEntries.push({ label: k, value: typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v) });
-        }
+        processCustomField(k, v);
       }
+    }
+  }
+
+  // Include idProofImage in uploaded docs if available
+  if (idProofImage && (idProofImage.startsWith('data:image/') || idProofImage.startsWith('http://') || idProofImage.startsWith('https://') || idProofImage.startsWith('/uploads/') || idProofImage.includes('res.cloudinary.com'))) {
+    // Check if not already in list
+    if (!uploadedDocEntries.some(d => d.url === idProofImage)) {
+      uploadedDocEntries.unshift({ label: `${idProofType} KYC Document Scan`, url: idProofImage });
     }
   }
 
   // Photo & Signature & Stamp URLs
   const photoUrl = s.photo || s.photoUrl || s.customFields?.photo || s.customFields?.passport_photo || s.avatar || '';
   const sigUrl = s.signature || s.signatureUrl || s.customFields?.signature || '';
-  const logoUrl = rcHeader.logoUrl || b.logo || b.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.logo || '';
-  const stampImageUrl = rcFooter.stampImage || b.stampImage || b.stamp || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.stampImage || '';
+  const winStore = typeof window !== 'undefined' ? window.store : null;
+  const logoUrl = rcHeader.logoUrl || b.logo || b.logoUrl || winStore?.profile?.logo || winStore?.settings?.businessProfile?.logo || cachedProfile?.logo || '';
+  const stampImageUrl = rcFooter.stampImage || b.stampImage || b.stamp || winStore?.profile?.stampImage || winStore?.settings?.businessProfile?.stampImage || cachedProfile?.stampImage || '';
   const managerSigUrl = rcFooter.signatureImage || '';
   const gstNumber = rcHeader.gstNumber || rcHeader.taxNumber || b.gstNumber || b.taxNumber || '';
   const termsText = rcFooter.termsText || rc.terms || b.rules || '';
@@ -168,29 +216,29 @@ export function buildAdmissionFormHTML(student, options = {}) {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Admission Form — ${studentId} (${studentName})</title>
+  <title>Official Admission Form — ${studentId} (${studentName})</title>
   <style>
     @page {
       size: A4 portrait;
       margin: 8mm 10mm;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-    body { background: #ffffff; color: #1e293b; font-size: 12px; line-height: 1.35; padding: 8px; position: relative; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, Arial, sans-serif; }
+    body { background: #ffffff; color: #0f172a; font-size: 11.5px; line-height: 1.35; padding: 8px; position: relative; }
 
     /* Watermark Stamp */
     .watermark-stamp {
       position: absolute;
       top: 260px;
-      right: 40px;
+      right: 35px;
       border: 3px dashed ${stampColor};
       color: ${stampColor};
       padding: 6px 14px;
-      font-size: 0.90rem;
+      font-size: 0.88rem;
       font-weight: 900;
       letter-spacing: 2px;
       text-transform: uppercase;
       transform: rotate(-7deg);
-      opacity: 0.20;
+      opacity: 0.22;
       border-radius: 8px;
       pointer-events: none;
       z-index: 1;
@@ -198,35 +246,36 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
     /* Template Header */
     .mg-header {
-      background: ${isClassic ? '#1e293b' : isCompact ? '#0284c7' : 'linear-gradient(135deg, #4f46e5, #059669)'};
+      background: ${isClassic ? '#1e293b' : isCompact ? '#0284c7' : 'linear-gradient(135deg, #4338ca, #059669)'};
       color: #ffffff;
-      padding: 14px 18px;
+      padding: 12px 18px;
       border-radius: ${isClassic ? '0' : '10px'};
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
-    .mg-header h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; margin: 0; }
-    .mg-header p { font-size: 10.5px; opacity: 0.92; margin: 0; }
+    .mg-header h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.3px; margin: 0; line-height: 1.2; }
+    .mg-header p { font-size: 10.5px; opacity: 0.95; margin: 0; }
 
     /* Section Cards */
     .sec-card {
-      border: 1px solid #e2e8f0;
+      border: 1px solid #cbd5e1;
       border-radius: 8px;
-      padding: 10px 12px;
-      margin-bottom: 10px;
+      padding: 9px 12px;
+      margin-bottom: 9px;
       background: #f8fafc;
       position: relative;
       z-index: 2;
+      page-break-inside: avoid;
     }
     .sec-title {
       font-weight: 800;
-      font-size: 12.5px;
-      color: ${isClassic ? '#1e293b' : '#4f46e5'};
-      border-bottom: 2px solid ${isClassic ? '#1e293b' : '#4f46e5'};
-      padding-bottom: 4px;
-      margin-bottom: 8px;
+      font-size: 12px;
+      color: ${isClassic ? '#1e293b' : '#4338ca'};
+      border-bottom: 2px solid ${isClassic ? '#1e293b' : '#4338ca'};
+      padding-bottom: 3px;
+      margin-bottom: 7px;
       text-transform: uppercase;
       letter-spacing: 0.4px;
       display: flex;
@@ -239,14 +288,14 @@ export function buildAdmissionFormHTML(student, options = {}) {
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
     .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
 
-    .field-label { font-size: 9.5px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
-    .field-value { font-size: 12px; font-weight: 700; color: #0f172a; margin-top: 1px; }
+    .field-label { font-size: 9.5px; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+    .field-value { font-size: 11.5px; font-weight: 700; color: #0f172a; margin-top: 1px; word-break: break-word; }
 
     /* Photo & Signature Frame */
     .photo-frame {
       width: 125px;
       height: 135px;
-      border: 1.5px solid #cbd5e1;
+      border: 1.5px solid #94a3b8;
       border-radius: 8px;
       display: flex;
       align-items: center;
@@ -260,44 +309,63 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
     .qr-frame {
       width: 125px;
-      border: 1.5px solid #cbd5e1;
+      border: 1.5px solid #94a3b8;
       border-radius: 8px;
       background: #ffffff;
-      padding: 6px;
+      padding: 5px;
       text-align: center;
       box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
 
     .sig-box {
       width: 160px;
-      height: 50px;
+      height: 48px;
       border-bottom: 1.5px solid #334155;
       display: flex;
       align-items: flex-end;
       justify-content: center;
-      margin-top: 4px;
+      margin-top: 3px;
     }
-    .sig-box img { max-height: 44px; max-width: 100%; object-fit: contain; }
+    .sig-box img { max-height: 42px; max-width: 100%; object-fit: contain; }
+
+    /* Uploaded Document Frame */
+    .doc-preview-card {
+      border: 1.5px solid #cbd5e1;
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 8px;
+      text-align: center;
+      page-break-inside: avoid;
+    }
+    .doc-preview-img {
+      max-height: 220px;
+      width: 100%;
+      object-fit: contain;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
 
     /* Rules Table */
-    .rules-list { font-size: 10px; color: #475569; padding-left: 16px; margin-top: 4px; line-height: 1.4; }
+    .rules-list { font-size: 9.5px; color: #334155; padding-left: 15px; margin-top: 3px; line-height: 1.4; }
     .rules-list li { margin-bottom: 2px; }
 
     /* Footer Bar */
     .doc-footer {
-      margin-top: 12px;
-      border-top: 1px solid #e2e8f0;
-      padding-top: 8px;
+      margin-top: 10px;
+      border-top: 1px solid #cbd5e1;
+      padding-top: 6px;
       display: flex;
       justify-content: space-between;
-      font-size: 9.5px;
-      color: #94a3b8;
+      font-size: 9px;
+      color: #64748b;
     }
 
     @media print {
       body { padding: 0; background: #fff !important; }
-      .sec-card { background: #fff !important; break-inside: avoid; }
+      .sec-card { background: #fff !important; border-color: #94a3b8; break-inside: avoid; page-break-inside: avoid; }
       .mg-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .doc-preview-card { break-inside: avoid; page-break-inside: avoid; }
     }
   </style>
 </head>
@@ -308,22 +376,22 @@ export function buildAdmissionFormHTML(student, options = {}) {
   <!-- Header -->
   <div class="mg-header">
     <div style="display: flex; align-items: center; gap: 12px;">
-      ${logoUrl ? `<img src="${logoUrl}" style="max-height: 50px; max-width: 80px; object-fit: contain; background: #fff; padding: 3px; border-radius: 6px;">` : ''}
+      ${logoUrl ? `<img src="${logoUrl}" style="max-height: 48px; max-width: 75px; object-fit: contain; background: #fff; padding: 2px; border-radius: 6px;">` : ''}
       <div>
         <h1>${b.businessName}</h1>
-        <p>${b.tagline || 'Silent Study Environment & Digital Library'}</p>
-        <p style="margin-top: 3px; font-size: 10px;">📍 ${b.address || ''} • 📞 ${b.phone || ''} ${gstNumber ? `• GSTIN: ${gstNumber}` : ''}</p>
+        <p>${b.tagline || 'Self Study & Reading Room'}</p>
+        <p style="margin-top: 2px; font-size: 9.5px;">📍 ${b.address || ''} • 📞 ${b.phone || ''} ${gstNumber ? `• GSTIN: ${gstNumber}` : ''}</p>
       </div>
     </div>
-    <div style="text-align: right; background: rgba(255,255,255,0.22); padding: 6px 12px; border-radius: 6px; min-width: 145px; white-space: nowrap; flex-shrink: 0;">
-      <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px;">Official Admission Form</div>
+    <div style="text-align: right; background: rgba(255,255,255,0.22); padding: 5px 12px; border-radius: 6px; min-width: 145px; white-space: nowrap; flex-shrink: 0;">
+      <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">OFFICIAL ADMISSION FORM</div>
       <div style="font-size: 14px; font-weight: 900; font-family: monospace; margin: 1px 0;">${studentId}</div>
       <div style="font-size: 10px; font-weight: 700;">Date: ${joinedDate}</div>
     </div>
   </div>
 
   <!-- Top 2-Column Grid: Left: Personal + Seat Info | Right: Photo + QR Code -->
-  <div style="display: grid; grid-template-columns: 1fr 135px; gap: 12px; margin-bottom: 8px; align-items: start;">
+  <div style="display: grid; grid-template-columns: 1fr 135px; gap: 10px; margin-bottom: 8px; align-items: start;">
     
     <!-- Left Column: Personal Information & Seat Allotment -->
     <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -332,14 +400,14 @@ export function buildAdmissionFormHTML(student, options = {}) {
       <div class="sec-card" style="margin-bottom: 0;">
         <div class="sec-title">👤 Student Personal Information</div>
         
-        <div class="grid-3" style="margin-bottom: 8px;">
+        <div class="grid-3" style="margin-bottom: 6px;">
           <div>
             <div class="field-label">Full Student Name</div>
             <div class="field-value">${studentName}</div>
           </div>
           <div>
             <div class="field-label">Mobile Number</div>
-            <div class="field-value">${phone}</div>
+            <div class="field-value">📞 ${phone}</div>
           </div>
           <div>
             <div class="field-label">Email Address</div>
@@ -347,18 +415,18 @@ export function buildAdmissionFormHTML(student, options = {}) {
           </div>
         </div>
 
-        <div class="grid-4" style="margin-bottom: 8px;">
+        <div class="grid-4" style="margin-bottom: 6px;">
           <div>
             <div class="field-label">Gender</div>
             <div class="field-value">${gender}</div>
           </div>
           <div>
             <div class="field-label">Date of Birth</div>
-            <div class="field-value">${dob}</div>
+            <div class="field-value" style="color: #4338ca; font-weight: 800;">${dob}</div>
           </div>
           <div>
             <div class="field-label">Blood Group</div>
-            <div class="field-value">${bloodGroup || 'N/A'}</div>
+            <div class="field-value" style="color: #dc2626; font-weight: 800;">${bloodGroup}</div>
           </div>
           <div>
             <div class="field-label">City & State</div>
@@ -367,36 +435,40 @@ export function buildAdmissionFormHTML(student, options = {}) {
         </div>
 
         ${fullAddress ? `
-          <div style="border-top: 1px dashed #e2e8f0; padding-top: 6px;">
-            <div class="field-label">Resident Address</div>
+          <div style="border-top: 1px dashed #cbd5e1; padding-top: 5px;">
+            <div class="field-label">Resident / Permanent Address</div>
             <div class="field-value" style="font-size: 11px;">${fullAddress}${pincode && pincode !== 'N/A' ? ' (PIN: ' + pincode + ')' : ''}</div>
           </div>
         ` : ''}
       </div>
 
-      <!-- 2. Study Centre & Seat Allocation -->
+      <!-- 2. Study Centre, Shift & Seating Allocation -->
       <div class="sec-card" style="margin-bottom: 0;">
-        <div class="sec-title">🏢 Study Centre & Seat Allocation</div>
+        <div class="sec-title">🏢 Study Centre & Seating Allocation</div>
         
-        <div class="grid-3" style="margin-bottom: 8px;">
+        <div class="grid-3" style="margin-bottom: 6px;">
           <div>
-            <div class="field-label">Study Centre / Branch</div>
-            <div class="field-value" style="color: #4f46e5;">${branchName}</div>
+            <div class="field-label">Campus / Branch</div>
+            <div class="field-value" style="color: #4338ca;">${branchName}</div>
           </div>
           <div>
             <div class="field-label">Assigned Desk / Seat</div>
-            <div class="field-value" style="color: #059669; font-size: 13px;">${seatNumber} (${seatZone})</div>
+            <div class="field-value" style="color: #059669; font-size: 12.5px;">${seatNumber} (${seatZone}${seatFloor})</div>
           </div>
           <div>
-            <div class="field-label">Study Shift Timing</div>
-            <div class="field-value">${shiftName}</div>
+            <div class="field-label">Study Shift & Timings</div>
+            <div class="field-value">${shiftTimingStr}</div>
           </div>
         </div>
 
-        <div class="grid-3">
+        <div class="grid-4">
           <div>
             <div class="field-label">Membership Plan</div>
-            <div class="field-value">${planName}</div>
+            <div class="field-value">${planName} ${planDuration ? '(' + planDuration + ')' : ''}</div>
+          </div>
+          <div>
+            <div class="field-label">Plan Fee Amount</div>
+            <div class="field-value" style="color: #059669;">${planPrice || 'Standard Rate'}</div>
           </div>
           <div>
             <div class="field-label">Admission Date</div>
@@ -404,14 +476,14 @@ export function buildAdmissionFormHTML(student, options = {}) {
           </div>
           <div>
             <div class="field-label">Validity Expiry Date</div>
-            <div class="field-value" style="color: #dc2626;">${expiryDate}</div>
+            <div class="field-value" style="color: #dc2626; font-weight: 800;">${expiryDate}</div>
           </div>
         </div>
       </div>
 
     </div>
 
-    <!-- Right Column: Passport Photo & Verification QR Code directly beneath it -->
+    <!-- Right Column: Passport Photo & Verification QR Code -->
     <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
       
       <!-- Passport Photo Frame -->
@@ -437,37 +509,35 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
   </div>
 
-  <!-- 3. Academic Goals, Target Competitive Exams & Guardian Contact -->
+  <!-- 3. Academic Focus, Locker & Guardian Emergency Contact -->
   <div class="sec-card">
-    <div class="sec-title">🎯 Academic Goals, Target Exams & Emergency Contact</div>
+    <div class="sec-title">🎯 Academic Goals, Facilities & Emergency Contact</div>
     
-    <div class="grid-3" style="margin-bottom: 8px;">
+    <div class="grid-3" style="margin-bottom: 6px;">
       <div>
         <div class="field-label">Target Competitive Exams</div>
-        <div class="field-value" style="color: #4f46e5;">
+        <div class="field-value" style="color: #4338ca;">
           ${targetExamsList.length > 0 ? targetExamsList.join(', ') : 'General Competitive Exams / Self Study'}
         </div>
       </div>
       <div>
         <div class="field-label">College / Company / Occupation</div>
-        <div class="field-value">${occupation || 'Student / Aspirant'}</div>
+        <div class="field-value">${occupation}</div>
       </div>
       <div>
-        <div class="field-label">Admission Status</div>
-        <div class="field-value" style="color: ${isPaid ? '#059669' : '#d97706'}; font-weight: 800;">
-          ${status} (${isPaid ? 'CONFIRMED' : 'PENDING'})
-        </div>
+        <div class="field-label">Locker & Access Card</div>
+        <div class="field-value">${lockerNumber ? `Locker #${lockerNumber}` : 'No Locker Assigned'} • Bio/RFID: ${s.rfidCardNumber || s.biometricCardNumber || s.biometricId || 'N/A'}</div>
       </div>
     </div>
 
     ${emergencyName || emergencyPhone ? `
-      <div style="border-top: 1px dashed #e2e8f0; padding-top: 6px;" class="grid-3">
+      <div style="border-top: 1px dashed #cbd5e1; padding-top: 5px;" class="grid-3">
         <div>
           <div class="field-label">Guardian / Parent Name</div>
           <div class="field-value">${emergencyName || 'N/A'}</div>
         </div>
         <div>
-          <div class="field-label">Emergency Phone</div>
+          <div class="field-label">Guardian Contact Phone</div>
           <div class="field-value">📞 ${emergencyPhone || 'N/A'}</div>
         </div>
         <div>
@@ -478,16 +548,16 @@ export function buildAdmissionFormHTML(student, options = {}) {
     ` : ''}
   </div>
 
-  <!-- 4. Government KYC & Document Proof Attachments -->
+  <!-- 4. Government KYC & Identity Proof Verification -->
   <div class="sec-card">
-    <div class="sec-title">🪪 KYC Verification & Government ID Attachments</div>
+    <div class="sec-title">🪪 Government ID Proof & KYC Verification</div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center;">
       
-      <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between;">
+      <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
         <div>
-          <div style="font-weight: 800; font-size: 11.5px; color: #1e293b;">📑 ${idProofType}</div>
-          <div style="font-size: 10px; color: #475569; font-family: monospace; font-weight: 700; margin-top: 2px;">
-            ${idProofNumber ? `ID No: ${idProofNumber}` : 'Document Attached on Record'}
+          <div style="font-weight: 800; font-size: 11.5px; color: #0f172a;">📑 ${idProofType}</div>
+          <div style="font-size: 10.5px; color: #334155; font-family: monospace; font-weight: 700; margin-top: 2px;">
+            ${idProofNumber ? `ID Number: ${idProofNumber}` : 'Document Attached on Record'}
           </div>
         </div>
         <span style="font-size: 9px; font-weight: 800; color: #059669; background: #d1fae5; padding: 3px 8px; border-radius: 4px; border: 1px solid #10b981;">
@@ -495,15 +565,15 @@ export function buildAdmissionFormHTML(student, options = {}) {
         </span>
       </div>
 
-      <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between;">
+      <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
         <div>
-          <div style="font-weight: 800; font-size: 11.5px; color: #1e293b;">🏛️ Campus ID Allotment</div>
-          <div style="font-size: 10px; color: #475569; font-family: monospace; font-weight: 700; margin-top: 2px;">
-            RFID / Bio ID: ${s.rfidCardNumber || s.biometricId || studentId}
+          <div style="font-weight: 800; font-size: 11.5px; color: #0f172a;">📋 Admission & Fee Status</div>
+          <div style="font-size: 10.5px; color: #334155; font-family: monospace; font-weight: 700; margin-top: 2px;">
+            Status: ${status} (${isPaid ? 'CONFIRMED' : 'PROVISIONAL'})
           </div>
         </div>
-        <span style="font-size: 9px; font-weight: 800; color: #4f46e5; background: #e0e7ff; padding: 3px 8px; border-radius: 4px; border: 1px solid #6366f1;">
-          ACTIVE ACCESS
+        <span style="font-size: 9px; font-weight: 800; color: ${isPaid ? '#059669' : '#d97706'}; background: ${isPaid ? '#d1fae5' : '#fef3c7'}; padding: 3px 8px; border-radius: 4px; border: 1px solid ${isPaid ? '#10b981' : '#f59e0b'};">
+          ${isPaid ? 'ACTIVE ACCESS' : 'PENDING'}
         </span>
       </div>
 
@@ -516,32 +586,59 @@ export function buildAdmissionFormHTML(student, options = {}) {
       <div class="sec-title">📋 Additional Registration Information</div>
       <div class="grid-2">
         ${customEntries.map(e => `
-          <div style="margin-bottom: 4px;">
+          <div style="margin-bottom: 3px;">
             <div class="field-label">${escapeHTML(e.label)}</div>
-            <div class="field-value" style="font-size: 11.5px;">${escapeHTML(e.value)}</div>
+            <div class="field-value" style="font-size: 11px;">${escapeHTML(e.value)}</div>
           </div>
         `).join('')}
       </div>
     </div>
   ` : ''}
 
-  <!-- 6. Discipline Code, Terms of Admission & Declaration -->
+  <!-- 6. ATTACHED & UPLOADED DOCUMENTS GALLERY SECTION -->
+  ${opts.showUploadedDocuments && uploadedDocEntries.length > 0 ? `
+    <div class="sec-card doc-gallery-section" style="page-break-inside: avoid;">
+      <div class="sec-title">📑 Attached KYC Documents & Uploaded Verification Proofs</div>
+      <div style="display: grid; grid-template-columns: ${uploadedDocEntries.length === 1 ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))'}; gap: 10px;">
+        ${uploadedDocEntries.map(doc => `
+          <div class="doc-preview-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px;">
+              <span style="font-size: 10px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                📄 ${escapeHTML(doc.label)}
+              </span>
+              <span style="font-size: 8.5px; font-weight: 700; color: #059669; background: #d1fae5; padding: 2px 6px; border-radius: 3px;">
+                VERIFIED ATTACHMENT
+              </span>
+            </div>
+            <div style="text-align: center; max-height: 230px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: 6px;">
+              <img src="${doc.url}" alt="${escapeHTML(doc.label)}" class="doc-preview-img" style="max-height: 220px; width: 100%; object-fit: contain;">
+            </div>
+            <div style="font-size: 8.5px; color: #64748b; margin-top: 4px; font-family: monospace;">
+              Document Reference: ${studentId} • Record ID Proof Scan
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  ` : ''}
+
+  <!-- 7. Discipline Code, Terms of Admission & Declaration -->
   ${opts.showRules ? `
-    <div class="sec-card">
+    <div class="sec-card" style="page-break-inside: avoid;">
       <div class="sec-title">📜 Discipline Code & Student Declaration</div>
-      ${termsText ? `<div class="rules-list" style="margin-bottom: 6px;">${termsText}</div>` : `
+      ${termsText ? `<div class="rules-list" style="margin-bottom: 5px;">${termsText}</div>` : `
       <ol class="rules-list">
         <li>Maintain complete silence in the study hall. Mobile phones must strictly be kept on Silent mode.</li>
         <li>Seats are reserved for the registered student and non-transferable without prior management approval.</li>
         <li>Eatables, tea, and open beverages are strictly prohibited inside reading rooms.</li>
         <li>I declare that the information provided is accurate and agree to adhere to all library rules and timings.</li>
       </ol>`}
-      ${customNote ? `<p style="font-size: 10px; color: #4f46e5; font-weight: 700; margin-top: 4px;">Notice: ${customNote}</p>` : ''}
+      ${customNote ? `<p style="font-size: 9.5px; color: #4338ca; font-weight: 700; margin-top: 3px;">Notice: ${customNote}</p>` : ''}
 
-      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 8px; padding-top: 6px; border-top: 1px dashed #cbd5e1;">
         <div>
           <div class="field-label">Date & Place</div>
-          <div class="field-value">${joinedDate} • ${city !== 'N/A' ? city : 'Pune'}</div>
+          <div class="field-value">${joinedDate} • ${city !== 'N/A' ? city : 'Campus'}</div>
         </div>
 
         ${opts.showSignature ? `
@@ -556,9 +653,9 @@ export function buildAdmissionFormHTML(student, options = {}) {
         <div style="text-align: center;">
           <div class="field-label">${rcFooter.signatureLabel || 'Authorized Seal & Signatory'}</div>
           <div class="sig-box" style="border-bottom-style: dotted; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            ${stampImageUrl ? `<img src="${stampImageUrl}" style="max-height: 42px; opacity: 0.85;">` : ''}
-            ${managerSigUrl ? `<img src="${managerSigUrl}" style="max-height: 38px;">` : ''}
-            ${!stampImageUrl && !managerSigUrl ? `<span style="font-size:9.5px; color:#94a3b8; font-weight:800; border:1px solid #cbd5e1; padding:2px 8px; border-radius:4px;">OFFICIAL SEAL</span>` : ''}
+            ${stampImageUrl ? `<img src="${stampImageUrl}" style="max-height: 40px; opacity: 0.90;">` : ''}
+            ${managerSigUrl ? `<img src="${managerSigUrl}" style="max-height: 36px;">` : ''}
+            ${!stampImageUrl && !managerSigUrl ? `<span style="font-size:9px; color:#64748b; font-weight:800; border:1px solid #cbd5e1; padding:2px 8px; border-radius:4px;">OFFICIAL SEAL</span>` : ''}
           </div>
         </div>
       </div>
@@ -567,8 +664,8 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
   <!-- Footer -->
   <div class="doc-footer">
-    <div>Generated via ${b.businessName || 'StudyLib Management System'} • Official Admission Copy</div>
-    <div>Document Ref: ${studentId} • Verified Student Record</div>
+    <div>Generated via ${b.businessName || 'Study Library Management'} • Official Admission & Registration Record</div>
+    <div>Document Ref: ${studentId} • Verified Student Copy</div>
   </div>
 
 </body>
@@ -579,8 +676,18 @@ export function buildAdmissionFormHTML(student, options = {}) {
 /**
  * Direct Print PDF Trigger
  */
-export function generateAdmissionFormPDF(student, options = {}) {
-  const htmlContent = buildAdmissionFormHTML(student, options);
+export async function generateAdmissionFormPDF(student, options = {}) {
+  let fullStudent = student;
+  if (student && student._id && (!student.plan?.name || !student.shift?.name || !student.branch?.name || !student.idProof?.image)) {
+    try {
+      const token = localStorage.getItem('sl_token') || localStorage.getItem('token');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      const res = await fetch(`/api/students/${student._id}`, { headers }).then(r => r.json());
+      if (res?.success && res?.data) fullStudent = res.data;
+    } catch (e) {}
+  }
+
+  const htmlContent = buildAdmissionFormHTML(fullStudent, options);
   const printWindow = window.open('', '_blank', 'width=900,height=1100');
   if (!printWindow) {
     alert('Please allow popups to download/print the PDF Admission Form.');
@@ -610,6 +717,7 @@ export function previewAdmissionFormPDF(student, options = {}) {
     showPaymentDetails: true,
     showRules: true,
     showWatermarkStamp: true,
+    showUploadedDocuments: true,
     ...options
   };
 
@@ -626,7 +734,7 @@ export function previewAdmissionFormPDF(student, options = {}) {
 
   const modal = document.createElement('div');
   modal.style.cssText = `
-    width: 100%; max-width: 920px; height: 92vh; background: var(--color-surface, #ffffff);
+    width: 100%; max-width: 950px; height: 92vh; background: var(--color-surface, #ffffff);
     border-radius: 16px; border: 1px solid var(--color-border, #e2e8f0);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); display: flex;
     flex-direction: column; overflow: hidden;
@@ -645,7 +753,7 @@ export function previewAdmissionFormPDF(student, options = {}) {
             Admission Form Preview — ${studentName} (${studentId})
           </h3>
           <span class="text-muted small" style="font-size: 0.8rem; color: #64748b;">
-            Verify details before printing or saving PDF document
+            Includes all personal data, seating allotment, custom questions & uploaded documents
           </span>
         </div>
       </div>
@@ -670,7 +778,7 @@ export function previewAdmissionFormPDF(student, options = {}) {
     <!-- Live Document Preview Canvas Frame -->
     <div style="flex: 1; background: #525659; padding: 20px; overflow-y: auto; text-align: center;">
       <iframe id="pdf-preview-iframe" style="
-        width: 100%; max-width: 820px; height: 100%; min-height: 700px;
+        width: 100%; max-width: 840px; height: 100%; min-height: 750px;
         background: #ffffff; border: none; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
       "></iframe>
     </div>
@@ -680,9 +788,10 @@ export function previewAdmissionFormPDF(student, options = {}) {
   document.body.appendChild(overlay);
 
   const iframe = modal.querySelector('#pdf-preview-iframe');
+  let activeStudent = student;
   
   function updateIframePreview() {
-    const html = buildAdmissionFormHTML(student, currentOpts);
+    const html = buildAdmissionFormHTML(activeStudent, currentOpts);
     const doc = iframe.contentWindow.document;
     doc.open();
     doc.write(html);
@@ -690,6 +799,21 @@ export function previewAdmissionFormPDF(student, options = {}) {
   }
 
   updateIframePreview();
+
+  // Asynchronously fetch fresh full student record from database if _id exists to guarantee all populated references and uploaded document images are loaded
+  if (student && student._id) {
+    (async () => {
+      try {
+        const token = localStorage.getItem('sl_token') || localStorage.getItem('token');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const res = await fetch(`/api/students/${student._id}`, { headers }).then(r => r.json());
+        if (res?.success && res?.data) {
+          activeStudent = res.data;
+          updateIframePreview();
+        }
+      } catch (e) {}
+    })();
+  }
 
   // Async dynamic settings revalidation to ensure 100% fresh organisation branding
   if (!currentOpts.business || !currentOpts.business.businessName || currentOpts.business.businessName === 'Study Library Management') {
@@ -713,7 +837,7 @@ export function previewAdmissionFormPDF(student, options = {}) {
 
   // Print button handler
   modal.querySelector('#btn-pdf-modal-print')?.addEventListener('click', () => {
-    generateAdmissionFormPDF(student, currentOpts);
+    generateAdmissionFormPDF(activeStudent, currentOpts);
   });
 
   // Close handler
