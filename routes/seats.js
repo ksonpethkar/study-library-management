@@ -375,17 +375,91 @@ router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => 
 });
 
 // PUT /zones/update - Update zoneColor and seatType for all seats matching a zone name
-router.put('/zones/update', roleCheck('owner'), async (req, res) => {
+router.put('/zones/update', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const { zone, zoneColor, seatType } = req.body;
+    const { zone, zoneColor, seatType, floor, branch } = req.body;
     if (!zone) return res.status(400).json({ success: false, message: 'Zone name is required' });
     
+    const filter = { zone: zone.trim(), isDeleted: { $ne: true } };
+    if (branch && branch !== 'all') filter.branch = branch;
+
     const updateObj = {};
     if (zoneColor) updateObj.zoneColor = zoneColor;
     if (seatType) updateObj.seatType = seatType;
+    if (floor !== undefined) updateObj.floor = floor;
     
-    const result = await Seat.updateMany({ zone: zone.trim() }, { $set: updateObj });
-    res.json({ success: true, message: `Updated ${result.modifiedCount} seats successfully` });
+    const result = await Seat.updateMany(filter, { $set: updateObj });
+    res.json({ success: true, message: `Updated ${result.modifiedCount} seats in zone "${zone}" successfully` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /zones/rename - Rename a zone and optionally update its metadata across all matching desks
+router.put('/zones/rename', roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const { oldZone, newZone, zoneColor, seatType, floor, branch } = req.body;
+    if (!oldZone || !newZone) {
+      return res.status(400).json({ success: false, message: 'Both oldZone and newZone names are required' });
+    }
+
+    const filter = { zone: oldZone.trim(), isDeleted: { $ne: true } };
+    if (branch && branch !== 'all') filter.branch = branch;
+
+    const updateObj = { zone: newZone.trim() };
+    if (zoneColor) updateObj.zoneColor = zoneColor;
+    if (seatType) updateObj.seatType = seatType;
+    if (floor !== undefined) updateObj.floor = floor;
+
+    const result = await Seat.updateMany(filter, { $set: updateObj });
+    res.json({
+      success: true,
+      message: `Zone "${oldZone}" renamed to "${newZone}". Updated ${result.modifiedCount} seats successfully.`,
+      data: { modifiedCount: result.modifiedCount }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /zones/delete - Delete a zone by reassigning desks to another zone or moving them to Trash
+router.post('/zones/delete', roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const { zone, action = 'reassign', targetZone = 'General', branch } = req.body;
+    if (!zone) {
+      return res.status(400).json({ success: false, message: 'Zone name is required' });
+    }
+
+    const filter = { zone: zone.trim(), isDeleted: { $ne: true } };
+    if (branch && branch !== 'all') filter.branch = branch;
+
+    if (action === 'trash') {
+      const seats = await Seat.find(filter);
+      for (const seat of seats) {
+        await moveToTrash({
+          itemType: 'Seat',
+          itemId: seat._id,
+          itemTitle: `Desk ${seat.seatNumber} (${seat.zone})`,
+          itemData: seat.toObject(),
+          deletedBy: req.user?._id
+        });
+        seat.isDeleted = true;
+        seat.isActive = false;
+        await seat.save();
+      }
+      return res.json({
+        success: true,
+        message: `Zone "${zone}" removed and ${seats.length} seats moved to Recycle Bin.`
+      });
+    } else {
+      const destZone = (targetZone || 'General').trim();
+      const result = await Seat.updateMany(filter, { $set: { zone: destZone } });
+      return res.json({
+        success: true,
+        message: `Zone "${zone}" deleted. ${result.modifiedCount} seats reassigned to "${destZone}".`,
+        data: { modifiedCount: result.modifiedCount }
+      });
+    }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

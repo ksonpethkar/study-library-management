@@ -494,7 +494,15 @@ async function loadZones(container) {
         </button>
       `;
     });
+    html += `
+      <button type="button" class="btn btn-sm btn-ghost text-primary" id="btn-quick-manage-zones" title="Edit, Modify, Rename or Delete Study Zones" style="font-weight: 700; border-radius: 20px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--color-primary);">
+        ⚙️ Manage Zones
+      </button>
+    `;
     pillsContainer.innerHTML = html;
+    pillsContainer.querySelector('#btn-quick-manage-zones')?.addEventListener('click', () => {
+      showZoneCustomizerModal(container);
+    });
     pillsContainer.querySelectorAll('.zone-pill-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         currentZone = btn.getAttribute('data-zone') || '';
@@ -2316,57 +2324,489 @@ async function showWaitingListModal() {
 
 export function showZoneCustomizerModal(container) {
   const content = document.createElement('div');
-  const existingZones = Array.from(new Set(seatsData.map(s => s.zone || 'General').filter(Boolean)));
-  
-  content.innerHTML = `
-    <div class="p-2">
-      <p class="small text-muted mb-3">
-        Manage study zones (e.g. <em>Silent Zone, Discussion Hall, AC Deluxe, First Floor</em>) and reassign desk blocks:
-      </p>
+  content.className = 'zone-studio-container p-2';
 
-      <div class="mb-4">
-        <h5 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 8px;">Active Zones in Library</h5>
-        <div class="d-flex flex-wrap gap-2 mb-3" id="active-zones-pills">
-          ${existingZones.map(z => `
-            <span class="badge" style="background: rgba(108, 92, 231, 0.12); color: var(--color-primary); border: 1px solid rgba(108, 92, 231, 0.3); padding: 6px 12px; font-size: 0.85rem; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
-              📍 ${escapeHTML(z)}
-            </span>
-          `).join('') || '<span class="text-muted small">No custom zones configured yet</span>'}
-        </div>
-      </div>
-
-      <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 14px; margin-bottom: 1rem;">
-        <h5 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 8px;">⚡ Quick Create / Rename Zone</h5>
-        <div class="form-group mb-2">
-          <label class="form-label small" style="font-weight: 600;">Zone Name *</label>
-          <input type="text" id="custom-zone-name" class="form-control" placeholder="e.g. Quiet Reading Hall - Floor 2">
-        </div>
-        <p class="text-muted text-xs mb-0">You can assign seats to this new zone using Bulk Select in the Seating Matrix.</p>
-      </div>
-
-      <div class="d-flex justify-content-end gap-2 pt-2 border-top">
-        <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Close</button>
-        <button type="button" class="btn btn-primary" id="btn-save-custom-zone">Save Zone</button>
-      </div>
-    </div>
-  `;
-
-  const m = new Modal({
-    title: '🎨 Library Study Zone Customizer',
-    content,
-    size: 'md'
-  });
-  m.show();
-
-  content.querySelector('#btn-save-custom-zone')?.addEventListener('click', () => {
-    const name = content.querySelector('#custom-zone-name')?.value?.trim();
-    if (!name) {
-      Toast.warning('Please enter a zone name');
-      return;
+  // Compute live zone metrics from current seatsData
+  const zonesMap = new Map();
+  seatsData.forEach(s => {
+    const zName = s.zone || 'General';
+    if (!zonesMap.has(zName)) {
+      zonesMap.set(zName, {
+        name: zName,
+        total: 0,
+        available: 0,
+        occupied: 0,
+        reserved: 0,
+        color: s.zoneColor || '#6c5ce7',
+        seatType: s.seatType || 'standard',
+        floor: s.floor || 'Ground Floor',
+        seatIds: []
+      });
     }
-    Toast.success(`Zone "${name}" ready! You can now select desks and apply this zone.`);
-    m.close();
-    loadZones(container);
+    const zData = zonesMap.get(zName);
+    zData.total += 1;
+    zData.seatIds.push(s._id);
+    if (s.status === 'available') zData.available += 1;
+    else if (s.status === 'occupied') zData.occupied += 1;
+    else if (s.status === 'reserved') zData.reserved += 1;
+    if (s.zoneColor) zData.color = s.zoneColor;
+    if (s.floor) zData.floor = s.floor;
+    if (s.seatType) zData.seatType = s.seatType;
   });
+
+  const zoneList = Array.from(zonesMap.values());
+  const selectedSeatIds = Array.from(container.querySelectorAll('.seat-checkbox:checked')).map(cb => cb.value);
+
+  const colorPresets = [
+    { name: 'Indigo', hex: '#6c5ce7' },
+    { name: 'Emerald', hex: '#00b894' },
+    { name: 'Rose', hex: '#e84393' },
+    { name: 'Amber', hex: '#f59e0b' },
+    { name: 'Cyan', hex: '#0984e3' },
+    { name: 'Violet', hex: '#8e44ad' },
+    { name: 'Teal', hex: '#00cec9' },
+    { name: 'Slate', hex: '#64748b' }
+  ];
+
+  const renderStudioUI = () => {
+    content.innerHTML = `
+      <div style="font-family: 'Outfit', sans-serif;">
+        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+          <div>
+            <h4 style="margin: 0; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+              🎨 Library Study Zone Studio
+            </h4>
+            <p class="text-muted small mb-0">Create, customize colors, edit, rename, reassign, or delete library study zones.</p>
+          </div>
+          <span class="badge badge-primary" style="font-size: 0.8rem; padding: 6px 12px; border-radius: 20px;">
+            ${zoneList.length} Active Study Zones
+          </span>
+        </div>
+
+        <!-- 1. ACTIVE ZONES MANAGEMENT LIST -->
+        <div class="mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 style="font-size: 0.92rem; font-weight: 700; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-secondary);">
+              📍 Configured Study Zones (${zoneList.length})
+            </h5>
+          </div>
+
+          <div class="zone-cards-list d-flex flex-column gap-2" id="zone-items-mount">
+            ${zoneList.map(z => `
+              <div class="zone-row-card card p-3" data-zone="${escapeHTML(z.name)}" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); transition: all 0.2s ease;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                  <div class="d-flex align-items-center gap-3">
+                    <div style="width: 14px; height: 14px; border-radius: 50%; background: ${z.color}; box-shadow: 0 0 8px ${z.color}88; flex-shrink: 0;"></div>
+                    <div>
+                      <div class="d-flex align-items-center gap-2">
+                        <strong style="font-size: 1rem; color: var(--color-text-primary);">${escapeHTML(z.name)}</strong>
+                        <span class="badge" style="background: ${z.color}22; color: ${z.color}; border: 1px solid ${z.color}44; font-size: 0.72rem; padding: 2px 8px; border-radius: 6px;">
+                          ${escapeHTML(z.floor || 'All Floors')}
+                        </span>
+                      </div>
+                      <div class="d-flex align-items-center gap-3 mt-1 text-muted" style="font-size: 0.8rem;">
+                        <span>🪑 <strong>${z.total}</strong> Desks</span>
+                        <span style="color: var(--color-success);">🟢 ${z.available} Vacant</span>
+                        <span style="color: var(--color-danger);">🔴 ${z.occupied} Occupied</span>
+                        ${z.reserved > 0 ? `<span style="color: #f59e0b;">🟡 ${z.reserved} Hold</span>` : ''}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Zone Action Buttons -->
+                  <div class="d-flex align-items-center gap-1">
+                    <button type="button" class="btn btn-sm btn-outline-primary btn-edit-zone" data-zone="${escapeHTML(z.name)}" title="Edit & Rename Zone" style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                      ✏️ Edit / Rename
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-reassign-zone" data-zone="${escapeHTML(z.name)}" title="Reassign Desks to Another Zone" style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                      🔄 Reassign
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-delete-zone" data-zone="${escapeHTML(z.name)}" title="Delete Zone" style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                      🗑️ Delete
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Inline Edit Form (Hidden by default) -->
+                <div class="zone-inline-edit-form mt-3 pt-3 border-top" id="inline-edit-${escapeHTML(z.name).replace(/[^a-zA-Z0-9]/g, '_')}" style="display: none;">
+                  <h6 style="font-size: 0.88rem; font-weight: 700; margin-bottom: 10px; color: var(--color-primary);">
+                    ✏️ Modify Zone Settings: "${escapeHTML(z.name)}"
+                  </h6>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                    <div>
+                      <label class="form-label small" style="font-weight: 600;">Zone Name *</label>
+                      <input type="text" class="form-control form-control-sm edit-zone-name" value="${escapeHTML(z.name)}">
+                    </div>
+                    <div>
+                      <label class="form-label small" style="font-weight: 600;">Floor / Category</label>
+                      <input type="text" class="form-control form-control-sm edit-zone-floor" value="${escapeHTML(z.floor || '')}" placeholder="e.g. Ground Floor">
+                    </div>
+                    <div>
+                      <label class="form-label small" style="font-weight: 600;">Default Desk Type</label>
+                      <select class="form-select form-select-sm edit-zone-seattype">
+                        <option value="standard" ${z.seatType === 'standard' ? 'selected' : ''}>Standard Desk</option>
+                        <option value="glass_cabin" ${z.seatType === 'glass_cabin' ? 'selected' : ''}>Glass Cabin Desk</option>
+                        <option value="corner_desk" ${z.seatType === 'corner_desk' ? 'selected' : ''}>Corner Focus Desk</option>
+                        <option value="girls_only" ${z.seatType === 'girls_only' ? 'selected' : ''}>Girls Only Dedicated</option>
+                        <option value="premium" ${z.seatType === 'premium' ? 'selected' : ''}>Premium Recliner</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="form-label small" style="font-weight: 600;">Zone Theme Color</label>
+                      <div class="d-flex align-items-center gap-2">
+                        <input type="color" class="form-control form-control-sm edit-zone-color p-0" value="${z.color || '#6c5ce7'}" style="width: 38px; height: 32px; cursor: pointer; border-radius: 6px;">
+                        <span class="small text-muted">${z.color || '#6c5ce7'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-sm btn-ghost btn-cancel-inline-edit" data-zone="${escapeHTML(z.name)}">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-primary btn-save-inline-edit" data-zone="${escapeHTML(z.name)}">💾 Save Changes</button>
+                  </div>
+                </div>
+              </div>
+            `).join('') || `
+              <div class="text-center p-4 text-muted card" style="background: var(--color-bg-secondary);">
+                <div style="font-size: 2rem; margin-bottom: 6px;">📍</div>
+                <strong>No custom study zones found</strong>
+                <p class="small mb-0">Use the form below to create your first study zone.</p>
+              </div>
+            `}
+          </div>
+        </div>
+
+        <!-- 2. CREATE NEW STUDY ZONE PANEL -->
+        <div class="card p-3 mb-3" style="background: var(--color-bg-secondary); border: 1.5px dashed var(--color-border); border-radius: var(--radius-lg);">
+          <h5 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+            ➕ Create New Library Study Zone
+          </h5>
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+            <div class="form-group">
+              <label class="form-label small" style="font-weight: 600;">New Zone Name *</label>
+              <input type="text" id="new-zone-name" class="form-control form-control-sm" placeholder="e.g. Silent Zone - 2nd Floor">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label small" style="font-weight: 600;">Floor / Category</label>
+              <input type="text" id="new-zone-floor" class="form-control form-control-sm" placeholder="e.g. Floor 2 / AC Wing">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label small" style="font-weight: 600;">Default Desk Type</label>
+              <select id="new-zone-seattype" class="form-select form-select-sm">
+                <option value="standard">Standard Desk</option>
+                <option value="glass_cabin">Glass Cabin Desk</option>
+                <option value="corner_desk">Corner Focus Desk</option>
+                <option value="girls_only">Girls Only Dedicated</option>
+                <option value="premium">Premium Recliner</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label small" style="font-weight: 600;">Theme Color Tag</label>
+              <div class="d-flex align-items-center gap-2">
+                <input type="color" id="new-zone-color" class="form-control form-control-sm p-0" value="#6c5ce7" style="width: 42px; height: 32px; cursor: pointer; border-radius: 6px;">
+                <div class="d-flex gap-1 flex-wrap">
+                  ${colorPresets.slice(0, 5).map(cp => `
+                    <div class="preset-color-swatch" data-hex="${cp.hex}" title="${cp.name}" style="width: 20px; height: 20px; border-radius: 4px; background: ${cp.hex}; cursor: pointer; border: 1px solid rgba(0,0,0,0.1);"></div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Assignment Options -->
+          <div class="p-2 mb-2 rounded" style="background: var(--color-surface); border: 1px solid var(--color-border);">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="chk-assign-selected-seats" ${selectedSeatIds.length > 0 ? 'checked' : ''}>
+              <label class="form-check-label small" for="chk-assign-selected-seats" style="font-weight: 600;">
+                Assign ${selectedSeatIds.length > 0 ? `the <strong>${selectedSeatIds.length} currently selected desks</strong>` : 'selected desks'} from Seating Matrix to this new zone
+              </label>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end">
+            <button type="button" class="btn btn-primary btn-sm d-flex align-items-center gap-2" id="btn-create-zone" style="font-weight: 700;">
+              ✨ Create &amp; Save Study Zone
+            </button>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 pt-2 border-top">
+          <button type="button" class="btn btn-secondary" id="btn-close-zone-studio">Done / Close</button>
+        </div>
+      </div>
+    `;
+
+    bindStudioEvents();
+  };
+
+  const modal = new Modal({
+    title: '🎨 Library Study Zone Studio',
+    content,
+    size: 'lg'
+  });
+  modal.show();
+
+  const bindStudioEvents = () => {
+    // 1. Color preset swatches
+    content.querySelectorAll('.preset-color-swatch').forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        const hex = swatch.dataset.hex;
+        const colorInput = content.querySelector('#new-zone-color');
+        if (colorInput) colorInput.value = hex;
+      });
+    });
+
+    // 2. Toggle Inline Edit Form
+    content.querySelectorAll('.btn-edit-zone').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const zName = btn.dataset.zone;
+        const safeId = zName.replace(/[^a-zA-Z0-9]/g, '_');
+        const formEl = content.querySelector(`#inline-edit-${safeId}`);
+        if (formEl) {
+          const isVisible = formEl.style.display !== 'none';
+          content.querySelectorAll('.zone-inline-edit-form').forEach(f => f.style.display = 'none');
+          formEl.style.display = isVisible ? 'none' : 'block';
+        }
+      });
+    });
+
+    content.querySelectorAll('.btn-cancel-inline-edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const zName = btn.dataset.zone;
+        const safeId = zName.replace(/[^a-zA-Z0-9]/g, '_');
+        const formEl = content.querySelector(`#inline-edit-${safeId}`);
+        if (formEl) formEl.style.display = 'none';
+      });
+    });
+
+    // 3. Save Inline Edit / Rename Zone
+    content.querySelectorAll('.btn-save-inline-edit').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const oldZone = btn.dataset.zone;
+        const safeId = oldZone.replace(/[^a-zA-Z0-9]/g, '_');
+        const formEl = content.querySelector(`#inline-edit-${safeId}`);
+        if (!formEl) return;
+
+        const newZone = formEl.querySelector('.edit-zone-name')?.value?.trim();
+        const floor = formEl.querySelector('.edit-zone-floor')?.value?.trim();
+        const seatType = formEl.querySelector('.edit-zone-seattype')?.value;
+        const zoneColor = formEl.querySelector('.edit-zone-color')?.value;
+
+        if (!newZone) {
+          Toast.warning('Zone name cannot be empty');
+          return;
+        }
+
+        try {
+          Loading.show();
+          const res = await api.put('/api/seats/zones/rename', {
+            oldZone,
+            newZone,
+            floor,
+            seatType,
+            zoneColor,
+            branch: currentBranch
+          });
+          Loading.hide();
+
+          if (res.success) {
+            Toast.success(res.message || `Zone "${newZone}" updated successfully!`);
+            modal.close();
+            await loadSeats(container);
+            await loadZones(container);
+          } else {
+            Toast.error(res.message || 'Failed to update zone');
+          }
+        } catch (err) {
+          Loading.hide();
+          Toast.error(err.message || 'Failed to update zone');
+        }
+      });
+    });
+
+    // 4. Reassign Desks in Zone
+    content.querySelectorAll('.btn-reassign-zone').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const zoneToReassign = btn.dataset.zone;
+        const otherZones = zoneList.map(z => z.name).filter(n => n !== zoneToReassign);
+        const optionsHtml = (otherZones.length > 0 ? otherZones : ['General', 'Zone A', 'Zone B'])
+          .map(z => `<option value="${escapeHTML(z)}">${escapeHTML(z)}</option>`).join('');
+
+        const targetZone = await Confirm.prompt({
+          title: `🔄 Reassign Desks in "${zoneToReassign}"`,
+          message: `Select the target zone to move all desks currently in "${zoneToReassign}":`,
+          inputHtml: `
+            <div class="form-group mb-3">
+              <label class="form-label" style="font-weight: 600;">Target Study Zone *</label>
+              <select id="swal-target-zone" class="form-select">
+                ${optionsHtml}
+                <option value="__custom__">+ Enter Custom Zone Name...</option>
+              </select>
+            </div>
+            <div class="form-group" id="custom-target-zone-group" style="display: none;">
+              <label class="form-label" style="font-weight: 600;">Custom Zone Name</label>
+              <input type="text" id="swal-custom-target-zone" class="form-control" placeholder="e.g. Quiet Hall 2">
+            </div>
+          `,
+          confirmText: 'Reassign Desks',
+          cancelText: 'Cancel'
+        });
+
+        if (targetZone) {
+          let finalTarget = targetZone;
+          if (targetZone === '__custom__') {
+            finalTarget = document.getElementById('swal-custom-target-zone')?.value?.trim() || 'General';
+          }
+
+          try {
+            Loading.show();
+            const res = await api.post('/api/seats/zones/delete', {
+              zone: zoneToReassign,
+              action: 'reassign',
+              targetZone: finalTarget,
+              branch: currentBranch
+            });
+            Loading.hide();
+
+            if (res.success) {
+              Toast.success(res.message || `Desks reassigned to "${finalTarget}"!`);
+              modal.close();
+              await loadSeats(container);
+              await loadZones(container);
+            } else {
+              Toast.error(res.message || 'Failed to reassign zone desks');
+            }
+          } catch (err) {
+            Loading.hide();
+            Toast.error(err.message || 'Failed to reassign zone desks');
+          }
+        }
+      });
+    });
+
+    // 5. Delete Study Zone
+    content.querySelectorAll('.btn-delete-zone').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const zoneToDelete = btn.dataset.zone;
+        const zObj = zonesMap.get(zoneToDelete);
+        const count = zObj ? zObj.total : 0;
+
+        const otherZones = zoneList.map(z => z.name).filter(n => n !== zoneToDelete);
+        const fallbackOptions = (otherZones.length > 0 ? otherZones : ['General'])
+          .map(z => `<option value="${escapeHTML(z)}">${escapeHTML(z)}</option>`).join('');
+
+        const deleteChoice = await Confirm.show({
+          title: `🗑️ Delete Zone: "${zoneToDelete}"?`,
+          message: `This zone contains ${count} desk(s). What would you like to do with the desks in this zone?`,
+          customHtml: `
+            <div class="text-left mt-3">
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="zoneDeleteAction" id="actReassign" value="reassign" checked>
+                <label class="form-check-label" for="actReassign" style="font-weight: 600;">
+                  🔄 Safe Option: Reassign desks to another zone:
+                </label>
+                <select id="delete-fallback-zone" class="form-select form-select-sm mt-1">
+                  ${fallbackOptions}
+                </select>
+              </div>
+              <div class="form-check mt-3">
+                <input class="form-check-input text-danger" type="radio" name="zoneDeleteAction" id="actTrash" value="trash">
+                <label class="form-check-label text-danger" for="actTrash" style="font-weight: 600;">
+                  🗑️ Danger: Move all ${count} desks to Recycle Bin (Trash)
+                </label>
+              </div>
+            </div>
+          `,
+          confirmText: 'Delete Zone',
+          cancelText: 'Cancel',
+          danger: true
+        });
+
+        if (deleteChoice) {
+          const isTrash = document.getElementById('actTrash')?.checked;
+          const fallbackZone = document.getElementById('delete-fallback-zone')?.value || 'General';
+
+          try {
+            Loading.show();
+            const res = await api.post('/api/seats/zones/delete', {
+              zone: zoneToDelete,
+              action: isTrash ? 'trash' : 'reassign',
+              targetZone: fallbackZone,
+              branch: currentBranch
+            });
+            Loading.hide();
+
+            if (res.success) {
+              Toast.success(res.message || `Zone "${zoneToDelete}" deleted successfully!`);
+              modal.close();
+              await loadSeats(container);
+              await loadZones(container);
+            } else {
+              Toast.error(res.message || 'Failed to delete zone');
+            }
+          } catch (err) {
+            Loading.hide();
+            Toast.error(err.message || 'Failed to delete zone');
+          }
+        }
+      });
+    });
+
+    // 6. Create New Zone
+    content.querySelector('#btn-create-zone')?.addEventListener('click', async () => {
+      const name = content.querySelector('#new-zone-name')?.value?.trim();
+      const floor = content.querySelector('#new-zone-floor')?.value?.trim() || 'Ground Floor';
+      const seatType = content.querySelector('#new-zone-seattype')?.value || 'standard';
+      const zoneColor = content.querySelector('#new-zone-color')?.value || '#6c5ce7';
+      const shouldAssign = content.querySelector('#chk-assign-selected-seats')?.checked;
+
+      if (!name) {
+        Toast.warning('Please enter a name for the new zone');
+        return;
+      }
+
+      try {
+        Loading.show();
+        if (shouldAssign && selectedSeatIds.length > 0) {
+          const res = await api.post('/api/seats/bulk-update', {
+            seatIds: selectedSeatIds,
+            updates: {
+              zone: name,
+              floor,
+              seatType,
+              zoneColor
+            }
+          });
+          Loading.hide();
+          if (res.success) {
+            Toast.success(`Zone "${name}" created and assigned to ${selectedSeatIds.length} desks!`);
+            modal.close();
+            await loadSeats(container);
+            await loadZones(container);
+          } else {
+            Toast.error(res.message || 'Failed to assign seats to zone');
+          }
+        } else {
+          Loading.hide();
+          Toast.success(`Zone "${name}" created! You can now select desks in the Seating Matrix and apply this zone.`);
+          modal.close();
+          await loadZones(container);
+        }
+      } catch (err) {
+        Loading.hide();
+        Toast.error(err.message || 'Failed to create zone');
+      }
+    });
+
+    // 7. Close button
+    content.querySelector('#btn-close-zone-studio')?.addEventListener('click', () => {
+      modal.close();
+    });
+  };
+
+  renderStudioUI();
 }
 
