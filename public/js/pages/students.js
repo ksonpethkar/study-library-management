@@ -901,11 +901,20 @@ export async function render() {
 
               <div class="col-md-6">
                 <label class="form-label" style="font-weight: 700;">Payment Mode Collected</label>
-                <select class="form-select form-control" name="paymentMode" style="font-weight: 600;">
+                <select class="form-select form-control" name="paymentMode" id="adminStudentPaymentMode" style="font-weight: 600;">
                   <option value="cash" selected>💵 Cash at Reception Desk</option>
-                  <option value="upi">⚡ Direct UPI / GPay / PhonePe</option>
-                  <option value="card">💳 Debit / Credit Card</option>
+                  <option value="upi">⚡ Direct UPI (GPay / PhonePe / Paytm / BHIM)</option>
+                  <option value="bank_transfer">🏛️ Bank Transfer (NEFT / IMPS / RTGS)</option>
+                  <option value="card">💳 Debit / Credit Card (POS Terminal)</option>
                 </select>
+              </div>
+
+              <div class="col-12" id="adminStudentPaymentContext"></div>
+
+              <div class="col-md-6" id="adminStudentTxnWrapper">
+                <label class="form-label" id="adminStudentTxnLabel" style="font-weight: 600;">💵 Cash Collector Note (Optional)</label>
+                <input type="text" class="form-control" name="transactionId" id="adminStudentTxnInput" placeholder="e.g. Cash received at reception desk" value="${student && student.transactionId ? escapeHTML(student.transactionId) : ''}">
+                <small id="adminStudentUtrWarn" class="text-danger" style="display: none; font-size: 0.75rem; margin-top: 3px; font-weight: 600;"></small>
               </div>
             </div>
           </div>
@@ -1211,6 +1220,73 @@ export async function render() {
     // Bind Dynamic ID Proof Type & Number Validation
     if (window.SmartIntelligence && typeof window.SmartIntelligence.bindDynamicIDProofValidation === 'function') {
       window.SmartIntelligence.bindDynamicIDProofValidation(modal.element);
+    }
+
+    // Setup Dynamic Payment Mode Adapter in Student Admission Modal
+    const admPaySelect = modal.element.querySelector('#adminStudentPaymentMode');
+    const admPayContext = modal.element.querySelector('#adminStudentPaymentContext');
+    const admPayTxnLabel = modal.element.querySelector('#adminStudentTxnLabel');
+    const admPayTxnInput = modal.element.querySelector('#adminStudentTxnInput');
+    const admPayUtrWarn = modal.element.querySelector('#adminStudentUtrWarn');
+
+    const updateAdminPaymentUI = () => {
+      const mode = admPaySelect?.value || 'cash';
+      const upiId = window.store?.settings?.businessProfile?.upiId || window.store?.profile?.upiId || '';
+
+      if (mode === 'cash') {
+        if (admPayTxnLabel) admPayTxnLabel.innerHTML = '💵 Cash Collector Note (Optional)';
+        if (admPayTxnInput) admPayTxnInput.placeholder = 'e.g. Cash received at reception desk';
+        if (admPayContext) {
+          admPayContext.innerHTML = `
+            <div style="background: rgba(0, 184, 148, 0.1); border: 1px solid var(--color-success, #00b894); border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+              <span>💵</span>
+              <span><strong>Cash Admission:</strong> Instant membership activation. No transaction reference required.</span>
+            </div>
+          `;
+        }
+        if (admPayUtrWarn) admPayUtrWarn.style.display = 'none';
+      } else if (mode === 'bank_transfer') {
+        if (admPayTxnLabel) admPayTxnLabel.innerHTML = '🏛️ Bank NEFT / IMPS / RTGS Reference Number';
+        if (admPayTxnInput) admPayTxnInput.placeholder = 'e.g. Bank Reference / UTR Number';
+        if (admPayContext) {
+          admPayContext.innerHTML = `
+            <div style="background: rgba(9, 132, 227, 0.1); border: 1px solid #0984e3; border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+              <span>🏛️</span>
+              <span><strong>Bank Transfer:</strong> Direct deposit / IMPS into library account.</span>
+            </div>
+          `;
+        }
+        if (admPayUtrWarn) admPayUtrWarn.style.display = 'none';
+      } else if (mode === 'card') {
+        if (admPayTxnLabel) admPayTxnLabel.innerHTML = '💳 POS Slip Code / Card Last 4 Digits';
+        if (admPayTxnInput) admPayTxnInput.placeholder = 'e.g. POS Auth Code #8492 or Card Ending 4321';
+        if (admPayContext) {
+          admPayContext.innerHTML = `
+            <div style="background: rgba(225, 112, 85, 0.1); border: 1px solid #e17055; border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+              <span>💳</span>
+              <span><strong>Card Payment:</strong> Processed on POS terminal.</span>
+            </div>
+          `;
+        }
+        if (admPayUtrWarn) admPayUtrWarn.style.display = 'none';
+      } else {
+        // Default: UPI
+        if (admPayTxnLabel) admPayTxnLabel.innerHTML = '⚡ UPI / 12-Digit UTR Transaction ID';
+        if (admPayTxnInput) admPayTxnInput.placeholder = 'e.g. 12-digit UTR (e.g. 423456789012)';
+        if (admPayContext) {
+          admPayContext.innerHTML = `
+            <div style="background: rgba(108, 92, 231, 0.1); border: 1px solid var(--color-primary, #6c5ce7); border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-primary); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+              <span>📱 <strong>UPI Payment:</strong> GPay, PhonePe, Paytm, BHIM.</span>
+              ${upiId ? `<span class="badge" style="background: var(--color-primary); color: #fff; font-family: monospace; font-size: 0.75rem;">UPI: ${escapeHTML(upiId)}</span>` : ''}
+            </div>
+          `;
+        }
+      }
+    };
+
+    if (admPaySelect) {
+      admPaySelect.addEventListener('change', updateAdminPaymentUI);
+      updateAdminPaymentUI();
     }
 
     // Initialize Smart Signature Studio

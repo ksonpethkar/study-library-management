@@ -444,16 +444,18 @@ export async function render(container) {
             <input type="date" id="exp-date" class="form-control" value="${exp?.date ? new Date(exp.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}" required>
           </div>
           <div>
-            <label class="form-label" style="font-weight: 600;">Payment Mode</label>
-            <select id="exp-payment-method" class="form-select">
-              <option value="upi" ${exp?.paymentMethod === 'upi' ? 'selected' : ''}>UPI / QR</option>
-              <option value="cash" ${exp?.paymentMethod === 'cash' ? 'selected' : ''}>Cash</option>
-              <option value="bank_transfer" ${exp?.paymentMethod === 'bank_transfer' ? 'selected' : ''}>Bank Transfer / NEFT</option>
-              <option value="card" ${exp?.paymentMethod === 'card' ? 'selected' : ''}>Debit/Credit Card</option>
-              <option value="cheque" ${exp?.paymentMethod === 'cheque' ? 'selected' : ''}>Cheque</option>
+            <label class="form-label" style="font-weight: 600;">Payment Mode *</label>
+            <select id="exp-payment-method" class="form-select" style="font-weight: 600;">
+              <option value="upi" ${exp?.paymentMethod === 'upi' || !exp ? 'selected' : ''}>⚡ UPI / QR Payment</option>
+              <option value="cash" ${exp?.paymentMethod === 'cash' ? 'selected' : ''}>💵 Cash from Drawer</option>
+              <option value="bank_transfer" ${exp?.paymentMethod === 'bank_transfer' ? 'selected' : ''}>🏛️ Bank Transfer / NEFT / IMPS</option>
+              <option value="card" ${exp?.paymentMethod === 'card' ? 'selected' : ''}>💳 Debit / Credit Card</option>
+              <option value="cheque" ${exp?.paymentMethod === 'cheque' ? 'selected' : ''}>📝 Cheque Issued</option>
             </select>
           </div>
         </div>
+
+        <div id="exp-payment-context" class="mb-3"></div>
 
         <div class="form-group mb-3">
           <label class="form-label" style="font-weight: 600;">Vendor / Payee</label>
@@ -466,8 +468,8 @@ export async function render(container) {
         </div>
 
         <div class="form-group mb-3">
-          <label class="form-label" style="font-weight: 600;">Notes / Description</label>
-          <textarea id="exp-desc" class="form-control" rows="2" placeholder="Optional details or receipt reference">${escapeHTML(exp?.description || '')}</textarea>
+          <label class="form-label" id="exp-desc-label" style="font-weight: 600;">Notes / Reference ID</label>
+          <textarea id="exp-desc" class="form-control" rows="2" placeholder="Optional details or transaction reference">${escapeHTML(exp?.description || '')}</textarea>
         </div>
 
         <div class="d-flex justify-content-end gap-2 mt-4">
@@ -486,6 +488,78 @@ export async function render(container) {
         name: 'receiptImage',
         value: exp?.receiptImage || ''
       }));
+    }
+
+    // Dynamic Expense Payment Mode Adapter
+    const expPaySelect = modalContent.querySelector('#exp-payment-method');
+    const expPayContext = modalContent.querySelector('#exp-payment-context');
+    const expDescLabel = modalContent.querySelector('#exp-desc-label');
+    const expDescInput = modalContent.querySelector('#exp-desc');
+
+    const updateExpensePaymentUI = () => {
+      const mode = expPaySelect?.value || 'upi';
+      if (mode === 'cash') {
+        if (expDescLabel) expDescLabel.innerHTML = '💵 Cash Voucher No. / Note (Optional)';
+        if (expDescInput) expDescInput.placeholder = 'e.g. Cash Voucher #102, Handed to caretaker';
+        if (expPayContext) {
+          expPayContext.innerHTML = `
+            <div style="background: rgba(0, 184, 148, 0.1); border: 1px solid var(--color-success, #00b894); border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+              <span>💵</span>
+              <span><strong>Cash Expense:</strong> Disbursed directly from reception cash register.</span>
+            </div>
+          `;
+        }
+      } else if (mode === 'bank_transfer') {
+        if (expDescLabel) expDescLabel.innerHTML = '🏛️ Bank Transaction Ref / UTR No.';
+        if (expDescInput) expDescInput.placeholder = 'e.g. NEFT / IMPS Ref #89324021';
+        if (expPayContext) {
+          expPayContext.innerHTML = `
+            <div style="background: rgba(9, 132, 227, 0.1); border: 1px solid #0984e3; border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+              <span>🏛️</span>
+              <span><strong>Bank Transfer:</strong> Transferred directly from library bank account.</span>
+            </div>
+          `;
+        }
+      } else if (mode === 'card') {
+        if (expDescLabel) expDescLabel.innerHTML = '💳 Card Machine Slip / Auth Code';
+        if (expDescInput) expDescInput.placeholder = 'e.g. Card ending 4321 / Auth #8492';
+        if (expPayContext) {
+          expPayContext.innerHTML = `
+            <div style="background: rgba(225, 112, 85, 0.1); border: 1px solid #e17055; border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+              <span>💳</span>
+              <span><strong>Card Payment:</strong> Paid via Debit / Corporate Credit Card.</span>
+            </div>
+          `;
+        }
+      } else if (mode === 'cheque') {
+        if (expDescLabel) expDescLabel.innerHTML = '📝 Cheque Number & Drawn Bank';
+        if (expDescInput) expDescInput.placeholder = 'e.g. Cheque #004521 - HDFC Bank';
+        if (expPayContext) {
+          expPayContext.innerHTML = `
+            <div style="background: rgba(108, 92, 231, 0.1); border: 1px solid var(--color-primary, #6c5ce7); border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+              <span>📝</span>
+              <span><strong>Cheque Payment:</strong> Physical cheque issued to vendor.</span>
+            </div>
+          `;
+        }
+      } else {
+        // Default: UPI
+        if (expDescLabel) expDescLabel.innerHTML = '⚡ UPI Transaction Ref / 12-Digit UTR';
+        if (expDescInput) expDescInput.placeholder = 'e.g. 12-digit UTR No. from GPay/PhonePe';
+        if (expPayContext) {
+          expPayContext.innerHTML = `
+            <div style="background: rgba(108, 92, 231, 0.1); border: 1px solid var(--color-primary, #6c5ce7); border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+              <span>⚡</span>
+              <span><strong>UPI Payment:</strong> Paid via UPI QR / GPay / PhonePe / Paytm.</span>
+            </div>
+          `;
+        }
+      }
+    };
+
+    if (expPaySelect) {
+      expPaySelect.addEventListener('change', updateExpensePaymentUI);
+      updateExpensePaymentUI();
     }
 
     const modal = new Modal({

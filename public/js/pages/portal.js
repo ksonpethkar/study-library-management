@@ -2293,6 +2293,7 @@ function renderPortalUI(container, data, analytics = null) {
       const quoteRes = await api.get('/api/student-portal/renewal-quote');
       if (!quoteRes.success) throw new Error(quoteRes.message);
       let q = quoteRes.data;
+      let selectedPortalPayMode = 'upi';
 
       const modalContent = document.createElement('div');
 
@@ -2426,31 +2427,74 @@ function renderPortalUI(container, data, analytics = null) {
                 </div>
               </div>
             ` : `
-              <!-- Dynamic UPI QR Section -->
-              <div style="text-align: center; margin-bottom: 1rem; background: #ffffff; padding: 14px; border-radius: 12px; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);">
-                <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
-                  Scan & Pay via GPay / PhonePe / Paytm / BHIM
+              <!-- Payment Method Selection Tabs -->
+              <div class="mb-3">
+                <label class="form-label" style="font-weight: 700;">Choose Payment Method *</label>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
+                  <button type="button" class="btn btn-sm ${selectedPortalPayMode === 'upi' ? 'btn-primary' : 'btn-outline-secondary'} btn-portal-pm" data-mode="upi" style="font-weight: 700; padding: 7px 10px;">
+                    ⚡ UPI / QR
+                  </button>
+                  <button type="button" class="btn btn-sm ${selectedPortalPayMode === 'bank_transfer' ? 'btn-primary' : 'btn-outline-secondary'} btn-portal-pm" data-mode="bank_transfer" style="font-weight: 700; padding: 7px 10px;">
+                    🏛️ Bank Transfer
+                  </button>
+                  <button type="button" class="btn btn-sm ${selectedPortalPayMode === 'desk' ? 'btn-primary' : 'btn-outline-secondary'} btn-portal-pm" data-mode="desk" style="font-weight: 700; padding: 7px 10px;">
+                    💵 Pay at Desk
+                  </button>
                 </div>
-                <img id="renewal-qr-img" src="${q.qrCodeUrl}" alt="UPI QR Code" style="width: 170px; height: 170px; margin: 0 auto; border-radius: 8px; display: block;">
-                <div style="margin-top: 6px; font-size: 0.85rem; font-weight: 700; color: #1e293b;">
-                  UPI ID: <span style="font-family: monospace; color: #6c5ce7;">${escapeHTML(q.upiId)}</span>
-                </div>
-                <a id="renewal-upi-link" href="${q.upiIntentUrl}" class="btn btn-sm btn-outline-primary mt-2" style="font-size: 0.8rem; display: inline-block;">
-                  📲 Click to Pay directly on Mobile App (₹${q.totalPayable.toLocaleString('en-IN')})
-                </a>
               </div>
 
-              <!-- Submit UTR Form -->
+              <!-- Dynamic Subpanes Container -->
+              <div id="portal-payment-subpane" class="mb-3">
+                ${selectedPortalPayMode === 'upi' ? `
+                  <!-- Dynamic UPI QR Section -->
+                  <div style="text-align: center; background: #ffffff; padding: 14px; border-radius: 12px; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);">
+                    <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
+                      Scan & Pay via GPay / PhonePe / Paytm / BHIM
+                    </div>
+                    <img id="renewal-qr-img" src="${q.qrCodeUrl}" alt="UPI QR Code" style="width: 160px; height: 160px; margin: 0 auto; border-radius: 8px; display: block;">
+                    <div style="margin-top: 6px; font-size: 0.85rem; font-weight: 700; color: #1e293b;">
+                      UPI ID: <span style="font-family: monospace; color: #6c5ce7;">${escapeHTML(q.upiId)}</span>
+                    </div>
+                    <a id="renewal-upi-link" href="${q.upiIntentUrl}" class="btn btn-sm btn-outline-primary mt-2" style="font-size: 0.8rem; display: inline-block;">
+                      📲 Pay on Mobile App (₹${q.totalPayable.toLocaleString('en-IN')})
+                    </a>
+                  </div>
+                ` : selectedPortalPayMode === 'bank_transfer' ? `
+                  <!-- Bank Transfer Details Card -->
+                  <div style="background: var(--color-surface, #ffffff); border: 1px solid var(--color-border); border-radius: 12px; padding: 14px;">
+                    <div style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary); margin-bottom: 8px;">🏛️ Library Bank Details</div>
+                    <div style="font-size: 0.82rem; display: flex; flex-direction: column; gap: 4px;">
+                      <div>Bank Name: <strong>${escapeHTML(q.bankDetails?.bankName || 'HDFC Bank')}</strong></div>
+                      <div>A/C Number: <strong style="font-family: monospace;">${escapeHTML(q.bankDetails?.accountNumber || '50200012345678')}</strong></div>
+                      <div>IFSC Code: <strong style="font-family: monospace;">${escapeHTML(q.bankDetails?.ifscCode || 'HDFC0000123')}</strong></div>
+                      <div>Account Holder: <strong>${escapeHTML(q.bankDetails?.accountHolderName || q.businessName || 'Study Library')}</strong></div>
+                    </div>
+                  </div>
+                ` : `
+                  <!-- Pay at Desk Notice -->
+                  <div style="background: rgba(0, 184, 148, 0.1); border: 1px solid var(--color-success, #00b894); border-radius: 12px; padding: 14px; font-size: 0.85rem; color: var(--color-text-primary);">
+                    <div style="font-weight: 800; color: var(--color-success); margin-bottom: 4px;">💵 Pay Cash at Reception Desk</div>
+                    <p style="margin: 0; line-height: 1.45;">Your renewal application will be recorded as <strong>Pending Cash Payment</strong>. Please visit the front reception desk to complete payment and receive your printed receipt.</p>
+                  </div>
+                `}
+              </div>
+
+              <!-- Submit Form -->
               <form id="portal-renewal-submit-form">
-                <div class="form-group mb-3">
-                  <label class="form-label" style="font-weight: 700;">Enter UPI UTR / Transaction Reference No. *</label>
-                  <input type="text" id="renewal-utr-input" class="form-control" placeholder="12-digit UTR No. (e.g. 423456789012)" required style="letter-spacing: 1px; font-weight: 600;">
-                  <small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 4px;">Found in your payment app receipt under 'UPI Ref No / Transaction ID'.</small>
-                </div>
+                ${selectedPortalPayMode !== 'desk' ? `
+                  <div class="form-group mb-3">
+                    <label class="form-label" id="portal-utr-label" style="font-weight: 700;">
+                      ${selectedPortalPayMode === 'upi' ? '⚡ Enter 12-Digit UPI UTR Transaction ID *' : '🏛️ Enter Bank NEFT/IMPS Reference No. *'}
+                    </label>
+                    <input type="text" id="renewal-utr-input" class="form-control" placeholder="${selectedPortalPayMode === 'upi' ? 'e.g. 423456789012 (12 digits)' : 'e.g. Bank Ref #984210'}" required style="letter-spacing: 1px; font-weight: 600;">
+                    <small class="text-muted" style="display: block; font-size: 0.75rem; margin-top: 4px;">Found in your payment app receipt under 'UPI Ref No / Transaction ID'.</small>
+                  </div>
+                ` : ''}
+
                 <div style="display: flex; gap: 8px; justify-content: flex-end;">
                   <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
                   <button type="submit" class="btn btn-primary" id="btn-submit-renewal-utr" style="font-weight: 700;">
-                    ✅ Submit Payment & Renew
+                    ${selectedPortalPayMode === 'desk' ? '📝 Submit Desk Renewal Request' : '✅ Submit Payment & Renew'}
                   </button>
                 </div>
               </form>
@@ -2462,6 +2506,17 @@ function renderPortalUI(container, data, analytics = null) {
       }
 
       function bindEvents() {
+        // Payment mode toggle buttons
+        modalContent.querySelectorAll('.btn-portal-pm').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const mode = btn.dataset.mode;
+            if (mode && mode !== selectedPortalPayMode) {
+              selectedPortalPayMode = mode;
+              updateModalBody();
+            }
+          });
+        });
+
         const planSelect = modalContent.querySelector('#renewal-plan-select');
         const shiftSelect = modalContent.querySelector('#renewal-shift-select');
         const walletCheckbox = modalContent.querySelector('#renewal-apply-wallet');
@@ -2490,7 +2545,7 @@ function renderPortalUI(container, data, analytics = null) {
           renewalSubmitForm.onsubmit = async (e) => {
             e.preventDefault();
             const utrInput = modalContent.querySelector('#renewal-utr-input');
-            const utrNumber = utrInput ? utrInput.value.trim() : '';
+            const utrNumber = selectedPortalPayMode === 'desk' ? 'DESK_CASH' : (utrInput ? utrInput.value.trim() : '');
             const selectedPlanId = planSelect ? planSelect.value : q.selectedPlanId;
             const selectedShiftId = shiftSelect ? shiftSelect.value : q.selectedShiftId;
             const applyWallet = walletCheckbox ? walletCheckbox.checked : q.isWalletApplied;
@@ -2505,7 +2560,7 @@ function renderPortalUI(container, data, analytics = null) {
                 shiftId: selectedShiftId,
                 amountPaid: q.totalPayable,
                 applyWallet,
-                paymentMode: 'upi'
+                paymentMode: selectedPortalPayMode === 'desk' ? 'cash' : selectedPortalPayMode
               });
 
               if (!renewRes.success) throw new Error(renewRes.message);
