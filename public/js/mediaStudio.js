@@ -980,11 +980,23 @@ export class MediaFieldPicker {
     const viewLink = wrapper.querySelector('.mfp-view-link');
 
     const updateImageValue = async (dataUrl) => {
-      hiddenInput.value = dataUrl || '';
+      if (!dataUrl) {
+        hiddenInput.value = '';
+        preview.innerHTML = renderPreview('');
+        removeBtn.style.display = 'none';
+        if (viewLink) viewLink.style.display = 'none';
+        uploadBtn.innerHTML = '📁 Upload';
+        hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+        if (onChange) onChange('');
+        return;
+      }
+
+      hiddenInput.value = dataUrl;
       preview.innerHTML = renderPreview(dataUrl);
-      removeBtn.style.display = dataUrl ? 'inline-block' : 'none';
-      if (viewLink) viewLink.style.display = dataUrl ? 'inline-flex' : 'none';
-      uploadBtn.innerHTML = dataUrl ? '📁 Change' : '📁 Upload';
+      removeBtn.style.display = 'inline-block';
+      if (viewLink) viewLink.style.display = 'inline-flex';
+      uploadBtn.innerHTML = '📁 Change';
 
       hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
       hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1005,6 +1017,8 @@ export class MediaFieldPicker {
           const result = await res.json();
           if (result.success && result.url) {
             hiddenInput.value = result.url;
+            preview.innerHTML = renderPreview(result.url);
+            if (viewLink) viewLink.style.display = 'inline-flex';
             hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
             hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
             if (onChange) onChange(result.url);

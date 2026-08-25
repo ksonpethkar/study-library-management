@@ -338,7 +338,12 @@ Modal.show = function(opts) {
   // Prevent native dialog auto-cancellation (which browsers fire when OS file pickers or camera permissions close)
   modal.oncancel = (e) => {
     e.preventDefault();
+    e.stopPropagation();
   };
+  modal.addEventListener('cancel', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
   
   // Guard against accidental backdrop clicks closing data forms
   if (opts && opts.backdropClose === true) {

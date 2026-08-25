@@ -1354,6 +1354,12 @@ export async function render() {
     const phoneInput = modal.element.querySelector('input[name="phone"]');
     const emailInput = modal.element.querySelector('input[name="email"]');
     const formElement = modal.element.querySelector('#studentForm');
+    if (formElement) {
+      formElement.addEventListener('submit', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    }
 
     let dupAlert = modal.element.querySelector('#admin-student-dup-alert');
     if (!dupAlert && formElement) {
