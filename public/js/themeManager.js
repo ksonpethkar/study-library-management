@@ -71,7 +71,7 @@
     },
 
     updateUI(mode, isDark) {
-      // 1. Highlight active dropdown item
+      // 1. Highlight active dropdown items
       document.querySelectorAll('.theme-option, [data-theme-mode]').forEach(opt => {
         const optMode = opt.getAttribute('data-theme-mode');
         if (optMode) {
@@ -83,31 +83,25 @@
 
       // 2. Update theme toggle buttons icon and title
       const iconMap = {
-        system: '💻',
-        dark: '🌙',
-        light: '☀️'
+        dark: '☀️',
+        light: '🌙',
+        system: isDark ? '☀️' : '🌙'
       };
 
       const titleMap = {
-        system: 'Theme: System Auto',
-        dark: 'Theme: Dark Mode',
-        light: 'Theme: Light Mode'
+        dark: 'Switch to Light Mode (Ctrl+D)',
+        light: 'Switch to Dark Mode (Ctrl+D)',
+        system: isDark ? 'Switch to Light Mode (Ctrl+D)' : 'Switch to Dark Mode (Ctrl+D)'
       };
 
       document.querySelectorAll('#theme-btn, #theme-toggle-btn, #reg-theme-toggle, #portal-theme-btn, .theme-toggle-btn').forEach(btn => {
         if (!btn) return;
 
         if (btn.id === 'theme-toggle-btn' || btn.classList.contains('action-btn')) {
-          if (mode === 'system') {
+          if (isDark) {
+            // In Dark Mode: Show Sun icon to switch to Light
             btn.innerHTML = `
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-primary, #6c5ce7);">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                <line x1="8" y1="21" x2="16" y2="21"></line>
-                <line x1="12" y1="17" x2="12" y2="21"></line>
-              </svg>`;
-          } else if (isDark) {
-            btn.innerHTML = `
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #fbbf24;">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #fbbf24; cursor: pointer; display: block; margin: auto;">
                 <circle cx="12" cy="12" r="5"></circle>
                 <line x1="12" y1="1" x2="12" y2="3"></line>
                 <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -118,27 +112,33 @@
                 <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
               </svg>`;
+            btn.title = 'Switch to Light Mode (Ctrl+D)';
           } else {
+            // In Light Mode: Show Moon icon to switch to Dark
             btn.innerHTML = `
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #475569;">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #475569; cursor: pointer; display: block; margin: auto;">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
               </svg>`;
+            btn.title = 'Switch to Dark Mode (Ctrl+D)';
           }
-          btn.title = titleMap[mode] || 'Theme Options';
         } else {
-          btn.textContent = iconMap[mode] || (isDark ? '🌙' : '☀️');
-          btn.title = titleMap[mode] || 'Theme Options';
+          btn.textContent = isDark ? '☀️' : '🌙';
+          btn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
         }
       });
     },
 
+    toggleTheme(showToast = true) {
+      const currentEff = this.getEffectiveTheme();
+      const nextTheme = currentEff === 'dark' ? 'light' : 'dark';
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(20); } catch(e) {}
+      }
+      return this.setThemeMode(nextTheme, showToast);
+    },
+
     cycleTheme(showToast = true) {
-      const currentMode = this.getMode();
-      let nextMode = 'dark';
-      if (currentMode === 'system') nextMode = 'dark';
-      else if (currentMode === 'dark') nextMode = 'light';
-      else if (currentMode === 'light') nextMode = 'system';
-      return this.setThemeMode(nextMode, showToast);
+      return this.toggleTheme(showToast);
     },
 
     initSystemListener() {
@@ -173,56 +173,47 @@
   const initThemeDOM = () => {
     const mode = ThemeManager.getMode();
     ThemeManager.setThemeMode(mode, false);
+
+    // Direct listener binding for maximum reliability
+    document.querySelectorAll('#theme-btn, #theme-toggle-btn, #reg-theme-toggle, #portal-theme-btn, .theme-toggle-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        ThemeManager.toggleTheme(true);
+      };
+    });
   };
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initThemeDOM);
   } else {
     initThemeDOM();
   }
 
-  // Event delegation for theme choices & dropdown triggers
+  // Event delegation for theme choices & 1-click toggle triggers
   document.addEventListener('click', (e) => {
     // Handle click on dropdown item with [data-theme-mode]
     const optionBtn = e.target.closest('[data-theme-mode]');
-      if (optionBtn) {
-        e.preventDefault();
-        e.stopPropagation();
-        const selectedMode = optionBtn.getAttribute('data-theme-mode');
-        ThemeManager.setThemeMode(selectedMode, true);
-        document.querySelectorAll('.dropdown.open, .dropdown.active').forEach(d => {
-          if (d.id === 'theme-dropdown' || d.id === 'landing-theme-dropdown' || d.querySelector('[data-theme-mode]')) {
-            d.classList.remove('open', 'active');
-          }
-        });
-        return;
-      }
+    if (optionBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const selectedMode = optionBtn.getAttribute('data-theme-mode');
+      ThemeManager.setThemeMode(selectedMode, true);
+      document.querySelectorAll('.dropdown.open, .dropdown.active').forEach(d => {
+        d.classList.remove('open', 'active');
+      });
+      return;
+    }
 
-      // Handle click on theme toggle trigger button
-      const toggleBtn = e.target.closest('#theme-btn, #theme-toggle-btn, #reg-theme-toggle, #portal-theme-btn, .theme-toggle-btn');
-      if (toggleBtn) {
-        const parentDropdown = toggleBtn.closest('.dropdown');
-        if (parentDropdown) {
-          e.preventDefault();
-          e.stopPropagation();
-          document.querySelectorAll('.dropdown.open, .dropdown.active').forEach(d => {
-            if (d !== parentDropdown) d.classList.remove('open', 'active');
-          });
-          parentDropdown.classList.toggle('open');
-          parentDropdown.classList.toggle('active');
-        } else {
-          e.preventDefault();
-          e.stopPropagation();
-          ThemeManager.cycleTheme(true);
-        }
-      } else {
-        // Click outside closes theme dropdowns
-        document.querySelectorAll('.dropdown.open, .dropdown.active').forEach(d => {
-          if (d.id === 'theme-dropdown' || d.id === 'landing-theme-dropdown' || d.querySelector('[data-theme-mode]')) {
-            d.classList.remove('open', 'active');
-          }
-        });
-      }
-    });
+    // Handle click on theme toggle trigger button -> Direct 1-Click Toggle
+    const toggleBtn = e.target.closest('#theme-btn, #theme-toggle-btn, #reg-theme-toggle, #portal-theme-btn, .theme-toggle-btn');
+    if (toggleBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      ThemeManager.toggleTheme(true);
+      return;
+    }
+  });
 
   function updateDynamicFaviconAndTitle(profile) {
     if (!profile) return;
