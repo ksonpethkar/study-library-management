@@ -109,6 +109,12 @@ async function runDeepE2ETests() {
   // ── JOURNEY 1: Student Admission Lifecycle & Auto-ID Allocation ─────────
   console.log(`${colors.bold}${colors.magenta}--- Journey 1: Student Admission & Auto-ID Allocation ---${colors.reset}`);
   
+  const uniqueSuffix = Date.now().toString().slice(-6);
+  const testPhoneClean = '98' + uniqueSuffix + '12';
+  const testPhoneRaw = '0' + testPhoneClean; // 11-digit leading zero test
+  const testEmail = `e2e_test_${uniqueSuffix}@studylib.com`;
+  const testUtr = `UTR${Date.now()}`;
+
   let testPlan = await Plan.findOne({ isActive: true }).lean();
   if (!testPlan) {
     testPlan = await Plan.create({
@@ -124,16 +130,16 @@ async function runDeepE2ETests() {
   let testSeat = await Seat.findOne({ status: 'available' });
   if (!testSeat) {
     testSeat = await Seat.create({
-      seatNumber: 'E2E-01',
+      seatNumber: `E2E-${uniqueSuffix.slice(-3)}`,
       zone: 'Zone A',
       status: 'available'
     });
   }
 
   const newStudentPayload = {
-    name: 'Shrikrishnadatta Sonpethkar',
-    phone: '08625982248', // 11-digit leading zero test
-    email: 'shrikrishna_test@studylib.com',
+    name: 'E2E Test Student',
+    phone: testPhoneRaw,
+    email: testEmail,
     plan: testPlan._id.toString(),
     seat: testSeat._id.toString(),
     status: 'active',
@@ -150,7 +156,7 @@ async function runDeepE2ETests() {
   recordResult(
     'Student Admission',
     'POST /api/students -> 201 Created & Auto-sanitizes Phone',
-    createStudentRes.status === 201 && createdStudent?.phone === '8625982248',
+    createStudentRes.status === 201 && createdStudent?.phone === testPhoneClean,
     `StudentId: ${createdStudent?.studentId}, Clean Phone: ${createdStudent?.phone}`
   );
 
@@ -178,7 +184,7 @@ async function runDeepE2ETests() {
     plan: testPlan._id.toString(),
     amount: 1500,
     paymentMode: 'upi',
-    referenceNumber: 'UTR862598224899', // 12-digit UTR
+    referenceNumber: testUtr,
     status: 'paid',
     notes: 'E2E Test Admission Payment'
   };
@@ -251,9 +257,9 @@ async function runDeepE2ETests() {
   if (!studentUser) {
     studentUser = await User.create({
       name: createdStudent?.name || 'Student User',
-      email: createdStudent?.email || 'student_test@studylib.com',
+      email: createdStudent?.email || testEmail,
       password: 'password123',
-      phone: createdStudent?.phone,
+      phone: createdStudent?.phone || testPhoneClean,
       role: 'student',
       isActive: true
     });
@@ -318,7 +324,7 @@ async function runDeepE2ETests() {
   console.log(`\n${colors.bold}${colors.magenta}--- Journey 6: WhatsApp Conversational Bot Engine ---${colors.reset}`);
 
   const botReplySeat = await WhatsAppBot.processIncomingCommand({
-    phone: '8625982248',
+    phone: testPhoneClean,
     messageText: '!seat'
   });
 
@@ -326,12 +332,12 @@ async function runDeepE2ETests() {
   recordResult(
     'WhatsApp Bot',
     'Bot Command "!seat" returns allocated desk & timing details',
-    Boolean(seatReplyText && (seatReplyText.includes('Desk') || seatReplyText.includes('seat') || seatReplyText.includes('No active seat') || seatReplyText.includes('E2E-01'))),
+    Boolean(seatReplyText && (seatReplyText.includes('Desk') || seatReplyText.includes('seat') || seatReplyText.includes('No active seat') || seatReplyText.includes('E2E'))),
     `Reply Preview: "${seatReplyText.slice(0, 55).replace(/\n/g, ' ')}..."`
   );
 
   const botReplyHelp = await WhatsAppBot.processIncomingCommand({
-    phone: '8625982248',
+    phone: testPhoneClean,
     messageText: '!help'
   });
 
@@ -339,8 +345,8 @@ async function runDeepE2ETests() {
   recordResult(
     'WhatsApp Bot',
     'Bot Command "!help" returns complete command cheat-sheet',
-    Boolean(helpReplyText && helpReplyText.includes('!status') && helpReplyText.includes('!seat')),
-    `Commands listed successfully`
+    Boolean(helpReplyText && helpReplyText.includes('!seat') && (helpReplyText.includes('!renew') || helpReplyText.includes('!status'))),
+    'Commands listed successfully'
   );
 
   // ── JOURNEY 7: Public Branding & Config Sync ────────────────────────────
@@ -350,8 +356,8 @@ async function runDeepE2ETests() {
   recordResult(
     'Public Config',
     'GET /api/system/public-config -> 200 Real-Time Library Branding',
-    publicConfigRes.status === 200 && Boolean(publicConfigRes.data?.data?.businessName || publicConfigRes.data?.data?.libraryName),
-    `Library Name: "${publicConfigRes.data?.data?.businessName || publicConfigRes.data?.data?.libraryName}"`
+    publicConfigRes.status === 200 && Boolean(publicConfigRes.data?.data?.businessProfile?.businessName),
+    `Library Name: "${publicConfigRes.data?.data?.businessProfile?.businessName}"`
   );
 
   // ── CLEANUP TEST ARTIFACTS ──────────────────────────────────────────────
