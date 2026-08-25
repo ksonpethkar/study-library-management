@@ -1894,6 +1894,7 @@ export const FAB = {
 
   unmount() {
     if (this._el && this._el.parentNode) this._el.remove();
+    document.querySelectorAll('#global-fab, .fab-container, .speed-dial-fab').forEach(el => el.remove());
     this._el = null;
     this._isOpen = false;
     if (this._scrollHandler) {

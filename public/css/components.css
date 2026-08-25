@@ -2373,11 +2373,10 @@ html.dark-theme .bottom-sheet {
 .fab-speed-icon { font-size: 1.15rem; flex-shrink: 0; }
 .fab-speed-label { font-size: 0.85rem; font-weight: 700; color: var(--color-text-primary, #fff); }
 
-/* Responsive positioning for FAB on Desktop */
+/* Responsive positioning for FAB: Only visible on mobile/tablet (<1024px); Hidden on desktop (>=1024px) */
 @media (min-width: 1024px) {
-  .fab-container {
-    bottom: 24px;
-    right: 24px;
+  .fab-container, #global-fab {
+    display: none !important;
   }
 }
 
