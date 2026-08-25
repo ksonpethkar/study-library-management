@@ -222,6 +222,19 @@ router.post('/', validate([
       req.body.bloodGroup = String(rawBloodGroup).trim();
     }
 
+    const rawDob = req.body.dateOfBirth || req.body.dob || req.body.dateofbirth || req.body.date_of_birth || req.body.birthDate || req.body.birthdate || (customFieldsData && (customFieldsData.dateOfBirth || customFieldsData.dob || customFieldsData.dateofbirth || customFieldsData.date_of_birth || customFieldsData.birthDate || customFieldsData.birthdate));
+    if (rawDob) {
+      const parsedDate = new Date(rawDob);
+      if (!isNaN(parsedDate.getTime())) {
+        req.body.dateOfBirth = parsedDate;
+      }
+    }
+    delete req.body.dob;
+    delete req.body.dateofbirth;
+    delete req.body.date_of_birth;
+    delete req.body.birthDate;
+    delete req.body.birthdate;
+
     const rawOccupation = req.body.occupation !== undefined ? req.body.occupation : (customFieldsData && (customFieldsData.occupation || customFieldsData.collegeOrCompany || customFieldsData.college_or_company));
     if (rawOccupation !== undefined && rawOccupation !== '') {
       req.body.occupation = String(rawOccupation).trim();
@@ -390,6 +403,23 @@ router.put('/:id', validate([
       student.bloodGroup = String(rawBloodGroup).trim();
       student.markModified('bloodGroup');
       delete req.body.bloodGroup;
+    }
+
+    const rawDob = req.body.dateOfBirth !== undefined ? req.body.dateOfBirth : (req.body.dob !== undefined ? req.body.dob : (req.body.dateofbirth !== undefined ? req.body.dateofbirth : (req.body.date_of_birth !== undefined ? req.body.date_of_birth : (req.body.birthDate !== undefined ? req.body.birthDate : (customFieldsData && (customFieldsData.dateOfBirth || customFieldsData.dob || customFieldsData.dateofbirth || customFieldsData.date_of_birth || customFieldsData.birthDate || customFieldsData.birthdate))))));
+    if (rawDob !== undefined) {
+      if (rawDob) {
+        const parsedDate = new Date(rawDob);
+        student.dateOfBirth = !isNaN(parsedDate.getTime()) ? parsedDate : undefined;
+      } else {
+        student.dateOfBirth = undefined;
+      }
+      student.markModified('dateOfBirth');
+      delete req.body.dateOfBirth;
+      delete req.body.dob;
+      delete req.body.dateofbirth;
+      delete req.body.date_of_birth;
+      delete req.body.birthDate;
+      delete req.body.birthdate;
     }
 
     const rawOccupation = req.body.occupation !== undefined ? req.body.occupation : (customFieldsData && (customFieldsData.occupation || customFieldsData.collegeOrCompany || customFieldsData.college_or_company));

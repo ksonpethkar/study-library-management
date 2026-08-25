@@ -490,6 +490,9 @@ router.post('/public-register', authLimiter, async (req, res) => {
     const extractedEmPhone = em.phone || req.body.emergencyContactPhone || req.body['emergencyContact.phone'] || req.body.emergencyContact || customF.emergencyContactPhone || customF.emergencyContact || customF.parentPhone || customF.emergency_contact_phone || customF.emergencycontact || '';
     const extractedEmRel = em.relation || req.body.emergencyContactRelation || req.body['emergencyContact.relation'] || customF.emergencyContactRelation || customF.parentRelation || customF.emergency_contact_relation || 'Parent';
 
+    const rawDob = dob || req.body.dateOfBirth || req.body.dateofbirth || req.body.date_of_birth || req.body.birthDate || (customF && (customF.dateOfBirth || customF.dob || customF.dateofbirth || customF.date_of_birth || customF.birthDate));
+    const parsedDob = rawDob && !isNaN(new Date(rawDob).getTime()) ? new Date(rawDob) : null;
+
     // Create Student Document
     const newStudent = new Student({
       studentId,
@@ -497,7 +500,7 @@ router.post('/public-register', authLimiter, async (req, res) => {
       phone,
       email: email || '',
       gender: (gender || 'other').toLowerCase(),
-      dateOfBirth: dob ? new Date(dob) : null,
+      dateOfBirth: parsedDob,
       targetExams: Array.isArray(targetExams) ? targetExams : (targetExams ? [targetExams] : []),
       plan: (plan && mongoose.Types.ObjectId.isValid(plan)) ? plan : null,
       branch: (req.body.branch && mongoose.Types.ObjectId.isValid(req.body.branch)) ? req.body.branch : null,

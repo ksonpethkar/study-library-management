@@ -1013,9 +1013,13 @@ router.put('/profile', async (req, res) => {
     const updateData = {};
     if (photo !== undefined) updateData.photo = photo;
     if (email) updateData.email = email.trim();
-    if (phone) updateData.phone = phone.trim();
     if (gender) updateData.gender = gender;
     const customF = customFields || {};
+    const rawDob = dob || dateOfBirth || req.body.dateofbirth || req.body.date_of_birth || req.body.birthDate || customF.dateOfBirth || customF.dob || customF.dateofbirth || customF.date_of_birth;
+    if (rawDob !== undefined) {
+      const parsedDate = rawDob ? new Date(rawDob) : null;
+      updateData.dateOfBirth = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : null;
+    }
     const rawBlood = bloodGroup || req.body.blood_group || req.body.bloodgroup || customF.bloodGroup || customF.blood_group || customF.bloodgroup;
     if (rawBlood !== undefined) updateData.bloodGroup = String(rawBlood).trim();
     if (targetExams) updateData.targetExams = Array.isArray(targetExams) ? targetExams : String(targetExams).split(',').map(e => e.trim()).filter(Boolean);

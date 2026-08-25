@@ -576,9 +576,13 @@ export async function render() {
       if (fn === 'emergencycontactrelation' || fn === 'emergency_contact_relation' || fn === 'parentrelation' || fn === 'relation') {
         return student.emergencyContact?.relation || student.customFields?.emergencyContactRelation || student.customFields?.parentRelation || student.customFields?.emergency_contact_relation || student.customFields?.emergencycontactrelation || '';
       }
-      if ((fn === 'dateofbirth' || fn === 'dob') && student.dateOfBirth) {
-        const d = new Date(student.dateOfBirth);
-        return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+      if (fn === 'dateofbirth' || fn === 'dob' || fn === 'date_of_birth' || fn === 'birthdate') {
+        const raw = student.dateOfBirth || student.dob || (student.customFields && (student.customFields.dateOfBirth || student.customFields.dob || student.customFields.dateofbirth || (student.customFields instanceof Map ? (student.customFields.get('dateOfBirth') || student.customFields.get('dob') || student.customFields.get('dateofbirth')) : null)));
+        if (raw) {
+          const d = new Date(raw);
+          return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+        }
+        return '';
       }
       if (fn === 'address') return student.address || student.customFields?.address || '';
       if (fn === 'city') return student.city || student.customFields?.city || '';
@@ -1203,7 +1207,22 @@ export async function render() {
             // Handle optional references
             if (!data.plan) delete data.plan;
             if (!data.seat) delete data.seat;
-            if (!data.dateOfBirth) delete data.dateOfBirth;
+
+            // 7. Date of Birth Mapping
+            const rawDob = data.dateOfBirth || data.dob || data.dateofbirth || data.date_of_birth || data.birthDate || data.birthdate || customF.dateOfBirth || customF.dob || customF.dateofbirth || customF.date_of_birth || customF.birthDate || customF.birthdate || student?.dateOfBirth;
+            if (rawDob) {
+              data.dateOfBirth = rawDob;
+              data.customFields.dateOfBirth = rawDob;
+              data.customFields.dob = rawDob;
+              data.customFields.dateofbirth = rawDob;
+            } else {
+              delete data.dateOfBirth;
+            }
+            delete data.dob;
+            delete data.dateofbirth;
+            delete data.date_of_birth;
+            delete data.birthDate;
+            delete data.birthdate;
 
             // Strict Validation Checks:
             // Email Validation
