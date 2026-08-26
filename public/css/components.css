@@ -3572,4 +3572,34 @@ canvas.sparkline {
   }
 }
 
+/* ==========================================================================
+   Universal Brand Logo & Image Anti-Glitch Bounding Box System
+   ========================================================================== */
+.nav-logo, #nav-logo-icon, #drawer-logo, .drawer-header .nav-logo, #footer-logo, .footer-logo-wrap,
+#sidebar-logo, #lib-logo-icon, .app-brand-logo, .dynamic-brand-logo, .business-logo-img,
+#login-logo-container, #kiosk-logo-container, #portal-brand-logo {
+  box-sizing: border-box !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  object-fit: contain !important;
+  flex-shrink: 0 !important;
+}
+
+.nav-logo img, #nav-logo-icon img, #drawer-logo img, .drawer-header .nav-logo img, #footer-logo img,
+.footer-logo-wrap img, #sidebar-logo img, #lib-logo-icon img, .app-brand-logo img, .dynamic-brand-logo img,
+.business-logo-img img, #login-logo-container img, #kiosk-logo-container img, #portal-brand-logo img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  display: block !important;
+  border-radius: inherit !important;
+  box-sizing: border-box !important;
+}
+
 

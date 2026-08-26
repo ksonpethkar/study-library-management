@@ -383,8 +383,13 @@ async function sendHydratedHTML(res, htmlPath) {
     }
 
     if (bLogo) {
-      const logoImg = `<img src="${bLogo}" alt="Logo" style="width: 36px; height: 36px; max-width: 36px; max-height: 36px; object-fit: contain; border-radius: 6px; display: block;">`;
+      const logoImg = `<img src="${bLogo}" alt="Logo" width="36" height="36" style="width: 36px; height: 36px; max-width: 36px; max-height: 36px; object-fit: contain; border-radius: 6px; display: block;">`;
       html = html.replace(/<span class="nav-logo" id="nav-logo-icon">.*?<\/span>/g, `<span class="nav-logo" id="nav-logo-icon" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden;">${logoImg}</span>`);
+
+      const footerLogoImg = `<img src="${bLogo}" alt="Logo" width="38" height="38" style="width: 38px; height: 38px; max-width: 38px; max-height: 38px; object-fit: contain; border-radius: 8px; display: block;">`;
+      html = html.replace(/<div id="footer-logo".*?<\/div>/g, `<div id="footer-logo" style="width: 38px; height: 38px; max-width: 38px; max-height: 38px; margin-bottom: 0.75rem; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 8px;">${footerLogoImg}</div>`);
+    } else {
+      html = html.replace(/<div id="footer-logo".*?<\/div>/g, `<div id="footer-logo" style="display:none;"></div>`);
     }
 
     // 2. Pre-hydrate Hero Customizations
@@ -453,9 +458,9 @@ async function sendHydratedHTML(res, htmlPath) {
     const linksHtml = qLinks.map(l => `<li><a href="${escapeHTML(l.url)}" ${l.openInNewTab ? 'target="_blank" rel="noopener"' : ''}>${escapeHTML(l.label)}</a></li>`).join('');
     html = html.replace(/<ul class="footer-links" id="footer-links-container">[\s\S]*?<\/ul>/g, `<ul class="footer-links" id="footer-links-container">${linksHtml}</ul>`);
 
-    const addressText = escapeHTML(landing?.contact?.address || profile?.address || 'Near Metro Station, Pune');
-    const phoneText = escapeHTML(landing?.contact?.phone || profile?.phone || '+91 9876543210');
-    const hoursText = escapeHTML(landing?.contact?.openingHours || '06:00 AM – 11:00 PM (Daily)');
+    const addressText = escapeHTML(landing?.contact?.address || profile?.address || 'Nath road, parli vaijanath-431515');
+    const phoneText = escapeHTML(landing?.contact?.phone || profile?.phone || '+919403243830');
+    const hoursText = escapeHTML(landing?.contact?.openingHours || 'Open Daily: 06:00 AM – 11:00 PM (365 Days)');
 
     html = html.replace(/<span id="footer-address">[\s\S]*?<\/span>/g, `<span id="footer-address">${addressText}</span>`);
     html = html.replace(/<span id="footer-phone">[\s\S]*?<\/span>/g, `<span id="footer-phone">${phoneText}</span>`);
