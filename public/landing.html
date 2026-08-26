@@ -1203,22 +1203,42 @@
     // Render Dynamic Plans
     let allLandingPlans = [];
     function renderPlans(plans) {
-      const plansList = plans || allLandingPlans;
+      const plansList = (plans && plans.length > 0) ? plans : (allLandingPlans && allLandingPlans.length > 0 ? allLandingPlans : null);
       const plansCont = document.getElementById('plans-container');
       if (!plansCont) return;
 
-      if (!plansList || plansList.length === 0) {
-        plansCont.innerHTML = '<div class="text-center text-muted p-4 w-100" style="grid-column: 1 / -1; font-weight: 600;">No active membership plans currently listed. Please contact the front desk for available plans.</div>';
-        return;
-      }
+      const effectivePlans = (plansList && plansList.length > 0) ? plansList : [
+        {
+          _id: 'default_monthly',
+          name: 'Monthly',
+          price: 1000,
+          discount: 30,
+          duration: 1,
+          durationType: 'months',
+          seatType: 'regular',
+          shift: 'fullday',
+          features: ['High-speed WiFi', 'AC Hall', 'Personal Charging Point', 'RO Water']
+        },
+        {
+          _id: 'default_quarterly',
+          name: 'Quaterly',
+          price: 4000,
+          discount: 40,
+          duration: 3,
+          durationType: 'months',
+          seatType: 'premium',
+          shift: 'fullday',
+          features: ['High-speed WiFi', 'AC Hall', 'Personal Charging Point', 'RO Water']
+        }
+      ];
 
-      plansCont.innerHTML = plansList.map((p) => {
-        const finalPrice = Math.round(p.effectivePrice || p.price || 0);
+      plansCont.innerHTML = effectivePlans.map((p) => {
+        const finalPrice = Math.round(p.effectivePrice || (p.price * (1 - (p.discount || 0) / 100)) || p.price || 0);
         
         let durationLabel = '';
         if (p.duration && p.duration > 1) {
           durationLabel = p.durationType === 'days' ? `${p.duration} Days` : `${p.duration} Months`;
-        } else if (p.name && p.name.toLowerCase().includes('quarter')) {
+        } else if (p.name && p.name.toLowerCase().includes('quater')) {
           durationLabel = '3 Months';
         } else if (p.name && (p.name.toLowerCase().includes('half') || p.name.toLowerCase().includes('6 month'))) {
           durationLabel = '6 Months';
@@ -1315,6 +1335,11 @@
 
     let customEnquirySuccessMessage = 'Thank you! Your enquiry has been received. Our manager will contact you shortly.';
 
+    // Render initial fallback plans at 0ms so user never waits
+    try {
+      renderPlans([]);
+    } catch(e) {}
+
     // Load Dynamic Data
     async function loadLandingPage() {
       try {
@@ -1323,6 +1348,12 @@
         if (!json.success || !json.data) return;
 
         const { landing = {}, businessProfile = {}, plans = [], shifts = [] } = json.data;
+
+        // Render plans immediately upon data arrival
+        if (Array.isArray(plans) && plans.length > 0) {
+          allLandingPlans = plans;
+          renderPlans(plans);
+        }
 
         // 0. Visual Theme Preset & Custom Colors
         const urlParams = new URLSearchParams(window.location.search);

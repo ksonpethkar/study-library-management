@@ -354,10 +354,14 @@ async function sendHydratedHTML(res, htmlPath) {
     let html = fs.readFileSync(htmlPath, 'utf8');
     const BusinessProfile = require('./models/BusinessProfile');
     const LandingPage = require('./models/LandingPage');
+    const Plan = require('./models/Plan');
+    const Shift = require('./models/Shift');
 
-    const [profile, landing] = await Promise.all([
+    const [profile, landing, plans, shifts] = await Promise.all([
       BusinessProfile.getProfile().catch(() => ({})),
-      LandingPage.getPageConfig().catch(() => ({}))
+      LandingPage.getPageConfig().catch(() => ({})),
+      Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort({ displayOrder: 1, price: 1 }).lean().catch(() => []),
+      Shift.find({ isActive: true }).lean().catch(() => [])
     ]);
 
     const escapeHTML = str => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
@@ -415,7 +419,105 @@ async function sendHydratedHTML(res, htmlPath) {
       html = html.replace(/<span id="ticker-text">[\s\S]*?<\/span>/g, `<span id="ticker-text">${landing.hero.tickerText}</span>`);
     }
 
-    // 3. Pre-hydrate Section Headers
+    // 3. Pre-hydrate Plans Section (Zero Spinner / Instant Render)
+    const activePlans = (Array.isArray(plans) && plans.length > 0) ? plans : [
+      {
+        name: 'Monthly',
+        price: 1000,
+        discount: 30,
+        duration: 1,
+        durationType: 'months',
+        seatType: 'regular',
+        shift: 'fullday',
+        features: ['WiFi', 'AC', 'Personal Charging Point', 'RO Water']
+      },
+      {
+        name: 'Quaterly',
+        price: 4000,
+        discount: 40,
+        duration: 3,
+        durationType: 'months',
+        seatType: 'premium',
+        shift: 'fullday',
+        features: ['WiFi', 'AC', 'Personal Charging Point', 'RO Water']
+      }
+    ];
+
+    const plansCardsHtml = activePlans.map(p => {
+      const finalPrice = Math.round(p.effectivePrice || (p.price * (1 - (p.discount || 0) / 100)) || p.price || 0);
+      let durationLabel = '';
+      if (p.duration && p.duration > 1) {
+        durationLabel = p.durationType === 'days' ? `${p.duration} Days` : `${p.duration} Months`;
+      } else if (p.name && p.name.toLowerCase().includes('quater')) {
+        durationLabel = '3 Months';
+      } else if (p.name && (p.name.toLowerCase().includes('half') || p.name.toLowerCase().includes('6 month'))) {
+        durationLabel = '6 Months';
+      } else if (p.name && (p.name.toLowerCase().includes('annual') || p.name.toLowerCase().includes('year'))) {
+        durationLabel = '1 Year';
+      } else {
+        durationLabel = '1 Month';
+      }
+      const discount = p.discount || 0;
+      const planId = p._id || p.id || '';
+      return `
+        <div class="plan-card">
+          ${discount > 0 ? `<div class="plan-badge">${discount}% OFF</div>` : ''}
+          <h3 class="plan-name">${escapeHTML(p.name)}</h3>
+          <div class="plan-price-row">
+            <span class="plan-price">₹${finalPrice.toLocaleString('en-IN')}</span>
+            <span class="plan-period">/ ${durationLabel}</span>
+          </div>
+          <ul class="plan-features">
+            <li>Seat Type: <strong>${(p.seatType || 'Standard').toUpperCase()}</strong></li>
+            <li>Shift: <strong>${(p.shift || 'Any').toUpperCase()}</strong></li>
+            ${(p.features || []).map(f => `<li>${escapeHTML(f)}</li>`).join('')}
+          </ul>
+          <a href="/register?plan=${encodeURIComponent(planId || p.name)}" class="btn-hero-primary" style="justify-content: center; text-align: center; width: 100%; border: none; text-decoration: none;">
+            Register Now
+          </a>
+        </div>
+      `;
+    }).join('');
+
+    html = html.replace(/<div class="plans-grid" id="plans-container">[\s\S]*?<\/div>\s*<\/section>/g, `<div class="plans-grid" id="plans-container">${plansCardsHtml}</div>\n  </section>`);
+
+    // 4. Pre-hydrate Shifts Section
+    const activeShifts = (Array.isArray(shifts) && shifts.length > 0) ? shifts : [
+      { icon: '🌅', name: 'Morning Shift', timing: '06:00 AM – 02:00 PM', description: 'Early morning slot for fresh mental energy and peak focus.' },
+      { icon: '🌇', name: 'Evening Shift', timing: '02:00 PM – 10:00 PM', description: 'Afternoon & evening slot ideal for college students and professionals.' },
+      { icon: '☀️', name: 'Full Day Prime', timing: '06:00 AM – 11:00 PM', description: 'Complete 17-hour all-day reserved seat with dedicated charging desk.' },
+      { icon: '🌙', name: 'Night Owl Slot', timing: '10:00 PM – 06:00 AM', description: 'Distraction-free overnight study hours for night preparation.' }
+    ];
+
+    const formatShiftTime = (t) => {
+      if (!t) return '';
+      if (t.includes('AM') || t.includes('PM')) return t;
+      const parts = t.split(':');
+      if (parts.length < 2) return t;
+      let h = parseInt(parts[0], 10);
+      const m = parts[1].padStart(2, '0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12;
+      h = h ? h : 12;
+      return `${h.toString().padStart(2, '0')}:${m} ${ampm}`;
+    };
+
+    const shiftsCardsHtml = activeShifts.map(s => {
+      const timingStr = s.timing || ((s.startTime && s.endTime) ? `${formatShiftTime(s.startTime)} – ${formatShiftTime(s.endTime)}` : '');
+      const icon = s.icon || '⏰';
+      return `
+        <div class="shift-card">
+          <div class="shift-icon">${icon}</div>
+          <div class="shift-name">${escapeHTML(s.name)}</div>
+          <div class="shift-time">${escapeHTML(timingStr)}</div>
+          ${s.description ? `<div class="shift-desc" style="font-size: 0.88rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">${escapeHTML(s.description)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    html = html.replace(/<div class="shifts-grid" id="shifts-container">[\s\S]*?<\/div>\s*<\/section>/g, `<div class="shifts-grid" id="shifts-container">${shiftsCardsHtml}</div>\n  </section>`);
+
+    // 5. Pre-hydrate Section Headers
     if (landing?.pricing?.title) {
       html = html.replace(/(<section id="plans"[\s\S]*?<h2 class="section-title">)[\s\S]*?(<\/h2>)/g, `$1${landing.pricing.title}$2`);
     }
@@ -426,7 +528,7 @@ async function sendHydratedHTML(res, htmlPath) {
       html = html.replace(/(<section id="gallery"[\s\S]*?<h2 class="section-title">)[\s\S]*?(<\/h2>)/g, `$1${landing.gallery.title}$2`);
     }
 
-    // 4. Pre-hydrate Gallery Items & Filters
+    // 6. Pre-hydrate Gallery Items & Filters
     if (Array.isArray(landing?.gallery?.images) && landing.gallery.images.length > 0) {
       const categories = Array.from(new Set(landing.gallery.images.map(img => img.category || 'Hall'))).filter(Boolean);
       const filterBtns = `<button type="button" class="g-filter active" data-category="all">All</button>` + 
