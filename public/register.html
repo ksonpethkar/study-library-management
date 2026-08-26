@@ -2580,10 +2580,7 @@
           .filter(s => s.isHidden !== true && s.isHidden !== 'true')
           .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-        // Render Dynamic Multi-Step Wizard
-        renderDynamicWizard(activeSections, fields, activeTemplate);
-
-        // Populate Branches in Branch Selectors
+        // Populate Branches in branchesMap BEFORE rendering dynamic wizard
         let branches = Array.isArray(publicConfig?.branches) ? publicConfig.branches : [];
         if (branches.length === 0) {
           branches = [{
@@ -2594,22 +2591,19 @@
             availableSeats: 57
           }];
         }
+        branches.forEach((b, idx) => {
+          branchesMap[b._id] = b;
+          if (idx === 0 && !selectedBranchId) {
+            selectedBranchId = b._id;
+          }
+        });
+
+        // Render Dynamic Multi-Step Wizard
+        renderDynamicWizard(activeSections, fields, activeTemplate);
 
         const branchSelect = document.getElementById('reg-branch');
         if (branchSelect) {
-          branchSelect.innerHTML = '';
-          branches.forEach((b, idx) => {
-            branchesMap[b._id] = b;
-            const opt = document.createElement('option');
-            opt.value = b._id;
-            opt.textContent = `${b.name} (${b.city || 'Campus'}) — 🟢 ${b.availableSeats ?? 57} Available Seats`;
-            if (idx === 0) {
-              opt.selected = true;
-              selectedBranchId = b._id;
-            }
-            branchSelect.appendChild(opt);
-          });
-
+          branchSelect.value = selectedBranchId || branches[0]?._id;
           branchSelect.onchange = () => {
             selectedBranchId = branchSelect.value;
             const seatInput = document.getElementById('reg-selected-seat');
@@ -3124,15 +3118,18 @@
         }
       } catch (e) {}
 
-      // Instant 0ms First Paint
-      if (publicConfig) {
-        hydrateWizard(publicConfig);
-      } else {
-        // Render standard wizard immediately so user NEVER sees stuck loading screen
-        hydrateWizard({});
-      }
+      let publicConfig = null;
+      try {
+        const cached = localStorage.getItem('sl_public_config_cache');
+        if (cached) {
+          publicConfig = JSON.parse(cached);
+          if (publicConfig && Array.isArray(publicConfig.branches) && publicConfig.branches.length > 0) {
+            hydrateWizard(publicConfig);
+          }
+        }
+      } catch (e) {}
 
-      // Revalidate in background with 4s timeout
+      // Revalidate / Fetch live config from server
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
@@ -3146,7 +3143,7 @@
         if (cfgRes && cfgRes.ok) {
           const cfgJson = await cfgRes.json();
           if (cfgJson.success && cfgJson.data) {
-            publicConfig = cfgJson.data;
+            publicConfig = { ...(publicConfig || {}), ...cfgJson.data };
           }
         }
 
@@ -3170,9 +3167,12 @@
         if (publicConfig) {
           try { localStorage.setItem('sl_public_config_cache', JSON.stringify(publicConfig)); } catch (e) {}
           hydrateWizard(publicConfig);
+        } else {
+          hydrateWizard({});
         }
       } catch (e) {
         console.warn('Background public config fetch timed out or offline, using cached/default state');
+        if (!publicConfig) hydrateWizard({});
       }
     }
 

@@ -433,6 +433,31 @@ async function sendHydratedHTML(res, htmlPath) {
       html = html.replace(/<div class="gallery-grid" id="gallery-container">[\s\S]*?<\/div>/g, `<div class="gallery-grid" id="gallery-container">${galleryCards}</div>`);
     }
 
+    // 5. Pre-hydrate Footer Quick Links & Contact Info
+    const linksHeading = escapeHTML(landing?.footer?.linksHeading || 'Quick Links');
+    html = html.replace(/<h4.*?id="footer-links-heading">[\s\S]*?<\/h4>/g, `<h4 style="font-weight: 700; margin-bottom: 1.5rem; font-size:1.1rem;" id="footer-links-heading">${linksHeading}</h4>`);
+
+    const qLinks = (Array.isArray(landing?.footer?.quickLinks) && landing.footer.quickLinks.length > 0)
+      ? landing.footer.quickLinks.filter(l => l && l.label && l.url)
+      : [
+          { label: 'Online Admission', url: '/register', openInNewTab: false },
+          { label: 'Student Portal', url: '/student-login', openInNewTab: false },
+          { label: 'Gate Kiosk', url: '/kiosk', openInNewTab: false },
+          { label: 'Staff & Owner Login', url: '/#/', openInNewTab: false }
+        ];
+
+    const linksHtml = qLinks.map(l => `<li><a href="${escapeHTML(l.url)}" ${l.openInNewTab ? 'target="_blank" rel="noopener"' : ''}>${escapeHTML(l.label)}</a></li>`).join('');
+    html = html.replace(/<ul class="footer-links" id="footer-links-container">[\s\S]*?<\/ul>/g, `<ul class="footer-links" id="footer-links-container">${linksHtml}</ul>`);
+
+    const addressText = escapeHTML(landing?.contact?.address || profile?.address || 'Near Metro Station, Pune');
+    const phoneText = escapeHTML(landing?.contact?.phone || profile?.phone || '+91 9876543210');
+    const hoursText = escapeHTML(landing?.contact?.openingHours || '06:00 AM – 11:00 PM (Daily)');
+
+    html = html.replace(/<span id="footer-address">[\s\S]*?<\/span>/g, `<span id="footer-address">${addressText}</span>`);
+    html = html.replace(/<span id="footer-phone">[\s\S]*?<\/span>/g, `<span id="footer-phone">${phoneText}</span>`);
+    html = html.replace(/<span id="footer-hours">[\s\S]*?<\/span>/g, `<span id="footer-hours">${hoursText}</span>`);
+    html = html.replace(/<div[^>]*?id="map-card-address">[\s\S]*?<\/div>/g, `<div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.85rem;" id="map-card-address">${addressText}</div>`);
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.send(html);
   } catch (err) {

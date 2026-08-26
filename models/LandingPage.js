@@ -208,6 +208,9 @@ landingPageSchema.statics.getPageConfig = async function() {
     if (config.footer === undefined || config.footer === null) {
       config.footer = defaults.footer;
       needsSave = true;
+    } else if (!Array.isArray(config.footer.quickLinks) || config.footer.quickLinks.length === 0) {
+      config.footer.quickLinks = defaults.footer.quickLinks;
+      needsSave = true;
     }
     if (config.navbar === undefined || config.navbar === null) {
       config.navbar = defaults.navbar;
