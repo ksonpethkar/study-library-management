@@ -1997,6 +1997,7 @@ export async function render() {
     });
 
     modalContent.querySelector('.btn-profile-pdfform')?.addEventListener('click', () => {
+      pModal.close();
       previewAdmissionFormPDF(student, { business: window.store?.settings?.businessProfile, receiptConfig: window.store?.settings?.receipt });
     });
 
@@ -2228,13 +2229,9 @@ export async function render() {
     const badgesEl = container.querySelector('#student-analytics-badges');
     if (!contentEl) return;
 
-    try {
-      const res = await api.get(`/api/attendance/analytics/${studentId}`);
-      if (!res.success || !res.data) throw new Error(res.message || 'No data');
-      const a = res.data;
-
+    function renderAnalyticsUI(a) {
+      if (!a) return;
       if (badgesEl) {
-        // Calculate behavior score from analytics data
         const attPct = a.consistencyScore || 0;
         const streakD = a.currentStreak || 0;
         const behaviorBadgeHtml = renderBehaviorBadge(attPct, 100, streakD);
@@ -2278,17 +2275,16 @@ export async function render() {
               Avg: <strong>${escapeHTML(a.averageDailyDuration?.formatted || '0m')}</strong>/day
             </div>
             <div class="text-muted" style="font-size: 0.7rem;">
-              ${a.totalDaysPresent || 0}/30d present (Best: ${a.longestStreak || 0}d)
+              ${a.totalDaysPresent || 0}/90 days present
             </div>
           </div>
 
-          <!-- 30-Day Heatmap Grid -->
+          <!-- 90-Day Interactive Calendar Heatmap -->
           <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 0.8rem;">
-              <strong style="color: var(--color-text-primary);">30-Day Attendance Grid</strong>
-              <span class="text-muted" style="font-size: 0.72rem;">${a.peakStudyHours?.slot || 'Peak Hours'}</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span class="text-xs font-weight-bold" style="color: var(--color-text-primary);">90-Day Attendance Heatmap</span>
+              <span class="text-muted" style="font-size: 0.7rem;">Hover cell for daily duration</span>
             </div>
-
             ${renderHeatmapGridHtml(a.heatmap || [])}
 
             <div style="margin-top: 10px; padding: 8px 12px; background: var(--color-surface); border-radius: 6px; border: 1px solid var(--color-border); font-size: 0.8rem; line-height: 1.4; color: var(--color-text-secondary);">
@@ -2297,8 +2293,23 @@ export async function render() {
           </div>
         </div>
       `;
+    }
+
+    try {
+      const cached = await IDBStorage.get('attendance', 'analytics_' + studentId);
+      if (cached) renderAnalyticsUI(cached);
+    } catch (e) {}
+
+    try {
+      const res = await api.get(`/api/attendance/analytics/${studentId}`);
+      if (res.success && res.data) {
+        await IDBStorage.set('attendance', 'analytics_' + studentId, res.data);
+        renderAnalyticsUI(res.data);
+      }
     } catch (err) {
-      contentEl.innerHTML = `<div class="text-muted small text-center p-2">Unable to load attendance analytics (${escapeHTML(err.message || 'No records')})</div>`;
+      if (!contentEl.querySelector('svg')) {
+        contentEl.innerHTML = `<div class="text-muted small text-center p-2">Unable to load attendance analytics (${escapeHTML(err.message || 'No records')})</div>`;
+      }
     }
 
     // ── Full-year Heatmap (Phase 2) ──────────────────────────────────────────

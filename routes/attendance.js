@@ -328,7 +328,7 @@ router.get('/analytics/:studentId', protect, async (req, res) => {
     const records = await Attendance.find({
       student: student._id,
       date: { $gte: startOf90Days, $lte: endOfToday }
-    }).sort({ date: 1 });
+    }).select('date status checkIn checkOut duration').lean().sort({ date: 1 });
 
     // Map records by YYYY-MM-DD
     const recordsByDate = {};

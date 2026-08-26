@@ -2028,9 +2028,11 @@ function renderPortalUI(container, data, analytics = null) {
 
       modalContent.querySelector('#btn-close-profile-modal')?.addEventListener('click', () => profileModal.close());
       modalContent.querySelector('#btn-sp-download-pdf')?.addEventListener('click', () => {
+        profileModal.close();
         previewAdmissionFormPDF(student, { business });
       });
       modalContent.querySelector('#btn-modal-print-pdf')?.addEventListener('click', () => {
+        profileModal.close();
         previewAdmissionFormPDF(student, { business });
       });
 

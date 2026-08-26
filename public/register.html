@@ -3115,14 +3115,6 @@
         const cached = localStorage.getItem('sl_public_config_cache');
         if (cached) {
           publicConfig = JSON.parse(cached);
-        }
-      } catch (e) {}
-
-      let publicConfig = null;
-      try {
-        const cached = localStorage.getItem('sl_public_config_cache');
-        if (cached) {
-          publicConfig = JSON.parse(cached);
           if (publicConfig && Array.isArray(publicConfig.branches) && publicConfig.branches.length > 0) {
             hydrateWizard(publicConfig);
           }
