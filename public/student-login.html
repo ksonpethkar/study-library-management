@@ -89,6 +89,23 @@
     .portal-body {
       padding: 1.75rem 1.75rem 1.5rem 1.75rem;
     }
+    @media (max-width: 480px) {
+      body {
+        padding: 10px 8px max(16px, env(safe-area-inset-bottom)) 8px !important;
+        justify-content: center !important;
+      }
+      .portal-card {
+        max-width: 100% !important;
+        border-radius: 18px !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+      }
+      .portal-header {
+        padding: 1.5rem 1.25rem 1.25rem 1.25rem !important;
+      }
+      .portal-body {
+        padding: 1.25rem 1rem !important;
+      }
+    }
     .theme-toggle-pill {
       position: absolute;
       top: 14px;

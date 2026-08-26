@@ -307,6 +307,139 @@ body {
   }
 }
 
+/* ==========================================================================
+   📱 Mobile High-Density Grid & Screen Space Maximizer (<480px)
+   ========================================================================== */
+@media (max-width: 480px) {
+  #page-content,
+  .page-container,
+  .page-content {
+    padding: 8px 6px calc(80px + env(safe-area-inset-bottom, 16px)) 6px !important;
+  }
+  
+  .card {
+    padding: 12px 10px !important;
+    margin-bottom: 8px !important;
+    border-radius: 14px !important;
+  }
+
+  /* 2-Column Balanced KPI Stats Grid on Small Phones */
+  .stats-grid,
+  .kpi-grid,
+  .dashboard-stats,
+  .metric-grid,
+  .quick-stats-grid,
+  .overview-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+    width: 100% !important;
+  }
+
+  .stat-card,
+  .kpi-card,
+  .metric-card {
+    padding: 10px 8px !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    min-height: 76px !important;
+    box-sizing: border-box !important;
+  }
+
+  .stat-card .stat-value,
+  .kpi-card .kpi-value,
+  .metric-card .value {
+    font-size: 1.35rem !important;
+    line-height: 1.1 !important;
+    font-weight: 800 !important;
+  }
+
+  .stat-card .stat-label,
+  .kpi-card .kpi-label,
+  .metric-card .label {
+    font-size: 0.72rem !important;
+    color: var(--color-text-secondary) !important;
+    margin-top: 2px !important;
+  }
+
+  /* Native 4-Column Mobile App Action Grid */
+  .mobile-app-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 6px !important;
+    margin-bottom: 12px !important;
+    width: 100% !important;
+  }
+
+  .mobile-app-icon-card {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 10px 4px !important;
+    background: var(--color-surface) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: 14px !important;
+    text-decoration: none !important;
+    color: var(--color-text-primary) !important;
+    text-align: center !important;
+    gap: 4px !important;
+    transition: transform 0.15s ease, background 0.15s ease !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    box-shadow: var(--shadow-sm) !important;
+  }
+
+  .mobile-app-icon-card:active {
+    transform: scale(0.93) !important;
+    background: var(--color-surface-hover) !important;
+  }
+
+  .mobile-app-icon-card .icon-badge {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 11px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.25rem !important;
+  }
+
+  .mobile-app-icon-card .icon-label {
+    font-size: 0.68rem !important;
+    font-weight: 600 !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+
+  /* Seating Grid Compact Touch Density on Mobile */
+  .seating-matrix,
+  .seat-grid,
+  .seating-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)) !important;
+    gap: 6px !important;
+    padding: 4px !important;
+  }
+
+  .seat-card,
+  .seat-item,
+  .seat-box {
+    width: 100% !important;
+    height: 48px !important;
+    min-width: 0 !important;
+    padding: 4px 2px !important;
+    border-radius: 8px !important;
+    font-size: 0.75rem !important;
+  }
+}
+
 /* 3. Global Responsive Auto-Fit Grid System */
 .grid-auto-fit {
   display: grid;
@@ -545,6 +678,39 @@ table th, table td,
 }
 
 /* 11. Slide-Up Bottom Sheets & Pull-to-Refresh Component Styles */
+@media (max-width: 768px) {
+  dialog.modal-container-dialog.app-modal,
+  .modal-container-dialog.app-modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin: auto 0 0 0 !important;
+    border-radius: 20px 20px 0 0 !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    max-height: 90vh !important;
+    max-height: 90dvh !important;
+    padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+    animation: slideUpModal 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+  }
+
+  @keyframes slideUpModal {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .modal-header {
+    padding: 12px 16px !important;
+  }
+  .modal-body-container {
+    padding: 14px 16px !important;
+    max-height: calc(90dvh - 120px) !important;
+  }
+  .modal-footer-container {
+    padding: 10px 16px max(16px, env(safe-area-inset-bottom)) 16px !important;
+  }
+}
+
 .bottom-sheet {
   position: fixed;
   bottom: 0;

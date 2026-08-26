@@ -589,7 +589,7 @@ html.dark-theme .main-header {
   .page-content,
   .page-container,
   #page-content {
-    padding: 12px !important;
+    padding: 10px 8px !important;
     padding-bottom: calc(85px + env(safe-area-inset-bottom)) !important;
     width: 100% !important;
     max-width: 100% !important;
