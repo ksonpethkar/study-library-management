@@ -8,6 +8,7 @@ const User = require('../models/User');
 const BusinessProfile = require('../models/BusinessProfile');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const memoryCache = require('../utils/memoryCache');
 
 const roleCheck = (...roles) => {
   return (req, res, next) => {
@@ -85,6 +86,12 @@ router.get('/public-list', async (req, res) => {
 
 // Protect all remaining branch routes
 router.use(protect);
+router.use((req, res, next) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    memoryCache.clear();
+  }
+  next();
+});
 
 // GET /stats — Return branch summary
 router.get('/stats', async (req, res) => {

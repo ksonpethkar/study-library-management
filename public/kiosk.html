@@ -913,7 +913,7 @@
     // Dynamically load Public Configuration from GET /api/system/public-config
     async function loadPublicConfig() {
       try {
-        const res = await fetch('/api/system/public-config');
+        const res = await fetch('/api/system/public-config?t=' + Date.now());
         const json = await res.json();
         if (!json.success || !json.data) return;
 
@@ -989,6 +989,12 @@
     // Initialize Kiosk
     loadPublicConfig();
     setInterval(loadPublicConfig, 30000); // Periodic live refresh every 30s
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'sl_settings_sync_trigger' || e.key === 'sl_public_profile_cache') {
+        loadPublicConfig();
+      }
+    });
 
     if (!('ontouchstart' in window)) {
       document.getElementById('barcode-input')?.focus();

@@ -4691,8 +4691,17 @@ async function saveActiveStudioSettings(container, studioId, store) {
 
     if (pRes.success || sRes.success) {
       Toast.success('Master Settings updated successfully across all modules!');
-      if (typeof window.updateDynamicFaviconAndTitle === 'function' && pRes.data) {
-        window.updateDynamicFaviconAndTitle(pRes.data);
+      const updatedProfile = pRes.data || profilePayload;
+      if (window.ThemeManager && typeof window.ThemeManager.applyPublicBranding === 'function') {
+        window.ThemeManager.applyPublicBranding(updatedProfile);
+      }
+      try {
+        localStorage.setItem('sl_public_profile_cache', JSON.stringify(updatedProfile));
+        localStorage.setItem('sl_settings_sync_trigger', Date.now().toString());
+        window.dispatchEvent(new CustomEvent('sl:settings-updated', { detail: { profile: updatedProfile, settings: sysPayload } }));
+      } catch(e) {}
+      if (typeof window.updateDynamicFaviconAndTitle === 'function' && updatedProfile) {
+        window.updateDynamicFaviconAndTitle(updatedProfile);
       }
     } else {
       Toast.error('Settings updated with warnings.');

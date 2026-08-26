@@ -3125,10 +3125,11 @@
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const t = Date.now();
         const [cfgRes, branchRes, planRes] = await Promise.all([
-          fetch('/api/system/public-config', { signal: controller.signal }).catch(() => null),
-          fetch('/api/branches/public-list', { signal: controller.signal }).catch(() => null),
-          fetch('/api/plans', { signal: controller.signal }).catch(() => null)
+          fetch(`/api/system/public-config?t=${t}`, { signal: controller.signal }).catch(() => null),
+          fetch(`/api/branches/public-list?t=${t}`, { signal: controller.signal }).catch(() => null),
+          fetch(`/api/plans?t=${t}`, { signal: controller.signal }).catch(() => null)
         ]);
         clearTimeout(timeoutId);
 

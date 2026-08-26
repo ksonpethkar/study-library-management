@@ -112,6 +112,7 @@ router.get('/public-config', memoryCache.middleware(30), async (req, res) => {
       timestamp: new Date().toISOString()
     };
 
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({
       success: true,
       data: {

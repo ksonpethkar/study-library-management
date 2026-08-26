@@ -257,12 +257,37 @@
           document.title = document.title.replace(/Study Library|StudyLib|The Cozy Corner Centre/g, profile.businessName);
         }
         
-        const brandElements = ['lib-title', 'lib-name', 'sidebar-org-name', 'nav-brand-name', 'drawer-brand-name', 'footer-org-name', 'kiosk-lib-name', 'footer-copy-name'];
+        const brandElements = ['lib-title', 'lib-name', 'sidebar-org-name', 'nav-brand-name', 'drawer-brand-name', 'footer-org-name', 'kiosk-lib-name', 'footer-copy-name', 'sys-preloader-name'];
         brandElements.forEach(id => {
           const el = document.getElementById(id);
           if (el) el.textContent = profile.businessName;
         });
       }
+
+      if (profile.tagline) {
+        const taglineElements = ['footer-tagline', 'footer-bottom-tagline'];
+        taglineElements.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = profile.tagline;
+        });
+      }
+
+      if (profile.address) {
+        const addrElements = ['footer-address', 'map-card-address'];
+        addrElements.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = profile.address;
+        });
+      }
+
+      if (profile.phone) {
+        const phoneEl = document.getElementById('footer-phone');
+        if (phoneEl) phoneEl.textContent = profile.phone;
+      }
+
+      try {
+        window.dispatchEvent(new CustomEvent('sl:branding-applied', { detail: profile }));
+      } catch(e) {}
 
       if (profile.logo) {
         const logoContainers = [

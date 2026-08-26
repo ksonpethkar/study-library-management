@@ -3,6 +3,7 @@ const router = express.Router();
 const Plan = require('../models/Plan');
 const { protect } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
+const memoryCache = require('../utils/memoryCache');
 
 const roleCheck = (...roles) => {
   return (req, res, next) => {
@@ -36,6 +37,7 @@ function validate(validations) {
 
 // GET / — List active plans (Public for registration & landing page)
 router.get('/', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     const Student = require('../models/Student');
     const [plans, counts] = await Promise.all([
@@ -60,6 +62,12 @@ router.get('/', async (req, res) => {
 
 // Protect write and admin operations
 router.use(protect);
+router.use((req, res, next) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    memoryCache.clear();
+  }
+  next();
+});
 
 router.get('/all', async (req, res) => {
   try {

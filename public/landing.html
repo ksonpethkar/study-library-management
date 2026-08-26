@@ -1305,7 +1305,7 @@
     // Load Dynamic Data
     async function loadLandingPage() {
       try {
-        const res = await fetch('/api/landing');
+        const res = await fetch('/api/landing?t=' + Date.now());
         const json = await res.json();
         if (!json.success || !json.data) return;
 
@@ -2059,6 +2059,18 @@
           const navBrand = document.getElementById('nav-brand-name');
           if (navBrand) navBrand.textContent = event.data.navBrand;
         }
+      }
+    });
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'sl_settings_sync_trigger' || e.key === 'sl_public_profile_cache') {
+        loadLandingPage();
+      }
+    });
+
+    window.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        loadLandingPage();
       }
     });
 

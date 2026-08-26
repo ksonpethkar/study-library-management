@@ -4,6 +4,7 @@ const CustomField = require('../models/CustomField');
 const FormTemplate = require('../models/FormTemplate');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
+const memoryCache = require('../utils/memoryCache');
 
 // Public/Shared read endpoints to get fields
 router.get('/', async (req, res) => {
@@ -71,6 +72,12 @@ router.get('/sections', async (req, res) => {
 // Admin write/mutation endpoints
 router.use(protect);
 router.use(roleCheck('owner', 'branch_manager'));
+router.use((req, res, next) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    memoryCache.clear();
+  }
+  next();
+});
 
 // PUT /api/custom-fields/templates/active - Update active template branding & settings
 router.put('/templates/active', async (req, res) => {

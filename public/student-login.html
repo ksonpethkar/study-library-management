@@ -422,29 +422,38 @@
     });
 
     // Fetch Library Branding Name & Logo
-    fetch('/api/landing')
-      .then(res => res.json())
-      .then(data => {
-        const bp = data.data?.businessProfile;
-        if (bp?.businessName) {
-          document.getElementById('lib-name').textContent = bp.businessName;
-        }
-        if (bp?.logo) {
-          const logoEl = document.getElementById('portal-brand-logo');
-          if (logoEl) {
-            logoEl.innerHTML = `<img src="${bp.logo}" alt="Logo" style="max-height: 56px; max-width: 120px; object-fit: contain; border-radius: 8px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.2));">`;
+    function loadPortalBranding() {
+      fetch('/api/landing?t=' + Date.now())
+        .then(res => res.json())
+        .then(data => {
+          const bp = data.data?.businessProfile;
+          if (bp?.businessName) {
+            document.getElementById('lib-name').textContent = bp.businessName;
           }
-        }
-        if (bp?.bannerImage) {
-          const headerEl = document.querySelector('.portal-header');
-          if (headerEl) {
-            headerEl.style.backgroundImage = `linear-gradient(135deg, rgba(108, 92, 231, 0.88), rgba(0, 184, 148, 0.88)), url("${bp.bannerImage}")`;
-            headerEl.style.backgroundSize = 'cover';
-            headerEl.style.backgroundPosition = 'center';
+          if (bp?.logo) {
+            const logoEl = document.getElementById('portal-brand-logo');
+            if (logoEl) {
+              logoEl.innerHTML = `<img src="${bp.logo}" alt="Logo" style="max-height: 56px; max-width: 120px; object-fit: contain; border-radius: 8px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.2));">`;
+            }
           }
-        }
-      })
-      .catch(() => {});
+          if (bp?.bannerImage) {
+            const headerEl = document.querySelector('.portal-header');
+            if (headerEl) {
+              headerEl.style.backgroundImage = `linear-gradient(135deg, rgba(108, 92, 231, 0.88), rgba(0, 184, 148, 0.88)), url("${bp.bannerImage}")`;
+              headerEl.style.backgroundSize = 'cover';
+              headerEl.style.backgroundPosition = 'center';
+            }
+          }
+        })
+        .catch(() => {});
+    }
+
+    loadPortalBranding();
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'sl_settings_sync_trigger' || e.key === 'sl_public_profile_cache') {
+        loadPortalBranding();
+      }
+    });
   </script>
   <script src="js/nativeBridge.js"></script>
   <script>

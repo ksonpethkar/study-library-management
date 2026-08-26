@@ -8,6 +8,7 @@ const SystemSetting = require('../models/SystemSetting');
 const User = require('../models/User');
 const ReceiptConfig = require('../models/ReceiptConfig');
 const SidebarConfig = require('../models/SidebarConfig');
+const memoryCache = require('../utils/memoryCache');
 
 const roleCheck = (...roles) => {
   return (req, res, next) => {
@@ -170,7 +171,9 @@ router.put('/business-profile', roleCheck('owner', 'branch_manager'), validateBu
 
     profile.isSetupComplete = true;
     await profile.save();
+    memoryCache.clear();
 
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({
       success: true,
       data: profile,
@@ -349,6 +352,8 @@ const updateSystemSettingsHandler = async (req, res) => {
       categorized[cat][s.key] = s.value;
     });
 
+    memoryCache.clear();
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({
       success: true,
       data: categorized,
@@ -611,6 +616,8 @@ router.put('/receipt-config', protect, roleCheck('owner', 'branch_manager'), asy
     let config = await ReceiptConfig.getConfig();
     Object.assign(config, req.body);
     await config.save();
+    memoryCache.clear();
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({ success: true, data: config, message: 'Receipt configuration saved' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -620,6 +627,7 @@ router.put('/receipt-config', protect, roleCheck('owner', 'branch_manager'), asy
 // GET /api/settings/sidebar/all - Get all items including disabled (admin only)
 router.get('/sidebar/all', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     const config = await SidebarConfig.getConfig();
     res.json({ success: true, data: config.items.sort((a, b) => (a.order || 0) - (b.order || 0)) });
   } catch (err) {
@@ -656,6 +664,8 @@ router.put('/sidebar', protect, roleCheck('owner', 'branch_manager'), async (req
 
     config.items = mergedItems;
     await config.save();
+    memoryCache.clear();
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({ success: true, data: config.items, message: 'Sidebar configuration saved successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -678,6 +688,8 @@ router.put('/sidebar-config', protect, roleCheck('owner', 'branch_manager'), asy
       });
       config.items.sort((a, b) => (a.order || 0) - (b.order || 0));
       await config.save();
+      memoryCache.clear();
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.json({ success: true, data: config.items, message: 'Sidebar order updated successfully' });
     }
     res.json({ success: true, message: 'Sidebar config updated' });
@@ -692,6 +704,8 @@ router.put('/sidebar/reset', protect, roleCheck('owner', 'branch_manager'), asyn
     const config = await SidebarConfig.getConfig();
     config.items = SidebarConfig.getDefaults();
     await config.save();
+    memoryCache.clear();
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({ success: true, data: config.items, message: 'Sidebar reset to defaults' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

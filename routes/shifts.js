@@ -6,9 +6,11 @@ const Student = require('../models/Student');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
 const { validate } = require('../middleware/validate');
+const memoryCache = require('../utils/memoryCache');
 
 // GET / — List shifts (supports ?active=true, ?active=false, ?all=true)
 router.get('/', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     await Shift.seedDefaults();
 
@@ -41,6 +43,12 @@ router.get('/', async (req, res) => {
 
 // Protect write and admin operations
 router.use(protect);
+router.use((req, res, next) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    memoryCache.clear();
+  }
+  next();
+});
 
 // Validations
 const createShiftValidations = validate([
