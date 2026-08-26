@@ -272,12 +272,18 @@
         logoContainers.forEach(id => {
           const el = document.getElementById(id);
           if (el) {
-            el.innerHTML = `<img src="${profile.logo}" alt="Logo" style="max-height: 100%; max-width: 100%; object-fit: contain; border-radius: inherit; display: block; margin: 0 auto;">`;
-            if (id === 'sidebar-logo') {
-              el.style.display = 'flex';
-              el.style.alignItems = 'center';
-              el.style.justifyContent = 'center';
-            }
+            const isSidebar = id === 'sidebar-logo';
+            const isFooter = id === 'footer-logo';
+            const size = isFooter ? '42px' : (isSidebar ? '40px' : '36px');
+            el.style.width = size;
+            el.style.height = size;
+            el.style.maxWidth = size;
+            el.style.maxHeight = size;
+            el.style.display = 'inline-flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            el.style.overflow = 'hidden';
+            el.innerHTML = `<img src="${profile.logo}" alt="Logo" style="width: 100%; height: 100%; max-height: ${size}; max-width: ${size}; object-fit: contain; border-radius: inherit; display: block; margin: 0 auto;">`;
           }
         });
         document.querySelectorAll('.app-brand-logo, .dynamic-brand-logo, .business-logo-img').forEach(img => {

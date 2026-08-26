@@ -182,7 +182,31 @@
       font-size: 1.25rem;
       flex-shrink: 0;
     }
-    .nav-logo { font-size: 1.8rem; }
+    .nav-logo, #nav-logo-icon, #drawer-logo, .drawer-header .nav-logo {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 36px !important;
+      height: 36px !important;
+      max-width: 36px !important;
+      max-height: 36px !important;
+      min-width: 36px !important;
+      min-height: 36px !important;
+      flex-shrink: 0 !important;
+      overflow: hidden !important;
+      border-radius: 8px !important;
+      font-size: 1.5rem;
+      vertical-align: middle;
+    }
+    .nav-logo img, #nav-logo-icon img, #drawer-logo img, .drawer-header .nav-logo img {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 36px !important;
+      max-height: 36px !important;
+      object-fit: contain !important;
+      display: block !important;
+      border-radius: inherit !important;
+    }
     
     .nav-menu {
       display: flex;
@@ -1335,12 +1359,12 @@
         }
 
         // 2. Branding & Navbar
-        const brandName = landing.navbar?.brandName || businessProfile.businessName || 'Study Library';
+        const brandName = landing.navbar?.brandName || businessProfile.businessName || 'The Cozy Corner Centre';
         const brandLogo = landing.navbar?.brandLogo || businessProfile.logo || '';
-        const orgTagline = landing.footer?.tagline || businessProfile.tagline || 'Premier Air-Conditioned Reading Hall & Self-Study Space.';
+        const orgTagline = businessProfile.tagline || landing.footer?.tagline || 'Silence, Focus and Success';
 
-        const brandEl = document.getElementById('nav-brand-name');
-        if (brandEl) brandEl.textContent = brandName;
+        const navBrandEl = document.getElementById('nav-brand-name');
+        if (navBrandEl) navBrandEl.textContent = brandName;
         const drawerBrandEl = document.getElementById('drawer-brand-name');
         if (drawerBrandEl) drawerBrandEl.textContent = brandName;
         const footerOrgEl = document.getElementById('footer-org-name');
@@ -1349,14 +1373,34 @@
         if (footerCopyName) footerCopyName.textContent = brandName;
         const footerTaglineEl = document.getElementById('footer-tagline');
         if (footerTaglineEl) footerTaglineEl.textContent = orgTagline;
+        const footerBottomTagline = document.getElementById('footer-bottom-tagline');
+        if (footerBottomTagline) footerBottomTagline.textContent = orgTagline;
 
         if (brandLogo) {
           const logoEl = document.getElementById('nav-logo-icon');
-          if (logoEl) logoEl.innerHTML = `<img src="${brandLogo}" alt="Logo" style="height: 36px; width: auto; object-fit: contain; border-radius: 6px;">`;
+          if (logoEl) {
+            logoEl.style.width = '36px';
+            logoEl.style.height = '36px';
+            logoEl.style.display = 'inline-flex';
+            logoEl.style.overflow = 'hidden';
+            logoEl.innerHTML = `<img src="${brandLogo}" alt="Logo" style="width: 100%; height: 100%; max-width: 36px; max-height: 36px; object-fit: contain; border-radius: 6px; display: block;">`;
+          }
           const drawerLogo = document.querySelector('#mobile-drawer .nav-logo');
-          if (drawerLogo) drawerLogo.innerHTML = `<img src="${brandLogo}" alt="Logo" style="height: 32px; width: auto; object-fit: contain; border-radius: 6px;">`;
+          if (drawerLogo) {
+            drawerLogo.style.width = '32px';
+            drawerLogo.style.height = '32px';
+            drawerLogo.style.display = 'inline-flex';
+            drawerLogo.style.overflow = 'hidden';
+            drawerLogo.innerHTML = `<img src="${brandLogo}" alt="Logo" style="width: 100%; height: 100%; max-width: 32px; max-height: 32px; object-fit: contain; border-radius: 6px; display: block;">`;
+          }
           const footerLogoEl = document.getElementById('footer-logo');
-          if (footerLogoEl) footerLogoEl.innerHTML = `<img src="${brandLogo}" alt="Logo" style="height: 42px; width: auto; object-fit: contain; border-radius: 6px;">`;
+          if (footerLogoEl) {
+            footerLogoEl.style.width = '42px';
+            footerLogoEl.style.height = '42px';
+            footerLogoEl.style.display = 'inline-flex';
+            footerLogoEl.style.overflow = 'hidden';
+            footerLogoEl.innerHTML = `<img src="${brandLogo}" alt="Logo" style="width: 100%; height: 100%; max-width: 42px; max-height: 42px; object-fit: contain; border-radius: 6px; display: block;">`;
+          }
         }
 
         // Navbar & Drawer CTA buttons

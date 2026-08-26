@@ -364,7 +364,7 @@ async function sendHydratedHTML(res, htmlPath) {
 
     const bName = escapeHTML(landing?.navbar?.brandName || profile?.businessName || 'The Cozy Corner Centre');
     const bLogo = landing?.navbar?.brandLogo || profile?.logo || '';
-    const tagline = escapeHTML(landing?.footer?.tagline || profile?.tagline || '');
+    const tagline = escapeHTML(profile?.tagline || landing?.footer?.tagline || 'Silence, Focus and Success');
 
     // 1. Pre-hydrate Brand Name & Logos
     if (bName) {
@@ -376,11 +376,15 @@ async function sendHydratedHTML(res, htmlPath) {
       html = html.replace(/<h3 class="footer-title" id="footer-org-name">.*?<\/h3>/g, `<h3 class="footer-title" id="footer-org-name">${bName}</h3>`);
       html = html.replace(/<span id="footer-copy-name">.*?<\/span>/g, `<span id="footer-copy-name">${bName}</span>`);
       html = html.replace(/<title>.*?<\/title>/g, `<title>${bName} — Premier Self-Study Space</title>`);
+      if (tagline) {
+        html = html.replace(/<p class="footer-text" id="footer-tagline">.*?<\/p>/g, `<p class="footer-text" id="footer-tagline">${tagline}</p>`);
+        html = html.replace(/<div id="footer-bottom-tagline">.*?<\/div>/g, `<div id="footer-bottom-tagline">${tagline}</div>`);
+      }
     }
 
     if (bLogo) {
-      const logoImg = `<img src="${bLogo}" alt="Logo" style="height: 36px; width: auto; object-fit: contain; border-radius: 6px;">`;
-      html = html.replace(/<span class="nav-logo" id="nav-logo-icon">.*?<\/span>/g, `<span class="nav-logo" id="nav-logo-icon">${logoImg}</span>`);
+      const logoImg = `<img src="${bLogo}" alt="Logo" style="width: 36px; height: 36px; max-width: 36px; max-height: 36px; object-fit: contain; border-radius: 6px; display: block;">`;
+      html = html.replace(/<span class="nav-logo" id="nav-logo-icon">.*?<\/span>/g, `<span class="nav-logo" id="nav-logo-icon" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden;">${logoImg}</span>`);
     }
 
     // 2. Pre-hydrate Hero Customizations
