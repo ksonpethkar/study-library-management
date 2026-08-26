@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cozy Corner Student Portal</string>
+    <string name="title_activity_main">Cozy Corner Student Portal</string>
+    <string name="package_name">com.cozycorner.studentapp</string>
+    <string name="custom_url_scheme">com.cozycorner.studentapp</string>
+</resources>

@@ -20,3 +20,6 @@ uploads/*
 !uploads/.gitkeep
 dist/
 build/
+android/
+.gradle/
+.idea/

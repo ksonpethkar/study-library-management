@@ -8,13 +8,33 @@
   },
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "app:student:init": "node scripts/build_mobile_apps.js student init",
+    "app:student:sync": "node scripts/build_mobile_apps.js student sync",
+    "app:student:open": "node scripts/build_mobile_apps.js student open",
+    "app:admin:init": "node scripts/build_mobile_apps.js admin init",
+    "app:admin:sync": "node scripts/build_mobile_apps.js admin sync",
+    "app:admin:open": "node scripts/build_mobile_apps.js admin open",
+    "app:build:all": "node scripts/build_mobile_apps.js all sync"
   },
-  "keywords": ["library", "management", "study-hall", "pwa"],
+  "keywords": [
+    "library",
+    "management",
+    "study-hall",
+    "pwa"
+  ],
   "author": "Cozy Corner Tech",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/keyboard": "^8.0.5",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
