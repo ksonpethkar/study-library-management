@@ -467,6 +467,55 @@ async function sendHydratedHTML(res, htmlPath) {
     html = html.replace(/<span id="footer-hours">[\s\S]*?<\/span>/g, `<span id="footer-hours">${hoursText}</span>`);
     html = html.replace(/<div[^>]*?id="map-card-address">[\s\S]*?<\/div>/g, `<div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.85rem;" id="map-card-address">${addressText}</div>`);
 
+    // 6. Pre-inject Instant Admission Configuration into /register
+    if (htmlPath.includes('register.html')) {
+      try {
+        const CustomField = require('./models/CustomField');
+        const FormTemplate = require('./models/FormTemplate');
+        const Plan = require('./models/Plan');
+        const Shift = require('./models/Shift');
+        const Branch = require('./models/Branch');
+        const SystemSetting = require('./models/SystemSetting');
+
+        const [cFields, template, plans, shifts, branches, settingsList] = await Promise.all([
+          CustomField.getActiveFields().catch(() => []),
+          FormTemplate.getActiveTemplate().catch(() => null),
+          Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort('displayOrder').lean().catch(() => []),
+          Shift.find({ isActive: true }).sort('startTime').lean().catch(() => []),
+          Branch.find({ isActive: true, isDeleted: { $ne: true } }).lean().catch(() => []),
+          SystemSetting.find().lean().catch(() => [])
+        ]);
+
+        const settingsMap = {};
+        (settingsList || []).forEach(s => { settingsMap[s.key] = s.value; });
+
+        const preloadedConfig = {
+          businessProfile: profile,
+          customFields: cFields,
+          template,
+          plans,
+          shifts,
+          branches: branches.length > 0 ? branches : [{
+            _id: 'default_main',
+            name: profile?.businessName || 'The Cozy Corner Centre',
+            city: profile?.city || 'PARLI',
+            totalSeats: 59,
+            availableSeats: 57
+          }],
+          settings: settingsMap,
+          locker: {
+            enableAddon: settingsMap['locker.enableAddon'] !== false,
+            monthlyFee: Number(settingsMap['locker.monthlyFee']) || 200,
+            deposit: Number(settingsMap['locker.deposit']) || 0
+          }
+        };
+
+        const configJson = JSON.stringify(preloadedConfig).replace(/</g, '\\u003c');
+        const injectedScript = `<script id="initial-public-config" type="application/json">${configJson}</script>`;
+        html = html.replace('</head>', `${injectedScript}\n</head>`);
+      } catch (e) {}
+    }
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     return res.send(html);

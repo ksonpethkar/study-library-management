@@ -23,6 +23,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
+  <!-- Instant Mobile Navigation Prefetch -->
+  <link rel="prefetch" href="/register">
+  <link rel="prerender" href="/register">
+  <link rel="prefetch" href="/api/system/public-config">
+  <link rel="prefetch" href="/student-login">
+
   <script src="js/themeManager.js"></script>
   <link rel="stylesheet" href="css/responsive.css">
   
@@ -41,6 +47,13 @@
       --card-hover: 0 20px 30px -10px rgba(108,92,231,0.15);
       --toast-bg: #333;
       --toast-text: #fff;
+    }
+
+    a, button, .btn-hero-primary, .btn-hero-secondary, .btn-pill, .g-filter, .faq-question {
+      touch-action: manipulation !important;
+      -webkit-tap-highlight-color: transparent !important;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     /* Preset 1: Modern Glassmorphism (Default) */

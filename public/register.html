@@ -3107,20 +3107,29 @@
       }
     }
 
-    // Load Public Config with SWR (Instant 0ms Cache + Single High-Speed Fetch)
+    // Load Public Config with SWR (Instant 0ms Injected Cache + High-Speed Background Sync)
     async function loadInitData() {
       let publicConfig = null;
       try {
-        const cached = localStorage.getItem('sl_public_config_cache');
-        if (cached) {
-          publicConfig = JSON.parse(cached);
+        const injectedScript = document.getElementById('initial-public-config');
+        if (injectedScript && injectedScript.textContent) {
+          publicConfig = JSON.parse(injectedScript.textContent);
         }
       } catch (e) {}
 
-      // 1. Instantly paint admission wizard in 0ms using cache or default system fields
+      if (!publicConfig) {
+        try {
+          const cached = localStorage.getItem('sl_public_config_cache');
+          if (cached) {
+            publicConfig = JSON.parse(cached);
+          }
+        } catch (e) {}
+      }
+
+      // 1. Instantly paint admission wizard in 0ms using server-injected payload or cache
       hydrateWizard(publicConfig || {});
 
-      // 2. Revalidate / Fetch fresh live config from server
+      // 2. Revalidate / Fetch fresh live config from server in background
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
