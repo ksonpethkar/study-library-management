@@ -47,8 +47,7 @@
       } catch(e) {}
     })();
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <style>
     body {
       min-height: 100vh;
@@ -3115,13 +3114,13 @@
         const cached = localStorage.getItem('sl_public_config_cache');
         if (cached) {
           publicConfig = JSON.parse(cached);
-          if (publicConfig && Array.isArray(publicConfig.branches) && publicConfig.branches.length > 0) {
-            hydrateWizard(publicConfig);
-          }
         }
       } catch (e) {}
 
-      // Revalidate / Fetch live config from server
+      // 1. Instantly paint admission wizard in 0ms using cache or default system fields
+      hydrateWizard(publicConfig || {});
+
+      // 2. Revalidate / Fetch fresh live config from server
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
@@ -3160,12 +3159,9 @@
         if (publicConfig) {
           try { localStorage.setItem('sl_public_config_cache', JSON.stringify(publicConfig)); } catch (e) {}
           hydrateWizard(publicConfig);
-        } else {
-          hydrateWizard({});
         }
       } catch (e) {
-        console.warn('Background public config fetch timed out or offline, using cached/default state');
-        if (!publicConfig) hydrateWizard({});
+        console.warn('Background public config fetch timed out or offline, wizard active with default/cached state');
       }
     }
 

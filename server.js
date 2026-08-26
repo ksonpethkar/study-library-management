@@ -468,8 +468,10 @@ async function sendHydratedHTML(res, htmlPath) {
     html = html.replace(/<div[^>]*?id="map-card-address">[\s\S]*?<\/div>/g, `<div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.85rem;" id="map-card-address">${addressText}</div>`);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     return res.send(html);
   } catch (err) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     return res.sendFile(htmlPath);
   }
 }
