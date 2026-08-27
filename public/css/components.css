@@ -2211,7 +2211,28 @@ html.dark-theme .bottom-sheet {
   cursor: grabbing !important;
 }
 .sortable-drag {
-  opacity: 0;
+  opacity: 0.95 !important;
+}
+.fb-sec-drag-handle,
+.fb-field-drag-handle {
+  cursor: grab !important;
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+.fb-sec-drag-handle:hover,
+.fb-field-drag-handle:hover {
+  color: var(--color-primary, #6c5ce7) !important;
+  transform: scale(1.15);
+}
+.fb-sec-drag-handle:active,
+.fb-field-drag-handle:active {
+  cursor: grabbing !important;
+  transform: scale(1.25);
 }
 .kanban-ghost {
   opacity: 0.3;

@@ -281,11 +281,34 @@ export class FormBuilder {
     }
   }
 
-  static renderSections() {
+  static async ensureSortable() {
+    if (typeof window !== 'undefined' && window.Sortable) return window.Sortable;
+    return new Promise((resolve) => {
+      if (document.getElementById('sortable-cdn-script')) {
+        let attempts = 0;
+        const check = setInterval(() => {
+          attempts++;
+          if (window.Sortable || attempts > 30) {
+            clearInterval(check);
+            resolve(window.Sortable || null);
+          }
+        }, 80);
+        return;
+      }
+      const script = document.createElement('script');
+      script.id = 'sortable-cdn-script';
+      script.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js';
+      script.onload = () => resolve(window.Sortable);
+      script.onerror = () => resolve(null);
+      document.head.appendChild(script);
+    });
+  }
+
+  static async renderSections() {
     const container = document.getElementById('fb-sections-container');
     if (!container) return;
 
-    this.sections.sort((a, b) => a.order - b.order);
+    this.sections.sort((a, b) => (a.order || 0) - (b.order || 0));
 
     container.innerHTML = this.sections.map((sec, secIdx) => {
       const secFields = this.fields
@@ -298,7 +321,7 @@ export class FormBuilder {
         <div class="fb-sec-card" data-section="${sec.name}" style="background: var(--color-surface-hover); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; margin-bottom: 12px;">
           <div class="fb-sec-header" style="padding: 10px 14px; background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <div class="fb-sec-title-wrap" style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.92rem; color: var(--color-primary); cursor: pointer; user-select: none;">
-              <div class="fb-sec-drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 0 4px; user-select: none;" title="Drag to reorder section">⠿</div>
+              <div class="fb-sec-drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 2px 6px; user-select: none; touch-action: none;" title="Drag to reorder section">⠿</div>
               <span>${SECTION_ICONS[sec.icon] || '📁'}</span>
               <span>${escapeHTML(sec.label)}</span>
               <span class="badge badge-secondary" style="font-size: 0.7rem;">${sec.isSystem ? 'System Component' : secFields.length + ' Questions'}</span>
@@ -319,7 +342,7 @@ export class FormBuilder {
           <div class="fb-sec-body" style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
             ${sec.isSystem && secFields.length === 0 ? this.renderSystemComponentCard(sec) : ''}
 
-            <div class="fb-sec-fields-container" data-section="${sec.name}" style="display: flex; flex-direction: column; gap: 8px; min-height: 24px;">
+            <div class="fb-sec-fields-container" data-section="${sec.name}" style="display: flex; flex-direction: column; gap: 8px; min-height: 28px;">
               ${secFields.map((field, fIdx) => this.renderFieldCard(field, fIdx, secFields.length)).join('')}
             </div>
           </div>
@@ -356,64 +379,68 @@ export class FormBuilder {
       container.querySelectorAll('.fb-sec-toggle-caret').forEach(c => c.textContent = '▼');
     });
 
-    // Initialize Drag & Drop for Sections
-    if (typeof window !== 'undefined' && window.Sortable) {
-      window.Sortable.create(container, {
-        animation: 180,
+    // Initialize Drag & Drop via SortableJS
+    const sortableLib = await this.ensureSortable();
+    if (sortableLib) {
+      // 1. Reorder Sections
+      sortableLib.create(container, {
+        draggable: '.fb-sec-card',
         handle: '.fb-sec-drag-handle',
+        animation: 180,
         ghostClass: 'sortable-ghost',
         chosenClass: 'sortable-chosen',
-        delay: 0,
-        delayOnTouchOnly: true,
-        touchStartThreshold: 5,
-        onEnd: () => {
+        dragClass: 'sortable-drag',
+        touchStartThreshold: 3,
+        onEnd: async () => {
           const newSecOrder = Array.from(container.querySelectorAll('.fb-sec-card')).map(el => el.dataset.section);
           newSecOrder.forEach((secName, idx) => {
             const s = this.sections.find(sec => sec.name === secName);
             if (s) s.order = idx + 1;
           });
-          this.saveTemplateChanges();
+          this.sections.sort((a, b) => a.order - b.order);
+          if (!this.template) this.template = {};
+          this.template.sections = this.sections;
+          try {
+            await api.put('/api/custom-fields/templates/active', { sections: this.sections });
+            if (window.Toast) window.Toast.success('Section order updated');
+          } catch (err) {}
           this.renderPreview();
-          if (window.Toast) window.Toast.success('Section order updated');
         }
       });
 
-      // Initialize Drag & Drop for Questions within and across Sections
+      // 2. Reorder Questions within & across Sections
       container.querySelectorAll('.fb-sec-fields-container').forEach(fieldsContainer => {
-        window.Sortable.create(fieldsContainer, {
+        sortableLib.create(fieldsContainer, {
           group: 'fb-questions-group',
-          animation: 180,
+          draggable: '.fb-field-row',
           handle: '.fb-field-drag-handle',
+          animation: 180,
           ghostClass: 'sortable-ghost',
           chosenClass: 'sortable-chosen',
-          delay: 0,
-          delayOnTouchOnly: true,
-          touchStartThreshold: 5,
-          onEnd: async (evt) => {
-            const targetSec = evt.to.dataset.section;
-            const fieldId = evt.item.dataset.id;
-
-            // If field moved into a different section, update section key
-            const fieldObj = this.fields.find(f => String(f._id) === String(fieldId));
-            if (fieldObj && targetSec) {
-              fieldObj.section = targetSec;
-            }
-
-            // Re-index order of all questions
-            const allFieldRows = Array.from(container.querySelectorAll('.fb-field-row'));
-            allFieldRows.forEach((row, idx) => {
-              const rowId = row.dataset.id;
-              const f = this.fields.find(item => String(item._id) === String(rowId));
-              if (f) f.order = idx + 1;
+          dragClass: 'sortable-drag',
+          touchStartThreshold: 3,
+          onEnd: async () => {
+            const ordersToSave = [];
+            container.querySelectorAll('.fb-sec-fields-container').forEach(secCont => {
+              const secName = secCont.dataset.section;
+              const rows = Array.from(secCont.querySelectorAll('.fb-field-row'));
+              rows.forEach((row, idx) => {
+                const rowId = row.dataset.id;
+                const fieldObj = this.fields.find(item => String(item._id) === String(rowId));
+                if (fieldObj) {
+                  fieldObj.order = idx + 1;
+                  fieldObj.section = secName;
+                  ordersToSave.push({ id: fieldObj._id, order: fieldObj.order, section: secName });
+                }
+              });
             });
 
-            // Save reordered custom fields
             try {
-              await api.put('/api/custom-fields/reorder', {
-                orders: this.fields.map(f => ({ id: f._id, order: f.order, section: f.section }))
-              });
+              await api.put('/api/custom-fields/reorder', { orders: ordersToSave });
               if (window.Toast) window.Toast.success('Question order updated');
-            } catch (err) {}
+            } catch (err) {
+              console.error('Failed to save question reorder:', err);
+            }
 
             this.renderPreview();
           }
@@ -601,7 +628,7 @@ export class FormBuilder {
     return `
       <div class="fb-field-row" data-id="${field._id}" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; opacity: ${isActive ? '1' : '0.55'};">
         <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
-          <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 0 4px; user-select: none;" title="Drag to reorder question">⠿</div>
+          <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 2px 6px; user-select: none; touch-action: none;" title="Drag to reorder question">⠿</div>
           <span style="font-size: 1.1rem; flex-shrink: 0;">${icon}</span>
           <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
             <div style="font-weight: 600; font-size: 0.88rem; color: var(--color-text-primary);">
@@ -1472,7 +1499,7 @@ export class FormBuilder {
   }
 
   static async moveField(fieldId, delta) {
-    const field = this.fields.find(f => f._id === fieldId);
+    const field = this.fields.find(f => String(f._id) === String(fieldId));
     if (!field) return;
 
     const secName = field.section || 'personal';
@@ -1480,20 +1507,18 @@ export class FormBuilder {
       .filter(f => (f.section || 'personal') === secName)
       .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    const curIdx = secFields.findIndex(f => f._id === fieldId);
+    const curIdx = secFields.findIndex(f => String(f._id) === String(fieldId));
     if (curIdx === -1) return;
 
     const targetIdx = curIdx + delta;
     if (targetIdx < 0 || targetIdx >= secFields.length) return;
 
-    // Swap orders
-    const targetField = secFields[targetIdx];
-    const tempOrder = field.order || (curIdx + 1);
-    field.order = targetField.order || (targetIdx + 1);
-    targetField.order = tempOrder;
+    // Swap positions
+    const [movedField] = secFields.splice(curIdx, 1);
+    secFields.splice(targetIdx, 0, movedField);
 
-    // Re-index all fields in this section to ensure unique orders
-    secFields.sort((a, b) => (a.order || 0) - (b.order || 0)).forEach((f, idx) => {
+    // Reassign 1-based order numbers
+    secFields.forEach((f, idx) => {
       f.order = idx + 1;
     });
 
@@ -1501,10 +1526,10 @@ export class FormBuilder {
     this.renderPreview();
 
     try {
-      await api.put('/api/custom-fields/reorder/bulk', {
-        items: this.fields.map(f => ({ id: f._id, order: f.order, section: f.section }))
+      await api.put('/api/custom-fields/reorder', {
+        orders: this.fields.map(f => ({ id: f._id, order: f.order, section: f.section }))
       });
-      Toast.success('Question order saved permanently to database!');
+      Toast.success('Question order updated');
     } catch (e) {
       Toast.error('Failed to save field order');
     }
