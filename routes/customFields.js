@@ -82,6 +82,19 @@ router.use((req, res, next) => {
 router.put('/templates/active', async (req, res) => {
   try {
     let template = await FormTemplate.findOne({ isActive: true });
+    
+    // Sanitize sections array if present to ensure clean persistence
+    if (req.body.sections && Array.isArray(req.body.sections)) {
+      req.body.sections = req.body.sections.map((s, idx) => ({
+        name: s.name,
+        label: s.label,
+        icon: s.icon || 'other',
+        order: s.order !== undefined ? Number(s.order) : (idx + 1),
+        isSystem: Boolean(s.isSystem),
+        isHidden: Boolean(s.isHidden)
+      }));
+    }
+
     if (!template) {
       template = await FormTemplate.create({ name: 'Default Template', slug: 'default', isActive: true, ...req.body });
     } else {
@@ -89,12 +102,13 @@ router.put('/templates/active', async (req, res) => {
       if (req.body.branding && template.branding) {
         req.body.branding = { ...template.branding.toObject(), ...req.body.branding };
       }
-      template = await FormTemplate.findByIdAndUpdate(template._id, { $set: req.body }, { new: true });
+      template = await FormTemplate.findByIdAndUpdate(template._id, { $set: req.body }, { new: true, runValidators: false });
     }
     memoryCache.clear();
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({ success: true, data: template, message: 'Header branding & template updated successfully' });
   } catch (err) {
+    console.error('Error updating active template:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -250,36 +264,75 @@ router.put(['/reorder', '/reorder/bulk'], async (req, res) => {
     const fieldsToUpdate = orders || items;
 
     if (Array.isArray(fieldsToUpdate) && fieldsToUpdate.length > 0) {
-      const bulkOps = fieldsToUpdate.map((item, index) => ({
-        updateOne: {
-          filter: { _id: item.id || item._id },
-          update: { 
-            order: item.order !== undefined ? item.order : index + 1,
-            ...(item.section ? { section: item.section } : {})
+      const bulkOps = [];
+      for (let i = 0; i < fieldsToUpdate.length; i++) {
+        const item = fieldsToUpdate[i];
+        const idVal = item.id || item._id;
+        const newOrder = item.order !== undefined ? Number(item.order) : (i + 1);
+        const updateData = { order: newOrder };
+        if (item.section) updateData.section = item.section;
+
+        if (idVal && mongoose.Types.ObjectId.isValid(idVal)) {
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: idVal },
+              update: { $set: updateData }
+            }
+          });
+        } else {
+          const fn = (item.fieldName || item.name || idVal || '').toString().replace(/^sys_/, '').trim().toLowerCase();
+          if (fn) {
+            bulkOps.push({
+              updateOne: {
+                filter: { fieldName: fn },
+                update: { $set: updateData }
+              }
+            });
           }
         }
-      }));
-      await CustomField.bulkWrite(bulkOps);
+      }
+      if (bulkOps.length > 0) {
+        await CustomField.bulkWrite(bulkOps);
+      }
     } else if (Array.isArray(orderedIds) && orderedIds.length > 0) {
-      const bulkOps = orderedIds.map((id, index) => ({
-        updateOne: {
-          filter: { _id: id },
-          update: { order: index + 1 }
+      const bulkOps = [];
+      for (let i = 0; i < orderedIds.length; i++) {
+        const id = orderedIds[i];
+        if (id && mongoose.Types.ObjectId.isValid(id)) {
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: id },
+              update: { $set: { order: i + 1 } }
+            }
+          });
         }
-      }));
-      await CustomField.bulkWrite(bulkOps);
+      }
+      if (bulkOps.length > 0) {
+        await CustomField.bulkWrite(bulkOps);
+      }
     }
 
     if (Array.isArray(sections) && sections.length > 0) {
+      const cleanSections = sections.map((s, idx) => ({
+        name: s.name,
+        label: s.label,
+        icon: s.icon || 'other',
+        order: s.order !== undefined ? Number(s.order) : (idx + 1),
+        isSystem: Boolean(s.isSystem),
+        isHidden: Boolean(s.isHidden)
+      }));
       let template = await FormTemplate.findOne({ isActive: true });
       if (template) {
-        template.sections = sections;
+        template.sections = cleanSections;
         await template.save();
       }
     }
 
+    memoryCache.clear();
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({ success: true, message: 'Fields and sections reordered & saved successfully' });
   } catch (err) {
+    console.error('Error reordering custom fields:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });

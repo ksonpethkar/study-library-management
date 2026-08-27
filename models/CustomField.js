@@ -399,4 +399,33 @@ customFieldSchema.statics.seedDefaultFields = async function(force = false) {
   }
 };
 
+// Ensure all standard system fields exist without overwriting custom reordering
+customFieldSchema.statics.ensureStandardFields = async function() {
+  try {
+    const existing = await this.find().select('fieldName').lean();
+    const existingNames = new Set(existing.map(f => f.fieldName.toLowerCase()));
+    
+    // Check if branch field is present
+    if (!existingNames.has('branch')) {
+      await this.create({
+        fieldName: 'branch',
+        label: 'Preferred Study Centre / Branch',
+        type: 'select',
+        placeholder: 'Select preferred study centre',
+        required: true,
+        order: 0,
+        section: 'personal',
+        sectionLabel: 'Study Centre & Personal Info',
+        sectionIcon: '🏢',
+        sectionDescription: 'Study centre branch and basic identification',
+        isSystemField: true,
+        isDeletable: false,
+        helpText: 'Select your preferred study centre / reading hall branch'
+      });
+    }
+  } catch (err) {
+    console.error('Error ensuring standard custom fields:', err);
+  }
+};
+
 module.exports = mongoose.model('CustomField', customFieldSchema);

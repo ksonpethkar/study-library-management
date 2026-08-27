@@ -401,13 +401,20 @@ export class FormBuilder {
             const s = this.sections.find(sec => sec.name === secName);
             if (s) s.order = idx + 1;
           });
-          this.sections.sort((a, b) => a.order - b.order);
+          this.sections.sort((a, b) => (a.order || 0) - (b.order || 0));
           if (!this.template) this.template = {};
           this.template.sections = this.sections;
           try {
-            await api.put('/api/custom-fields/templates/active', { sections: this.sections });
-            if (window.Toast) window.Toast.success('Section order updated');
-          } catch (err) {}
+            const res = await api.put('/api/custom-fields/templates/active', { sections: this.sections });
+            if (res && res.success) {
+              if (window.Toast) window.Toast.success('Section order saved permanently');
+            } else {
+              throw new Error(res?.message || 'Save failed');
+            }
+          } catch (err) {
+            console.error('Failed to save section reorder:', err);
+            if (window.Toast) window.Toast.error('Failed to save section order: ' + (err.message || 'Server error'));
+          }
           this.renderPreview();
         }
       });
@@ -430,20 +437,25 @@ export class FormBuilder {
               const rows = Array.from(secCont.querySelectorAll('.fb-field-row'));
               rows.forEach((row, idx) => {
                 const rowId = row.dataset.id;
-                const fieldObj = this.fields.find(item => String(item._id) === String(rowId));
+                const fieldObj = this.fields.find(item => String(item._id) === String(rowId) || String(item.fieldName) === String(rowId));
                 if (fieldObj) {
                   fieldObj.order = idx + 1;
                   fieldObj.section = secName;
-                  ordersToSave.push({ id: fieldObj._id, order: fieldObj.order, section: secName });
+                  ordersToSave.push({ id: fieldObj._id, fieldName: fieldObj.fieldName, order: fieldObj.order, section: secName });
                 }
               });
             });
 
             try {
-              await api.put('/api/custom-fields/reorder', { orders: ordersToSave });
-              if (window.Toast) window.Toast.success('Question order updated');
+              const res = await api.put('/api/custom-fields/reorder', { orders: ordersToSave });
+              if (res && res.success) {
+                if (window.Toast) window.Toast.success('Question order saved permanently');
+              } else {
+                throw new Error(res?.message || 'Save failed');
+              }
             } catch (err) {
               console.error('Failed to save question reorder:', err);
+              if (window.Toast) window.Toast.error('Failed to save question order: ' + (err.message || 'Server error'));
             }
 
             this.renderPreview();
@@ -1589,7 +1601,7 @@ export class FormBuilder {
   }
 
   static async moveField(fieldId, delta) {
-    const field = this.fields.find(f => String(f._id) === String(fieldId));
+    const field = this.fields.find(f => String(f._id) === String(fieldId) || String(f.fieldName) === String(fieldId));
     if (!field) return;
 
     const secName = field.section || 'personal';
@@ -1597,7 +1609,7 @@ export class FormBuilder {
       .filter(f => (f.section || 'personal') === secName)
       .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    const curIdx = secFields.findIndex(f => String(f._id) === String(fieldId));
+    const curIdx = secFields.findIndex(f => String(f._id) === String(fieldId) || String(f.fieldName) === String(fieldId));
     if (curIdx === -1) return;
 
     const targetIdx = curIdx + delta;
@@ -1616,12 +1628,20 @@ export class FormBuilder {
     this.renderPreview();
 
     try {
-      await api.put('/api/custom-fields/reorder', {
-        orders: this.fields.map(f => ({ id: f._id, order: f.order, section: f.section }))
-      });
-      Toast.success('Question order updated');
+      const ordersToSave = this.fields.map(f => ({
+        id: f._id,
+        fieldName: f.fieldName,
+        order: f.order,
+        section: f.section
+      }));
+      const res = await api.put('/api/custom-fields/reorder', { orders: ordersToSave });
+      if (res && res.success) {
+        Toast.success('Question order saved permanently');
+      } else {
+        throw new Error(res?.message || 'Save failed');
+      }
     } catch (e) {
-      Toast.error('Failed to save field order');
+      Toast.error('Failed to save field order: ' + (e.message || 'Server error'));
     }
   }
 
