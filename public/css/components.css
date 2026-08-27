@@ -3597,9 +3597,75 @@ canvas.sparkline {
   max-width: 100% !important;
   max-height: 100% !important;
   object-fit: contain !important;
-  display: block !important;
-  border-radius: inherit !important;
-  box-sizing: border-box !important;
+/* ==========================================================================
+   📱 100% MOBILE SCREEN UTILIZATION & HORIZONTAL PILL TOUCH SCROLLING
+   ========================================================================== */
+.pill-scroll-container,
+#zone-pills-container,
+#shift-pills-container,
+.filter-pills-row {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  gap: 8px !important;
+  padding: 4px 2px 8px 2px !important;
+  scrollbar-width: thin !important;
+  width: 100% !important;
+  max-width: 100% !important;
 }
+
+.shift-pill-btn,
+.zone-pill-btn,
+.pill-scroll-container > button,
+.pill-scroll-container > .btn,
+.filter-pills-row > button {
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 6px 14px !important;
+  font-size: 0.82rem !important;
+  border-radius: 20px !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  touch-action: manipulation !important;
+}
+
+@media (max-width: 768px) {
+  .toolbar-card {
+    padding: 0.85rem !important;
+    margin-bottom: 0.85rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .toolbar-card select,
+  .toolbar-card input,
+  .toolbar-card button {
+    width: 100% !important;
+    min-height: 42px !important;
+    font-size: 0.9rem !important;
+  }
+
+  .page-container,
+  #page-content {
+    padding: 8px 8px 95px 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .speed-dial-fab,
+  .fab {
+    bottom: 78px !important;
+    right: 14px !important;
+    z-index: 800 !important;
+  }
+}
+
 
 

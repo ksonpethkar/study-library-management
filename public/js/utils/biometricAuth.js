@@ -214,14 +214,15 @@ export const BiometricAuth = {
         localStorage.setItem('sl_biometric_registered', 'true');
 
         if (res.data.isStudent || res.data.student) {
+          localStorage.setItem('sl_token', res.data.token);
           localStorage.setItem('student_token', res.data.token);
+          localStorage.setItem('sl_user_role', 'student');
           if (res.data.student) {
             localStorage.setItem('sl_student_user', JSON.stringify(res.data.student));
           }
           Toast.success(`🎓 Student Biometric Verified! Welcome back, ${res.data.student?.name || 'Student'}.`);
           setTimeout(() => {
-            window.location.href = '/student-login#dashboard';
-            window.location.reload();
+            window.location.href = '/#/portal';
           }, 400);
         } else {
           localStorage.setItem('sl_token', res.data.token);

@@ -261,8 +261,13 @@
         </div>
 
         <button type="submit" id="btn-login-submit" class="btn btn-primary btn-lg w-full justify-center mb-2" 
-                style="background: linear-gradient(135deg, #4f46e5, #06b6d4); border: none; font-weight: 800; font-size: 1rem; border-radius: 14px; box-shadow: 0 4px 18px rgba(79, 70, 229, 0.35); min-height: 48px;">
+                style="background: linear-gradient(135deg, #4f46e5, #06b6d4); border: none; font-weight: 800; font-size: 1rem; border-radius: 14px; box-shadow: 0 4px 18px rgba(79, 70, 229, 0.35); min-height: 48px; width: 100%;">
           🎓 Enter Student Portal
+        </button>
+
+        <button type="button" id="btn-student-biometric-login" class="btn btn-outline-primary btn-lg w-full justify-center mb-2" 
+                style="font-weight: 700; font-size: 0.95rem; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border: 1.5px solid var(--color-primary); width: 100%; cursor: pointer;">
+          👆 Sign in with Biometric / Face ID
         </button>
 
       </form>
@@ -405,10 +410,16 @@
 
         if (data.success && data.data?.token) {
           localStorage.setItem('sl_token', data.data.token);
+          localStorage.setItem('student_token', data.data.token);
+          localStorage.setItem('sl_user_role', 'student');
+          if (data.data.student) {
+            localStorage.setItem('sl_student_user', JSON.stringify(data.data.student));
+            localStorage.setItem('sl_biometric_user_email', data.data.student.phone || data.data.student.email || data.data.student.studentId || '');
+          }
           showToast(`Welcome back, ${data.data.student?.name || 'Student'}!`, true);
           setTimeout(() => {
             window.location.href = '/#/portal';
-          }, 800);
+          }, 600);
         } else {
           showToast(data.message || 'Login failed. Please check your credentials.', false);
           btn.disabled = false;
@@ -454,6 +465,51 @@
         loadPortalBranding();
       }
     });
+  </script>
+  <script type="module">
+    import { BiometricAuth } from './js/utils/biometricAuth.js';
+
+    const btnBio = document.getElementById('btn-student-biometric-login');
+    if (btnBio) {
+      BiometricAuth.isSupported().then(supported => {
+        if (supported) {
+          btnBio.style.display = 'inline-flex';
+        } else {
+          btnBio.style.display = 'none';
+        }
+      }).catch(() => {
+        btnBio.style.display = 'none';
+      });
+
+      btnBio.addEventListener('click', async () => {
+        if (!BiometricAuth.hasSavedCredentials()) {
+          showToast('Please sign in with password/PIN once, then enable Face ID / Biometrics in Profile!', false);
+          return;
+        }
+
+        try {
+          btnBio.disabled = true;
+          btnBio.textContent = '👆 Verifying Biometrics...';
+          const res = await BiometricAuth.login();
+          if (res && res.success) {
+            showToast('Biometric authentication verified! Entering portal...', true);
+            setTimeout(() => {
+              window.location.href = '/#/portal';
+            }, 500);
+          } else {
+            showToast(res?.message || 'Biometric login failed. Use password/PIN.', false);
+            btnBio.disabled = false;
+            btnBio.innerHTML = '👆 Sign in with Biometric / Face ID';
+          }
+        } catch (err) {
+          btnBio.disabled = false;
+          btnBio.innerHTML = '👆 Sign in with Biometric / Face ID';
+          if (err.name !== 'NotAllowedError') {
+            showToast(err.message || 'Biometric verification failed.', false);
+          }
+        }
+      });
+    }
   </script>
   <script src="js/nativeBridge.js"></script>
   <script>

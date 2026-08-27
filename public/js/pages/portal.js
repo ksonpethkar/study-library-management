@@ -209,6 +209,9 @@ function renderPortalUI(container, data, analytics = null) {
             <button id="btn-portal-renew" class="btn btn-primary btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 14px; border-radius: 10px;">
               ⚡ Renew
             </button>
+            <button id="btn-portal-logout" class="btn btn-outline-danger btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border-radius: 10px;" title="Log out from Student Portal">
+              🚪 Sign Out
+            </button>
           </div>
         </div>
       </div>
@@ -1430,6 +1433,19 @@ function renderPortalUI(container, data, analytics = null) {
 
   container.querySelector('#btn-portal-complete-kyc')?.addEventListener('click', () => {
     container.querySelector('#btn-portal-profile')?.click();
+  });
+
+  // Attach Student Portal Sign Out Handler
+  container.querySelector('#btn-portal-logout')?.addEventListener('click', async () => {
+    const ok = await Confirm.show('Are you sure you want to sign out of the Student Portal?', 'Sign Out');
+    if (ok) {
+      localStorage.removeItem('sl_token');
+      localStorage.removeItem('student_token');
+      localStorage.removeItem('sl_student_user');
+      localStorage.removeItem('sl_user_role');
+      if (window.store) window.store.user = null;
+      window.location.href = '/student-login';
+    }
   });
 
   // Attach Student Profile View Modal

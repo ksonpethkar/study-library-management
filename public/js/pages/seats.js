@@ -131,38 +131,34 @@ export async function render() {
       </div>
 
       <!-- Filter & Search Toolbar -->
-      <div class="toolbar-card">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="toolbar-card" style="padding: 1rem; margin-bottom: 1.25rem;">
+        <div class="row g-2 align-items-end" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; width: 100%;">
           
-          <!-- Left: Branch Selector & Search -->
-          <div class="d-flex align-items-center gap-2 flex-wrap flex-1 w-100">
-            <div class="w-100 w-md-auto">
-              <label class="form-label text-xs mb-1" style="font-weight: 800; color: var(--color-text-secondary); letter-spacing: 0.5px;">🏢 SELECT BRANCH</label>
-              <select id="seat-branch-selector" class="form-select form-control form-control-sm w-100" style="font-weight: 600;">
-                <option value="all">🌐 All Branches</option>
-              </select>
-            </div>
-
-            <div class="w-100 flex-1">
-              <label class="form-label text-xs mb-1" style="font-weight: 800; color: var(--color-text-secondary); letter-spacing: 0.5px;">🔍 SEARCH SEAT</label>
-              <input type="text" id="seat-search-input" class="form-control form-control-sm w-100" placeholder="Search seat number (e.g. A-01, 14)...">
-            </div>
-
-            <div class="w-100 w-md-auto">
-              <label class="form-label text-xs mb-1" style="font-weight: 800; color: var(--color-text-secondary); letter-spacing: 0.5px;">📌 STATUS FILTER</label>
-              <select id="seat-status-filter" class="form-select form-control form-control-sm w-100">
-                <option value="">All Statuses</option>
-                <option value="available">🟢 Available</option>
-                <option value="occupied">🔴 Occupied</option>
-                <option value="reserved">🟡 Reserved</option>
-                <option value="maintenance">⚪ Maintenance</option>
-              </select>
-            </div>
+          <div>
+            <label class="form-label text-xs mb-1" style="font-weight: 800; color: var(--color-text-secondary); letter-spacing: 0.5px; display: block;">🏢 SELECT BRANCH</label>
+            <select id="seat-branch-selector" class="form-select form-control form-control-sm w-100" style="font-weight: 600; min-height: 38px; width: 100%;">
+              <option value="all">🌐 All Branches</option>
+            </select>
           </div>
 
-          <!-- Right: Multi-select Toggle -->
-          <div class="d-flex align-items-center gap-2">
-            <button type="button" id="btn-toggle-select-all" class="btn btn-sm btn-outline-secondary" style="font-size: 0.8rem; font-weight: 600;">
+          <div>
+            <label class="form-label text-xs mb-1" style="font-weight: 800; color: var(--color-text-secondary); letter-spacing: 0.5px; display: block;">🔍 SEARCH SEAT</label>
+            <input type="text" id="seat-search-input" class="form-control form-control-sm w-100" placeholder="Search seat number (e.g. A-01, 14)..." style="min-height: 38px; width: 100%;">
+          </div>
+
+          <div>
+            <label class="form-label text-xs mb-1" style="font-weight: 800; color: var(--color-text-secondary); letter-spacing: 0.5px; display: block;">📌 STATUS FILTER</label>
+            <select id="seat-status-filter" class="form-select form-control form-control-sm w-100" style="min-height: 38px; width: 100%;">
+              <option value="">All Statuses</option>
+              <option value="available">🟢 Available</option>
+              <option value="occupied">🔴 Occupied</option>
+              <option value="reserved">🟡 Reserved</option>
+              <option value="maintenance">⚪ Maintenance</option>
+            </select>
+          </div>
+
+          <div style="display: flex; align-items: flex-end;">
+            <button type="button" id="btn-toggle-select-all" class="btn btn-sm btn-outline-secondary w-100" style="font-size: 0.82rem; font-weight: 600; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
               ☑️ Select All
             </button>
           </div>
@@ -171,7 +167,7 @@ export async function render() {
         <!-- Horizontal Scrollable Zone Pills -->
         <div class="mt-3 pt-3 border-top">
           <label class="form-label text-xs mb-2" style="font-weight: 800; color: var(--color-text-secondary); letter-spacing: 0.5px; display: block;">🏷️ FILTER BY STUDY ZONE</label>
-          <div id="zone-pills-container" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin;">
+          <div id="zone-pills-container" class="pill-scroll-container" style="display: flex; flex-direction: row; flex-wrap: nowrap; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; scrollbar-width: thin; width: 100%;">
             <!-- Dynamically loaded zone badge buttons -->
           </div>
         </div>
@@ -179,12 +175,12 @@ export async function render() {
         <!-- Horizontal Scrollable Shift Filter Pills -->
         <div class="mt-2 pt-2 border-top">
           <label class="form-label text-xs mb-2" style="font-weight: 800; color: var(--color-text-secondary); letter-spacing: 0.5px; display: block;">⏰ FILTER BY STUDY SHIFT</label>
-          <div id="shift-pills-container" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin;">
-            <button type="button" class="btn btn-xs btn-primary shift-pill-btn active" data-shift="" style="font-weight: 700; border-radius: 20px; padding: 4px 12px;">🌐 All Shifts</button>
-            <button type="button" class="btn btn-xs btn-outline-secondary shift-pill-btn" data-shift="morning" style="font-weight: 600; border-radius: 20px; padding: 4px 12px;">🌅 Morning Shift</button>
-            <button type="button" class="btn btn-xs btn-outline-secondary shift-pill-btn" data-shift="evening" style="font-weight: 600; border-radius: 20px; padding: 4px 12px;">🌆 Evening Shift</button>
-            <button type="button" class="btn btn-xs btn-outline-secondary shift-pill-btn" data-shift="night" style="font-weight: 600; border-radius: 20px; padding: 4px 12px;">🌃 Night Shift</button>
-            <button type="button" class="btn btn-xs btn-outline-secondary shift-pill-btn" data-shift="fullday" style="font-weight: 600; border-radius: 20px; padding: 4px 12px;">☀️ Full Day Shift</button>
+          <div id="shift-pills-container" class="pill-scroll-container" style="display: flex; flex-direction: row; flex-wrap: nowrap; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; scrollbar-width: thin; width: 100%;">
+            <button type="button" class="btn btn-xs btn-primary shift-pill-btn active" data-shift="" style="font-weight: 700; border-radius: 20px; padding: 6px 14px; white-space: nowrap; flex-shrink: 0;">🌐 All Shifts</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary shift-pill-btn" data-shift="morning" style="font-weight: 600; border-radius: 20px; padding: 6px 14px; white-space: nowrap; flex-shrink: 0;">🌅 Morning Shift</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary shift-pill-btn" data-shift="evening" style="font-weight: 600; border-radius: 20px; padding: 6px 14px; white-space: nowrap; flex-shrink: 0;">🌆 Evening Shift</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary shift-pill-btn" data-shift="night" style="font-weight: 600; border-radius: 20px; padding: 6px 14px; white-space: nowrap; flex-shrink: 0;">🌃 Night Shift</button>
+            <button type="button" class="btn btn-xs btn-outline-secondary shift-pill-btn" data-shift="fullday" style="font-weight: 600; border-radius: 20px; padding: 6px 14px; white-space: nowrap; flex-shrink: 0;">☀️ Full Day Shift</button>
           </div>
         </div>
       </div>
@@ -482,20 +478,20 @@ async function loadZones(container) {
   const renderZonesUI = (zones) => {
     let totalCount = zones.reduce((acc, z) => acc + (z.count || 0), 0);
     let html = `
-      <button type="button" class="btn btn-sm ${currentZone === '' ? 'btn-primary' : 'btn-outline-secondary'} zone-pill-btn" data-zone="" style="border-radius: 20px; font-weight: 600; white-space: nowrap;">
+      <button type="button" class="btn btn-sm ${currentZone === '' ? 'btn-primary' : 'btn-outline-secondary'} zone-pill-btn" data-zone="" style="border-radius: 20px; font-weight: 600; white-space: nowrap; flex-shrink: 0; padding: 6px 14px;">
         🌟 All Zones (${totalCount})
       </button>
     `;
     zones.forEach(z => {
       const isAct = currentZone === z._id;
       html += `
-        <button type="button" class="btn btn-sm ${isAct ? 'btn-primary' : 'btn-outline-secondary'} zone-pill-btn" data-zone="${escapeHTML(z._id)}" style="border-radius: 20px; font-weight: 600; white-space: nowrap;">
+        <button type="button" class="btn btn-sm ${isAct ? 'btn-primary' : 'btn-outline-secondary'} zone-pill-btn" data-zone="${escapeHTML(z._id)}" style="border-radius: 20px; font-weight: 600; white-space: nowrap; flex-shrink: 0; padding: 6px 14px;">
           📍 ${escapeHTML(z._id)} <span class="badge ${isAct ? 'bg-light text-dark' : 'badge-primary'}" style="font-size: 0.7rem; margin-left: 4px;">${z.count}</span>
         </button>
       `;
     });
     html += `
-      <button type="button" class="btn btn-sm btn-ghost text-primary" id="btn-quick-manage-zones" title="Edit, Modify, Rename or Delete Study Zones" style="font-weight: 700; border-radius: 20px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--color-primary);">
+      <button type="button" class="btn btn-sm btn-ghost text-primary" id="btn-quick-manage-zones" title="Edit, Modify, Rename or Delete Study Zones" style="font-weight: 700; border-radius: 20px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--color-primary); white-space: nowrap; flex-shrink: 0; padding: 6px 14px;">
         ⚙️ Manage Zones
       </button>
     `;

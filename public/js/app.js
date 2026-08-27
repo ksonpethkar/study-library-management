@@ -610,8 +610,19 @@ class Application {
    * Log out the user
    */
   logout() {
+    const isStudent = store.user?.role === 'student' || 
+                      localStorage.getItem('sl_user_role') === 'student' || 
+                      !!localStorage.getItem('student_token') ||
+                      window.location.hash.includes('portal');
     localStorage.removeItem('sl_token');
+    localStorage.removeItem('student_token');
+    localStorage.removeItem('sl_student_user');
+    localStorage.removeItem('sl_user_role');
     store.user = null;
+    if (isStudent) {
+      window.location.href = '/student-login';
+      return;
+    }
     this.showLogin();
   }
 

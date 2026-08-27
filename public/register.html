@@ -2506,6 +2506,32 @@
           return sec;
         };
 
+        // Canonicalize field names to prevent duplicate fields (e.g. dob vs dateOfBirth vs birthDate)
+        const canonicalizeFieldName = (name) => {
+          if (!name) return '';
+          const n = String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (['dob', 'dateofbirth', 'birthdate', 'birth_date', 'date_of_birth'].includes(n) || n.includes('birth') || (n.includes('date') && n.includes('birth'))) return 'dob';
+          if (['name', 'fullname', 'studentname', 'student_name', 'full_name'].includes(n)) return 'name';
+          if (['phone', 'mobile', 'mobilenumber', 'whatsapp', 'contactnumber'].includes(n) || n.includes('whatsapp') || n.includes('mobile')) return 'phone';
+          if (['email', 'emailaddress', 'email_address'].includes(n) || n.includes('email')) return 'email';
+          if (['gender', 'sex'].includes(n)) return 'gender';
+          if (['bloodgroup', 'blood_group'].includes(n) || n.includes('blood')) return 'bloodGroup';
+          if (['address', 'residentialaddress', 'fulladdress', 'hosteladdress'].includes(n)) return 'address';
+          if (['pincode', 'postalcode', 'zipcode', 'pin'].includes(n)) return 'pincode';
+          if (n === 'city') return 'city';
+          if (n === 'state') return 'state';
+          if (['branch', 'studycentre', 'studycenter', 'center', 'centre'].includes(n)) return 'branch';
+          if (['photo', 'profilephoto', 'passportphoto', 'selfie', 'studentphoto'].includes(n)) return 'photo';
+          if (['targetexams', 'exams', 'targetexam', 'competitiveexam', 'goal'].includes(n) || n.includes('exam')) return 'targetExams';
+          if (['college', 'institute', 'university'].includes(n)) return 'college';
+          if (['qualification', 'education', 'highestqualification'].includes(n)) return 'qualification';
+          if (['emergencyname', 'emergencycontactname', 'guardianname', 'parentname'].includes(n) || (n.includes('emerg') && n.includes('name'))) return 'emergencyName';
+          if (['emergencyphone', 'emergencycontactphone', 'guardianphone', 'parentphone', 'emergencymobile'].includes(n) || (n.includes('emerg') && (n.includes('phone') || n.includes('mob')))) return 'emergencyPhone';
+          if (['idprooftype', 'idproof', 'aadhaar', 'pancard', 'govtid', 'idproofimage', 'idproofdocument'].includes(n) || n.includes('proof')) return 'idProofType';
+          if (['password', 'portalpassword'].includes(n)) return 'password';
+          return n;
+        };
+
         // Custom Fields and Sections Partitioning (Merge standard system fields + dynamic custom questions)
         const defaultFields = getDefaultSystemFields();
         const rawFields = publicConfig?.customFields?.fields || publicConfig?.customFields || [];
@@ -2513,14 +2539,14 @@
 
         const fieldsMap = new Map();
         defaultFields.forEach(df => {
-          const k = df.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const k = canonicalizeFieldName(df.name);
           fieldsMap.set(k, { ...df, section: normalizeSection(df.section) });
         });
 
         customFieldList.forEach(cf => {
           if (cf && (cf.fieldName || cf.name)) {
             const rawName = cf.fieldName || cf.name;
-            const k = rawName.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const k = canonicalizeFieldName(rawName);
             const existing = fieldsMap.get(k);
             const targetSection = normalizeSection(cf.section || existing?.section || 'other');
             if (existing) {

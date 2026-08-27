@@ -38,7 +38,10 @@ export default class Router {
     try {
       const App = window.App || window.__app_instance;
       const currentUser = App?.getUser?.();
-      if (currentUser && currentUser.role === 'student') {
+      const isStudent = (currentUser && currentUser.role === 'student') || 
+                        localStorage.getItem('sl_user_role') === 'student' || 
+                        !!localStorage.getItem('student_token');
+      if (isStudent) {
         const allowedStudentRoutes = ['#/portal', '#/profile'];
         const isAllowed = allowedStudentRoutes.some(r => basePath === r || basePath.startsWith(r + '?'));
         if (!isAllowed) {
