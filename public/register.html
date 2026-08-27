@@ -2089,15 +2089,8 @@
 
           const upiId = libraryUpiId || 'thecozycorner@okaxis';
           const bizName = libraryBusinessName || 'Study Library';
-          const studentPhone = document.getElementById('reg-phone')?.value?.trim() || 'STU';
-          const txnRef = `UPI_${studentPhone.slice(-4)}_${Date.now().toString().slice(-6)}`;
-          lastInitiatedUpiTxnRef = txnRef;
-
-          // Auto-fill the reference field so student never has to manually type
-          const upiRefInput = document.getElementById('reg-upi-ref');
-          if (upiRefInput) {
-            upiRefInput.value = txnRef;
-          }
+          const appName = app === 'gpay' ? 'Google Pay' : app === 'phonepe' ? 'PhonePe' : app === 'paytm' ? 'Paytm' : 'UPI App';
+          lastInitiatedUpiTxnRef = appName;
 
           // Show active status card
           const statusCard = document.getElementById('upi-auto-verify-status');
@@ -2108,13 +2101,13 @@
             statusCard.innerHTML = `
               <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-primary); display: flex; align-items: center; justify-content: center; gap: 8px;">
                 <span class="spinner-border spinner-border-sm" role="status" style="width: 16px; height: 16px; border-width: 2px;"></span>
-                <span>Opening ${app === 'gpay' ? 'Google Pay' : app === 'phonepe' ? 'PhonePe' : app === 'paytm' ? 'Paytm' : 'UPI App'}...</span>
+                <span>Opening ${appName}...</span>
               </div>
-              <small class="text-muted" style="display: block; margin-top: 4px;">Txn Reference <code>${txnRef}</code> created. Complete payment in app and return here.</small>
+              <small class="text-muted" style="display: block; margin-top: 4px;">Complete the payment in ${appName}, then copy the <strong>12-digit Bank UTR</strong> and paste it below.</small>
             `;
           }
 
-          const baseParams = `pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(bizName)}&am=${payable}&cu=INR&tn=${encodeURIComponent('Study Library Admission')}&tr=${encodeURIComponent(txnRef)}`;
+          const baseParams = `pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(bizName)}&am=${payable}&cu=INR&tn=${encodeURIComponent('Study Library Admission')}`;
 
           let schemeUrl = `upi://pay?${baseParams}`;
           if (app === 'gpay') schemeUrl = `gpay://upi/pay?${baseParams}`;
@@ -2131,19 +2124,45 @@
           const statusCard = document.getElementById('upi-auto-verify-status');
           if (statusCard) {
             statusCard.style.display = 'block';
-            statusCard.style.borderColor = 'var(--color-success)';
-            statusCard.style.background = 'rgba(0, 184, 148, 0.08)';
+            statusCard.style.borderColor = '#ffa000';
+            statusCard.style.background = 'rgba(255, 179, 0, 0.08)';
             statusCard.innerHTML = `
-              <div style="font-weight: 800; font-size: 0.94rem; color: var(--color-success); display: flex; align-items: center; justify-content: center; gap: 6px;">
-                <span>✅</span> <span>UPI App Payment Captured!</span>
+              <div style="font-weight: 700; font-size: 0.92rem; color: #b78103; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <span>📝</span> <span>Step 2: Enter your 12-Digit Bank UTR</span>
               </div>
               <small style="display: block; margin-top: 4px; color: var(--color-text-secondary);">
-                Reference <code>${lastInitiatedUpiTxnRef}</code> auto-verified. Tap <strong>Next / Submit</strong> below to finalize your desk allotment!
+                Payment completed in ${lastInitiatedUpiTxnRef}? Please paste your <strong>12-digit Bank UTR / UPI Reference Number</strong> below to confirm your admission.
               </small>
             `;
           }
+          const upiRefInput = document.getElementById('reg-upi-ref');
+          if (upiRefInput && !upiRefInput.value) {
+            upiRefInput.focus();
+          }
         }
       };
+
+      // 1-Tap Paste UTR Button
+      const pasteBtn = document.getElementById('btn-paste-upi-ref');
+      if (pasteBtn) {
+        pasteBtn.onclick = (e) => {
+          e.preventDefault();
+          navigator.clipboard.readText().then(clipText => {
+            if (clipText) {
+              const cleaned = clipText.replace(/[^0-9a-zA-Z]/g, '').trim();
+              const upiRefInput = document.getElementById('reg-upi-ref');
+              if (upiRefInput) {
+                upiRefInput.value = cleaned;
+                pasteBtn.textContent = '✅ Pasted';
+                setTimeout(() => { pasteBtn.textContent = '📋 Paste'; }, 1500);
+              }
+            }
+          }).catch(() => {
+            const upiRefInput = document.getElementById('reg-upi-ref');
+            upiRefInput?.focus();
+          });
+        };
+      }
 
       window.addEventListener('focus', handleUpiAppReturn);
       document.addEventListener('visibilitychange', () => {
@@ -2463,6 +2482,17 @@
           if (cleanEmPhone.slice(-10) === cleanPhone.slice(-10)) {
             alert('Emergency Contact phone number cannot be identical to your own student phone number. Please provide a Parent / Guardian mobile number.');
             if (btn) { btn.disabled = false; btn.textContent = '🚀 Complete Registration & Get Admission Slip'; }
+            return;
+          }
+        }
+
+        if (payload.paymentMethod === 'upi') {
+          const cleanUtr = (payload.transactionId || '').trim();
+          if (!cleanUtr || cleanUtr.length < 6) {
+            alert('Please enter your 12-digit Bank UTR / UPI Reference Number from Google Pay / PhonePe / Paytm. If you haven\'t paid yet, you can switch to "Pay Cash at Front Desk".');
+            if (btn) { btn.disabled = false; btn.textContent = '🚀 Complete Registration & Get Admission Slip'; }
+            const upiInput = document.getElementById('reg-upi-ref');
+            upiInput?.focus();
             return;
           }
         }
@@ -3166,17 +3196,22 @@
                     </div>
                   </details>
 
-                  <!-- Collapsible Manual UTR Input (Fallback) -->
-                  <details style="margin: 8px auto 0 auto; max-width: 460px; text-align: left;">
-                    <summary style="cursor: pointer; font-size: 0.78rem; color: var(--color-text-muted); user-select: none;">
-                      ✏️ Already paid? Enter 12-digit UTR manually (Optional)
-                    </summary>
-                    <div class="form-group mt-2" style="background: var(--color-surface); padding: 10px; border-radius: 8px; border: 1px solid var(--color-border);">
-                      <label class="form-label" style="font-weight: 600; font-size: 0.82rem;">${escapeHTML(m.refLabel || 'UPI UTR / Reference Number')}</label>
-                      <input type="text" id="reg-upi-ref" class="form-control form-control-sm" placeholder="e.g. 423456789012 (12 digits)" maxlength="30">
-                      <small class="text-muted" id="reg-payment-note-upi" style="font-size: 0.72rem; display: block; margin-top: 2px;">Auto-filled when you tap a UPI app above, or type manually if needed.</small>
+                  <!-- Prominent Manual 12-Digit UTR Input Card -->
+                  <div style="margin: 12px auto 0 auto; max-width: 460px; text-align: left; background: var(--color-surface); padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--color-border); box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label class="form-label mb-0" style="font-weight: 700; font-size: 0.86rem; color: var(--color-text-primary);">
+                        <span>💳</span> 12-Digit Bank UTR / Reference No.
+                      </label>
+                      <span class="badge" style="background: rgba(108, 92, 231, 0.12); color: var(--color-primary); font-size: 0.72rem; font-weight: 700;">Required for Direct UPI</span>
                     </div>
-                  </details>
+                    <div style="display: flex; gap: 8px;">
+                      <input type="text" id="reg-upi-ref" class="form-control" placeholder="e.g. 423819203912 (12 digits)" maxlength="25" style="font-family: monospace; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.5px;">
+                      <button type="button" id="btn-paste-upi-ref" class="btn btn-outline-primary" style="font-size: 0.8rem; padding: 6px 12px; white-space: nowrap; border-radius: 8px;">📋 Paste</button>
+                    </div>
+                    <small class="text-muted" id="reg-payment-note-upi" style="font-size: 0.74rem; display: block; margin-top: 5px;">
+                      💡 Find your 12-digit UTR in Google Pay / PhonePe / Paytm payment details and enter above.
+                    </small>
+                  </div>
                 </div>
               `;
             } else if (m.key === 'netbanking') {
