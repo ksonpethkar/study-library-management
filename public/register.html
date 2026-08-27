@@ -1050,7 +1050,7 @@
                 <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px;">
                   ${opts.map(opt => `
                     <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer;">
-                      <input type="radio" name="gender" value="${escapeHTML(opt.toLowerCase())}" ${opt.toLowerCase() === 'male' ? 'checked' : ''} ${required}>
+                      <input type="radio" name="gender" value="${escapeHTML(opt.toLowerCase())}" ${required}>
                       ${escapeHTML(opt)}
                     </label>
                   `).join('')}
@@ -1065,7 +1065,8 @@
             <div class="form-group mb-2">
               <label class="form-label" style="font-weight: 600;">🚻 ${escapeHTML(label)}${reqMark}</label>
               <select id="reg-gender" name="gender" class="form-select" ${required}>
-                <option value="male" selected>Male</option>
+                <option value="" disabled selected>-- Select Gender --</option>
+                <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
               </select>
@@ -2237,7 +2238,7 @@
           phone: document.getElementById('reg-phone')?.value.trim(),
           email: document.getElementById('reg-email')?.value.trim(),
           password: document.getElementById('reg-password')?.value,
-          gender: document.getElementById('reg-gender')?.value,
+          gender: document.querySelector('input[name="gender"]:checked')?.value || document.getElementById('reg-gender')?.value || '',
           dob: document.getElementById('reg-dob')?.value || null,
           pincode: document.getElementById('reg-pincode')?.value?.trim() || '',
           city: document.getElementById('reg-city')?.value?.trim() || '',

@@ -195,7 +195,7 @@ customFieldSchema.statics.seedDefaultFields = async function(force = false) {
         sectionLabel: 'Personal Information',
         isSystemField: true,
         isDeletable: true,
-        defaultValue: 'Male'
+        defaultValue: ''
       },
       {
         fieldName: 'dateOfBirth',
