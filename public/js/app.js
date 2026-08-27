@@ -3,7 +3,7 @@ import Router from './router.js';
 import { initSetupWizard, initLoginPage, initAppEvents } from './auth.js';
 import { t } from './i18n.js';
 import ShortcutManager from './shortcuts.js';
-import { Toast, Modal, Loading, renderMobileBottomNav, VoiceSearch, initPullToRefresh, initVisualViewportKeyboardListener } from './ui.js';
+import { Toast, Modal, Loading, renderMobileBottomNav, VoiceSearch, initPullToRefresh, initVisualViewportKeyboardListener, escapeHTML } from './ui.js';
 import { SearchPalette } from './search.js';
 import { AudioFeedback } from './utils/audioFeedback.js';
 import { promptPWAInstall } from './pwaManager.js';

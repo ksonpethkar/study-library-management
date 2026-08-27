@@ -10,6 +10,10 @@ export function escapeHTML(str) {
     .replace(/'/g, '&#039;');
 }
 
+if (typeof window !== 'undefined') {
+  window.escapeHTML = escapeHTML;
+}
+
 export const Toast = {
   show(message, type = 'info', duration = 4000) {
     let container = document.getElementById('toast-container');
