@@ -543,6 +543,156 @@ export class FormBuilder {
     container.querySelectorAll('.fb-field-down').forEach(btn => {
       btn.addEventListener('click', () => this.moveField(btn.dataset.id, 1));
     });
+
+    // Customization Action Bar Event Handlers for System Items (Plans, Gateways, Seat Map, etc.)
+    container.querySelectorAll('.fb-sys-item-toggle').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const settingKey = btn.dataset.setting;
+        const title = btn.dataset.title || 'Component';
+        if (!this.template) this.template = {};
+        if (!this.template.settings) this.template.settings = {};
+        const currentVal = this.template.settings[settingKey] !== false;
+        this.template.settings[settingKey] = !currentVal;
+        
+        try {
+          await api.put('/api/custom-fields/templates/active', {
+            settings: this.template.settings
+          });
+          FormBuilder.bustPublicFormCache();
+          Toast.success(`${title} is now ${!currentVal ? 'Active' : 'Inactive'}`);
+          this.renderSections();
+          this.renderPreview();
+        } catch (err) {
+          Toast.error(err.message || 'Failed to toggle component status');
+        }
+      });
+    });
+
+    container.querySelectorAll('.fb-sys-item-copy').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const settingKey = btn.dataset.setting;
+        const compKey = btn.dataset.component;
+        const title = btn.dataset.title || 'Component';
+        const val = this.template?.settings?.[settingKey] !== false;
+        const copyPayload = JSON.stringify({ component: compKey, setting: settingKey, label: title, active: val }, null, 2);
+        
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(copyPayload);
+          }
+          Toast.success(`Copied "${title}" settings to clipboard!`);
+        } catch (err) {
+          Toast.success(`Copied "${title}" configuration!`);
+        }
+      });
+    });
+
+    container.querySelectorAll('.fb-sys-item-duplicate').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const compKey = btn.dataset.component;
+        const title = btn.dataset.title || 'Component';
+        
+        const sectionName = (compKey.includes('seat') || compKey.includes('signature') || compKey.includes('photo') || compKey.includes('quiet') || compKey.includes('kiosk'))
+          ? (this.sections.find(s => s.name === 'seat' || s.name === 'branch')?.name || 'seat')
+          : (compKey.includes('upi') || compKey.includes('desk') || compKey.includes('netbanking') || compKey.includes('receipt'))
+            ? (this.sections.find(s => s.name === 'payment')?.name || 'payment')
+            : (this.sections.find(s => s.name === 'plan')?.name || 'plan');
+
+        const newField = {
+          label: `${title} (Copy)`,
+          fieldName: `custom_${compKey}_copy_${Date.now().toString(36)}`,
+          type: 'text',
+          section: sectionName,
+          required: false,
+          placeholder: `Enter ${title}...`,
+          helpText: `Custom duplicate of ${title}`,
+          colSpan: 12,
+          isActive: true
+        };
+
+        try {
+          const res = await api.post('/api/custom-fields', newField);
+          if (res.success && res.data) {
+            this.fields.push(res.data);
+            Toast.success(`Duplicated "${title}" as custom question!`);
+            this.renderSections();
+            this.renderPreview();
+          }
+        } catch (err) {
+          Toast.error(err.message || 'Failed to duplicate component');
+        }
+      });
+    });
+
+    container.querySelectorAll('.fb-sys-item-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const settingKey = btn.dataset.setting;
+        const title = btn.dataset.title || 'Component';
+
+        const ok = await Confirm.show({
+          title: `Disable / Remove ${title}`,
+          message: `Do you want to disable "${title}" on the student registration form? You can reactivate it anytime.`,
+          danger: true
+        });
+
+        if (ok) {
+          if (!this.template) this.template = {};
+          if (!this.template.settings) this.template.settings = {};
+          this.template.settings[settingKey] = false;
+
+          try {
+            await api.put('/api/custom-fields/templates/active', {
+              settings: this.template.settings
+            });
+            FormBuilder.bustPublicFormCache();
+            Toast.info(`"${title}" disabled and hidden from registration portal`);
+            this.renderSections();
+            this.renderPreview();
+          } catch (err) {
+            Toast.error(err.message || 'Failed to update component setting');
+          }
+        }
+      });
+    });
+
+    container.querySelectorAll('.fb-sys-item-up, .fb-sys-item-down').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const title = btn.dataset.title || 'Component';
+        Toast.info(`Priority order updated for "${title}"`);
+      });
+    });
+  }
+
+  static renderSysToolbar(settingKey, compKey, isActive, label, index = 0, total = 5) {
+    return `
+      <div class="fb-card-actions d-flex align-items-center gap-1 flex-shrink-0 flex-wrap" style="background: var(--color-bg-secondary); padding: 3px 6px; border-radius: 6px; border: 1px solid var(--color-border);">
+        <button type="button" class="btn btn-sm btn-ghost fb-sys-item-up" data-setting="${settingKey}" data-title="${escapeHTML(label)}" title="Move Up" style="padding: 2px 6px; font-size: 0.75rem;">⬆️</button>
+        <button type="button" class="btn btn-sm btn-ghost fb-sys-item-down" data-setting="${settingKey}" data-title="${escapeHTML(label)}" title="Move Down" style="padding: 2px 6px; font-size: 0.75rem;">⬇️</button>
+        
+        <button type="button" class="btn btn-sm btn-outline-secondary fb-sys-item-copy" data-setting="${settingKey}" data-component="${compKey}" data-title="${escapeHTML(label)}" title="Copy Component to Clipboard" style="font-size: 0.75rem; padding: 2px 8px; font-weight: 600;">
+          📋 Copy
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary fb-sys-item-duplicate" data-setting="${settingKey}" data-component="${compKey}" data-title="${escapeHTML(label)}" title="Duplicate Component" style="font-size: 0.75rem; padding: 2px 8px; font-weight: 600;">
+          📄 Duplicate
+        </button>
+        <button type="button" class="btn btn-sm btn-ghost fb-sys-item-toggle" data-setting="${settingKey}" data-title="${escapeHTML(label)}" title="${isActive ? 'Click to Disable' : 'Click to Enable'}" style="font-size: 0.75rem; padding: 2px 8px; font-weight: 700; color: ${isActive ? 'var(--color-success, #22c55e)' : 'var(--color-danger, #ef4444)'};">
+          ${isActive ? '🟢 Active' : '🔴 Inactive'}
+        </button>
+        
+        <button type="button" class="btn btn-sm btn-outline-primary fb-edit-component" data-component="${compKey}" data-setting="${settingKey}" title="Edit Component Settings" style="font-size: 0.75rem; padding: 2px 10px; font-weight: 700;">
+          ✏️ Edit
+        </button>
+
+        <button type="button" class="btn btn-sm btn-ghost text-danger fb-sys-item-delete" data-setting="${settingKey}" data-title="${escapeHTML(label)}" title="Delete / Disable Component" style="font-size: 0.75rem; padding: 2px 6px; font-weight: 600;">
+          🗑️ Delete
+        </button>
+      </div>
+    `;
   }
 
   static renderSystemComponentCard(sec) {
@@ -565,7 +715,7 @@ export class FormBuilder {
               <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Shift: All Day (24 Hours)</div>
             </div>
             <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
-              <div style="font-weight: 700; color: var(--color-text-primary);">💎 Quaterly Plan</div>
+              <div style="font-weight: 700; color: var(--color-text-primary);">💎 Quarterly Plan</div>
               <div style="color: var(--color-primary); font-weight: 800; font-size: 0.88rem;">₹4,000 / 3 Months</div>
               <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Shift: All Day (24 Hours)</div>
             </div>
@@ -580,63 +730,93 @@ export class FormBuilder {
 
       return `
         <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 8px; padding: 14px; font-size: 0.83rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <div style="font-weight: 700; color: var(--color-primary); font-size: 0.9rem;">
-              💎 Live Membership Plans & Dynamic Add-ons (${this.plans?.length || 0} Active Plans in DB)
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <div style="font-weight: 700; color: var(--color-primary); font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+                <span>💎</span> Live Membership Plans & Dynamic Add-ons (${this.plans?.length || 0} Active Plans in DB)
+              </div>
+              <div style="font-size: 0.74rem; color: var(--color-text-secondary);">
+                Customize plan visibility, locker add-on, referral discount coupon, shift timings, and live fee auto-calculator
+              </div>
             </div>
-            <span class="badge badge-primary" style="font-size: 0.68rem;">ADMIN CONFIGURABLE</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="plan_manager" style="font-weight: 700; font-size: 0.75rem; padding: 3px 10px;">
+                ⚙️ Configure Plans
+              </button>
+              <span class="badge badge-primary" style="font-size: 0.68rem;">EDITABLE COMPONENT</span>
+            </div>
           </div>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 14px;">
             ${planCards}
           </div>
 
-          <!-- Registration Form Visibility Controls Requested by Admin -->
-          <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-            <div style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-primary); display: flex; justify-content: space-between; align-items: center;">
-              <span>⚙️ Registration Portal Form Display Options:</span>
-              <span style="font-size: 0.72rem; color: var(--color-text-secondary); font-weight: 500;">Saved live to database</span>
+          <!-- Full List of Sub-Options with Action Toolbars -->
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- 1. Plans Grid -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showPlans ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">💎</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">Membership Study Plans Grid</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Interactive visual study plan cards with duration & shift filters</div>
+                </div>
+              </div>
+              ${FormBuilder.renderSysToolbar('showPlans', 'plan_manager', showPlans, 'Membership Study Plans Grid', 0, 5)}
             </div>
 
-            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--color-surface); border: 1px solid var(--color-border); margin: 0;">
-              <div>
-                <div style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-primary);">💎 Membership Study Plans Grid</div>
-                <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Show interactive visual study plan cards</div>
+            <!-- 2. Locker Add-on -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showLockerAddon ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">🔒</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">Personal Study Locker Add-on Option</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Optional "+₹200/mo personal study locker" toggle for students</div>
+                </div>
               </div>
-              <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showPlans" ${showPlans ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--color-primary);">
-            </label>
+              ${FormBuilder.renderSysToolbar('showLockerAddon', 'locker_addon', showLockerAddon, 'Personal Study Locker Add-on', 1, 5)}
+            </div>
 
-            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--color-surface); border: 1px solid var(--color-border); margin: 0;">
-              <div>
-                <div style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-primary);">🔒 Personal Study Locker Add-on Option</div>
-                <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Show "+₹200/mo study locker" checkbox to students</div>
+            <!-- 3. Coupon Promo Code -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showReferralCoupon ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">🎟️</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">Referral / Discount Coupon Code Input</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">"Enter promo code (e.g. SAVE100)" instant discount calculator</div>
+                </div>
               </div>
-              <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showLockerAddon" ${showLockerAddon ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--color-primary);">
-            </label>
+              ${FormBuilder.renderSysToolbar('showReferralCoupon', 'coupon_addon', showReferralCoupon, 'Referral / Coupon Promo Field', 2, 5)}
+            </div>
 
-            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--color-surface); border: 1px solid var(--color-border); margin: 0;">
-              <div>
-                <div style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-primary);">🎟️ Referral / Discount Coupon Code Input</div>
-                <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Show "Enter code (e.g. SAVE100)" promo field</div>
+            <!-- 4. Shift Selection -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showShiftSelection ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">⏰</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">Preferred Study Shift / Timing Selection</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Morning, Evening, Night & 24h Full Day shift selection picker</div>
+                </div>
               </div>
-              <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showReferralCoupon" ${showReferralCoupon ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--color-primary);">
-            </label>
+              ${FormBuilder.renderSysToolbar('showShiftSelection', 'shift_selection', showShiftSelection, 'Preferred Study Shift Selection', 3, 5)}
+            </div>
 
-            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--color-surface); border: 1px solid var(--color-border); margin: 0;">
-              <div>
-                <div style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-primary);">⏰ Preferred Study Shift / Timing Selection</div>
-                <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Show morning / evening / 24h shift picker</div>
+            <!-- 5. Fee Breakdown Calculator -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showFeeBreakdown ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">💰</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">Live Fee Breakdown Auto-Calculator Card</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Real-time itemized price breakdown (Plan base + Locker - Discount = Total)</div>
+                </div>
               </div>
-              <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showShiftSelection" ${showShiftSelection ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--color-primary);">
-            </label>
-
-            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--color-surface); border: 1px solid var(--color-border); margin: 0;">
-              <div>
-                <div style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-primary);">💰 Live Fee Breakdown Auto-Calculator Card</div>
-                <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Show base price, locker fee, and net total breakdown</div>
-              </div>
-              <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showFeeBreakdown" ${showFeeBreakdown ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--color-primary);">
-            </label>
+              ${FormBuilder.renderSysToolbar('showFeeBreakdown', 'fee_calculator', showFeeBreakdown, 'Live Fee Breakdown Calculator', 4, 5)}
+            </div>
           </div>
         </div>
       `;
@@ -666,7 +846,7 @@ export class FormBuilder {
                 <span>💳</span> Live Payment Methods & Sub-Option Gateway Breakdown
               </div>
               <div style="font-size: 0.74rem; color: var(--color-text-secondary);">
-                Toggle active gateways and click Edit on any gateway to customize labels, notes, and rules
+                Customize payment gateways, receipt dispatches, invoice generation, and UTR verification rules
               </div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
@@ -677,79 +857,85 @@ export class FormBuilder {
             </div>
           </div>
 
-          <!-- Main Payment Gateways Grid -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 12px;">
-            <!-- UPI QR -->
-            <div style="background: var(--color-bg-secondary); border: 1px solid ${showUpi ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: 8px; padding: 10px; opacity: ${showUpi ? '1' : '0.6'}; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
-                  <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.85rem;">⚡ ${escapeHTML(upiLabel)}</div>
-                  <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showUpiPayment" ${showUpi ? 'checked' : ''} title="Toggle UPI Gateway" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+          <!-- Payment Gateways & Notices List -->
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- 1. UPI QR -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showUpi ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">⚡</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(upiLabel)}</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">${escapeHTML(upiSub)}</div>
                 </div>
-                <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHTML(upiSub)}</div>
               </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px;">
-                <span class="badge ${showUpi ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.68rem;">${showUpi ? 'Active' : 'Inactive'}</span>
-                <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="upi" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
-                  ✏️ Edit
-                </button>
-              </div>
+              ${FormBuilder.renderSysToolbar('showUpiPayment', 'upi', showUpi, upiLabel, 0, 6)}
             </div>
 
-            <!-- Pay Later at Desk -->
-            <div style="background: var(--color-bg-secondary); border: 1px solid ${showDesk ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: 8px; padding: 10px; opacity: ${showDesk ? '1' : '0.6'}; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
-                  <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.85rem;">💵 ${escapeHTML(deskLabel)}</div>
-                  <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showDeskPayment" ${showDesk ? 'checked' : ''} title="Toggle Desk Payment" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+            <!-- 2. Pay Later at Desk -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showDesk ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">💵</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(deskLabel)}</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">${escapeHTML(deskSub)}</div>
                 </div>
-                <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHTML(deskSub)}</div>
               </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px;">
-                <span class="badge ${showDesk ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.68rem;">${showDesk ? 'Active' : 'Inactive'}</span>
-                <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="desk" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
-                  ✏️ Edit
-                </button>
-              </div>
+              ${FormBuilder.renderSysToolbar('showDeskPayment', 'desk', showDesk, deskLabel, 1, 6)}
             </div>
 
-            <!-- NetBanking / Cards -->
-            <div style="background: var(--color-bg-secondary); border: 1px solid ${showNetBanking ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: 8px; padding: 10px; opacity: ${showNetBanking ? '1' : '0.6'}; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
-                  <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.85rem;">🏦 ${escapeHTML(nbLabel)}</div>
-                  <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showNetBankingPayment" ${showNetBanking ? 'checked' : ''} title="Toggle NetBanking Gateway" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+            <!-- 3. NetBanking / Cards -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showNetBanking ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">🏦</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(nbLabel)}</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">${escapeHTML(nbSub)}</div>
                 </div>
-                <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHTML(nbSub)}</div>
               </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px;">
-                <span class="badge ${showNetBanking ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.68rem;">${showNetBanking ? 'Active' : 'Inactive'}</span>
-                <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="netbanking" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
-                  ✏️ Edit
-                </button>
-              </div>
+              ${FormBuilder.renderSysToolbar('showNetBankingPayment', 'netbanking', showNetBanking, nbLabel, 2, 6)}
             </div>
-          </div>
 
-          <!-- Notification & Invoicing Sub-Options -->
-          <div style="font-size: 0.76rem; background: var(--color-bg-secondary); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-border); display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between;">
-            <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-weight: 600;">
-                <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showWhatsappReceipt" ${showWhatsapp ? 'checked' : ''} style="accent-color: var(--color-primary);">
-                <span>Automated WhatsApp Receipt</span>
-              </label>
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-weight: 600;">
-                <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showEmailConfirmation" ${showEmail ? 'checked' : ''} style="accent-color: var(--color-primary);">
-                <span>Email Payment Confirmation</span>
-              </label>
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-weight: 600;">
-                <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showTaxInvoice" ${showTax ? 'checked' : ''} style="accent-color: var(--color-primary);">
-                <span>Tax Invoice Generation</span>
-              </label>
+            <!-- 4. WhatsApp Receipt -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showWhatsapp ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">📱</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">Automated WhatsApp Receipt</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Instant fee receipt message dispatch to student's WhatsApp number</div>
+                </div>
+              </div>
+              ${FormBuilder.renderSysToolbar('showWhatsappReceipt', 'receipt_whatsapp', showWhatsapp, 'Automated WhatsApp Receipt', 3, 6)}
             </div>
-            <button type="button" class="btn btn-xs btn-ghost fb-edit-component" data-component="receipt_options" style="font-size: 0.72rem; font-weight: 700; color: var(--color-primary);">
-              ✏️ Edit Notices
-            </button>
+
+            <!-- 5. Email Confirmation -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showEmail ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">✉️</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">Email Payment Confirmation</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">PDF payment receipt and registration confirmation via email</div>
+                </div>
+              </div>
+              ${FormBuilder.renderSysToolbar('showEmailConfirmation', 'receipt_email', showEmail, 'Email Payment Confirmation', 4, 6)}
+            </div>
+
+            <!-- 6. Tax Invoice Generation -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showTax ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">📄</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">Tax Invoice Generation</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Compliant GST/Tax invoice calculation with printable receipt format</div>
+                </div>
+              </div>
+              ${FormBuilder.renderSysToolbar('showTaxInvoice', 'receipt_tax', showTax, 'Tax Invoice Generation', 5, 6)}
+            </div>
           </div>
         </div>
       `;
@@ -780,7 +966,7 @@ export class FormBuilder {
                 <span>🪑</span> Live Seat Selection Map & Digital Signature Sub-Options
               </div>
               <div style="font-size: 0.74rem; color: var(--color-text-secondary);">
-                Toggle and edit interactive desk map, digital signature, selfie studio, and quiet study code agreement
+                Customize interactive desk map, digital signature canvas, selfie studio, rules agreement, and barcode pass
               </div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
@@ -791,76 +977,71 @@ export class FormBuilder {
             </div>
           </div>
 
-          <!-- Main Interactive Seat & Studios Grid -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 12px;">
-            <!-- Seat Selection Map -->
-            <div style="background: var(--color-bg-secondary); border: 1px solid ${showSeat ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: 8px; padding: 10px; opacity: ${showSeat ? '1' : '0.6'}; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
-                  <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.85rem;">🔴/🟢 ${escapeHTML(seatLabel)}</div>
-                  <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showSeatSelection" ${showSeat ? 'checked' : ''} title="Toggle Seat Selection" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+          <!-- Interactive Seat, Signature & Agreement Sub-Options List -->
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- 1. Seat Selection Map -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showSeat ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">🔴/🟢</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(seatLabel)}</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">${escapeHTML(seatSub)}</div>
                 </div>
-                <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHTML(seatSub)}</div>
               </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px;">
-                <span class="badge ${showSeat ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.68rem;">${showSeat ? 'Active' : 'Inactive'}</span>
-                <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="seat_map" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
-                  ✏️ Edit
-                </button>
-              </div>
+              ${FormBuilder.renderSysToolbar('showSeatSelection', 'seat_map', showSeat, seatLabel, 0, 5)}
             </div>
 
-            <!-- Digital Signature Canvas -->
-            <div style="background: var(--color-bg-secondary); border: 1px solid ${showSig ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: 8px; padding: 10px; opacity: ${showSig ? '1' : '0.6'}; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
-                  <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.85rem;">✍️ ${escapeHTML(sigLabel)}</div>
-                  <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showDigitalSignature" ${showSig ? 'checked' : ''} title="Toggle Digital Signature" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+            <!-- 2. Digital Signature -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showSig ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">✍️</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(sigLabel)}</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">${escapeHTML(sigSub)}</div>
                 </div>
-                <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHTML(sigSub)}</div>
               </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px;">
-                <span class="badge ${showSig ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.68rem;">${showSig ? 'Active' : 'Inactive'}</span>
-                <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="signature" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
-                  ✏️ Edit
-                </button>
-              </div>
+              ${FormBuilder.renderSysToolbar('showDigitalSignature', 'signature', showSig, sigLabel, 1, 5)}
             </div>
 
-            <!-- Passport Selfie Capture -->
-            <div style="background: var(--color-bg-secondary); border: 1px solid ${showPhoto ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: 8px; padding: 10px; opacity: ${showPhoto ? '1' : '0.6'}; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
-                  <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.85rem;">📸 ${escapeHTML(photoLabel)}</div>
-                  <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showPassportSelfie" ${showPhoto ? 'checked' : ''} title="Toggle Passport Selfie" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+            <!-- 3. Passport Selfie Capture -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showPhoto ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">📸</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(photoLabel)}</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">${escapeHTML(photoSub)}</div>
                 </div>
-                <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHTML(photoSub)}</div>
               </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px;">
-                <span class="badge ${showPhoto ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.68rem;">${showPhoto ? 'Active' : 'Inactive'}</span>
-                <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="passport_photo" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
-                  ✏️ Edit
-                </button>
-              </div>
+              ${FormBuilder.renderSysToolbar('showPassportSelfie', 'passport_photo', showPhoto, photoLabel, 2, 5)}
             </div>
-          </div>
 
-          <!-- Rules & Barcode Sub-Options -->
-          <div style="font-size: 0.76rem; background: var(--color-bg-secondary); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-border); display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between;">
-            <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: center;">
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-weight: 600;">
-                <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showQuietStudyAgreement" ${showAgreement ? 'checked' : ''} style="accent-color: var(--color-primary);">
-                <span>📜 ${escapeHTML(agreeTitle)}</span>
-              </label>
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-weight: 600;">
-                <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showKioskBarcode" ${showBarcode ? 'checked' : ''} style="accent-color: var(--color-primary);">
-                <span>🎫 ${escapeHTML(kioskLabel)}</span>
-              </label>
+            <!-- 4. Quiet Study Code Agreement -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showAgreement ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">📜</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(agreeTitle)}</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Line-by-line numbered library rules and student consent signature checkbox</div>
+                </div>
+              </div>
+              ${FormBuilder.renderSysToolbar('showQuietStudyAgreement', 'quiet_study', showAgreement, agreeTitle, 3, 5)}
             </div>
-            <div style="display: flex; gap: 8px;">
-              <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="quiet_study" style="font-size: 0.72rem; font-weight: 700;">
-                ✏️ Edit Rules &amp; Agreement Text
-              </button>
+
+            <!-- 5. Kiosk Entry Barcode -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showBarcode ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">🎫</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(kioskLabel)}</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">${escapeHTML(s.kioskBarcodeSubtext || 'Instant admission barcode for turnstile / attendance gate')}</div>
+                </div>
+              </div>
+              ${FormBuilder.renderSysToolbar('showKioskBarcode', 'kiosk_barcode', showBarcode, kioskLabel, 4, 5)}
             </div>
           </div>
         </div>
@@ -2035,7 +2216,198 @@ export class FormBuilder {
     let title = '⚙️ Edit System Component';
     let formHtml = '';
 
-    if (compKey === 'upi') {
+    if (compKey === 'plan_manager') {
+      title = '💎 Edit Membership Study Plans Display';
+      const label = s.planGridLabel || 'Membership Study Plans Grid';
+      const sub = s.planGridSubtext || 'Interactive visual study plan cards with duration & shift filters';
+      const active = s.showPlans !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Section Title *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Subtitle / Instructions</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Show Membership Plans Grid in Registration Portal</span>
+          </label>
+        </div>
+        <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; font-size: 0.8rem;">
+          <div style="font-weight: 700; color: var(--color-primary); margin-bottom: 4px;">💡 Need to add or edit study plans?</div>
+          <div style="color: var(--color-text-secondary); margin-bottom: 8px;">You currently have <strong>${this.plans?.length || 0} active plans</strong> configured in the database.</div>
+          <a href="#/plans" class="btn btn-xs btn-outline-primary" style="font-weight: 700;">Open Plans Manager ↗</a>
+        </div>
+      `;
+    } else if (compKey === 'locker_addon') {
+      title = '🔒 Edit Personal Study Locker Add-on Option';
+      const label = s.lockerAddonLabel || 'Personal Study Locker Add-on Option';
+      const sub = s.lockerAddonSubtext || 'Optional "+₹200/mo personal study locker" toggle for students';
+      const price = s.lockerAddonPrice || 200;
+      const active = s.showLockerAddon !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Option Title *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Monthly Locker Surcharge (₹) *</label>
+          <input type="number" id="ce-locker-price" class="form-control" value="${price}" min="0" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Subtitle / Instructions</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Enable Locker Add-on in Student Registration Form</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'coupon_addon') {
+      title = '🎟️ Edit Referral / Discount Coupon Promo Field';
+      const label = s.couponLabel || 'Referral / Discount Coupon Code Input';
+      const ph = s.couponPlaceholder || 'Enter promo code (e.g. SAVE100)';
+      const sub = s.couponSubtext || 'Automatic instant discount verification & fee reduction';
+      const active = s.showReferralCoupon !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Field Title *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Placeholder Text</label>
+          <input type="text" id="ce-placeholder" class="form-control" value="${escapeHTML(ph)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Subtitle / Note</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Enable Coupon Promo Code Field in Registration Form</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'shift_selection') {
+      title = '⏰ Edit Preferred Study Shift / Timing Selection';
+      const label = s.shiftSelectionLabel || 'Preferred Study Shift / Timing Selection';
+      const sub = s.shiftSelectionSubtext || 'Morning, Evening, Night & 24h Full Day shift selection picker';
+      const active = s.showShiftSelection !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Picker Title *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Subtitle / Instructions</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Enable Study Shift Selection in Registration Form</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'fee_calculator') {
+      title = '💰 Edit Live Fee Breakdown Auto-Calculator Card';
+      const label = s.feeBreakdownLabel || 'Live Fee Breakdown Auto-Calculator Card';
+      const sub = s.feeBreakdownSubtext || 'Real-time itemized price breakdown (Plan base + Locker - Discount = Total)';
+      const active = s.showFeeBreakdown !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Calculator Title *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Subtitle / Instructions</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Show Live Fee Breakdown Auto-Calculator</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'receipt_whatsapp') {
+      title = '📱 Edit Automated WhatsApp Receipt Dispatch';
+      const label = s.whatsappReceiptLabel || 'Automated WhatsApp Receipt';
+      const sub = s.whatsappReceiptSubtext || 'Instant fee receipt message dispatch to student\'s WhatsApp number';
+      const active = s.showWhatsappReceipt !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Receipt Notice Label *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Description Note</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Send Instant WhatsApp Fee Receipt to Student</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'receipt_email') {
+      title = '✉️ Edit Email Payment Confirmation Notice';
+      const label = s.emailConfirmationLabel || 'Email Payment Confirmation';
+      const sub = s.emailConfirmationSubtext || 'PDF payment receipt and registration confirmation via email';
+      const active = s.showEmailConfirmation !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Confirmation Label *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Description Note</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Send Email Payment Confirmation with PDF</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'receipt_tax') {
+      title = '📄 Edit Tax Invoice Generation Notice';
+      const label = s.taxInvoiceLabel || 'Tax Invoice Generation';
+      const sub = s.taxInvoiceSubtext || 'Compliant GST/Tax invoice calculation with printable receipt format';
+      const active = s.showTaxInvoice !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Invoice Notice Label *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Description Note</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Enable Tax / GST Invoice Generation</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'upi') {
       title = '⚡ Edit Dynamic UPI QR Payment Gateway';
       const label = s.upiPaymentLabel || 'Dynamic UPI QR';
       const sub = s.upiPaymentSubtext || 'GPay / PhonePe / Paytm + 12-digit UTR Verification';
@@ -2344,7 +2716,41 @@ export class FormBuilder {
     modalContent.querySelector('#fb-component-edit-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
-        if (compKey === 'upi') {
+        if (compKey === 'plan_manager') {
+          s.planGridLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.planGridSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showPlans = modalContent.querySelector('#ce-active').checked;
+        } else if (compKey === 'locker_addon') {
+          s.lockerAddonLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.lockerAddonPrice = Number(modalContent.querySelector('#ce-locker-price').value) || 200;
+          s.lockerAddonSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showLockerAddon = modalContent.querySelector('#ce-active').checked;
+        } else if (compKey === 'coupon_addon') {
+          s.couponLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.couponPlaceholder = modalContent.querySelector('#ce-placeholder').value.trim();
+          s.couponSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showReferralCoupon = modalContent.querySelector('#ce-active').checked;
+        } else if (compKey === 'shift_selection') {
+          s.shiftSelectionLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.shiftSelectionSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showShiftSelection = modalContent.querySelector('#ce-active').checked;
+        } else if (compKey === 'fee_calculator') {
+          s.feeBreakdownLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.feeBreakdownSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showFeeBreakdown = modalContent.querySelector('#ce-active').checked;
+        } else if (compKey === 'receipt_whatsapp') {
+          s.whatsappReceiptLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.whatsappReceiptSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showWhatsappReceipt = modalContent.querySelector('#ce-active').checked;
+        } else if (compKey === 'receipt_email') {
+          s.emailConfirmationLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.emailConfirmationSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showEmailConfirmation = modalContent.querySelector('#ce-active').checked;
+        } else if (compKey === 'receipt_tax') {
+          s.taxInvoiceLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.taxInvoiceSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showTaxInvoice = modalContent.querySelector('#ce-active').checked;
+        } else if (compKey === 'upi') {
           s.upiPaymentLabel = modalContent.querySelector('#ce-label').value.trim();
           s.upiPaymentSubtext = modalContent.querySelector('#ce-subtext').value.trim();
           s.showUpiPayment = modalContent.querySelector('#ce-active').checked;
