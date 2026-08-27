@@ -46,8 +46,7 @@ const shiftSchema = new mongoose.Schema({
   },
   isDeleted: {
     type: Boolean,
-    default: false,
-    index: true
+    default: false
   },
   deletedAt: {
     type: Date
