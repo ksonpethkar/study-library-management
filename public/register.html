@@ -933,7 +933,9 @@
         { name: 'emergencyPhone', label: 'Emergency Contact Mobile Number', type: 'tel', section: 'address', required: true, order: 6, placeholder: '10-digit emergency contact phone', width: 'half' },
 
         // Step 3: KYC & Verification (kyc)
-        { name: 'idProofType', label: 'Government ID Document Proof & Verification', type: 'aadhaar_pan', section: 'kyc', required: false, order: 1, width: 'full' },
+        { name: 'idProofType', label: 'Government ID Document Type', type: 'select', section: 'kyc', required: true, order: 1, options: ['Aadhaar Card', 'PAN Card', 'Voter ID', 'Driving License', 'College Student ID', 'Passport'], width: 'half' },
+        { name: 'idProofNumber', label: 'ID Proof Document Number', type: 'text', section: 'kyc', required: true, order: 2, placeholder: 'Enter 12-digit Aadhaar (e.g. 5432 1098 7654)', width: 'half' },
+        { name: 'idProofImage', label: 'Upload ID Proof Document / Scan', type: 'file', section: 'kyc', required: false, order: 3, width: 'full' },
 
         // Step 4: Academic Goals & Education (academic)
         { name: 'targetExams', label: 'Target Competitive Exam / Study Purpose', type: 'exam_badge', section: 'academic', required: true, order: 1, width: 'full' },
@@ -1219,8 +1221,53 @@
         `;
       }
 
-      // 15. KYC / ID Document Type & Number
-      if (lowerName === 'idprooftype' || type === 'aadhaar_pan') {
+      // 15. KYC / ID Document Type
+      if (lowerName === 'idprooftype' || (lowerName.includes('proof') && lowerName.includes('type'))) {
+        const idOpts = (f.options && f.options.length) ? f.options : ['Aadhaar Card', 'PAN Card', 'Voter ID', 'Driving License', 'College Student ID', 'Passport'];
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle || 'grid-column: span 1;'}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">🪪 ${escapeHTML(label)}${reqMark}</label>
+              <select id="reg-id-type" name="idProofType" class="form-select" ${required}>
+                ${idOpts.map((opt, i) => `<option value="${escapeHTML(opt)}" ${i === 0 ? 'selected' : ''}>${escapeHTML(opt)}</option>`).join('')}
+              </select>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+
+      // ID Proof Number
+      if (lowerName === 'idproofnumber' || (lowerName.includes('proof') && (lowerName.includes('number') || lowerName.includes('num') || lowerName.includes('digit')))) {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle || 'grid-column: span 1;'}">
+            <div class="form-group mb-2">
+              <label class="form-label" id="idProofNumberLabel" style="font-weight: 600;">🪪 ${escapeHTML(label)}${reqMark}</label>
+              <input type="text" id="reg-id-number" name="idProofNumber" class="form-control" placeholder="${escapeHTML(placeholder || 'Enter 12-digit Aadhaar (e.g. 5432 1098 7654)')}" ${required}>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+
+      // ID Proof Image / Document Upload
+      if (lowerName === 'idproofimage' || lowerName === 'idproofdocument' || lowerName === 'idproofphoto' || (lowerName.includes('proof') && (lowerName.includes('image') || lowerName.includes('upload') || lowerName.includes('scan') || lowerName.includes('doc')))) {
+        if (explicitlyHiddenNames.has('idproofimage') || explicitlyHiddenNames.has('idproofdocument') || explicitlyHiddenNames.has(lowerName)) {
+          return '';
+        }
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="grid-column: 1 / -1;">
+            <div class="mb-3">
+              <label class="form-label" style="font-weight: 600;">📄 ${escapeHTML(label)}${reqMark}</label>
+              <div id="public-idproof-mount"></div>
+              ${helpText || '<small class="text-muted">Aadhaar, PAN, College ID or Driver\'s License</small>'}
+            </div>
+          </div>
+        `;
+      }
+
+      // Composite only if someone explicitly uses type aadhaar_pan without individual fields
+      if (type === 'aadhaar_pan') {
         return `
           <div class="dynamic-field-wrapper" ${depAttr} style="grid-column: 1 / -1;">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
@@ -1247,18 +1294,6 @@
               <small class="text-muted">Aadhaar, PAN, College ID or Driver's License</small>
             </div>
             `}
-          </div>
-        `;
-      }
-
-      if (lowerName === 'idproofnumber') {
-        return `
-          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
-            <div class="form-group mb-2">
-              <label class="form-label" style="font-weight: 600;">🪪 ${escapeHTML(label)}${reqMark}</label>
-              <input type="text" id="reg-id-number" name="idProofNumber" class="form-control" placeholder="${escapeHTML(placeholder || 'e.g. Last 4 digits or ID number')}" ${required}>
-              ${helpText}
-            </div>
           </div>
         `;
       }
@@ -1838,6 +1873,7 @@
       // Mount dynamic MediaFieldPickers for custom fields
       document.querySelectorAll('.custom-field-media-mount').forEach(mount => {
         const fieldName = mount.dataset.field;
+        if (['idproofimage', 'idproofdocument', 'idproofphoto', 'photo', 'idProofImage'].includes(fieldName)) return;
         const fieldLabel = mount.dataset.label;
         const preset = mount.dataset.preset || 'document';
         mount.appendChild(MediaFieldPicker.create({
@@ -2593,8 +2629,10 @@
           if (['qualification', 'education', 'highestqualification'].includes(n)) return 'qualification';
           if (['emergencyname', 'emergencycontactname', 'guardianname', 'parentname', 'parentguardianname', 'fathername', 'mothername', 'parentcontactname'].includes(n) || ((n.includes('emerg') || n.includes('parent') || n.includes('guardian') || n.includes('father')) && (n.includes('name') || n.includes('person')))) return 'emergencyName';
           if (['emergencyphone', 'emergencycontactphone', 'guardianphone', 'parentphone', 'emergencymobile', 'emergencycontact', 'parentmobile', 'guardianmobile'].includes(n) || ((n.includes('emerg') || n.includes('parent') || n.includes('guardian')) && (n.includes('phone') || n.includes('mob') || n.includes('contact')))) return 'emergencyPhone';
-          if (['relationship', 'relation', 'emergencyrelation', 'parentrelation', 'guardianrelation', 'emergencycontactrelation'].includes(n) || n.includes('relat')) return 'emergencyRelation';
-          if (['idprooftype', 'idproof', 'aadhaar', 'pancard', 'govtid', 'idproofimage', 'idproofdocument'].includes(n) || n.includes('proof')) return 'idProofType';
+          if (['idprooftype', 'govtid', 'prooftype'].includes(n) || (n.includes('proof') && n.includes('type'))) return 'idProofType';
+          if (['idproofnumber', 'idnumber', 'aadhaarnumber', 'pannumber', 'documentnumber'].includes(n) || (n.includes('proof') && (n.includes('number') || n.includes('num') || n.includes('digit')))) return 'idProofNumber';
+          if (['idproofimage', 'idproofphoto', 'idproofdoc', 'idproofdocument', 'proofdocument'].includes(n) || ((n.includes('proof') || n.includes('id')) && (n.includes('image') || n.includes('photo') || n.includes('upload') || n.includes('scan') || n.includes('doc')))) return 'idProofImage';
+          if (['idproof', 'aadhaar', 'pancard'].includes(n)) return 'idProofType';
           if (['password', 'portalpassword'].includes(n)) return 'password';
           return n;
         };
@@ -2620,12 +2658,15 @@
           const defaultMap = new Map();
           defaultFields.forEach(df => defaultMap.set(canonicalizeFieldName(df.name), df));
 
+          const seenCanonKeys = new Set();
           fields = customFieldList
             .filter(cf => {
               if (!cf) return false;
               if (cf.isActive === false || cf.isActive === 'false') return false;
               const canonKey = canonicalizeFieldName(cf.fieldName || cf.name);
               if (explicitlyHiddenNames.has(canonKey)) return false;
+              if (seenCanonKeys.has(canonKey)) return false;
+              seenCanonKeys.add(canonKey);
               return true;
             })
             .map((cf, idx) => {
