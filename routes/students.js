@@ -270,6 +270,13 @@ router.post('/', validateStudentCreate, roleCheck('owner', 'branch_manager'), as
       req.body.targetExams = Array.isArray(rawExams) ? rawExams : String(rawExams).split(',').map(s => s.trim()).filter(Boolean);
     }
 
+    const rawBranch = req.body.branch || (customFieldsData && (customFieldsData.branch || customFieldsData.studycentre || customFieldsData.center));
+    if (rawBranch && mongoose.Types.ObjectId.isValid(rawBranch)) {
+      req.body.branch = rawBranch;
+    } else {
+      delete req.body.branch;
+    }
+
     if (!req.body.studentId) {
       req.body.studentId = await generateStudentId({ branch: req.body.branch });
     }
@@ -460,6 +467,17 @@ router.put('/:id', validateStudentUpdate, roleCheck('owner', 'branch_manager'), 
       student.targetExams = Array.isArray(rawExams) ? rawExams : String(rawExams).split(',').map(s => s.trim()).filter(Boolean);
       student.markModified('targetExams');
       delete req.body.targetExams;
+    }
+
+    const rawBranch = req.body.branch !== undefined ? req.body.branch : (customFieldsData && (customFieldsData.branch !== undefined ? customFieldsData.branch : (customFieldsData.studycentre !== undefined ? customFieldsData.studycentre : customFieldsData.center)));
+    if (rawBranch !== undefined) {
+      if (rawBranch && mongoose.Types.ObjectId.isValid(rawBranch)) {
+        student.branch = rawBranch;
+      } else {
+        student.branch = undefined;
+      }
+      student.markModified('branch');
+      delete req.body.branch;
     }
 
     Object.assign(student, req.body);

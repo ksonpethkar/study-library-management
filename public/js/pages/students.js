@@ -496,49 +496,76 @@ export async function render() {
 
   let _cachedFormDeps = null;
   async function fetchFormDeps() {
-    if (_cachedFormDeps) {
+    if (_cachedFormDeps && Array.isArray(_cachedFormDeps.branches) && _cachedFormDeps.branches.length > 0) {
       // Background revalidate
       Promise.all([
         api.get('/api/plans').catch(() => null),
         api.get('/api/seats?status=available').catch(() => null),
         api.get('/api/custom-fields/all').catch(() => null),
-        api.get('/api/custom-fields/templates/active').catch(() => null)
-      ]).then(([pRes, sRes, cRes, tRes]) => {
+        api.get('/api/custom-fields/templates/active').catch(() => null),
+        api.get('/api/branches/public-list').catch(() => null)
+      ]).then(([pRes, sRes, cRes, tRes, bRes]) => {
         if (pRes?.data) _cachedFormDeps.plans = pRes.data;
         if (sRes?.data) _cachedFormDeps.seats = sRes.data;
         if (cRes?.data) _cachedFormDeps.customFields = cRes.data;
         if (tRes?.data) _cachedFormDeps.template = tRes.data;
+        if (bRes?.data) _cachedFormDeps.branches = bRes.data;
       }).catch(() => {});
       return _cachedFormDeps;
     }
 
     try {
-      const [plansRes, seatsRes, cfRes, tplRes] = await Promise.all([
+      const [plansRes, seatsRes, cfRes, tplRes, branchRes] = await Promise.all([
         api.get('/api/plans').catch(() => ({ data: [] })),
         api.get('/api/seats?status=available').catch(() => ({ data: [] })),
         api.get('/api/custom-fields/all').catch(() => ({ data: [] })),
-        api.get('/api/custom-fields/templates/active').catch(() => ({ data: {} }))
+        api.get('/api/custom-fields/templates/active').catch(() => ({ data: {} })),
+        api.get('/api/branches/public-list').catch(() => ({ data: [] }))
       ]);
       _cachedFormDeps = {
         plans: plansRes?.data || [],
         seats: seatsRes?.data || [],
         customFields: cfRes?.data || [],
-        template: tplRes?.data || {}
+        template: tplRes?.data || {},
+        branches: branchRes?.data || []
       };
       return _cachedFormDeps;
     } catch (err) {
       console.error('Error fetching student modal dependencies:', err);
-      return { plans: [], seats: [], customFields: [], template: {} };
+      return { plans: [], seats: [], customFields: [], template: {}, branches: [] };
     }
   }
 
   async function showStudentForm(student = null) {
-    const isEdit = !!student;
+    let isEdit = !!student;
+
+    // If editing a student, fetch fresh full document with all customFields and populated branch
+    if (student && student._id) {
+      try {
+        const fullRes = await api.get(`/api/students/${student._id}`);
+        if (fullRes?.data) student = fullRes.data;
+      } catch (e) {}
+    }
+
     const deps = await fetchFormDeps();
     const plansList = Array.isArray(deps.plans) ? deps.plans : [];
     const seatsList = Array.isArray(deps.seats) ? deps.seats : [];
     const customFields = Array.isArray(deps.customFields) ? deps.customFields : [];
     const template = deps.template || {};
+
+    let branchesList = Array.isArray(deps.branches) && deps.branches.length > 0
+      ? deps.branches
+      : (window.store?.branches && window.store.branches.length > 0 ? window.store.branches : []);
+
+    if (branchesList.length === 0) {
+      try {
+        const bRes = await api.get('/api/branches/public-list');
+        if (bRes?.data && Array.isArray(bRes.data) && bRes.data.length > 0) {
+          branchesList = bRes.data;
+          if (_cachedFormDeps) _cachedFormDeps.branches = branchesList;
+        }
+      } catch (e) {}
+    }
 
     // Fetch available plans, seats, custom fields, and active form template
     let plansOptions = '<option value="">-- Select Plan (Optional) --</option>';
@@ -564,9 +591,20 @@ export async function render() {
     // Helper to extract student field values
     function getVal(fieldName) {
       if (!student) return '';
+
+      const fn = (fieldName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      // Special branch extraction (handles populated branch object, ID string, or customFields)
+      if (fn === 'branch' || fn === 'studycentre' || fn === 'center' || fn === 'centre') {
+        if (student.branch) {
+          if (typeof student.branch === 'object' && student.branch._id) return String(student.branch._id);
+          return String(student.branch);
+        }
+        return (student.customFields && (student.customFields.branch || student.customFields.studycentre || student.customFields.center)) || '';
+      }
+
       if (student[fieldName] !== undefined && student[fieldName] !== null && student[fieldName] !== '') return student[fieldName];
       
-      const fn = (fieldName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       if (fn === 'targetexams' || fn === 'target_exams' || fn === 'competitiveexams' || fn === 'exams') {
         return student.targetExams || student.customFields?.targetExams || student.customFields?.target_exams || '';
       }
@@ -651,6 +689,11 @@ export async function render() {
     });
 
     activeFields.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    const hasBranchInActive = activeFields.some(f => {
+      const k = (f.fieldName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      return k === 'branch' || k === 'studycentre' || k === 'center' || k === 'centre' || f.type === 'branch';
+    });
 
     const sectionsMap = new Map();
     const iconMap = { personal: '👤', academic: '🎯', plan: '⏰', payment: '💳', seat: '🪑', contact: '📍', kyc: '🪪', address: '📍' };
@@ -816,6 +859,30 @@ export async function render() {
         `;
       }
 
+      const lowerFld = (f.fieldName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const isBranchField = lowerFld === 'branch' || lowerFld === 'studycentre' || lowerFld === 'centre' || lowerFld === 'center' || f.type === 'branch';
+      if (isBranchField) {
+        const curBranchVal = String(val || '').trim().toLowerCase();
+        let branchOptionsHtml = '<option value="">-- Select Study Centre / Branch --</option>';
+        (branchesList || []).forEach(b => {
+          const bId = String(b._id || b.id || '');
+          const bName = b.name || 'Main Campus';
+          const bCity = b.city ? ` (${b.city})` : '';
+          const isSelected = (curBranchVal && curBranchVal === bId.toLowerCase()) || (curBranchVal && curBranchVal === bName.toLowerCase());
+          branchOptionsHtml += `<option value="${escapeHTML(bId)}" ${isSelected ? 'selected' : ''}>${escapeHTML(bName + bCity)}</option>`;
+        });
+
+        return `
+          <div class="${colClass} dynamic-field-wrapper" ${depAttr}>
+            <label class="form-label" style="font-weight: 600;">🏛️ ${escapeHTML(f.label || 'Preferred Study Centre / Branch')}${reqMark}</label>
+            <select class="form-select form-control custom-dyn-input" data-field="branch" name="branch" ${f.required ? 'required' : ''}>
+              ${branchOptionsHtml}
+            </select>
+            ${helpText}
+          </div>
+        `;
+      }
+
       if (f.type === 'select') {
         const curVal = String(val || '').toLowerCase().trim();
         return `
@@ -926,6 +993,23 @@ export async function render() {
                 </select>
               </div>
 
+              ${!hasBranchInActive ? `
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 700;">Select Study Centre / Branch</label>
+                <select class="form-select form-control custom-dyn-input" data-field="branch" name="branch" style="font-weight: 600;">
+                  <option value="">-- Select Study Centre / Branch --</option>
+                  ${branchesList.map(b => {
+                    const bId = String(b._id || b.id || '');
+                    const bName = b.name || 'Main Campus';
+                    const bCity = b.city ? ` (${b.city})` : '';
+                    const curBranchVal = String(getVal('branch') || '').trim().toLowerCase();
+                    const isSelected = (curBranchVal && curBranchVal === bId.toLowerCase()) || (curBranchVal && curBranchVal === bName.toLowerCase());
+                    return `<option value="${escapeHTML(bId)}" ${isSelected ? 'selected' : ''}>${escapeHTML(bName + bCity)}</option>`;
+                  }).join('')}
+                </select>
+              </div>
+              ` : ''}
+
               <div class="col-md-6">
                 <label class="form-label" style="font-weight: 700;">Select Reserved Study Desk / Seat</label>
                 <select class="form-select form-control" name="seat" style="font-weight: 600;">
@@ -1004,6 +1088,23 @@ export async function render() {
             </h5>
             
             <div class="row" style="row-gap: 12px;">
+              ${!hasBranchInActive ? `
+              <div class="col-md-6">
+                <label class="form-label" style="font-weight: 600;">🏛️ Preferred Study Centre / Branch</label>
+                <select class="form-select form-control custom-dyn-input" data-field="branch" name="branch">
+                  <option value="">-- Select Study Centre / Branch --</option>
+                  ${branchesList.map(b => {
+                    const bId = String(b._id || b.id || '');
+                    const bName = b.name || 'Main Campus';
+                    const bCity = b.city ? ` (${b.city})` : '';
+                    const curBranchVal = String(getVal('branch') || '').trim().toLowerCase();
+                    const isSelected = (curBranchVal && curBranchVal === bId.toLowerCase()) || (curBranchVal && curBranchVal === bName.toLowerCase());
+                    return `<option value="${escapeHTML(bId)}" ${isSelected ? 'selected' : ''}>${escapeHTML(bName + bCity)}</option>`;
+                  }).join('')}
+                </select>
+              </div>
+              ` : ''}
+
               <div class="col-md-6">
                 <label class="form-label" style="font-weight: 600;">Membership Plan</label>
                 <select class="form-select form-control" name="plan">
@@ -1130,6 +1231,16 @@ export async function render() {
             });
 
             const customF = data.customFields || {};
+
+            // 0. Preferred Study Centre / Branch
+            const branchInput = form.querySelector('[name="branch"]') || m.element.querySelector('[name="branch"]') || m.element.querySelector('[data-field="branch"]');
+            const extractedBranch = branchInput?.value || data.branch || customF.branch || (student && (student.branch?._id || student.branch)) || '';
+            if (extractedBranch && String(extractedBranch).trim()) {
+              data.branch = String(extractedBranch).trim();
+              data.customFields.branch = data.branch;
+            } else {
+              delete data.branch;
+            }
 
             // 1. Blood Group
             const extractedBloodGroup = data.bloodGroup || data.blood_group || data.bloodgroup || customF.bloodGroup || customF.blood_group || customF.bloodgroup || customF.BloodGroup || student?.bloodGroup || '';
