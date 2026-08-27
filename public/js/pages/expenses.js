@@ -582,8 +582,12 @@ export async function render(container) {
       const receiptImage = modalContent.querySelector('input[name="receiptImage"]')?.value || '';
       const description = modalContent.querySelector('#exp-desc').value.trim();
 
-      if (!title || !amount) {
-        Toast.error('Please fill required fields');
+      if (!title) {
+        Toast.error('Expense title is required');
+        return;
+      }
+      if (isNaN(amount) || amount <= 0) {
+        Toast.error('Expense amount must be a valid positive number');
         return;
       }
 

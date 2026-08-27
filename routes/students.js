@@ -8,7 +8,7 @@ const User = require('../models/User');
 const { generateStudentId } = require('../utils/idGenerator');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
-const { validate } = require('../middleware/validate');
+const { validate, validateStudentCreate, validateStudentUpdate } = require('../middleware/validate');
 const { moveToTrash } = require('./trash');
 
 router.use(protect);
@@ -115,10 +115,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /
-router.post('/', validate([
-  body('name').notEmpty().withMessage('Name is required').trim(),
-  body('phone').notEmpty().withMessage('Phone is required').trim()
-]), roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.post('/', validateStudentCreate, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     if (req.body.phone) {
       let cleanPhone = String(req.body.phone).trim().replace(/[^0-9+]/g, '');
@@ -336,10 +333,7 @@ router.post('/', validate([
 });
 
 // PUT /:id
-router.put('/:id', validate([
-  body('name').optional().notEmpty().withMessage('Name cannot be empty').trim(),
-  body('phone').optional().notEmpty().withMessage('Phone cannot be empty').trim()
-]), roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.put('/:id', validateStudentUpdate, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const student = await Student.findById(req.params.id);
     if (!student) {

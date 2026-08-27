@@ -11,6 +11,7 @@ import { IDBStorage } from '../utils/idbStorage.js';
 import { OptimisticUI } from '../utils/optimisticUI.js';
 import { SmartIntelligence } from '../utils/smartIntelligence.js';
 import { renderHeatmap, renderBehaviorBadge, calculateBehaviorScore } from '../utils/attendanceHeatmap.js';
+import { Validators } from '../utils/validators.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -1325,6 +1326,24 @@ export async function render() {
     
     modal.open();
 
+    // Attach Live Real-Time Validation Feedback to form inputs
+    const nameInput = modal.element.querySelector('input[name="name"]');
+    if (nameInput) {
+      Validators.attachLiveValidation(nameInput, val => Validators.text(val, 2, 100, 'Student Name', true));
+    }
+    const phoneInput = modal.element.querySelector('input[name="phone"]');
+    if (phoneInput) {
+      Validators.attachLiveValidation(phoneInput, val => Validators.phone(val, true));
+    }
+    const emailInput = modal.element.querySelector('input[name="email"]');
+    if (emailInput) {
+      Validators.attachLiveValidation(emailInput, val => Validators.email(val, false));
+    }
+    const emPhoneInput = modal.element.querySelector('input[name="emergencyContact.phone"], input[name="emergencyContactPhone"]');
+    if (emPhoneInput) {
+      Validators.attachLiveValidation(emPhoneInput, val => Validators.phone(val, false));
+    }
+
     // Initialize Smart Photo Picker
     const photoMount = modal.element.querySelector('#mount-student-photo');
     if (photoMount) {
@@ -1585,8 +1604,8 @@ export async function render() {
     }
 
     // Real-Time Duplicate Student (Phone & Email) Validator in Admin Modal
-    const phoneInput = modal.element.querySelector('input[name="phone"]');
-    const emailInput = modal.element.querySelector('input[name="email"]');
+    const dupPhoneInput = modal.element.querySelector('input[name="phone"]');
+    const dupEmailInput = modal.element.querySelector('input[name="email"]');
     const formElement = modal.element.querySelector('#studentForm');
     if (formElement) {
       formElement.addEventListener('submit', (e) => {
@@ -1607,8 +1626,8 @@ export async function render() {
     }
 
     const checkDuplicateAdmin = () => {
-      const phoneVal = phoneInput?.value?.trim() || '';
-      const emailVal = emailInput?.value?.trim() || '';
+      const phoneVal = dupPhoneInput?.value?.trim() || '';
+      const emailVal = dupEmailInput?.value?.trim() || '';
 
       const otherStudents = (state.students || []).filter(s => !isEdit || (student && s._id !== student._id));
       const dupResult = SmartIntelligence.checkDuplicateStudent(phoneVal, emailVal, otherStudents);
@@ -1621,11 +1640,13 @@ export async function render() {
       }
     };
 
-    if (phoneInput) {
-      ['input', 'blur', 'change', 'keyup'].forEach(evt => phoneInput.addEventListener(evt, checkDuplicateAdmin));
+    if (dupPhoneInput) {
+      dupPhoneInput.addEventListener('input', checkDuplicateAdmin);
+      dupPhoneInput.addEventListener('blur', checkDuplicateAdmin);
     }
-    if (emailInput) {
-      ['input', 'blur', 'change', 'keyup'].forEach(evt => emailInput.addEventListener(evt, checkDuplicateAdmin));
+    if (dupEmailInput) {
+      dupEmailInput.addEventListener('input', checkDuplicateAdmin);
+      dupEmailInput.addEventListener('blur', checkDuplicateAdmin);
     }
 
     // Smart Seat Suggestion Match Action

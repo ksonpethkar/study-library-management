@@ -7,18 +7,8 @@ const Student = require('../models/Student');
 const Shift = require('../models/Shift');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
+const { validate, validateSeatCreate, validateSeatUpdate } = require('../middleware/validate');
 const { moveToTrash } = require('./trash');
-
-function validate(validations) {
-  return async (req, res, next) => {
-    for (const validation of validations) { await validation.run(req); }
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array(), message: errors.array()[0]?.msg || 'Validation failed' });
-    }
-    next();
-  };
-}
 
 // GET /public-available - Public endpoint for student registration seat selection
 router.get('/public-available', async (req, res) => {
@@ -144,10 +134,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST / - Create single custom seat
-router.post('/', roleCheck('owner', 'branch_manager'), validate([
-  body('seatNumber').notEmpty().withMessage('Seat number is required'),
-  body('zone').notEmpty().withMessage('Zone is required')
-]), async (req, res) => {
+router.post('/', roleCheck('owner', 'branch_manager'), validateSeatCreate, async (req, res) => {
   try {
     const { seatNumber, zone, floor, type, status, monthlyRate, amenities, branch } = req.body;
     
@@ -306,10 +293,7 @@ router.post('/bulk-update', roleCheck('owner', 'branch_manager'), async (req, re
 });
 
 // PUT /:id - Full update of single seat
-router.put('/:id', roleCheck('owner', 'branch_manager'), validate([
-  body('seatNumber').optional().notEmpty().withMessage('Seat number cannot be empty'),
-  body('zone').optional().notEmpty().withMessage('Zone cannot be empty')
-]), async (req, res) => {
+router.put('/:id', roleCheck('owner', 'branch_manager'), validateSeatUpdate, async (req, res) => {
   try {
     const updateData = { ...req.body };
     if (updateData.monthlyRate !== undefined) {

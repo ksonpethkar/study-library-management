@@ -4,6 +4,7 @@ const CustomField = require('../models/CustomField');
 const FormTemplate = require('../models/FormTemplate');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
+const { validateCustomField } = require('../middleware/validate');
 const memoryCache = require('../utils/memoryCache');
 
 // Public/Shared read endpoints to get fields
@@ -99,7 +100,7 @@ router.put('/templates/active', async (req, res) => {
 });
 
 // POST /api/custom-fields - Create a new form field
-router.post('/', async (req, res) => {
+router.post('/', validateCustomField, async (req, res) => {
   try {
     const { 
       fieldName, label, type, placeholder, options, required, section, sectionLabel, helpText, defaultValue,

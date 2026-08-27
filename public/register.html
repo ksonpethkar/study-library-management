@@ -1716,8 +1716,22 @@
 
           const phoneInp = stepContent.querySelector('#reg-phone');
           if (phoneInp) {
+            const clean = phoneInp.value.replace(/[^0-9]/g, '');
+            const num = clean.length === 12 && clean.startsWith('91') ? clean.slice(2) : clean;
+            if (!/^[6-9]\d{9}$/.test(num)) {
+              alert('Please enter a valid 10-digit Indian mobile number (starting with 6, 7, 8, or 9).');
+              phoneInp.focus();
+              return;
+            }
             const isDup = await checkDuplicate();
             if (!isDup) return;
+          }
+
+          const emailInp = stepContent.querySelector('#reg-email');
+          if (emailInp && emailInp.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInp.value.trim())) {
+            alert('Please enter a valid email address (e.g. rahul@gmail.com).');
+            emailInp.focus();
+            return;
           }
 
           // Plan Section Validation

@@ -1088,6 +1088,15 @@ export async function render(container) {
             data.discount = parseFloat(data.discount) || 0;
             data.lateFee = parseFloat(data.lateFee) || 0;
             
+            if (data.amount <= 0) {
+                Toast.error('Payment amount must be greater than 0');
+                return;
+            }
+            if (data.discount > data.amount) {
+                Toast.error('Discount amount cannot exceed the payment amount');
+                return;
+            }
+            
             if (submitBtn) UI.buttonLoading(submitBtn, true, 'Processing...');
             try {
                 const res = await api.post('/api/payments', data);

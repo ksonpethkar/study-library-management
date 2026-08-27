@@ -1,26 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { body, validationResult } = require('express-validator');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
+const { validate, validatePaymentCreate, validatePaymentUpdate } = require('../middleware/validate');
 const Payment = require('../models/Payment');
 const Student = require('../models/Student');
 const Plan = require('../models/Plan');
 const BusinessProfile = require('../models/BusinessProfile');
 const { moveToTrash } = require('./trash');
-
-function validate(validations) {
-    return async (req, res, next) => {
-        for (const validation of validations) {
-            await validation.run(req);
-        }
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ success: false, errors: errors.array(), message: errors.array()[0]?.msg || 'Validation failed' });
-        }
-        next();
-    };
-}
 
 router.use(protect);
 router.use(roleCheck('owner', 'branch_manager'));
@@ -221,10 +208,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-router.post('/', roleCheck('owner', 'branch_manager'), validate([
-    body('student').notEmpty().withMessage('Student is required'),
-    body('amount').isNumeric().withMessage('Amount is required and must be a number')
-]), async (req, res) => {
+router.post('/', roleCheck('owner', 'branch_manager'), validatePaymentCreate, async (req, res) => {
     try {
         const paymentData = {
             ...req.body,

@@ -6,27 +6,11 @@ const ExpenseCategory = require('../models/ExpenseCategory');
 const Payment = require('../models/Payment');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
+const { validate, validateExpenseCreate, validateExpenseUpdate } = require('../middleware/validate');
 
 // Protect all expense routes (owner and branch manager)
 router.use(protect);
 router.use(roleCheck('owner', 'branch_manager'));
-
-function validate(validations) {
-  return async (req, res, next) => {
-    for (const validation of validations) {
-      await validation.run(req);
-    }
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array(),
-        message: errors.array()[0]?.msg || 'Validation failed'
-      });
-    }
-    next();
-  };
-}
 
 /**
  * @route   GET /api/expenses/stats
@@ -375,11 +359,7 @@ router.get('/', async (req, res) => {
  */
 router.post(
   '/',
-  validate([
-    body('title').trim().notEmpty().withMessage('Expense title is required'),
-    body('amount').isNumeric().withMessage('Valid amount is required'),
-    body('category').notEmpty().withMessage('Category is required')
-  ]),
+  validateExpenseCreate,
   async (req, res) => {
     try {
       const { title, category, description, amount, date, paymentMethod, vendor, receiptUrl, receiptImage, isRecurring, recurringFrequency } = req.body;
@@ -419,10 +399,7 @@ router.post(
  */
 router.put(
   '/:id',
-  validate([
-    body('title').optional().trim().notEmpty().withMessage('Expense title cannot be empty'),
-    body('amount').optional().isNumeric().withMessage('Valid amount is required')
-  ]),
+  validateExpenseUpdate,
   async (req, res) => {
     try {
       const expense = await Expense.findByIdAndUpdate(

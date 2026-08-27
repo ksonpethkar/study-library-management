@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Plan = require('../models/Plan');
 const { protect } = require('../middleware/auth');
-const { body, validationResult } = require('express-validator');
+const { validate, validatePlanCreate, validatePlanUpdate } = require('../middleware/validate');
 const memoryCache = require('../utils/memoryCache');
 
 const roleCheck = (...roles) => {
@@ -17,23 +17,6 @@ const roleCheck = (...roles) => {
     return res.status(403).json({ success: false, message: 'Not authorized for this role' });
   };
 };
-
-function validate(validations) {
-  return async (req, res, next) => {
-    for (const validation of validations) {
-      await validation.run(req);
-    }
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        success: false, 
-        errors: errors.array(), 
-        message: errors.array()[0]?.msg || 'Validation failed' 
-      });
-    }
-    next();
-  };
-}
 
 // GET / — List active plans (Public for registration & landing page)
 router.get('/', async (req, res) => {
@@ -104,13 +87,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-const createValidations = [
-  body('name').notEmpty().withMessage('Name is required').trim(),
-  body('duration').isNumeric().withMessage('Duration is required and must be a number'),
-  body('price').isNumeric().withMessage('Price is required and must be a number')
-];
-
-router.post('/', roleCheck('owner', 'branch_manager'), validate(createValidations), async (req, res) => {
+router.post('/', roleCheck('owner', 'branch_manager'), validatePlanCreate, async (req, res) => {
   try {
     if (typeof req.body.features === 'string') {
       req.body.features = req.body.features.split(',').map(f => f.trim()).filter(f => f);
@@ -146,7 +123,7 @@ router.put('/reorder', roleCheck('owner', 'branch_manager'), async (req, res) =>
   }
 });
 
-router.put('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.put('/:id', roleCheck('owner', 'branch_manager'), validatePlanUpdate, async (req, res) => {
   try {
     if (typeof req.body.features === 'string') {
       req.body.features = req.body.features.split(',').map(f => f.trim()).filter(f => f);

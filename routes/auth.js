@@ -5,7 +5,7 @@ const User = require('../models/User');
 const BusinessProfile = require('../models/BusinessProfile');
 const SystemSetting = require('../models/SystemSetting');
 const { protect } = require('../middleware/auth');
-const { validateSetup, validateRegistration, validateLogin, validatePasswordChange } = require('../middleware/validate');
+const { validateSetup, validateRegistration, validateLogin, validatePasswordChange, validatePublicRegister } = require('../middleware/validate');
 const { authLimiter } = require('../middleware/rateLimiter');
 const CustomField = require('../models/CustomField');
 const { Referral } = require('../models/Operations');
@@ -311,7 +311,7 @@ router.get('/check-duplicate', async (req, res) => {
 
 // @route   POST /api/auth/public-register
 // @desc    Public online admission registration for prospective students
-router.post('/public-register', authLimiter, async (req, res) => {
+router.post('/public-register', authLimiter, validatePublicRegister, async (req, res) => {
   try {
     const {
       name,
