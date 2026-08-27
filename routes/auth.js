@@ -596,15 +596,19 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
 
     // Create payment record if plan is chosen
     if (selectedPlanDoc) {
-      const planPrice = Math.round(selectedPlanDoc.effectivePrice || selectedPlanDoc.price || 0);
-      const finalAmount = Math.max(0, planPrice - referralDiscount);
+      const origPlanPrice = Number(selectedPlanDoc.price) || 0;
+      const planDiscountPct = Number(selectedPlanDoc.discount) || 0;
+      const planDiscountAmount = Math.round(origPlanPrice * (planDiscountPct / 100));
+      const effectivePlanPrice = Math.round(selectedPlanDoc.effectivePrice !== undefined ? selectedPlanDoc.effectivePrice : (origPlanPrice - planDiscountAmount));
+      const totalDiscount = planDiscountAmount + referralDiscount;
+      const finalAmount = Math.max(0, effectivePlanPrice - referralDiscount);
 
       if (isOnlinePayment) {
         await Payment.create({
           student: newStudent._id,
           plan: selectedPlanDoc._id,
-          amount: planPrice,
-          discount: referralDiscount,
+          amount: origPlanPrice,
+          discount: totalDiscount,
           finalAmount,
           paymentMethod: paymentMethod || 'upi',
           transactionId: transactionId || `TXN-${Date.now()}`,
@@ -617,8 +621,8 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
         await Payment.create({
           student: newStudent._id,
           plan: selectedPlanDoc._id,
-          amount: planPrice,
-          discount: referralDiscount,
+          amount: origPlanPrice,
+          discount: totalDiscount,
           finalAmount,
           balanceDue: finalAmount,
           paymentMethod: 'cash',

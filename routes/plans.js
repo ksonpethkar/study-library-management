@@ -32,10 +32,17 @@ router.get('/', async (req, res) => {
     ]);
     
     const countsMap = new Map(counts.map(c => [String(c._id), c.count]));
-    const enriched = plans.map(p => ({
-      ...p,
-      activeMembersCount: countsMap.get(String(p._id)) || 0
-    }));
+    const enriched = plans.map(p => {
+      const discount = Number(p.discount) || 0;
+      const originalPrice = Number(p.price) || 0;
+      const effectivePrice = Math.round(originalPrice * (1 - discount / 100));
+      return {
+        ...p,
+        discount,
+        effectivePrice,
+        activeMembersCount: countsMap.get(String(p._id)) || 0
+      };
+    });
 
     res.json({ success: true, data: enriched, message: 'Active plans retrieved successfully' });
   } catch (error) {
@@ -64,10 +71,17 @@ router.get('/all', async (req, res) => {
     ]);
 
     const countsMap = new Map(counts.map(c => [String(c._id), c.count]));
-    const enriched = plans.map(p => ({
-      ...p,
-      activeMembersCount: countsMap.get(String(p._id)) || 0
-    }));
+    const enriched = plans.map(p => {
+      const discount = Number(p.discount) || 0;
+      const originalPrice = Number(p.price) || 0;
+      const effectivePrice = Math.round(originalPrice * (1 - discount / 100));
+      return {
+        ...p,
+        discount,
+        effectivePrice,
+        activeMembersCount: countsMap.get(String(p._id)) || 0
+      };
+    });
 
     res.json({ success: true, data: enriched, message: 'All plans retrieved successfully' });
   } catch (error) {
@@ -81,6 +95,9 @@ router.get('/:id', async (req, res) => {
     if (!plan) {
       return res.status(404).json({ success: false, message: 'Plan not found' });
     }
+    const discount = Number(plan.discount) || 0;
+    const originalPrice = Number(plan.price) || 0;
+    plan.effectivePrice = Math.round(originalPrice * (1 - discount / 100));
     res.json({ success: true, data: plan, message: 'Plan retrieved successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

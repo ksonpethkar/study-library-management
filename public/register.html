@@ -825,6 +825,8 @@
       if (!selectedPlanData) {
         const planP = document.getElementById('calc-plan-price');
         if (planP) planP.textContent = '₹0';
+        const pDiscRow = document.getElementById('calc-plan-discount-row');
+        if (pDiscRow) pDiscRow.style.display = 'none';
         const dur = document.getElementById('calc-duration');
         if (dur) dur.textContent = '-';
         const tot = document.getElementById('calc-total');
@@ -833,17 +835,23 @@
         if (sRow) sRow.style.display = 'none';
         const lRow = document.getElementById('calc-locker-row');
         if (lRow) lRow.style.display = 'none';
+        const cRow = document.getElementById('calc-coupon-row');
+        if (cRow) cRow.style.display = 'none';
         return;
       }
 
-      const basePrice = Math.round(selectedPlanData.effectivePrice || selectedPlanData.price || 0);
+      const origPrice = Number(selectedPlanData.price) || 0;
+      const discountPct = Number(selectedPlanData.discount) || 0;
+      const planDiscountAmount = Math.round(origPrice * (discountPct / 100));
+      const effectivePrice = Math.round(selectedPlanData.effectivePrice !== undefined ? selectedPlanData.effectivePrice : (origPrice - planDiscountAmount));
+
       const multiplier = selectedShiftData?.priceMultiplier ? Number(selectedShiftData.priceMultiplier) : 1.0;
       const shiftRow = document.getElementById('calc-shift-row');
       const shiftRateEl = document.getElementById('calc-shift-rate');
 
       if (multiplier !== 1.0 && shiftRow && shiftRateEl) {
         shiftRow.style.display = 'flex';
-        shiftRateEl.textContent = `${multiplier}x (₹${Math.round(basePrice * multiplier)})`;
+        shiftRateEl.textContent = `${multiplier}x (₹${Math.round(effectivePrice * multiplier)})`;
       } else if (shiftRow) {
         shiftRow.style.display = 'none';
       }
@@ -860,18 +868,42 @@
         lockerFeeEl.textContent = `+₹${lockerFee}${depositNote}`;
       }
 
-      const priceWithShift = Math.round(basePrice * multiplier);
+      const priceWithShift = Math.round(effectivePrice * multiplier);
       const grossAmount = priceWithShift + lockerFee;
       const payable = Math.max(0, grossAmount - discountAmount);
 
       const planP = document.getElementById('calc-plan-price');
-      if (planP) planP.textContent = `₹${basePrice}`;
+      if (planP) planP.textContent = `₹${origPrice.toLocaleString('en-IN')}`;
+
+      const pDiscRow = document.getElementById('calc-plan-discount-row');
+      const pDiscLabel = document.getElementById('calc-plan-discount-label');
+      const pDisc = document.getElementById('calc-plan-discount');
+      if (pDiscRow && pDisc) {
+        if (discountPct > 0 && planDiscountAmount > 0) {
+          pDiscRow.style.display = 'flex';
+          if (pDiscLabel) pDiscLabel.textContent = `Plan Discount (${discountPct}% OFF)`;
+          pDisc.textContent = `-₹${planDiscountAmount.toLocaleString('en-IN')}`;
+        } else {
+          pDiscRow.style.display = 'none';
+        }
+      }
+
       const dur = document.getElementById('calc-duration');
       if (dur) dur.textContent = `${selectedPlanData.duration} ${selectedPlanData.durationType || 'days'}`;
+
+      const cRow = document.getElementById('calc-coupon-row');
       const disc = document.getElementById('calc-discount');
-      if (disc) disc.textContent = `-₹${discountAmount}`;
+      if (cRow && disc) {
+        if (discountAmount > 0) {
+          cRow.style.display = 'flex';
+          disc.textContent = `-₹${discountAmount.toLocaleString('en-IN')}`;
+        } else {
+          cRow.style.display = 'none';
+        }
+      }
+
       const tot = document.getElementById('calc-total');
-      if (tot) tot.textContent = `₹${payable}`;
+      if (tot) tot.textContent = `₹${payable.toLocaleString('en-IN')}`;
 
       // Update Dynamic UPI QR
       const qrMount = document.getElementById('admission-upi-qr-mount');
@@ -1594,6 +1626,10 @@
                 <span>Base Plan Price</span>
                 <span id="calc-plan-price" style="font-weight: 600;">₹0</span>
               </div>
+              <div class="calc-row" id="calc-plan-discount-row" style="display: none; color: var(--color-success);">
+                <span id="calc-plan-discount-label">Plan Discount</span>
+                <span id="calc-plan-discount" style="font-weight: 700;">-₹0</span>
+              </div>
               <div class="calc-row">
                 <span>Plan Duration</span>
                 <span id="calc-duration" style="font-weight: 600;">-</span>
@@ -1606,7 +1642,7 @@
                 <span>Locker Rental Fee</span>
                 <span id="calc-locker-fee" style="font-weight: 600;">+₹0</span>
               </div>
-              <div class="calc-row" style="color: var(--color-success);">
+              <div class="calc-row" id="calc-coupon-row" style="color: var(--color-success); display: none;">
                 <span>Referral / Coupon Discount</span>
                 <span id="calc-discount" style="font-weight: 700;">-₹0</span>
               </div>
@@ -2894,8 +2930,15 @@
 
           plans.forEach((p, pIdx) => {
             const planId = p._id || p.id;
+            const origPrice = Number(p.price) || 0;
+            const discountPct = Number(p.discount) || 0;
+            const planDiscountAmt = Math.round(origPrice * (discountPct / 100));
+            const effectivePrice = Math.round(p.effectivePrice !== undefined ? p.effectivePrice : (origPrice - planDiscountAmt));
+            p.effectivePrice = effectivePrice;
+            p.price = origPrice;
+            p.discount = discountPct;
             plansMap[planId] = p;
-            const price = Math.round(p.effectivePrice || p.price || 0);
+
             const duration = `${p.duration || 30} ${p.durationType || 'days'}`;
             const shiftStr = p.shift ? p.shift.toUpperCase() : 'ANY SHIFT';
             const isFull = Boolean(p.isFull);
@@ -2905,7 +2948,7 @@
             if (planSelect) {
               const opt = document.createElement('option');
               opt.value = planId;
-              opt.textContent = `${p.name} — ₹${price.toLocaleString('en-IN')}/${duration} (${shiftStr})${fullTag}`;
+              opt.textContent = `${p.name} — ₹${effectivePrice.toLocaleString('en-IN')}/${duration} (${shiftStr})${fullTag}`;
               if (isFull) opt.style.color = '#ef4444';
               planSelect.appendChild(opt);
             }
@@ -2925,7 +2968,7 @@
                 <div>
                   <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
                     <div style="font-weight: 800; font-size: 1.05rem; color: var(--color-text-primary);">${escapeHTML(p.name)}</div>
-                    ${p.discount ? `<span class="badge" style="background: var(--color-success); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 12px;">${p.discount}% OFF</span>` : ''}
+                    ${discountPct > 0 ? `<span class="badge" style="background: var(--color-success); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 12px;">${discountPct}% OFF</span>` : ''}
                   </div>
                   <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: 10px;">
                     ⏰ ${escapeHTML(shiftStr)} • 🗓️ ${duration}
@@ -2936,7 +2979,8 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px dashed var(--color-border); padding-top: 10px; margin-top: 6px;">
                   <div>
-                    <span style="font-size: 1.35rem; font-weight: 800; color: var(--color-primary);">₹${price.toLocaleString('en-IN')}</span>
+                    <span style="font-size: 1.35rem; font-weight: 800; color: var(--color-primary);">₹${effectivePrice.toLocaleString('en-IN')}</span>
+                    ${discountPct > 0 ? `<span style="text-decoration: line-through; color: var(--color-text-muted); font-size: 0.88rem; margin-left: 6px;">₹${origPrice.toLocaleString('en-IN')}</span>` : ''}
                     <span style="font-size: 0.78rem; color: var(--color-text-muted);"> / ${duration}</span>
                   </div>
                   <button type="button" class="btn btn-sm ${pIdx === 0 ? 'btn-primary' : 'btn-outline-primary'}" style="font-weight: 700; font-size: 0.8rem; padding: 4px 12px;">
