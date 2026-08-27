@@ -179,10 +179,16 @@ router.get('/', async (req, res) => {
       branchObj.configuredSeats = configuredSeats;
       branchObj.occupiedSeats = occupiedSeats;
       branchObj.activeStudents = activeStudents;
-      branchObj.effectiveCapacity = b.totalSeats || configuredSeats || 50;
+      branchObj.totalSeats = configuredSeats > 0 ? configuredSeats : (b.totalSeats || 50);
+      branchObj.effectiveCapacity = branchObj.totalSeats;
       branchObj.occupancyPercent = branchObj.effectiveCapacity > 0 
         ? Math.min(100, Math.round(((occupiedSeats || activeStudents) / branchObj.effectiveCapacity) * 100))
         : 0;
+
+      // Asynchronously sync branch totalSeats in DB if configured seats exist
+      if (configuredSeats > 0 && b.totalSeats !== configuredSeats) {
+        Branch.findByIdAndUpdate(b._id, { totalSeats: configuredSeats }).catch(() => {});
+      }
 
       return branchObj;
     }));

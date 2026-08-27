@@ -139,9 +139,22 @@ router.post('/', roleCheck('owner', 'branch_manager'), validateSeatCreate, async
     const { seatNumber, zone, floor, type, status, monthlyRate, amenities, branch } = req.body;
     
     const branchId = branch && branch !== 'none' && branch !== 'all' ? branch : null;
-    const existing = await Seat.findOne({ seatNumber: seatNumber.trim(), branch: branchId }).lean();
+    const existing = await Seat.findOne({ seatNumber: seatNumber.trim(), branch: branchId });
     if (existing) {
-      return res.status(400).json({ success: false, message: `Seat number '${seatNumber}' already exists for this branch` });
+      if (!existing.isDeleted) {
+        return res.status(400).json({ success: false, message: `Seat number '${seatNumber}' already exists for this branch` });
+      }
+      // Un-delete and update existing soft-deleted seat
+      existing.isDeleted = false;
+      existing.isActive = true;
+      existing.zone = zone.trim();
+      existing.floor = floor ? floor.trim() : '';
+      existing.type = type || 'regular';
+      existing.status = status || 'available';
+      existing.monthlyRate = monthlyRate ? parseFloat(monthlyRate) : 0;
+      existing.amenities = Array.isArray(amenities) ? amenities : (amenities ? amenities.split(',').map(a => a.trim()).filter(Boolean) : []);
+      await existing.save();
+      return res.status(200).json({ success: true, data: existing, message: `Seat ${existing.seatNumber} restored and created successfully` });
     }
 
     const seat = await Seat.create({
@@ -152,7 +165,7 @@ router.post('/', roleCheck('owner', 'branch_manager'), validateSeatCreate, async
       status: status || 'available',
       monthlyRate: monthlyRate ? parseFloat(monthlyRate) : 0,
       amenities: Array.isArray(amenities) ? amenities : (amenities ? amenities.split(',').map(a => a.trim()).filter(Boolean) : []),
-      branch: branch || null
+      branch: branchId
     });
     
     res.status(201).json({ success: true, data: seat, message: `Seat ${seat.seatNumber} created successfully` });

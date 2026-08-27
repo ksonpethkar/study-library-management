@@ -349,7 +349,7 @@ export class FormBuilder {
           </div>
 
           <div class="fb-sec-body" style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
-            ${sec.isSystem && secFields.length === 0 ? this.renderSystemComponentCard(sec) : ''}
+            ${(sec.isSystem || ['plan', 'plans', 'payment', 'payments', 'seat', 'seats', 'branch'].includes(sec.name) || (sec.label && (sec.label.toLowerCase().includes('seat') || sec.label.toLowerCase().includes('payment') || sec.label.toLowerCase().includes('plan')))) ? this.renderSystemComponentCard(sec) : ''}
 
             <div class="fb-sec-fields-container" data-section="${sec.name}" style="display: flex; flex-direction: column; gap: 8px; min-height: 28px;">
               ${secFields.map((field, fIdx) => this.renderFieldCard(field, fIdx, secFields.length)).join('')}
@@ -546,7 +546,10 @@ export class FormBuilder {
   }
 
   static renderSystemComponentCard(sec) {
-    if (sec.name === 'plan') {
+    const secName = (sec?.name || '').toLowerCase();
+    const secLabel = (sec?.label || '').toLowerCase();
+
+    if (secName === 'plan' || secName === 'plans' || secLabel.includes('plan')) {
       const planCards = (this.plans && this.plans.length > 0)
         ? this.plans.map(p => `
             <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
@@ -639,7 +642,7 @@ export class FormBuilder {
       `;
     }
 
-    if (sec.name === 'payment') {
+    if (secName === 'payment' || secName === 'payments' || secLabel.includes('payment') || secName === 'step_6') {
       const s = this.template?.settings || {};
       const showUpi = s.showUpiPayment !== false;
       const showDesk = s.showDeskPayment !== false;
@@ -752,7 +755,7 @@ export class FormBuilder {
       `;
     }
 
-    if (sec.name === 'seat') {
+    if (secName === 'seat' || secName === 'seats' || secName === 'branch' || secName === 'step_7' || secLabel.includes('seat') || secLabel.includes('signature') || secLabel.includes('branch')) {
       const s = this.template?.settings || {};
       const showSeat = s.showSeatSelection !== false;
       const showSig = s.showDigitalSignature !== false;

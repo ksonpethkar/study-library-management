@@ -14,19 +14,24 @@ router.get('/', async (req, res) => {
   try {
     await Shift.seedDefaults();
 
-    let query = {};
+    let query = { isDeleted: { $ne: true } };
     if (req.query.active === 'true' || req.query.active === '1') {
       query.isActive = true;
     } else if (req.query.active === 'false' || req.query.active === '0') {
       query.isActive = false;
     }
-    // If active query parameter is not provided or is 'all', return all shifts
+    // If active query parameter is not provided or is 'all', return all non-deleted shifts
     if (req.query.search) {
       const searchRegex = new RegExp(req.query.search, 'i');
-      query.$or = [
-        { name: searchRegex },
-        { code: searchRegex },
-        { description: searchRegex }
+      query.$and = [
+        { isDeleted: { $ne: true } },
+        {
+          $or: [
+            { name: searchRegex },
+            { code: searchRegex },
+            { description: searchRegex }
+          ]
+        }
       ];
     }
 
@@ -77,9 +82,9 @@ router.get('/stats', async (req, res) => {
     await Shift.seedDefaults();
 
     const [total, active, shifts] = await Promise.all([
-      Shift.countDocuments(),
-      Shift.countDocuments({ isActive: true }),
-      Shift.find().sort({ startTime: 1, name: 1 }).lean()
+      Shift.countDocuments({ isDeleted: { $ne: true } }),
+      Shift.countDocuments({ isActive: true, isDeleted: { $ne: true } }),
+      Shift.find({ isDeleted: { $ne: true } }).sort({ startTime: 1, name: 1 }).lean()
     ]);
 
     const fullDay = shifts.filter(s =>
@@ -89,7 +94,7 @@ router.get('/stats', async (req, res) => {
     ).length;
 
     // Aggregate student counts across shifts
-    const activeStudents = await Student.find({ status: 'active' }).populate('plan', 'shift name').lean();
+    const activeStudents = await Student.find({ status: 'active', isDeleted: { $ne: true } }).populate('plan', 'shift name').lean();
     const studentEnrollment = {};
     shifts.forEach(shift => {
       studentEnrollment[shift.code] = 0;
@@ -135,35 +140,6 @@ router.get('/stats', async (req, res) => {
         shiftStats
       },
       message: 'Shift statistics retrieved successfully'
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// GET / — List all shifts (supports ?active=true/false)
-router.get('/', async (req, res) => {
-  try {
-    await Shift.seedDefaults();
-
-    let query = {};
-    if (req.query.active !== undefined && req.query.active !== '') {
-      query.isActive = req.query.active === 'true' || req.query.active === '1';
-    }
-    if (req.query.search) {
-      const searchRegex = new RegExp(req.query.search, 'i');
-      query.$or = [
-        { name: searchRegex },
-        { code: searchRegex },
-        { description: searchRegex }
-      ];
-    }
-
-    const shifts = await Shift.find(query).sort({ startTime: 1, name: 1 }).lean();
-    res.json({
-      success: true,
-      data: shifts,
-      message: 'Shifts retrieved successfully'
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -252,7 +228,14 @@ router.put('/:id', roleCheck('owner', 'branch_manager'), updateShiftValidations,
     if (req.body.priceMultiplier !== undefined) shift.priceMultiplier = Number(req.body.priceMultiplier);
     if (req.body.daysActive !== undefined) shift.daysActive = req.body.daysActive;
     if (req.body.description !== undefined) shift.description = req.body.description.trim();
-    if (req.body.isActive !== undefined) shift.isActive = Boolean(req.body.isActive);
+    if (req.body.isActive !== undefined) {
+      shift.isActive = Boolean(req.body.isActive);
+      if (shift.isActive) {
+        shift.isDeleted = false;
+        shift.deletedAt = null;
+        shift.deletedBy = null;
+      }
+    }
 
     await shift.save();
 
@@ -266,29 +249,64 @@ router.put('/:id', roleCheck('owner', 'branch_manager'), updateShiftValidations,
   }
 });
 
-// DELETE /:id — Soft delete shift to Recycle Bin
+// DELETE /:id — Soft delete shift to Recycle Bin or permanent delete
 router.delete('/:id', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const { moveToTrash } = require('./trash');
     const shift = await Shift.findById(req.params.id);
     if (!shift) {
       return res.status(404).json({ success: false, message: 'Shift not found' });
     }
 
+    const isPermanent = req.query.permanent === 'true' || req.body?.permanent === true;
+
+    // Check if active students are assigned to this shift
+    const studentCount = await Student.countDocuments({
+      status: 'active',
+      isDeleted: { $ne: true },
+      $or: [
+        { shift: shift._id },
+        { 'plan.shift': { $regex: new RegExp(shift.code, 'i') } }
+      ]
+    });
+
+    if (isPermanent) {
+      if (studentCount > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot permanently delete "${shift.name}" because ${studentCount} active student(s) are assigned to it.`
+        });
+      }
+      await Shift.findByIdAndDelete(shift._id);
+      return res.json({
+        success: true,
+        message: `Shift "${shift.name}" permanently deleted.`
+      });
+    }
+
+    // Soft delete to Trash
     shift.isActive = false;
     shift.isDeleted = true;
+    shift.deletedAt = new Date();
+    shift.deletedBy = req.user?._id;
     await shift.save();
 
-    await moveToTrash({
-      itemType: 'shift',
-      itemId: shift._id,
-      itemTitle: `${shift.name} (${shift.startTime || ''} - ${shift.endTime || ''})`,
-      itemSubtitle: `Capacity: ${shift.maxCapacity || 'Unlimited'} • Multiplier: ${shift.priceMultiplier || 1.0}x`,
-      originalCollection: 'shifts',
-      itemData: shift.toObject ? shift.toObject() : shift,
-      user: req.user,
-      reason: req.body?.reason || ''
-    });
+    try {
+      const { moveToTrash } = require('./trash');
+      if (typeof moveToTrash === 'function') {
+        await moveToTrash({
+          itemType: 'shift',
+          itemId: shift._id,
+          itemTitle: `${shift.name} (${shift.startTime || ''} - ${shift.endTime || ''})`,
+          itemSubtitle: `Capacity: ${shift.maxCapacity || 'Unlimited'} • Multiplier: ${shift.priceMultiplier || 1.0}x`,
+          originalCollection: 'shifts',
+          itemData: shift.toObject ? shift.toObject() : shift,
+          user: req.user,
+          reason: req.body?.reason || ''
+        });
+      }
+    } catch (trashErr) {
+      console.warn('Could not record shift in trash:', trashErr.message);
+    }
 
     res.json({
       success: true,

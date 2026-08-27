@@ -1,6 +1,6 @@
 import api from '../api.js';
 import { t } from '../i18n.js';
-import { Modal, Confirm, Toast, Loading, escapeHTML } from '../ui.js';
+import { Modal, Confirm, Toast, Loading, ActionMenu, escapeHTML } from '../ui.js';
 
 let shifts = [];
 let stats = {
@@ -244,28 +244,61 @@ async function initShiftsPage(container) {
     });
   });
 
-  // Delegate grid actions (edit, delete, toggle status)
+  // Delegate grid actions (edit, delete, clone, toggle status, ActionMenu)
   const grid = container.querySelector('#shifts-grid');
   if (grid) {
     grid.addEventListener('click', (e) => {
+      // 1. ActionMenu item click
+      const actionMenuItem = e.target.closest('.action-menu-item');
+      if (actionMenuItem) {
+        e.preventDefault();
+        e.stopPropagation();
+        const action = actionMenuItem.dataset.action;
+        const id = actionMenuItem.dataset.id;
+        const shift = shifts.find(s => String(s._id || s.id) === String(id));
+        if (action === 'edit') {
+          if (shift) openShiftModal(shift);
+        } else if (action === 'clone') {
+          if (shift) cloneShift(shift);
+        } else if (action === 'delete') {
+          deleteShift(id);
+        } else if (action === 'delete-permanent') {
+          permanentDeleteShift(id);
+        } else if (action === 'toggle-active') {
+          if (shift) toggleShiftStatus(id, !shift.isActive);
+        } else if (action === 'seats') {
+          window.location.hash = '#/seats';
+        }
+        return;
+      }
+
+      // 2. Direct Clone button
       const cloneBtn = e.target.closest('.btn-clone-shift');
       if (cloneBtn) {
+        e.preventDefault();
+        e.stopPropagation();
         const id = cloneBtn.dataset.id;
-        const shift = shifts.find(s => s._id === id);
+        const shift = shifts.find(s => String(s._id || s.id) === String(id));
         if (shift) cloneShift(shift);
         return;
       }
 
+      // 3. Direct Edit button
       const editBtn = e.target.closest('.btn-edit-shift');
       if (editBtn) {
+        e.preventDefault();
+        e.stopPropagation();
         const id = editBtn.dataset.id;
-        const shift = shifts.find(s => s._id === id);
+        const shift = shifts.find(s => String(s._id || s.id) === String(id));
         if (shift) openShiftModal(shift);
         return;
       }
 
+      // 4. Direct Delete button
       const deleteBtn = e.target.closest('.btn-delete-shift');
       if (deleteBtn) {
+        e.preventDefault();
+        e.stopPropagation();
         const id = deleteBtn.dataset.id;
         deleteShift(id);
         return;
@@ -290,7 +323,7 @@ async function initShiftsPage(container) {
  */
 async function loadShiftsAndStats() {
   const grid = document.getElementById('shifts-grid');
-  if (grid) {
+  if (grid && (!shifts || shifts.length === 0)) {
     grid.innerHTML = `
       <div style="grid-column: 1 / -1; padding: 3rem; text-align: center; color: var(--color-text-secondary);">
         <div class="loading-spinner" style="margin: 0 auto 1rem auto;"></div>
@@ -492,7 +525,7 @@ function renderShiftsGrid() {
         </div>
 
         <!-- Footer Actions -->
-        <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--color-divider); display: flex; justify-content: space-between; align-items: center;">
+        <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--color-divider); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
           <!-- Active Toggle -->
           <div style="display: flex; align-items: center; gap: 8px;">
             <input type="checkbox" class="form-toggle shift-active-toggle" id="toggle-${shift._id}" data-id="${shift._id}" ${shift.isActive ? 'checked' : ''} style="cursor: pointer;">
@@ -502,26 +535,29 @@ function renderShiftsGrid() {
           </div>
 
           <!-- Action Buttons -->
-          <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
             <a href="#/seats" class="btn btn-sm btn-outline-info" style="padding: 4px 8px; font-weight: 600; font-size: 0.78rem; text-decoration: none;" title="Filter Seats Matrix by this shift">
-              💺 View Seats
+              💺 Seats
             </a>
-            <button type="button" class="btn btn-sm btn-outline btn-clone-shift" data-id="${shift._id}" title="Clone Shift Configuration" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 600;">
+            <button type="button" class="btn btn-sm btn-outline-secondary btn-clone-shift" data-id="${shift._id}" title="Clone Shift Configuration" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 600;">
               📋 Clone
             </button>
-            <button type="button" class="btn btn-sm btn-outline btn-edit-shift" data-id="${shift._id}" title="Edit Shift" style="padding: 4px 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 0.78rem; font-weight: 600;">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-              </svg>
-              <span>Edit</span>
+            <button type="button" class="btn btn-sm btn-outline-primary btn-edit-shift" data-id="${shift._id}" title="Edit Shift Details" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 600;">
+              ✏️ Edit
             </button>
-            <button type="button" class="btn btn-sm btn-outline btn-delete-shift" data-id="${shift._id}" title="Deactivate Shift" style="padding: 4px 6px; color: var(--color-danger); border-color: rgba(214, 48, 49, 0.3);">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-              </svg>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-shift" data-id="${shift._id}" title="Delete Shift" style="padding: 4px 8px; font-weight: 600; font-size: 0.78rem;">
+              🗑️ Delete
             </button>
+            ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
+              { header: 'Shift Options' },
+              { icon: '✏️', label: 'Edit Shift Details', action: 'edit', bold: true },
+              { icon: '📋', label: 'Clone Shift Configuration', action: 'clone' },
+              { icon: '💺', label: 'View Shift Seats Grid', action: 'seats' },
+              { icon: shift.isActive ? '⏸️' : '▶️', label: shift.isActive ? 'Deactivate Shift' : 'Activate Shift', action: 'toggle-active' },
+              { divider: true },
+              { icon: '🗑️', label: 'Delete Shift (Move to Trash)', action: 'delete', danger: true },
+              { icon: '⚡', label: 'Permanently Erase Shift', action: 'delete-permanent', danger: true }
+            ], shift._id) : ''}
           </div>
         </div>
       </div>
@@ -536,7 +572,7 @@ function cloneShift(shift) {
     ...shift,
     _id: null,
     name: `${shift.name} (Copy)`,
-    code: `${shift.code}_COPY`
+    code: `${shift.code}_CPY`.slice(0, 10)
   };
   openShiftModal(cloned);
 }
@@ -770,29 +806,62 @@ async function toggleShiftStatus(id, isActive) {
 }
 
 /**
- * Soft delete / Deactivate a shift with confirmation
+ * Delete a shift with confirmation (moves to Recycle Bin)
  */
 async function deleteShift(id) {
-  const shift = shifts.find(s => s._id === id);
+  const shift = shifts.find(s => String(s._id || s.id) === String(id));
   const shiftName = shift ? shift.name : 'this shift';
 
   Confirm.show({
-    title: t('Deactivate Shift'),
-    message: `Are you sure you want to deactivate "${escapeHTML(shiftName)}"? Existing students on this shift will not be lost, but the shift will be disabled for new assignments.`,
-    confirmText: 'Deactivate',
+    title: t('Delete Shift'),
+    message: `Are you sure you want to delete "${escapeHTML(shiftName)}"? It will be moved to the Recycle Bin (Trash) and removed from shift selection.`,
+    confirmText: 'Delete Shift',
     cancelText: 'Cancel',
     danger: true,
     onConfirm: async () => {
       try {
         const res = await api.delete(`/api/shifts/${id}`);
-        if (res.success) {
-          Toast.success(res.message || 'Shift deactivated successfully');
+        if (res && res.success !== false) {
+          Toast.success(res.message || `Shift "${shiftName}" deleted successfully`);
+          shifts = shifts.filter(s => String(s._id || s.id) !== String(id));
+          renderShiftsGrid();
           await loadShiftsAndStats();
         } else {
-          Toast.error(res.message || 'Failed to deactivate shift');
+          Toast.error(res?.message || 'Failed to delete shift');
         }
       } catch (error) {
-        Toast.error(error.message || 'Failed to deactivate shift');
+        Toast.error(error.message || 'Failed to delete shift');
+      }
+    }
+  });
+}
+
+/**
+ * Permanently Erase Shift from MongoDB
+ */
+async function permanentDeleteShift(id) {
+  const shift = shifts.find(s => String(s._id || s.id) === String(id));
+  const shiftName = shift ? shift.name : 'this shift';
+
+  Confirm.show({
+    title: t('Permanently Erase Shift'),
+    message: `⚠️ Warning: This will PERMANENTLY DESTROY "${escapeHTML(shiftName)}" from the database. This action CANNOT be undone! Are you sure?`,
+    confirmText: 'Permanently Erase',
+    cancelText: 'Cancel',
+    danger: true,
+    onConfirm: async () => {
+      try {
+        const res = await api.delete(`/api/shifts/${id}?permanent=true`);
+        if (res && res.success !== false) {
+          Toast.success(res.message || `Shift "${shiftName}" permanently erased`);
+          shifts = shifts.filter(s => String(s._id || s.id) !== String(id));
+          renderShiftsGrid();
+          await loadShiftsAndStats();
+        } else {
+          Toast.error(res?.message || 'Failed to permanently delete shift');
+        }
+      } catch (error) {
+        Toast.error(error.message || 'Failed to permanently delete shift');
       }
     }
   });

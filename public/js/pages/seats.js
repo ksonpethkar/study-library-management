@@ -1159,7 +1159,7 @@ function renderAnalyticsTab(container) {
   }
 
   tbody.innerHTML = branchesList.map((b, idx) => {
-    const capacity = b.totalSeats || b.effectiveCapacity || 50;
+    const capacity = b.configuredSeats > 0 ? b.configuredSeats : (b.totalSeats || b.effectiveCapacity || 59);
     const occupied = b.occupiedSeats || b.activeStudents || 0;
     const available = Math.max(0, capacity - occupied);
     const rate = capacity > 0 ? Math.round((occupied / capacity) * 100) : 0;

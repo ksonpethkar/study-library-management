@@ -44,6 +44,18 @@ const shiftSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  isDeleted: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  deletedAt: {
+    type: Date
+  },
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   branch: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Branch'
@@ -83,8 +95,9 @@ shiftSchema.virtual('durationHours').get(function() {
 });
 
 // Compound Indexes for multi-branch uniqueness and querying
-shiftSchema.index({ branch: 1, code: 1 }, { unique: true });
+shiftSchema.index({ branch: 1, code: 1 }, { unique: true, partialFilterExpression: { isDeleted: { $ne: true } } });
 shiftSchema.index({ branch: 1, isActive: 1 });
+shiftSchema.index({ isDeleted: 1 });
 
 // Static helper to check if two shifts overlap in study timing
 shiftSchema.statics.doShiftsOverlap = function(s1, s2) {
@@ -110,7 +123,7 @@ shiftSchema.statics.doShiftsOverlap = function(s1, s2) {
 };
 
 shiftSchema.statics.getActiveShifts = async function(branch = null) {
-  const query = { isActive: true };
+  const query = { isActive: true, isDeleted: { $ne: true } };
   if (branch) query.branch = branch;
   return this.find(query).sort({ startTime: 1, name: 1 });
 };
