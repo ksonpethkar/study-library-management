@@ -62,20 +62,27 @@ router.get('/', async (req, res) => {
 
 // GET /zones - Get unique zones with seat counts (optional branch filter)
 router.get('/zones', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     const { branch } = req.query;
-    let match = { isDeleted: { $ne: true } };
+    let filter = { isDeleted: { $ne: true } };
     if (branch && branch !== 'all') {
-      if (branch === 'unassigned') match.branch = null;
-      else if (mongoose.Types.ObjectId.isValid(branch)) match.branch = new mongoose.Types.ObjectId(branch);
+      if (branch === 'unassigned') filter.branch = null;
+      else if (mongoose.Types.ObjectId.isValid(branch)) filter.branch = branch;
     }
 
-    const zoneCounts = await Seat.aggregate([
-      { $match: match },
-      { $group: { _id: '$zone', count: { $sum: 1 }, available: { $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] } } } },
-      { $sort: { _id: 1 } }
-    ]);
+    const zones = await Seat.distinct('zone', filter);
+    const validZones = (zones || []).filter(Boolean);
 
+    const zoneCounts = await Promise.all(validZones.map(async (zone) => {
+      const [count, available] = await Promise.all([
+        Seat.countDocuments({ ...filter, zone }),
+        Seat.countDocuments({ ...filter, zone, status: { $in: ['available', 'vacant'] } })
+      ]);
+      return { _id: zone, count, available };
+    }));
+
+    zoneCounts.sort((a, b) => (a._id || '').localeCompare(b._id || ''));
     res.json({ success: true, data: zoneCounts, message: 'Zones retrieved successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -84,34 +91,34 @@ router.get('/zones', async (req, res) => {
 
 // GET /stats - Seat statistics with optional branch filter
 router.get('/stats', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
     const { branch } = req.query;
-    let match = { isDeleted: { $ne: true } };
+    let filter = { isDeleted: { $ne: true } };
     if (branch && branch !== 'all') {
-      if (branch === 'unassigned') match.branch = null;
-      else if (mongoose.Types.ObjectId.isValid(branch)) match.branch = new mongoose.Types.ObjectId(branch);
+      if (branch === 'unassigned') filter.branch = null;
+      else if (mongoose.Types.ObjectId.isValid(branch)) filter.branch = branch;
     }
 
-    const stats = await Seat.aggregate([
-      { $match: match },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: 1 },
-          available: { $sum: { $cond: [{ $eq: ['$status', 'available'] }, 1, 0] } },
-          occupied: { $sum: { $cond: [{ $eq: ['$status', 'occupied'] }, 1, 0] } },
-          reserved: { $sum: { $cond: [{ $eq: ['$status', 'reserved'] }, 1, 0] } },
-          maintenance: { $sum: { $cond: [{ $eq: ['$status', 'maintenance'] }, 1, 0] } }
-        }
-      }
+    const [total, available, occupied, reserved, maintenance] = await Promise.all([
+      Seat.countDocuments(filter),
+      Seat.countDocuments({ ...filter, status: { $in: ['available', 'vacant'] } }),
+      Seat.countDocuments({ ...filter, status: 'occupied' }),
+      Seat.countDocuments({ ...filter, status: 'reserved' }),
+      Seat.countDocuments({ ...filter, status: 'maintenance' })
     ]);
-    
-    if (stats.length === 0) {
-      return res.json({ success: true, data: { total: 0, available: 0, occupied: 0, reserved: 0, maintenance: 0 } });
-    }
-    
-    const { _id, ...result } = stats[0];
-    res.json({ success: true, data: result, message: 'Seat statistics retrieved successfully' });
+
+    res.json({
+      success: true,
+      data: {
+        total,
+        available,
+        occupied,
+        reserved,
+        maintenance
+      },
+      message: 'Seat statistics retrieved successfully'
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

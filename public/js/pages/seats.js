@@ -424,40 +424,26 @@ async function loadInitialHubData(container) {
 }
 
 async function loadStats(container) {
+  const c = container || document.querySelector('.centers-seats-hub-page') || document;
   const branchParam = currentBranch !== 'all' ? `?branch=${currentBranch}` : '';
-  const cacheKey = `stats_${currentBranch}`;
-
-  try {
-    const cachedStats = await IDBStorage.get('seats', cacheKey);
-    if (cachedStats) {
-      if (container.querySelector('#stat-total')) container.querySelector('#stat-total').textContent = cachedStats.total || 0;
-      if (container.querySelector('#stat-available')) container.querySelector('#stat-available').textContent = cachedStats.available || 0;
-      if (container.querySelector('#stat-occupied')) container.querySelector('#stat-occupied').textContent = cachedStats.occupied || 0;
-      if (container.querySelector('#stat-reserved')) container.querySelector('#stat-reserved').textContent = cachedStats.reserved || 0;
-      if (container.querySelector('#stat-maintenance')) container.querySelector('#stat-maintenance').textContent = cachedStats.maintenance || 0;
-    }
-  } catch (e) {
-    console.warn('IDB read seats stats warning:', e);
-  }
 
   try {
     const [res, wlRes] = await Promise.all([
       api.get(`/api/seats/stats${branchParam}`),
-      api.get('/api/waiting-list')
+      api.get('/api/waiting-list').catch(() => ({ data: {} }))
     ]);
 
     if (res.success && res.data) {
       const stats = res.data;
-      await IDBStorage.set('seats', cacheKey, stats);
-      container.querySelector('#stat-total').textContent = stats.total || 0;
-      container.querySelector('#stat-available').textContent = stats.available || 0;
-      container.querySelector('#stat-occupied').textContent = stats.occupied || 0;
-      container.querySelector('#stat-reserved').textContent = stats.reserved || 0;
-      container.querySelector('#stat-maintenance').textContent = stats.maintenance || 0;
+      if (c.querySelector('#stat-total')) c.querySelector('#stat-total').textContent = stats.total ?? 0;
+      if (c.querySelector('#stat-available')) c.querySelector('#stat-available').textContent = stats.available ?? 0;
+      if (c.querySelector('#stat-occupied')) c.querySelector('#stat-occupied').textContent = stats.occupied ?? 0;
+      if (c.querySelector('#stat-reserved')) c.querySelector('#stat-reserved').textContent = stats.reserved ?? 0;
+      if (c.querySelector('#stat-maintenance')) c.querySelector('#stat-maintenance').textContent = stats.maintenance ?? 0;
     }
 
     if (wlRes?.success && wlRes?.data?.counts) {
-      const badge = container.querySelector('#waiting-badge');
+      const badge = c.querySelector('#waiting-badge');
       if (badge) {
         const count = wlRes.data.counts.waiting || 0;
         badge.textContent = count;
@@ -470,10 +456,10 @@ async function loadStats(container) {
 }
 
 async function loadZones(container) {
-  const pillsContainer = container.querySelector('#zone-pills-container');
+  const c = container || document.querySelector('.centers-seats-hub-page') || document;
+  const pillsContainer = c.querySelector('#zone-pills-container');
   if (!pillsContainer) return;
   const branchParam = currentBranch !== 'all' ? `?branch=${currentBranch}` : '';
-  const cacheKey = `zones_${currentBranch}`;
 
   const renderZonesUI = (zones) => {
     let totalCount = zones.reduce((acc, z) => acc + (z.count || 0), 0);
@@ -497,7 +483,7 @@ async function loadZones(container) {
     `;
     pillsContainer.innerHTML = html;
     pillsContainer.querySelector('#btn-quick-manage-zones')?.addEventListener('click', () => {
-      showZoneCustomizerModal(container);
+      showZoneCustomizerModal(c);
     });
     pillsContainer.querySelectorAll('.zone-pill-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -508,25 +494,15 @@ async function loadZones(container) {
         });
         btn.classList.add('btn-primary');
         btn.classList.remove('btn-outline-secondary');
-        loadSeats(container);
+        loadSeats(c);
       });
     });
   };
 
   try {
-    const cachedZones = await IDBStorage.get('seats', cacheKey);
-    if (cachedZones && Array.isArray(cachedZones)) {
-      renderZonesUI(cachedZones);
-    }
-  } catch (e) {
-    console.warn('IDB read zones warning:', e);
-  }
-  
-  try {
     const res = await api.get(`/api/seats/zones${branchParam}`);
     if (res.success && res.data) {
       const zones = res.data;
-      await IDBStorage.set('seats', cacheKey, zones);
       renderZonesUI(zones);
     }
   } catch (error) {
@@ -535,7 +511,8 @@ async function loadZones(container) {
 }
 
 async function loadSeats(container) {
-  const grid = container.querySelector('#seatsGrid');
+  const c = container || document.querySelector('.centers-seats-hub-page') || document;
+  const grid = c.querySelector('#seatsGrid');
   if (!grid) return;
 
   const params = new URLSearchParams();
@@ -543,44 +520,24 @@ async function loadSeats(container) {
   if (currentZone) params.append('zone', currentZone);
   if (currentStatus) params.append('status', currentStatus);
   if (currentSearch) params.append('search', currentSearch);
-  const cacheKey = `list_${params.toString()}`;
 
-  let hasRenderedCache = false;
-  try {
-    const cachedSeats = await IDBStorage.get('seats', cacheKey);
-    if (cachedSeats && Array.isArray(cachedSeats)) {
-      seatsData = cachedSeats;
-      renderSeatsGrid(seatsData, container);
-      hasRenderedCache = true;
-    }
-  } catch (e) {
-    console.warn('IDB read seats list warning:', e);
-  }
-  
-  if (!hasRenderedCache) {
-    Loading.skeleton(grid, 'cards');
-  }
-  
+  Loading.skeleton(grid, 'cards');
+
   try {
     const url = `/api/seats?${params.toString()}`;
     const res = await api.get(url);
     
     if (res.success) {
       seatsData = res.data || [];
-      await IDBStorage.set('seats', cacheKey, seatsData);
-      renderSeatsGrid(seatsData, container);
+      renderSeatsGrid(seatsData, c);
     } else {
-      if (!hasRenderedCache) {
-        Toast.error(res.message);
-        grid.innerHTML = `<div class="empty-state">Error loading seats</div>`;
-      }
+      Toast.error(res.message);
+      grid.innerHTML = `<div class="empty-state">Error loading seats</div>`;
     }
   } catch (error) {
     console.error('Error loading seats:', error);
-    if (!hasRenderedCache) {
-      Toast.error('Failed to load seats');
-      grid.innerHTML = `<div class="empty-state">Failed to load seats</div>`;
-    }
+    Toast.error('Failed to load seats');
+    grid.innerHTML = `<div class="empty-state">Failed to load seats</div>`;
   }
 }
 
