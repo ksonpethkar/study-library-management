@@ -6,17 +6,59 @@ const Notification = require('../models/Notification');
 router.use(protect);
 
 // @route   GET /api/notifications
-// @desc    Get user notifications + unread count
+// @desc    Get user notifications + unread count (Student receives ONLY their own notifications; Admin receives library operational alerts)
 router.get('/', async (req, res) => {
   try {
-    const notifications = await Notification.find({
-      $or: [{ recipient: req.user._id }, { recipient: null }]
-    })
+    const isStudent = req.user.role === 'student';
+    let filter = {};
+
+    if (isStudent) {
+      // Find current student ID
+      let studentId = req.user.student;
+      if (!studentId) {
+        const Student = require('../models/Student');
+        const s = await Student.findOne({ 
+          $or: [
+            { user: req.user._id },
+            ...(req.user.email ? [{ email: req.user.email.toLowerCase() }] : []),
+            ...(req.user.phone ? [{ phone: req.user.phone }] : [])
+          ]
+        }).select('_id').lean();
+        if (s) studentId = s._id;
+      }
+
+      // Students ONLY receive:
+      // 1. Direct user-targeted notifications (recipient == req.user._id)
+      // 2. Direct student-targeted notifications (student == studentId)
+      // 3. General student announcements (targetRole: 'student' or type: 'announcement')
+      // STRICTLY EXCLUDE: targetRole: 'admin', or notifications with student != studentId
+      filter = {
+        targetRole: { $ne: 'admin' },
+        $or: [
+          { recipient: req.user._id },
+          ...(studentId ? [{ student: studentId }] : []),
+          { targetRole: 'student', student: null },
+          { type: { $in: ['notice', 'general', 'announcement'] }, student: null }
+        ]
+      };
+    } else {
+      // Admin / Staff receives all administrative and library activity notifications
+      filter = {
+        $or: [
+          { recipient: req.user._id },
+          { recipient: null },
+          { targetRole: { $in: ['admin', 'all', null] } }
+        ]
+      };
+    }
+
+    const notifications = await Notification.find(filter)
       .sort({ createdAt: -1 })
-      .limit(30);
+      .limit(30)
+      .lean();
 
     const unreadCount = await Notification.countDocuments({
-      $or: [{ recipient: req.user._id }, { recipient: null }],
+      ...filter,
       isRead: false
     });
 
@@ -61,10 +103,44 @@ router.put('/:id/read', async (req, res) => {
 // @desc    Mark all notifications as read
 router.put('/read-all', async (req, res) => {
   try {
-    await Notification.updateMany(
-      { $or: [{ recipient: req.user._id }, { recipient: null }], isRead: false },
-      { isRead: true }
-    );
+    const isStudent = req.user.role === 'student';
+    let filter = {};
+
+    if (isStudent) {
+      let studentId = req.user.student;
+      if (!studentId) {
+        const Student = require('../models/Student');
+        const s = await Student.findOne({ 
+          $or: [
+            { user: req.user._id },
+            ...(req.user.email ? [{ email: req.user.email.toLowerCase() }] : []),
+            ...(req.user.phone ? [{ phone: req.user.phone }] : [])
+          ]
+        }).select('_id').lean();
+        if (s) studentId = s._id;
+      }
+      filter = {
+        targetRole: { $ne: 'admin' },
+        $or: [
+          { recipient: req.user._id },
+          ...(studentId ? [{ student: studentId }] : []),
+          { targetRole: 'student', student: null },
+          { type: { $in: ['notice', 'general', 'announcement'] }, student: null }
+        ],
+        isRead: false
+      };
+    } else {
+      filter = {
+        $or: [
+          { recipient: req.user._id },
+          { recipient: null },
+          { targetRole: { $in: ['admin', 'all', null] } }
+        ],
+        isRead: false
+      };
+    }
+
+    await Notification.updateMany(filter, { isRead: true });
 
     res.json({
       success: true,
@@ -79,10 +155,42 @@ router.put('/read-all', async (req, res) => {
 // @desc    Delete all read notifications for user
 router.delete('/clear-read', async (req, res) => {
   try {
-    await Notification.deleteMany({
-      $or: [{ recipient: req.user._id }, { recipient: null }],
-      isRead: true
-    });
+    const isStudent = req.user.role === 'student';
+    let filter = {};
+
+    if (isStudent) {
+      let studentId = req.user.student;
+      if (!studentId) {
+        const Student = require('../models/Student');
+        const s = await Student.findOne({ 
+          $or: [
+            { user: req.user._id },
+            ...(req.user.email ? [{ email: req.user.email.toLowerCase() }] : []),
+            ...(req.user.phone ? [{ phone: req.user.phone }] : [])
+          ]
+        }).select('_id').lean();
+        if (s) studentId = s._id;
+      }
+      filter = {
+        targetRole: { $ne: 'admin' },
+        $or: [
+          { recipient: req.user._id },
+          ...(studentId ? [{ student: studentId }] : [])
+        ],
+        isRead: true
+      };
+    } else {
+      filter = {
+        $or: [
+          { recipient: req.user._id },
+          { recipient: null },
+          { targetRole: { $in: ['admin', 'all', null] } }
+        ],
+        isRead: true
+      };
+    }
+
+    await Notification.deleteMany(filter);
 
     res.json({
       success: true,

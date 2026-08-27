@@ -126,6 +126,8 @@ async function checkStudentExpiries(options = {}) {
             title: `Seat Released: ${student.name}`,
             message: `${student.name}'s grace period exceeded by ${overdueDays} days. Seat ${student.seat?.seatNumber || ''} has been released. Late fine applied: ₹${fine}.`,
             type: 'expiry',
+            targetRole: 'admin',
+            student: student._id,
             link: `#/students`
           });
         }
@@ -155,6 +157,8 @@ async function checkStudentExpiries(options = {}) {
             title: `Grace Period: ${student.name}`,
             message: `${student.name}'s plan expired on ${exp.toLocaleDateString('en-IN')}. Currently in ${graceDays}-day grace period before seat release.`,
             type: 'expiry',
+            targetRole: 'admin',
+            student: student._id,
             link: `#/payments`
           });
         }
@@ -221,6 +225,8 @@ async function checkStudentExpiries(options = {}) {
               title,
               message: `${student.name}'s ${student.plan?.name || 'study'} plan expires in ${timeLabel} on ${exp.toLocaleDateString('en-IN')}. Automated WhatsApp reminder link prepared.`,
               type: 'expiry',
+              targetRole: 'admin',
+              student: student._id,
               link: `#/payments`
             });
 
@@ -297,6 +303,8 @@ async function checkStudentExpiries(options = {}) {
               title: overdueTitle,
               message: `${student.name} has an overdue balance of ₹${balanceAmt} (${overdueDays > 0 ? `${overdueDays} days overdue` : 'Due today'}). Automated WhatsApp alert link prepared.`,
               type: 'payment',
+              targetRole: 'admin',
+              student: student._id,
               link: '#/payments'
             });
 
@@ -400,6 +408,7 @@ async function generateEODSummary() {
       title: `📊 Daily Business Summary: ₹${todayRevenue.toLocaleString('en-IN')}`,
       message: `Total Collections: ₹${todayRevenue.toLocaleString('en-IN')} | Expenses: ₹${todayExpenses.toLocaleString('en-IN')} | Attendance: ${attendanceToday} students.`,
       type: 'system',
+      targetRole: 'admin',
       link: '#/reports'
     });
 
@@ -501,6 +510,7 @@ async function reconcileDailyAttendance() {
         title: '⏱️ Daily Attendance Reconciled',
         message: `Automated EOD reconciliation closed ${reconciledCount} open student attendance sessions.`,
         type: 'attendance',
+        targetRole: 'admin',
         link: '#/attendance'
       });
     }

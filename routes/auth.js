@@ -801,7 +801,7 @@ router.post('/student-login', authLimiter, async (req, res) => {
     const token = jwt.sign(
       { id: user._id, role: 'student', email: user.email, studentId: student._id },
       secret,
-      { expiresIn: process.env.JWT_EXPIRE || '24h' }
+      { expiresIn: process.env.JWT_EXPIRE || '365d' }
     );
 
     res.json({
