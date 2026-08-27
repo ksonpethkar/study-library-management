@@ -32,7 +32,50 @@ const formTemplateSchema = new mongoose.Schema({
     showLockerAddon: { type: Boolean, default: true },
     showReferralCoupon: { type: Boolean, default: true },
     showShiftSelection: { type: Boolean, default: true },
-    showFeeBreakdown: { type: Boolean, default: true }
+    showFeeBreakdown: { type: Boolean, default: true },
+
+    // Step 6: Live Payment Methods & Sub-Option Gateway Breakdown Controls
+    showUpiPayment: { type: Boolean, default: true },
+    showDeskPayment: { type: Boolean, default: true },
+    showNetBankingPayment: { type: Boolean, default: true },
+    showWhatsappReceipt: { type: Boolean, default: true },
+    showEmailConfirmation: { type: Boolean, default: true },
+    showTaxInvoice: { type: Boolean, default: true },
+    upiPaymentLabel: { type: String, default: 'Dynamic UPI QR' },
+    upiPaymentSubtext: { type: String, default: 'GPay / PhonePe / Paytm + 12-digit UTR Verification' },
+    deskPaymentLabel: { type: String, default: 'Pay Later at Desk' },
+    deskPaymentSubtext: { type: String, default: 'Pre-reserves admission & seat; cash paid on arrival' },
+    netBankingPaymentLabel: { type: String, default: 'NetBanking / Cards' },
+    netBankingPaymentSubtext: { type: String, default: 'Bank reference logging & printable receipt generator' },
+    whatsappReceiptLabel: { type: String, default: 'Automated WhatsApp Receipt' },
+    emailConfirmationLabel: { type: String, default: 'Email Payment Confirmation' },
+    taxInvoiceLabel: { type: String, default: 'Tax Invoice Generation' },
+
+    // Step 7: Seat Selection & Digital Signature Sub-Options Controls
+    showSeatSelection: { type: Boolean, default: true },
+    seatSelectionLabel: { type: String, default: 'Circular Seat Badges / Desk Map' },
+    seatSelectionSubtext: { type: String, default: '22px round circular seat checkmarks with Indigo glow' },
+    seatSelectionRequired: { type: Boolean, default: false },
+
+    showDigitalSignature: { type: Boolean, default: true },
+    digitalSignatureLabel: { type: String, default: 'Digital Signature Canvas' },
+    digitalSignatureSubtext: { type: String, default: 'Touch & stylus interactive drawing pad' },
+    digitalSignatureRequired: { type: Boolean, default: true },
+
+    showPassportSelfie: { type: Boolean, default: true },
+    passportSelfieLabel: { type: String, default: 'Passport Selfie Capture' },
+    passportSelfieSubtext: { type: String, default: 'Webcam photo & document crop studio' },
+    passportSelfieRequired: { type: Boolean, default: false },
+
+    showQuietStudyAgreement: { type: Boolean, default: true },
+    quietStudyAgreementTitle: { type: String, default: 'Quiet Study Code & Library Rules Agreement' },
+    quietStudyAgreementRules: { type: String, default: '1. Pin-Drop Silence: Strict silence must be maintained inside reading halls at all times. Whispering or phone calls inside study zones is strictly forbidden.\n2. Mobile Phone Protocol: Phones must be switched to silent or flight mode. Attend urgent phone calls outside in corridors.\n3. Assigned Desk Protocol: Occupy only your allotted desk number and adhere strictly to your registered shift timing.\n4. Cleanliness & Socket Safety: Keep your study desk clean. Turn off lights, fans, and socket chargers when leaving your seat.\n5. ID Pass & Gate Access: Carry your Student ID / Registration Pass for kiosk check-in.\n6. Fee Policy & Non-Refundability: Membership fees once paid are non-refundable.' },
+    quietStudyConsentText: { type: String, default: 'I have read, understood, and agree to strictly abide by the Library Rules, Code of Conduct, and Payment Policies.' },
+    quietStudyRequired: { type: Boolean, default: true },
+
+    showKioskBarcode: { type: Boolean, default: true },
+    kioskBarcodeLabel: { type: String, default: 'Kiosk Entry Barcode' },
+    kioskBarcodeSubtext: { type: String, default: 'Instant admission barcode for turnstile / attendance gate' }
   },
   
   // Branding

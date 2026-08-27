@@ -1663,10 +1663,22 @@
             ${secFields.length ? buildFieldGroupHtml(secFields) : ''}
           `;
         } else if (secName === 'seat') {
+          const tplSettings = template?.settings || {};
+          const showSeat = tplSettings.showSeatSelection !== false;
+          const seatLabel = tplSettings.seatSelectionLabel || 'Interactive Study Desk Map';
+          const showSig = tplSettings.showDigitalSignature !== false;
+          const sigLabel = tplSettings.digitalSignatureLabel || 'Digital Signature (Draw, Type or Touch)';
+          const sigReq = tplSettings.digitalSignatureRequired !== false;
+          const showAgree = tplSettings.showQuietStudyAgreement !== false;
+          const agreeTitle = tplSettings.quietStudyAgreementTitle || '📜 Library Rules & Code of Conduct Agreement';
+          const consentText = tplSettings.quietStudyConsentText || 'I have read, understood, and agree to strictly abide by the Library Rules, Code of Conduct, and Payment Policies.';
+          const agreeReq = tplSettings.quietStudyRequired !== false;
+
           stepBodyHtml = `
+            ${showSeat ? `
             <div style="margin-bottom: 1.25rem;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 8px;">
-                <label class="form-label" style="font-weight: 700; margin: 0;">Interactive Study Desk Map</label>
+                <label class="form-label" style="font-weight: 700; margin: 0;">${escapeHTML(seatLabel)} ${tplSettings.seatSelectionRequired ? '<span style="color: var(--color-danger);">*</span>' : ''}</label>
                 <div style="display: flex; gap: 12px; font-size: 0.8rem; font-weight: 600;">
                   <span>🟢 <span style="color: var(--color-success);">Available</span></span>
                   <span>🔴 <span style="color: var(--color-danger);">Occupied</span></span>
@@ -1684,17 +1696,21 @@
                 No seat selected yet (Optional — desk can assign on arrival if unselected)
               </div>
             </div>
+            ` : '<input type="hidden" id="reg-selected-seat" name="seat" value="">'}
 
+            ${showSig ? `
             <!-- Digital Signature Pad -->
             <div class="mb-4">
-              <label class="form-label" style="font-weight: 600;">Digital Signature (Draw, Type or Touch) *</label>
+              <label class="form-label" style="font-weight: 600;">${escapeHTML(sigLabel)} ${sigReq ? '<span style="color: var(--color-danger);">*</span>' : ''}</label>
               <div id="public-signature-studio-mount"></div>
             </div>
+            ` : ''}
 
+            ${showAgree ? `
             <!-- Scrollable Library Rules & Code of Conduct Box -->
             <div class="mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
               <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
-                <span>📜 Library Rules &amp; Code of Conduct Agreement</span>
+                <span>${escapeHTML(agreeTitle)}</span>
                 <span style="font-size: 0.78rem; font-weight: 600; background: rgba(108, 92, 231, 0.1); color: var(--color-primary); padding: 3px 8px; border-radius: 4px;">Mandatory Review</span>
               </div>
               
@@ -1712,10 +1728,11 @@
 
             <div class="form-group mb-4" style="background: var(--color-bg-secondary); padding: 14px 16px; border-radius: var(--radius-md); border: 1.5px solid var(--color-primary);">
               <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; font-size: 0.88rem; color: var(--color-text-primary); margin: 0; line-height: 1.5; font-weight: 600;">
-                <input type="checkbox" id="reg-terms" required style="margin-top: 3px; width: 19px; height: 19px; accent-color: var(--color-primary); cursor: pointer;">
-                <span>I have read, understood, and agree to strictly abide by the <strong>Library Rules, Code of Conduct, and Payment Policies</strong>. <span style="color: var(--color-danger);">*</span></span>
+                <input type="checkbox" id="reg-terms" ${agreeReq ? 'required' : ''} style="margin-top: 3px; width: 19px; height: 19px; accent-color: var(--color-primary); cursor: pointer;">
+                <span>${escapeHTML(consentText)} ${agreeReq ? '<span style="color: var(--color-danger);">*</span>' : ''}</span>
               </label>
             </div>
+            ` : ''}
 
             <!-- Dynamic Fields for Seat Section -->
             ${secFields.length ? buildFieldGroupHtml(secFields) : ''}
@@ -2279,7 +2296,7 @@
 
         // 1. Validate Mandatory Terms Checkbox
         const termsInp = document.getElementById('reg-terms');
-        if (termsInp && !termsInp.checked) {
+        if (termsInp && termsInp.required && !termsInp.checked) {
           alert('Please review and check the box agreeing to the Library Rules & Code of Conduct Agreement to complete registration.');
           termsInp.focus();
           return;
@@ -3052,12 +3069,30 @@
           }
 
         // Render Payment Gateways
-        const paymentMethods = (Array.isArray(bp?.paymentMethods) && bp.paymentMethods.length > 0) ? bp.paymentMethods : [
-          { key: 'upi', name: 'Dynamic UPI QR', subtitle: 'GPay / PhonePe / Paytm / BHIM', icon: '⚡', enabled: true, order: 1, instructions: 'Scan QR code and enter 12-digit UTR number', requiresRef: true, refLabel: 'UPI UTR / Reference Number *' },
-          { key: 'card', name: 'Debit / Credit Card', subtitle: 'Visa, Mastercard, RuPay', icon: '💳', enabled: true, order: 2, instructions: 'Enter cardholder name and card transaction reference', requiresRef: true, refLabel: 'Card Reference / Transaction ID *' },
-          { key: 'netbanking', name: 'NetBanking / IMPS', subtitle: 'All major Indian banks', icon: '🏦', enabled: true, order: 3, instructions: 'Transfer fee to official bank account and enter bank UTR', requiresRef: true, refLabel: 'Bank Transaction Reference / UTR *' },
-          { key: 'desk', name: 'Pay Later at Front Desk', subtitle: 'Pay cash on arrival', icon: '💵', enabled: true, order: 4, instructions: 'Admission will be pre-reserved. Pay cash at front reception desk on arrival.', requiresRef: false, refLabel: '' }
-        ];
+        const showUpi = tplSettings.showUpiPayment !== false;
+        const showDesk = tplSettings.showDeskPayment !== false;
+        const showNetBanking = tplSettings.showNetBankingPayment !== false;
+
+        const upiName = tplSettings.upiPaymentLabel || 'Dynamic UPI QR';
+        const upiSub = tplSettings.upiPaymentSubtext || 'GPay / PhonePe / Paytm / BHIM';
+        const deskName = tplSettings.deskPaymentLabel || 'Pay Later at Front Desk';
+        const deskSub = tplSettings.deskPaymentSubtext || 'Pay cash on arrival';
+        const nbName = tplSettings.netBankingPaymentLabel || 'NetBanking / Cards';
+        const nbSub = tplSettings.netBankingPaymentSubtext || 'All major Indian banks';
+
+        const paymentMethods = (Array.isArray(bp?.paymentMethods) && bp.paymentMethods.length > 0)
+          ? bp.paymentMethods.map(m => {
+              if (m.key === 'upi') return { ...m, name: upiName, subtitle: upiSub, enabled: showUpi && (m.enabled !== false) };
+              if (m.key === 'desk') return { ...m, name: deskName, subtitle: deskSub, enabled: showDesk && (m.enabled !== false) };
+              if (m.key === 'netbanking' || m.key === 'card') return { ...m, name: nbName, subtitle: nbSub, enabled: showNetBanking && (m.enabled !== false) };
+              return m;
+            })
+          : [
+              { key: 'upi', name: upiName, subtitle: upiSub, icon: '⚡', enabled: showUpi, order: 1, instructions: 'Scan QR code and enter 12-digit UTR number', requiresRef: true, refLabel: 'UPI UTR / Reference Number *' },
+              { key: 'card', name: 'Debit / Credit Card', subtitle: 'Visa, Mastercard, RuPay', icon: '💳', enabled: showNetBanking, order: 2, instructions: 'Enter cardholder name and card transaction reference', requiresRef: true, refLabel: 'Card Reference / Transaction ID *' },
+              { key: 'netbanking', name: nbName, subtitle: nbSub, icon: '🏦', enabled: showNetBanking, order: 3, instructions: 'Transfer fee to official bank account and enter bank UTR', requiresRef: true, refLabel: 'Bank Transaction Reference / UTR *' },
+              { key: 'desk', name: deskName, subtitle: deskSub, icon: '💵', enabled: showDesk, order: 4, instructions: 'Admission will be pre-reserved. Pay cash at front reception desk on arrival.', requiresRef: false, refLabel: '' }
+            ];
 
         const activeMethods = paymentMethods
           .filter(m => m.enabled === true || m.enabled === 'true' || m.enabled === 1 || m.enabled === '1')
@@ -3325,11 +3360,25 @@
 
         // Render Dynamic Library Rules from Admin Settings
         const rulesBox = document.getElementById('reg-rules-scroll-box');
-        const landingRules = publicConfig?.rules || bp?.rules || [];
-        if (rulesBox && Array.isArray(landingRules) && landingRules.length > 0) {
-          rulesBox.innerHTML = '<ol style="margin: 0; padding-left: 1.2rem;">' + landingRules.map(r => `
-            <li style="margin-bottom: 6px;"><strong>${escapeHTML(r.title || r.heading || 'Rule')}:</strong> ${escapeHTML(r.description || r.text || '')}</li>
-          `).join('') + '</ol>';
+        const customRulesText = tplSettings.quietStudyAgreementRules;
+        if (rulesBox && customRulesText) {
+          const lines = customRulesText.split('\n').map(l => l.trim()).filter(Boolean);
+          if (lines.length > 0) {
+            rulesBox.innerHTML = '<ol style="margin: 0; padding-left: 1.2rem;">' + lines.map(line => {
+              const match = line.match(/^(\d+\.?\s*)?([^:]+):\s*(.*)$/);
+              if (match) {
+                return `<li style="margin-bottom: 6px;"><strong>${escapeHTML(match[2].trim())}:</strong> ${escapeHTML(match[3].trim())}</li>`;
+              }
+              return `<li style="margin-bottom: 6px;">${escapeHTML(line.replace(/^\d+\.?\s*/, ''))}</li>`;
+            }).join('') + '</ol>';
+          }
+        } else if (rulesBox) {
+          const landingRules = publicConfig?.rules || bp?.rules || [];
+          if (Array.isArray(landingRules) && landingRules.length > 0) {
+            rulesBox.innerHTML = '<ol style="margin: 0; padding-left: 1.2rem;">' + landingRules.map(r => `
+              <li style="margin-bottom: 6px;"><strong>${escapeHTML(r.title || r.heading || 'Rule')}:</strong> ${escapeHTML(r.description || r.text || '')}</li>
+            `).join('') + '</ol>';
+          }
         }
 
         // Dynamic Exams

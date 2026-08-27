@@ -521,6 +521,13 @@ export class FormBuilder {
       btn.addEventListener('click', () => this.openFieldEditor(btn.dataset.id));
     });
 
+    container.querySelectorAll('.fb-edit-component').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openComponentEditor(btn.dataset.component);
+      });
+    });
+
     container.querySelectorAll('.fb-field-toggle').forEach(btn => {
       btn.addEventListener('click', () => this.toggleFieldActive(btn.dataset.id));
     });
@@ -633,63 +640,225 @@ export class FormBuilder {
     }
 
     if (sec.name === 'payment') {
+      const s = this.template?.settings || {};
+      const showUpi = s.showUpiPayment !== false;
+      const showDesk = s.showDeskPayment !== false;
+      const showNetBanking = s.showNetBankingPayment !== false;
+      const showWhatsapp = s.showWhatsappReceipt !== false;
+      const showEmail = s.showEmailConfirmation !== false;
+      const showTax = s.showTaxInvoice !== false;
+
+      const upiLabel = s.upiPaymentLabel || 'Dynamic UPI QR';
+      const upiSub = s.upiPaymentSubtext || 'GPay / PhonePe / Paytm + 12-digit UTR Verification';
+      const deskLabel = s.deskPaymentLabel || 'Pay Later at Desk';
+      const deskSub = s.deskPaymentSubtext || 'Pre-reserves admission & seat; cash paid on arrival';
+      const nbLabel = s.netBankingPaymentLabel || 'NetBanking / Cards';
+      const nbSub = s.netBankingPaymentSubtext || 'Bank reference logging & printable receipt generator';
+
       return `
-        <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 8px; padding: 12px; font-size: 0.83rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <div style="font-weight: 700; color: var(--color-primary); font-size: 0.88rem;">
-              💳 Live Payment Methods & Sub-Option Gateway Breakdown
+        <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 8px; padding: 14px; font-size: 0.83rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <div style="font-weight: 700; color: var(--color-primary); font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+                <span>💳</span> Live Payment Methods & Sub-Option Gateway Breakdown
+              </div>
+              <div style="font-size: 0.74rem; color: var(--color-text-secondary);">
+                Toggle active gateways and click Edit on any gateway to customize labels, notes, and rules
+              </div>
             </div>
-            <span class="badge badge-primary" style="font-size: 0.68rem;">SYSTEM COMPONENT</span>
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-bottom: 10px;">
-            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
-              <div style="font-weight: 700; color: var(--color-text-primary);">⚡ Dynamic UPI QR</div>
-              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">GPay / PhonePe / Paytm + 12-digit UTR Verification</div>
-            </div>
-            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
-              <div style="font-weight: 700; color: var(--color-text-primary);">💵 Pay Later at Desk</div>
-              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Pre-reserves admission & seat; cash paid on arrival</div>
-            </div>
-            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
-              <div style="font-weight: 700; color: var(--color-text-primary);">🏦 NetBanking / Cards</div>
-              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Bank reference logging & printable receipt generator</div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="payment_all" style="font-weight: 700; font-size: 0.75rem; padding: 3px 10px;">
+                ⚙️ Configure Gateways
+              </button>
+              <span class="badge badge-primary" style="font-size: 0.68rem;">EDITABLE COMPONENT</span>
             </div>
           </div>
-          <div style="font-size: 0.73rem; color: var(--color-text-secondary); display: flex; flex-wrap: wrap; gap: 12px; background: var(--color-bg-secondary); padding: 6px 10px; border-radius: 6px;">
-            <span>✅ Automated WhatsApp Receipt</span>
-            <span>✅ Email Payment Confirmation</span>
-            <span>✅ Tax Invoice Generation</span>
+
+          <!-- Main Payment Gateways Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 12px;">
+            <!-- UPI QR -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid ${showUpi ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: 8px; padding: 10px; opacity: ${showUpi ? '1' : '0.6'}; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+                  <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.85rem;">⚡ ${escapeHTML(upiLabel)}</div>
+                  <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showUpiPayment" ${showUpi ? 'checked' : ''} title="Toggle UPI Gateway" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+                </div>
+                <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHTML(upiSub)}</div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px;">
+                <span class="badge ${showUpi ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.68rem;">${showUpi ? 'Active' : 'Inactive'}</span>
+                <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="upi" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
+                  ✏️ Edit
+                </button>
+              </div>
+            </div>
+
+            <!-- Pay Later at Desk -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid ${showDesk ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: 8px; padding: 10px; opacity: ${showDesk ? '1' : '0.6'}; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+                  <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.85rem;">💵 ${escapeHTML(deskLabel)}</div>
+                  <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showDeskPayment" ${showDesk ? 'checked' : ''} title="Toggle Desk Payment" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+                </div>
+                <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHTML(deskSub)}</div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px;">
+                <span class="badge ${showDesk ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.68rem;">${showDesk ? 'Active' : 'Inactive'}</span>
+                <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="desk" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
+                  ✏️ Edit
+                </button>
+              </div>
+            </div>
+
+            <!-- NetBanking / Cards -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid ${showNetBanking ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: 8px; padding: 10px; opacity: ${showNetBanking ? '1' : '0.6'}; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+                  <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.85rem;">🏦 ${escapeHTML(nbLabel)}</div>
+                  <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showNetBankingPayment" ${showNetBanking ? 'checked' : ''} title="Toggle NetBanking Gateway" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+                </div>
+                <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHTML(nbSub)}</div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px;">
+                <span class="badge ${showNetBanking ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.68rem;">${showNetBanking ? 'Active' : 'Inactive'}</span>
+                <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="netbanking" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
+                  ✏️ Edit
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notification & Invoicing Sub-Options -->
+          <div style="font-size: 0.76rem; background: var(--color-bg-secondary); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-border); display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between;">
+            <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-weight: 600;">
+                <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showWhatsappReceipt" ${showWhatsapp ? 'checked' : ''} style="accent-color: var(--color-primary);">
+                <span>Automated WhatsApp Receipt</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-weight: 600;">
+                <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showEmailConfirmation" ${showEmail ? 'checked' : ''} style="accent-color: var(--color-primary);">
+                <span>Email Payment Confirmation</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-weight: 600;">
+                <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showTaxInvoice" ${showTax ? 'checked' : ''} style="accent-color: var(--color-primary);">
+                <span>Tax Invoice Generation</span>
+              </label>
+            </div>
+            <button type="button" class="btn btn-xs btn-ghost fb-edit-component" data-component="receipt_options" style="font-size: 0.72rem; font-weight: 700; color: var(--color-primary);">
+              ✏️ Edit Notices
+            </button>
           </div>
         </div>
       `;
     }
 
     if (sec.name === 'seat') {
+      const s = this.template?.settings || {};
+      const showSeat = s.showSeatSelection !== false;
+      const showSig = s.showDigitalSignature !== false;
+      const showPhoto = s.showPassportSelfie !== false;
+      const showAgreement = s.showQuietStudyAgreement !== false;
+      const showBarcode = s.showKioskBarcode !== false;
+
+      const seatLabel = s.seatSelectionLabel || 'Circular Seat Badges / Desk Map';
+      const seatSub = s.seatSelectionSubtext || '22px round circular seat checkmarks with Indigo glow';
+      const sigLabel = s.digitalSignatureLabel || 'Digital Signature Canvas';
+      const sigSub = s.digitalSignatureSubtext || 'Touch & stylus interactive drawing pad';
+      const photoLabel = s.passportSelfieLabel || 'Passport Selfie Capture';
+      const photoSub = s.passportSelfieSubtext || 'Webcam photo & document crop studio';
+      const agreeTitle = s.quietStudyAgreementTitle || 'Quiet Study Code & Library Rules Agreement';
+      const kioskLabel = s.kioskBarcodeLabel || 'Kiosk Entry Barcode';
+
       return `
-        <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 8px; padding: 12px; font-size: 0.83rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <div style="font-weight: 700; color: var(--color-primary); font-size: 0.88rem;">
-              🪑 Live Seat Selection Map & Digital Signature Sub-Options
+        <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 8px; padding: 14px; font-size: 0.83rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <div style="font-weight: 700; color: var(--color-primary); font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+                <span>🪑</span> Live Seat Selection Map & Digital Signature Sub-Options
+              </div>
+              <div style="font-size: 0.74rem; color: var(--color-text-secondary);">
+                Toggle and edit interactive desk map, digital signature, selfie studio, and quiet study code agreement
+              </div>
             </div>
-            <span class="badge badge-primary" style="font-size: 0.68rem;">SYSTEM COMPONENT</span>
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-bottom: 10px;">
-            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
-              <div style="font-weight: 700; color: var(--color-text-primary);">🔴/🟢 Circular Seat Badges</div>
-              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">22px round circular seat checkmarks with Indigo glow</div>
-            </div>
-            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
-              <div style="font-weight: 700; color: var(--color-text-primary);">✍️ Digital Signature Canvas</div>
-              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Touch & stylus interactive drawing pad</div>
-            </div>
-            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
-              <div style="font-weight: 700; color: var(--color-text-primary);">📸 Passport Selfie Capture</div>
-              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Webcam photo & document crop studio</div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="quiet_study" style="font-weight: 700; font-size: 0.75rem; padding: 3px 10px;">
+                📜 Edit Rules Agreement
+              </button>
+              <span class="badge badge-primary" style="font-size: 0.68rem;">EDITABLE COMPONENT</span>
             </div>
           </div>
-          <div style="font-size: 0.73rem; color: var(--color-text-secondary); display: flex; flex-wrap: wrap; gap: 12px; background: var(--color-bg-secondary); padding: 6px 10px; border-radius: 6px;">
-            <span>✅ Quiet Study Code Agreement</span>
-            <span>✅ Kiosk Entry Barcode</span>
+
+          <!-- Main Interactive Seat & Studios Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 12px;">
+            <!-- Seat Selection Map -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid ${showSeat ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: 8px; padding: 10px; opacity: ${showSeat ? '1' : '0.6'}; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+                  <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.85rem;">🔴/🟢 ${escapeHTML(seatLabel)}</div>
+                  <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showSeatSelection" ${showSeat ? 'checked' : ''} title="Toggle Seat Selection" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+                </div>
+                <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHTML(seatSub)}</div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px;">
+                <span class="badge ${showSeat ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.68rem;">${showSeat ? 'Active' : 'Inactive'}</span>
+                <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="seat_map" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
+                  ✏️ Edit
+                </button>
+              </div>
+            </div>
+
+            <!-- Digital Signature Canvas -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid ${showSig ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: 8px; padding: 10px; opacity: ${showSig ? '1' : '0.6'}; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+                  <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.85rem;">✍️ ${escapeHTML(sigLabel)}</div>
+                  <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showDigitalSignature" ${showSig ? 'checked' : ''} title="Toggle Digital Signature" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+                </div>
+                <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHTML(sigSub)}</div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px;">
+                <span class="badge ${showSig ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.68rem;">${showSig ? 'Active' : 'Inactive'}</span>
+                <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="signature" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
+                  ✏️ Edit
+                </button>
+              </div>
+            </div>
+
+            <!-- Passport Selfie Capture -->
+            <div style="background: var(--color-bg-secondary); border: 1px solid ${showPhoto ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: 8px; padding: 10px; opacity: ${showPhoto ? '1' : '0.6'}; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+                  <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.85rem;">📸 ${escapeHTML(photoLabel)}</div>
+                  <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showPassportSelfie" ${showPhoto ? 'checked' : ''} title="Toggle Passport Selfie" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primary);">
+                </div>
+                <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">${escapeHTML(photoSub)}</div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px;">
+                <span class="badge ${showPhoto ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.68rem;">${showPhoto ? 'Active' : 'Inactive'}</span>
+                <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="passport_photo" style="font-size: 0.72rem; padding: 2px 8px; font-weight: 700;">
+                  ✏️ Edit
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rules & Barcode Sub-Options -->
+          <div style="font-size: 0.76rem; background: var(--color-bg-secondary); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-border); display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between;">
+            <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: center;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-weight: 600;">
+                <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showQuietStudyAgreement" ${showAgreement ? 'checked' : ''} style="accent-color: var(--color-primary);">
+                <span>📜 ${escapeHTML(agreeTitle)}</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0; font-weight: 600;">
+                <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showKioskBarcode" ${showBarcode ? 'checked' : ''} style="accent-color: var(--color-primary);">
+                <span>🎫 ${escapeHTML(kioskLabel)}</span>
+              </label>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-xs btn-outline-primary fb-edit-component" data-component="quiet_study" style="font-size: 0.72rem; font-weight: 700;">
+                ✏️ Edit Rules &amp; Agreement Text
+              </button>
+            </div>
           </div>
         </div>
       `;
@@ -952,22 +1121,37 @@ export class FormBuilder {
 
     // STEP 4: Dynamic Payment Selection
     if (secName === 'payment') {
+      const s = this.template?.settings || {};
+      const showUpi = s.showUpiPayment !== false;
+      const showDesk = s.showDeskPayment !== false;
+      const showNetBanking = s.showNetBankingPayment !== false;
+      const upiLabel = s.upiPaymentLabel || 'Dynamic UPI QR';
+      const deskLabel = s.deskPaymentLabel || 'Pay Later at Desk';
+      const nbLabel = s.netBankingPaymentLabel || 'NetBanking / Cards';
+
+      const availableModes = [];
+      if (showUpi) availableModes.push({ mode: 'upi', label: `⚡ ${upiLabel}` });
+      if (showNetBanking) availableModes.push({ mode: 'card', label: `🏦 ${nbLabel}` });
+      if (showDesk) availableModes.push({ mode: 'desk', label: `💵 ${deskLabel}` });
+
+      if (availableModes.length > 0 && !availableModes.some(m => m.mode === this.selectedPaymentMode)) {
+        this.selectedPaymentMode = availableModes[0].mode;
+      }
+
       return `
         <div style="display: flex; flex-direction: column; gap: 12px;">
           <label class="form-label text-xs" style="font-weight:700;">Select Payment Mode *</label>
+          ${availableModes.length > 0 ? `
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
-            <label style="border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; background: ${this.selectedPaymentMode === 'upi' ? 'var(--color-surface-hover)' : 'transparent'};">
-              <input type="radio" name="prev-pm-mode" value="upi" ${this.selectedPaymentMode === 'upi' ? 'checked' : ''}> 📱 Dynamic UPI QR
-            </label>
-            <label style="border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; background: ${this.selectedPaymentMode === 'card' ? 'var(--color-surface-hover)' : 'transparent'};">
-              <input type="radio" name="prev-pm-mode" value="card" ${this.selectedPaymentMode === 'card' ? 'checked' : ''}> 💳 Card / NetBank
-            </label>
-            <label style="border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; background: ${this.selectedPaymentMode === 'desk' ? 'var(--color-surface-hover)' : 'transparent'};">
-              <input type="radio" name="prev-pm-mode" value="desk" ${this.selectedPaymentMode === 'desk' ? 'checked' : ''}> 💵 Pay at Desk
-            </label>
+            ${availableModes.map(m => `
+              <label style="border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; background: ${this.selectedPaymentMode === m.mode ? 'var(--color-surface-hover)' : 'transparent'};">
+                <input type="radio" name="prev-pm-mode" value="${m.mode}" ${this.selectedPaymentMode === m.mode ? 'checked' : ''}> ${escapeHTML(m.label)}
+              </label>
+            `).join('')}
           </div>
+          ` : '<div class="text-muted small p-2">All payment methods currently toggled off by admin.</div>'}
 
-          ${this.selectedPaymentMode === 'upi' ? `
+          ${this.selectedPaymentMode === 'upi' && showUpi ? `
             <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; text-align: center;">
               <div style="font-weight: 700; font-size: 0.85rem; margin-bottom: 6px;">⚡ Scan QR Code or Pay via Mobile UPI App</div>
               <div style="width: 130px; height: 130px; background: #fff; border: 1px solid var(--color-border); border-radius: 8px; margin: 0 auto 10px auto; display: flex; align-items: center; justify-content: center; padding: 4px;">
@@ -989,6 +1173,16 @@ export class FormBuilder {
 
     // STEP 5: Seat Selection & Digital Signature
     if (secName === 'seat') {
+      const s = this.template?.settings || {};
+      const showSeat = s.showSeatSelection !== false;
+      const seatLabel = s.seatSelectionLabel || 'Choose Your Study Desk Seat';
+      const showSig = s.showDigitalSignature !== false;
+      const sigLabel = s.digitalSignatureLabel || 'Digital Signature Pad';
+      const showPhoto = s.showPassportSelfie !== false;
+      const photoLabel = s.passportSelfieLabel || 'Passport Selfie Capture';
+      const showAgreement = s.showQuietStudyAgreement !== false;
+      const consentText = s.quietStudyConsentText || 'I hereby agree to adhere to the Quiet Study Code Agreement, discipline rules, and timings of the study hall.';
+
       const availSeats = this.seats.length > 0 ? this.seats : [
         { seatNumber: '01', zone: 'Zone A' }, { seatNumber: '02', zone: 'Zone A' },
         { seatNumber: '03', zone: 'Zone A' }, { seatNumber: '04', zone: 'Zone A' },
@@ -997,36 +1191,53 @@ export class FormBuilder {
 
       return `
         <div style="display: flex; flex-direction: column; gap: 14px;">
+          ${showSeat ? `
           <div>
-            <label class="form-label text-xs" style="font-weight:700;">Choose Your Study Desk Seat *</label>
+            <label class="form-label text-xs" style="font-weight:700;">${escapeHTML(seatLabel)} ${s.seatSelectionRequired ? '*' : ''}</label>
             <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px;">
-              ${availSeats.slice(0, 6).map((s, idx) => `
+              ${availSeats.slice(0, 6).map((st, idx) => `
                 <div style="min-width: 60px; padding: 8px 6px; border: 1.5px solid ${idx === 0 ? '#6c5ce7' : 'var(--color-border)'}; border-radius: 8px; text-align: center; cursor: pointer; background: ${idx === 0 ? 'rgba(108, 92, 231, 0.12)' : 'var(--color-surface)'};">
-                  <div style="font-weight: 800; font-size: 0.9rem; color: #6c5ce7;">${escapeHTML(s.seatNumber)}</div>
-                  <div style="font-size: 0.65rem; color: var(--color-text-secondary);">${escapeHTML(s.zone || 'Zone A')}</div>
+                  <div style="font-weight: 800; font-size: 0.9rem; color: #6c5ce7;">${escapeHTML(st.seatNumber)}</div>
+                  <div style="font-size: 0.65rem; color: var(--color-text-secondary);">${escapeHTML(st.zone || 'Zone A')}</div>
                 </div>
               `).join('')}
             </div>
           </div>
+          ` : ''}
+
+          ${showPhoto ? `
+          <div>
+            <label class="form-label text-xs" style="font-weight:700;">${escapeHTML(photoLabel)} ${s.passportSelfieRequired ? '*' : ''}</label>
+            <div style="width: 100%; height: 75px; border: 1.5px dashed var(--color-border); border-radius: 8px; background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-text-secondary); font-size: 0.82rem;">
+              <div style="color: #6c5ce7; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                <span>📸</span> <span>Passport photo / webcam selfie capture</span>
+              </div>
+            </div>
+          </div>
+          ` : ''}
 
           ${secFields.map(f => this.renderPreviewInput(f)).join('')}
 
+          ${showSig ? `
           <div>
-            <label class="form-label text-xs" style="font-weight:700;">Digital Signature Pad *</label>
+            <label class="form-label text-xs" style="font-weight:700;">${escapeHTML(sigLabel)} ${s.digitalSignatureRequired !== false ? '*' : ''}</label>
             <div style="width: 100%; height: 85px; border: 1.5px dashed var(--color-border); border-radius: 8px; background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-text-secondary); font-size: 0.82rem;">
               <div style="color: #6c5ce7; font-weight: 600; display: flex; align-items: center; gap: 6px;">
                 <span>✍️</span> <span>Draw student signature canvas</span>
               </div>
             </div>
           </div>
+          ` : ''}
 
+          ${showAgreement ? `
           <!-- Quiet Study Code Agreement & Terms Checkbox -->
           <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px;">
             <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.83rem; color: var(--color-text-primary); margin: 0; line-height: 1.4;">
               <input type="checkbox" checked style="margin-top: 3px; accent-color: var(--color-primary); width: 16px; height: 16px;">
-              <span>I hereby agree to adhere to the <strong>Quiet Study Code Agreement</strong>, discipline rules, and timings of the study hall. <span style="color: var(--color-danger);">*</span></span>
+              <span>${escapeHTML(consentText)} ${s.quietStudyRequired !== false ? '<span style="color: var(--color-danger);">*</span>' : ''}</span>
             </label>
           </div>
+          ` : ''}
         </div>
       `;
     }
@@ -1811,6 +2022,396 @@ export class FormBuilder {
     } catch (e) {
       Toast.error('Failed to save field order: ' + (e.message || 'Server error'));
     }
+  }
+
+  static openComponentEditor(compKey) {
+    if (!this.template) this.template = {};
+    if (!this.template.settings) this.template.settings = {};
+    const s = this.template.settings;
+
+    let title = '⚙️ Edit System Component';
+    let formHtml = '';
+
+    if (compKey === 'upi') {
+      title = '⚡ Edit Dynamic UPI QR Payment Gateway';
+      const label = s.upiPaymentLabel || 'Dynamic UPI QR';
+      const sub = s.upiPaymentSubtext || 'GPay / PhonePe / Paytm + 12-digit UTR Verification';
+      const active = s.showUpiPayment !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Gateway Title *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Subtitle / Instructions</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Enable Dynamic UPI QR in Student Registration Form</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'desk') {
+      title = '💵 Edit Pay Later at Desk Payment Method';
+      const label = s.deskPaymentLabel || 'Pay Later at Desk';
+      const sub = s.deskPaymentSubtext || 'Pre-reserves admission & seat; cash paid on arrival';
+      const active = s.showDeskPayment !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Method Title *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Subtitle / Cash Policy Note</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Enable Pay Later at Desk in Student Registration Form</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'netbanking') {
+      title = '🏦 Edit NetBanking / Cards Payment Gateway';
+      const label = s.netBankingPaymentLabel || 'NetBanking / Cards';
+      const sub = s.netBankingPaymentSubtext || 'Bank reference logging & printable receipt generator';
+      const active = s.showNetBankingPayment !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Gateway Title *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Subtitle / Bank Transfer Note</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Enable NetBanking / Cards in Student Registration Form</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'receipt_options') {
+      title = '📩 Edit Automated Receipts & Invoicing Notices';
+      const waLabel = s.whatsappReceiptLabel || 'Automated WhatsApp Receipt';
+      const emLabel = s.emailConfirmationLabel || 'Email Payment Confirmation';
+      const taxLabel = s.taxInvoiceLabel || 'Tax Invoice Generation';
+      const showWa = s.showWhatsappReceipt !== false;
+      const showEm = s.showEmailConfirmation !== false;
+      const showTax = s.showTaxInvoice !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">WhatsApp Receipt Label</label>
+          <input type="text" id="ce-wa-label" class="form-control" value="${escapeHTML(waLabel)}">
+          <label class="switch-label mt-2" style="font-weight: 600; font-size: 0.82rem;">
+            <input type="checkbox" id="ce-wa-active" ${showWa ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Send Instant WhatsApp Fee Receipt</span>
+          </label>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Email Confirmation Label</label>
+          <input type="text" id="ce-em-label" class="form-control" value="${escapeHTML(emLabel)}">
+          <label class="switch-label mt-2" style="font-weight: 600; font-size: 0.82rem;">
+            <input type="checkbox" id="ce-em-active" ${showEm ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Send Email Payment Confirmation</span>
+          </label>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Tax Invoice Label</label>
+          <input type="text" id="ce-tax-label" class="form-control" value="${escapeHTML(taxLabel)}">
+          <label class="switch-label mt-2" style="font-weight: 600; font-size: 0.82rem;">
+            <input type="checkbox" id="ce-tax-active" ${showTax ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Enable Tax Invoice Generation</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'payment_all') {
+      title = '⚙️ Configure All Payment Gateways & Notices';
+      const showUpi = s.showUpiPayment !== false;
+      const showDesk = s.showDeskPayment !== false;
+      const showNetBanking = s.showNetBankingPayment !== false;
+      const upiLabel = s.upiPaymentLabel || 'Dynamic UPI QR';
+      const deskLabel = s.deskPaymentLabel || 'Pay Later at Desk';
+      const nbLabel = s.netBankingPaymentLabel || 'NetBanking / Cards';
+      formHtml = `
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="background: var(--color-bg-secondary); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: 700; font-size: 0.85rem;">⚡ Dynamic UPI QR</span>
+              <input type="checkbox" id="ce-all-upi" ${showUpi ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer;">
+            </div>
+            <input type="text" id="ce-all-upi-label" class="form-control form-control-sm" value="${escapeHTML(upiLabel)}" placeholder="Gateway Display Name">
+          </div>
+          <div style="background: var(--color-bg-secondary); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: 700; font-size: 0.85rem;">💵 Pay Later at Desk</span>
+              <input type="checkbox" id="ce-all-desk" ${showDesk ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer;">
+            </div>
+            <input type="text" id="ce-all-desk-label" class="form-control form-control-sm" value="${escapeHTML(deskLabel)}" placeholder="Method Display Name">
+          </div>
+          <div style="background: var(--color-bg-secondary); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: 700; font-size: 0.85rem;">🏦 NetBanking / Cards</span>
+              <input type="checkbox" id="ce-all-nb" ${showNetBanking ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer;">
+            </div>
+            <input type="text" id="ce-all-nb-label" class="form-control form-control-sm" value="${escapeHTML(nbLabel)}" placeholder="Gateway Display Name">
+          </div>
+        </div>
+      `;
+    } else if (compKey === 'seat_map') {
+      title = '🪑 Edit Live Seat Selection Map & Badges';
+      const label = s.seatSelectionLabel || 'Circular Seat Badges / Desk Map';
+      const sub = s.seatSelectionSubtext || '22px round circular seat checkmarks with Indigo glow';
+      const active = s.showSeatSelection !== false;
+      const req = !!s.seatSelectionRequired;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Component Title *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Badge Style & Description</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3" style="display: flex; flex-direction: column; gap: 8px; background: var(--color-bg-secondary); padding: 10px; border-radius: 8px;">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem; margin: 0;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Enable Live Seat Selection Map</span>
+          </label>
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem; margin: 0;">
+            <input type="checkbox" id="ce-required" ${req ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Require Student to Select Desk (Mandatory)</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'signature') {
+      title = '✍️ Edit Digital Signature Canvas';
+      const label = s.digitalSignatureLabel || 'Digital Signature Canvas';
+      const sub = s.digitalSignatureSubtext || 'Touch & stylus interactive drawing pad';
+      const active = s.showDigitalSignature !== false;
+      const req = s.digitalSignatureRequired !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Canvas Title *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Instructions / Subtext</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3" style="display: flex; flex-direction: column; gap: 8px; background: var(--color-bg-secondary); padding: 10px; border-radius: 8px;">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem; margin: 0;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Enable Digital Signature Canvas</span>
+          </label>
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem; margin: 0;">
+            <input type="checkbox" id="ce-required" ${req ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Mandatory Signature to Complete Admission</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'passport_photo') {
+      title = '📸 Edit Passport Selfie Capture';
+      const label = s.passportSelfieLabel || 'Passport Selfie Capture';
+      const sub = s.passportSelfieSubtext || 'Webcam photo & document crop studio';
+      const active = s.showPassportSelfie !== false;
+      const req = !!s.passportSelfieRequired;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Studio Title *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Studio Subtitle / Instructions</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3" style="display: flex; flex-direction: column; gap: 8px; background: var(--color-bg-secondary); padding: 10px; border-radius: 8px;">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem; margin: 0;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Enable Passport Photo / Live Selfie Studio</span>
+          </label>
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem; margin: 0;">
+            <input type="checkbox" id="ce-required" ${req ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Mandatory Photo for ID Card Issuance</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'quiet_study') {
+      title = '📜 Edit Quiet Study Code & Library Rules Agreement';
+      const agreeTitle = s.quietStudyAgreementTitle || 'Quiet Study Code & Library Rules Agreement';
+      const defaultRules = '1. Pin-Drop Silence: Strict silence must be maintained inside reading halls at all times. Whispering or phone calls inside study zones is strictly forbidden.\n2. Mobile Phone Protocol: Phones must be switched to silent or flight mode. Attend urgent phone calls outside in corridors.\n3. Assigned Desk Protocol: Occupy only your allotted desk number and adhere strictly to your registered shift timing.\n4. Cleanliness & Socket Safety: Keep your study desk clean. Turn off lights, fans, and socket chargers when leaving your seat.\n5. ID Pass & Gate Access: Carry your Student ID / Registration Pass for kiosk check-in.\n6. Fee Policy & Non-Refundability: Membership fees once paid are non-refundable.';
+      const rules = s.quietStudyAgreementRules || defaultRules;
+      const consentText = s.quietStudyConsentText || 'I have read, understood, and agree to strictly abide by the Library Rules, Code of Conduct, and Payment Policies.';
+      const active = s.showQuietStudyAgreement !== false;
+      const req = s.quietStudyRequired !== false;
+
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Agreement Header Title *</label>
+          <input type="text" id="ce-agree-title" class="form-control" value="${escapeHTML(agreeTitle)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label class="form-label text-xs" style="font-weight:700; margin: 0;">Library Rules & Code of Conduct (Line-by-line editor) *</label>
+            <span style="font-size: 0.72rem; color: var(--color-text-secondary);">One rule per line</span>
+          </div>
+          <textarea id="ce-agree-rules" class="form-control" rows="7" style="font-family: monospace; font-size: 0.82rem; line-height: 1.5;" required>${escapeHTML(rules)}</textarea>
+          <small class="text-muted" style="font-size: 0.72rem;">Each line will render as a distinct rule point in the student's scrollable agreement review box.</small>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Student Consent Checkbox Label *</label>
+          <input type="text" id="ce-agree-consent" class="form-control" value="${escapeHTML(consentText)}" required>
+        </div>
+        <div class="form-group mb-3" style="display: flex; flex-direction: column; gap: 8px; background: var(--color-bg-secondary); padding: 10px; border-radius: 8px;">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem; margin: 0;">
+            <input type="checkbox" id="ce-agree-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Show Quiet Study Code Agreement in Registration Form</span>
+          </label>
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem; margin: 0;">
+            <input type="checkbox" id="ce-agree-req" ${req ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Mandatory Agreement Checkbox (Student must agree before submission)</span>
+          </label>
+        </div>
+      `;
+    } else if (compKey === 'kiosk_barcode') {
+      title = '🎫 Edit Kiosk Entry Barcode Pass';
+      const label = s.kioskBarcodeLabel || 'Kiosk Entry Barcode';
+      const sub = s.kioskBarcodeSubtext || 'Instant admission barcode for turnstile / attendance gate';
+      const active = s.showKioskBarcode !== false;
+      formHtml = `
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Badge Title *</label>
+          <input type="text" id="ce-label" class="form-control" value="${escapeHTML(label)}" required>
+        </div>
+        <div class="form-group mb-3">
+          <label class="form-label text-xs" style="font-weight:700;">Description</label>
+          <input type="text" id="ce-subtext" class="form-control" value="${escapeHTML(sub)}">
+        </div>
+        <div class="form-group mb-3">
+          <label class="switch-label" style="font-weight: 600; font-size: 0.85rem;">
+            <input type="checkbox" id="ce-active" ${active ? 'checked' : ''}>
+            <span class="switch-slider"></span>
+            <span>Generate Kiosk Barcode on Student Pass</span>
+          </label>
+        </div>
+      `;
+    }
+
+    const modalContent = document.createElement('div');
+    modalContent.innerHTML = `
+      <form id="fb-component-edit-form" style="display: flex; flex-direction: column; gap: 14px;">
+        ${formHtml}
+        <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--color-border); padding-top: 14px; margin-top: 6px;">
+          <button type="button" class="btn btn-secondary fb-cancel-modal-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="font-weight: 700;">💾 Save Changes</button>
+        </div>
+      </form>
+    `;
+
+    const modal = new Modal({
+      title,
+      content: modalContent,
+      size: 'md'
+    });
+    modal.show();
+
+    modalContent.querySelector('.fb-cancel-modal-btn')?.addEventListener('click', () => {
+      modal.close();
+      Modal.closeAll();
+    });
+
+    modalContent.querySelector('#fb-component-edit-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        if (compKey === 'upi') {
+          s.upiPaymentLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.upiPaymentSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showUpiPayment = modalContent.querySelector('#ce-active').checked;
+        } else if (compKey === 'desk') {
+          s.deskPaymentLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.deskPaymentSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showDeskPayment = modalContent.querySelector('#ce-active').checked;
+        } else if (compKey === 'netbanking') {
+          s.netBankingPaymentLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.netBankingPaymentSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showNetBankingPayment = modalContent.querySelector('#ce-active').checked;
+        } else if (compKey === 'receipt_options') {
+          s.whatsappReceiptLabel = modalContent.querySelector('#ce-wa-label').value.trim();
+          s.showWhatsappReceipt = modalContent.querySelector('#ce-wa-active').checked;
+          s.emailConfirmationLabel = modalContent.querySelector('#ce-em-label').value.trim();
+          s.showEmailConfirmation = modalContent.querySelector('#ce-em-active').checked;
+          s.taxInvoiceLabel = modalContent.querySelector('#ce-tax-label').value.trim();
+          s.showTaxInvoice = modalContent.querySelector('#ce-tax-active').checked;
+        } else if (compKey === 'payment_all') {
+          s.showUpiPayment = modalContent.querySelector('#ce-all-upi').checked;
+          s.upiPaymentLabel = modalContent.querySelector('#ce-all-upi-label').value.trim();
+          s.showDeskPayment = modalContent.querySelector('#ce-all-desk').checked;
+          s.deskPaymentLabel = modalContent.querySelector('#ce-all-desk-label').value.trim();
+          s.showNetBankingPayment = modalContent.querySelector('#ce-all-nb').checked;
+          s.netBankingPaymentLabel = modalContent.querySelector('#ce-all-nb-label').value.trim();
+        } else if (compKey === 'seat_map') {
+          s.seatSelectionLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.seatSelectionSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showSeatSelection = modalContent.querySelector('#ce-active').checked;
+          s.seatSelectionRequired = modalContent.querySelector('#ce-required').checked;
+        } else if (compKey === 'signature') {
+          s.digitalSignatureLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.digitalSignatureSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showDigitalSignature = modalContent.querySelector('#ce-active').checked;
+          s.digitalSignatureRequired = modalContent.querySelector('#ce-required').checked;
+        } else if (compKey === 'passport_photo') {
+          s.passportSelfieLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.passportSelfieSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showPassportSelfie = modalContent.querySelector('#ce-active').checked;
+          s.passportSelfieRequired = modalContent.querySelector('#ce-required').checked;
+        } else if (compKey === 'quiet_study') {
+          s.quietStudyAgreementTitle = modalContent.querySelector('#ce-agree-title').value.trim();
+          s.quietStudyAgreementRules = modalContent.querySelector('#ce-agree-rules').value.trim();
+          s.quietStudyConsentText = modalContent.querySelector('#ce-agree-consent').value.trim();
+          s.showQuietStudyAgreement = modalContent.querySelector('#ce-agree-active').checked;
+          s.quietStudyRequired = modalContent.querySelector('#ce-agree-req').checked;
+
+          try {
+            const ruleLines = s.quietStudyAgreementRules.split('\n').map(l => l.trim()).filter(Boolean);
+            await api.put('/api/settings/profile', { rules: ruleLines });
+          } catch (err) {}
+        } else if (compKey === 'kiosk_barcode') {
+          s.kioskBarcodeLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.kioskBarcodeSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showKioskBarcode = modalContent.querySelector('#ce-active').checked;
+        }
+
+        await api.put('/api/custom-fields/templates/active', {
+          settings: s
+        });
+        FormBuilder.bustPublicFormCache();
+        Toast.success('Component settings saved successfully!');
+        modal.close();
+        Modal.closeAll();
+        this.renderSections();
+        this.renderPreview();
+      } catch (err) {
+        Toast.error(err.message || 'Failed to save component settings');
+      }
+    });
   }
 
   static openFieldEditor(fieldId, targetSection = null) {
