@@ -2007,7 +2007,21 @@ export async function render() {
     }
   });
 
-  function showStudentProfile(student) {
+  async function showStudentProfile(student) {
+    if (student && student._id) {
+      try {
+        const fresh = await api.get(`/api/students/${student._id}`);
+        if (fresh?.data) student = fresh.data;
+      } catch (e) {}
+    }
+
+    let branchName = student.branch?.name || '';
+    if (!branchName && student.branch && typeof student.branch === 'string') {
+      const bFound = (_cachedFormDeps?.branches || window.store?.branches || []).find(b => String(b._id || b.id) === String(student.branch));
+      if (bFound) branchName = bFound.name + (bFound.city ? ` (${bFound.city})` : '');
+    }
+    if (!branchName) branchName = student.customFields?.branch || 'Main Campus';
+
     const planName = student.plan?.name || 'Standard Plan';
     const seatNumber = student.seat?.seatNumber || 'Floating / Not Assigned';
     const admissionDate = student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-IN') : '-';
@@ -2151,6 +2165,7 @@ export async function render() {
           <!-- Membership Info -->
           <div style="background: var(--color-bg-primary); padding: 14px; border-radius: 10px; border: 1px solid var(--color-border);">
             <h5 style="margin: 0 0 10px 0; font-size: 0.9rem; font-weight: 700; color: var(--color-primary);">💺 Membership & Seat</h5>
+            <div class="small text-muted mb-1">🏛️ Centre / Branch: <strong class="text-primary">${escapeHTML(branchName)}</strong></div>
             <div class="small text-muted mb-1">Plan: <strong class="text-primary">${escapeHTML(planName)}</strong></div>
             <div class="small text-muted mb-1">Desk / Seat: <strong class="text-success">${escapeHTML(seatNumber)}</strong></div>
             <div class="small text-muted mb-1">Enrolled: <strong>${admissionDate}</strong></div>
