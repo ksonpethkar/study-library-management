@@ -1481,7 +1481,7 @@
         } else if (secName === 'plan') {
           stepBodyHtml = `
             <!-- Interactive Visual Plan Cards Grid -->
-            <div class="form-group mb-4">
+            <div class="form-group mb-4" id="reg-plan-selection-wrap">
               <label class="form-label" style="font-weight: 700; font-size: 0.95rem; margin-bottom: 0.75rem;">Choose Membership Plan *</label>
               <div id="plan-selection-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">
                 <div class="text-center text-muted p-3 w-100" style="grid-column: 1 / -1;">
@@ -1511,7 +1511,7 @@
               </small>
             </div>
 
-            <div class="form-group mb-4">
+            <div class="form-group mb-4" id="reg-referral-wrap">
               <label class="form-label" style="font-weight: 600;">Referral / Discount Coupon Code (Optional)</label>
               <div style="display: flex; gap: 10px;">
                 <input type="text" id="reg-referral" name="referralCode" class="form-control" placeholder="Enter code (e.g. SAVE100 or FRIEND)">
@@ -2690,8 +2690,23 @@
           });
         }
 
-        // 1. Dynamic Locker Add-on Configuration from SystemSettings
+        const tplSettings = activeTemplate?.settings || {};
+
+        // 1. Dynamic Plan Selection Visibility
+        const isPlansVisible = tplSettings.showPlans !== false;
+        const planWrap = document.getElementById('reg-plan-selection-wrap');
+        if (planWrap) planWrap.style.display = isPlansVisible ? 'block' : 'none';
+        const planSelect = document.getElementById('reg-plan');
+        if (planSelect && !isPlansVisible) planSelect.removeAttribute('required');
+
+        // 2. Dynamic Shift Selection Visibility
+        const isShiftVisible = tplSettings.showShiftSelection !== false;
+        const shiftWrapper = document.getElementById('reg-shift-wrapper');
+        if (shiftWrapper && !isShiftVisible) shiftWrapper.style.display = 'none';
+
+        // 3. Dynamic Locker Add-on Configuration from SystemSettings and Template
         const isLockerEnabled = (
+          tplSettings.showLockerAddon !== false &&
           publicConfig?.locker?.enableAddon !== false &&
           publicConfig?.settings?.['locker.enableAddon'] !== false &&
           publicConfig?.settings?.['portal.enableLockerRequests'] !== false &&
@@ -2716,15 +2731,25 @@
           }
         }
 
-        // 2. Interactive Plans Population & Visual Cards Grid
+        // 4. Dynamic Referral Coupon Visibility
+        const isCouponEnabled = tplSettings.showReferralCoupon !== false;
+        const couponWrap = document.getElementById('reg-referral-wrap');
+        if (couponWrap) couponWrap.style.display = isCouponEnabled ? 'block' : 'none';
+
+        // 5. Dynamic Fee Calculator Visibility
+        const isCalcVisible = tplSettings.showFeeBreakdown !== false;
+        const calcCard = document.querySelector('.calculator-card');
+        if (calcCard) calcCard.style.display = isCalcVisible ? 'block' : 'none';
+
+        // 6. Interactive Plans Population & Visual Cards Grid
         const rawPlans = Array.isArray(publicConfig?.plans) ? publicConfig.plans : [];
         let plans = rawPlans.filter(p => p.isActive !== false && p.isActive !== 'false' && p.isDeleted !== true);
 
         if (plans.length === 0) {
           plans = [
             {
-              _id: 'default_monthly',
-              name: 'Monthly Plan',
+              _id: '6a7e89ca236f0e136826e1ba',
+              name: 'Monthly',
               duration: 1,
               durationType: 'months',
               price: 1000,
@@ -2733,19 +2758,27 @@
               features: ['High-speed WiFi', 'AC Hall', 'Personal Charging Point', 'RO Water']
             },
             {
-              _id: 'default_quarterly',
-              name: 'Quarterly Plan',
+              _id: '6a7ea3ac5875a8d2ad8639b8',
+              name: 'Quaterly',
               duration: 3,
               durationType: 'months',
               price: 4000,
               discount: 40,
               shift: 'fullday',
               features: ['High-speed WiFi', 'AC Hall', 'Personal Charging Point', 'RO Water']
+            },
+            {
+              _id: '6a86d36967a0cb5922a73cff',
+              name: 'sample testing',
+              duration: 1,
+              durationType: 'days',
+              price: 1,
+              shift: 'fullday',
+              features: ['High-speed WiFi', 'AC Hall', 'Personal Charging Point']
             }
           ];
         }
 
-        const planSelect = document.getElementById('reg-plan');
         const planCardsGrid = document.getElementById('plan-selection-cards-grid');
 
         if (planSelect) {
@@ -3187,7 +3220,7 @@
       // 2. Revalidate / Fetch fresh live config from server in background
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
         const t = Date.now();
         const [cfgRes, branchRes, planRes, fieldsRes, tplRes] = await Promise.all([
           fetch(`/api/system/public-config?t=${t}`, { signal: controller.signal }).catch(() => null),

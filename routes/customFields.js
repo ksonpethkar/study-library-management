@@ -197,7 +197,10 @@ router.put('/templates/active', async (req, res) => {
     if (!template) {
       template = await FormTemplate.create({ name: 'Default Template', slug: 'default', isActive: true, ...req.body });
     } else {
-      // Merge branding and sections properly
+      // Merge settings, branding and sections properly
+      if (req.body.settings && template.settings) {
+        req.body.settings = { ...template.settings.toObject(), ...req.body.settings };
+      }
       if (req.body.branding && template.branding) {
         req.body.branding = { ...template.branding.toObject(), ...req.body.branding };
       }

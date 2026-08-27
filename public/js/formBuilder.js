@@ -321,20 +321,25 @@ export class FormBuilder {
 
       const isCoreSec = ['personal', 'plan', 'payment', 'seat'].includes(sec.name);
 
+      const isSecHidden = Boolean(sec.isHidden);
       return `
-        <div class="fb-sec-card" data-section="${sec.name}" style="background: var(--color-surface-hover); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; margin-bottom: 12px;">
+        <div class="fb-sec-card" data-section="${sec.name}" style="background: var(--color-surface-hover); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; margin-bottom: 12px; ${isSecHidden ? 'opacity: 0.82;' : ''}">
           <div class="fb-sec-header" style="padding: 10px 14px; background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <div class="fb-sec-title-wrap" style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.92rem; color: var(--color-primary); cursor: pointer; user-select: none;">
               <div class="fb-sec-drag-handle" style="cursor: grab; font-size: 1.2rem; color: var(--color-text-secondary); padding: 2px 6px; user-select: none; touch-action: none;" title="Drag to reorder section">⠿</div>
               <span>${SECTION_ICONS[sec.icon] || '📁'}</span>
               <span>${escapeHTML(sec.label)}</span>
               <span class="badge badge-secondary" style="font-size: 0.7rem;">${sec.isSystem ? 'System Component' : secFields.length + ' Questions'}</span>
+              ${isSecHidden ? '<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 0.7rem; font-weight: 700;">🚫 Hidden in Form</span>' : ''}
               <span class="fb-sec-toggle-caret" style="font-size: 0.8rem; font-weight: bold; color: var(--color-text-muted); margin-left: 4px;">▲</span>
             </div>
 
             <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
               ${secIdx > 0 ? `<button type="button" class="btn btn-sm btn-ghost fb-sec-up" data-sec="${sec.name}" title="Move Section Up">⬆️</button>` : ''}
               ${secIdx < this.sections.length - 1 ? `<button type="button" class="btn btn-sm btn-ghost fb-sec-down" data-sec="${sec.name}" title="Move Section Down">⬇️</button>` : ''}
+              <button type="button" class="btn btn-sm ${isSecHidden ? 'btn-danger' : 'btn-outline-secondary'} fb-sec-visibility" data-sec="${sec.name}" title="${isSecHidden ? 'Section is Hidden in Registration Form — Click to Make Visible' : 'Click to Hide Section from Registration Form'}" style="font-size: 0.75rem; padding: 2px 8px; font-weight: 700;">
+                ${isSecHidden ? '👁️ Hidden' : '👁️ Visible'}
+              </button>
               <button type="button" class="btn btn-sm btn-outline-secondary fb-sec-rename" data-sec="${sec.name}" title="Rename Section Title & Icon" style="font-size: 0.75rem; padding: 2px 7px;">✏️ Rename</button>
               <button type="button" class="btn btn-sm btn-outline-secondary fb-sec-copy" data-sec="${sec.name}" title="Copy Section & All Questions" style="font-size: 0.75rem; padding: 2px 7px;">📋 Copy Sec</button>
               <button type="button" class="btn btn-sm btn-outline-success fb-sec-paste-field" data-sec="${sec.name}" title="Paste Copied Question into this Section" style="font-size: 0.75rem; padding: 2px 7px;">📋 Paste Q</button>
@@ -493,6 +498,16 @@ export class FormBuilder {
       btn.addEventListener('click', () => this.deleteSection(btn.dataset.sec));
     });
 
+    container.querySelectorAll('.fb-sec-visibility').forEach(btn => {
+      btn.addEventListener('click', () => this.toggleSectionVisibility(btn.dataset.sec));
+    });
+
+    container.querySelectorAll('.fb-plan-setting-toggle').forEach(chk => {
+      chk.addEventListener('change', () => {
+        this.toggleTemplateSetting(chk.dataset.setting, chk.checked);
+      });
+    });
+
     container.querySelectorAll('.fb-field-copy').forEach(btn => {
       btn.addEventListener('click', () => this.copyField(btn.dataset.id));
     });
@@ -534,32 +549,83 @@ export class FormBuilder {
           `).join('')
         : `
             <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
-              <div style="font-weight: 700; color: var(--color-text-primary);">💎 Full Day 24-Hour Plan</div>
-              <div style="color: var(--color-primary); font-weight: 800; font-size: 0.88rem;">₹1,800 / Month</div>
+              <div style="font-weight: 700; color: var(--color-text-primary);">💎 Monthly Plan</div>
+              <div style="color: var(--color-primary); font-weight: 800; font-size: 0.88rem;">₹1,000 / Month</div>
               <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Shift: All Day (24 Hours)</div>
             </div>
             <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
-              <div style="font-weight: 700; color: var(--color-text-primary);">🌅 Morning Shift Plan</div>
-              <div style="color: var(--color-primary); font-weight: 800; font-size: 0.88rem;">₹1,200 / Month</div>
-              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Shift: Morning (7 AM - 5 PM)</div>
+              <div style="font-weight: 700; color: var(--color-text-primary);">💎 Quaterly Plan</div>
+              <div style="color: var(--color-primary); font-weight: 800; font-size: 0.88rem;">₹4,000 / 3 Months</div>
+              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Shift: All Day (24 Hours)</div>
             </div>
           `;
 
+      const tplSettings = this.template?.settings || {};
+      const showPlans = tplSettings.showPlans !== false;
+      const showLockerAddon = tplSettings.showLockerAddon !== false;
+      const showReferralCoupon = tplSettings.showReferralCoupon !== false;
+      const showShiftSelection = tplSettings.showShiftSelection !== false;
+      const showFeeBreakdown = tplSettings.showFeeBreakdown !== false;
+
       return `
-        <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 8px; padding: 12px; font-size: 0.83rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <div style="font-weight: 700; color: var(--color-primary); font-size: 0.88rem;">
-              💎 Live Membership Plans & Sub-Options Breakdown (${this.plans?.length || 2} Active Plans)
+        <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 8px; padding: 14px; font-size: 0.83rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="font-weight: 700; color: var(--color-primary); font-size: 0.9rem;">
+              💎 Live Membership Plans & Dynamic Add-ons (${this.plans?.length || 0} Active Plans in DB)
             </div>
-            <span class="badge badge-primary" style="font-size: 0.68rem;">SYSTEM COMPONENT</span>
+            <span class="badge badge-primary" style="font-size: 0.68rem;">ADMIN CONFIGURABLE</span>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 10px;">
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 14px;">
             ${planCards}
           </div>
-          <div style="font-size: 0.73rem; color: var(--color-text-secondary); display: flex; flex-wrap: wrap; gap: 12px; background: var(--color-bg-secondary); padding: 6px 10px; border-radius: 6px;">
-            <span>✅ Dynamic Shift Selection</span>
-            <span>✅ Fee Breakdown & Tax Calculator</span>
-            <span>✅ Referral Promo Code</span>
+
+          <!-- Registration Form Visibility Controls Requested by Admin -->
+          <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-primary); display: flex; justify-content: space-between; align-items: center;">
+              <span>⚙️ Registration Portal Form Display Options:</span>
+              <span style="font-size: 0.72rem; color: var(--color-text-secondary); font-weight: 500;">Saved live to database</span>
+            </div>
+
+            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--color-surface); border: 1px solid var(--color-border); margin: 0;">
+              <div>
+                <div style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-primary);">💎 Membership Study Plans Grid</div>
+                <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Show interactive visual study plan cards</div>
+              </div>
+              <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showPlans" ${showPlans ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--color-primary);">
+            </label>
+
+            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--color-surface); border: 1px solid var(--color-border); margin: 0;">
+              <div>
+                <div style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-primary);">🔒 Personal Study Locker Add-on Option</div>
+                <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Show "+₹200/mo study locker" checkbox to students</div>
+              </div>
+              <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showLockerAddon" ${showLockerAddon ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--color-primary);">
+            </label>
+
+            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--color-surface); border: 1px solid var(--color-border); margin: 0;">
+              <div>
+                <div style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-primary);">🎟️ Referral / Discount Coupon Code Input</div>
+                <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Show "Enter code (e.g. SAVE100)" promo field</div>
+              </div>
+              <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showReferralCoupon" ${showReferralCoupon ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--color-primary);">
+            </label>
+
+            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--color-surface); border: 1px solid var(--color-border); margin: 0;">
+              <div>
+                <div style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-primary);">⏰ Preferred Study Shift / Timing Selection</div>
+                <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Show morning / evening / 24h shift picker</div>
+              </div>
+              <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showShiftSelection" ${showShiftSelection ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--color-primary);">
+            </label>
+
+            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--color-surface); border: 1px solid var(--color-border); margin: 0;">
+              <div>
+                <div style="font-weight: 700; font-size: 0.82rem; color: var(--color-text-primary);">💰 Live Fee Breakdown Auto-Calculator Card</div>
+                <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Show base price, locker fee, and net total breakdown</div>
+              </div>
+              <input type="checkbox" class="fb-plan-setting-toggle" data-setting="showFeeBreakdown" ${showFeeBreakdown ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer; accent-color: var(--color-primary);">
+            </label>
           </div>
         </div>
       `;
@@ -689,17 +755,18 @@ export class FormBuilder {
     const container = document.getElementById('fb-live-preview');
     if (!container) return;
 
-    if (this.sections.length === 0) {
-      container.innerHTML = '<div class="text-center p-4 text-muted">No sections configured.</div>';
+    const activeSecs = this.sections.filter(s => !s.isHidden);
+    if (activeSecs.length === 0) {
+      container.innerHTML = '<div class="text-center p-4 text-muted">All form sections are currently set to hidden. Make at least one section visible to preview.</div>';
       return;
     }
 
-    if (this.currentPreviewStep >= this.sections.length) {
+    if (this.currentPreviewStep >= activeSecs.length) {
       this.currentPreviewStep = 0;
     }
 
-    const currentSec = this.sections[this.currentPreviewStep];
-    const totalSteps = this.sections.length;
+    const currentSec = activeSecs[this.currentPreviewStep];
+    const totalSteps = activeSecs.length;
 
     const secFields = this.fields
       .filter(f => (f.section || 'personal') === currentSec.name && f.isActive !== false)
@@ -727,7 +794,7 @@ export class FormBuilder {
       <!-- Stepper Progress Dots -->
       <div style="display: flex; justify-content: space-between; margin-bottom: 16px; position: relative;">
         <div style="position: absolute; top: 12px; left: 10px; right: 10px; height: 2px; background: var(--color-border); z-index: 1;"></div>
-        ${this.sections.map((sec, i) => `
+        ${activeSecs.map((sec, i) => `
           <div style="position: relative; z-index: 2; width: 26px; height: 26px; border-radius: 50%; background: ${i <= this.currentPreviewStep ? '#6c5ce7' : 'var(--color-surface)'}; border: 2px solid ${i <= this.currentPreviewStep ? '#6c5ce7' : 'var(--color-border)'}; color: ${i <= this.currentPreviewStep ? '#ffffff' : 'var(--color-text-secondary)'}; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800;">
             ${i + 1}
           </div>
@@ -806,37 +873,76 @@ export class FormBuilder {
 
     // STEP 3: Membership Plan & Fee Calculator
     if (secName === 'plan') {
+      const tplSettings = this.template?.settings || {};
+      const showPlans = tplSettings.showPlans !== false;
+      const showLockerAddon = tplSettings.showLockerAddon !== false;
+      const showReferralCoupon = tplSettings.showReferralCoupon !== false;
+      const showShiftSelection = tplSettings.showShiftSelection !== false;
+      const showFeeBreakdown = tplSettings.showFeeBreakdown !== false;
+
       const planOptions = this.plans.map(p => `<option value="${p._id}" ${this.selectedPlanId === p._id ? 'selected' : ''}>${escapeHTML(p.name)} — ₹${p.price} / ${p.duration} ${p.durationType} (${p.shift ? p.shift.toUpperCase() : 'ANY SHIFT'})</option>`).join('');
       const selectedPlan = this.plans.find(p => p._id === this.selectedPlanId) || this.plans[0] || { name: 'Standard Full Day Plan', price: 1500, shift: 'All Day (24 Hours)' };
 
       return `
         <div style="display: flex; flex-direction: column; gap: 12px;">
-          <div>
-            <label class="form-label text-xs" style="font-weight:700;">Select Membership Plan *</label>
-            <select class="form-select form-control-sm" id="prev-plan-select">${planOptions || '<option>Standard 12-Hour Study Plan (₹1,500/mo)</option>'}</select>
-          </div>
+          ${showPlans ? `
+            <div>
+              <label class="form-label text-xs" style="font-weight:700;">Select Membership Plan *</label>
+              <select class="form-select form-control-sm" id="prev-plan-select">${planOptions || '<option>Standard 12-Hour Study Plan (₹1,500/mo)</option>'}</select>
+            </div>
+          ` : ''}
 
-          <div style="display: flex; gap: 8px;">
-            <input type="text" class="form-control form-control-sm" placeholder="Referral / Discount Code (Optional)">
-            <button type="button" class="btn btn-outline-primary btn-sm" style="font-weight:700;">Apply</button>
-          </div>
+          ${showShiftSelection ? `
+            <div>
+              <label class="form-label text-xs" style="font-weight:700;">Preferred Study Shift / Timing</label>
+              <select class="form-select form-control-sm">
+                <option>Full Day (24 Hours - 24x7 Open)</option>
+                <option>Morning (7:00 AM - 5:00 PM)</option>
+                <option>Evening / Night (5:00 PM - 7:00 AM)</option>
+              </select>
+            </div>
+          ` : ''}
+
+          ${showLockerAddon ? `
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.82rem; display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" checked disabled style="width: 16px; height: 16px;">
+              <span style="font-weight: 600;">🔒 Add Personal Study Locker (+₹200/mo)</span>
+            </div>
+          ` : ''}
+
+          ${showReferralCoupon ? `
+            <div style="display: flex; gap: 8px;">
+              <input type="text" class="form-control form-control-sm" placeholder="Referral / Discount Code (Optional)">
+              <button type="button" class="btn btn-outline-primary btn-sm" style="font-weight:700;">Apply</button>
+            </div>
+          ` : ''}
 
           <!-- Fee Summary Card -->
-          <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
-            <div style="font-weight: 700; color: var(--color-primary); margin-bottom: 6px;">💰 Live Fee Breakdown</div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-              <span>Base Plan Fee (${escapeHTML(selectedPlan.name)})</span>
-              <span style="font-weight:700;">₹${selectedPlan.price || 1500}</span>
+          ${showFeeBreakdown ? `
+            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; font-size: 0.85rem;">
+              <div style="font-weight: 700; color: var(--color-primary); margin-bottom: 6px;">💰 Live Fee Breakdown</div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span>Base Plan Fee (${escapeHTML(selectedPlan.name)})</span>
+                <span style="font-weight:700;">₹${selectedPlan.price || 1500}</span>
+              </div>
+              ${showLockerAddon ? `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--color-primary);">
+                  <span>Locker Add-on Fee</span>
+                  <span style="font-weight:700;">+₹200</span>
+                </div>
+              ` : ''}
+              ${showReferralCoupon ? `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--color-success);">
+                  <span>Referral Discount</span>
+                  <span style="font-weight:700;">-₹0</span>
+                </div>
+              ` : ''}
+              <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--color-border); padding-top: 6px; font-weight: 800; font-size: 0.95rem;">
+                <span>Net Payable Amount</span>
+                <span style="color: var(--color-primary);">₹${(selectedPlan.price || 1500) + (showLockerAddon ? 200 : 0)}</span>
+              </div>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--color-success);">
-              <span>Referral Discount</span>
-              <span style="font-weight:700;">-₹0</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--color-border); padding-top: 6px; font-weight: 800; font-size: 0.95rem;">
-              <span>Net Payable Amount</span>
-              <span style="color: var(--color-primary);">₹${selectedPlan.price || 1500}</span>
-            </div>
-          </div>
+          ` : ''}
 
           ${secFields.map(f => this.renderPreviewInput(f)).join('')}
         </div>
@@ -1218,6 +1324,49 @@ export class FormBuilder {
       this.renderPreview();
     } catch (err) {
       Toast.error(err.message || 'Failed to delete section');
+    }
+  }
+
+  static async toggleSectionVisibility(secName) {
+    const sec = this.sections.find(s => s.name === secName);
+    if (!sec) return;
+
+    sec.isHidden = !sec.isHidden;
+    if (!this.template) this.template = {};
+    this.template.sections = this.sections;
+
+    try {
+      await api.put('/api/custom-fields/templates/active', { sections: this.sections });
+      Toast.success(`Section "${sec.label}" is now ${sec.isHidden ? 'Hidden 🚫 (Will not show to students)' : 'Visible 👁️ in registration form'}!`);
+      this.renderSections();
+      this.renderPreview();
+    } catch (err) {
+      console.error('Failed to update section visibility:', err);
+      Toast.error('Failed to save section visibility');
+    }
+  }
+
+  static async toggleTemplateSetting(settingKey, isChecked) {
+    if (!this.template) this.template = {};
+    if (!this.template.settings) this.template.settings = {};
+    this.template.settings[settingKey] = isChecked;
+
+    try {
+      await api.put('/api/custom-fields/templates/active', {
+        settings: this.template.settings
+      });
+      if (settingKey === 'showLockerAddon') {
+        try {
+          await api.put('/api/settings/system-settings', {
+            'locker.enableAddon': isChecked
+          });
+        } catch (e) {}
+      }
+      Toast.success(`Display option updated: ${isChecked ? 'Visible 👁️' : 'Hidden 🚫'} in registration form!`);
+      this.renderPreview();
+    } catch (err) {
+      console.error('Failed to update template setting:', err);
+      Toast.error('Failed to save display setting');
     }
   }
 

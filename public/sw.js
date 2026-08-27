@@ -3,7 +3,7 @@
  * Phase 4: Updated cache, offline fallback page, stale-while-revalidate
  */
 
-const CACHE_NAME = 'studylib-pwa-v28';
+const CACHE_NAME = 'studylib-pwa-v30';
 
 // All static assets to pre-cache on install
 const STATIC_ASSETS = [
@@ -97,7 +97,12 @@ self.addEventListener('fetch', (event) => {
     url.pathname.endsWith('.js') ||
     url.pathname.endsWith('.css') ||
     url.pathname.endsWith('.html') ||
-    url.pathname === '/'
+    url.pathname === '/' ||
+    url.pathname === '/register' ||
+    url.pathname === '/landing' ||
+    url.pathname === '/student-login' ||
+    url.pathname === '/portal-login' ||
+    url.pathname === '/kiosk'
   ) {
     event.respondWith(
       fetch(req)

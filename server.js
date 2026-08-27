@@ -580,7 +580,7 @@ async function sendHydratedHTML(res, htmlPath) {
         const Branch = require('./models/Branch');
         const SystemSetting = require('./models/SystemSetting');
 
-        const [cFields, template, plans, shifts, branches, settingsList] = await Promise.all([
+        let [cFields, template, plans, shifts, branches, settingsList] = await Promise.all([
           CustomField.getActiveFields().catch(() => []),
           FormTemplate.getActiveTemplate().catch(() => null),
           Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort('displayOrder').lean().catch(() => []),
@@ -588,6 +588,43 @@ async function sendHydratedHTML(res, htmlPath) {
           Branch.find({ isActive: true, isDeleted: { $ne: true } }).lean().catch(() => []),
           SystemSetting.find().lean().catch(() => [])
         ]);
+
+        if (!plans || plans.length === 0) {
+          plans = await Plan.find({ isDeleted: { $ne: true } }).lean().catch(() => []);
+        }
+        if (!plans || plans.length === 0) {
+          plans = [
+            {
+              _id: '6a7e89ca236f0e136826e1ba',
+              name: 'Monthly',
+              duration: 1,
+              durationType: 'months',
+              price: 1000,
+              discount: 30,
+              shift: 'fullday',
+              features: ['WiFi', 'AC', 'Personal Charging Point', 'RO Water']
+            },
+            {
+              _id: '6a7ea3ac5875a8d2ad8639b8',
+              name: 'Quaterly',
+              duration: 3,
+              durationType: 'months',
+              price: 4000,
+              discount: 40,
+              shift: 'fullday',
+              features: ['WiFi', 'AC', 'Personal Charging Point', 'RO Water']
+            },
+            {
+              _id: '6a86d36967a0cb5922a73cff',
+              name: 'sample testing',
+              duration: 1,
+              durationType: 'days',
+              price: 1,
+              shift: 'fullday',
+              features: ['WiFi', 'AC', 'Desk']
+            }
+          ];
+        }
 
         const settingsMap = {};
         (settingsList || []).forEach(s => { settingsMap[s.key] = s.value; });

@@ -26,7 +26,13 @@ const formTemplateSchema = new mongoose.Schema({
     submitButtonText: { type: String, default: 'Submit Registration' },
     successMessage: { type: String, default: 'Registration submitted successfully! You will receive a confirmation soon.' },
     enableAutoSave: { type: Boolean, default: false },
-    showTimestamp: { type: Boolean, default: true }
+    showTimestamp: { type: Boolean, default: true },
+    // Step 5: Membership Plan & Add-ons Visibility Controls
+    showPlans: { type: Boolean, default: true },
+    showLockerAddon: { type: Boolean, default: true },
+    showReferralCoupon: { type: Boolean, default: true },
+    showShiftSelection: { type: Boolean, default: true },
+    showFeeBreakdown: { type: Boolean, default: true }
   },
   
   // Branding
