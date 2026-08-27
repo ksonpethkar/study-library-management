@@ -203,10 +203,9 @@ router.put('/:id/toggle', async (req, res) => {
   }
 });
 
-// DELETE /api/custom-fields/:id - Delete custom field
+// DELETE /api/custom-fields/:id - Direct delete with undo support (no trash clogging)
 router.delete('/:id', async (req, res) => {
   try {
-    const { moveToTrash } = require('./trash');
     const field = await CustomField.findById(req.params.id);
     if (!field) return res.status(404).json({ success: false, message: 'Field not found' });
 
@@ -214,18 +213,19 @@ router.delete('/:id', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Essential core fields (like Name and Phone) cannot be deleted. You can edit their labels or set them inactive.' });
     }
 
-    await moveToTrash({
-      itemType: 'custom_field',
-      itemId: field._id,
-      itemTitle: `Question: ${field.label || field.name}`,
-      itemSubtitle: `Type: ${(field.type || 'text').toUpperCase()} • Section: ${field.section || 'General'} • Required: ${field.required ? 'Yes' : 'No'}`,
-      originalCollection: 'customfields',
-      itemData: field.toObject ? field.toObject() : field,
-      user: req.user,
-      reason: req.body?.reason || ''
-    });
+    const deletedDoc = await CustomField.findByIdAndDelete(req.params.id);
 
-    res.json({ success: true, message: `Field "${field.label || field.name}" moved to Recycle Bin (Trash).` });
+    // Clean up any residual trash records for this field to keep recycle bin clean
+    try {
+      const Trash = require('../models/Trash');
+      await Trash.deleteMany({ itemType: 'custom_field', itemId: field._id });
+    } catch (e) {}
+
+    res.json({
+      success: true,
+      message: `Question "${field.label || field.name}" deleted`,
+      data: deletedDoc
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to delete field' });
   }

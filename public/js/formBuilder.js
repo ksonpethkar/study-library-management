@@ -68,6 +68,10 @@ export class FormBuilder {
                 </button>
               </div>
 
+              <button type="button" class="btn btn-outline-warning btn-sm" id="fb-undo-btn" style="font-weight: 700; display: none;" title="Undo last action">
+                ↩️ Undo (<span id="fb-undo-count">0</span>)
+              </button>
+
               <button type="button" class="btn btn-outline-secondary btn-sm" id="fb-toggle-branding-panel" style="font-weight: 600;">
                 🖼️ Header Branding
               </button>
@@ -1043,6 +1047,40 @@ export class FormBuilder {
     document.getElementById('fb-add-field-btn')?.addEventListener('click', () => {
       this.openFieldEditor(null);
     });
+
+    // Undo button
+    document.getElementById('fb-undo-btn')?.addEventListener('click', () => {
+      this.undoLastAction();
+    });
+  }
+
+  static undoStack = [];
+
+  static pushUndo(action) {
+    if (!this.undoStack) this.undoStack = [];
+    this.undoStack.push(action);
+    this.updateUndoButton();
+  }
+
+  static updateUndoButton() {
+    const btn = document.getElementById('fb-undo-btn');
+    const countSpan = document.getElementById('fb-undo-count');
+    const count = this.undoStack ? this.undoStack.length : 0;
+    if (countSpan) countSpan.textContent = count;
+    if (btn) btn.style.display = count > 0 ? 'inline-flex' : 'none';
+  }
+
+  static async undoLastAction() {
+    if (!this.undoStack || this.undoStack.length === 0) return;
+    const action = this.undoStack.pop();
+    this.updateUndoButton();
+    if (action && typeof action.restore === 'function') {
+      try {
+        await action.restore();
+      } catch (e) {
+        Toast.error('Failed to undo action: ' + e.message);
+      }
+    }
   }
 
   static async moveSection(secName, delta) {
@@ -1083,9 +1121,35 @@ export class FormBuilder {
     if (!confirm(`Are you sure you want to delete question "${field.label}"?`)) return;
 
     try {
+      const fieldSnapshot = { ...field };
       await api.delete(`/api/custom-fields/${fieldId}`);
-      Toast.success(`Question "${field.label}" deleted permanently`);
       this.fields = this.fields.filter(f => f._id !== fieldId);
+      
+      this.pushUndo({
+        type: 'delete_field',
+        title: `Question "${field.label}"`,
+        data: fieldSnapshot,
+        restore: async () => {
+          const payload = { ...fieldSnapshot };
+          delete payload._id;
+          delete payload.createdAt;
+          delete payload.updatedAt;
+          const createRes = await api.post('/api/custom-fields', payload);
+          if (createRes.success && createRes.data) {
+            this.fields.push(createRes.data);
+          } else {
+            await this.loadData();
+          }
+          this.renderSections();
+          this.renderPreview();
+          Toast.success(`Question "${fieldSnapshot.label}" restored!`);
+        }
+      });
+
+      Toast.undo(`Question "${field.label}" deleted.`, () => {
+        this.undoLastAction();
+      });
+
       this.renderSections();
       this.renderPreview();
     } catch (err) {
@@ -1100,6 +1164,9 @@ export class FormBuilder {
     if (!confirm(`Are you sure you want to delete section "${sec.label}"? Any questions inside will be moved to Personal Information.`)) return;
 
     try {
+      const secSnapshot = { ...sec };
+      const movedFields = this.fields.filter(f => f.section === secName).map(f => f._id);
+
       await api.delete(`/api/custom-fields/sections/${secName}`);
       this.sections = this.sections.filter(s => s.name !== secName);
       this.sections.forEach((s, idx) => { s.order = idx + 1; });
@@ -1111,7 +1178,30 @@ export class FormBuilder {
       this.template.sections = this.sections;
       await api.put('/api/custom-fields/templates/active', { sections: this.sections });
 
-      Toast.success(`Section "${sec.label}" deleted permanently`);
+      this.pushUndo({
+        type: 'delete_section',
+        title: `Section "${sec.label}"`,
+        data: secSnapshot,
+        restore: async () => {
+          this.sections.push(secSnapshot);
+          this.sections.sort((a, b) => (a.order || 0) - (b.order || 0));
+          if (!this.template) this.template = {};
+          this.template.sections = this.sections;
+          await api.put('/api/custom-fields/templates/active', { sections: this.sections });
+          if (movedFields.length > 0) {
+            await Promise.all(movedFields.map(id => api.put(`/api/custom-fields/${id}`, { section: secSnapshot.name })));
+            await this.loadData();
+          }
+          this.renderSections();
+          this.renderPreview();
+          Toast.success(`Section "${secSnapshot.label}" restored!`);
+        }
+      });
+
+      Toast.undo(`Section "${sec.label}" deleted.`, () => {
+        this.undoLastAction();
+      });
+
       this.renderSections();
       this.renderPreview();
     } catch (err) {

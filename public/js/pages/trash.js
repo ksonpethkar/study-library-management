@@ -55,7 +55,10 @@ export async function render(container) {
               <button class="btn btn-outline-primary btn-sm" id="trash-bulk-restore-btn" style="display: none;">
                 ♻️ Restore Selected (<span id="trash-selected-count">0</span>)
               </button>
-              <button class="btn btn-outline-danger btn-sm" id="trash-empty-btn">
+              <button class="btn btn-outline-danger btn-sm" id="trash-bulk-delete-btn" style="display: none;">
+                💥 Delete Selected (<span id="trash-selected-delete-count">0</span>)
+              </button>
+              <button class="btn btn-danger btn-sm" id="trash-empty-btn">
                 🧹 Empty Recycle Bin
               </button>
             </div>
@@ -176,6 +179,12 @@ function _attachEvents(container) {
   const bulkBtn = container.querySelector('#trash-bulk-restore-btn');
   if (bulkBtn) {
     bulkBtn.addEventListener('click', _handleBulkRestore);
+  }
+
+  // Bulk Delete button
+  const bulkDelBtn = container.querySelector('#trash-bulk-delete-btn');
+  if (bulkDelBtn) {
+    bulkDelBtn.addEventListener('click', _handleBulkDelete);
   }
 
   // Empty Trash button
@@ -321,8 +330,11 @@ function _attachTableListeners(mount, items, totalPages) {
   // Select All Checkbox
   const selectAll = mount.querySelector('#trash-select-all');
   if (selectAll) {
+    const checkboxes = mount.querySelectorAll('.trash-item-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+    selectAll.checked = allChecked;
+
     selectAll.addEventListener('change', () => {
-      const checkboxes = mount.querySelectorAll('.trash-item-checkbox');
       checkboxes.forEach(cb => {
         cb.checked = selectAll.checked;
         const id = cb.getAttribute('data-id');
@@ -339,6 +351,11 @@ function _attachTableListeners(mount, items, totalPages) {
       const id = cb.getAttribute('data-id');
       if (cb.checked) selectedItemIds.add(id);
       else selectedItemIds.delete(id);
+
+      const checkboxes = mount.querySelectorAll('.trash-item-checkbox');
+      if (selectAll) {
+        selectAll.checked = checkboxes.length > 0 && Array.from(checkboxes).every(c => c.checked);
+      }
       _updateBulkButton();
     });
   });
@@ -363,13 +380,17 @@ function _attachTableListeners(mount, items, totalPages) {
 }
 
 function _updateBulkButton() {
-  const bulkBtn = document.getElementById('trash-bulk-restore-btn');
+  const bulkRestoreBtn = document.getElementById('trash-bulk-restore-btn');
   const countSpan = document.getElementById('trash-selected-count');
-  if (bulkBtn && countSpan) {
-    const size = selectedItemIds.size;
-    countSpan.textContent = size;
-    bulkBtn.style.display = size > 0 ? 'inline-flex' : 'none';
-  }
+  const bulkDelBtn = document.getElementById('trash-bulk-delete-btn');
+  const countDelSpan = document.getElementById('trash-selected-delete-count');
+  
+  const size = selectedItemIds.size;
+  if (countSpan) countSpan.textContent = size;
+  if (countDelSpan) countDelSpan.textContent = size;
+
+  if (bulkRestoreBtn) bulkRestoreBtn.style.display = size > 0 ? 'inline-flex' : 'none';
+  if (bulkDelBtn) bulkDelBtn.style.display = size > 0 ? 'inline-flex' : 'none';
 }
 
 async function _handleRestoreSingle(id, title) {
@@ -409,6 +430,50 @@ async function _handleBulkRestore() {
   }
 }
 
+async function _handleBulkDelete() {
+  const ids = Array.from(selectedItemIds);
+  if (ids.length === 0) return;
+
+  Modal.show({
+    title: '⚠️ Permanent Bulk Deletion Warning',
+    content: `
+      <div style="padding: 0.5rem 0;">
+        <div class="alert alert-danger" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--color-danger, #ef4444); color: #b91c1c; border-radius: 8px; padding: 12px 16px; margin-bottom: 1rem; font-size: 0.88rem;">
+          <strong>CAUTION:</strong> You are about to permanently delete <strong>${ids.length} selected items</strong>! These records will be completely removed from the database and cannot be recovered.
+        </div>
+        <p style="font-size: 0.95rem; color: var(--color-text-primary);">
+          Are you sure you want to permanently delete these ${ids.length} items?
+        </p>
+      </div>
+    `,
+    buttons: [
+      { text: 'Cancel', className: 'btn-ghost', onClick: (m) => m.close() },
+      {
+        text: `💥 Yes, Permanently Delete (${ids.length})`,
+        className: 'btn-danger',
+        onClick: async (m) => {
+          try {
+            const res = await api.post('/api/trash/delete-bulk', { ids });
+            m.close();
+            if (res.success) {
+              Toast.success(res.message || `Permanently removed ${ids.length} items.`);
+              selectedItemIds.clear();
+              _updateBulkButton();
+              _loadCounts();
+              _loadTrashList();
+            } else {
+              Toast.error(res.message || 'Failed to delete selected items');
+            }
+          } catch (e) {
+            m.close();
+            Toast.error(e.message || 'Bulk delete error');
+          }
+        }
+      }
+    ]
+  });
+}
+
 function _openHardDeleteConfirmationModal(id, title) {
   Modal.show({
     title: '⚠️ Permanent Deletion Warning',
@@ -425,37 +490,32 @@ function _openHardDeleteConfirmationModal(id, title) {
         </div>
       </div>
     `,
-    actions: `
-      <button type="button" class="btn btn-ghost" onclick="window.Modal.close()">Cancel</button>
-      <button type="button" class="btn btn-danger" id="confirm-hard-delete-action">💥 Yes, Permanently Delete</button>
-    `
-  });
-
-  setTimeout(() => {
-    const confirmBtn = document.getElementById('confirm-hard-delete-action');
-    if (confirmBtn) {
-      confirmBtn.onclick = async () => {
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = 'Deleting...';
-        try {
-          const res = await api.delete(`/api/trash/permanent/${id}`);
-          Modal.close();
-          if (res.success) {
-            Toast.info(`"${title}" permanently deleted.`);
-            selectedItemIds.delete(id);
-            _updateBulkButton();
-            _loadCounts();
-            _loadTrashList();
-          } else {
-            Toast.error(res.message || 'Failed to permanently delete');
+    buttons: [
+      { text: 'Cancel', className: 'btn-ghost', onClick: (m) => m.close() },
+      {
+        text: '💥 Yes, Permanently Delete',
+        className: 'btn-danger',
+        onClick: async (m) => {
+          try {
+            const res = await api.delete(`/api/trash/permanent/${id}`);
+            m.close();
+            if (res.success) {
+              Toast.info(`"${title}" permanently deleted.`);
+              selectedItemIds.delete(id);
+              _updateBulkButton();
+              _loadCounts();
+              _loadTrashList();
+            } else {
+              Toast.error(res.message || 'Failed to permanently delete');
+            }
+          } catch (e) {
+            m.close();
+            Toast.error(e.message || 'Deletion failed');
           }
-        } catch (e) {
-          Modal.close();
-          Toast.error(e.message || 'Deletion failed');
         }
-      };
-    }
-  }, 100);
+      }
+    ]
+  });
 }
 
 function _handleEmptyTrash() {
@@ -472,37 +532,32 @@ function _handleEmptyTrash() {
         </p>
       </div>
     `,
-    actions: `
-      <button type="button" class="btn btn-ghost" onclick="window.Modal.close()">Cancel</button>
-      <button type="button" class="btn btn-danger" id="confirm-empty-trash-action">💥 Yes, Empty Trash</button>
-    `
-  });
-
-  setTimeout(() => {
-    const confirmBtn = document.getElementById('confirm-empty-trash-action');
-    if (confirmBtn) {
-      confirmBtn.onclick = async () => {
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = 'Emptying...';
-        try {
-          const res = await api.delete(`/api/trash/empty?type=${currentTab}`);
-          Modal.close();
-          if (res.success) {
-            Toast.info(res.message || 'Recycle Bin emptied successfully');
-            selectedItemIds.clear();
-            _updateBulkButton();
-            _loadCounts();
-            _loadTrashList();
-          } else {
-            Toast.error(res.message || 'Failed to empty recycle bin');
+    buttons: [
+      { text: 'Cancel', className: 'btn-ghost', onClick: (m) => m.close() },
+      {
+        text: '💥 Yes, Empty Trash',
+        className: 'btn-danger',
+        onClick: async (m) => {
+          try {
+            const res = await api.delete(`/api/trash/empty?type=${currentTab}`);
+            m.close();
+            if (res.success) {
+              Toast.success(res.message || 'Recycle Bin emptied successfully');
+              selectedItemIds.clear();
+              _updateBulkButton();
+              _loadCounts();
+              _loadTrashList();
+            } else {
+              Toast.error(res.message || 'Failed to empty recycle bin');
+            }
+          } catch (e) {
+            m.close();
+            Toast.error(e.message || 'Empty trash failed');
           }
-        } catch (e) {
-          Modal.close();
-          Toast.error(e.message || 'Empty trash failed');
         }
-      };
-    }
-  }, 100);
+      }
+    ]
+  });
 }
 
 function _formatRelativeDate(dateStr) {

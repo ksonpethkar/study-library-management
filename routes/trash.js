@@ -290,8 +290,34 @@ router.delete('/permanent/:id', roleCheck('owner', 'branch_manager'), async (req
   }
 });
 
+// POST /api/trash/delete-bulk - Bulk hard delete multiple items
+router.post('/delete-bulk', roleCheck('owner', 'branch_manager'), async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'No item IDs provided' });
+    }
+
+    const trashDocs = await Trash.find({ _id: { $in: ids } });
+    for (const doc of trashDocs) {
+      const Model = MODEL_MAP[doc.itemType];
+      if (Model) {
+        await Model.findByIdAndDelete(doc.itemId);
+      }
+      await Trash.findByIdAndDelete(doc._id);
+    }
+
+    res.json({
+      success: true,
+      message: `Permanently removed ${trashDocs.length} items from Recycle Bin`
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // DELETE /api/trash/empty - Purge all items in trash
-router.delete('/empty', roleCheck('owner'), async (req, res) => {
+router.delete('/empty', roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { type } = req.query;
     const query = (type && type !== 'all') ? { itemType: type } : {};
@@ -311,7 +337,7 @@ router.delete('/empty', roleCheck('owner'), async (req, res) => {
       if (AuditLog) {
         await AuditLog.create({
           user: req.user?._id,
-          userName: req.user?.name || 'Owner',
+          userName: req.user?.name || 'Admin',
           action: 'EMPTY_TRASH',
           module: 'TRASH',
           details: `Purged ${deleteRes.deletedCount} items permanently from Recycle Bin`,
