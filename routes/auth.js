@@ -709,6 +709,7 @@ router.post('/public-register', authLimiter, async (req, res) => {
 });
 
 // @route   POST /api/auth/student-login
+// @route   POST /api/auth/student-login
 // @desc    Dedicated student login via Student ID or Phone or Email
 router.post('/student-login', authLimiter, async (req, res) => {
   try {
@@ -719,36 +720,49 @@ router.post('/student-login', authLimiter, async (req, res) => {
     }
 
     const trimmedId = identifier.trim();
+    const isPhone = /^\d{10}$/.test(trimmedId);
+    const isEmail = trimmedId.includes('@');
 
-    // Find student in Student model
-    const student = await Student.findOne({
-      $or: [
-        { studentId: { $regex: new RegExp(`^${trimmedId}$`, 'i') } },
-        { phone: trimmedId },
-        { email: trimmedId.toLowerCase() }
-      ]
-    }).populate('seat').populate('plan');
+    let studentQuery;
+    if (isPhone) {
+      studentQuery = { phone: trimmedId, isDeleted: { $ne: true } };
+    } else if (isEmail) {
+      studentQuery = { email: trimmedId.toLowerCase(), isDeleted: { $ne: true } };
+    } else {
+      studentQuery = {
+        isDeleted: { $ne: true },
+        $or: [
+          { studentId: trimmedId.toUpperCase() },
+          { studentId: trimmedId },
+          { phone: trimmedId },
+          { email: trimmedId.toLowerCase() }
+        ]
+      };
+    }
+
+    // Fast indexed student lookup
+    const student = await Student.findOne(studentQuery).populate('seat').populate('plan');
 
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student record not found. Please verify your Student ID or Phone number.' });
     }
 
-    // Check corresponding User record if password was provided
+    // Fast single-query user lookup
     let user = null;
     if (student.user) {
       user = await User.findById(student.user).select('+password');
     }
-    if (!user && student.email) {
-      user = await User.findOne({ email: student.email.toLowerCase() }).select('+password');
-    }
-    if (!user && student.phone) {
-      user = await User.findOne({ phone: student.phone.trim() }).select('+password');
-    }
-    if (!user && student.studentId) {
-      user = await User.findOne({ email: `${student.studentId.toLowerCase()}@studylib.local` }).select('+password');
+    if (!user) {
+      const userOr = [];
+      if (student.email) userOr.push({ email: student.email.toLowerCase() });
+      if (student.phone) userOr.push({ phone: student.phone.trim() });
+      if (student.studentId) userOr.push({ email: `${student.studentId.toLowerCase()}@studylib.local` });
+      if (userOr.length > 0) {
+        user = await User.findOne({ $or: userOr }).select('+password');
+      }
     }
 
-    // If student user exists and password is provided, verify password
+    // Verify password
     if (user) {
       if (!password) {
         return res.status(400).json({ success: false, message: 'Password is required' });
@@ -762,10 +776,8 @@ router.post('/student-login', authLimiter, async (req, res) => {
           return res.status(401).json({ success: false, message: 'Invalid password / PIN. Please verify your credentials or contact desk.' });
         }
       }
-    }
-
-    // If user record does not exist yet, create a student user
-    if (!user) {
+    } else {
+      // Create student user if not existing
       const randomPwd = password || `Lib@${student.phone.slice(-4)}`;
       user = await User.create({
         name: student.name,
@@ -778,33 +790,26 @@ router.post('/student-login', authLimiter, async (req, res) => {
       });
     }
 
-    // Ensure bidirectional link
-    if (!student.user || String(student.user) !== String(user._id)) {
-      student.user = user._id;
-      await Student.updateOne({ _id: student._id }, { $set: { user: user._id } });
-    }
-    if (!user.student || String(user.student) !== String(student._id)) {
-      await User.updateOne({ _id: user._id }, { $set: { student: student._id, lastLogin: Date.now() } });
-    } else {
-      await User.updateOne({ _id: user._id }, { $set: { lastLogin: Date.now() } });
-    }
+    // Non-blocking background sync of lastLogin & bidirectional links
+    Promise.all([
+      (!student.user || String(student.user) !== String(user._id)) ? Student.updateOne({ _id: student._id }, { $set: { user: user._id } }) : Promise.resolve(),
+      User.updateOne({ _id: user._id }, { $set: { student: student._id, lastLogin: Date.now() } })
+    ]).catch(err => console.warn('Background login sync warning:', err.message));
 
-    // Always sign student-scoped JWT token for student portal sessions
+    // Sign student JWT token
     const secret = process.env.JWT_SECRET || 'study-library-jwt-secret-key-2026-production';
     const token = jwt.sign(
       { id: user._id, role: 'student', email: user.email, studentId: student._id },
       secret,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
-    const businessProfile = await BusinessProfile.getProfile();
 
     res.json({
       success: true,
       data: {
         token,
         student,
-        user: { id: user._id, name: user.name, role: 'student', email: user.email },
-        businessProfile
+        user: { id: user._id, name: user.name, role: 'student', email: user.email }
       },
       message: `Welcome back, ${student.name}!`
     });

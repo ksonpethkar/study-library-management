@@ -12,6 +12,7 @@ const { errorHandler, initProcessErrorHandlers } = require('./middleware/errorMi
 initProcessErrorHandlers();
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Security Middleware — configured to allow CDNs (Chart.js, Sortable.js), Google Fonts, worker blobs, and maps
 app.use(helmet({

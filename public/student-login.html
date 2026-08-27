@@ -420,9 +420,7 @@
             localStorage.setItem('sl_biometric_user_email', data.data.student.phone || data.data.student.email || data.data.student.studentId || '');
           }
           showToast(`Welcome back, ${data.data.student?.name || 'Student'}!`, true);
-          setTimeout(() => {
-            window.location.href = '/#/portal';
-          }, 600);
+          window.location.href = '/#/portal';
         } else {
           showToast(data.message || 'Login failed. Please check your credentials.', false);
           btn.disabled = false;
