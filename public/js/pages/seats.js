@@ -1945,9 +1945,22 @@ function showAddSeatsModal(container) {
       if (res.success) {
         Toast.success(res.message);
         modal.close();
-        loadStats(c);
-        loadZones(c);
-        loadSeats(c);
+        
+        if (data.branch && data.branch !== 'none') {
+          currentBranch = data.branch;
+          const branchSelector = c.querySelector('#seat-branch-selector');
+          if (branchSelector) branchSelector.value = currentBranch;
+        }
+        currentZone = '';
+        currentSearch = '';
+        currentStatus = '';
+        await IDBStorage.clear('seats').catch(() => {});
+
+        await Promise.all([
+          loadStats(c),
+          loadZones(c),
+          loadSeats(c)
+        ]);
       } else {
         Toast.error(res.message);
       }

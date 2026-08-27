@@ -5,6 +5,7 @@ const { body, validationResult } = require('express-validator');
 const Seat = require('../models/Seat');
 const Student = require('../models/Student');
 const Shift = require('../models/Shift');
+const Branch = require('../models/Branch');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
 const { validate, validateSeatCreate, validateSeatUpdate } = require('../middleware/validate');
@@ -181,7 +182,7 @@ router.post('/', roleCheck('owner', 'branch_manager'), validateSeatCreate, async
   }
 });
 
-// POST /bulk - Bulk create seats with Branch support
+// POST /bulk - Bulk create / upsert seats with Branch support
 router.post('/bulk', roleCheck('owner', 'branch_manager'), validate([
   body('zone').notEmpty().withMessage('Zone is required'),
   body('count').isInt({ min: 1, max: 500 }).withMessage('Count must be between 1 and 500'),
@@ -189,46 +190,78 @@ router.post('/bulk', roleCheck('owner', 'branch_manager'), validate([
 ]), async (req, res) => {
   try {
     const { zone, floor, type, count, startNumber, prefix = '', branch, monthlyRate, amenities } = req.body;
-    const seatsToCreate = [];
-    const parsedMonthlyRate = monthlyRate ? parseFloat(monthlyRate) : 0;
+    const parsedMonthlyRate = monthlyRate ? parseFloat(monthlyRate) : 1000;
     const parsedAmenities = Array.isArray(amenities) ? amenities : (amenities ? amenities.split(',').map(a => a.trim()).filter(Boolean) : []);
+    const branchId = (branch && branch !== 'none' && branch !== 'all' && branch !== 'unassigned' && mongoose.Types.ObjectId.isValid(branch))
+      ? new mongoose.Types.ObjectId(branch)
+      : null;
     
-    for (let i = 0; i < parseInt(count, 10); i++) {
-      const num = parseInt(startNumber, 10) + i;
+    const countNum = parseInt(count, 10);
+    const startNum = parseInt(startNumber, 10);
+
+    const seatOps = [];
+    for (let i = 0; i < countNum; i++) {
+      const num = startNum + i;
       const formattedNum = num < 10 ? `0${num}` : `${num}`;
       const seatNumber = `${prefix}${formattedNum}`;
       
-      seatsToCreate.push({
-        seatNumber,
-        zone: zone.trim(),
-        zoneColor: req.body.zoneColor || '#6c5ce7',
-        floor: floor ? floor.trim() : '',
-        type: type || 'regular',
-        seatType: req.body.seatType || 'standard',
-        branch: branch || null,
-        monthlyRate: parsedMonthlyRate,
-        amenities: parsedAmenities,
-        status: 'available'
+      seatOps.push({
+        updateOne: {
+          filter: {
+            seatNumber,
+            ...(branchId ? { branch: branchId } : { branch: { $in: [null, undefined] } })
+          },
+          update: {
+            $set: {
+              seatNumber,
+              zone: zone.trim(),
+              zoneColor: req.body.zoneColor || '#6c5ce7',
+              floor: floor ? floor.trim() : 'Ground',
+              type: type || 'regular',
+              seatType: req.body.seatType || 'standard',
+              branch: branchId,
+              monthlyRate: parsedMonthlyRate,
+              amenities: parsedAmenities,
+              isActive: true,
+              isDeleted: false
+            },
+            $setOnInsert: {
+              status: 'available'
+            }
+          },
+          upsert: true
+        }
       });
     }
 
-    // Attempt insertMany with ordered: false to skip existing seatNumbers
-    try {
-      const created = await Seat.insertMany(seatsToCreate, { ordered: false });
-      res.status(201).json({ success: true, data: created, message: `${created.length} seats created successfully` });
-    } catch (insertError) {
-      if (insertError.code === 11000) {
-        const insertedCount = insertError.insertedDocs ? insertError.insertedDocs.length : 0;
-        res.status(207).json({ 
-          success: true, 
-          data: insertError.insertedDocs, 
-          message: `Created ${insertedCount} seats (skipped existing duplicates)`
-        });
-      } else {
-        throw insertError;
-      }
+    const result = await Seat.bulkWrite(seatOps);
+    const createdCount = result.upsertedCount || 0;
+    const updatedCount = result.modifiedCount || 0;
+    const matchedCount = result.matchedCount || 0;
+
+    // Synchronize branch configuredSeats count
+    if (branchId) {
+      const actualCount = await Seat.countDocuments({ branch: branchId, isDeleted: { $ne: true } });
+      await Branch.findByIdAndUpdate(branchId, {
+        totalSeats: actualCount,
+        configuredSeats: actualCount
+      });
     }
+
+    const totalProcessed = createdCount + (updatedCount || matchedCount);
+    const message = createdCount > 0 && updatedCount > 0
+      ? `Successfully configured ${totalProcessed} seats (${createdCount} created, ${updatedCount} updated)`
+      : createdCount > 0
+        ? `Successfully created ${createdCount} seats`
+        : `Successfully configured and activated ${totalProcessed || countNum} seats in ${zone.trim()}`;
+
+    res.status(200).json({
+      success: true,
+      data: { created: createdCount, updated: updatedCount, total: totalProcessed },
+      message
+    });
   } catch (error) {
+    console.error('Error in POST /seats/bulk:', error);
     res.status(400).json({ success: false, message: error.message });
   }
 });
