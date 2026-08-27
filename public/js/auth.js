@@ -367,8 +367,11 @@ export async function initAppEvents() {
   // Apply initial translations to DOM on boot
   import('./i18n.js').then(m => m.applyTranslationsToDOM());
 
-  // Notification Bell — badge count only (Phase 7 initNotificationCenter owns the click + panel)
+  // Notification Bell & Center Setup
   updateNotificationBadge();
+  import('./app.js').then(m => {
+    if (m && m.initNotificationCenter) m.initNotificationCenter();
+  }).catch(() => {});
 
   // Sidebar nav - update active state & close mobile sidebar on click
   document.querySelectorAll('.sidebar-nav .nav-item').forEach(link => {

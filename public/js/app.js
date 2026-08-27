@@ -817,40 +817,45 @@ if (document.readyState === 'loading') {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 // ── 1. Notification Center ────────────────────────────────────────────────
-function initNotificationCenter() {
+export function initNotificationCenter() {
   const btn   = document.getElementById('notif-btn');
   const badge = document.getElementById('notif-badge');
   if (!btn) return;
 
+  btn.style.cursor = 'pointer';
+  btn.style.touchAction = 'manipulation';
+  btn.setAttribute('aria-label', 'Open Notifications');
+
   // Inject dropdown panel into header area once
-  if (!document.getElementById('notif-panel')) {
-    const panel = document.createElement('div');
+  let panel = document.getElementById('notif-panel');
+  if (!panel) {
+    panel = document.createElement('div');
     panel.id = 'notif-panel';
     panel.style.cssText = `
-      display:none; position:fixed; top:60px; right:12px; z-index:9999;
+      display:none; position:fixed; top:60px; right:12px; z-index:10000;
       width:340px; max-width:calc(100vw - 24px);
-      background:#1e293b; border:1px solid rgba(255,255,255,0.1);
-      border-radius:16px; box-shadow:0 16px 48px rgba(0,0,0,0.5);
-      overflow:hidden; animation:paletteSlideIn 0.18s ease;
+      background:#1e293b; border:1px solid rgba(255,255,255,0.12);
+      border-radius:16px; box-shadow:0 16px 48px rgba(0,0,0,0.55);
+      overflow:hidden; animation:fadeIn 0.18s ease;
+      touch-action: manipulation;
     `;
     panel.innerHTML = `
-      <div style="padding:14px 16px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between;">
-        <span style="font-weight:700; font-size:0.95rem;">🔔 Notifications</span>
-        <div style="display:flex;gap:8px;">
-          <button id="notif-mark-all" style="font-size:0.72rem;padding:3px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:#94a3b8;cursor:pointer;font-weight:600;">Mark all read</button>
-          <button id="notif-clear-read" style="font-size:0.72rem;padding:3px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:#94a3b8;cursor:pointer;font-weight:600;">Clear read</button>
+      <div style="padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between; background: rgba(15,23,42,0.7);">
+        <span style="font-weight:700; font-size:0.95rem; color:#f8fafc; display:flex; align-items:center; gap:6px;">🔔 Notifications</span>
+        <div style="display:flex;gap:6px;">
+          <button type="button" id="notif-mark-all" style="font-size:0.72rem;padding:4px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#cbd5e1;cursor:pointer;font-weight:600;touch-action:manipulation;">Mark all read</button>
+          <button type="button" id="notif-clear-read" style="font-size:0.72rem;padding:4px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#cbd5e1;cursor:pointer;font-weight:600;touch-action:manipulation;">Clear</button>
         </div>
       </div>
-      <div id="notif-list" style="max-height:360px;overflow-y:auto;"></div>
-      <div style="padding:10px 16px;border-top:1px solid rgba(255,255,255,0.08);font-size:0.72rem;color:#64748b;text-align:center;">
-        Showing last 30 notifications
+      <div id="notif-list" style="max-height:380px;overflow-y:auto;-webkit-overflow-scrolling:touch;"></div>
+      <div style="padding:10px 16px;border-top:1px solid rgba(255,255,255,0.08);font-size:0.74rem;color:#94a3b8;text-align:center;background:rgba(15,23,42,0.4);">
+        Showing latest library activity
       </div>
     `;
     document.body.appendChild(panel);
   }
 
-  const panel = document.getElementById('notif-panel');
-  const list  = document.getElementById('notif-list');
+  const list = document.getElementById('notif-list');
 
   // Type → emoji/color map
   const typeMap = {
@@ -890,7 +895,7 @@ function initNotificationCenter() {
       if (!notifications || notifications.length === 0) {
         list.innerHTML = `<div style="padding:32px;text-align:center;color:#64748b;">
           <div style="font-size:2rem;margin-bottom:8px;">🔔</div>
-          <div>No notifications yet</div>
+          <div style="font-weight:600;">No notifications yet</div>
         </div>`;
         return;
       }
@@ -926,8 +931,8 @@ function initNotificationCenter() {
           item.style.background = 'transparent';
           item.querySelector('span[style*="border-radius:50%"]')?.remove();
           // Update badge
-          const cur = parseInt(badge.textContent) || 0;
-          if (cur > 0) {
+          const cur = parseInt(badge?.textContent) || 0;
+          if (cur > 0 && badge) {
             badge.textContent = cur - 1 || '';
             badge.style.display = cur - 1 > 0 ? 'flex' : 'none';
           }
@@ -942,13 +947,24 @@ function initNotificationCenter() {
     panel.style.display = 'none';
   }
 
-  // Toggle on bell click
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isOpen = panel.style.display === 'block';
-    panel.style.display = isOpen ? 'none' : 'block';
-    if (!isOpen) loadNotifications();
-  });
+  // Toggle on bell click (Supports mobile touch & desktop click)
+  if (!btn._notifClickBound) {
+    btn._notifClickBound = true;
+    
+    const handleToggle = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      const isOpen = panel.style.display === 'block';
+      panel.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen) {
+        loadNotifications();
+      }
+    };
+
+    btn.addEventListener('click', handleToggle);
+  }
 
   // Mark all read
   document.getElementById('notif-mark-all')?.addEventListener('click', async (e) => {
@@ -965,14 +981,25 @@ function initNotificationCenter() {
     await loadNotifications();
   });
 
-  // Close on outside click
-  document.addEventListener('click', (e) => {
-    if (!panel.contains(e.target) && e.target !== btn) closePanel();
-  });
+  // Close on outside click (Checks button contains target so SVG/badge clicks don't close it!)
+  if (!document._notifOutsideBound) {
+    document._notifOutsideBound = true;
+    document.addEventListener('click', (e) => {
+      const p = document.getElementById('notif-panel');
+      const b = document.getElementById('notif-btn');
+      if (p && p.style.display === 'block') {
+        if (!p.contains(e.target) && !b?.contains(e.target)) {
+          p.style.display = 'none';
+        }
+      }
+    });
+  }
 
   // Initial load + poll every 60s
   loadNotifications();
-  setInterval(loadNotifications, 60000);
+  if (!window._notifPollInterval) {
+    window._notifPollInterval = setInterval(loadNotifications, 60000);
+  }
 
   // Expose for external callers (e.g. after creating new admission)
   window.refreshNotifications = loadNotifications;
