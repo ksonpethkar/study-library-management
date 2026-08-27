@@ -57,6 +57,12 @@ export default class Router {
       return;
     }
 
+    // Alias: if navigating to #/trash, redirect to #/settings?tab=trash so Settings module stays active
+    if (basePath === '#/trash') {
+      window.location.hash = '#/settings?tab=trash';
+      return;
+    }
+
     if (!rawHash && this.routes['']) {
       this._runWithTransition(this.routes[''], direction);
       return;

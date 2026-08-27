@@ -11,6 +11,7 @@ import { t } from '../i18n.js';
 import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
 import { FormBuilder } from '../formBuilder.js';
 import { PushNotifications } from '../utils/pushNotifications.js';
+import { render as renderTrashModule } from './trash.js';
 
 export async function render(container) {
   if (!container) {
@@ -172,7 +173,7 @@ function renderMasterHubUI(container, store) {
           <button class="studio-nav-item" data-studio="system_health">
             <span>🏥</span> <span>System Health & Diagnostics</span>
           </button>
-          <button class="studio-nav-item" onclick="window.location.hash='#/trash'" style="color: var(--color-danger); margin-top: 4px;">
+          <button class="studio-nav-item" data-studio="trash" style="color: var(--color-danger); margin-top: 4px;">
             <span>🗑️</span> <span>Recycle Bin & Trash</span>
           </button>
         </div>
@@ -293,17 +294,24 @@ function renderMasterHubUI(container, store) {
     student_portal: () => renderStudentPortalStudio(portal, profile),
     automations_ai: () => renderAutomationsAiStudio(auto),
     security_backup: () => renderSecurityBackupStudio(),
-    system_health: () => renderSystemHealthStudio()
+    system_health: () => renderSystemHealthStudio(),
+    trash: async () => {
+      const div = document.createElement('div');
+      await renderTrashModule(div);
+      return div;
+    }
   };
 
-  const mountStudio = (studioId) => {
+  const mountStudio = async (studioId) => {
+    if (!studioId || !studios[studioId]) return;
     activeStudioId = studioId;
     container.querySelectorAll('.studio-nav-item').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.studio === studioId);
     });
     if (viewport && studios[studioId]) {
       viewport.innerHTML = '';
-      const content = studios[studioId]();
+      const result = studios[studioId]();
+      const content = (result && typeof result.then === 'function') ? await result : result;
       if (content instanceof HTMLElement) {
         viewport.appendChild(content);
       } else if (typeof content === 'string') {
@@ -321,8 +329,10 @@ function renderMasterHubUI(container, store) {
     });
   });
 
-  // Initial Mount
-  mountStudio('branding');
+  // Initial Mount with deep linking support
+  const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+  const targetTab = urlParams.get('tab') || (window.location.hash.includes('trash') ? 'trash' : 'branding');
+  mountStudio(studios[targetTab] ? targetTab : 'branding');
 
   // Master Quick Backup
   container.querySelector('#btn-master-quick-backup')?.addEventListener('click', async () => {
