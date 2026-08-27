@@ -83,9 +83,12 @@ async function checkStudentExpiries(options = {}) {
     for (const student of students) {
       const expDate = student.expiryDate || student.planExpiresAt;
       const exp = new Date(expDate);
-      const diffTime = exp.getTime() - now.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      const diffHours = Math.round(diffTime / (1000 * 60 * 60));
+
+      // Exact Calendar-Day Difference (Midnight to Midnight)
+      const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const expMidnight = new Date(exp.getFullYear(), exp.getMonth(), exp.getDate());
+      const diffDays = Math.round((expMidnight.getTime() - todayMidnight.getTime()) / (1000 * 60 * 60 * 24));
+      const diffHours = Math.round((exp.getTime() - now.getTime()) / (1000 * 60 * 60));
 
       // Case A: Expired beyond Grace Period -> Release Seat & Apply Late Fine
       if (diffDays <= -graceDays) {
@@ -171,9 +174,9 @@ async function checkStudentExpiries(options = {}) {
         const isMatchedDay = expiryReminderDays.includes(diffDays) || (diffDays === 0 && expiryReminderDays.includes(0));
         const isWithin24Hours = (diffHours > 0 && diffHours <= 24 && (expiryReminderDays.includes(1) || expiryReminderDays.includes(0)));
 
-        if (isMatchedDay || isWithin24Hours) {
+        if (isMatchedDay || isWithin24Hours || (isManual && diffDays <= 7 && diffDays >= 0)) {
           let timeLabel = '';
-          if (diffDays <= 0) timeLabel = 'TODAY (Expired / Expires Today)';
+          if (diffDays <= 0) timeLabel = 'TODAY (Expires / Expired Today)';
           else if (diffDays === 1 || diffHours <= 24) timeLabel = '24 hours (Tomorrow)';
           else if (diffDays === 2 || diffHours <= 48) timeLabel = '48 hours (2 Days)';
           else timeLabel = `${diffDays} days`;
@@ -181,7 +184,10 @@ async function checkStudentExpiries(options = {}) {
           const title = `Membership Expiry Alert: ${student.name} (${timeLabel})`;
           
           const existingAlert = await Notification.findOne({
-            title,
+            $or: [
+              { title },
+              { title: `📲 WhatsApp Reminder: ${student.name}`, createdAt: { $gte: todayStart } }
+            ],
             createdAt: { $gte: todayStart }
           });
 
@@ -248,7 +254,8 @@ async function checkStudentExpiries(options = {}) {
         const student = p.student;
         const balanceAmt = p.balanceDue;
         const dueDate = p.dueDate ? new Date(p.dueDate) : new Date(p.createdAt || Date.now());
-        const overdueDays = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+        const dueMidnight = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+        const overdueDays = Math.round((todayMidnight.getTime() - dueMidnight.getTime()) / (1000 * 60 * 60 * 24));
 
         const isMatchedDueDay = isManual || balanceReminderDays.includes(overdueDays) || (overdueDays === 0 && balanceReminderDays.includes(0)) || (overdueDays > 0 && balanceReminderDays.length === 0);
 
@@ -256,7 +263,10 @@ async function checkStudentExpiries(options = {}) {
           const overdueTitle = `⚠️ Overdue Balance Alert: ${student.name} (₹${balanceAmt})`;
 
           const existingDueNotif = await Notification.findOne({
-            title: overdueTitle,
+            $or: [
+              { title: overdueTitle },
+              { title: `📲 WhatsApp Reminder: ${student.name}`, createdAt: { $gte: todayStart } }
+            ],
             createdAt: { $gte: todayStart }
           });
 
@@ -605,9 +615,15 @@ function initCronJobs() {
 
       const now = new Date();
       // Format current time in 24-hour HH:mm
-      const currentTimeStr = now.toLocaleTimeString('en-GB', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: false });
-      const currentDateStr = now.toLocaleDateString('en-CA', { timeZone: timezone }); // YYYY-MM-DD
-      const minuteKey = `${currentDateStr}_${currentTimeStr}`;
+      const formatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: timezone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      const currentTimeStr = formatter.format(now).trim();
+      const dateKey = now.toISOString().split('T')[0];
+      const minuteKey = `${dateKey}_${currentTimeStr}`;
 
       if (currentTimeStr === scheduleTime && lastDispatchedMinuteKey !== minuteKey) {
         lastDispatchedMinuteKey = minuteKey;
@@ -616,6 +632,15 @@ function initCronJobs() {
       }
     } catch (scheduleErr) {
       console.error('Error during WhatsApp minute schedule check:', scheduleErr.message);
+    }
+  });
+
+  // Hourly Auto-Reminder Health & Catch-Up Check (Runs at minute 05 of every hour)
+  cron.schedule('5 * * * *', async () => {
+    try {
+      await checkStudentExpiries();
+    } catch (e) {
+      console.error('Error during hourly reminder catch-up:', e.message);
     }
   });
 

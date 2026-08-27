@@ -464,20 +464,30 @@ export async function render(container) {
                 const balanceDue = btn.dataset.balance;
                 
                 try {
+                    Loading.show('Preparing WhatsApp balance reminder & UPI link...');
                     const res = await api.post('/api/messages/send-reminder', {
                         studentId,
                         paymentId,
-                        message: `Hello ${studentName}, this is a gentle reminder that your partial fee balance of ₹${balanceDue} is pending. Please complete your payment using this link: {{upi_link}}`
+                        reminderType: 'balance_due'
                     });
-                    if (res.success) {
-                        Toast.success('WhatsApp reminder sent successfully!');
-                        if (res.data?.waUrl) {
-                            window.open(res.data.waUrl, '_blank');
+                    Loading.hide();
+                    if (res.success && res.data) {
+                        const targetUrl = res.data.whatsappUrl || res.data.waUrl;
+                        if (targetUrl) {
+                            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                            if (isMobile) {
+                                window.location.href = targetUrl;
+                            } else {
+                                const w = window.open(targetUrl, '_blank');
+                                if (!w) window.location.href = targetUrl;
+                            }
                         }
+                        Toast.success(`WhatsApp reminder opened for ${studentName}!`);
                     } else {
                         Toast.error(res.message || 'Failed to send WhatsApp reminder');
                     }
                 } catch (err) {
+                    Loading.hide();
                     Toast.error(err.message || 'Error sending WhatsApp reminder');
                 }
             });
@@ -585,10 +595,17 @@ export async function render(container) {
                         });
                         Loading.hide();
                         if (res.success && res.data) {
-                            if (res.data.whatsappUrl) {
-                                window.open(res.data.whatsappUrl, '_blank');
+                            const targetUrl = res.data.whatsappUrl || res.data.waUrl;
+                            if (targetUrl) {
+                                const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                                if (isMobile) {
+                                    window.location.href = targetUrl;
+                                } else {
+                                    const w = window.open(targetUrl, '_blank');
+                                    if (!w) window.location.href = targetUrl;
+                                }
                             }
-                            Toast.success(`WhatsApp reminder prepared for ${studentName || res.data.studentName}!`);
+                            Toast.success(`WhatsApp reminder opened for ${studentName || res.data.studentName}!`);
                         } else {
                             Toast.error(res.message || 'Failed to dispatch reminder');
                         }

@@ -2231,10 +2231,17 @@ export async function render() {
       });
       Loading.hide();
       if (res.success && res.data) {
-        if (res.data.whatsappUrl) {
-          window.open(res.data.whatsappUrl, '_blank');
+        const targetUrl = res.data.whatsappUrl || res.data.waUrl;
+        if (targetUrl) {
+          const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+          if (isMobile) {
+            window.location.href = targetUrl;
+          } else {
+            const w = window.open(targetUrl, '_blank');
+            if (!w) window.location.href = targetUrl;
+          }
         }
-        Toast.success(`WhatsApp reminder generated & opened for ${res.data.studentName}!`);
+        Toast.success(`WhatsApp reminder opened for ${res.data.studentName}!`);
       } else {
         Toast.error(res.message || 'Failed to dispatch reminder');
       }

@@ -1793,14 +1793,24 @@ function renderModulesManagerStudio() {
 // -------------------------------------------------------------
 function renderNotificationsStudio(notif, profile) {
 const renderNotificationStudio = renderNotificationsStudio;
+  const expDays = Array.isArray(notif['notification.expiryReminderDays']) 
+    ? notif['notification.expiryReminderDays'].join(', ') 
+    : (notif['notification.expiryReminderDays'] || notif.expiryReminderDays || '7, 3, 1, 0');
+  const balDays = Array.isArray(notif['notification.balanceReminderDays']) 
+    ? notif['notification.balanceReminderDays'].join(', ') 
+    : (notif['notification.balanceReminderDays'] || notif.balanceReminderDays || '7, 3, 1');
+
   return `
     <div class="card" style="padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
       <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
         <div>
-          <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">🔔 WhatsApp Reminders, Bots & Automated Dispatch</h3>
+          <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: var(--color-primary);">🔔 WhatsApp Reminders, Bots &amp; Automated Dispatch</h3>
           <p class="text-muted small mb-0">Automate payment reminder dispatch, seat expiry alerts, and interactive conversational bot.</p>
         </div>
-        <div class="d-flex gap-2 align-items-center">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <button type="button" id="btn-run-auto-reminders-now" class="btn btn-sm btn-primary" style="font-weight: 700; font-size: 0.82rem; padding: 5px 12px; display: inline-flex; align-items: center; gap: 6px;">
+            ⚡ Run Auto-Reminders Now
+          </button>
           <button type="button" class="btn btn-xs btn-outline-secondary btn-expand-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➕ Expand All</button>
           <button type="button" class="btn btn-xs btn-outline-secondary btn-collapse-all-sections" style="font-weight: 700; font-size: 0.75rem; padding: 3px 9px;">➖ Collapse All</button>
         </div>
@@ -1828,7 +1838,23 @@ const renderNotificationStudio = renderNotificationsStudio;
               <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
                 <label class="form-label" style="font-weight: 700; font-size: 0.9rem;">Daily Automated Dispatch Schedule</label>
                 <input type="time" id="setting-notif-time" class="form-control" value="${notif['notification.whatsappScheduleTime'] || notif.whatsappScheduleTime || '09:30'}">
-                <small class="text-muted">Time when system checks and queues daily reminders</small>
+                <small class="text-muted">Time when system checks and queues daily reminders (Default: 09:30 AM)</small>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <label class="form-label" style="font-weight: 700; font-size: 0.9rem;">⏳ Expiry Reminder Intervals (Days Before Expiry)</label>
+                <input type="text" id="setting-notif-expiryDays" class="form-control" value="${expDays}" placeholder="e.g. 7, 3, 1, 0">
+                <small class="text-muted">Comma-separated days before expiry to dispatch reminder (0 = on expiry day)</small>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <label class="form-label" style="font-weight: 700; font-size: 0.9rem;">💳 Overdue Balance Intervals (Days After Due)</label>
+                <input type="text" id="setting-notif-balanceDays" class="form-control" value="${balDays}" placeholder="e.g. 7, 3, 1">
+                <small class="text-muted">Comma-separated days to send pending partial fee balance reminders</small>
               </div>
             </div>
           </div>
@@ -1849,7 +1875,7 @@ const renderNotificationStudio = renderNotificationsStudio;
                   <input class="form-check-input" type="checkbox" id="setting-notif-expiryBot" ${notif['notification.enableAutoExpiryBot'] !== false ? 'checked' : ''}>
                   <label class="form-check-label font-weight-bold" style="font-weight: 700; font-size: 0.88rem;">⏳ Expiry Alert Bot</label>
                 </div>
-                <small class="text-muted">Sends renewal alerts 3 days and 1 day before plan expires.</small>
+                <small class="text-muted">Sends renewal alerts dynamically before plan expires.</small>
               </div>
             </div>
 
@@ -4150,6 +4176,70 @@ function bindStudioEvents(container, studioId, store) {
     }
   });
 
+  // Trigger Run Auto Reminders Now
+  container.querySelector('#btn-run-auto-reminders-now')?.addEventListener('click', async () => {
+    try {
+      Loading.show('Executing Automated WhatsApp Expiry & Dues Dispatch Engine...');
+      const res = await api.post('/api/messages/run-cron-now');
+      Loading.hide();
+      if (res.success) {
+        const d = res.data || {};
+        const content = document.createElement('div');
+        content.innerHTML = `
+          <div class="text-center mb-3">
+            <div style="font-size: 2.5rem; margin-bottom: 6px;">⚡</div>
+            <h4 style="color: var(--color-success); font-weight: 800; margin-bottom: 4px;">Automated Bot Dispatched Successfully</h4>
+            <p class="text-muted small">Daily scheduled scan and WhatsApp reminder queue completed.</p>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <div class="p-2 rounded border text-center" style="background: var(--color-bg-secondary);">
+                <div style="font-size: 1.3rem; font-weight: 800; color: var(--color-primary);">${d.totalStudentsScanned ?? 0}</div>
+                <div class="small text-muted font-weight-bold">Students Scanned</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 rounded border text-center" style="background: var(--color-bg-secondary);">
+                <div style="font-size: 1.3rem; font-weight: 800; color: var(--color-success);">${d.expiryRemindersSent ?? 0}</div>
+                <div class="small text-muted font-weight-bold">Expiry Alerts Dispatched</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 rounded border text-center" style="background: var(--color-bg-secondary);">
+                <div style="font-size: 1.3rem; font-weight: 800; color: var(--color-warning);">${d.balanceDueRemindersSent ?? 0}</div>
+                <div class="small text-muted font-weight-bold">Dues Alerts Dispatched</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 rounded border text-center" style="background: var(--color-bg-secondary);">
+                <div style="font-size: 1.3rem; font-weight: 800; color: var(--color-danger);">${d.seatsReleased ?? 0}</div>
+                <div class="small text-muted font-weight-bold">Overdue Seats Released</div>
+              </div>
+            </div>
+          </div>
+          ${d.logs && d.logs.length > 0 ? `
+            <div style="max-height: 180px; overflow-y: auto; font-size: 0.78rem; background: var(--color-surface); padding: 8px; border-radius: 6px; border: 1px solid var(--color-border);">
+              <div class="font-weight-bold mb-1 text-muted">Execution Logs (${d.logs.length}):</div>
+              ${d.logs.map(l => `<div class="py-1 border-bottom d-flex justify-content-between"><span><strong>${escapeHTML(l.studentName)}</strong> (${l.type}): ${escapeHTML(l.detail || l.timeLabel || '')}</span><span class="badge badge-success">${l.status}</span></div>`).join('')}
+            </div>
+          ` : '<div class="text-muted small text-center">No active student subscriptions required immediate reminder alerts today.</div>'}
+        `;
+
+        const modal = new Modal({
+          title: '🤖 Automated Reminders Execution Report',
+          content,
+          size: 'md'
+        });
+        modal.show();
+      } else {
+        Toast.error(res.message || 'Failed to execute automated reminders bot');
+      }
+    } catch (e) {
+      Loading.hide();
+      Toast.error(e.message || 'Error executing automated reminders');
+    }
+  });
+
   // System Health & Diagnostics Studio Binding
   if (studioId === 'system_health') {
     bindSystemHealthEvents(container);
@@ -4655,6 +4745,8 @@ async function saveActiveStudioSettings(container, studioId, store) {
       notification: {
         enableWhatsapp: container.querySelector('#setting-notif-wa') ? container.querySelector('#setting-notif-wa').checked : (store.settings.notif?.enableWhatsapp ?? true),
         whatsappScheduleTime: container.querySelector('#setting-notif-time')?.value || store.settings.notif?.whatsappScheduleTime || '09:30',
+        expiryReminderDays: container.querySelector('#setting-notif-expiryDays')?.value || store.settings.notif?.expiryReminderDays || '7, 3, 1, 0',
+        balanceReminderDays: container.querySelector('#setting-notif-balanceDays')?.value || store.settings.notif?.balanceReminderDays || '7, 3, 1',
         enableAutoExpiryBot: container.querySelector('#setting-notif-expiryBot') ? container.querySelector('#setting-notif-expiryBot').checked : (store.settings.notif?.enableAutoExpiryBot !== false),
         enableAutoDuesBot: container.querySelector('#setting-notif-duesBot') ? container.querySelector('#setting-notif-duesBot').checked : (store.settings.notif?.enableAutoDuesBot !== false),
         enableConversationalBot: container.querySelector('#setting-notif-chatBot') ? container.querySelector('#setting-notif-chatBot').checked : (store.settings.notif?.enableConversationalBot !== false)

@@ -143,7 +143,7 @@ router.post('/prepare-broadcast', protect, roleCheck('owner', 'branch_manager'),
 // POST /api/messages/send-reminder - 1-Click WhatsApp Reminder Dispatcher
 router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const { studentId, reminderType = 'renewal_reminder', customAmount, customMessage, paymentId } = req.body;
+    const { studentId, reminderType = 'renewal_reminder', customAmount, customMessage, message, paymentId } = req.body;
     if (!studentId) {
       return res.status(400).json({ success: false, message: 'Student ID is required' });
     }
@@ -172,8 +172,9 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
       : (reminderType === 'attendance_punch' || reminderType === 'attendance' || reminderType === 'punch') ? 'attendance_punch'
       : reminderType;
 
-    if (customMessage) {
-      messageText = customMessage;
+    const finalCustomMessage = customMessage || message;
+    if (finalCustomMessage) {
+      messageText = finalCustomMessage;
     } else if (normType === 'renewal_reminder') {
       const expDate = student.expiryDate || student.planExpiresAt;
       let timeLeftStr = 'Soon';
@@ -282,7 +283,8 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
         reminderType: normType,
         messageText,
         upiLink,
-        whatsappUrl
+        whatsappUrl,
+        waUrl: whatsappUrl
       }
     });
   } catch (error) {
@@ -291,14 +293,14 @@ router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), asy
 });
 
 // POST /api/messages/run-cron-now - Immediately executes the daily subscription expiry and balance due check and dispatches WhatsApp messages
-router.post('/run-cron-now', protect, roleCheck('owner'), async (req, res) => {
+router.post('/run-cron-now', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
     const { checkStudentExpiries } = require('../utils/cronJobs');
     const result = await checkStudentExpiries({ isManual: true });
 
     res.json({
       success: true,
-      message: `Automated WhatsApp Expiry & Dues Bot executed successfully (${result.expiryRemindersSent || 0} expiry alerts, ${result.balanceDueRemindersSent || 0} dues alerts dispatched)`,
+      message: `Automated WhatsApp Expiry & Dues Bot executed successfully (${result.expiryRemindersSent || 0} expiry alerts, ${result.balanceDueRemindersSent || 0} dues alerts dispatched, ${result.totalStudentsScanned || 0} students scanned)`,
       data: result
     });
   } catch (error) {
