@@ -257,7 +257,7 @@
           document.title = document.title.replace(/Study Library|StudyLib|The Cozy Corner Centre/g, profile.businessName);
         }
         
-        const brandElements = ['lib-title', 'lib-name', 'sidebar-org-name', 'nav-brand-name', 'drawer-brand-name', 'footer-org-name', 'kiosk-lib-name', 'footer-copy-name', 'sys-preloader-name'];
+        const brandElements = ['lib-name', 'sidebar-org-name', 'nav-brand-name', 'drawer-brand-name', 'footer-org-name', 'kiosk-lib-name', 'footer-copy-name', 'sys-preloader-name', 'slip-business-name'];
         brandElements.forEach(id => {
           const el = document.getElementById(id);
           if (el) el.textContent = profile.businessName;
@@ -265,7 +265,7 @@
       }
 
       if (profile.tagline) {
-        const taglineElements = ['footer-tagline', 'footer-bottom-tagline'];
+        const taglineElements = ['footer-tagline', 'footer-bottom-tagline', 'slip-business-tagline'];
         taglineElements.forEach(id => {
           const el = document.getElementById(id);
           if (el) el.textContent = profile.tagline;
@@ -290,11 +290,9 @@
       } catch(e) {}
 
       if (profile.logo) {
-        const logoContainers = [
-          'sidebar-logo', 'sys-preloader-icon', 'nav-logo-icon', 'drawer-logo',
-          'lib-logo-icon', 'kiosk-logo-container', 'portal-brand-logo', 'login-logo-container', 'footer-logo'
-        ];
-        logoContainers.forEach(id => {
+        // 1. Compact Navbar/Sidebar Icons
+        const compactIcons = ['sidebar-logo', 'sys-preloader-icon', 'nav-logo-icon', 'drawer-logo', 'footer-logo'];
+        compactIcons.forEach(id => {
           const el = document.getElementById(id);
           if (el) {
             const isSidebar = id === 'sidebar-logo';
@@ -309,6 +307,23 @@
             el.style.justifyContent = 'center';
             el.style.overflow = 'hidden';
             el.innerHTML = `<img src="${profile.logo}" alt="Logo" style="width: 100%; height: 100%; max-height: ${size}; max-width: ${size}; object-fit: contain; border-radius: inherit; display: block; margin: 0 auto;">`;
+          }
+        });
+
+        // 2. Hero Logo Containers (Registration, Student Login, Kiosk, Student Portal) - NEVER crop!
+        const heroContainers = ['lib-logo-icon', 'kiosk-logo-container', 'portal-brand-logo', 'login-logo-container'];
+        heroContainers.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.style.width = 'auto';
+            el.style.height = 'auto';
+            el.style.maxWidth = '180px';
+            el.style.maxHeight = '85px';
+            el.style.display = 'inline-flex';
+            el.style.alignItems = 'center';
+            el.style.justifyContent = 'center';
+            el.style.overflow = 'visible';
+            el.innerHTML = `<img src="${profile.logo}" alt="Logo" class="reg-logo-img" style="max-height: 78px; max-width: 160px; width: auto; height: auto; object-fit: contain; border-radius: 12px; background: #ffffff; padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.15); display: block; margin: 0 auto;">`;
           }
         });
         document.querySelectorAll('.app-brand-logo, .dynamic-brand-logo, .business-logo-img').forEach(img => {

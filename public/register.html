@@ -33,16 +33,14 @@
         const cached = localStorage.getItem('sl_public_profile_cache');
         if (cached) {
           const bp = JSON.parse(cached);
-          if (bp && bp.businessName) {
-            document.addEventListener('DOMContentLoaded', function() {
-              const el = document.getElementById('lib-title');
-              if (el) el.textContent = bp.businessName;
-              if (bp.tagline) {
-                const tagEl = document.getElementById('lib-tagline');
-                if (tagEl) tagEl.textContent = bp.tagline;
-              }
-            });
-          }
+          document.addEventListener('DOMContentLoaded', function() {
+            const titleEl = document.getElementById('lib-title');
+            if (titleEl) titleEl.textContent = 'Student Registration Form';
+            if (bp && bp.tagline) {
+              const tagEl = document.getElementById('lib-tagline');
+              if (tagEl) tagEl.textContent = bp.tagline;
+            }
+          });
         }
       } catch(e) {}
     })();
@@ -82,26 +80,29 @@
       justify-content: center;
     }
     .admission-header #lib-logo-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 0.5rem auto;
-      max-height: 80px;
-      max-width: 180px;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      margin: 0 auto 0.65rem auto !important;
+      width: auto !important;
+      height: auto !important;
+      max-width: 180px !important;
+      max-height: 85px !important;
+      overflow: visible !important;
     }
     .admission-header #lib-logo-icon img,
-    .admission-header img {
-      max-height: 75px !important;
+    .admission-header img.reg-logo-img {
+      max-height: 78px !important;
       max-width: 160px !important;
       width: auto !important;
       height: auto !important;
       object-fit: contain !important;
-      border-radius: 10px !important;
+      border-radius: 12px !important;
       display: block !important;
       margin: 0 auto !important;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
       background: #ffffff;
-      padding: 4px;
+      padding: 6px;
     }
     .plan-card-item {
       background: var(--color-bg-secondary);
@@ -421,8 +422,8 @@
       <button type="button" id="reg-theme-toggle" onclick="toggleRegisterTheme()" title="Toggle Dark/Light Mode" style="position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; font-size: 1.1rem; border-radius: 50%; width: 38px; height: 38px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
         🌙
       </button>
-      <div id="lib-logo-icon" style="font-size: 2.5rem; margin-bottom: 0.25rem;">📚</div>
-      <h1 id="lib-title" style="margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px;">Study Library</h1>
+      <div id="lib-logo-icon" style="margin-bottom: 0.5rem; display: inline-flex; align-items: center; justify-content: center;">📚</div>
+      <h1 id="lib-title" style="margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px;">Student Registration Form</h1>
       <p id="lib-tagline" style="margin: 6px 0 0 0; opacity: 0.9; font-size: 0.95rem;">Silence, Focus &amp; Success</p>
     </div>
 
@@ -2447,8 +2448,7 @@
 
         if (bp?.businessName) {
           libraryBusinessName = bp.businessName;
-          document.getElementById('lib-title').textContent = bp.businessName;
-          document.title = `Online Admission — ${bp.businessName}`;
+          document.title = `Student Registration Form — ${bp.businessName}`;
           const slipBiz = document.getElementById('slip-business-name');
           if (slipBiz) slipBiz.textContent = bp.businessName;
         }
@@ -2467,7 +2467,12 @@
         const bannerUrl = bp?.bannerImage || publicConfig?.bannerImage || '';
         const logoEl = document.getElementById('lib-logo-icon');
         if (logoEl && logoUrl) {
-          logoEl.innerHTML = `<img src="${logoUrl}" alt="Logo" style="max-height: 56px; max-width: 140px; object-fit: contain; margin-bottom: 0.25rem;">`;
+          logoEl.innerHTML = `<img src="${logoUrl}" alt="Logo" class="reg-logo-img" style="max-height: 78px; max-width: 160px; object-fit: contain; border-radius: 12px; background: #ffffff; padding: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.15); display: block; margin: 0 auto 0.4rem auto;">`;
+        }
+
+        const titleEl = document.getElementById('lib-title');
+        if (titleEl) {
+          titleEl.textContent = activeTemplate?.branding?.headerText || 'Student Registration Form';
         }
 
         const mainHeader = document.getElementById('admission-main-header');
@@ -2485,8 +2490,7 @@
           if (logoEl) {
             if (tb.showLogo === false) logoEl.style.display = 'none';
             else {
-              logoEl.style.display = 'block';
-              if (tb.logoSize) logoEl.style.fontSize = `${Math.round(parseInt(tb.logoSize, 10) * 0.6)}px`;
+              logoEl.style.display = 'inline-flex';
             }
           }
         }
