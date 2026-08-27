@@ -1017,9 +1017,10 @@ function renderBillingReceiptStudio(profile, billing, pay, store) {
         </div>
 
         <!-- Dynamic UPI QR & Payment Link on Receipt -->
+        <!-- Dynamic UPI QR & Payment Link on Receipt -->
         <div class="card settings-accordion-card">
           <div class="settings-accordion-header">
-            <h5><span>💳</span> Dynamic UPI QR Code on Receipt</h5>
+            <h5><span>💳</span> Dynamic UPI QR Code &amp; Gateway Settings</h5>
             <span class="settings-accordion-toggle">▲</span>
           </div>
           <div class="settings-accordion-body">
@@ -1027,12 +1028,30 @@ function renderBillingReceiptStudio(profile, billing, pay, store) {
               <div class="col-md-8">
                 <label class="form-label small" style="font-weight: 700;">Primary Library UPI ID (VPA)</label>
                 <input type="text" id="setting-bill-upiId" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.upiId || '')}" placeholder="e.g. studylib@okhdfcbank">
+                <small class="text-muted" style="font-size: 0.72rem;">Used to generate dynamic QR codes and deep links on /register, receipts, and student portal.</small>
               </div>
-              <div class="col-md-4 d-flex align-items-end">
-                <label class="form-check form-switch mb-2" style="font-size: 0.88rem; cursor: pointer;">
+              <div class="col-md-4 d-flex align-items-center">
+                <label class="form-check form-switch mb-0" style="font-size: 0.88rem; cursor: pointer;">
                   <input class="form-check-input" type="checkbox" id="rc-toggle-upiqr" checked>
-                  <span>Print UPI QR Code</span>
+                  <span>Print UPI QR on Receipts</span>
                 </label>
+              </div>
+              <div class="col-12 mt-2">
+                <label class="form-label small" style="font-weight: 700;">Payment Instructions for Students (Shown on Checkout &amp; Portal)</label>
+                <input type="text" id="setting-pay-instructions" class="form-control form-control-sm" value="${escapeHTML(profile.paymentInstructions || 'Please enter your 12-digit UTR / Reference number after completing payment.')}" placeholder="Instructions for applicants...">
+              </div>
+              <div class="col-md-6 mt-2">
+                <label class="form-label small" style="font-weight: 700;">Online Payment Verification Mode</label>
+                <select id="setting-gateway-provider" class="form-select form-select-sm">
+                  <option value="manual_upi" ${(!profile.gatewayProvider || profile.gatewayProvider === 'manual_upi') ? 'selected' : ''}>🟢 Option A: Free Dynamic UPI QR + 12-digit UTR Check (Zero Gateway Fee)</option>
+                  <option value="razorpay" ${profile.gatewayProvider === 'razorpay' ? 'selected' : ''}>⚡ Option B: Razorpay PG (Cards, NetBanking, Instant Auto-Verify)</option>
+                  <option value="cashfree" ${profile.gatewayProvider === 'cashfree' ? 'selected' : ''}>⚡ Option B: Cashfree Payments Gateway</option>
+                  <option value="phonepe" ${profile.gatewayProvider === 'phonepe' ? 'selected' : ''}>⚡ Option B: PhonePe PG Gateway</option>
+                </select>
+              </div>
+              <div class="col-md-6 mt-2" id="pg-credentials-block" style="display: ${profile.gatewayProvider && profile.gatewayProvider !== 'manual_upi' ? 'block' : 'none'};">
+                <label class="form-label small" style="font-weight: 700;">API Key / Merchant ID</label>
+                <input type="text" id="setting-razorpay-key" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.razorpayKeyId || profile.cashfreeAppId || '')}" placeholder="Key ID">
               </div>
             </div>
           </div>
@@ -1063,30 +1082,48 @@ function renderBillingReceiptStudio(profile, billing, pay, store) {
         <!-- GST & Bank Wire Transfer Details -->
         <div class="card settings-accordion-card">
           <div class="settings-accordion-header">
-            <h5><span>📊</span> GST Tax Engine &amp; Bank Wire Details</h5>
+            <h5><span>📊</span> GST Tax Engine &amp; Official Bank Account Details</h5>
             <span class="settings-accordion-toggle">▲</span>
           </div>
           <div class="settings-accordion-body">
             <div class="row g-2">
               <div class="col-md-4">
-                <label class="form-label small">GST Rate (%)</label>
+                <label class="form-label small" style="font-weight: 700;">GST Rate (%)</label>
                 <input type="number" id="setting-bill-gstRate" class="form-control form-control-sm" value="${billing['billing.gstRate'] ?? billing.gstRate ?? 18}" min="0" max="28">
               </div>
               <div class="col-md-4">
-                <label class="form-label small">HSN / SAC Code</label>
+                <label class="form-label small" style="font-weight: 700;">HSN / SAC Code</label>
                 <input type="text" id="setting-bill-hsn" class="form-control form-control-sm font-monospace" value="${escapeHTML(billing['billing.hsnSacCode'] || billing.hsnSacCode || '999293')}" placeholder="999293">
               </div>
               <div class="col-md-4">
-                <label class="form-label small">Refund Window (Days)</label>
+                <label class="form-label small" style="font-weight: 700;">Refund Window (Days)</label>
                 <input type="number" id="setting-bill-refundDays" class="form-control form-control-sm" value="${billing['billing.refundPolicyDays'] ?? billing.refundPolicyDays ?? 3}" min="0">
               </div>
-              <div class="col-md-6 mt-2">
-                <label class="form-label small">Bank Account Holder</label>
-                <input type="text" id="setting-bank-accName" class="form-control form-control-sm" value="${escapeHTML(profile.bankDetails?.accountName || '')}">
+              
+              <div class="col-12 mt-2 pt-2 border-top">
+                <div style="font-weight: 800; font-size: 0.82rem; color: var(--color-primary); margin-bottom: 6px;">
+                  🏛️ Official Bank Account (Displayed on NetBanking checkout &amp; Student Portal)
+                </div>
               </div>
-              <div class="col-md-6 mt-2">
-                <label class="form-label small">Account Number</label>
-                <input type="text" id="setting-bank-accNo" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.bankDetails?.accountNumber || '')}">
+              <div class="col-md-6">
+                <label class="form-label small" style="font-weight: 700;">Bank Account Holder Name</label>
+                <input type="text" id="setting-bank-accName" class="form-control form-control-sm" value="${escapeHTML(profile.bankDetails?.accountName || '')}" placeholder="e.g. Study Library Pvt Ltd">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small" style="font-weight: 700;">Account Number</label>
+                <input type="text" id="setting-bank-accNo" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.bankDetails?.accountNumber || '')}" placeholder="e.g. 50200012345678">
+              </div>
+              <div class="col-md-4 mt-2">
+                <label class="form-label small" style="font-weight: 700;">Bank Name</label>
+                <input type="text" id="setting-bank-name" class="form-control form-control-sm" value="${escapeHTML(profile.bankDetails?.bankName || '')}" placeholder="e.g. HDFC Bank">
+              </div>
+              <div class="col-md-4 mt-2">
+                <label class="form-label small" style="font-weight: 700;">IFSC Code</label>
+                <input type="text" id="setting-bank-ifsc" class="form-control form-control-sm font-monospace" value="${escapeHTML(profile.bankDetails?.ifscCode || '')}" placeholder="e.g. HDFC0000123">
+              </div>
+              <div class="col-md-4 mt-2">
+                <label class="form-label small" style="font-weight: 700;">Branch Name / City</label>
+                <input type="text" id="setting-bank-branch" class="form-control form-control-sm" value="${escapeHTML(profile.bankDetails?.branchName || '')}" placeholder="e.g. FC Road, Pune">
               </div>
             </div>
           </div>
@@ -4729,6 +4766,9 @@ async function saveActiveStudioSettings(container, studioId, store) {
         ifscCode: container.querySelector('#setting-bank-ifsc')?.value?.trim() || store.profile.bankDetails?.ifscCode,
         branchName: container.querySelector('#setting-bank-branch')?.value?.trim() || store.profile.bankDetails?.branchName
       },
+      paymentInstructions: container.querySelector('#setting-pay-instructions')?.value?.trim() || store.profile.paymentInstructions,
+      gatewayProvider: container.querySelector('#setting-gateway-provider')?.value || store.profile.gatewayProvider || 'manual_upi',
+      razorpayKeyId: container.querySelector('#setting-razorpay-key')?.value?.trim() || store.profile.razorpayKeyId,
       socialLinks: {
         ...(store.profile.socialLinks || {}),
         whatsapp: container.querySelector('#setting-social-wa')?.value?.trim() || store.profile.socialLinks?.whatsapp,
