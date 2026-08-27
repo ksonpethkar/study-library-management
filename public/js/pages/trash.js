@@ -162,7 +162,7 @@ function _attachEvents(container) {
   });
 
   // Search input with debounce
-  const searchInput = container.getElementById('trash-search-input');
+  const searchInput = container.querySelector('#trash-search-input');
   if (searchInput) {
     let debounceTimer;
     searchInput.addEventListener('input', () => {
