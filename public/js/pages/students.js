@@ -626,14 +626,14 @@ export async function render() {
       if (fn === 'idproofimage' || fn === 'idproof' || fn === 'id_proof_image') {
         return student.idProof?.image || student.customFields?.idProofImage || student.customFields?.id_proof_image || student.customFields?.idproofimage || '';
       }
-      if (fn === 'emergencycontactname' || fn === 'emergency_contact_name' || fn === 'parentname' || fn === 'fathername') {
-        return student.emergencyContact?.name || student.customFields?.emergencyContactName || student.customFields?.parentName || student.customFields?.fatherName || student.customFields?.emergency_contact_name || student.customFields?.emergencycontactname || '';
+      if (fn === 'emergencycontactname' || fn === 'emergency_contact_name' || fn === 'parentname' || fn === 'fathername' || fn === 'parentguardianname' || fn === 'guardianname' || fn === 'parentcontactname') {
+        return student.emergencyContact?.name || student.customFields?.parent___guardian_name || student.customFields?.parentguardianname || student.customFields?.emergencyContactName || student.customFields?.parentName || student.customFields?.fatherName || student.customFields?.emergency_contact_name || student.customFields?.emergencycontactname || '';
       }
-      if (fn === 'emergencycontactphone' || fn === 'emergencycontact' || fn === 'parentphone' || fn === 'emergency_contact_phone') {
-        return student.emergencyContact?.phone || student.customFields?.emergencyContactPhone || student.customFields?.emergencyContact || student.customFields?.parentPhone || student.customFields?.emergency_contact_phone || student.customFields?.emergencycontactphone || '';
+      if (fn === 'emergencycontactphone' || fn === 'emergencycontact' || fn === 'parentphone' || fn === 'emergency_contact_phone' || fn === 'emergencyphone') {
+        return student.emergencyContact?.phone || student.customFields?.emergencyContactPhone || student.customFields?.emergencyContact || student.customFields?.emergencycontact || student.customFields?.parentPhone || student.customFields?.emergency_contact_phone || student.customFields?.emergencycontactphone || '';
       }
-      if (fn === 'emergencycontactrelation' || fn === 'emergency_contact_relation' || fn === 'parentrelation' || fn === 'relation') {
-        return student.emergencyContact?.relation || student.customFields?.emergencyContactRelation || student.customFields?.parentRelation || student.customFields?.emergency_contact_relation || student.customFields?.emergencycontactrelation || '';
+      if (fn === 'emergencycontactrelation' || fn === 'emergency_contact_relation' || fn === 'parentrelation' || fn === 'relation' || fn === 'relationship') {
+        return student.emergencyContact?.relation || student.customFields?.relationship || student.customFields?.relation || student.customFields?.emergencyContactRelation || student.customFields?.parentRelation || student.customFields?.emergency_contact_relation || student.customFields?.emergencycontactrelation || 'Parent';
       }
       if (fn === 'dateofbirth' || fn === 'dob' || fn === 'date_of_birth' || fn === 'birthdate') {
         const raw = student.dateOfBirth || student.dob || (student.customFields && (student.customFields.dateOfBirth || student.customFields.dob || student.customFields.dateofbirth || (student.customFields instanceof Map ? (student.customFields.get('dateOfBirth') || student.customFields.get('dob') || student.customFields.get('dateofbirth')) : null)));
@@ -1305,9 +1305,9 @@ export async function render() {
             delete data.idProofImage;
 
             // 6. Emergency Contact
-            const emName = data.emergencyContactName || data['emergencyContact.name'] || data['emergencyContact[name]'] || data.parentName || data.parent_name || data.fatherName || customF.emergencyContactName || customF.parentName || customF.fatherName || customF.emergency_contact_name || customF.emergencycontactname || student?.emergencyContact?.name || '';
+            const emName = data.emergencyContactName || data['emergencyContact.name'] || data['emergencyContact[name]'] || data.parentName || data.parent___guardian_name || data.parent_name || data.parentguardianname || data.guardianName || data.fatherName || customF.parent___guardian_name || customF.parentguardianname || customF.guardianName || customF.emergencyContactName || customF.parentName || customF.fatherName || customF.emergency_contact_name || customF.emergencycontactname || student?.emergencyContact?.name || '';
             const emPhone = data.emergencyContactPhone || data['emergencyContact.phone'] || data['emergencyContact[phone]'] || data.emergencyContact || data.emergencycontact || data.parentPhone || data.parent_phone || customF.emergencyContactPhone || customF.emergencyContact || customF.emergencycontact || customF.parentPhone || customF.emergency_contact_phone || customF.emergencycontactphone || student?.emergencyContact?.phone || '';
-            const emRel = data.emergencyContactRelation || data['emergencyContact.relation'] || data['emergencyContact[relation]'] || data.parentRelation || data.parent_relation || customF.emergencyContactRelation || customF.parentRelation || customF.emergency_contact_relation || customF.emergencycontactrelation || student?.emergencyContact?.relation || 'Parent';
+            const emRel = data.emergencyContactRelation || data['emergencyContact.relation'] || data['emergencyContact[relation]'] || data.relationship || data.relation || data.parentRelation || data.parent_relation || customF.relationship || customF.relation || customF.emergencyContactRelation || customF.parentRelation || customF.emergency_contact_relation || customF.emergencycontactrelation || student?.emergencyContact?.relation || 'Parent';
 
             data.emergencyContact = {
               name: String(emName).trim(),
@@ -1318,8 +1318,12 @@ export async function render() {
             data.customFields.emergencycontact = data.emergencyContact.phone;
             data.customFields.emergencyContactPhone = data.emergencyContact.phone;
             data.customFields.emergencycontactphone = data.emergencyContact.phone;
+            data.customFields.parent___guardian_name = data.emergencyContact.name;
+            data.customFields.parentguardianname = data.emergencyContact.name;
             data.customFields.emergencyContactName = data.emergencyContact.name;
             data.customFields.emergencycontactname = data.emergencyContact.name;
+            data.customFields.relationship = data.emergencyContact.relation;
+            data.customFields.relation = data.emergencyContact.relation;
             data.customFields.emergencyContactRelation = data.emergencyContact.relation;
             data.customFields.emergencycontactrelation = data.emergencyContact.relation;
 
@@ -2033,6 +2037,7 @@ export async function render() {
       'dob', 'dateofbirth', 'birthdate', 'bloodgroup', 'blood_group',
       'address', 'residentialaddress', 'pincode', 'postalcode', 'city', 'state',
       'emergencyname', 'emergencycontactname', 'emergencyphone', 'emergencycontactphone', 'emergencyrelation', 'emergencycontactrelation',
+      'parentguardianname', 'parent___guardian_name', 'parentname', 'guardianname', 'fathername', 'mothername', 'relationship', 'relation', 'emergencycontact', 'parentphone',
       'idtype', 'idprooftype', 'idnumber', 'idproofnumber', 'idproof', 'idproofimage', 'idproofphoto',
       'targetexam', 'targetexams', 'college', 'collegename', 'institute', 'university', 'qualification', 'highestqualification',
       'branch', 'plan', 'shift', 'seat', 'password', 'photo', 'signature', 'status', 'remarks', 'specialremarks', 'notes',
@@ -2167,7 +2172,14 @@ export async function render() {
             <h5 style="margin: 0 0 10px 0; font-size: 0.9rem; font-weight: 700; color: var(--color-warning);">📍 Address & Emergency</h5>
             <div class="small text-muted mb-1">Email: <strong>${escapeHTML(student.email || 'N/A')}</strong></div>
             <div class="small text-muted mb-1">Address: <strong>${escapeHTML(student.address || 'N/A')}, ${escapeHTML(student.city || '')} ${escapeHTML(student.pincode || '')}</strong></div>
-            <div class="small text-muted">Emergency Contact: <strong>${escapeHTML(student.emergencyContact?.name || 'N/A')} (${escapeHTML(student.emergencyContact?.relation || 'Parent')}) - ${escapeHTML(SmartFormatters.phone(student.emergencyContact?.phone) || '')}</strong> ${student.emergencyContact?.phone ? `<button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(student.emergencyContact.phone)}" style="padding: 1px 4px; font-size: 0.7rem;">📋</button>` : ''}</div>
+            ${(() => {
+              const emName = student.emergencyContact?.name || student.customFields?.parent___guardian_name || student.customFields?.parentguardianname || student.customFields?.parentName || student.customFields?.emergencyContactName || student.customFields?.guardianName || student.customFields?.fatherName || '';
+              const emRel = student.emergencyContact?.relation || student.customFields?.relationship || student.customFields?.relation || student.customFields?.emergencyContactRelation || student.customFields?.parentRelation || 'Parent';
+              const emPhone = student.emergencyContact?.phone || student.customFields?.emergencyContactPhone || student.customFields?.emergencyContact || student.customFields?.emergencycontact || student.customFields?.parentPhone || '';
+              return `
+                <div class="small text-muted">Emergency Contact: <strong>${escapeHTML(emName || 'N/A')} (${escapeHTML(emRel)}) - ${escapeHTML(SmartFormatters.phone(emPhone) || '')}</strong> ${emPhone ? `<button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(emPhone)}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">📋</button>` : ''}</div>
+              `;
+            })()}
           </div>
 
           <!-- Smart Access & KYC -->

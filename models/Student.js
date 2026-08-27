@@ -30,7 +30,7 @@ const studentSchema = new mongoose.Schema({
   expiryDate: { type: Date },
   status: {
     type: String,
-    enum: ['active', 'inactive', 'suspended', 'expired', 'pending', 'pending_payment', 'Active', 'Inactive', 'Suspended', 'Expired', 'Pending', 'Pending_Payment'],
+    enum: ['active', 'inactive', 'suspended', 'expired', 'pending', 'pending_payment', 'grace_period', 'Active', 'Inactive', 'Suspended', 'Expired', 'Pending', 'Pending_Payment', 'Grace_Period', 'GRACE_PERIOD'],
     set: v => (v ? String(v).toLowerCase().trim() : 'active'),
     default: 'active'
   },

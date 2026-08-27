@@ -251,11 +251,11 @@ router.post('/', validateStudentCreate, roleCheck('owner', 'branch_manager'), as
       delete req.body.idProofImage;
     }
 
-    if (req.body.emergencyContact || req.body.emergencyContactName || req.body.emergencyContactPhone || req.body.emergencyContactRelation || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContact || customFieldsData.emergency_contact || customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone || customFieldsData.emergencycontact || customFieldsData.emergencycontactphone || customFieldsData.parentphone))) {
+    if (req.body.emergencyContact || req.body.emergencyContactName || req.body.parentName || req.body.parent___guardian_name || req.body.emergencyContactPhone || req.body.emergencyContactRelation || req.body.relationship || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContact || customFieldsData.emergency_contact || customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone || customFieldsData.emergencycontact || customFieldsData.emergencycontactphone || customFieldsData.parentphone || customFieldsData.parent___guardian_name || customFieldsData.parentName || customFieldsData.emergencyContactName || customFieldsData.relationship))) {
       const em = req.body.emergencyContact || {};
-      const emName = em.name || req.body.emergencyContactName || req.body['emergencyContact.name'] || (customFieldsData && (customFieldsData.emergencyContactName || customFieldsData.parentName || customFieldsData.emergency_contact_name || customFieldsData.emergencycontactname || customFieldsData.parentname)) || '';
-      const emPhone = em.phone || req.body.emergencyContactPhone || req.body.emergencyContact || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone || customFieldsData.emergencyContact || customFieldsData.emergencycontact || customFieldsData.emergencycontactphone || customFieldsData.parentphone)) || '';
-      const emRel = em.relation || req.body.emergencyContactRelation || req.body['emergencyContact.relation'] || (customFieldsData && (customFieldsData.emergencyContactRelation || customFieldsData.parentRelation || customFieldsData.emergency_contact_relation || customFieldsData.emergencycontactrelation || customFieldsData.parentrelation)) || 'Parent';
+      const emName = em.name || req.body.emergencyContactName || req.body['emergencyContact.name'] || req.body.parentName || req.body.parent___guardian_name || (customFieldsData && (customFieldsData.emergencyContactName || customFieldsData.parentName || customFieldsData.parent___guardian_name || customFieldsData.parentguardianname || customFieldsData.guardianName || customFieldsData.guardian_name || customFieldsData.fatherName || customFieldsData.father_name || customFieldsData.emergency_contact_name || customFieldsData.emergencycontactname || customFieldsData.parentname)) || '';
+      const emPhone = em.phone || req.body.emergencyContactPhone || req.body.emergencyContact || req.body.emergencycontact || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.parent_phone || customFieldsData.emergency_contact_phone || customFieldsData.emergencyContact || customFieldsData.emergencycontact || customFieldsData.emergencycontactphone || customFieldsData.parentphone)) || '';
+      const emRel = em.relation || req.body.emergencyContactRelation || req.body['emergencyContact.relation'] || req.body.relationship || req.body.relation || (customFieldsData && (customFieldsData.relationship || customFieldsData.relation || customFieldsData.emergencyContactRelation || customFieldsData.parentRelation || customFieldsData.emergency_contact_relation || customFieldsData.emergencycontactrelation || customFieldsData.parentrelation)) || 'Parent';
       req.body.emergencyContact = { name: String(emName).trim(), phone: String(emPhone).trim().replace(/[^0-9+]/g, ''), relation: String(emRel).trim() };
       delete req.body['emergencyContact.name'];
       delete req.body['emergencyContact.phone'];
@@ -263,6 +263,9 @@ router.post('/', validateStudentCreate, roleCheck('owner', 'branch_manager'), as
       delete req.body.emergencyContactName;
       delete req.body.emergencyContactPhone;
       delete req.body.emergencyContactRelation;
+      delete req.body.parentName;
+      delete req.body.parent___guardian_name;
+      delete req.body.relationship;
     }
 
     const rawExams = req.body.targetExams !== undefined ? req.body.targetExams : (customFieldsData && (customFieldsData.targetExams || customFieldsData.target_exams || customFieldsData.competitive_exams));
@@ -446,11 +449,11 @@ router.put('/:id', validateStudentUpdate, roleCheck('owner', 'branch_manager'), 
       delete req.body.idProofImage;
     }
 
-    if (req.body.emergencyContact || req.body.emergencyContactName || req.body.emergencyContactPhone || req.body.emergencyContactRelation || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContact || customFieldsData.emergency_contact || customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone || customFieldsData.emergencycontact || customFieldsData.emergencycontactphone || customFieldsData.parentphone))) {
+    if (req.body.emergencyContact || req.body.emergencyContactName || req.body.parentName || req.body.parent___guardian_name || req.body.emergencyContactPhone || req.body.emergencyContactRelation || req.body.relationship || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContact || customFieldsData.emergency_contact || customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone || customFieldsData.emergencycontact || customFieldsData.emergencycontactphone || customFieldsData.parentphone || customFieldsData.parent___guardian_name || customFieldsData.parentName || customFieldsData.emergencyContactName || customFieldsData.relationship))) {
       const em = req.body.emergencyContact || {};
-      const emName = em.name || req.body.emergencyContactName || req.body['emergencyContact.name'] || (customFieldsData && (customFieldsData.emergencyContactName || customFieldsData.parentName || customFieldsData.emergency_contact_name || customFieldsData.emergencycontactname || customFieldsData.parentname)) || student.emergencyContact?.name || '';
-      const emPhone = em.phone || req.body.emergencyContactPhone || req.body.emergencyContact || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.emergency_contact_phone || customFieldsData.emergencyContact || customFieldsData.emergencycontact || customFieldsData.emergencycontactphone || customFieldsData.parentphone)) || student.emergencyContact?.phone || '';
-      const emRel = em.relation || req.body.emergencyContactRelation || req.body['emergencyContact.relation'] || (customFieldsData && (customFieldsData.emergencyContactRelation || customFieldsData.parentRelation || customFieldsData.emergency_contact_relation || customFieldsData.emergencycontactrelation || customFieldsData.parentrelation)) || student.emergencyContact?.relation || 'Parent';
+      const emName = em.name || req.body.emergencyContactName || req.body['emergencyContact.name'] || req.body.parentName || req.body.parent___guardian_name || (customFieldsData && (customFieldsData.emergencyContactName || customFieldsData.parentName || customFieldsData.parent___guardian_name || customFieldsData.parentguardianname || customFieldsData.guardianName || customFieldsData.guardian_name || customFieldsData.fatherName || customFieldsData.father_name || customFieldsData.emergency_contact_name || customFieldsData.emergencycontactname || customFieldsData.parentname)) || student.emergencyContact?.name || '';
+      const emPhone = em.phone || req.body.emergencyContactPhone || req.body.emergencyContact || req.body.emergencycontact || req.body['emergencyContact.phone'] || (customFieldsData && (customFieldsData.emergencyContactPhone || customFieldsData.parentPhone || customFieldsData.parent_phone || customFieldsData.emergency_contact_phone || customFieldsData.emergencyContact || customFieldsData.emergencycontact || customFieldsData.emergencycontactphone || customFieldsData.parentphone)) || student.emergencyContact?.phone || '';
+      const emRel = em.relation || req.body.emergencyContactRelation || req.body['emergencyContact.relation'] || req.body.relationship || req.body.relation || (customFieldsData && (customFieldsData.relationship || customFieldsData.relation || customFieldsData.emergencyContactRelation || customFieldsData.parentRelation || customFieldsData.emergency_contact_relation || customFieldsData.emergencycontactrelation || customFieldsData.parentrelation)) || student.emergencyContact?.relation || 'Parent';
       student.emergencyContact = { name: String(emName).trim(), phone: String(emPhone).trim().replace(/[^0-9+]/g, ''), relation: String(emRel).trim() };
       student.markModified('emergencyContact');
       delete req.body.emergencyContact;
@@ -460,6 +463,9 @@ router.put('/:id', validateStudentUpdate, roleCheck('owner', 'branch_manager'), 
       delete req.body.emergencyContactName;
       delete req.body.emergencyContactPhone;
       delete req.body.emergencyContactRelation;
+      delete req.body.parentName;
+      delete req.body.parent___guardian_name;
+      delete req.body.relationship;
     }
 
     const rawExams = req.body.targetExams !== undefined ? req.body.targetExams : (customFieldsData && (customFieldsData.targetExams || customFieldsData.target_exams || customFieldsData.competitive_exams));

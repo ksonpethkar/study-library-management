@@ -124,9 +124,9 @@ export function buildAdmissionFormHTML(student, options = {}) {
   }
 
   // Emergency / Guardian Contacts
-  const emergencyName = s.emergencyContact?.name || s.emergencyContactName || s.customFields?.['Emergency Contact Name'] || s.customFields?.['Father / Guardian Name'] || s.customFields?.fatherName || s.customFields?.parentName || '';
-  const emergencyPhone = s.emergencyContact?.phone || s.emergencyContactPhone || s.customFields?.['Emergency Contact Phone'] || s.customFields?.['Parent Phone'] || s.customFields?.parentPhone || '';
-  const emergencyRelation = s.emergencyContact?.relation || s.emergencyContactRelation || s.customFields?.['Relation'] || s.customFields?.parentRelation || 'Parent / Guardian';
+  const emergencyName = s.emergencyContact?.name || s.emergencyContactName || s.customFields?.['parent___guardian_name'] || s.customFields?.['parentguardianname'] || s.customFields?.['Parent / Guardian Name'] || s.customFields?.['Emergency Contact Name'] || s.customFields?.['Father / Guardian Name'] || s.customFields?.parentName || s.customFields?.guardianName || s.customFields?.fatherName || s.customFields?.emergencyContactName || '';
+  const emergencyPhone = s.emergencyContact?.phone || s.emergencyContactPhone || s.customFields?.emergencycontact || s.customFields?.emergencyContact || s.customFields?.['Emergency Contact Phone'] || s.customFields?.['Parent Phone'] || s.customFields?.parentPhone || '';
+  const emergencyRelation = s.emergencyContact?.relation || s.emergencyContactRelation || s.customFields?.relationship || s.customFields?.relation || s.customFields?.['Relationship'] || s.customFields?.['Relation'] || s.customFields?.parentRelation || 'Parent';
 
   // Government ID Proof & KYC Details
   const idProofType = s.idProof?.type || s.idProofType || s.customFields?.idProofType || s.customFields?.id_proof_type || s.customFields?.idprooftype || 'Aadhaar Card';
@@ -187,6 +187,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
     'idproofimage', 'idproof', 'idprooftype', 'idproofnumber', 'targetexams', 'target_exams', 'competitive_exams',
     'address', 'city', 'state', 'pincode', 'bloodgroup', 'blood_group', 'emergencycontact', 'emergencycontactname',
     'emergencycontactphone', 'emergencycontactrelation', 'parentphone', 'fathername', 'rfidcardnumber', 'biometricid',
+    'parentguardianname', 'parent___guardian_name', 'parentname', 'guardianname', 'relationship', 'relation',
     'whatsapp', 'alternatephone', 'altphone', 'lockernumber', 'occupation', 'collegeorcompany', 'college', 'company'
   ]);
 

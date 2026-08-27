@@ -1175,24 +1175,44 @@
         `;
       }
 
-      // 14. Emergency Contact Name / Phone
-      if (lowerName === 'emergencyname') {
+      // 14. Emergency Contact Name / Phone / Relation
+      if (lowerName === 'emergencyname' || lowerName === 'parentguardianname' || lowerName === 'parentname' || lowerName === 'guardianname' || lowerName === 'fathername') {
         return `
           <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
             <div class="form-group mb-2">
               <label class="form-label" style="font-weight: 600;">🚨 ${escapeHTML(label)}${reqMark}</label>
-              <input type="text" id="reg-emergency-name" name="emergencyName" class="form-control" placeholder="${escapeHTML(placeholder || 'Parent / Guardian / Friend')}" ${required}>
+              <input type="text" id="reg-emergency-name" name="emergencyName" class="form-control" placeholder="${escapeHTML(placeholder || 'Parent / Guardian Full Name')}" ${required}>
               ${helpText}
             </div>
           </div>
         `;
       }
-      if (lowerName === 'emergencyphone' || lowerName === 'emergencycontact') {
+      if (lowerName === 'emergencyphone' || lowerName === 'emergencycontact' || lowerName === 'parentphone' || lowerName === 'guardianphone') {
         return `
           <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
             <div class="form-group mb-2">
               <label class="form-label" style="font-weight: 600;">📞 ${escapeHTML(label)}${reqMark}</label>
               <input type="tel" id="reg-emergency-phone" name="emergencyPhone" class="form-control" placeholder="${escapeHTML(placeholder || '10-digit emergency contact phone')}" maxlength="10" ${required}>
+              ${helpText}
+            </div>
+          </div>
+        `;
+      }
+      if (lowerName === 'emergencyrelation' || lowerName === 'relationship' || lowerName === 'relation' || lowerName === 'parentrelation') {
+        return `
+          <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
+            <div class="form-group mb-2">
+              <label class="form-label" style="font-weight: 600;">👥 ${escapeHTML(label)}${reqMark}</label>
+              <select id="reg-emergency-relation" name="relationship" class="form-select">
+                <option value="Parent" selected>Parent</option>
+                <option value="Guardian">Guardian</option>
+                <option value="Father">Father</option>
+                <option value="Mother">Mother</option>
+                <option value="Sibling">Sibling (Brother / Sister)</option>
+                <option value="Spouse">Spouse</option>
+                <option value="Friend">Friend / Roommate</option>
+                <option value="Other">Other</option>
+              </select>
               ${helpText}
             </div>
           </div>
@@ -2273,8 +2293,21 @@
           state: document.getElementById('reg-state')?.value?.trim() || '',
           address: document.getElementById('reg-address')?.value?.trim() || '',
           emergencyContact: {
-            name: document.getElementById('reg-emergency-name')?.value?.trim() || '',
-            phone: document.getElementById('reg-emergency-phone')?.value?.trim() || ''
+            name: document.getElementById('reg-emergency-name')?.value?.trim() ||
+              document.querySelector('[name="parent___guardian_name"]')?.value?.trim() ||
+              document.querySelector('[name="emergencyName"]')?.value?.trim() ||
+              document.querySelector('[name="parentName"]')?.value?.trim() ||
+              (customFields && (customFields.parent___guardian_name || customFields.emergencyName || customFields.parentName || customFields.parentguardianname || customFields.guardianName || customFields.fatherName)) || '',
+            phone: document.getElementById('reg-emergency-phone')?.value?.trim() ||
+              document.querySelector('[name="emergencycontact"]')?.value?.trim() ||
+              document.querySelector('[name="emergencyPhone"]')?.value?.trim() ||
+              document.querySelector('[name="emergencyContact"]')?.value?.trim() ||
+              (customFields && (customFields.emergencycontact || customFields.emergencyPhone || customFields.emergencyContact || customFields.parentPhone)) || '',
+            relation: document.getElementById('reg-emergency-relation')?.value?.trim() ||
+              document.querySelector('[name="relationship"]')?.value?.trim() ||
+              document.querySelector('[name="relation"]')?.value?.trim() ||
+              document.querySelector('[name="emergencyRelation"]')?.value?.trim() ||
+              (customFields && (customFields.relationship || customFields.relation || customFields.emergencyRelation || customFields.parentRelation)) || 'Parent'
           },
           occupation: document.getElementById('reg-occupation')?.value?.trim() || '',
           idProofType: document.getElementById('reg-id-type')?.value || 'Aadhaar Card',
@@ -2558,8 +2591,9 @@
           if (['targetexams', 'exams', 'targetexam', 'competitiveexam', 'goal'].includes(n) || n.includes('exam')) return 'targetExams';
           if (['college', 'institute', 'university'].includes(n)) return 'college';
           if (['qualification', 'education', 'highestqualification'].includes(n)) return 'qualification';
-          if (['emergencyname', 'emergencycontactname', 'guardianname', 'parentname'].includes(n) || (n.includes('emerg') && n.includes('name'))) return 'emergencyName';
-          if (['emergencyphone', 'emergencycontactphone', 'guardianphone', 'parentphone', 'emergencymobile'].includes(n) || (n.includes('emerg') && (n.includes('phone') || n.includes('mob')))) return 'emergencyPhone';
+          if (['emergencyname', 'emergencycontactname', 'guardianname', 'parentname', 'parentguardianname', 'fathername', 'mothername', 'parentcontactname'].includes(n) || ((n.includes('emerg') || n.includes('parent') || n.includes('guardian') || n.includes('father')) && (n.includes('name') || n.includes('person')))) return 'emergencyName';
+          if (['emergencyphone', 'emergencycontactphone', 'guardianphone', 'parentphone', 'emergencymobile', 'emergencycontact', 'parentmobile', 'guardianmobile'].includes(n) || ((n.includes('emerg') || n.includes('parent') || n.includes('guardian')) && (n.includes('phone') || n.includes('mob') || n.includes('contact')))) return 'emergencyPhone';
+          if (['relationship', 'relation', 'emergencyrelation', 'parentrelation', 'guardianrelation', 'emergencycontactrelation'].includes(n) || n.includes('relat')) return 'emergencyRelation';
           if (['idprooftype', 'idproof', 'aadhaar', 'pancard', 'govtid', 'idproofimage', 'idproofdocument'].includes(n) || n.includes('proof')) return 'idProofType';
           if (['password', 'portalpassword'].includes(n)) return 'password';
           return n;
