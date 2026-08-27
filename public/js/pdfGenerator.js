@@ -133,12 +133,57 @@ export function buildAdmissionFormHTML(student, options = {}) {
   const idProofNumber = s.idProof?.number || s.idProofNumber || s.customFields?.idProofNumber || s.customFields?.id_proof_number || s.customFields?.idproofnumber || s.customFields?.aadhaar || s.customFields?.pan || '';
   const idProofImage = s.idProof?.image || s.idProofImage || s.customFields?.idProofImage || s.customFields?.id_proof_image || s.customFields?.idproofimage || s.customFields?.idProof || s.customFields?.id_proof || '';
 
+  // 1. Resolve active Custom Field definitions and Form Template sections
+  let allCustomFieldDefs = [];
+  if (Array.isArray(opts.customFields) && opts.customFields.length > 0) {
+    allCustomFieldDefs = opts.customFields;
+  } else if (typeof window !== 'undefined') {
+    allCustomFieldDefs = window.store?.customFields || window.store?.settings?.customFields || window.FormBuilder?.allFields || [];
+    if (!allCustomFieldDefs || allCustomFieldDefs.length === 0) {
+      try {
+        const cached = JSON.parse(localStorage.getItem('sl_custom_fields_cache') || '[]');
+        if (Array.isArray(cached) && cached.length > 0) allCustomFieldDefs = cached;
+      } catch (e) {}
+    }
+  }
+
+  let allTemplateSections = [];
+  if (opts.templateConfig && Array.isArray(opts.templateConfig.sections)) {
+    allTemplateSections = opts.templateConfig.sections;
+  } else if (typeof window !== 'undefined') {
+    allTemplateSections = window.store?.formTemplate?.sections || window.store?.settings?.formTemplate?.sections || window.FormBuilder?.sections || [];
+    if (!allTemplateSections || allTemplateSections.length === 0) {
+      try {
+        const cachedTpl = JSON.parse(localStorage.getItem('sl_form_template_cache') || '{}');
+        if (Array.isArray(cachedTpl?.sections)) allTemplateSections = cachedTpl.sections;
+      } catch (e) {}
+    }
+  }
+
+  // Format human-friendly label fallback from camelCase or snake_case or SCREAMING_SNAKE_CASE
+  function formatHumanLabel(rawKey) {
+    if (!rawKey) return '';
+    let str = String(rawKey).trim();
+    if (str.includes('___')) {
+      str = str.replace(/___/g, ' / ');
+    }
+    str = str.replace(/_/g, ' ');
+    str = str.replace(/([a-z])([A-Z])/g, '$1 $2');
+    return str
+      .split(' ')
+      .filter(Boolean)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ')
+      .replace(/\s*\/\s*/g, ' / ');
+  }
+
   // Form Builder Custom Fields & Uploaded Document Attachments Extraction
-  const customEntries = [];
+  const customFieldEntries = [];
   const uploadedDocEntries = [];
 
   const coreExcluded = new Set([
-    'name', 'phone', 'email', 'gender', 'dob', 'dateofbirth', 'photo', 'signature', 'seat', 'plan', 'status',
+    'name', 'fullname', 'phone', 'mobile', 'email', 'gender', 'dob', 'dateofbirth', 'birthdate',
+    'photo', 'signature', 'seat', 'plan', 'status', 'branch', 'shift', 'feeamount',
     'idproofimage', 'idproof', 'idprooftype', 'idproofnumber', 'targetexams', 'target_exams', 'competitive_exams',
     'address', 'city', 'state', 'pincode', 'bloodgroup', 'blood_group', 'emergencycontact', 'emergencycontactname',
     'emergencycontactphone', 'emergencycontactrelation', 'parentphone', 'fathername', 'rfidcardnumber', 'biometricid',
@@ -150,12 +195,34 @@ export function buildAdmissionFormHTML(student, options = {}) {
     const cleanKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
     if (coreExcluded.has(cleanKey)) return;
 
+    // Match against configured custom field definition
+    const def = allCustomFieldDefs.find(f => {
+      const fn = (f.fieldName || f.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const fl = (f.label || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      return fn === cleanKey || fl === cleanKey;
+    });
+
+    const label = def?.label || formatHumanLabel(key);
+    const section = def?.section || 'additional';
+    const order = def?.order !== undefined ? def.order : 999;
     const strVal = String(val).trim();
+
     // Check if value is an uploaded image / document
     if (strVal.startsWith('data:image/') || strVal.startsWith('http://') || strVal.startsWith('https://') || strVal.startsWith('/uploads/') || strVal.includes('res.cloudinary.com')) {
-      uploadedDocEntries.push({ label: key, url: strVal });
+      uploadedDocEntries.push({ label: label, url: strVal });
     } else {
-      customEntries.push({ label: key, value: typeof val === 'boolean' ? (val ? 'Yes' : 'No') : strVal });
+      let formattedVal = strVal;
+      if (typeof val === 'boolean' || strVal === 'true' || strVal === 'false') {
+        formattedVal = (val === true || strVal === 'true') ? 'Yes' : 'No';
+      }
+      customFieldEntries.push({
+        key,
+        label,
+        value: formattedVal,
+        section,
+        order,
+        type: def?.type || 'text'
+      });
     }
   }
 
@@ -173,10 +240,73 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
   // Include idProofImage in uploaded docs if available
   if (idProofImage && (idProofImage.startsWith('data:image/') || idProofImage.startsWith('http://') || idProofImage.startsWith('https://') || idProofImage.startsWith('/uploads/') || idProofImage.includes('res.cloudinary.com'))) {
-    // Check if not already in list
     if (!uploadedDocEntries.some(d => d.url === idProofImage)) {
       uploadedDocEntries.unshift({ label: `${idProofType} KYC Document Scan`, url: idProofImage });
     }
+  }
+
+  // Group custom fields by sections as configured in Form Builder
+  const sectionGroups = [];
+  const secIcons = {
+    personal: '👤',
+    academic: '🎯',
+    plan: '⏰',
+    payment: '💳',
+    seat: '🪑',
+    contact: '📍',
+    kyc: '🪪',
+    parent: '👨‍👩‍👧',
+    vehicle: '🚗',
+    transport: '🚲',
+    custom: '📋',
+    additional: '📋',
+    other: '📝'
+  };
+
+  if (allTemplateSections.length > 0) {
+    allTemplateSections.forEach(sec => {
+      const matchingFields = customFieldEntries
+        .filter(f => f.section === sec.name)
+        .sort((a, b) => a.order - b.order);
+      
+      if (matchingFields.length > 0) {
+        sectionGroups.push({
+          name: sec.name,
+          label: sec.label || formatHumanLabel(sec.name),
+          icon: sec.icon && sec.icon.length <= 4 ? sec.icon : (secIcons[sec.name] || '📋'),
+          fields: matchingFields
+        });
+      }
+    });
+
+    const handledKeys = new Set(sectionGroups.flatMap(g => g.fields.map(f => f.key)));
+    const unhandled = customFieldEntries.filter(f => !handledKeys.has(f.key));
+    if (unhandled.length > 0) {
+      sectionGroups.push({
+        name: 'additional',
+        label: 'Additional Registration Information',
+        icon: '📋',
+        fields: unhandled.sort((a, b) => a.order - b.order)
+      });
+    }
+  } else {
+    const secMap = new Map();
+    customFieldEntries.forEach(f => {
+      const sName = f.section || 'additional';
+      if (!secMap.has(sName)) {
+        secMap.set(sName, {
+          name: sName,
+          label: formatHumanLabel(sName),
+          icon: secIcons[sName] || '📋',
+          fields: []
+        });
+      }
+      secMap.get(sName).fields.push(f);
+    });
+    secMap.forEach(g => {
+      g.fields.sort((a, b) => a.order - b.order);
+      sectionGroups.push(g);
+    });
   }
 
   // Photo & Signature & Stamp URLs
@@ -659,12 +789,12 @@ export function buildAdmissionFormHTML(student, options = {}) {
         </div>
       </div>
 
-      <!-- 5. Form Builder Custom Questions & Dynamic Answers (Auto-Fit Expansion) -->
-      ${customEntries.length > 0 ? `
+      <!-- 5. Form Builder Custom Questions & Sections (Organized matching Admin Form Builder) -->
+      ${sectionGroups.map(grp => `
         <div class="sec-card">
-          <div class="sec-title">📋 Additional Registration Information</div>
+          <div class="sec-title">${grp.icon} ${escapeHTML(grp.label)}</div>
           <div class="grid-2">
-            ${customEntries.map(e => `
+            ${grp.fields.map(e => `
               <div style="margin-bottom: 2px;">
                 <div class="field-label">${escapeHTML(e.label)}</div>
                 <div class="field-value" style="font-size: 10px;">${escapeHTML(e.value)}</div>
@@ -672,7 +802,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
             `).join('')}
           </div>
         </div>
-      ` : ''}
+      `).join('')}
 
       <!-- 6. Discipline Code, Terms of Admission & Declaration -->
       ${opts.showRules ? `
@@ -781,16 +911,29 @@ export function buildAdmissionFormHTML(student, options = {}) {
  */
 export async function generateAdmissionFormPDF(student, options = {}) {
   let fullStudent = student;
-  if (student && student._id && (!student.plan?.name || !student.shift?.name || !student.branch?.name || !student.idProof?.image)) {
-    try {
-      const token = localStorage.getItem('sl_token') || localStorage.getItem('token');
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-      const res = await fetch(`/api/students/${student._id}`, { headers }).then(r => r.json());
-      if (res?.success && res?.data) fullStudent = res.data;
-    } catch (e) {}
-  }
+  const opts = { ...options };
+  try {
+    const token = (typeof localStorage !== 'undefined') ? (localStorage.getItem('sl_token') || localStorage.getItem('token')) : null;
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    
+    const [stuRes, cfRes, tplRes] = await Promise.all([
+      (student && student._id && (!student.plan?.name || !student.shift?.name || !student.branch?.name || !student.idProof?.image))
+        ? fetch(`/api/students/${student._id}`, { headers }).then(r => r.json()).catch(() => null)
+        : null,
+      (!opts.customFields)
+        ? fetch('/api/custom-fields/all', { headers }).then(r => r.json()).catch(() => null)
+        : null,
+      (!opts.templateConfig)
+        ? fetch('/api/custom-fields/templates/active', { headers }).then(r => r.json()).catch(() => null)
+        : null
+    ]);
 
-  const htmlContent = buildAdmissionFormHTML(fullStudent, options);
+    if (stuRes?.success && stuRes?.data) fullStudent = stuRes.data;
+    if (cfRes?.success && Array.isArray(cfRes.data)) opts.customFields = cfRes.data;
+    if (tplRes?.success && tplRes.data) opts.templateConfig = tplRes.data;
+  } catch (e) {}
+
+  const htmlContent = buildAdmissionFormHTML(fullStudent, opts);
   
   // Try popup window first on desktop
   let printWindow = null;
@@ -932,34 +1075,38 @@ export function previewAdmissionFormPDF(student, options = {}) {
 
   updateIframePreview();
 
-  // Asynchronously fetch fresh full student record from database if _id exists to guarantee all populated references and uploaded document images are loaded
-  if (student && student._id) {
-    (async () => {
-      try {
-        const token = localStorage.getItem('sl_token') || localStorage.getItem('token');
-        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-        const res = await fetch(`/api/students/${student._id}`, { headers }).then(r => r.json());
-        if (res?.success && res?.data) {
-          activeStudent = res.data;
-          updateIframePreview();
-        }
-      } catch (e) {}
-    })();
-  }
+  // Asynchronously fetch fresh full student record, custom fields & template to guarantee exact labels & section ordering
+  (async () => {
+    try {
+      const token = (typeof localStorage !== 'undefined') ? (localStorage.getItem('sl_token') || localStorage.getItem('token')) : null;
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-  // Async dynamic settings revalidation to ensure 100% fresh organisation branding
-  if (!currentOpts.business || !currentOpts.business.businessName || currentOpts.business.businessName === 'Study Library Management') {
-    (async () => {
-      try {
-        const res = await (window.api ? window.api.get('/api/settings') : fetch('/api/settings').then(r => r.json()));
-        if (res?.success && res?.data?.businessProfile) {
-          currentOpts.business = res.data.businessProfile;
-          if (res.data.receipt) currentOpts.receiptConfig = res.data.receipt;
-          updateIframePreview();
-        }
-      } catch (e) {}
-    })();
-  }
+      const [stuRes, cfRes, tplRes, bizRes] = await Promise.all([
+        student?._id ? fetch(`/api/students/${student._id}`, { headers }).then(r => r.json()).catch(() => null) : null,
+        fetch('/api/custom-fields/all', { headers }).then(r => r.json()).catch(() => null),
+        fetch('/api/custom-fields/templates/active', { headers }).then(r => r.json()).catch(() => null),
+        (!currentOpts.business || !currentOpts.business.businessName || currentOpts.business.businessName === 'Study Library Management')
+          ? fetch('/api/settings', { headers }).then(r => r.json()).catch(() => null)
+          : null
+      ]);
+
+      if (stuRes?.success && stuRes?.data) activeStudent = stuRes.data;
+      if (cfRes?.success && Array.isArray(cfRes.data)) {
+        currentOpts.customFields = cfRes.data;
+        try { localStorage.setItem('sl_custom_fields_cache', JSON.stringify(cfRes.data)); } catch (e) {}
+      }
+      if (tplRes?.success && tplRes.data) {
+        currentOpts.templateConfig = tplRes.data;
+        try { localStorage.setItem('sl_form_template_cache', JSON.stringify(tplRes.data)); } catch (e) {}
+      }
+      if (bizRes?.success && bizRes?.data?.businessProfile) {
+        currentOpts.business = bizRes.data.businessProfile;
+        if (bizRes.data.receipt) currentOpts.receiptConfig = bizRes.data.receipt;
+      }
+
+      updateIframePreview();
+    } catch (e) {}
+  })();
 
   // Template switch handler
   modal.querySelector('#pdf-prev-preset')?.addEventListener('change', (e) => {

@@ -1524,14 +1524,37 @@ function renderPortalUI(container, data, analytics = null) {
         'branch', 'plan', 'shift', 'seat', 'password', 'photo', 'signature', 'status', 'remarks', 'specialremarks', 'notes'
       ]);
 
+      function formatHumanLabel(rawKey) {
+        if (!rawKey) return '';
+        let str = String(rawKey).trim();
+        if (str.includes('___')) str = str.replace(/___/g, ' / ');
+        str = str.replace(/_/g, ' ');
+        str = str.replace(/([a-z])([A-Z])/g, '$1 $2');
+        return str
+          .split(' ')
+          .filter(Boolean)
+          .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+          .join(' ')
+          .replace(/\s*\/\s*/g, ' / ');
+      }
+
+      const templateSections = (tplRes?.data?.sections && Array.isArray(tplRes.data.sections)) ? tplRes.data.sections : [];
+
       const extraCustomFields = [];
       Object.entries(cfMap).forEach(([k, v]) => {
         const normKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
         if (!standardKeys.has(normKey) && v !== undefined && v !== null && v !== '') {
-          const def = customFieldsList.find(f => f.fieldName?.toLowerCase().replace(/[^a-z0-9]/g, '') === normKey);
+          const def = customFieldsList.find(f => {
+            const fn = f.fieldName?.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const fl = f.label?.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return fn === normKey || fl === normKey;
+          });
           extraCustomFields.push({
-            label: def?.label || def?.fieldLabel || k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
+            key: k,
+            label: def?.label || def?.fieldLabel || formatHumanLabel(k),
             value: v,
+            section: def?.section || 'additional',
+            order: def?.order !== undefined ? def.order : 999,
             type: def?.type || 'text'
           });
         }
@@ -1646,21 +1669,61 @@ function renderPortalUI(container, data, analytics = null) {
         </div>
       `;
 
-      // 4. Additional Information & Custom Fields Card (if any)
-      if (remarksVal || extraCustomFields.length > 0) {
+      // 4. Custom Sections & Additional Information Cards (as configured by Admin in Form Builder)
+      const secIconMap = {
+        personal: '👤', academic: '🎯', plan: '⏰', payment: '💳', seat: '🪑',
+        contact: '📍', kyc: '🪪', parent: '👨‍👩‍👧', vehicle: '🚗', transport: '🚲',
+        custom: '📋', additional: '📝', other: '📝'
+      };
+
+      const customSectionGroups = [];
+      if (templateSections.length > 0) {
+        templateSections.forEach(sec => {
+          const mFields = extraCustomFields.filter(f => f.section === sec.name).sort((a, b) => a.order - b.order);
+          if (mFields.length > 0) {
+            customSectionGroups.push({
+              name: sec.name,
+              label: sec.label || formatHumanLabel(sec.name),
+              icon: sec.icon && sec.icon.length <= 4 ? sec.icon : (secIconMap[sec.name] || '📋'),
+              fields: mFields
+            });
+          }
+        });
+        const handledK = new Set(customSectionGroups.flatMap(g => g.fields.map(f => f.key)));
+        const unhandledF = extraCustomFields.filter(f => !handledK.has(f.key));
+        if (unhandledF.length > 0 || remarksVal) {
+          customSectionGroups.push({
+            name: 'additional',
+            label: 'Additional Information & Preferences',
+            icon: '📝',
+            fields: unhandledF.sort((a, b) => a.order - b.order),
+            remarks: remarksVal
+          });
+        }
+      } else if (extraCustomFields.length > 0 || remarksVal) {
+        customSectionGroups.push({
+          name: 'additional',
+          label: 'Additional Information & Preferences',
+          icon: '📝',
+          fields: extraCustomFields.sort((a, b) => a.order - b.order),
+          remarks: remarksVal
+        });
+      }
+
+      customSectionGroups.forEach(grp => {
         sectionsHtml += `
           <div class="mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
             <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
-              <span>📝</span> Additional Information &amp; Preferences
+              <span>${grp.icon}</span> ${escapeHTML(grp.label)}
             </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; font-size: 0.88rem;">
-              ${remarksVal ? `
+              ${grp.remarks ? `
                 <div style="grid-column: 1 / -1;">
                   <span class="text-muted d-block small">Special Remarks / Notes</span>
-                  <strong>${escapeHTML(remarksVal)}</strong>
+                  <strong>${escapeHTML(grp.remarks)}</strong>
                 </div>
               ` : ''}
-              ${extraCustomFields.map(f => `
+              ${grp.fields.map(f => `
                 <div>
                   <span class="text-muted d-block small">${escapeHTML(f.label)}</span>
                   <div>${formatVal(f, f.value)}</div>
@@ -1669,7 +1732,7 @@ function renderPortalUI(container, data, analytics = null) {
             </div>
           </div>
         `;
-      }
+      });
 
       // Digital Signature Section if available
       if (student.signature) {

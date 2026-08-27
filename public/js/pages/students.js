@@ -1882,6 +1882,114 @@ export async function render() {
     if (phone.length === 10) phone = '91' + phone;
     const waUrl = phone ? `https://api.whatsapp.com/send?phone=${phone}` : null;
 
+    function formatHumanLabel(rawKey) {
+      if (!rawKey) return '';
+      let str = String(rawKey).trim();
+      if (str.includes('___')) str = str.replace(/___/g, ' / ');
+      str = str.replace(/_/g, ' ');
+      str = str.replace(/([a-z])([A-Z])/g, '$1 $2');
+      return str
+        .split(' ')
+        .filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ')
+        .replace(/\s*\/\s*/g, ' / ');
+    }
+
+    const standardKeys = new Set([
+      'name', 'fullname', 'phone', 'mobile', 'whatsapp', 'email', 'gender', 'sex',
+      'dob', 'dateofbirth', 'birthdate', 'bloodgroup', 'blood_group',
+      'address', 'residentialaddress', 'pincode', 'postalcode', 'city', 'state',
+      'emergencyname', 'emergencycontactname', 'emergencyphone', 'emergencycontactphone', 'emergencyrelation', 'emergencycontactrelation',
+      'idtype', 'idprooftype', 'idnumber', 'idproofnumber', 'idproof', 'idproofimage', 'idproofphoto',
+      'targetexam', 'targetexams', 'college', 'collegename', 'institute', 'university', 'qualification', 'highestqualification',
+      'branch', 'plan', 'shift', 'seat', 'password', 'photo', 'signature', 'status', 'remarks', 'specialremarks', 'notes',
+      'rfidcardnumber', 'biometricid', 'occupation', 'collegeorcompany'
+    ]);
+
+    const customFieldsList = _cachedFormDeps?.customFields || [];
+    const templateSections = _cachedFormDeps?.template?.sections || [];
+    const cfMap = (student.customFields && typeof student.customFields === 'object') ? student.customFields : {};
+    
+    const extraCustomFields = [];
+    if (cfMap instanceof Map) {
+      for (const [k, v] of cfMap.entries()) {
+        const normKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!standardKeys.has(normKey) && v !== undefined && v !== null && v !== '') {
+          const def = customFieldsList.find(f => {
+            const fn = f.fieldName?.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const fl = f.label?.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return fn === normKey || fl === normKey;
+          });
+          extraCustomFields.push({
+            key: k,
+            label: def?.label || formatHumanLabel(k),
+            value: v,
+            section: def?.section || 'additional',
+            order: def?.order !== undefined ? def.order : 999,
+            type: def?.type || 'text'
+          });
+        }
+      }
+    } else {
+      Object.entries(cfMap).forEach(([k, v]) => {
+        const normKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!standardKeys.has(normKey) && v !== undefined && v !== null && v !== '') {
+          const def = customFieldsList.find(f => {
+            const fn = f.fieldName?.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const fl = f.label?.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return fn === normKey || fl === normKey;
+          });
+          extraCustomFields.push({
+            key: k,
+            label: def?.label || formatHumanLabel(k),
+            value: v,
+            section: def?.section || 'additional',
+            order: def?.order !== undefined ? def.order : 999,
+            type: def?.type || 'text'
+          });
+        }
+      });
+    }
+
+    const secIconMap = {
+      personal: '👤', academic: '🎯', plan: '⏰', payment: '💳', seat: '🪑',
+      contact: '📍', kyc: '🪪', parent: '👨‍👩‍👧', vehicle: '🚗', transport: '🚲',
+      custom: '📋', additional: '📝', other: '📝'
+    };
+
+    const customSectionGroups = [];
+    if (templateSections.length > 0) {
+      templateSections.forEach(sec => {
+        const mFields = extraCustomFields.filter(f => f.section === sec.name).sort((a, b) => a.order - b.order);
+        if (mFields.length > 0) {
+          customSectionGroups.push({
+            name: sec.name,
+            label: sec.label || formatHumanLabel(sec.name),
+            icon: sec.icon && sec.icon.length <= 4 ? sec.icon : (secIconMap[sec.name] || '📋'),
+            fields: mFields
+          });
+        }
+      });
+      const handledK = new Set(customSectionGroups.flatMap(g => g.fields.map(f => f.key)));
+      const unhandledF = extraCustomFields.filter(f => !handledK.has(f.key));
+      if (unhandledF.length > 0) {
+        customSectionGroups.push({
+          name: 'additional',
+          label: 'Additional Registration Information',
+          icon: '📝',
+          fields: unhandledF.sort((a, b) => a.order - b.order)
+        });
+      }
+    } else if (extraCustomFields.length > 0) {
+      customSectionGroups.push({
+        name: 'additional',
+        label: 'Additional Registration Information',
+        icon: '📝',
+        fields: extraCustomFields.sort((a, b) => a.order - b.order)
+      });
+    }
+
     const modalContent = document.createElement('div');
     modalContent.innerHTML = `
       <div style="font-family: 'Outfit', sans-serif;">
@@ -1944,6 +2052,29 @@ export async function render() {
             ` : ''}
           </div>
         </div>
+
+        <!-- Custom Sections & Questions as configured by Admin in Form Builder -->
+        ${customSectionGroups.map(grp => `
+          <div style="background: var(--color-bg-primary); padding: 14px; border-radius: 10px; border: 1px solid var(--color-border); margin-bottom: 20px;">
+            <h5 style="margin: 0 0 10px 0; font-size: 0.9rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+              <span>${grp.icon}</span> ${escapeHTML(grp.label)}
+            </h5>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; font-size: 0.85rem;">
+              ${grp.fields.map(f => {
+                let dispVal = escapeHTML(String(f.value));
+                if (typeof f.value === 'boolean' || f.value === 'true' || f.value === 'false') {
+                  dispVal = (f.value === true || f.value === 'true') ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-secondary">No</span>';
+                }
+                return `
+                  <div>
+                    <span class="text-muted d-block small" style="font-weight: 600;">${escapeHTML(f.label)}</span>
+                    <strong style="color: var(--color-text-primary);">${dispVal}</strong>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `).join('')}
 
         <!-- 🧠 Study Consistency & Heatmap Analytics Widget -->
         <div id="student-analytics-widget" style="background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
