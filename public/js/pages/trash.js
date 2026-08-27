@@ -38,13 +38,13 @@ export async function render(container) {
   currentPage = 1;
 
   container.innerHTML = `
-    <div class="page-content-wrapper" style="padding: 1.5rem 2rem; max-width: 1400px; margin: 0 auto;">
+    <div class="trash-studio-container" style="width: 100%; max-width: 100%; box-sizing: border-box;">
       <!-- Header Banner -->
-      <div class="card mb-4" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(108, 92, 231, 0.08)); border-left: 4px solid var(--color-danger, #ef4444);">
-        <div class="card-body" style="padding: 1.5rem;">
+      <div class="card mb-4" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(108, 92, 231, 0.08)); border-left: 4px solid var(--color-danger, #ef4444); width: 100%; box-sizing: border-box;">
+        <div class="card-body" style="padding: 1.25rem 1.5rem;">
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
-              <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary); margin: 0 0 4px 0;">
+              <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--color-text-primary); margin: 0 0 4px 0;">
                 🗑️ Recycle Bin & Trash Management
               </h2>
               <p class="text-muted" style="margin: 0; font-size: 0.88rem;">
@@ -58,7 +58,7 @@ export async function render(container) {
               <button class="btn btn-outline-danger btn-sm" id="trash-bulk-delete-btn" style="display: none;">
                 💥 Delete Selected (<span id="trash-selected-delete-count">0</span>)
               </button>
-              <button class="btn btn-danger btn-sm" id="trash-empty-btn">
+              <button class="btn btn-danger btn-sm" id="trash-empty-btn" style="font-weight: 700;">
                 🧹 Empty Recycle Bin
               </button>
             </div>
@@ -67,9 +67,9 @@ export async function render(container) {
       </div>
 
       <!-- Category Filter Tabs -->
-      <div class="card mb-4">
-        <div class="card-body" style="padding: 1rem 1.25rem;">
-          <div class="d-flex gap-2 flex-wrap" id="trash-category-tabs">
+      <div class="card mb-4" style="width: 100%; box-sizing: border-box;">
+        <div class="card-body" style="padding: 0.85rem 1rem;">
+          <div class="d-flex gap-2 flex-wrap" id="trash-category-tabs" style="width: 100%;">
             <button class="btn btn-sm ${currentTab === 'all' ? 'btn-primary' : 'btn-ghost'}" data-tab="all">
               📋 All Items <span class="badge badge-secondary" id="count-all">...</span>
             </button>
@@ -108,12 +108,12 @@ export async function render(container) {
       </div>
 
       <!-- Search & Data Table -->
-      <div class="card">
+      <div class="card" style="width: 100%; box-sizing: border-box;">
         <div class="card-body" style="padding: 1.25rem;">
           <!-- Toolbar -->
-          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <div style="flex: 1; max-width: 400px; position: relative;">
-              <input type="text" id="trash-search-input" class="form-control form-control-sm" placeholder="🔍 Search deleted records by title, phone, user..." value="${escapeHTML(currentSearch)}" style="padding-left: 2rem;">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2" style="width: 100%;">
+            <div style="flex: 1 1 300px; min-width: 240px; position: relative;">
+              <input type="text" id="trash-search-input" class="form-control form-control-sm w-100" placeholder="🔍 Search deleted records by title, phone, user..." value="${escapeHTML(currentSearch)}" style="padding-left: 2rem;">
               <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5;">🔍</span>
             </div>
             <div class="text-muted" style="font-size: 0.85rem;" id="trash-meta-info">
@@ -122,7 +122,7 @@ export async function render(container) {
           </div>
 
           <!-- Items Table Container -->
-          <div id="trash-table-container">
+          <div id="trash-table-container" style="width: 100%; overflow-x: auto;">
             <div style="padding: 3rem 1rem; text-align: center; color: var(--color-text-secondary);">
               <div class="spinner-border spinner-border-sm text-primary mb-2"></div>
               <div>Fetching deleted records...</div>
@@ -130,7 +130,7 @@ export async function render(container) {
           </div>
 
           <!-- Pagination Container -->
-          <div id="trash-pagination-container" class="d-flex justify-content-between align-items-center mt-3 pt-3" style="border-top: 1px solid var(--color-border, #e2e8f0); display: none;"></div>
+          <div id="trash-pagination-container" class="d-flex justify-content-between align-items-center mt-3 pt-3" style="border-top: 1px solid var(--color-border, #e2e8f0); display: none; width: 100%;"></div>
         </div>
       </div>
     </div>

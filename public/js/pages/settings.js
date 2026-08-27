@@ -297,6 +297,7 @@ function renderMasterHubUI(container, store) {
     system_health: () => renderSystemHealthStudio(),
     trash: async () => {
       const div = document.createElement('div');
+      div.style.cssText = 'width: 100%; max-width: 100%; box-sizing: border-box;';
       await renderTrashModule(div);
       return div;
     }
