@@ -493,51 +493,71 @@ export async function render() {
     }
   }
 
+  let _cachedFormDeps = null;
+  async function fetchFormDeps() {
+    if (_cachedFormDeps) {
+      // Background revalidate
+      Promise.all([
+        api.get('/api/plans').catch(() => null),
+        api.get('/api/seats?status=available').catch(() => null),
+        api.get('/api/custom-fields/all').catch(() => null),
+        api.get('/api/custom-fields/templates/active').catch(() => null)
+      ]).then(([pRes, sRes, cRes, tRes]) => {
+        if (pRes?.data) _cachedFormDeps.plans = pRes.data;
+        if (sRes?.data) _cachedFormDeps.seats = sRes.data;
+        if (cRes?.data) _cachedFormDeps.customFields = cRes.data;
+        if (tRes?.data) _cachedFormDeps.template = tRes.data;
+      }).catch(() => {});
+      return _cachedFormDeps;
+    }
+
+    try {
+      const [plansRes, seatsRes, cfRes, tplRes] = await Promise.all([
+        api.get('/api/plans').catch(() => ({ data: [] })),
+        api.get('/api/seats?status=available').catch(() => ({ data: [] })),
+        api.get('/api/custom-fields/all').catch(() => ({ data: [] })),
+        api.get('/api/custom-fields/templates/active').catch(() => ({ data: {} }))
+      ]);
+      _cachedFormDeps = {
+        plans: plansRes?.data || [],
+        seats: seatsRes?.data || [],
+        customFields: cfRes?.data || [],
+        template: tplRes?.data || {}
+      };
+      return _cachedFormDeps;
+    } catch (err) {
+      console.error('Error fetching student modal dependencies:', err);
+      return { plans: [], seats: [], customFields: [], template: {} };
+    }
+  }
+
   async function showStudentForm(student = null) {
     const isEdit = !!student;
+    const deps = await fetchFormDeps();
+    const plansList = Array.isArray(deps.plans) ? deps.plans : [];
+    const seatsList = Array.isArray(deps.seats) ? deps.seats : [];
+    const customFields = Array.isArray(deps.customFields) ? deps.customFields : [];
+    const template = deps.template || {};
+
     // Fetch available plans, seats, custom fields, and active form template
     let plansOptions = '<option value="">-- Select Plan (Optional) --</option>';
     let seatsOptions = '<option value="">-- Select Seat (Optional) --</option>';
-    let rawAvailableSeats = [];
-    let customFields = [];
-    let template = {};
-    
-    try {
-      const [plansRes, seatsRes, cfRes, tplRes] = await Promise.all([
-        api.get('/api/plans'),
-        api.get('/api/seats?status=available'),
-        api.get('/api/custom-fields/all'),
-        api.get('/api/custom-fields/templates/active')
-      ]);
-      
-      if (plansRes?.success && plansRes.data) {
-        plansRes.data.forEach(p => {
-          const selected = (student && student.plan && (student.plan._id === p._id || student.plan === p._id)) ? 'selected' : '';
-          plansOptions += `<option value="${p._id}" ${selected}>${escapeHTML(p.name)} - ₹${p.price} (${p.duration} ${p.durationType})</option>`;
-        });
-      }
-      
-      if (seatsRes?.success && seatsRes.data) {
-        rawAvailableSeats = seatsRes.data;
-        seatsRes.data.forEach(s => {
-          const selected = (student && student.seat && (student.seat._id === s._id || student.seat === s._id)) ? 'selected' : '';
-          seatsOptions += `<option value="${s._id}" ${selected}>${escapeHTML(s.seatNumber)} (${escapeHTML(s.zone)} - ${escapeHTML(s.type)})</option>`;
-        });
-      }
-      if (student && student.seat && typeof student.seat === 'object') {
-        if (!seatsOptions.includes(student.seat._id)) {
-          seatsOptions += `<option value="${student.seat._id}" selected>${escapeHTML(student.seat.seatNumber)} (Current)</option>`;
-        }
-      }
+    let rawAvailableSeats = seatsList;
 
-      if (cfRes?.success && cfRes?.data) {
-        customFields = cfRes.data;
+    plansList.forEach(p => {
+      const selected = (student && student.plan && (student.plan._id === p._id || student.plan === p._id)) ? 'selected' : '';
+      plansOptions += `<option value="${p._id}" ${selected}>${escapeHTML(p.name)} - ₹${p.price} (${p.duration} ${p.durationType})</option>`;
+    });
+
+    seatsList.forEach(s => {
+      const selected = (student && student.seat && (student.seat._id === s._id || student.seat === s._id)) ? 'selected' : '';
+      seatsOptions += `<option value="${s._id}" ${selected}>${escapeHTML(s.seatNumber)} (${escapeHTML(s.zone)} - ${escapeHTML(s.type)})</option>`;
+    });
+
+    if (student && student.seat && typeof student.seat === 'object') {
+      if (!seatsOptions.includes(student.seat._id)) {
+        seatsOptions += `<option value="${student.seat._id}" selected>${escapeHTML(student.seat.seatNumber)} (Current)</option>`;
       }
-      if (tplRes?.success && tplRes?.data) {
-        template = tplRes.data;
-      }
-    } catch (err) {
-      console.error('Error fetching student modal dependencies:', err);
     }
 
     // Helper to extract student field values
@@ -2330,11 +2350,19 @@ export async function render() {
   }
 
   async function showStudentIdCard(student) {
-    let business = { businessName: 'Study Library', tagline: 'Self Study & Reading Room', phone: '', address: '', logo: '', upiId: '' };
-    try {
-      const bRes = await api.get('/api/settings');
-      if (bRes.success && bRes.data?.businessProfile) business = { ...business, ...bRes.data.businessProfile };
-    } catch (e) {}
+    let business = window.store?.settings?.businessProfile || 
+                   window.store?.profile || 
+                   JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}') || 
+                   { businessName: 'Study Library', tagline: 'Self Study & Reading Room', phone: '', address: '', logo: '', upiId: '' };
+    
+    // Background refresh if needed
+    if (!business.businessName || business.businessName === 'Study Library') {
+      api.get('/api/settings').then(bRes => {
+        if (bRes?.success && bRes.data?.businessProfile) {
+          business = { ...business, ...bRes.data.businessProfile };
+        }
+      }).catch(() => {});
+    }
 
     const stampImgUrl = business.stampImage || business.stampImageUrl || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.stampImage || '';
     const logoImgUrl = business.logo || business.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.logo || '';

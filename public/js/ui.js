@@ -1968,23 +1968,67 @@ export const ActionMenu = {
     this.closeAll();
     if (!actions || !actions.length) return;
 
-    // Mobile fallback: On narrow screens <= 480px, display bottom sheet
-    if (window.innerWidth <= 480 && typeof BottomSheet !== 'undefined' && BottomSheet.show) {
+    const executeAction = (action, id) => {
+      // 1. Direct search inside dropdown menu
+      const directCandidates = [
+        triggerBtn.parentElement?.querySelector(`.action-menu-item[data-action="${action}"]`),
+        triggerBtn.closest('.dropdown, .action-menu-wrapper, tr, td')?.querySelector(`.action-menu-item[data-action="${action}"]`),
+        document.querySelector(`.dropdown[data-entity-id="${id}"] .action-menu-item[data-action="${action}"]`),
+        document.querySelector(`.action-menu-item[data-id="${id}"][data-action="${action}"]`)
+      ];
+
+      for (const targetEl of directCandidates) {
+        if (targetEl) {
+          try {
+            targetEl.click();
+            return;
+          } catch (_) {}
+        }
+      }
+
+      // 2. Dispatch custom action event on triggerBtn & document
+      const detail = { action, id, entityId: id, trigger: triggerBtn };
+      const customEvt = new CustomEvent('action-menu-select', { bubbles: true, cancelable: true, detail });
+      triggerBtn.dispatchEvent(customEvt);
+      document.dispatchEvent(new CustomEvent('action-menu-select', { bubbles: true, cancelable: true, detail }));
+
+      // 3. Fallback: Dispatch synthetic click on parent row or container
+      const rowOrCard = triggerBtn.closest('tr, .card, .portal-card, #page-content');
+      if (rowOrCard) {
+        const dummy = document.createElement('span');
+        dummy.className = 'action-menu-item';
+        dummy.dataset.action = action;
+        dummy.dataset.id = id;
+        dummy.style.display = 'none';
+        rowOrCard.appendChild(dummy);
+        try {
+          dummy.click();
+        } finally {
+          setTimeout(() => dummy.remove(), 100);
+        }
+      }
+    };
+
+    // Mobile fallback: On screens <= 768px, display bottom sheet
+    if (window.innerWidth <= 768 && typeof BottomSheet !== 'undefined' && BottomSheet.show) {
       const sheetContent = `
         <div style="padding: 0.5rem 0;">
-          <div style="font-weight: 800; font-size: 0.95rem; margin-bottom: 10px; padding: 0 16px; color: var(--color-primary);">Quick Actions</div>
+          <div style="font-weight: 800; font-size: 0.95rem; margin-bottom: 10px; padding: 0 16px; color: var(--color-primary); display: flex; align-items: center; justify-content: space-between;">
+            <span>⚡ Quick Actions</span>
+            ${entityId ? `<span class="badge badge-secondary" style="font-size: 0.7rem; font-family: monospace;">${escapeHTML(entityId.slice(-6))}</span>` : ''}
+          </div>
           <div style="display: flex; flex-direction: column;">
             ${actions.map(act => {
               if (act.divider) return `<hr style="margin: 4px 0; border-color: var(--color-border);">`;
-              if (act.header) return `<div style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--color-text-muted); padding: 6px 16px 2px;">${escapeHTML(act.header)}</div>`;
+              if (act.header) return `<div style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--color-text-muted); padding: 8px 16px 2px;">${escapeHTML(act.header)}</div>`;
               const icon = act.icon || '⚡';
               const label = act.label || '';
               const actionKey = act.action || act.id || '';
               const isDanger = act.danger ? 'color: var(--color-danger, #ef4444);' : 'color: var(--color-text-primary);';
               return `
-                <button type="button" class="btn-mobile-sheet-action action-menu-item" data-action="${escapeHTML(actionKey)}" data-id="${escapeHTML(entityId)}" style="display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 16px; border: none; background: transparent; ${isDanger} font-size: 0.92rem; cursor: pointer;">
-                  <span style="font-size: 1.1rem;">${icon}</span>
-                  <span style="flex-grow: 1; font-weight: ${act.bold ? '700' : '500'};">${escapeHTML(label)}</span>
+                <button type="button" class="btn-mobile-sheet-action action-menu-item" data-action="${escapeHTML(actionKey)}" data-id="${escapeHTML(entityId)}" style="display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px 18px; border: none; background: transparent; ${isDanger} font-size: 0.96rem; font-weight: 600; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; border-bottom: 1px solid var(--color-divider, #f1f5f9);">
+                  <span style="font-size: 1.25rem; width: 26px; text-align: center; flex-shrink: 0;">${icon}</span>
+                  <span style="flex-grow: 1; font-weight: ${act.bold ? '700' : '600'};">${escapeHTML(label)}</span>
                   ${act.badge ? `<span class="badge badge-sm" style="font-size: 0.7rem; background: rgba(108,92,231,0.15); color: var(--color-primary);">${escapeHTML(act.badge)}</span>` : ''}
                 </button>
               `;
@@ -2001,28 +2045,14 @@ export const ActionMenu = {
       const sheetEl = document.getElementById('bottom-sheet');
       if (sheetEl) {
         sheetEl.addEventListener('click', (e) => {
-          const item = e.target.closest('.action-menu-item');
+          const item = e.target.closest('.action-menu-item, .btn-mobile-sheet-action');
           if (!item) return;
           e.preventDefault();
+          e.stopPropagation();
           const action = item.dataset.action;
-          const id = item.dataset.id;
+          const id = item.dataset.id || entityId;
           if (sheet && sheet.close) sheet.close();
-
-          const origItem = triggerBtn.parentElement?.querySelector(`.action-menu-item[data-action="${action}"]`);
-          if (origItem) {
-            origItem.click();
-          } else {
-            const container = triggerBtn.closest('#page-content, .card, .table-responsive, table, body');
-            if (container) {
-              const dummy = document.createElement('a');
-              dummy.className = 'action-menu-item';
-              dummy.dataset.action = action;
-              dummy.dataset.id = id;
-              const clickEvt = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
-              Object.defineProperty(clickEvt, 'target', { value: dummy, enumerable: true });
-              container.dispatchEvent(clickEvt);
-            }
-          }
+          executeAction(action, id);
         });
       }
       return;
@@ -2058,7 +2088,7 @@ export const ActionMenu = {
           const isDanger = act.danger ? 'color: var(--color-danger, #ef4444);' : 'color: var(--color-text-primary, #1e293b);';
           return `
             <li>
-              <a href="#" class="floating-action-item action-menu-item" data-action="${escapeHTML(actionKey)}" data-id="${escapeHTML(entityId)}" style="display: flex; align-items: center; gap: 8px; padding: 6px 14px; text-decoration: none; ${isDanger} transition: background 0.12s; cursor: pointer;">
+              <a href="#" class="floating-action-item action-menu-item" data-action="${escapeHTML(actionKey)}" data-id="${escapeHTML(entityId)}" style="display: flex; align-items: center; gap: 8px; padding: 8px 14px; text-decoration: none; ${isDanger} transition: background 0.12s; cursor: pointer;">
                 <span style="font-size: 0.95rem; width: 18px; text-align: center;">${icon}</span>
                 <span style="flex-grow: 1; font-weight: ${act.bold ? '700' : '500'}; white-space: nowrap;">${escapeHTML(label)}</span>
                 ${act.badge ? `<span class="badge badge-sm" style="font-size: 0.65rem; background: rgba(108,92,231,0.15); color: var(--color-primary);">${escapeHTML(act.badge)}</span>` : ''}
@@ -2094,7 +2124,6 @@ export const ActionMenu = {
     }
 
     let top = rect.bottom + 4;
-    // If it overflows viewport bottom, place above
     if (top + floatingRect.height > window.innerHeight - 10) {
       top = rect.top - floatingRect.height - 4;
     }
@@ -2110,34 +2139,9 @@ export const ActionMenu = {
       e.stopPropagation();
 
       const action = item.dataset.action;
-      const id = item.dataset.id;
-      const currentTrigger = ActionMenu._activeTrigger;
+      const id = item.dataset.id || entityId;
       ActionMenu.closeAll();
-
-      // Trigger action via original trigger item or container delegation
-      if (currentTrigger) {
-        const origItem = currentTrigger.parentElement?.querySelector(`.action-menu-item[data-action="${action}"]`);
-        if (origItem) {
-          origItem.click();
-          return;
-        }
-
-        const container = currentTrigger.closest('#page-content, .card, .table-responsive, table, body');
-        if (container) {
-          const dummy = document.createElement('a');
-          dummy.className = 'action-menu-item';
-          dummy.dataset.action = action;
-          dummy.dataset.id = id;
-          
-          const clickEvt = new MouseEvent('click', {
-            bubbles: true,
-            cancelable: true,
-            view: window
-          });
-          Object.defineProperty(clickEvt, 'target', { value: dummy, enumerable: true });
-          container.dispatchEvent(clickEvt);
-        }
-      }
+      executeAction(action, id);
     });
   },
 
@@ -2154,6 +2158,11 @@ export const ActionMenu = {
       const action = item.dataset.action;
       const id = item.dataset.id;
       handler(action, id, item);
+    });
+    container.addEventListener('action-menu-select', (e) => {
+      if (e.detail && e.detail.action) {
+        handler(e.detail.action, e.detail.id, e.detail.trigger);
+      }
     });
   }
 };

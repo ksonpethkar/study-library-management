@@ -791,21 +791,50 @@ export async function generateAdmissionFormPDF(student, options = {}) {
   }
 
   const htmlContent = buildAdmissionFormHTML(fullStudent, options);
-  const printWindow = window.open('', '_blank', 'width=900,height=1100');
-  if (!printWindow) {
-    alert('Please allow popups to download/print the PDF Admission Form.');
-    return;
-  }
+  
+  // Try popup window first on desktop
+  let printWindow = null;
+  try {
+    printWindow = window.open('', '_blank', 'width=900,height=1100');
+  } catch (_) {}
 
-  printWindow.document.open();
-  printWindow.document.write(htmlContent + `
-    <script>
-      window.onload = function() {
-        setTimeout(() => { window.print(); }, 500);
-      };
-    </script>
-  `);
-  printWindow.document.close();
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(htmlContent + `
+      <script>
+        window.onload = function() {
+          setTimeout(() => { window.print(); }, 400);
+        };
+      </script>
+    `);
+    printWindow.document.close();
+  } else {
+    // Mobile / Popup-blocked Fallback: Sandboxed hidden iframe
+    let printFrame = document.getElementById('pdf-print-sandbox-frame');
+    if (!printFrame) {
+      printFrame = document.createElement('iframe');
+      printFrame.id = 'pdf-print-sandbox-frame';
+      printFrame.style.position = 'fixed';
+      printFrame.style.right = '0';
+      printFrame.style.bottom = '0';
+      printFrame.style.width = '0';
+      printFrame.style.height = '0';
+      printFrame.style.border = '0';
+      document.body.appendChild(printFrame);
+    }
+    const doc = printFrame.contentWindow.document;
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+    setTimeout(() => {
+      try {
+        printFrame.contentWindow.focus();
+        printFrame.contentWindow.print();
+      } catch (err) {
+        window.print();
+      }
+    }, 500);
+  }
 }
 
 /**

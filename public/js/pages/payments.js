@@ -794,34 +794,51 @@ export async function render(container) {
         }
     }
 
-    async function showCollectModal(studentId = null) {
-        // Fetch active plans and students for easy selection
-        let plansOptions = '<option value="">-- Select Plan --</option>';
-        let studentsOptions = '<option value="">-- Select Student --</option>';
-        let preloadedStudent = null;
+    let _cachedPaymentModalDeps = null;
+    async function fetchPaymentModalDeps() {
+        if (_cachedPaymentModalDeps) {
+            Promise.all([
+                api.get('/api/plans').catch(() => null),
+                api.get('/api/students?limit=100&status=active').catch(() => null)
+            ]).then(([pRes, sRes]) => {
+                if (pRes?.data) _cachedPaymentModalDeps.plans = pRes.data;
+                if (sRes?.data?.students) _cachedPaymentModalDeps.students = sRes.data.students;
+            }).catch(() => {});
+            return _cachedPaymentModalDeps;
+        }
 
         try {
             const [plansRes, studentsRes] = await Promise.all([
-                api.get('/api/plans'),
-                api.get('/api/students?limit=100&status=active')
+                api.get('/api/plans').catch(() => ({ data: [] })),
+                api.get('/api/students?limit=100&status=active').catch(() => ({ data: { students: [] } }))
             ]);
-            
-            if (plansRes.success && plansRes.data) {
-                plansRes.data.forEach(p => {
-                    plansOptions += `<option value="${p._id}" data-price="${p.price}">${escapeHTML(p.name)} - ₹${p.price} (${p.duration} ${p.durationType})</option>`;
-                });
-            }
-
-            if (studentsRes.success && studentsRes.data?.students) {
-                studentsRes.data.students.forEach(s => {
-                    const isSelected = studentId && s._id === studentId;
-                    if (isSelected) preloadedStudent = s;
-                    studentsOptions += `<option value="${s._id}" ${isSelected ? 'selected' : ''}>${escapeHTML(s.name)} (${escapeHTML(s.studentId || '')} - ${escapeHTML(s.phone || '')})</option>`;
-                });
-            }
-        } catch (e) {
-            console.error('Error preloading data for payment modal', e);
+            _cachedPaymentModalDeps = {
+                plans: plansRes?.data || [],
+                students: studentsRes?.data?.students || []
+            };
+            return _cachedPaymentModalDeps;
+        } catch (_) {
+            return { plans: [], students: [] };
         }
+    }
+
+    async function showCollectModal(studentId = null) {
+        const deps = await fetchPaymentModalDeps();
+        const plansList = Array.isArray(deps.plans) ? deps.plans : [];
+        const studentsList = Array.isArray(deps.students) ? deps.students : [];
+
+        let plansOptions = '<option value="">-- Select Plan --</option>';
+        plansList.forEach(p => {
+            plansOptions += `<option value="${p._id}" data-price="${p.price}">${escapeHTML(p.name)} - ₹${p.price} (${p.duration} ${p.durationType})</option>`;
+        });
+
+        let studentsOptions = '<option value="">-- Select Student --</option>';
+        let preloadedStudent = null;
+        studentsList.forEach(s => {
+            const isSelected = studentId && s._id === studentId;
+            if (isSelected) preloadedStudent = s;
+            studentsOptions += `<option value="${s._id}" ${isSelected ? 'selected' : ''}>${escapeHTML(s.name)} (${escapeHTML(s.studentId || '')} - ${escapeHTML(s.phone || '')})</option>`;
+        });
 
         const content = document.createElement('div');
         content.innerHTML = `
@@ -1230,21 +1247,33 @@ export async function render(container) {
     }
 
     async function showReceiptModal(paymentId) {
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = `
+            <div class="text-center p-4 text-muted">
+                <div class="loading-spinner mb-2" style="margin: 0 auto; width: 32px; height: 32px;"></div>
+                <div style="font-weight: 600; font-size: 0.95rem;">Preparing digital fee receipt...</div>
+            </div>
+        `;
+
+        const receiptModal = Modal.show({
+            title: 'Fee Payment Receipt',
+            content: modalContainer,
+            size: 'md'
+        });
+
         try {
-            const [res, configRes, settingsRes] = await Promise.all([
-                api.get(`/api/payments/${paymentId}/receipt`),
-                api.get('/api/settings/receipt-config'),
-                api.get('/api/settings')
-            ]);
+            const config = window.store?.settings?.receipt || { header: {}, body: {}, gst: {}, footer: {} };
+            const bp = window.store?.settings?.businessProfile || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}') || {};
+
+            const res = await api.get(`/api/payments/${paymentId}/receipt`);
             
             if (!res.success || !res.data) {
                 Toast.error('Failed to load receipt details');
+                if (receiptModal && receiptModal.close) receiptModal.close();
                 return;
             }
             
             const r = res.data;
-            const config = configRes.success && configRes.data ? configRes.data : { header: {}, body: {}, gst: {}, footer: {} };
-            const bp = settingsRes.success && settingsRes.data && settingsRes.data.businessProfile ? settingsRes.data.businessProfile : {};
             const activeTemplate = config.activeTemplate || 'standard_a4';
 
             const receiptDiv = document.createElement('div');
@@ -1645,11 +1674,8 @@ export async function render(container) {
                 receiptBox.innerHTML = html;
             };
 
-            Modal.show({
-                title: 'Fee Payment Receipt',
-                content: receiptDiv,
-                size: 'md'
-            });
+            modalContainer.innerHTML = '';
+            modalContainer.appendChild(receiptDiv);
 
             // Initial render
             renderTemplate(activeTemplate);

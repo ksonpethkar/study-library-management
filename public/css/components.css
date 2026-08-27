@@ -3620,7 +3620,10 @@ canvas.sparkline {
 .zone-pill-btn,
 .pill-scroll-container > button,
 .pill-scroll-container > .btn,
-.filter-pills-row > button {
+.filter-pills-row > button,
+.btn-action-menu-trigger,
+.action-menu-item,
+.btn-mobile-sheet-action {
   white-space: nowrap !important;
   flex-shrink: 0 !important;
   display: inline-flex !important;
@@ -3633,6 +3636,18 @@ canvas.sparkline {
   user-select: none !important;
   -webkit-user-select: none !important;
   touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+  cursor: pointer !important;
+}
+
+button:active,
+.btn:active,
+.action-menu-item:active,
+.btn-mobile-sheet-action:active,
+.shift-pill-btn:active,
+.zone-pill-btn:active {
+  transform: scale(0.96) !important;
+  transition: transform 0.05s ease !important;
 }
 
 @media (max-width: 768px) {
