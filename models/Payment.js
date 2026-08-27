@@ -32,7 +32,7 @@ const paymentSchema = new mongoose.Schema({
     },
     paymentMethod: {
         type: String,
-        enum: ['cash', 'upi', 'bank_transfer', 'card', 'other'],
+        enum: ['cash', 'upi', 'bank_transfer', 'card', 'other', 'upi_gateway', 'razorpay', 'cashfree', 'phonepe'],
         default: 'cash'
     },
     paymentDate: {
@@ -43,7 +43,7 @@ const paymentSchema = new mongoose.Schema({
     periodEnd: Date,
     status: {
         type: String,
-        enum: ['paid', 'pending', 'partial', 'refunded'],
+        enum: ['paid', 'pending', 'pending_verification', 'partial', 'partially_paid', 'refunded', 'failed'],
         default: 'paid'
     },
     balanceDue: {
@@ -61,9 +61,12 @@ const paymentSchema = new mongoose.Schema({
             ref: 'User'
         }
     }],
-    transactionId: String,
+    transactionId: { type: String, trim: true, index: true },
     referenceNumber: { type: String, trim: true, index: true },
     notes: String,
+    verifiedAt: { type: Date },
+    verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    rejectionReason: { type: String },
     collectedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'

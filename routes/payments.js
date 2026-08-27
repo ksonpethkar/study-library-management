@@ -424,4 +424,93 @@ router.post('/cash-register/settle', protect, async (req, res) => {
     }
 });
 
+// @route   GET /api/payments/verification-queue
+// @desc    Get all online payments awaiting front desk UTR verification
+router.get('/verification-queue', async (req, res) => {
+    try {
+        const queue = await Payment.find({
+            status: 'pending_verification',
+            isDeleted: { $ne: true }
+        })
+        .populate('student', 'name studentId phone email seat')
+        .populate('plan', 'name price duration')
+        .sort({ createdAt: -1 })
+        .lean();
+
+        res.json({
+            success: true,
+            count: queue.length,
+            data: queue
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// @route   PUT /api/payments/:id/verify-utr
+// @desc    1-Click approve and verify student UPI UTR payment
+router.put('/:id/verify-utr', async (req, res) => {
+    try {
+        const payment = await Payment.findById(req.params.id);
+        if (!payment) {
+            return res.status(404).json({ success: false, message: 'Payment record not found' });
+        }
+
+        payment.status = 'paid';
+        payment.notes = payment.notes ? `${payment.notes} • Verified by Staff on ${new Date().toLocaleDateString()}` : `Verified by Staff on ${new Date().toLocaleDateString()}`;
+        if (!payment.verifiedAt) payment.verifiedAt = new Date();
+        if (!payment.verifiedBy && req.user) payment.verifiedBy = req.user._id;
+        await payment.save();
+
+        // Update student status to active
+        if (payment.student) {
+            await Student.findByIdAndUpdate(payment.student, {
+                status: 'active',
+                isFeeDue: false
+            });
+        }
+
+        // Send confirmation notification
+        const Notification = require('../models/Notification');
+        await Notification.create({
+            title: `✅ Payment Verified: ₹${payment.finalAmount || payment.amount}`,
+            message: `UTR: ${payment.transactionId} verified successfully for ${payment.receiptNumber}.`,
+            type: 'payment',
+            link: '#/payments'
+        }).catch(() => {});
+
+        res.json({
+            success: true,
+            message: `Payment ${payment.receiptNumber} verified successfully! Student membership is fully active.`,
+            data: payment
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// @route   PUT /api/payments/:id/reject-utr
+// @desc    Reject unverified / fraudulent UTR payment
+router.put('/:id/reject-utr', async (req, res) => {
+    try {
+        const payment = await Payment.findById(req.params.id);
+        if (!payment) {
+            return res.status(404).json({ success: false, message: 'Payment record not found' });
+        }
+
+        const reason = req.body.reason || 'Unverified or invalid bank UTR reference';
+        payment.status = 'failed';
+        payment.notes = payment.notes ? `${payment.notes} • REJECTED: ${reason}` : `REJECTED: ${reason}`;
+        await payment.save();
+
+        res.json({
+            success: true,
+            message: `Payment ${payment.receiptNumber} marked as rejected.`,
+            data: payment
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 module.exports = router;

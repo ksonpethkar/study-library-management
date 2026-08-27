@@ -352,6 +352,22 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
       });
     }
 
+    // Anti-Replay Duplicate UTR Fraud Protection
+    let cleanUtr = '';
+    const isOnlinePayment = paymentMethod && paymentMethod !== 'cash' && paymentMethod !== 'desk';
+    if (isOnlinePayment && transactionId) {
+      cleanUtr = String(transactionId).trim().replace(/[^0-9A-Za-z_-]/g, '');
+      if (cleanUtr.length >= 6) {
+        const existingPayment = await Payment.findOne({ transactionId: cleanUtr }).lean();
+        if (existingPayment) {
+          return res.status(400).json({
+            success: false,
+            message: `This UTR / Transaction Reference (${cleanUtr}) has already been registered in the system! Re-used or duplicate UTR numbers cannot be processed.`
+          });
+        }
+      }
+    }
+
     // Generate Student ID
     const studentId = await generateStudentId({ branch: req.body.branch });
 
@@ -604,6 +620,7 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
       const finalAmount = Math.max(0, effectivePlanPrice - referralDiscount);
 
       if (isOnlinePayment) {
+        const isGatewayVerified = req.body.isGatewayVerified === true || Boolean(req.body.razorpay_payment_id);
         await Payment.create({
           student: newStudent._id,
           plan: selectedPlanDoc._id,
@@ -611,11 +628,14 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
           discount: totalDiscount,
           finalAmount,
           paymentMethod: paymentMethod || 'upi',
-          transactionId: transactionId || `TXN-${Date.now()}`,
+          transactionId: cleanUtr || transactionId || `TXN-${Date.now()}`,
           paymentDate: new Date(),
           periodStart: new Date(),
           periodEnd: calculatedExpiryDate,
-          status: 'paid'
+          status: isGatewayVerified ? 'paid' : 'pending_verification',
+          notes: isGatewayVerified 
+            ? `Online Gateway Payment Auto-Verified (ID: ${req.body.razorpay_payment_id || cleanUtr})` 
+            : `Online Admission: Submitted UPI UTR ${cleanUtr} (Pending Front Desk Verification)`
         });
       } else {
         await Payment.create({

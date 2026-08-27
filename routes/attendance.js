@@ -550,6 +550,28 @@ router.post('/check-in', protect, validate([
   try {
     const { studentId, seatId } = req.body;
     const now = new Date();
+
+    const Student = require('../models/Student');
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    const expDate = student.expiryDate || student.membershipExpiry;
+    if (student.status !== 'active' || (expDate && new Date(expDate) < todayMidnight)) {
+      if (student.status === 'active' && expDate && new Date(expDate) < todayMidnight) {
+        student.status = 'expired';
+        await student.save().catch(() => {});
+      }
+      return res.status(403).json({
+        success: false,
+        isExpired: true,
+        expiryDate: expDate,
+        message: `Student membership is ${student.status.toUpperCase()}${expDate ? ` (Expired on ${new Date(expDate).toLocaleDateString()})` : ''}. Access denied. Please renew to check in.`
+      });
+    }
     
     // Check if there is an active/open check-in within the last 18 hours (handles overnight shifts)
     const eighteenHoursAgo = new Date(Date.now() - 18 * 60 * 60 * 1000);
@@ -835,10 +857,19 @@ router.post(['/rfid-punch', '/kiosk-punch'], async (req, res) => {
       });
     }
 
-    if (student.status !== 'active') {
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    const expDate = student.expiryDate || student.membershipExpiry;
+    if (student.status !== 'active' || (expDate && new Date(expDate) < todayMidnight)) {
+      if (student.status === 'active' && expDate && new Date(expDate) < todayMidnight) {
+        student.status = 'expired';
+        await student.save().catch(() => {});
+      }
       return res.status(403).json({
         success: false,
-        message: `Student membership is currently ${student.status.toUpperCase()}. Please contact front desk.`
+        isExpired: true,
+        expiryDate: expDate,
+        message: `Student membership is ${student.status.toUpperCase()}${expDate ? ` (Expired on ${new Date(expDate).toLocaleDateString()})` : ''}. Access denied. Please renew at the front desk.`
       });
     }
 

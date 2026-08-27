@@ -128,12 +128,14 @@ export async function render(container) {
                     </select>
                     <select id="filterStatus" class="form-select form-control form-control-sm w-100 w-md-auto" style="font-weight: 600;">
                         <option value="">All Statuses</option>
+                        <option value="pending_verification">⏳ Pending UTR Verification</option>
                         <option value="paid">🟢 Paid</option>
                         <option value="pending">🟡 Pending</option>
                         <option value="partial">🟠 Partial</option>
                         <option value="refunded">🔴 Refunded</option>
                     </select>
-                    <button id="btnPendingInstallments" class="btn btn-sm btn-outline-warning w-100 w-md-auto" style="font-weight: 600;">⏳ Pending Balances</button>
+                    <button id="btnFilterPendingVerification" class="btn btn-sm w-100 w-md-auto" style="font-weight: 700; border: 1.5px solid #f39c12; color: #b78103; background: rgba(243, 156, 18, 0.12);">⚡ Verification Queue</button>
+                    <button id="btnPendingInstallments" class="btn btn-sm btn-outline-warning w-100 w-md-auto" style="font-weight: 600;">⏳ Balances</button>
                     <button id="btnExportPaymentsCSV" class="btn btn-sm btn-outline-success w-100 w-md-auto" style="font-weight: 600;">📥 Export CSV</button>
                 </div>
             </div>
@@ -202,6 +204,13 @@ export async function render(container) {
         const statusSelect = container.querySelector('#filterStatus');
         if (statusSelect) statusSelect.addEventListener('change', loadPayments);
         
+        const btnVerificationQueue = container.querySelector('#btnFilterPendingVerification');
+        if (btnVerificationQueue) btnVerificationQueue.addEventListener('click', () => {
+            if (statusSelect) statusSelect.value = 'pending_verification';
+            loadPayments();
+            Toast.info('Showing online payments awaiting UTR verification');
+        });
+
         const btnPending = container.querySelector('#btnPendingInstallments');
         if (btnPending) btnPending.addEventListener('click', () => {
             if (statusSelect) statusSelect.value = 'partial';
@@ -291,6 +300,49 @@ export async function render(container) {
         }
     }
 
+    async function verifyPaymentUtr(paymentId, utrNumber, receiptNumber) {
+        const ok = await Confirm.show({
+            title: 'Verify UPI Payment',
+            message: `Confirm that UTR / Reference "${utrNumber || 'N/A'}" (Invoice ${receiptNumber || paymentId}) matches your bank statement and mark as Paid?`,
+            confirmText: '✅ Yes, Verify & Activate Student',
+            cancelText: 'Cancel'
+        });
+        if (!ok) return;
+
+        try {
+            const res = await api.put(`/api/payments/${paymentId}/verify-utr`);
+            if (res.success) {
+                Toast.success(res.message || 'Payment verified successfully!');
+                await IDBStorage.clear('payments');
+                loadPayments();
+                loadStats();
+            } else {
+                Toast.error(res.message || 'Failed to verify payment');
+            }
+        } catch (err) {
+            Toast.error(err.message || 'Verification failed');
+        }
+    }
+
+    async function rejectPaymentUtr(paymentId, receiptNumber) {
+        const reason = prompt(`Enter rejection reason for payment ${receiptNumber || ''}:`, 'UTR not found in bank statement / Invalid amount');
+        if (!reason || !reason.trim()) return;
+
+        try {
+            const res = await api.put(`/api/payments/${paymentId}/reject-utr`, { reason: reason.trim() });
+            if (res.success) {
+                Toast.warning(res.message || 'Payment marked as rejected');
+                await IDBStorage.clear('payments');
+                loadPayments();
+                loadStats();
+            } else {
+                Toast.error(res.message || 'Failed to reject payment');
+            }
+        } catch (err) {
+            Toast.error(err.message || 'Rejection failed');
+        }
+    }
+
     function renderPaymentsTableRows(payments, tbody) {
         if (!tbody) return;
         if (!payments || payments.length === 0) {
@@ -325,20 +377,36 @@ export async function render(container) {
                 <td><span class="badge" style="background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px; text-transform: uppercase;">${escapeHTML(p.paymentMethod)}</span></td>
                 <td>${formatDate(p.paymentDate)} <small class="text-muted">(${SmartFormatters.timeAgo(p.paymentDate)})</small></td>
                 <td>
-                    <span class="badge btn-toggle-payment-status" data-id="${p._id}" data-status="${escapeHTML(p.status)}" style="${p.status === 'paid' ? 'background: rgba(0, 184, 148, 0.2); color: var(--color-success);' : 'background: rgba(214, 48, 49, 0.2); color: var(--color-danger);'} padding: 4px 8px; border-radius: 4px; font-weight: 600; cursor: pointer;" title="Click to toggle status">
-                        ${escapeHTML(p.status)}
-                    </span>
+                    ${p.status === 'paid' ? `
+                        <span class="badge" style="background: rgba(0, 184, 148, 0.18); color: var(--color-success); padding: 4px 8px; border-radius: 4px; font-weight: 700;">✅ Paid</span>
+                    ` : p.status === 'pending_verification' ? `
+                        <span class="badge" style="background: rgba(255, 179, 0, 0.2); color: #e67e22; padding: 4px 8px; border-radius: 4px; font-weight: 700; border: 1px solid #f39c12;" title="Submitted UTR: ${escapeHTML(p.transactionId || 'N/A')}">⏳ Pending Verification</span>
+                    ` : p.status === 'partial' || p.status === 'partially_paid' ? `
+                        <span class="badge" style="background: rgba(9, 132, 227, 0.18); color: #0984e3; padding: 4px 8px; border-radius: 4px; font-weight: 700;">💳 Due: ₹${p.balanceDue || 0}</span>
+                    ` : p.status === 'failed' ? `
+                        <span class="badge" style="background: rgba(214, 48, 49, 0.18); color: var(--color-danger); padding: 4px 8px; border-radius: 4px; font-weight: 700;">❌ Rejected</span>
+                    ` : `
+                        <span class="badge" style="background: rgba(214, 48, 49, 0.18); color: var(--color-danger); padding: 4px 8px; border-radius: 4px; font-weight: 700;">⚠️ Pending Fee</span>
+                    `}
                 </td>
                 <td>
-                    <div class="d-inline-flex gap-1 align-items-center">
-                        <button class="btn btn-sm btn-outline-primary btn-view" data-id="${p._id}" style="padding: 3px 8px; font-size: 0.8rem; font-weight: 600;">View Receipt</button>
+                    <div class="d-inline-flex gap-1 align-items-center flex-wrap">
+                        ${p.status === 'pending_verification' ? `
+                            <button class="btn btn-sm btn-success btn-verify-utr" data-id="${p._id}" data-utr="${escapeHTML(p.transactionId || '')}" data-receipt="${escapeHTML(p.receiptNumber || '')}" style="padding: 2px 8px; font-size: 0.78rem; font-weight: 700; background: #00b894; border-color: #00b894;" title="1-Click Approve UTR & Activate Student">✅ Verify</button>
+                            <button class="btn btn-sm btn-outline-danger btn-reject-utr" data-id="${p._id}" data-receipt="${escapeHTML(p.receiptNumber || '')}" style="padding: 2px 6px; font-size: 0.78rem;" title="Reject fake/invalid UTR">❌</button>
+                        ` : ''}
+                        <button class="btn btn-sm btn-outline-primary btn-view" data-id="${p._id}" style="padding: 3px 8px; font-size: 0.8rem; font-weight: 600;">Receipt</button>
                         ${p.status === 'partial' && p.balanceDue > 0 ? `
                             <button class="btn btn-sm btn-warning btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem;">💰 Pay</button>
                         ` : ''}
                         ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
-                            { header: 'Level 1: Receipt Operations' },
+                            { header: 'Level 1: Verification & Receipts' },
                             { id: 'view-receipt', icon: '🧾', label: 'View / Print POS Receipt', bold: true },
                             { id: 'wa-receipt', icon: '📲', label: 'WhatsApp Receipt Alert' },
+                            ...(p.status === 'pending_verification' ? [
+                                { id: 'quick-verify', icon: '✅', label: 'Approve & Verify UTR', bold: true },
+                                { id: 'quick-reject', icon: '❌', label: 'Reject UTR Submission', danger: true }
+                            ] : []),
                             { divider: true },
                             { header: 'Level 2: Financial Governance' },
                             { id: 'toggle-status', icon: p.status === 'paid' ? '⏳' : '✅', label: p.status === 'paid' ? 'Mark as Pending' : 'Mark as Paid' },
@@ -372,6 +440,10 @@ export async function render(container) {
                     const cleanPhone = phone.length === 10 ? '91' + phone : phone;
                     const text = `Dear ${payment.student?.name || 'Student'}, your payment of ₹${payment.finalAmount || payment.amount} (Receipt: ${payment.receiptNumber || 'N/A'}) has been successfully received. Thank you!`;
                     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
+                } else if (act === 'quick-verify') {
+                    await verifyPaymentUtr(id, payment.transactionId, payment.receiptNumber);
+                } else if (act === 'quick-reject') {
+                    await rejectPaymentUtr(id, payment.receiptNumber);
                 } else if (act === 'delete') {
                     const ok = await Confirm.show({
                         title: 'Delete Payment Record',
@@ -401,6 +473,28 @@ export async function render(container) {
                         Toast.error(err.message || 'Status update failed');
                     }
                 }
+            });
+        });
+
+        // 1-Click UTR Verification Quick Buttons
+        tbody.querySelectorAll('.btn-verify-utr').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                const utr = btn.dataset.utr;
+                const receipt = btn.dataset.receipt;
+                await verifyPaymentUtr(id, utr, receipt);
+            });
+        });
+
+        tbody.querySelectorAll('.btn-reject-utr').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                const receipt = btn.dataset.receipt;
+                await rejectPaymentUtr(id, receipt);
             });
         });
 

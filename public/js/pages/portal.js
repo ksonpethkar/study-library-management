@@ -3464,7 +3464,16 @@ function renderPortalUI(container, data, analytics = null) {
           renewalSubmitForm.onsubmit = async (e) => {
             e.preventDefault();
             const utrInput = modalContent.querySelector('#renewal-utr-input');
-            const utrNumber = selectedPortalPayMode === 'desk' ? 'DESK_CASH' : (utrInput?.value?.trim() || renewalTxnRef || `BNK_${Date.now()}`);
+            if (selectedPortalPayMode !== 'desk') {
+              const cleanUtr = utrInput?.value?.trim() || '';
+              if (!cleanUtr || cleanUtr.length < 6) {
+                Toast.error('Please enter your 12-digit Bank UTR / Transaction Reference number from Google Pay / PhonePe / Paytm.');
+                utrInput?.focus();
+                return;
+              }
+            }
+
+            const utrNumber = selectedPortalPayMode === 'desk' ? 'DESK_CASH' : utrInput?.value?.trim();
             const selectedPlanId = planSelect ? planSelect.value : q.selectedPlanId;
             const selectedShiftId = shiftSelect ? shiftSelect.value : q.selectedShiftId;
             const applyWallet = walletCheckbox ? walletCheckbox.checked : q.isWalletApplied;
@@ -3484,7 +3493,7 @@ function renderPortalUI(container, data, analytics = null) {
 
               if (!renewRes.success) throw new Error(renewRes.message);
 
-              Toast.success('🎉 Membership renewed successfully!');
+              Toast.success('🎉 Membership renewal submitted successfully!');
               Modal.closeAll();
               // Reload portal with fresh dashboard and analytics
               const freshDash = await api.get('/api/student-portal/dashboard');

@@ -1028,18 +1028,21 @@ router.post('/renewal-request', async (req, res) => {
     const validUntil = new Date(validFrom.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
     // Create payment log conforming to Payment schema
+    const isGatewayVerified = Boolean(req.body.isGatewayVerified) || Boolean(req.body.razorpay_payment_id);
     const payment = new Payment({
       student: student._id,
       plan: targetPlan?._id || student.plan?._id || student.plan || null,
       amount: payAmount,
       finalAmount: payAmount,
-      paymentMethod: 'upi',
-      transactionId: utrNumber.trim(),
-      status: 'paid',
+      paymentMethod: paymentMode || 'upi',
+      transactionId: cleanUtr,
+      status: isGatewayVerified ? 'paid' : 'pending_verification',
       paymentDate: new Date(),
       periodStart: validFrom,
       periodEnd: validUntil,
-      notes: `Online Student Self-Renewal (UTR: ${utrNumber}${walletDeduction > 0 ? ` • Wallet Discount Used: ₹${walletDeduction}` : ''})`
+      notes: isGatewayVerified
+        ? `Online Self-Renewal Auto-Verified via Gateway (ID: ${req.body.razorpay_payment_id || cleanUtr})`
+        : `Online Student Self-Renewal (UTR: ${cleanUtr}${walletDeduction > 0 ? ` • Wallet Discount: ₹${walletDeduction}` : ''}) • Pending Front Desk Verification`
     });
 
     await payment.save();
