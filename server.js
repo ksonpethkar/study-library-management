@@ -329,7 +329,7 @@ app.get('/api/system/public-config', async (req, res) => {
       }];
     }
 
-    res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=60');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({
       success: true,
       data: {

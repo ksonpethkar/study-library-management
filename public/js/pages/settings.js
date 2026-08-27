@@ -4682,7 +4682,9 @@ async function saveActiveStudioSettings(container, studioId, store) {
   Loading.button(btn, true);
 
   try {
-    // 1. Merge and build Profile Payload (Preserves store.profile state across tabs)
+    const promises = [];
+
+    // 1. Merge and build Profile Payload
     const profilePayload = {
       ...store.profile,
       businessName: container.querySelector('#setting-businessName')?.value?.trim() || store.profile.businessName,
@@ -4776,10 +4778,30 @@ async function saveActiveStudioSettings(container, studioId, store) {
     Object.assign(store.profile, profilePayload);
     Object.assign(store.settings, sysPayload);
 
-    const [pRes, sRes] = await Promise.all([
-      api.put('/api/settings/business-profile', profilePayload),
-      api.put('/api/settings/system-settings', sysPayload)
-    ]);
+    promises.push(api.put('/api/settings/business-profile', profilePayload));
+    promises.push(api.put('/api/settings/system-settings', sysPayload));
+
+    // 3. If Form Builder inputs exist in DOM, also save Form Template branding
+    const fbHeaderText = container.querySelector('#branding-headerText')?.value?.trim();
+    const fbTagline = container.querySelector('#branding-tagline')?.value?.trim();
+    const fbAlign = container.querySelector('#branding-alignment')?.value || 'center';
+    const fbLogoSize = container.querySelector('#branding-logoSize')?.value || '64';
+
+    if (fbHeaderText || fbTagline) {
+      promises.push(api.put('/api/custom-fields/templates/active', {
+        branding: {
+          headerText: fbHeaderText || 'Student Admission Wizard',
+          tagline: fbTagline || 'Silence, Focus & Success',
+          alignment: fbAlign,
+          logoSize: fbLogoSize,
+          showLogo: true
+        }
+      }).catch(e => console.warn('FormTemplate save warning:', e.message)));
+    }
+
+    const results = await Promise.all(promises);
+    const pRes = results[0] || {};
+    const sRes = results[1] || {};
 
     if (pRes.success || sRes.success) {
       Toast.success('Master Settings updated successfully across all modules!');

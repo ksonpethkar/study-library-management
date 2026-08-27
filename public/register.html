@@ -2542,44 +2542,49 @@
         const rawFields = publicConfig?.customFields?.fields || publicConfig?.customFields || [];
         const customFieldList = Array.isArray(rawFields) ? rawFields : [];
 
-        const fieldsMap = new Map();
-        defaultFields.forEach(df => {
-          const k = canonicalizeFieldName(df.name);
-          fieldsMap.set(k, { ...df, section: normalizeSection(df.section) });
-        });
+        let fields = [];
+        if (customFieldList.length > 0) {
+          // Use MongoDB custom fields as the authoritative source
+          const defaultMap = new Map();
+          defaultFields.forEach(df => defaultMap.set(canonicalizeFieldName(df.name), df));
 
-        customFieldList.forEach(cf => {
-          if (cf && (cf.fieldName || cf.name)) {
-            const rawName = cf.fieldName || cf.name;
-            const k = canonicalizeFieldName(rawName);
-            const existing = fieldsMap.get(k);
-            const targetSection = normalizeSection(cf.section || existing?.section || 'other');
-            if (existing) {
-              fieldsMap.set(k, {
-                ...existing,
-                ...cf,
-                name: existing.name,
-                type: cf.type || existing.type,
-                label: cf.label || existing.label,
-                placeholder: cf.placeholder || existing.placeholder,
-                section: targetSection,
-                isActive: cf.isActive !== false
-              });
-            } else {
-              fieldsMap.set(k, {
+          fields = customFieldList
+            .filter(cf => cf && cf.isActive !== false)
+            .map((cf, idx) => {
+              const rawName = cf.fieldName || cf.name;
+              const canonKey = canonicalizeFieldName(rawName);
+              const df = defaultMap.get(canonKey);
+              return {
+                ...(df || {}),
                 ...cf,
                 name: rawName,
-                section: targetSection,
-                isActive: cf.isActive !== false
-              });
-            }
-          }
-        });
-        const fields = Array.from(fieldsMap.values());
+                fieldName: rawName,
+                label: cf.label || df?.label || rawName,
+                placeholder: cf.placeholder !== undefined ? cf.placeholder : (df?.placeholder || ''),
+                type: cf.type || df?.type || 'text',
+                section: cf.section || df?.section || 'personal',
+                required: cf.required !== undefined ? Boolean(cf.required) : Boolean(df?.required),
+                order: cf.order !== undefined ? Number(cf.order) : idx + 1,
+                options: cf.options && cf.options.length ? cf.options : (df?.options || []),
+                helpText: cf.helpText !== undefined ? cf.helpText : (df?.helpText || ''),
+                colSpan: cf.colSpan || df?.colSpan || (df?.width === 'half' ? 6 : 12),
+                showIf: cf.showIf || null
+              };
+            })
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-        // Build active sections list (from template or 8 standard sections + custom fields)
-        const templateSecs = (activeTemplate && Array.isArray(activeTemplate.sections) && activeTemplate.sections.length > 0)
-          ? activeTemplate.sections.map(s => ({ ...s, name: normalizeSection(s.name) }))
+          // Ensure mandatory password field exists for portal login
+          if (!fields.some(f => canonicalizeFieldName(f.name) === 'password')) {
+            const pwdField = defaultMap.get('password');
+            if (pwdField) fields.push({ ...pwdField, name: 'password', fieldName: 'password' });
+          }
+        } else {
+          fields = defaultFields;
+        }
+
+        // Build active sections list (from MongoDB template or dynamic sections from fields)
+        let templateSecs = (activeTemplate && Array.isArray(activeTemplate.sections) && activeTemplate.sections.length > 0)
+          ? activeTemplate.sections
           : [
               { name: 'personal', label: 'Step 1: Study Centre & Personal Info', icon: 'personal', order: 1, isSystem: true },
               { name: 'address', label: 'Step 2: Address & Emergency Contact', icon: 'contact', order: 2, isSystem: false },
@@ -2592,13 +2597,19 @@
             ];
 
         const sectionsMap = new Map();
-        templateSecs.forEach(s => sectionsMap.set(s.name, s));
+        templateSecs.forEach((s, idx) => {
+          sectionsMap.set(s.name, {
+            ...s,
+            order: s.order !== undefined ? Number(s.order) : idx + 1
+          });
+        });
 
+        // Add any section that contains fields
         fields.forEach(f => {
           if (f.section && !sectionsMap.has(f.section)) {
             sectionsMap.set(f.section, {
               name: f.section,
-              label: f.sectionLabel || `Section: ${f.section.toUpperCase()}`,
+              label: f.sectionLabel || f.section.charAt(0).toUpperCase() + f.section.slice(1),
               icon: f.sectionIcon || 'other',
               order: sectionsMap.size + 1,
               isSystem: false
@@ -3164,10 +3175,12 @@
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 4000);
         const t = Date.now();
-        const [cfgRes, branchRes, planRes] = await Promise.all([
+        const [cfgRes, branchRes, planRes, fieldsRes, tplRes] = await Promise.all([
           fetch(`/api/system/public-config?t=${t}`, { signal: controller.signal }).catch(() => null),
           fetch(`/api/branches/public-list?t=${t}`, { signal: controller.signal }).catch(() => null),
-          fetch(`/api/plans?t=${t}`, { signal: controller.signal }).catch(() => null)
+          fetch(`/api/plans?t=${t}`, { signal: controller.signal }).catch(() => null),
+          fetch(`/api/custom-fields?t=${t}`, { signal: controller.signal }).catch(() => null),
+          fetch(`/api/custom-fields/templates/active?t=${t}`, { signal: controller.signal }).catch(() => null)
         ]);
         clearTimeout(timeoutId);
 
@@ -3175,6 +3188,22 @@
           const cfgJson = await cfgRes.json();
           if (cfgJson.success && cfgJson.data) {
             publicConfig = { ...(publicConfig || {}), ...cfgJson.data };
+          }
+        }
+
+        if (fieldsRes && fieldsRes.ok) {
+          const fJson = await fieldsRes.json();
+          if (fJson.success && Array.isArray(fJson.data)) {
+            if (!publicConfig) publicConfig = {};
+            publicConfig.customFields = fJson.data;
+          }
+        }
+
+        if (tplRes && tplRes.ok) {
+          const tJson = await tplRes.json();
+          if (tJson.success && tJson.data) {
+            if (!publicConfig) publicConfig = {};
+            publicConfig.template = tJson.data;
           }
         }
 

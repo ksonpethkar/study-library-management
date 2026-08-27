@@ -17,7 +17,7 @@ const memoryCache = require('../utils/memoryCache');
  * @desc    Get public library configuration for gate kiosk, registration, receipts & waiting list
  * @access  Public
  */
-router.get('/public-config', memoryCache.middleware(30), async (req, res) => {
+router.get('/public-config', async (req, res) => {
   try {
     const [businessProfile, allShifts, allPlans, todayStats, receiptConfig, rawSettings, activeTemplate, allFields, allBranches] = await Promise.all([
       BusinessProfile.getProfile(),

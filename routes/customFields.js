@@ -10,7 +10,6 @@ const memoryCache = require('../utils/memoryCache');
 router.get('/', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
-    await CustomField.seedDefaultFields();
     const fields = await CustomField.getActiveFields();
     res.json({ success: true, data: fields });
   } catch (err) {
@@ -23,7 +22,6 @@ router.get('/', async (req, res) => {
 router.get('/all', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
-    await CustomField.seedDefaultFields();
     const fields = await CustomField.find().sort({ order: 1, createdAt: 1 }).lean();
     res.json({ success: true, data: fields });
   } catch (err) {
@@ -86,8 +84,14 @@ router.put('/templates/active', async (req, res) => {
     if (!template) {
       template = await FormTemplate.create({ name: 'Default Template', slug: 'default', isActive: true, ...req.body });
     } else {
-      template = await FormTemplate.findByIdAndUpdate(template._id, req.body, { new: true });
+      // Merge branding and sections properly
+      if (req.body.branding && template.branding) {
+        req.body.branding = { ...template.branding.toObject(), ...req.body.branding };
+      }
+      template = await FormTemplate.findByIdAndUpdate(template._id, { $set: req.body }, { new: true });
     }
+    memoryCache.clear();
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({ success: true, data: template, message: 'Header branding & template updated successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
