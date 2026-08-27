@@ -306,6 +306,12 @@ function renderMasterHubUI(container, store) {
   const mountStudio = async (studioId) => {
     if (!studioId || !studios[studioId]) return;
     activeStudioId = studioId;
+    try {
+      localStorage.setItem('sl_active_settings_studio', studioId);
+      const currentBase = window.location.hash.split('?')[0] || '#/settings';
+      window.history.replaceState(null, '', `${currentBase}?tab=${studioId}`);
+    } catch (e) {}
+
     container.querySelectorAll('.studio-nav-item').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.studio === studioId);
     });
@@ -330,9 +336,9 @@ function renderMasterHubUI(container, store) {
     });
   });
 
-  // Initial Mount with deep linking support
+  // Initial Mount with deep linking & localStorage persistence support
   const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
-  const targetTab = urlParams.get('tab') || (window.location.hash.includes('trash') ? 'trash' : 'branding');
+  const targetTab = urlParams.get('tab') || localStorage.getItem('sl_active_settings_studio') || (window.location.hash.includes('trash') ? 'trash' : 'branding');
   mountStudio(studios[targetTab] ? targetTab : 'branding');
 
   // Master Quick Backup

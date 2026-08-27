@@ -558,6 +558,7 @@
     let activeTemplateData = null;
     let photoPicker = null;
     let sigStudio = null;
+    let explicitlyHiddenNames = new Set();
     const selectedExams = new Set();
 
     const PIN_CLIENT_MAP = {
@@ -1108,6 +1109,9 @@
 
       // 9. Passport Photo Upload / Selfie Capture
       if (lowerName === 'photo' || lowerName === 'passportphoto' || type === 'photo_upload') {
+        if (explicitlyHiddenNames.has('photo') || explicitlyHiddenNames.has(lowerName)) {
+          return '';
+        }
         return `
           <div class="dynamic-field-wrapper" ${depAttr} style="grid-column: 1 / -1;">
             <div class="mb-3">
@@ -1216,11 +1220,13 @@
                 <input type="text" id="reg-id-number" name="idProofNumber" class="form-control" placeholder="e.g. Last 4 digits or ID number">
               </div>
             </div>
+            ${(explicitlyHiddenNames.has('idproofimage') || explicitlyHiddenNames.has('idproofdocument')) ? '' : `
             <div class="mb-3">
               <label class="form-label" style="font-weight: 600;">Upload ID Proof Document / Scan</label>
               <div id="public-idproof-mount"></div>
               <small class="text-muted">Aadhaar, PAN, College ID or Driver's License</small>
             </div>
+            `}
           </div>
         `;
       }
@@ -1452,7 +1458,7 @@
         if (secName === 'personal') {
           const effectivePersonalFields = (secFields && secFields.length > 0)
             ? secFields
-            : defaultSysFields.filter(df => df.section === 'personal');
+            : defaultSysFields.filter(df => df.section === 'personal' && !explicitlyHiddenNames.has(canonicalizeFieldName(df.name)));
           stepBodyHtml = `
             <div id="duplicate-alert-box" class="alert alert-danger mb-3" style="display: none; padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.88rem; font-weight: 600; color: #dc3545; background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.2);"></div>
             ${buildFieldGroupHtml(effectivePersonalFields)}
@@ -1460,21 +1466,21 @@
         } else if (secName === 'address' || secName === 'contact') {
           const effectiveAddressFields = (secFields && secFields.length > 0)
             ? secFields
-            : defaultSysFields.filter(df => df.section === 'address' || df.section === 'contact');
+            : defaultSysFields.filter(df => (df.section === 'address' || df.section === 'contact') && !explicitlyHiddenNames.has(canonicalizeFieldName(df.name)));
           stepBodyHtml = `
             ${buildFieldGroupHtml(effectiveAddressFields)}
           `;
         } else if (secName === 'kyc' || secName === 'verification') {
           const effectiveKycFields = (secFields && secFields.length > 0)
             ? secFields
-            : defaultSysFields.filter(df => df.section === 'kyc' || df.section === 'verification');
+            : defaultSysFields.filter(df => (df.section === 'kyc' || df.section === 'verification') && !explicitlyHiddenNames.has(canonicalizeFieldName(df.name)));
           stepBodyHtml = `
             ${buildFieldGroupHtml(effectiveKycFields)}
           `;
         } else if (secName === 'academic' || secName === 'goals') {
           const effectiveAcademicFields = (secFields && secFields.length > 0)
             ? secFields
-            : defaultSysFields.filter(df => df.section === 'academic' || df.section === 'goals');
+            : defaultSysFields.filter(df => (df.section === 'academic' || df.section === 'goals') && !explicitlyHiddenNames.has(canonicalizeFieldName(df.name)));
           stepBodyHtml = `
             ${buildFieldGroupHtml(effectiveAcademicFields)}
           `;
@@ -1776,21 +1782,29 @@
       // 4. Mount Interactive Media & Studios
       const photoMount = document.getElementById('public-photo-mount');
       if (photoMount) {
-        photoPicker = MediaFieldPicker.create({
-          label: 'Upload Photo or Snap Selfie with Live Camera',
-          preset: 'passport',
-          name: 'photo'
-        });
-        photoMount.appendChild(photoPicker);
+        if (explicitlyHiddenNames.has('photo')) {
+          photoMount.closest('.dynamic-field-wrapper')?.remove();
+        } else {
+          photoPicker = MediaFieldPicker.create({
+            label: 'Upload Photo or Snap Selfie with Live Camera',
+            preset: 'passport',
+            name: 'photo'
+          });
+          photoMount.appendChild(photoPicker);
+        }
       }
 
       const idProofMount = document.getElementById('public-idproof-mount');
       if (idProofMount) {
-        idProofMount.appendChild(MediaFieldPicker.create({
-          label: 'Upload ID Proof Scan / Document',
-          preset: 'document',
-          name: 'idProofImage'
-        }));
+        if (explicitlyHiddenNames.has('idproofimage') || explicitlyHiddenNames.has('idproofdocument')) {
+          idProofMount.closest('.dynamic-field-wrapper')?.remove();
+        } else {
+          idProofMount.appendChild(MediaFieldPicker.create({
+            label: 'Upload ID Proof Scan / Document',
+            preset: 'document',
+            name: 'idProofImage'
+          }));
+        }
       }
 
       const sigMount = document.getElementById('public-signature-studio-mount');
@@ -2556,6 +2570,16 @@
         const rawFields = publicConfig?.customFields?.fields || publicConfig?.customFields || [];
         const customFieldList = Array.isArray(rawFields) ? rawFields : [];
 
+        // Collect all explicitly disabled field names from MongoDB customFieldList
+        explicitlyHiddenNames = new Set();
+        customFieldList.forEach(cf => {
+          if (cf && (cf.isActive === false || cf.isActive === 'false')) {
+            const rawName = cf.fieldName || cf.name;
+            explicitlyHiddenNames.add(canonicalizeFieldName(rawName));
+            explicitlyHiddenNames.add(String(rawName).toLowerCase().trim());
+          }
+        });
+
         let fields = [];
         if (customFieldList.length > 0) {
           // Use MongoDB custom fields as the authoritative source
@@ -2563,7 +2587,13 @@
           defaultFields.forEach(df => defaultMap.set(canonicalizeFieldName(df.name), df));
 
           fields = customFieldList
-            .filter(cf => cf && cf.isActive !== false)
+            .filter(cf => {
+              if (!cf) return false;
+              if (cf.isActive === false || cf.isActive === 'false') return false;
+              const canonKey = canonicalizeFieldName(cf.fieldName || cf.name);
+              if (explicitlyHiddenNames.has(canonKey)) return false;
+              return true;
+            })
             .map((cf, idx) => {
               const rawName = cf.fieldName || cf.name;
               const canonKey = canonicalizeFieldName(rawName);
@@ -2587,13 +2617,13 @@
             })
             .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-          // Ensure mandatory password field exists for portal login
-          if (!fields.some(f => canonicalizeFieldName(f.name) === 'password')) {
+          // Ensure mandatory password field exists for portal login unless explicitly hidden
+          if (!fields.some(f => canonicalizeFieldName(f.name) === 'password') && !explicitlyHiddenNames.has('password')) {
             const pwdField = defaultMap.get('password');
             if (pwdField) fields.push({ ...pwdField, name: 'password', fieldName: 'password' });
           }
         } else {
-          fields = defaultFields;
+          fields = defaultFields.filter(df => !explicitlyHiddenNames.has(canonicalizeFieldName(df.name)));
         }
 
         // Build active sections list (from MongoDB template or dynamic sections from fields)
@@ -3202,6 +3232,7 @@
         const injectedScript = document.getElementById('initial-public-config');
         if (injectedScript && injectedScript.textContent) {
           publicConfig = JSON.parse(injectedScript.textContent);
+          try { localStorage.setItem('sl_public_config_cache', injectedScript.textContent); } catch (e) {}
         }
       } catch (e) {}
 
@@ -3216,6 +3247,28 @@
 
       // 1. Instantly paint admission wizard in 0ms using server-injected payload or cache
       hydrateWizard(publicConfig || {});
+
+      // Set up real-time cross-tab sync with Form Builder & Admin Portal
+      if (!window._sl_form_sync_attached) {
+        window._sl_form_sync_attached = true;
+        try {
+          if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('sl_channel');
+            bc.onmessage = (e) => {
+              if (e.data?.type === 'FORM_UPDATED') {
+                try { localStorage.removeItem('sl_public_config_cache'); } catch (err) {}
+                loadInitData();
+              }
+            };
+          }
+          window.addEventListener('storage', (e) => {
+            if (e.key === 'sl_config_version') {
+              try { localStorage.removeItem('sl_public_config_cache'); } catch (err) {}
+              loadInitData();
+            }
+          });
+        } catch (e) {}
+      }
 
       // 2. Revalidate / Fetch fresh live config from server in background
       try {

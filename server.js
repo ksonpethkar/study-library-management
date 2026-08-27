@@ -265,7 +265,7 @@ app.get('/api/system/public-config', async (req, res) => {
 
     const [businessProfile, customFields, template, plans, shifts, rawBranches, seatStats, totalSystemSeats, availableSystemSeats, systemSettingsList] = await Promise.all([
       BusinessProfile.getProfile().catch(() => ({})),
-      CustomField.getActiveFields().catch(() => []),
+      CustomField.find({ isDeleted: { $ne: true } }).sort({ order: 1, createdAt: 1 }).lean().catch(() => []),
       FormTemplate.getActiveTemplate().catch(() => null),
       Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort('displayOrder').lean().catch(() => []),
       Shift.find({ isActive: true }).sort('startTime').lean().catch(() => []),
@@ -581,7 +581,7 @@ async function sendHydratedHTML(res, htmlPath) {
         const SystemSetting = require('./models/SystemSetting');
 
         let [cFields, template, plans, shifts, branches, settingsList] = await Promise.all([
-          CustomField.getActiveFields().catch(() => []),
+          CustomField.find({ isDeleted: { $ne: true } }).sort({ order: 1, createdAt: 1 }).lean().catch(() => []),
           FormTemplate.getActiveTemplate().catch(() => null),
           Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort('displayOrder').lean().catch(() => []),
           Shift.find({ isActive: true }).sort('startTime').lean().catch(() => []),
@@ -667,7 +667,7 @@ async function sendHydratedHTML(res, htmlPath) {
 
 // Public Landing Page & Registration Routes
 app.get('/landing', (req, res) => sendHydratedHTML(res, path.join(__dirname, 'public', 'landing.html')));
-app.get('/register', (req, res) => sendHydratedHTML(res, path.join(__dirname, 'public', 'register.html')));
+app.get(['/register', '/register.html'], (req, res) => sendHydratedHTML(res, path.join(__dirname, 'public', 'register.html')));
 app.get(['/student-login', '/portal-login'], (req, res) => sendHydratedHTML(res, path.join(__dirname, 'public', 'student-login.html')));
 app.get('/kiosk', (req, res) => sendHydratedHTML(res, path.join(__dirname, 'public', 'kiosk.html')));
 

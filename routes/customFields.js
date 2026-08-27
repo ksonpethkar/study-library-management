@@ -12,11 +12,11 @@ const memoryCache = require('../utils/memoryCache');
 // PUBLIC & SHARED READ ENDPOINTS
 // =============================================================
 
-// GET /api/custom-fields - Get all active form fields
+// GET /api/custom-fields - Get all form fields with active status
 router.get('/', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
-    const fields = await CustomField.getActiveFields();
+    const fields = await CustomField.find({ isDeleted: { $ne: true } }).sort({ order: 1, createdAt: 1 }).lean();
     res.json({ success: true, data: fields });
   } catch (err) {
     console.error('Error fetching custom fields:', err);
@@ -454,6 +454,7 @@ router.put('/:id', async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Field not found' });
     }
 
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({ success: true, message: 'Field updated successfully', data: field });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message || 'Failed to update field' });

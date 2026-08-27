@@ -453,6 +453,7 @@ export class FormBuilder {
 
             try {
               const res = await api.put('/api/custom-fields/reorder', { orders: ordersToSave });
+              FormBuilder.bustPublicFormCache();
               if (res && res.success) {
                 if (window.Toast) window.Toast.success('Question order saved permanently');
               } else {
@@ -1337,6 +1338,7 @@ export class FormBuilder {
 
     try {
       await api.put('/api/custom-fields/templates/active', { sections: this.sections });
+      FormBuilder.bustPublicFormCache();
       Toast.success(`Section "${sec.label}" is now ${sec.isHidden ? 'Hidden 🚫 (Will not show to students)' : 'Visible 👁️ in registration form'}!`);
       this.renderSections();
       this.renderPreview();
@@ -1362,6 +1364,7 @@ export class FormBuilder {
           });
         } catch (e) {}
       }
+      FormBuilder.bustPublicFormCache();
       Toast.success(`Display option updated: ${isChecked ? 'Visible 👁️' : 'Hidden 🚫'} in registration form!`);
       this.renderPreview();
     } catch (err) {
@@ -1733,6 +1736,19 @@ export class FormBuilder {
     }
   }
 
+  static bustPublicFormCache() {
+    try {
+      localStorage.removeItem('sl_public_config_cache');
+      localStorage.removeItem('sl_public_profile_cache');
+      localStorage.setItem('sl_config_version', Date.now().toString());
+      if (typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('sl_channel');
+        bc.postMessage({ type: 'FORM_UPDATED', timestamp: Date.now() });
+        setTimeout(() => bc.close(), 100);
+      }
+    } catch (e) {}
+  }
+
   static async toggleFieldActive(fieldId) {
     const field = this.fields.find(f => f._id === fieldId);
     if (!field) return;
@@ -1740,10 +1756,12 @@ export class FormBuilder {
     field.isActive = field.isActive === false ? true : false;
     this.renderSections();
     this.renderPreview();
+    FormBuilder.bustPublicFormCache();
 
     try {
       await api.put(`/api/custom-fields/${fieldId}`, { isActive: field.isActive });
-      Toast.success(`Question ${field.isActive ? 'activated' : 'hidden'}`);
+      FormBuilder.bustPublicFormCache();
+      Toast.success(`Question "${field.label}" is now ${field.isActive ? 'Active 🟢 (Visible in form)' : 'Hidden ⚪ (Will not show to students)'}`);
     } catch (e) {
       Toast.error('Failed to update question status');
     }
@@ -1784,6 +1802,7 @@ export class FormBuilder {
         section: f.section
       }));
       const res = await api.put('/api/custom-fields/reorder', { orders: ordersToSave });
+      FormBuilder.bustPublicFormCache();
       if (res && res.success) {
         Toast.success('Question order saved permanently');
       } else {
