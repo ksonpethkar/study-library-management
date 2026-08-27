@@ -1181,12 +1181,14 @@ function renderBillingReceiptStudio(profile, billing, pay, store) {
         if (rc.header?.showAddress !== undefined) wrapper.querySelector('#rc-toggle-address').checked = rc.header.showAddress;
         if (rc.header?.showPhone !== undefined) wrapper.querySelector('#rc-toggle-contact').checked = rc.header.showPhone;
 
-        if (rc.body?.showStudentId !== undefined) wrapper.querySelector('#rc-toggle-stuId').checked = rc.body.showStudentId;
-        if (rc.body?.showStudentPhone !== undefined) wrapper.querySelector('#rc-toggle-stuPhone').checked = rc.body.showStudentPhone;
-        if (rc.body?.showSeatNumber !== undefined) wrapper.querySelector('#rc-toggle-seat').checked = rc.body.showSeatNumber;
-        if (rc.body?.showPeriod !== undefined) wrapper.querySelector('#rc-toggle-validity').checked = rc.body.showPeriod;
+        if (rc.body?.showStudentId !== undefined) wrapper.querySelector('#rc-toggle-stuId').checked = rc.body.showStudentId !== false;
+        if (rc.body?.showStudentPhone !== undefined) wrapper.querySelector('#rc-toggle-stuPhone').checked = rc.body.showStudentPhone !== false;
+        if (rc.body?.showSeatNumber !== undefined) wrapper.querySelector('#rc-toggle-seat').checked = rc.body.showSeatNumber !== false;
+        if (rc.body?.showPeriod !== undefined) wrapper.querySelector('#rc-toggle-validity').checked = rc.body.showPeriod !== false;
+        if (rc.body?.showDiscount !== undefined) wrapper.querySelector('#rc-toggle-breakdown').checked = rc.body.showDiscount !== false;
+        if (rc.body?.showPaymentMethod !== undefined) wrapper.querySelector('#rc-toggle-paymentMode').checked = rc.body.showPaymentMethod !== false;
 
-        if (rc.stamp?.showStamp !== undefined) wrapper.querySelector('#rc-toggle-stamp').checked = rc.stamp.showStamp;
+        if (rc.stamp?.showStamp !== undefined) wrapper.querySelector('#rc-toggle-stamp').checked = rc.stamp.showStamp !== false;
         if (rc.stamp?.stampText) wrapper.querySelector('#rc-stamp-text').value = rc.stamp.stampText;
         if (rc.stamp?.stampColor) {
           wrapper.querySelector('#rc-stamp-color').value = rc.stamp.stampColor;
@@ -1194,10 +1196,17 @@ function renderBillingReceiptStudio(profile, billing, pay, store) {
         }
 
         if (rc.footer?.signatureLabel) wrapper.querySelector('#rc-signature-label').value = rc.footer.signatureLabel;
-        if (rc.footer?.showSignature !== undefined) wrapper.querySelector('#rc-toggle-signature').checked = rc.footer.showSignature;
-        if (rc.footer?.showUpiQr !== undefined) wrapper.querySelector('#rc-toggle-upiqr').checked = rc.footer.showUpiQr;
+        if (rc.footer?.showSignature !== undefined) wrapper.querySelector('#rc-toggle-signature').checked = rc.footer.showSignature !== false;
+        if (rc.footer?.showUpiQr !== undefined) wrapper.querySelector('#rc-toggle-upiqr').checked = Boolean(rc.footer.showUpiQr);
         if (rc.footer?.termsText) wrapper.querySelector('#rc-terms-text').value = rc.footer.termsText;
         if (rc.footer?.customNote) wrapper.querySelector('#rc-custom-note').value = rc.footer.customNote;
+        if (rc.footer?.showTimestamp !== undefined) wrapper.querySelector('#rc-toggle-timestamp').checked = rc.footer.showTimestamp !== false;
+
+        // Store loaded config into window store
+        if (window.store) {
+          if (!window.store.settings) window.store.settings = {};
+          window.store.settings.receipt = rc;
+        }
       }
     } catch (e) {
       console.warn('Could not load receipt-config:', e);
@@ -4854,6 +4863,59 @@ async function saveActiveStudioSettings(container, studioId, store) {
           showLogo: true
         }
       }).catch(e => console.warn('FormTemplate save warning:', e.message)));
+    }
+
+    // 4. If Receipt Builder inputs exist in DOM, also save Receipt Config
+    const rcSubtitle = container.querySelector('#rc-header-subtitle');
+    const rcTogglePayment = container.querySelector('#rc-toggle-paymentMode');
+    if (rcSubtitle || rcTogglePayment || container.querySelector('#rc-toggle-stuId')) {
+      const currentFmt = container.querySelector('.receipt-format-card.active')?.dataset.format || store.settings.billing?.defaultTemplate || 'thermal80';
+      const rcGstin = container.querySelector('#rc-header-gstin')?.value?.trim();
+      const rcPayload = {
+        activeTemplate: currentFmt,
+        header: {
+          showLogo: container.querySelector('#rc-toggle-logo') ? container.querySelector('#rc-toggle-logo').checked : true,
+          showBusinessName: true,
+          subtitle: container.querySelector('#rc-header-subtitle')?.value?.trim() || 'Official Fee Receipt',
+          showAddress: container.querySelector('#rc-toggle-address') ? container.querySelector('#rc-toggle-address').checked : true,
+          showPhone: container.querySelector('#rc-toggle-contact') ? container.querySelector('#rc-toggle-contact').checked : true,
+          showEmail: container.querySelector('#rc-toggle-contact') ? container.querySelector('#rc-toggle-contact').checked : true,
+          showGst: Boolean(rcGstin),
+          gstNumber: rcGstin,
+          headerColor: container.querySelector('#rc-header-color')?.value || '#4f46e5'
+        },
+        body: {
+          showStudentId: container.querySelector('#rc-toggle-stuId') ? container.querySelector('#rc-toggle-stuId').checked : true,
+          showStudentPhone: container.querySelector('#rc-toggle-stuPhone') ? container.querySelector('#rc-toggle-stuPhone').checked : true,
+          showSeatNumber: container.querySelector('#rc-toggle-seat') ? container.querySelector('#rc-toggle-seat').checked : true,
+          showShift: container.querySelector('#rc-toggle-seat') ? container.querySelector('#rc-toggle-seat').checked : true,
+          showPeriod: container.querySelector('#rc-toggle-validity') ? container.querySelector('#rc-toggle-validity').checked : true,
+          showDiscount: container.querySelector('#rc-toggle-breakdown') ? container.querySelector('#rc-toggle-breakdown').checked : true,
+          showPaymentMethod: container.querySelector('#rc-toggle-paymentMode') ? container.querySelector('#rc-toggle-paymentMode').checked : true,
+          showTransactionId: container.querySelector('#rc-toggle-paymentMode') ? container.querySelector('#rc-toggle-paymentMode').checked : true
+        },
+        stamp: {
+          showStamp: container.querySelector('#rc-toggle-stamp') ? container.querySelector('#rc-toggle-stamp').checked : true,
+          stampText: container.querySelector('#rc-stamp-text')?.value?.trim() || 'PAID • OFFICIAL RECEIPT',
+          stampColor: container.querySelector('#rc-stamp-color')?.value || '#059669',
+          showWatermark: currentFmt === 'standardA4'
+        },
+        footer: {
+          showSignature: container.querySelector('#rc-toggle-signature') ? container.querySelector('#rc-toggle-signature').checked : true,
+          signatureLabel: container.querySelector('#rc-signature-label')?.value?.trim() || 'Authorized Signatory',
+          showUpiQr: container.querySelector('#rc-toggle-upiqr') ? container.querySelector('#rc-toggle-upiqr').checked : true,
+          termsText: container.querySelector('#rc-terms-text')?.value?.trim(),
+          customNote: container.querySelector('#rc-custom-note')?.value?.trim(),
+          showTimestamp: container.querySelector('#rc-toggle-timestamp') ? container.querySelector('#rc-toggle-timestamp').checked : true
+        },
+        gst: {
+          enabled: Number(container.querySelector('#setting-bill-gstRate')?.value || 18) > 0,
+          gstRate: Number(container.querySelector('#setting-bill-gstRate')?.value || 18),
+          hsnCode: container.querySelector('#setting-bill-hsn')?.value?.trim() || '999293'
+        }
+      };
+      if (store.settings) store.settings.receipt = rcPayload;
+      promises.push(api.put('/api/settings/receipt-config', rcPayload));
     }
 
     const results = await Promise.all(promises);

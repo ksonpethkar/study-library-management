@@ -2,7 +2,7 @@ import api from '../api.js';
 import { Toast, Modal, Confirm, Loading, escapeHTML, copyToClipboard } from '../ui.js';
 import { SmartFormatters } from '../utils/smartFormatters.js';
 import { t } from '../i18n.js';
-import { generateAdmissionFormPDF, previewAdmissionFormPDF } from '../pdfGenerator.js';
+import { generateAdmissionFormPDF, previewAdmissionFormPDF, buildReceiptHTML, printReceiptDocument } from '../pdfGenerator.js';
 import { PushNotifications } from '../utils/pushNotifications.js';
 import { renderHeatmap, renderBehaviorBadge, calculateBehaviorScore } from '../utils/attendanceHeatmap.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
@@ -2898,167 +2898,55 @@ function renderPortalUI(container, data, analytics = null) {
     }
   });
 
-  // Attach Payment Receipt Click Handlers
+  // Attach Payment Receipt Click Handlers (Strictly uses Admin's active receipt template & visibility rules)
   container.querySelectorAll('.btn-view-receipt').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       try {
         const p = JSON.parse(btn.dataset.receipt);
         const receiptNo = p.receiptNumber || 'REC';
-        const formattedDate = new Date(p.paymentDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        const paymentMode = (p.paymentMethod || 'UPI').toUpperCase();
-        const paidAmount = p.finalAmount !== undefined ? p.finalAmount : (p.amount || 0);
-        const baseAmount = p.amount !== undefined ? p.amount : paidAmount;
-        const discountAmount = p.discount || 0;
-        const planName = p.plan?.name || student.plan?.name || 'Study Membership';
-        const deskInfo = student.seat ? (student.seat.seatNumber || student.seat) : 'General Access';
+        
+        let rc = window.store?.settings?.receipt;
+        if (!rc || !rc.activeTemplate) {
+          try {
+            const cfgRes = await api.get('/api/settings/receipt-config').catch(() => null);
+            if (cfgRes?.success && cfgRes?.data) rc = cfgRes.data;
+          } catch (e) {}
+        }
 
-        const receiptHtml = `
-          <div id="student-receipt-modal" style="padding: 18px; font-family: 'Inter', Arial, sans-serif; background: #ffffff; color: #0f172a; border-radius: 8px;">
-            
-            <!-- Receipt Header -->
-            <div style="text-align: center; border-bottom: 2px dashed #cbd5e1; padding-bottom: 12px; margin-bottom: 12px;">
-              <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px;">
-                ${business.logo ? `<img src="${business.logo}" style="max-height: 38px; max-width: 60px; object-fit: contain;">` : ''}
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #1e1b4b;">${escapeHTML(business.businessName || 'Study Library Management')}</h3>
-              </div>
-              <p style="font-size: 11px; color: #475569; margin: 2px 0;">${escapeHTML(business.address || '')}</p>
-              <p style="font-size: 11px; color: #475569; margin: 2px 0;">📞 ${escapeHTML(business.phone || '')} ${business.gstNumber ? `• GSTIN: ${escapeHTML(business.gstNumber)}` : ''}</p>
-              <div style="display: inline-block; background: #e0e7ff; color: #3730a3; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 4px; margin-top: 6px; letter-spacing: 0.5px;">
-                OFFICIAL FEE PAYMENT RECEIPT
-              </div>
+        const receiptContentHtml = buildReceiptHTML(p, {
+          receiptConfig: rc,
+          businessProfile: business,
+          isStudent: true
+        });
+
+        const receiptModalHtml = `
+          <div style="padding: 6px; font-family: inherit;">
+            <div id="student-receipt-rendered-container">
+              ${receiptContentHtml}
             </div>
-
-            <!-- Receipt Metadata Grid -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 11.5px; margin-bottom: 12px; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-              <div>
-                <div style="font-size: 9.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Receipt No.</div>
-                <div style="font-weight: 700; font-family: monospace; color: #0f172a;">${escapeHTML(receiptNo)}</div>
-              </div>
-              <div style="text-align: right;">
-                <div style="font-size: 9.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Payment Date</div>
-                <div style="font-weight: 600; color: #0f172a;">${formattedDate}</div>
-              </div>
-              <div>
-                <div style="font-size: 9.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Student Name</div>
-                <div style="font-weight: 700; color: #0f172a;">${escapeHTML(student.name)}</div>
-                <div style="font-size: 9.5px; color: #64748b; font-family: monospace;">ID: ${escapeHTML(student.studentId)}</div>
-              </div>
-              <div style="text-align: right;">
-                <div style="font-size: 9.5px; color: #64748b; font-weight: 600; text-transform: uppercase;">Seat / Desk</div>
-                <div style="font-weight: 600; color: #047857;">${escapeHTML(String(deskInfo))}</div>
-              </div>
-            </div>
-
-            <!-- Fee Line Item Table -->
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11.5px;">
-              <thead>
-                <tr style="border-bottom: 1.5px solid #cbd5e1; color: #475569; font-size: 10px; text-transform: uppercase;">
-                  <th style="padding: 6px 0; text-align: left;">Description</th>
-                  <th style="padding: 6px 0; text-align: right;">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                  <td style="padding: 8px 0;">${escapeHTML(planName)}</td>
-                  <td style="padding: 8px 0; text-align: right; font-weight: 600;">₹${baseAmount}</td>
-                </tr>
-                ${discountAmount > 0 ? `
-                  <tr style="border-bottom: 1px solid #f1f5f9; color: #047857;">
-                    <td style="padding: 6px 0;">Discount Applied</td>
-                    <td style="padding: 6px 0; text-align: right; font-weight: 600;">-₹${discountAmount}</td>
-                  </tr>
-                ` : ''}
-                <tr style="border-top: 2px solid #0f172a; font-weight: 700; font-size: 13px;">
-                  <td style="padding: 8px 0;">Total Amount Paid</td>
-                  <td style="padding: 8px 0; text-align: right; color: #047857;">₹${paidAmount}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <!-- Payment Mode & Verification -->
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; color: #475569; border-top: 1px solid #e2e8f0; padding-top: 8px;">
-              <div>
-                <span>Payment Mode: <strong style="color: #0f172a;">${escapeHTML(paymentMode)}</strong></span>
-                ${p.transactionId ? `<span style="margin-left: 6px; font-family: monospace;">(Txn: ${escapeHTML(p.transactionId)})</span>` : ''}
-              </div>
-              <span style="font-size: 9px; font-weight: 700; color: #047857; background: #d1fae5; padding: 2px 7px; border-radius: 3px; border: 1px solid #10b981;">
-                PAID & VERIFIED ✓
-              </span>
-            </div>
-
-            <div style="text-align: center; font-size: 9.5px; color: #94a3b8; margin-top: 10px;">
-              This is an authorized computer-generated fee payment receipt.
-            </div>
-
-            <!-- Modal Action Buttons -->
-            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; border-top: 1px solid var(--color-border, #e2e8f0); padding-top: 12px;">
               <button class="btn btn-secondary btn-sm" onclick="Modal.closeAll()">Close</button>
-              <button class="btn btn-primary btn-sm" id="btn-print-student-receipt-modal" style="font-weight: 600;">
-                📥 Download PDF / Print Receipt
+              <button class="btn btn-primary btn-sm" id="btn-print-student-receipt-modal" style="font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                <span>📥</span> Download PDF / Print Receipt
               </button>
             </div>
-
           </div>
         `;
 
         Modal.show({
           title: `Payment Receipt — ${receiptNo}`,
-          content: receiptHtml,
+          content: receiptModalHtml,
           size: 'md'
         });
 
-        // Wire isolated print / save as PDF
         setTimeout(() => {
           document.getElementById('btn-print-student-receipt-modal')?.addEventListener('click', () => {
-            const printWin = window.open('', '_blank', 'width=750,height=800');
-            if (!printWin) {
-              window.print();
-              return;
-            }
-            printWin.document.open();
-            printWin.document.write(`
-              <!DOCTYPE html>
-              <html lang="en">
-              <head>
-                <meta charset="UTF-8">
-                <title>Receipt — ${receiptNo}</title>
-                <link rel="preconnect" href="https://fonts.googleapis.com">
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-                <style>
-                  @page { size: A4 portrait; margin: 8mm; }
-                  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', Arial, sans-serif; }
-                  body {
-                    background: #ffffff !important;
-                    color: #0f172a !important;
-                    padding: 12px;
-                    width: 100%;
-                    max-width: 680px;
-                    margin: 0 auto;
-                    -webkit-font-smoothing: antialiased;
-                  }
-                  table { width: 100%; border-collapse: collapse; }
-                  @media print {
-                    body { width: 100%; max-width: 680px; margin: 0 auto; padding: 0; }
-                    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                  }
-                </style>
-              </head>
-              <body>
-                ${receiptHtml.replace(/<div style="display: flex; justify-content: flex-end;[\s\S]*?<\/div>\s*<\/div>$/, '</div>')}
-                <script>
-                  window.onload = function() {
-                    setTimeout(function() {
-                      window.print();
-                    }, 300);
-                  };
-                </script>
-              </body>
-              </html>
-            `);
-            printWin.document.close();
+            printReceiptDocument(p, {
+              receiptConfig: rc,
+              businessProfile: business
+            });
           });
-        }, 100);
+        }, 50);
 
       } catch (e) {
         console.error('Receipt click error:', e);

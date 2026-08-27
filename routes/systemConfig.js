@@ -86,7 +86,8 @@ router.get('/public-config', async (req, res) => {
     const rawPlans = plansRes.status === 'fulfilled' && Array.isArray(plansRes.value) ? plansRes.value : [];
     const rawShifts = shiftsRes.status === 'fulfilled' && Array.isArray(shiftsRes.value) ? shiftsRes.value : [];
     const rawCustomFields = customFieldsRes.status === 'fulfilled' && Array.isArray(customFieldsRes.value) ? customFieldsRes.value : [];
-    const receiptConfig = receiptConfigRes.status === 'fulfilled' && receiptConfigRes.value ? receiptConfigRes.value : {};
+    const rawRc = receiptConfigRes.status === 'fulfilled' && receiptConfigRes.value ? receiptConfigRes.value : {};
+    const receiptConfig = (rawRc && typeof rawRc.toObject === 'function') ? rawRc.toObject() : rawRc;
     let landingConfig = landingConfigRes.status === 'fulfilled' && landingConfigRes.value ? landingConfigRes.value : LandingPage.getDefaults();
     const activeStudents = activeStudentsRes.status === 'fulfilled' && Array.isArray(activeStudentsRes.value) ? activeStudentsRes.value : [];
     const rawSettings = settingsRes.status === 'fulfilled' && Array.isArray(settingsRes.value) ? settingsRes.value : [];

@@ -7,6 +7,7 @@ const Plan = require('../models/Plan');
 const Payment = require('../models/Payment');
 const Attendance = require('../models/Attendance');
 const BusinessProfile = require('../models/BusinessProfile');
+const ReceiptConfig = require('../models/ReceiptConfig');
 const Notification = require('../models/Notification');
 const { Referral, LeaveRequest, SeatChangeRequest, Announcement, Holiday, LostFound, Feedback } = require('../models/Operations');
 const ReferralConfig = require('../models/ReferralConfig');
@@ -78,6 +79,7 @@ router.get('/config', async (req, res) => {
     });
 
     const businessProfile = await BusinessProfile.getProfile().catch(() => ({}));
+    const receiptConfig = await ReceiptConfig.getConfig().catch(() => ({}));
 
     res.json({
       success: true,
@@ -90,7 +92,8 @@ router.get('/config', async (req, res) => {
           phone: businessProfile.phone,
           upiId: businessProfile.upiId,
           upiQrCode: businessProfile.upiQrCode
-        }
+        },
+        receiptConfig
       }
     });
   } catch (err) {
@@ -423,6 +426,8 @@ router.get('/dashboard', async (req, res) => {
     student.profileCompletion = Math.min(100, completionScore);
     student.isProfileComplete = completionScore >= 100;
 
+    const receiptConfig = await ReceiptConfig.getConfig().catch(() => ({}));
+
     res.json({
       success: true,
       data: {
@@ -435,7 +440,8 @@ router.get('/dashboard', async (req, res) => {
         attendanceRecords,
         isAdmin,
         allStudents,
-        badgeProgress: badgeResult ? badgeResult.badgeProgress : []
+        badgeProgress: badgeResult ? badgeResult.badgeProgress : [],
+        receiptConfig
       },
       message: 'Student dashboard loaded'
     });

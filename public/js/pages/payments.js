@@ -5,6 +5,7 @@ import { SmartFormatters } from '../utils/smartFormatters.js';
 import api from '../api.js';
 import { IDBStorage } from '../utils/idbStorage.js';
 import { OptimisticUI } from '../utils/optimisticUI.js';
+import { buildReceiptHTML, printReceiptDocument } from '../pdfGenerator.js';
 
 const formatCurrency = (amount) => SmartFormatters.currency(amount);
 
@@ -1291,38 +1292,30 @@ export async function render(container) {
             const config = window.store?.settings?.receipt || { header: {}, body: {}, gst: {}, footer: {} };
             const bp = window.store?.settings?.businessProfile || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}') || {};
 
-            const res = await api.get(`/api/payments/${paymentId}/receipt`);
-            
-            if (!res.success || !res.data) {
-                Toast.error('Failed to load receipt details');
-                if (receiptModal && receiptModal.close) receiptModal.close();
-                return;
-            }
-            
-            const r = res.data;
-            const activeTemplate = config.activeTemplate || 'standard_a4';
+                   const r = res.data;
+            let currentTemplate = config.activeTemplate || 'thermal80';
 
             const receiptDiv = document.createElement('div');
             receiptDiv.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-2">
-                        <label class="form-label mb-0 small" style="font-weight: 600;">Paper Format:</label>
+                        <label class="form-label mb-0 small" style="font-weight: 600;">Format:</label>
                         <select id="receipt-paper-format" class="form-select form-select-sm" style="width: 170px; padding: 4px 8px; font-size: 0.85rem;">
-                            <option value="standard" ${activeTemplate === 'standard_a4' || activeTemplate === 'modern_minimal' || activeTemplate === 'gst_invoice' ? 'selected' : ''}>📄 Standard A4 / A5</option>
-                            <option value="thermal-80" ${activeTemplate === 'thermal_80' ? 'selected' : ''}>🧾 80mm Thermal (POS)</option>
-                            <option value="thermal-58" ${activeTemplate === 'thermal_58' ? 'selected' : ''}>🧾 58mm Thermal (Mini)</option>
+                            <option value="thermal80" ${currentTemplate === 'thermal80' || currentTemplate === 'thermal_80' ? 'selected' : ''}>🧾 80mm POS Thermal</option>
+                            <option value="thermal58" ${currentTemplate === 'thermal58' || currentTemplate === 'thermal_58' ? 'selected' : ''}>🧾 58mm Mini POS</option>
+                            <option value="standardA4" ${currentTemplate === 'standardA4' || currentTemplate === 'standard_a4' || currentTemplate === 'gst_invoice' ? 'selected' : ''}>📄 Standard A4 Invoice</option>
+                            <option value="modern_minimal" ${currentTemplate === 'modern_minimal' ? 'selected' : ''}>✨ Modern Digital Pass</option>
                         </select>
                     </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-sm btn-outline-primary" data-template="standard_a4">Standard</button>
-                        <button class="btn btn-sm btn-outline-primary" data-template="thermal_80">80mm</button>
-                        <button class="btn btn-sm btn-outline-primary" data-template="thermal_58">58mm</button>
-                        <button class="btn btn-sm btn-outline-primary" data-template="modern_minimal">Modern</button>
-                        <button class="btn btn-sm btn-outline-primary" data-template="gst_invoice">GST</button>
+                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                        <button class="btn btn-xs btn-outline-primary" data-template="thermal80">80mm</button>
+                        <button class="btn btn-xs btn-outline-primary" data-template="thermal58">58mm</button>
+                        <button class="btn btn-xs btn-outline-primary" data-template="standardA4">A4</button>
+                        <button class="btn btn-xs btn-outline-primary" data-template="modern_minimal">Modern</button>
                     </div>
                 </div>
 
-                <div id="receipt-container-box" class="receipt-print-area" style="background: var(--color-surface, #fff); border-radius: 8px; transition: max-width 0.3s ease; margin: 0 auto; overflow: hidden; color: #000;">
+                <div id="receipt-container-box" class="receipt-print-area" style="background: #ffffff; border-radius: 8px; transition: all 0.3s ease; margin: 0 auto; overflow: hidden; color: #000; display: flex; justify-content: center; padding: 10px;">
                     <!-- Content rendered here -->
                 </div>
                 
@@ -1330,7 +1323,7 @@ export async function render(container) {
                     <button class="btn btn-success" id="btn-share-whatsapp-receipt" style="background: #25D366; border-color: #25D366; font-weight: 600;">
                         📲 WhatsApp
                     </button>
-                    <button class="btn btn-primary" id="btn-print-receipt-action">🖨️ Print</button>
+                    <button class="btn btn-primary" id="btn-print-receipt-action">🖨️ Print Receipt</button>
                     <button class="btn btn-secondary modal-close-btn" onclick="Modal.close()">Close</button>
                 </div>
             `;
@@ -1338,365 +1331,12 @@ export async function render(container) {
             const receiptBox = receiptDiv.querySelector('#receipt-container-box');
             
             const renderTemplate = (templateId) => {
-                const head = config.header || {};
-                const bdy = config.body || {};
-                const gst = config.gst || {};
-                const ftr = config.footer || {};
-                const stp = config.stamp || {};
-                const dt = config.dateTime || {};
-                const logoImg = head.logoUrl || bp.logo || bp.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.logo || '';
-                const stampImg = stp.stampImage || ftr.stampImage || bp.stampImage || bp.stamp || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.stampImage || '';
-                const sigImg = ftr.signatureImage || '';
-                const gstNo = head.gstNumber || bp.gstNumber || '';
-                const taxNo = head.taxNumber || bp.registrationNumber || '';
-                
-                let formattedDate = formatDate(r.date);
-                if (dt.showTimestamp !== false) {
-                    if (dt.format === 'date_time_12h') {
-                        formattedDate = `${formatDate(r.date)} ${new Date(r.date || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
-                    } else if (dt.format === 'date_time_24h') {
-                        formattedDate = `${formatDate(r.date)} ${new Date(r.date || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
-                    }
-                }
-
-                let html = '';
-                
-                if (templateId === 'standard_a4') {
-                    receiptBox.style.maxWidth = '100%';
-                    receiptBox.style.padding = '30px';
-                    receiptBox.style.border = '1px solid #ddd';
-                    receiptBox.style.fontFamily = 'inherit';
-                    receiptBox.style.position = 'relative';
-                    receiptBox.style.overflow = 'hidden';
-                    
-                    html = `
-                        ${stp.showWatermark !== false ? `
-                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); font-size: 2.2rem; font-weight: 900; color: ${head.headerColor || '#4f46e5'}; opacity: ${stp.watermarkOpacity || 0.10}; pointer-events: none; text-align: center; width: 100%; white-space: nowrap; z-index: 1; letter-spacing: 2px; text-transform: uppercase;">
-                                ${escapeHTML(stp.watermarkText || 'PAID • OFFICIAL FEE RECEIPT')}
-                            </div>
-                        ` : ''}
-
-                        ${stp.showStamp !== false ? `
-                            <div style="position: absolute; top: 25px; right: 25px; border: 2px dashed ${stp.stampColor || '#059669'}; color: ${stp.stampColor || '#059669'}; font-weight: 800; font-size: 0.8rem; padding: 4px 12px; border-radius: 4px; transform: rotate(-8deg); letter-spacing: 1px; z-index: 3; text-transform: uppercase; background: rgba(255,255,255,0.92);">
-                                ${escapeHTML(stp.stampText || 'PAID • OFFICIAL RECEIPT')}
-                            </div>
-                        ` : ''}
-
-                        <div style="text-align: ${head.logoPosition || 'center'}; border-bottom: 2px solid ${head.headerColor || '#4f46e5'}; padding-bottom: 15px; margin-bottom: 20px; position: relative; z-index: 2;">
-                            ${head.showLogo && logoImg ? `<img src="${logoImg}" style="max-height: 60px; margin-bottom: 10px;">` : ''}
-                            ${head.showBusinessName ? `<h2 style="margin: 0; color: ${head.headerColor || '#4f46e5'};">${escapeHTML(bp.businessName || r.businessName || 'Library')}</h2>` : ''}
-                            <p style="margin: 5px 0 0; color: #555;">${escapeHTML(head.subtitle || 'Official Fee Receipt')}</p>
-                            ${head.showAddress && bp.address ? `<p style="margin: 5px 0 0; font-size: 0.9em; color: #666;">${escapeHTML(bp.address)}</p>` : ''}
-                            <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
-                                ${head.showPhone && bp.phone ? `<span>📞 ${escapeHTML(bp.phone)}</span> ` : ''}
-                                ${head.showEmail && bp.email ? `<span>✉️ ${escapeHTML(bp.email)}</span>` : ''}
-                                ${head.showGst && gstNo ? `<br><span>GSTIN: ${escapeHTML(gstNo)}</span>` : ''}
-                                ${taxNo ? `<span style="margin-left: 8px;">Tax ID: ${escapeHTML(taxNo)}</span>` : ''}
-                            </div>
-                        </div>
-                        
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; position: relative; z-index: 2;">
-                            <div style="flex: 1; min-width: 220px; padding: 10px; border: 1px solid #eee; border-radius: 5px; background: #fafafa;">
-                                <h4 style="margin: 0 0 10px; font-size: 1em; color: #333;">Student Details</h4>
-                                <p style="margin: 0 0 5px; color: #000;"><strong>Name:</strong> ${escapeHTML(r.student?.name || 'N/A')}</p>
-                                ${bdy.showStudentId ? `<p style="margin: 0 0 5px; color: #000;"><strong>ID:</strong> ${escapeHTML(r.student?.studentId || 'N/A')}</p>` : ''}
-                                ${bdy.showStudentPhone ? `<p style="margin: 0 0 5px; color: #000;"><strong>Phone:</strong> ${escapeHTML(r.student?.phone || 'N/A')}</p>` : ''}
-                                ${bdy.showSeatNumber && (r.student?.seat?.seatNumber || r.student?.seatNumber) ? `<p style="margin: 0 0 5px; color: #000;"><strong>Seat:</strong> ${escapeHTML(r.student?.seat?.seatNumber || r.student?.seatNumber)}</p>` : ''}
-                                ${bdy.showShift && (r.student?.shift?.name || r.plan?.shift) ? `<p style="margin: 0 0 5px; color: #000;"><strong>Shift:</strong> ${escapeHTML(r.student?.shift?.name || r.plan?.shift)}</p>` : ''}
-                            </div>
-                            <div style="flex: 1; min-width: 220px; padding: 10px; border: 1px solid #eee; border-radius: 5px; background: #fafafa;">
-                                <h4 style="margin: 0 0 10px; font-size: 1em; color: #333;">Receipt Details</h4>
-                                <p style="margin: 0 0 5px; color: #000;"><strong>Receipt No:</strong> ${escapeHTML(r.receiptNumber)}</p>
-                                <p style="margin: 0 0 5px; color: #000;"><strong>Date:</strong> ${formattedDate}</p>
-                                ${bdy.showPaymentMethod ? `<p style="margin: 0 0 5px; color: #000;"><strong>Payment Mode:</strong> ${escapeHTML(r.paymentDetails?.method || 'CASH').toUpperCase()}</p>` : ''}
-                                ${bdy.showTransactionId && r.paymentDetails?.transactionId ? `<p style="margin: 0 0 5px; color: #000;"><strong>Ref / Txn ID:</strong> ${escapeHTML(r.paymentDetails.transactionId)}</p>` : ''}
-                            </div>
-                        </div>
-                                <h4 style="margin: 0 0 10px; font-size: 1em; color: #333;">Receipt Details</h4>
-                                <p style="margin: 0 0 5px; color: #000;"><strong>Receipt No:</strong> ${escapeHTML(r.receiptNumber)}</p>
-                                <p style="margin: 0 0 5px; color: #000;"><strong>Date:</strong> ${formatDate(r.date)}</p>
-                                ${bdy.showPaymentMethod ? `<p style="margin: 0 0 5px; color: #000;"><strong>Payment Mode:</strong> ${escapeHTML(r.paymentDetails?.method || 'CASH').toUpperCase()}</p>` : ''}
-                                ${bdy.showTransactionId && r.paymentDetails?.transactionId ? `<p style="margin: 0 0 5px; color: #000;"><strong>Ref / Txn ID:</strong> ${escapeHTML(r.paymentDetails.transactionId)}</p>` : ''}
-                            </div>
-                        </div>
-                        
-                        <div class="table-responsive">
-                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                                <thead>
-                                    <tr style="background-color: #f8f9fa;">
-                                        <th style="padding: 10px; border: 1px solid #ddd; text-align: left; color: #333;">Description</th>
-                                        <th style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #333;">Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td style="padding: 10px; border: 1px solid #ddd; color: #000;">
-                                            Fee Collection ${bdy.showPlanDetails && r.plan ? ` - ${escapeHTML(r.plan.name)}` : ''}
-                                            ${bdy.showPeriod && (r.billingPeriod?.startDate || r.billingPeriod?.endDate) ? `<br><small style="color: #666;">Period: ${formatDate(r.billingPeriod.startDate)} to ${formatDate(r.billingPeriod.endDate)}</small>` : ''}
-                                        </td>
-                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">${formatCurrency(r.paymentDetails.amount)}</td>
-                                    </tr>
-                                    ${bdy.showDiscount && r.paymentDetails.discount > 0 ? `
-                                    <tr>
-                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">Discount</td>
-                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #d32f2f;">- ${formatCurrency(r.paymentDetails.discount)}</td>
-                                    </tr>` : ''}
-                                    ${bdy.showLateFee && r.paymentDetails.lateFee > 0 ? `
-                                    <tr>
-                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">Late Fee</td>
-                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: #000;">+ ${formatCurrency(r.paymentDetails.lateFee)}</td>
-                                    </tr>` : ''}
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #000;">Total Amount</td>
-                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 1.1em; color: #000;">${formatCurrency(r.paymentDetails.finalAmount)}</td>
-                                    </tr>
-                                    ${r.balanceDue > 0 || r.installments?.length > 0 ? `
-                                    <tr>
-                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #000;">Paid Amount</td>
-                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 1.1em; color: #000;">${formatCurrency(r.paymentDetails.finalAmount - (r.balanceDue || 0))}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; color: #d32f2f;">Balance Due</td>
-                                        <td style="padding: 10px; border: 1px solid #ddd; text-align: right; font-weight: bold; font-size: 1.1em; color: #d32f2f;">${formatCurrency(r.balanceDue || 0)}</td>
-                                    </tr>` : ''}
-                                </tfoot>
-                            </table>
-                        </div>
-                        
-                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px;">
-                            <div style="flex: 1; font-size: 0.85em; color: #666; padding-right: 15px;">
-                                ${ftr.customNote ? `<p style="margin: 0 0 5px; font-weight: 600; color: #333;">${escapeHTML(ftr.customNote)}</p>` : ''}
-                                ${ftr.termsText ? `<p style="margin: 0; font-style: italic; color: #777;">${escapeHTML(ftr.termsText)}</p>` : ''}
-                                ${ftr.showTimestamp ? `<p style="margin: 5px 0 0; font-size: 0.8em; color: #999;">Generated on: ${new Date().toLocaleString()}</p>` : ''}
-                            </div>
-                            <div style="text-align: center; min-width: 150px;">
-                                <div style="display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 50px;">
-                                    ${ftr.showStamp && stampImg ? `<img src="${stampImg}" style="max-height: 55px; opacity: 0.85;">` : ''}
-                                    ${ftr.showSignature && sigImg ? `<img src="${sigImg}" style="max-height: 45px;">` : ''}
-                                </div>
-                                ${ftr.showSignature ? `<div style="border-top: 1px solid #333; padding-top: 5px; font-size: 0.85em; font-weight: bold; color: #000;">${escapeHTML(ftr.signatureLabel || 'Authorized Signatory')}</div>` : ''}
-                            </div>
-                        </div>
-                    `;
-                } else if (templateId === 'thermal_80' || templateId === 'thermal_58') {
-                    receiptBox.style.maxWidth = templateId === 'thermal_80' ? '302px' : '219px';
-                    receiptBox.style.padding = '15px';
-                    receiptBox.style.border = '1px solid #ddd';
-                    receiptBox.style.fontFamily = 'monospace';
-                    
-                    html = `
-                        <div style="text-align: center; margin-bottom: 10px;">
-                            ${head.showLogo && logoImg ? `<img src="${logoImg}" style="max-height: 40px; margin-bottom: 5px;">` : ''}
-                            ${head.showBusinessName ? `<h3 style="margin: 0; font-size: 1.2em; color: #000;">${escapeHTML(bp.businessName || r.businessName || 'Library')}</h3>` : ''}
-                            <p style="margin: 2px 0; font-size: 0.9em; color: #000;">${escapeHTML(head.subtitle || 'Receipt')}</p>
-                            ${head.showPhone && bp.phone ? `<p style="margin: 2px 0; font-size: 0.8em; color: #000;">Ph: ${escapeHTML(bp.phone)}</p>` : ''}
-                            ${head.showGst && gstNo ? `<p style="margin: 2px 0; font-size: 0.75em; color: #000;">GST: ${escapeHTML(gstNo)}</p>` : ''}
-                        </div>
-                        <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 5px 0; margin-bottom: 10px; font-size: 0.85em; color: #000;">
-                            <p style="margin: 2px 0;">No: ${escapeHTML(r.receiptNumber)}</p>
-                            <p style="margin: 2px 0;">Dt: ${formatDate(r.date)}</p>
-                            <p style="margin: 2px 0;">Name: ${escapeHTML(r.student?.name || 'N/A')}</p>
-                            ${bdy.showSeatNumber && (r.student?.seat?.seatNumber || r.student?.seatNumber) ? `<p style="margin: 2px 0;">Seat: ${escapeHTML(r.student?.seat?.seatNumber || r.student?.seatNumber)}</p>` : ''}
-                        </div>
-                        <div class="table-responsive">
-                            <table style="width: 100%; font-size: 0.85em; margin-bottom: 10px; color: #000;">
-                                <tr><td style="padding-bottom: 5px;">Fee</td><td style="text-align: right; padding-bottom: 5px;">${formatCurrency(r.paymentDetails.amount)}</td></tr>
-                                ${bdy.showDiscount && r.paymentDetails.discount > 0 ? `<tr><td style="padding-bottom: 5px;">Disc</td><td style="text-align: right; padding-bottom: 5px;">-${formatCurrency(r.paymentDetails.discount)}</td></tr>` : ''}
-                                ${bdy.showLateFee && r.paymentDetails.lateFee > 0 ? `<tr><td style="padding-bottom: 5px;">Late</td><td style="text-align: right; padding-bottom: 5px;">+${formatCurrency(r.paymentDetails.lateFee)}</td></tr>` : ''}
-                            </table>
-                        </div>
-                        <div style="border-top: 1px dashed #000; padding: 5px 0; text-align: right; font-size: 1.1em; font-weight: bold; margin-bottom: 10px; color: #000;">
-                            Total: ${formatCurrency(r.paymentDetails.finalAmount)}
-                            ${r.balanceDue > 0 || r.installments?.length > 0 ? `<br>Paid: ${formatCurrency(r.paymentDetails.finalAmount - (r.balanceDue || 0))}<br><span style="color:red;">Due: ${formatCurrency(r.balanceDue || 0)}</span>` : ''}
-                        </div>
-                        <div style="text-align: center; font-size: 0.75em; color: #000;">
-                            <p style="margin: 2px 0;">Paid via: ${escapeHTML(r.paymentDetails?.method || 'CASH')}</p>
-                            ${ftr.customNote ? `<p style="margin: 5px 0 0;">${escapeHTML(ftr.customNote)}</p>` : ''}
-                            ${ftr.termsText ? `<p style="margin: 3px 0 0; font-size: 0.7em;">${escapeHTML(ftr.termsText)}</p>` : ''}
-                        </div>
-                    `;
-                } else if (templateId === 'modern_minimal') {
-                    receiptBox.style.maxWidth = '100%';
-                    receiptBox.style.padding = '30px';
-                    receiptBox.style.border = 'none';
-                    receiptBox.style.boxShadow = '0 4px 15px rgba(0,0,0,0.05)';
-                    receiptBox.style.borderTop = `5px solid ${head.headerColor || '#4f46e5'}`;
-                    receiptBox.style.borderRadius = '12px';
-                    receiptBox.style.fontFamily = '"Inter", sans-serif';
-                    
-                    html = `
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
-                            <div>
-                                ${head.showLogo && logoImg ? `<img src="${logoImg}" style="max-height: 48px; margin-bottom: 8px;"><br>` : ''}
-                                ${head.showBusinessName ? `<h2 style="margin: 0 0 5px; font-weight: 800; color: #111;">${escapeHTML(bp.businessName || r.businessName || 'Library')}</h2>` : ''}
-                                <span style="display: inline-block; padding: 4px 10px; background: #f0f0f0; border-radius: 4px; font-size: 0.8em; font-weight: 600; color: #555;">${escapeHTML(head.subtitle || 'RECEIPT')}</span>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="font-size: 1.5em; font-weight: 800; color: ${head.headerColor || '#4f46e5'};">${formatCurrency(r.paymentDetails.finalAmount)}</div>
-                                <div style="font-size: 0.85em; color: #777;">Paid on ${formatDate(r.date)}</div>
-                            </div>
-                        </div>
-                        
-                        <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 30px; background: #fafafa; padding: 20px; border-radius: 8px;">
-                            <div style="flex: 1; min-width: 200px;">
-                                <div style="font-size: 0.8em; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Billed To</div>
-                                <div style="font-weight: 600; color: #222; font-size: 1.1em;">${escapeHTML(r.student?.name || 'N/A')}</div>
-                                <div style="color: #555; font-size: 0.9em; margin-top: 3px;">${escapeHTML(r.student?.phone || '')}</div>
-                                ${bdy.showSeatNumber && (r.student?.seat?.seatNumber || r.student?.seatNumber) ? `<div style="color: #666; font-size: 0.85em;">Seat: ${escapeHTML(r.student?.seat?.seatNumber || r.student?.seatNumber)}</div>` : ''}
-                            </div>
-                            <div style="flex: 1; min-width: 200px;">
-                                <div style="font-size: 0.8em; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;">Payment Info</div>
-                                <div style="color: #444; font-size: 0.9em;">
-                                    <div style="margin-bottom: 3px;"><strong>Ref:</strong> ${escapeHTML(r.receiptNumber)}</div>
-                                    <div style="margin-bottom: 3px;"><strong>Method:</strong> ${escapeHTML(r.paymentDetails?.method || 'CASH').toUpperCase()}</div>
-                                    ${bdy.showTransactionId && r.paymentDetails?.transactionId ? `<div><strong>Txn ID:</strong> ${escapeHTML(r.paymentDetails.transactionId)}</div>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div style="margin-bottom: 30px;">
-                            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; font-weight: 600; color: #444;">
-                                <div>Description</div>
-                                <div>Amount</div>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; color: #333;">
-                                <div>Fee Collection ${bdy.showPlanDetails && r.plan ? `(${escapeHTML(r.plan.name)})` : ''}</div>
-                                <div>${formatCurrency(r.paymentDetails.amount)}</div>
-                            </div>
-                            ${bdy.showDiscount && r.paymentDetails.discount > 0 ? `
-                            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; color: #e53935;">
-                                <div>Discount Applied</div>
-                                <div>-${formatCurrency(r.paymentDetails.discount)}</div>
-                            </div>` : ''}
-                            ${bdy.showLateFee && r.paymentDetails.lateFee > 0 ? `
-                            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; color: #333;">
-                                <div>Late Fee</div>
-                                <div>+${formatCurrency(r.paymentDetails.lateFee)}</div>
-                            </div>` : ''}
-                            ${r.balanceDue > 0 || r.installments?.length > 0 ? `
-                            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee; font-weight: bold; color: #333;">
-                                <div>Paid Amount</div>
-                                <div>${formatCurrency(r.paymentDetails.finalAmount - (r.balanceDue || 0))}</div>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; padding: 12px 0; font-weight: bold; color: #d32f2f;">
-                                <div>Balance Due</div>
-                                <div>${formatCurrency(r.balanceDue || 0)}</div>
-                            </div>` : ''}
-                        </div>
-                        
-                        <div style="text-align: center; color: #888; font-size: 0.85em; margin-top: 30px;">
-                            ${ftr.customNote ? `<div>${escapeHTML(ftr.customNote)}</div>` : ''}
-                            ${ftr.termsText ? `<div style="margin-top: 5px; font-size: 0.9em; opacity: 0.8;">${escapeHTML(ftr.termsText)}</div>` : ''}
-                            ${ftr.showSignature && (stampImg || sigImg) ? `
-                                <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px;">
-                                    ${stampImg ? `<img src="${stampImg}" style="max-height: 45px; opacity: 0.8;">` : ''}
-                                    ${sigImg ? `<img src="${sigImg}" style="max-height: 40px;">` : ''}
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
-                } else if (templateId === 'gst_invoice') {
-                    receiptBox.style.maxWidth = '100%';
-                    receiptBox.style.padding = '30px';
-                    receiptBox.style.border = '1px solid #ccc';
-                    receiptBox.style.fontFamily = 'Arial, sans-serif';
-                    
-                    const amt = r.paymentDetails.finalAmount;
-                    const taxRate = gst.gstRate || 18;
-                    const baseAmt = amt / (1 + (taxRate/100));
-                    const taxAmt = amt - baseAmt;
-                    const cgst = taxAmt / 2;
-                    const sgst = taxAmt / 2;
-                    
-                    html = `
-                        <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-                            ${head.showLogo && logoImg ? `<img src="${logoImg}" style="max-height: 50px; margin-bottom: 6px;"><br>` : ''}
-                            <h2 style="margin: 0; text-transform: uppercase; color: #000;">TAX INVOICE</h2>
-                            <h3 style="margin: 5px 0 0; color: #000;">${escapeHTML(bp.businessName || 'Library')}</h3>
-                            <p style="margin: 3px 0 0; font-size: 0.9em; color: #000;">${escapeHTML(bp.address || '')}</p>
-                            <p style="margin: 3px 0 0; font-size: 0.9em; color: #000;">GSTIN: ${escapeHTML(gstNo || 'N/A')}</p>
-                        </div>
-                        
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 0.9em; color: #000;">
-                            <div>
-                                <p style="margin: 2px 0;"><strong>Invoice No:</strong> ${escapeHTML(r.receiptNumber)}</p>
-                                <p style="margin: 2px 0;"><strong>Date:</strong> ${formatDate(r.date)}</p>
-                                <p style="margin: 2px 0;"><strong>Place of Supply:</strong> ${escapeHTML(gst.placeOfSupply || bp.state || '')}</p>
-                            </div>
-                            <div style="text-align: right;">
-                                <p style="margin: 2px 0;"><strong>Billed To:</strong> ${escapeHTML(r.student?.name || '')}</p>
-                                <p style="margin: 2px 0;"><strong>Phone:</strong> ${escapeHTML(r.student?.phone || '')}</p>
-                                ${bdy.showStudentId ? `<p style="margin: 2px 0;"><strong>Student ID:</strong> ${escapeHTML(r.student?.studentId || '')}</p>` : ''}
-                            </div>
-                        </div>
-                        
-                        <div class="table-responsive">
-                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.9em; color: #000;">
-                                <thead>
-                                    <tr>
-                                        <th style="border: 1px solid #000; padding: 5px; text-align: left;">Description of Services</th>
-                                        <th style="border: 1px solid #000; padding: 5px; text-align: center;">HSN/SAC</th>
-                                        <th style="border: 1px solid #000; padding: 5px; text-align: right;">Taxable Value</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td style="border: 1px solid #000; padding: 10px 5px;">Library Membership Services ${r.plan ? `(${escapeHTML(r.plan.name)})` : ''}</td>
-                                        <td style="border: 1px solid #000; padding: 10px 5px; text-align: center;">${escapeHTML(gst.hsnCode || '9992')}</td>
-                                        <td style="border: 1px solid #000; padding: 10px 5px; text-align: right;">${formatCurrency(baseAmt)}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        <div style="display: flex; justify-content: flex-end; margin-bottom: 30px; font-size: 0.9em; color: #000;">
-                            <div class="table-responsive" style="width: 50%;">
-                                <table style="width: 100%; border-collapse: collapse;">
-                                    <tr>
-                                        <td style="padding: 3px 5px; text-align: right;">Total Taxable Value:</td>
-                                        <td style="padding: 3px 5px; text-align: right; border-bottom: 1px solid #000;">${formatCurrency(baseAmt)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 3px 5px; text-align: right;">CGST @ ${taxRate/2}%:</td>
-                                        <td style="padding: 3px 5px; text-align: right;">${formatCurrency(cgst)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 3px 5px; text-align: right;">SGST @ ${taxRate/2}%:</td>
-                                        <td style="padding: 3px 5px; text-align: right; border-bottom: 1px solid #000;">${formatCurrency(sgst)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 5px; text-align: right; font-weight: bold;">Grand Total:</td>
-                                        <td style="padding: 5px; text-align: right; font-weight: bold; border-bottom: 2px solid #000;">${formatCurrency(amt)}</td>
-                                    </tr>
-                                    ${r.balanceDue > 0 || r.installments?.length > 0 ? `
-                                    <tr>
-                                        <td style="padding: 5px; text-align: right; font-weight: bold;">Paid Amount:</td>
-                                        <td style="padding: 5px; text-align: right; font-weight: bold;">${formatCurrency(amt - (r.balanceDue || 0))}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 5px; text-align: right; font-weight: bold; color: #d32f2f;">Balance Due:</td>
-                                        <td style="padding: 5px; text-align: right; font-weight: bold; color: #d32f2f; border-bottom: 2px solid #000;">${formatCurrency(r.balanceDue || 0)}</td>
-                                    </tr>` : ''}
-                                </table>
-                            </div>
-                        </div>
-                        
-                        <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.85em; color: #000;">
-                            <div>
-                                <p style="margin: 0; font-style: italic;">${escapeHTML(ftr.termsText || 'Computer generated invoice, no physical signature required.')}</p>
-                                ${ftr.customNote ? `<p style="margin: 4px 0 0;">${escapeHTML(ftr.customNote)}</p>` : ''}
-                            </div>
-                            <div style="text-align: center; border-top: 1px solid #000; padding-top: 5px; min-width: 140px;">
-                                ${stampImg ? `<img src="${stampImg}" style="max-height: 40px; margin-bottom: 4px;"><br>` : ''}
-                                For ${escapeHTML(bp.businessName || 'Library')}<br>
-                                ${escapeHTML(ftr.signatureLabel || 'Authorized Signatory')}
-                            </div>
-                        </div>
-                    `;
-                }
-                
+                currentTemplate = templateId;
+                const html = buildReceiptHTML(r, {
+                    receiptConfig: config,
+                    businessProfile: bp,
+                    template: templateId
+                });
                 receiptBox.innerHTML = html;
             };
 
@@ -1704,51 +1344,42 @@ export async function render(container) {
             modalContainer.appendChild(receiptDiv);
 
             // Initial render
-            renderTemplate(activeTemplate);
+            renderTemplate(currentTemplate);
 
             // Handle Format/Template Switcher
             const formatSelect = receiptDiv.querySelector('#receipt-paper-format');
             formatSelect?.addEventListener('change', () => {
                 const fmt = formatSelect.value;
-                if (fmt === 'standard') renderTemplate('standard_a4');
-                else if (fmt === 'thermal-80') renderTemplate('thermal_80');
-                else if (fmt === 'thermal-58') renderTemplate('thermal_58');
+                renderTemplate(fmt);
                 
-                // Update active button
                 const templateBtns = receiptDiv.querySelectorAll('[data-template]');
-                templateBtns.forEach(b => b.classList.remove('active', 'btn-primary'));
-                templateBtns.forEach(b => b.classList.add('btn-outline-primary'));
-                
-                let tgtBtn = null;
-                if (fmt === 'standard') tgtBtn = receiptDiv.querySelector('[data-template="standard_a4"]');
-                else if (fmt === 'thermal-80') tgtBtn = receiptDiv.querySelector('[data-template="thermal_80"]');
-                else if (fmt === 'thermal-58') tgtBtn = receiptDiv.querySelector('[data-template="thermal_58"]');
-                
-                if (tgtBtn) {
-                    tgtBtn.classList.remove('btn-outline-primary');
-                    tgtBtn.classList.add('active', 'btn-primary');
-                }
+                templateBtns.forEach(b => {
+                    if (b.dataset.template === fmt) {
+                        b.classList.remove('btn-outline-primary');
+                        b.classList.add('active', 'btn-primary');
+                    } else {
+                        b.classList.remove('active', 'btn-primary');
+                        b.classList.add('btn-outline-primary');
+                    }
+                });
             });
 
             const templateBtns = receiptDiv.querySelectorAll('[data-template]');
             templateBtns.forEach(btn => {
                 btn.addEventListener('click', (e) => {
+                    const tpl = e.target.dataset.template;
                     templateBtns.forEach(b => b.classList.remove('active', 'btn-primary'));
                     templateBtns.forEach(b => b.classList.add('btn-outline-primary'));
                     e.target.classList.remove('btn-outline-primary');
                     e.target.classList.add('active', 'btn-primary');
                     
-                    const tpl = e.target.dataset.template;
+                    if (formatSelect) formatSelect.value = tpl;
                     renderTemplate(tpl);
-                    
-                    if (tpl === 'thermal_80') formatSelect.value = 'thermal-80';
-                    else if (tpl === 'thermal_58') formatSelect.value = 'thermal-58';
-                    else formatSelect.value = 'standard';
                 });
             });
 
             // Set initial active button
-            const activeBtn = receiptDiv.querySelector(`[data-template="${activeTemplate}"]`) || receiptDiv.querySelector('[data-template="standard_a4"]');
+            const activeBtn = receiptDiv.querySelector(`[data-template="${currentTemplate}"]`);
             if (activeBtn) {
                 activeBtn.classList.remove('btn-outline-primary');
                 activeBtn.classList.add('active', 'btn-primary');
@@ -1756,64 +1387,11 @@ export async function render(container) {
 
             // Handle Print Button
             receiptDiv.querySelector('#btn-print-receipt-action')?.addEventListener('click', () => {
-                const receiptContent = receiptBox.innerHTML;
-                const isThermal80 = activeTemplate === 'thermal_80';
-                const isThermal58 = activeTemplate === 'thermal_58';
-                const pageSize = isThermal58 ? '58mm auto' : isThermal80 ? '80mm auto' : 'A4 portrait';
-                const pageMargin = isThermal58 || isThermal80 ? '0' : '6mm';
-                const maxWidth = isThermal58 ? '56mm' : isThermal80 ? '78mm' : '720px';
-                const fontStack = isThermal58 || isThermal80 ? "'Courier New', monospace" : "'Inter', Arial, Helvetica, sans-serif";
-
-                const printWin = window.open('', '_blank', 'width=750,height=800');
-                if (!printWin) {
-                    window.print();
-                    return;
-                }
-
-                printWin.document.open();
-                printWin.document.write(`
-                    <!DOCTYPE html>
-                    <html lang="en">
-                    <head>
-                        <meta charset="UTF-8">
-                        <title>Receipt — ${payment?.receiptNumber || 'Receipt'}</title>
-                        <link rel="preconnect" href="https://fonts.googleapis.com">
-                        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-                        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-                        <style>
-                            @page { size: ${pageSize}; margin: ${pageMargin}; }
-                            * { box-sizing: border-box; margin: 0; padding: 0; }
-                            body {
-                                background: #ffffff !important;
-                                color: #000000 !important;
-                                font-family: ${fontStack};
-                                padding: ${isThermal58 || isThermal80 ? '2mm' : '8px'};
-                                width: 100%;
-                                max-width: ${maxWidth};
-                                margin: 0 auto;
-                                -webkit-font-smoothing: antialiased;
-                            }
-                            table { width: 100%; border-collapse: collapse; }
-                            img { max-width: 100%; }
-                            @media print {
-                                body { width: 100%; max-width: ${maxWidth}; margin: 0 auto; padding: 0; background: #fff !important; }
-                                * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        ${receiptContent}
-                        <script>
-                            window.onload = function() {
-                                setTimeout(function() {
-                                    window.print();
-                                }, 300);
-                            };
-                        </script>
-                    </body>
-                    </html>
-                `);
-                printWin.document.close();
+                printReceiptDocument(r, {
+                    receiptConfig: config,
+                    businessProfile: bp,
+                    template: currentTemplate
+                });
             });
 
             receiptDiv.querySelector('#btn-share-whatsapp-receipt')?.addEventListener('click', async () => {

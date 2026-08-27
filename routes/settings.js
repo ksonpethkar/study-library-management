@@ -80,12 +80,15 @@ router.get('/', roleCheck('owner', 'branch_manager', 'staff'), async (req, res) 
       categorized[cat][s.key] = s.value;
     });
 
+    const receiptConfig = await ReceiptConfig.getConfig();
+
     res.json({
       success: true,
       data: {
         businessProfile,
         systemSettings: categorized,
-        rawSettings: allSettings
+        rawSettings: allSettings,
+        receiptConfig
       },
       message: 'Settings retrieved successfully'
     });
@@ -613,12 +616,31 @@ router.get('/receipt-config', protect, async (req, res) => {
 // PUT /api/settings/receipt-config
 router.put('/receipt-config', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    let config = await ReceiptConfig.getConfig();
-    Object.assign(config, req.body);
+    let config = await ReceiptConfig.findOne();
+    if (!config) {
+      config = new ReceiptConfig(req.body);
+    } else {
+      config.set(req.body);
+      config.markModified('header');
+      config.markModified('body');
+      config.markModified('stamp');
+      config.markModified('footer');
+      config.markModified('gst');
+      config.markModified('dateTime');
+    }
     await config.save();
+
+    if (req.body.activeTemplate) {
+      await SystemSetting.findOneAndUpdate(
+        { key: 'billing.defaultTemplate' },
+        { value: req.body.activeTemplate, category: 'billing', type: 'string' },
+        { upsert: true }
+      );
+    }
+
     memoryCache.clear();
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.json({ success: true, data: config, message: 'Receipt configuration saved' });
+    res.json({ success: true, data: config, message: 'Receipt configuration saved successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

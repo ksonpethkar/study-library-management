@@ -3,8 +3,8 @@ const mongoose = require('mongoose');
 const receiptConfigSchema = new mongoose.Schema({
   activeTemplate: {
     type: String,
-    enum: ['standard_a4', 'thermal_80', 'thermal_58', 'modern_minimal', 'gst_invoice'],
-    default: 'standard_a4'
+    enum: ['standard_a4', 'standardA4', 'thermal_80', 'thermal80', 'thermal_58', 'thermal58', 'modern_minimal', 'gst_invoice'],
+    default: 'thermal80'
   },
   
   // Header customization
