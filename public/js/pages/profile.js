@@ -207,6 +207,27 @@ function renderProfileUI(container, user) {
                 👆 Enable Biometric / Face ID Login on this Device
               </button>
             </div>
+          <!-- Front-Desk 4-Digit Security PIN Card -->
+          <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--color-text-primary); display: flex; align-items: center; gap: 6px;">
+                  <span>🔒</span> Front-Desk Terminal PIN Lock
+                </h4>
+                <p style="margin: 4px 0 0 0; font-size: 0.83rem; color: var(--color-text-secondary);">
+                  Lock reception counter with a 4-digit PIN when stepping away. (Default PIN: <strong style="color: var(--color-primary);">1234</strong>)
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <input type="password" id="desk-pin-input" class="form-control form-control-sm" maxlength="4" placeholder="1234" value="${escapeHTML(localStorage.getItem('sl_desk_pin') || '1234')}" style="width: 100px; text-align: center; font-size: 1.1rem; font-weight: 800; letter-spacing: 4px; font-family: monospace;">
+                <button type="button" id="btn-save-desk-pin" class="btn btn-sm btn-outline-primary" style="font-weight: 700;">
+                  Save PIN
+                </button>
+                <button type="button" id="btn-test-desk-lock" class="btn btn-sm btn-primary" style="font-weight: 700;">
+                  🔒 Lock Now
+                </button>
+              </div>
+            </div>
           </div>
 
           <form id="form-change-password">
@@ -591,6 +612,28 @@ function renderProfileUI(container, user) {
       }
     });
   }
+
+  // Front-Desk PIN save & test lock handlers
+  const pinInput = container.querySelector('#desk-pin-input');
+  const btnSavePin = container.querySelector('#btn-save-desk-pin');
+  const btnTestLock = container.querySelector('#btn-test-desk-lock');
+
+  btnSavePin?.addEventListener('click', () => {
+    const val = (pinInput?.value || '').trim();
+    if (!/^\d{4}$/.test(val)) {
+      Toast.warning('PIN must be exactly 4 digits (e.g. 1234)');
+      pinInput?.focus();
+      return;
+    }
+    localStorage.setItem('sl_desk_pin', val);
+    Toast.success(`Front-Desk PIN saved successfully!`);
+  });
+
+  btnTestLock?.addEventListener('click', () => {
+    if (window.PinLock) {
+      window.PinLock.lock();
+    }
+  });
 
   container.querySelector('#btn-logout-other-sessions')?.addEventListener('click', async () => {
     const ok = await Confirm.show({

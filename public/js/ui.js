@@ -2415,9 +2415,11 @@ export const PinLock = {
     }
     if (document.getElementById('pin-lock-overlay')) {
       this._overlay = document.getElementById('pin-lock-overlay');
+      this._overlay.style.setProperty('display', 'none', 'important');
     } else {
       this._overlay = document.createElement('div');
       this._overlay.id = 'pin-lock-overlay';
+      this._overlay.style.cssText = 'display: none !important; position: fixed !important; inset: 0 !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important; background: rgba(10, 15, 30, 0.96) !important; backdrop-filter: blur(28px) !important; -webkit-backdrop-filter: blur(28px) !important; z-index: 99999999 !important; align-items: center !important; justify-content: center !important; padding: 24px !important; margin: 0 !important; box-sizing: border-box !important;';
       this._overlay.innerHTML = `
         <div class="pin-lock-card">
           <div style="font-size: 3rem; margin-bottom: 12px; line-height: 1;">🔒</div>
@@ -2472,7 +2474,7 @@ export const PinLock = {
       });
 
       document.addEventListener('keydown', (e) => {
-        if (!this._overlay || !this._overlay.classList.contains('active')) return;
+        if (!this._overlay || this._overlay.style.display === 'none' || !this._overlay.classList.contains('active')) return;
         if (/^[0-9]$/.test(e.key)) {
           this.handleDigit(e.key);
         } else if (e.key === 'Backspace') {
@@ -2504,6 +2506,7 @@ export const PinLock = {
     if (this._overlay) {
       this._enteredPin = '';
       this.updateDots();
+      this._overlay.style.setProperty('display', 'flex', 'important');
       this._overlay.classList.add('active');
       sessionStorage.setItem('sl_desk_locked', 'true');
     }
@@ -2511,6 +2514,7 @@ export const PinLock = {
 
   unlock() {
     if (!this._overlay) return;
+    this._overlay.style.setProperty('display', 'none', 'important');
     this._overlay.classList.remove('active');
     this._enteredPin = '';
     this.updateDots();
