@@ -2420,34 +2420,38 @@ export const PinLock = {
       this._overlay = document.createElement('div');
       this._overlay.id = 'pin-lock-overlay';
       this._overlay.style.cssText = 'display: none !important; position: fixed !important; inset: 0 !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important; background: rgba(10, 15, 30, 0.96) !important; backdrop-filter: blur(28px) !important; -webkit-backdrop-filter: blur(28px) !important; z-index: 99999999 !important; align-items: center !important; justify-content: center !important; padding: 24px !important; margin: 0 !important; box-sizing: border-box !important;';
+      
+      const keyBtnStyle = 'width: 72px !important; height: 72px !important; min-width: 72px !important; max-width: 72px !important; min-height: 72px !important; max-height: 72px !important; border-radius: 50% !important; border: 1.5px solid rgba(255, 255, 255, 0.18) !important; background: rgba(255, 255, 255, 0.08) !important; background-color: rgba(255, 255, 255, 0.08) !important; color: #ffffff !important; font-size: 1.55rem !important; font-weight: 700 !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; margin: 0 auto !important; cursor: pointer !important; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important; padding: 0 !important; outline: none !important; user-select: none !important; -webkit-user-select: none !important; touch-action: manipulation !important; box-sizing: border-box !important; transition: all 0.15s ease !important;';
+      const actionBtnStyle = 'width: 72px !important; height: 72px !important; min-width: 72px !important; max-width: 72px !important; min-height: 72px !important; max-height: 72px !important; border-radius: 50% !important; border: 1.5px solid transparent !important; background: transparent !important; background-color: transparent !important; color: #94a3b8 !important; font-size: 1.25rem !important; font-weight: 700 !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; margin: 0 auto !important; cursor: pointer !important; box-shadow: none !important; padding: 0 !important; outline: none !important; user-select: none !important; -webkit-user-select: none !important; touch-action: manipulation !important; box-sizing: border-box !important; transition: all 0.15s ease !important;';
+
       this._overlay.innerHTML = `
-        <div class="pin-lock-card">
-          <div style="font-size: 3rem; margin-bottom: 12px; line-height: 1;">🔒</div>
-          <h3 style="font-weight: 800; margin: 0 0 8px 0; font-size: 1.45rem; color: #ffffff; letter-spacing: -0.3px;">Front-Desk Locked</h3>
-          <p style="color: #94a3b8; font-size: 0.88rem; margin: 0;">Enter 4-digit PIN to unlock reception terminal</p>
+        <div class="pin-lock-card" style="width: 100% !important; max-width: 360px !important; text-align: center !important; color: #ffffff !important; background: rgba(30, 41, 59, 0.85) !important; border: 1.5px solid rgba(255, 255, 255, 0.16) !important; border-radius: 28px !important; padding: 36px 24px !important; box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 50px rgba(99,102,241,0.25) !important; backdrop-filter: blur(24px) !important; -webkit-backdrop-filter: blur(24px) !important; box-sizing: border-box !important; margin: auto !important;">
+          <div style="font-size: 3rem; margin-bottom: 10px; line-height: 1;">🔒</div>
+          <h3 style="font-weight: 800; margin: 0 0 6px 0; font-size: 1.45rem; color: #ffffff; letter-spacing: -0.3px;">Front-Desk Locked</h3>
+          <p style="color: #94a3b8; font-size: 0.86rem; margin: 0;">Enter 4-digit PIN to unlock reception terminal</p>
           
-          <div class="pin-dot-container" id="pin-dots">
-            <div class="pin-dot"></div>
-            <div class="pin-dot"></div>
-            <div class="pin-dot"></div>
-            <div class="pin-dot"></div>
+          <div class="pin-dot-container" id="pin-dots" style="display: flex !important; justify-content: center !important; align-items: center !important; gap: 16px !important; margin: 24px 0 28px !important;">
+            <div class="pin-dot" style="width: 16px !important; height: 16px !important; border-radius: 50% !important; border: 2px solid rgba(255,255,255,0.4) !important; background: transparent !important; transition: all 0.2s cubic-bezier(0.16,1,0.3,1) !important; box-sizing: border-box !important;"></div>
+            <div class="pin-dot" style="width: 16px !important; height: 16px !important; border-radius: 50% !important; border: 2px solid rgba(255,255,255,0.4) !important; background: transparent !important; transition: all 0.2s cubic-bezier(0.16,1,0.3,1) !important; box-sizing: border-box !important;"></div>
+            <div class="pin-dot" style="width: 16px !important; height: 16px !important; border-radius: 50% !important; border: 2px solid rgba(255,255,255,0.4) !important; background: transparent !important; transition: all 0.2s cubic-bezier(0.16,1,0.3,1) !important; box-sizing: border-box !important;"></div>
+            <div class="pin-dot" style="width: 16px !important; height: 16px !important; border-radius: 50% !important; border: 2px solid rgba(255,255,255,0.4) !important; background: transparent !important; transition: all 0.2s cubic-bezier(0.16,1,0.3,1) !important; box-sizing: border-box !important;"></div>
           </div>
 
-          <div class="pin-keypad">
-            <button type="button" class="pin-key" data-num="1">1</button>
-            <button type="button" class="pin-key" data-num="2">2</button>
-            <button type="button" class="pin-key" data-num="3">3</button>
-            <button type="button" class="pin-key" data-num="4">4</button>
-            <button type="button" class="pin-key" data-num="5">5</button>
-            <button type="button" class="pin-key" data-num="6">6</button>
-            <button type="button" class="pin-key" data-num="7">7</button>
-            <button type="button" class="pin-key" data-num="8">8</button>
-            <button type="button" class="pin-key" data-num="9">9</button>
-            <button type="button" class="pin-key key-action" id="btn-pin-clear" title="Clear PIN">✕</button>
-            <button type="button" class="pin-key" data-num="0">0</button>
-            <button type="button" class="pin-key key-action" id="btn-pin-backspace" title="Backspace">⌫</button>
+          <div class="pin-keypad" style="display: grid !important; grid-template-columns: repeat(3, 72px) !important; grid-template-rows: repeat(4, 72px) !important; gap: 16px !important; justify-content: center !important; align-items: center !important; max-width: 280px !important; margin: 0 auto !important; padding: 0 !important;">
+            <button type="button" class="pin-key" data-num="1" style="${keyBtnStyle}">1</button>
+            <button type="button" class="pin-key" data-num="2" style="${keyBtnStyle}">2</button>
+            <button type="button" class="pin-key" data-num="3" style="${keyBtnStyle}">3</button>
+            <button type="button" class="pin-key" data-num="4" style="${keyBtnStyle}">4</button>
+            <button type="button" class="pin-key" data-num="5" style="${keyBtnStyle}">5</button>
+            <button type="button" class="pin-key" data-num="6" style="${keyBtnStyle}">6</button>
+            <button type="button" class="pin-key" data-num="7" style="${keyBtnStyle}">7</button>
+            <button type="button" class="pin-key" data-num="8" style="${keyBtnStyle}">8</button>
+            <button type="button" class="pin-key" data-num="9" style="${keyBtnStyle}">9</button>
+            <button type="button" class="pin-key key-action" id="btn-pin-clear" title="Clear PIN" style="${actionBtnStyle}">✕</button>
+            <button type="button" class="pin-key" data-num="0" style="${keyBtnStyle}">0</button>
+            <button type="button" class="pin-key key-action" id="btn-pin-backspace" title="Backspace" style="${actionBtnStyle}">⌫</button>
           </div>
-          <div style="margin-top: 18px; font-size: 0.76rem; color: #64748b;">
+          <div style="margin-top: 20px; font-size: 0.76rem; color: #64748b;">
             Default PIN: <strong style="color: #94a3b8;">1234</strong>
           </div>
         </div>
@@ -2551,8 +2555,16 @@ export const PinLock = {
     dots.forEach((dot, idx) => {
       if (idx < this._enteredPin.length) {
         dot.classList.add('filled');
+        dot.style.setProperty('background', '#6366f1', 'important');
+        dot.style.setProperty('border-color', '#818cf8', 'important');
+        dot.style.setProperty('box-shadow', '0 0 16px rgba(99, 102, 241, 0.9)', 'important');
+        dot.style.setProperty('transform', 'scale(1.25)', 'important');
       } else {
         dot.classList.remove('filled');
+        dot.style.setProperty('background', 'transparent', 'important');
+        dot.style.setProperty('border-color', 'rgba(255, 255, 255, 0.4)', 'important');
+        dot.style.setProperty('box-shadow', 'none', 'important');
+        dot.style.setProperty('transform', 'scale(1)', 'important');
       }
     });
   },
