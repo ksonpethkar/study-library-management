@@ -92,98 +92,92 @@ function renderMasterHubUI(container, store) {
 
   container.innerHTML = `
     <!-- Top Action Bar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 14px 18px; box-shadow: var(--shadow-xs);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 12px 16px; box-shadow: var(--shadow-xs);">
       <div>
-        <h2 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
+        <h2 style="margin: 0; font-size: 1.3rem; font-weight: 800; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
           <span>⚙️</span> Master Admin Control Hub
         </h2>
-        <span style="font-size: 0.82rem; color: var(--color-text-secondary);">Single Source of Truth (SSOT) • Instant real-time synchronization</span>
+        <span style="font-size: 0.8rem; color: var(--color-text-secondary);">Single Source of Truth (SSOT) • Instant real-time synchronization</span>
       </div>
-      <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-        <button id="btn-master-quick-backup" class="btn btn-outline-success" style="font-weight: 700; font-size: 0.85rem; padding: 8px 14px; display: inline-flex; align-items: center; gap: 6px;">
-          <span>💾</span> Quick Database Backup
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <button id="btn-master-quick-backup" class="btn btn-sm btn-outline-success" style="font-weight: 700; font-size: 0.82rem; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px;">
+          <span>💾</span> Backup
         </button>
-        <button id="btn-master-save-all" class="btn btn-primary" style="font-weight: 800; font-size: 0.9rem; padding: 8px 18px; display: inline-flex; align-items: center; gap: 6px; box-shadow: var(--shadow-sm);">
-          <span>💾</span> Save All Changes
+        <button id="btn-master-save-all" class="btn btn-sm btn-primary" style="font-weight: 800; font-size: 0.85rem; padding: 6px 16px; display: inline-flex; align-items: center; gap: 6px; box-shadow: var(--shadow-sm);">
+          <span>💾</span> Save All
         </button>
       </div>
     </div>
 
-    <!-- Responsive Two-Column Studio Layout -->
-    <div class="master-hub-layout" style="display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start;">
+    <!-- Responsive Adaptive Master Studio Layout -->
+    <div class="master-hub-layout">
       
-      <!-- Left Column: Master Studio Category Navigation Tree -->
-      <div class="master-hub-sidebar" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 12px; position: sticky; top: 80px; box-shadow: var(--shadow-xs);">
+      <!-- Adaptive Studio Smart-Rail (Desktop 60px rail with hover expansion, Mobile Segmented Ribbon) -->
+      <aside class="master-hub-sidebar">
         
-        <div style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--color-text-muted); padding: 8px 12px 4px 12px; letter-spacing: 0.5px;">
-          Core Identity & Policies
-        </div>
-        <div class="studio-nav-group" style="display: flex; flex-direction: column; gap: 2px;">
-          <button class="studio-nav-item active" data-studio="branding">
-            <span>🏢</span> <span>Library Branding & Info</span>
+        <div class="studio-section-label">Core Setup</div>
+        <div class="studio-nav-group">
+          <button type="button" class="studio-nav-item active" data-studio="branding" data-tooltip="Library Branding & Info">
+            <span class="studio-icon">🏢</span> <span class="studio-label">Branding & Profile</span>
           </button>
-          <button class="studio-nav-item" data-studio="memberships">
-            <span>💳</span> <span>Plans, Fees & Fines</span>
+          <button type="button" class="studio-nav-item" data-studio="memberships" data-tooltip="Plans, Fees & Fines">
+            <span class="studio-icon">💳</span> <span class="studio-label">Plans & Fees</span>
           </button>
-          <button class="studio-nav-item" data-studio="formbuilder">
-            <span>📝</span> <span>Registration Form Builder</span>
+          <button type="button" class="studio-nav-item" data-studio="formbuilder" data-tooltip="Registration Form Builder">
+            <span class="studio-icon">📝</span> <span class="studio-label">Form Builder</span>
           </button>
-          <button class="studio-nav-item" data-studio="centers_seats">
-            <span>💺</span> <span>Centers, Seats & Shifts</span>
+          <button type="button" class="studio-nav-item" data-studio="centers_seats" data-tooltip="Centers, Seats & Shifts">
+            <span class="studio-icon">💺</span> <span class="studio-label">Centers & Shifts</span>
           </button>
         </div>
 
-        <div style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--color-text-muted); padding: 14px 12px 4px 12px; letter-spacing: 0.5px;">
-          Financials & Operations
-        </div>
-        <div class="studio-nav-group" style="display: flex; flex-direction: column; gap: 2px;">
-          <button class="studio-nav-item" data-studio="billing_receipt">
-            <span>🧾</span> <span>Receipt Builder & Billing</span>
+        <div class="studio-section-label">Finance & Ops</div>
+        <div class="studio-nav-group">
+          <button type="button" class="studio-nav-item" data-studio="billing_receipt" data-tooltip="Receipt Builder & Billing">
+            <span class="studio-icon">🧾</span> <span class="studio-label">Receipt Studio</span>
           </button>
-          <button class="studio-nav-item" data-studio="modules_manager">
-            <span>🧩</span> <span>App Modules & Feature Toggles</span>
+          <button type="button" class="studio-nav-item" data-studio="modules_manager" data-tooltip="App Modules & Toggles">
+            <span class="studio-icon">🧩</span> <span class="studio-label">Module Toggles</span>
           </button>
-          <button class="studio-nav-item" data-studio="notifications">
-            <span>💬</span> <span>WhatsApp & Notifications</span>
+          <button type="button" class="studio-nav-item" data-studio="notifications" data-tooltip="WhatsApp & Notifications">
+            <span class="studio-icon">💬</span> <span class="studio-label">WhatsApp Alerts</span>
           </button>
-          <button class="studio-nav-item" data-studio="operations">
-            <span>🕒</span> <span>Hours, Holidays & Notices</span>
+          <button type="button" class="studio-nav-item" data-studio="operations" data-tooltip="Hours, Holidays & Notices">
+            <span class="studio-icon">🕒</span> <span class="studio-label">Hours & Notices</span>
           </button>
-          <button class="studio-nav-item" data-studio="staff_rbac">
-            <span>👥</span> <span>Staff & Permissions (RBAC)</span>
+          <button type="button" class="studio-nav-item" data-studio="staff_rbac" data-tooltip="Staff & Permissions (RBAC)">
+            <span class="studio-icon">👥</span> <span class="studio-label">Staff & Roles</span>
           </button>
         </div>
 
-        <div style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--color-text-muted); padding: 14px 12px 4px 12px; letter-spacing: 0.5px;">
-          Portals, CMS & Intelligence
-        </div>
-        <div class="studio-nav-group" style="display: flex; flex-direction: column; gap: 2px;">
-          <button class="studio-nav-item" data-studio="website_cms">
-            <span>🌐</span> <span>Website CMS & SEO Studio</span>
+        <div class="studio-section-label">Portals & AI</div>
+        <div class="studio-nav-group">
+          <button type="button" class="studio-nav-item" data-studio="website_cms" data-tooltip="Website CMS & SEO Studio">
+            <span class="studio-icon">🌐</span> <span class="studio-label">Website CMS</span>
           </button>
-          <button class="studio-nav-item" data-studio="student_portal">
-            <span>📱</span> <span>Student Portal Controls</span>
+          <button type="button" class="studio-nav-item" data-studio="student_portal" data-tooltip="Student Portal Controls">
+            <span class="studio-icon">📱</span> <span class="studio-label">Student Portal</span>
           </button>
-          <button class="studio-nav-item" data-studio="automations_ai">
-            <span>🤖</span> <span>Automations & AI Insights</span>
+          <button type="button" class="studio-nav-item" data-studio="automations_ai" data-tooltip="Automations & AI Insights">
+            <span class="studio-icon">🤖</span> <span class="studio-label">AI Automations</span>
           </button>
-          <button class="studio-nav-item" data-studio="security_backup">
-            <span>🔒</span> <span>Security & Data Backup</span>
+          <button type="button" class="studio-nav-item" data-studio="security_backup" data-tooltip="Security & Data Backup">
+            <span class="studio-icon">🔒</span> <span class="studio-label">Security Backup</span>
           </button>
-          <button class="studio-nav-item" data-studio="system_health">
-            <span>🏥</span> <span>System Health & Diagnostics</span>
+          <button type="button" class="studio-nav-item" data-studio="system_health" data-tooltip="System Health & Diagnostics">
+            <span class="studio-icon">🏥</span> <span class="studio-label">Health Monitor</span>
           </button>
-          <button class="studio-nav-item" data-studio="trash" style="color: var(--color-danger); margin-top: 4px;">
-            <span>🗑️</span> <span>Recycle Bin & Trash</span>
+          <button type="button" class="studio-nav-item studio-trash-item" data-studio="trash" data-tooltip="Recycle Bin & Trash">
+            <span class="studio-icon">🗑️</span> <span class="studio-label">Recycle Bin</span>
           </button>
         </div>
 
-      </div>
+      </aside>
 
-      <!-- Right Column: Active Studio Suite Viewport (Lazy Mounted) -->
-      <div id="master-studio-viewport" style="min-width: 0; width: 100%;">
+      <!-- Active Studio Suite Viewport -->
+      <main id="master-studio-viewport" style="min-width: 0; width: 100%;">
         <!-- Dynamic Studio Content is Mounted Here with 0ms Delay -->
-      </div>
+      </main>
 
     </div>
   `;
@@ -191,30 +185,150 @@ function renderMasterHubUI(container, store) {
   // Inject Hub Styling
   const styleEl = document.createElement('style');
   styleEl.textContent = `
+    .master-hub-layout {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 16px;
+      align-items: start;
+      position: relative;
+    }
+    .master-hub-sidebar {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 8px 6px;
+      position: sticky;
+      top: 80px;
+      width: 60px;
+      transition: width 0.22s var(--ease-spring), box-shadow 0.22s var(--ease-spring);
+      overflow: hidden;
+      z-index: 200;
+      box-shadow: var(--shadow-xs);
+    }
+    .master-hub-sidebar:hover {
+      width: 210px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+    .studio-section-label {
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      padding: 8px 8px 4px 8px;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      display: none;
+    }
+    .master-hub-sidebar:hover .studio-section-label {
+      display: block;
+    }
+    .studio-nav-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
     .studio-nav-item {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 14px;
+      padding: 8px 10px;
       width: 100%;
       text-align: left;
-      border: none;
+      border: 1px solid transparent;
       background: transparent;
       color: var(--color-text-secondary);
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       font-weight: 600;
       border-radius: var(--radius-md);
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all 0.15s var(--ease-spring);
+      white-space: nowrap;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .studio-icon {
+      font-size: 1.15rem;
+      min-width: 24px;
+      text-align: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .studio-label {
+      display: none;
+      font-size: 0.84rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .master-hub-sidebar:hover .studio-label {
+      display: inline;
     }
     .studio-nav-item:hover {
       background: var(--color-surface-hover);
       color: var(--color-text-primary);
+      transform: translateX(1px);
     }
     .studio-nav-item.active {
-      background: var(--color-primary-bg);
+      background: var(--color-primary-bg, rgba(99, 102, 241, 0.15));
       color: var(--color-primary);
       font-weight: 700;
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+    .studio-trash-item {
+      color: var(--color-danger) !important;
+    }
+    .studio-trash-item.active {
+      background: rgba(239, 68, 68, 0.15) !important;
+      border-color: rgba(239, 68, 68, 0.3) !important;
+    }
+
+    /* Mobile / Tablet Segmented Ribbon Mode */
+    @media (max-width: 991px) {
+      .master-hub-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .master-hub-sidebar {
+        position: static;
+        width: 100% !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: var(--radius-lg);
+        scrollbar-width: none;
+      }
+      .master-hub-sidebar::-webkit-scrollbar {
+        display: none;
+      }
+      .studio-section-label {
+        display: none !important;
+      }
+      .studio-nav-group {
+        display: flex;
+        flex-direction: row;
+        gap: 4px;
+      }
+      .studio-nav-item {
+        padding: 6px 12px;
+        width: auto;
+        border-radius: 9999px;
+        background: var(--color-bg-secondary);
+        font-size: 0.8rem;
+      }
+      .studio-label {
+        display: inline !important;
+      }
+      .studio-icon {
+        font-size: 1rem;
+        min-width: 18px;
+      }
     }
     .settings-accordion-card {
       background: var(--color-bg-secondary);
@@ -2088,8 +2202,10 @@ function renderStaffRbacStudio(staffUsers, branches) {
                   <td>${escapeHTML(u.branch?.name || (branches.find(b => b._id === u.branch)?.name) || 'All Branches')}</td>
                   <td><span class="badge ${u.isActive !== false ? 'badge-success' : 'badge-danger'}">${u.isActive !== false ? 'Active' : 'Inactive'}</span></td>
                   <td style="text-align: right;">
-                    <button class="btn btn-xs btn-outline-primary btn-edit-staff" data-id="${escapeHTML(u._id || u.id)}" style="padding: 2px 8px; font-size: 0.75rem;">✏️ Permissions</button>
-                    <button class="btn btn-xs btn-outline-danger btn-del-staff" data-id="${escapeHTML(u._id || u.id)}" style="padding: 2px 8px; font-size: 0.75rem;">🗑️</button>
+                    <div class="btn-icon-group">
+                      <button type="button" class="btn-icon-action action-edit btn-edit-staff" data-id="${escapeHTML(u._id || u.id)}" data-tooltip="Edit Staff Permissions" aria-label="Edit Permissions">✏️</button>
+                      <button type="button" class="btn-icon-action action-delete btn-del-staff" data-id="${escapeHTML(u._id || u.id)}" data-tooltip="Delete Staff" aria-label="Delete Staff">🗑️</button>
+                    </div>
                   </td>
                 </tr>
               `).join('') : `

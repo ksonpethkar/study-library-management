@@ -1939,8 +1939,8 @@ export const ActionMenu = {
     const encodedActions = encodeURIComponent(JSON.stringify(actions));
     return `
       <div class="dropdown action-menu-wrapper d-inline-block" data-entity-id="${escapeHTML(entityId)}">
-        <button type="button" class="btn btn-sm btn-outline-secondary btn-action-menu-trigger dropdown-toggle" data-actions="${encodedActions}" data-entity-id="${escapeHTML(entityId)}" aria-expanded="false" style="padding: 3px 8px; font-size: 0.8rem; font-weight: 700; border-radius: 6px;" title="Universal Actions">
-          ⋮ Actions
+        <button type="button" class="btn-icon-action btn-action-menu-trigger dropdown-toggle" data-actions="${encodedActions}" data-entity-id="${escapeHTML(entityId)}" aria-expanded="false" data-tooltip="More Actions" aria-label="More Actions" style="font-size: 1.15rem; font-weight: 800;">
+          ⋮
         </button>
         <ul class="dropdown-menu dropdown-menu-end shadow" style="display: none; min-width: 210px; font-size: 0.84rem; padding: 6px 0; border-radius: 8px; z-index: 1050; background: var(--color-surface); border: 1px solid var(--color-border);">
           ${actions.map(act => {
