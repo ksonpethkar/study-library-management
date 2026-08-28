@@ -3988,81 +3988,138 @@ button:active,
 
 /* ── 7. Front-Desk 4-Digit Security PIN Lock ── */
 #pin-lock-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.96);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  z-index: 9999999;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(10, 15, 30, 0.96) !important;
+  backdrop-filter: blur(28px) !important;
+  -webkit-backdrop-filter: blur(28px) !important;
+  z-index: 99999999 !important; /* Highest possible layer above sidebar & headers */
+  display: none !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
   animation: fadeIn 0.2s ease-out;
 }
 #pin-lock-overlay.active {
-  display: flex;
+  display: flex !important;
 }
 .pin-lock-card {
-  width: 100%;
-  max-width: 340px;
-  text-align: center;
-  color: #ffffff;
+  width: 100% !important;
+  max-width: 380px !important;
+  text-align: center !important;
+  color: #ffffff !important;
+  background: rgba(30, 41, 59, 0.7) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 24px !important;
+  padding: 36px 28px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 50px rgba(99, 102, 241, 0.2) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  box-sizing: border-box !important;
+  margin: auto !important;
 }
 .pin-dot-container {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  margin: 24px 0 32px;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 18px !important;
+  margin: 24px 0 28px !important;
 }
 .pin-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  background: transparent;
-  transition: all 0.15s var(--ease-spring);
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  border-radius: 50% !important;
+  border: 2px solid rgba(255, 255, 255, 0.35) !important;
+  background: transparent !important;
+  box-sizing: border-box !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 .pin-dot.filled {
-  background: #6366f1;
-  border-color: #6366f1;
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.6);
-  transform: scale(1.15);
+  background: #6366f1 !important;
+  border-color: #818cf8 !important;
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.85) !important;
+  transform: scale(1.25) !important;
 }
 .pin-keypad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  max-width: 280px;
-  margin: 0 auto;
+  display: grid !important;
+  grid-template-columns: repeat(3, 72px) !important;
+  grid-template-rows: repeat(4, 72px) !important;
+  gap: 16px !important;
+  justify-content: center !important;
+  align-items: center !important;
+  max-width: 280px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
 }
-.pin-key {
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-  font-size: 1.5rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto;
-  cursor: pointer;
-  transition: background 0.12s, transform 0.08s;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
+.pin-key,
+button.pin-key {
+  width: 72px !important;
+  height: 72px !important;
+  min-width: 72px !important;
+  max-width: 72px !important;
+  min-height: 72px !important;
+  max-height: 72px !important;
+  border-radius: 50% !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.16) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  font-size: 1.55rem !important;
+  font-weight: 700 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 auto !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+  padding: 0 !important;
+  outline: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  touch-action: manipulation !important;
+  box-sizing: border-box !important;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
-.pin-key:active {
-  background: rgba(99, 102, 241, 0.4);
-  transform: scale(0.92);
+.pin-key:hover,
+button.pin-key:hover {
+  background: rgba(99, 102, 241, 0.3) !important;
+  background-color: rgba(99, 102, 241, 0.3) !important;
+  border-color: #818cf8 !important;
+  color: #ffffff !important;
+  transform: scale(1.08) !important;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.55) !important;
 }
-.pin-key.key-action {
-  font-size: 1.1rem;
-  background: transparent;
-  border-color: transparent;
+.pin-key:active,
+button.pin-key:active {
+  background: rgba(99, 102, 241, 0.55) !important;
+  background-color: rgba(99, 102, 241, 0.55) !important;
+  transform: scale(0.92) !important;
+}
+.pin-key.key-action,
+button.pin-key.key-action {
+  font-size: 1.25rem !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #94a3b8 !important;
+}
+.pin-key.key-action:hover,
+button.pin-key.key-action:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
 }
 @keyframes pin-shake {
   0%, 100% { transform: translateX(0); }

@@ -2413,58 +2413,84 @@ export const PinLock = {
     if (!document.getElementById('app') && !document.getElementById('sidebar')) {
       return;
     }
-    if (document.getElementById('pin-lock-overlay')) return;
+    if (document.getElementById('pin-lock-overlay')) {
+      this._overlay = document.getElementById('pin-lock-overlay');
+    } else {
+      this._overlay = document.createElement('div');
+      this._overlay.id = 'pin-lock-overlay';
+      this._overlay.innerHTML = `
+        <div class="pin-lock-card">
+          <div style="font-size: 3rem; margin-bottom: 12px; line-height: 1;">🔒</div>
+          <h3 style="font-weight: 800; margin: 0 0 8px 0; font-size: 1.45rem; color: #ffffff; letter-spacing: -0.3px;">Front-Desk Locked</h3>
+          <p style="color: #94a3b8; font-size: 0.88rem; margin: 0;">Enter 4-digit PIN to unlock reception terminal</p>
+          
+          <div class="pin-dot-container" id="pin-dots">
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+          </div>
 
-    this._overlay = document.createElement('div');
-    this._overlay.id = 'pin-lock-overlay';
-    this._overlay.innerHTML = `
-      <div class="pin-lock-card">
-        <div style="font-size: 2.5rem; margin-bottom: 8px;">🔒</div>
-        <h3 style="font-weight: 700; margin: 0 0 6px 0; font-size: 1.35rem;">Front-Desk Locked</h3>
-        <p style="color: #94a3b8; font-size: 0.88rem; margin: 0;">Enter 4-digit PIN to unlock reception terminal</p>
-        
-        <div class="pin-dot-container" id="pin-dots">
-          <div class="pin-dot"></div>
-          <div class="pin-dot"></div>
-          <div class="pin-dot"></div>
-          <div class="pin-dot"></div>
+          <div class="pin-keypad">
+            <button type="button" class="pin-key" data-num="1">1</button>
+            <button type="button" class="pin-key" data-num="2">2</button>
+            <button type="button" class="pin-key" data-num="3">3</button>
+            <button type="button" class="pin-key" data-num="4">4</button>
+            <button type="button" class="pin-key" data-num="5">5</button>
+            <button type="button" class="pin-key" data-num="6">6</button>
+            <button type="button" class="pin-key" data-num="7">7</button>
+            <button type="button" class="pin-key" data-num="8">8</button>
+            <button type="button" class="pin-key" data-num="9">9</button>
+            <button type="button" class="pin-key key-action" id="btn-pin-clear" title="Clear PIN">✕</button>
+            <button type="button" class="pin-key" data-num="0">0</button>
+            <button type="button" class="pin-key key-action" id="btn-pin-backspace" title="Backspace">⌫</button>
+          </div>
+          <div style="margin-top: 18px; font-size: 0.76rem; color: #64748b;">
+            Default PIN: <strong style="color: #94a3b8;">1234</strong>
+          </div>
         </div>
+      `;
+      document.body.appendChild(this._overlay);
 
-        <div class="pin-keypad">
-          <button type="button" class="pin-key" data-num="1">1</button>
-          <button type="button" class="pin-key" data-num="2">2</button>
-          <button type="button" class="pin-key" data-num="3">3</button>
-          <button type="button" class="pin-key" data-num="4">4</button>
-          <button type="button" class="pin-key" data-num="5">5</button>
-          <button type="button" class="pin-key" data-num="6">6</button>
-          <button type="button" class="pin-key" data-num="7">7</button>
-          <button type="button" class="pin-key" data-num="8">8</button>
-          <button type="button" class="pin-key" data-num="9">9</button>
-          <button type="button" class="pin-key key-action" id="btn-pin-clear">✕</button>
-          <button type="button" class="pin-key" data-num="0">0</button>
-          <button type="button" class="pin-key key-action" id="btn-pin-backspace">⌫</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(this._overlay);
+      this._overlay.querySelectorAll('.pin-key[data-num]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.handleDigit(btn.dataset.num);
+        });
+      });
 
-    this._overlay.querySelectorAll('.pin-key[data-num]').forEach(btn => {
-      btn.addEventListener('click', () => this.handleDigit(btn.dataset.num));
-    });
-
-    this._overlay.querySelector('#btn-pin-clear')?.addEventListener('click', () => this.clear());
-    this._overlay.querySelector('#btn-pin-backspace')?.addEventListener('click', () => this.backspace());
-
-    document.addEventListener('keydown', (e) => {
-      if (!this._overlay.classList.contains('active')) return;
-      if (/^[0-9]$/.test(e.key)) {
-        this.handleDigit(e.key);
-      } else if (e.key === 'Backspace') {
-        this.backspace();
-      } else if (e.key === 'Escape') {
+      this._overlay.querySelector('#btn-pin-clear')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         this.clear();
-      }
-    });
+      });
+      this._overlay.querySelector('#btn-pin-backspace')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.backspace();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (!this._overlay || !this._overlay.classList.contains('active')) return;
+        if (/^[0-9]$/.test(e.key)) {
+          this.handleDigit(e.key);
+        } else if (e.key === 'Backspace') {
+          this.backspace();
+        } else if (e.key === 'Escape') {
+          this.clear();
+        }
+      });
+    }
+
+    // Attach click listener to top header lock button
+    const headerLockBtn = document.getElementById('btn-header-lock');
+    if (headerLockBtn) {
+      headerLockBtn.onclick = (e) => {
+        e.preventDefault();
+        this.lock();
+      };
+    }
 
     if (sessionStorage.getItem('sl_desk_locked') === 'true') {
       this.lock();
@@ -2472,11 +2498,15 @@ export const PinLock = {
   },
 
   lock() {
-    if (!this._overlay) this.init();
-    this._enteredPin = '';
-    this.updateDots();
-    this._overlay.classList.add('active');
-    sessionStorage.setItem('sl_desk_locked', 'true');
+    if (!this._overlay || !document.getElementById('pin-lock-overlay')) {
+      this.init();
+    }
+    if (this._overlay) {
+      this._enteredPin = '';
+      this.updateDots();
+      this._overlay.classList.add('active');
+      sessionStorage.setItem('sl_desk_locked', 'true');
+    }
   },
 
   unlock() {
