@@ -1349,12 +1349,12 @@ export async function render() {
         <!-- Top Metrics Cards -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; margin-bottom: 1.5rem;">
           <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); display: flex; align-items: center; gap: 14px;">
-            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(245, 158, 11, 0.15); color: var(--color-warning); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
               ⏳
             </div>
             <div>
               <div class="text-muted small" style="font-weight: 600; text-transform: uppercase;">Active in Queue</div>
-              <div style="font-size: 1.6rem; font-weight: 800; color: #f59e0b;">${counts.waiting}</div>
+              <div style="font-size: 1.6rem; font-weight: 800; color: var(--color-warning);">${counts.waiting}</div>
             </div>
           </div>
 
