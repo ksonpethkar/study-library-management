@@ -4106,98 +4106,165 @@ button:active,
   transform: translateX(-50%) translateY(0);
 }
 
-/* ── Premium Cohesive Table Action Toolbar ── */
+/* ========================================================
+   CIRCULAR RING ICON ACTION BUTTONS (NO BACKGROUND, PURE RING)
+   ======================================================== */
+/* ========================================================
+   CIRCULAR RING ICON ACTION BUTTONS (NO BACKGROUND, PURE RING)
+   ======================================================== */
 .btn-icon-group {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 2px !important;
-  background: rgba(255, 255, 255, 0.06) !important;
-  padding: 3px 5px !important;
-  border-radius: 8px !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-}
-[data-theme="light"] .btn-icon-group,
-body:not(.dark-theme):not([data-theme="dark"]) .btn-icon-group {
-  background: #f1f5f9 !important;
-  border-color: #cbd5e1 !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
 }
 
-.btn-icon-action {
+.btn-icon-action,
+.btn-icon-group .btn-icon-action,
+.btn-icon-group .btn-action-menu-trigger,
+button.btn-icon-action {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 30px !important;
-  height: 30px !important;
-  min-width: 30px !important;
-  max-width: 30px !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border-radius: 6px !important;
-  border: 1px solid transparent !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  border-radius: 50% !important; /* Pure Circular Ring */
+  border: 1.5px solid var(--color-border, #cbd5e1) !important;
   background: transparent !important;
   background-color: transparent !important;
-  color: var(--color-text-primary, #f8fafc) !important;
+  color: var(--color-text-primary, #0f172a) !important;
   cursor: pointer !important;
-  font-size: 0.98rem !important;
+  font-size: 13px !important;
   line-height: 1 !important;
+  padding: 0 !important;
+  margin: 0 !important;
   box-shadow: none !important;
   outline: none !important;
-  transition: all 0.16s var(--ease-spring) !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, box-shadow 0.15s ease !important;
   text-decoration: none !important;
   -webkit-tap-highlight-color: transparent !important;
   touch-action: manipulation !important;
 }
 
-.btn-icon-action:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  transform: translateY(-1px) scale(1.06) !important;
+[data-theme="dark"] .btn-icon-action,
+[data-theme="dark"] .btn-icon-group .btn-icon-action,
+[data-theme="dark"] .btn-icon-group .btn-action-menu-trigger,
+body.dark-theme .btn-icon-action,
+body.dark-theme .btn-icon-group .btn-icon-action,
+body.dark-theme .btn-icon-group .btn-action-menu-trigger {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  color: #f8fafc !important;
 }
-[data-theme="light"] .btn-icon-action:hover,
-body:not(.dark-theme):not([data-theme="dark"]) .btn-icon-action:hover {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+
+/* Hover Ring Highlights (Zero background fill, purely colored ring + subtle zoom) */
+.btn-icon-action:hover,
+.btn-icon-group .btn-icon-action:hover,
+.btn-icon-group .btn-action-menu-trigger:hover,
+button.btn-icon-action:hover {
+  background: transparent !important;
+  background-color: transparent !important;
+  transform: scale(1.15) !important;
+  border-color: var(--color-primary, #6366f1) !important;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.35) !important;
 }
-.btn-icon-action:active {
+
+.btn-icon-action:active,
+.btn-icon-group .btn-icon-action:active,
+.btn-icon-group .btn-action-menu-trigger:active {
   transform: scale(0.92) !important;
 }
 
-/* ActionMenu dropdown trigger inside icon group */
+/* ActionMenu dropdown trigger integration inside icon group */
 .btn-icon-group .action-menu-wrapper {
   margin: 0 !important;
   display: inline-flex !important;
   align-items: center !important;
+  vertical-align: middle !important;
 }
-.btn-icon-group .btn-action-menu-trigger {
-  height: 30px !important;
-  padding: 0 6px !important;
-  margin: 0 !important;
-  border-radius: 6px !important;
-  border: 1px solid transparent !important;
-  background: transparent !important;
-  background-color: transparent !important;
-  color: var(--color-text-secondary, #94a3b8) !important;
-  font-size: 0.76rem !important;
-  font-weight: 700 !important;
+
+/* Sleek Circular Copy Button */
+.btn-copy-text,
+button.btn-copy-text {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  border-radius: 50% !important;
+  border: 1px solid var(--color-border, #cbd5e1) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  margin: 0 0 0 5px !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
   box-shadow: none !important;
-  transition: all 0.16s var(--ease-spring) !important;
+  outline: none !important;
+  vertical-align: middle !important;
+  transition: all 0.15s ease !important;
 }
-.btn-icon-group .btn-action-menu-trigger:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  color: var(--color-text-primary, #ffffff) !important;
+.btn-copy-text:hover,
+button.btn-copy-text:hover {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: var(--color-primary, #6366f1) !important;
+  transform: scale(1.18) !important;
+  box-shadow: 0 0 6px rgba(99, 102, 241, 0.3) !important;
 }
-[data-theme="light"] .btn-icon-group .btn-action-menu-trigger:hover,
-body:not(.dark-theme):not([data-theme="dark"]) .btn-icon-group .btn-action-menu-trigger:hover {
-  background: #ffffff !important;
-  background-color: #ffffff !important;
-  color: #0f172a !important;
+
+/* Responsive Auto-Fit Table Layout across Zoom in / Zoom out */
+.table-responsive {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  -webkit-overflow-scrolling: touch !important;
+  display: block !important;
+  margin-bottom: 1rem !important;
+  border-radius: var(--radius-md, 8px) !important;
+}
+
+.data-table, table.table {
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: auto !important;
+  border-collapse: collapse !important;
+  margin-bottom: 0 !important;
+}
+
+.data-table th, .data-table td, table.table th, table.table td {
+  vertical-align: middle !important;
+  height: auto !important;
+  padding: 10px 12px !important;
+  white-space: nowrap !important;
+}
+
+/* Action column alignment and spacing */
+.data-table td:last-child, table.table td:last-child {
+  text-align: right !important;
+  white-space: nowrap !important;
+  min-width: 175px !important;
 }
 
 
