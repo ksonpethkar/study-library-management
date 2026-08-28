@@ -1404,7 +1404,9 @@ export async function render(container) {
             const config = window.store?.settings?.receipt || { header: {}, body: {}, gst: {}, footer: {} };
             const bp = window.store?.settings?.businessProfile || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}') || {};
 
-                   const r = res.data;
+            const res = await api.get(`/api/payments/${paymentId}`);
+            if (!res || !res.data) throw new Error('Payment data not found');
+            const r = res.data;
             let currentTemplate = config.activeTemplate || 'thermal80';
 
             const receiptDiv = document.createElement('div');

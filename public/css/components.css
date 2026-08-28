@@ -4557,3 +4557,129 @@ button.btn-copy-text:hover {
 .fade-in-up {
   animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   GLOBAL OVERRIDE: Force ALL action buttons to circular ring style
+   Catches old-style btn btn-sm btn-outline-* in table rows & card actions
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Target: any small button inside a table cell that looks like an action */
+td > .btn.btn-sm,
+td > .btn-outline-primary.btn-sm,
+td > .btn-outline-danger.btn-sm,
+td > .btn-outline-success.btn-sm,
+td > .btn-outline-secondary.btn-sm,
+td > .btn-ghost.btn-sm,
+td > a.btn.btn-sm,
+td > button.btn.btn-sm,
+/* Also catch when inside a wrapper div in a td */
+td .btn.btn-sm[title],
+td .btn-outline-primary.btn-sm[title],
+td .btn-outline-danger.btn-sm[title],
+td .btn-outline-success.btn-sm[title],
+td .btn-outline-secondary.btn-sm[title],
+td .btn-ghost.btn-sm[title],
+/* Also catch inside .actions-cell, .action-col, or generic flex action wrappers */
+.actions-cell .btn.btn-sm,
+.action-col .btn.btn-sm,
+[class*="action"] > .btn.btn-sm[title],
+/* Catch card footer action buttons */
+.card-footer .btn.btn-sm[title],
+.card-actions .btn.btn-sm[title],
+/* Catch inside locker/seat card action areas */
+.locker-card .btn.btn-sm,
+.seat-card .btn.btn-sm,
+.desk-actions .btn.btn-sm {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  border-radius: 50% !important;
+  border: 1.5px solid var(--color-border, #cbd5e1) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--color-text-primary, #0f172a) !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  padding: 0 !important;
+  margin: 2px !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+/* Hover state for globally overridden buttons */
+td .btn.btn-sm[title]:hover,
+td .btn-outline-primary.btn-sm[title]:hover,
+td .btn-outline-danger.btn-sm[title]:hover,
+td .btn-outline-success.btn-sm[title]:hover,
+.actions-cell .btn.btn-sm:hover,
+.action-col .btn.btn-sm:hover,
+.card-footer .btn.btn-sm[title]:hover,
+.locker-card .btn.btn-sm:hover,
+.seat-card .btn.btn-sm:hover,
+.desk-actions .btn.btn-sm:hover {
+  background: transparent !important;
+  background-color: transparent !important;
+  transform: scale(1.15) !important;
+  border-color: var(--color-primary, #6366f1) !important;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.45) !important;
+  color: var(--color-primary, #6366f1) !important;
+}
+
+/* Active/pressed state */
+td .btn.btn-sm[title]:active,
+.actions-cell .btn.btn-sm:active,
+.locker-card .btn.btn-sm:active,
+.seat-card .btn.btn-sm:active {
+  transform: scale(0.92) !important;
+}
+
+/* Dark mode override */
+[data-theme="dark"] td .btn.btn-sm[title],
+[data-theme="dark"] .actions-cell .btn.btn-sm,
+[data-theme="dark"] .locker-card .btn.btn-sm,
+[data-theme="dark"] .seat-card .btn.btn-sm,
+[data-theme="dark"] .desk-actions .btn.btn-sm {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #f8fafc !important;
+}
+
+/* Ensure parent td cells with multiple action buttons display inline */
+td:last-child,
+td.actions-cell,
+td[class*="action"] {
+  white-space: nowrap;
+}
+
+/* Auto-gap for adjacent circular action buttons inside td */
+td > .btn.btn-sm + .btn.btn-sm,
+td .btn.btn-sm[title] + .btn.btn-sm[title] {
+  margin-left: 4px !important;
+}
+
+/* Exclusion: Do NOT apply circular ring to buttons with explicit text content */
+/* Buttons like "Export CSV", "Add New", "Save" should remain rectangular */
+td .btn.btn-sm:not([title]),
+.btn.btn-sm.w-100 {
+  width: auto !important;
+  max-width: none !important;
+  height: auto !important;
+  max-height: none !important;
+  min-width: auto !important;
+  min-height: auto !important;
+  border-radius: 8px !important;
+  padding: 4px 12px !important;
+  margin: 2px !important;
+}
+
