@@ -17,7 +17,8 @@ const DEFAULT_WIDGETS = [
   { id: 'chart_revenue_trend', label: 'Monthly Revenue Trend Chart', isEnabled: true, order: 10, category: 'chart', icon: '📈' },
   { id: 'chart_shift_occupancy', label: 'Shift Occupancy Distribution Chart', isEnabled: true, order: 11, category: 'chart', icon: '🕒' },
   { id: 'chart_exam_stats', label: 'Student Exam Preparation Breakdown', isEnabled: true, order: 12, category: 'chart', icon: '🎯' },
-  { id: 'quick_actions', label: 'Quick 1-Tap Action Toolbar', isEnabled: true, order: 13, category: 'action', icon: '⚡' }
+  { id: 'quick_actions', label: 'Quick 1-Tap Action Toolbar', isEnabled: true, order: 13, category: 'action', icon: '⚡' },
+  { id: 'system_health', label: 'System Health Monitor', isEnabled: true, order: 14, category: 'kpi', icon: '⚡' }
 ];
 
 const formatCurrency = (amount) => {
@@ -296,6 +297,13 @@ function renderWidgetHTML(widget) {
             <div class="stat-card-icon" style="background:rgba(214,48,49,0.15);color:#d63031;">⚠️</div>
           </div>
         </div>`;
+
+    case 'system_health':
+      return `
+        <div data-widget-id="system_health" id="dash-system-health-widget">
+          ${window.PerformanceMonitor ? window.PerformanceMonitor.renderHealthWidget() : '<div class="card p-3 text-center text-muted">⚡ System Health loading...</div>'}
+        </div>
+      `;
 
     default:
       return '';
