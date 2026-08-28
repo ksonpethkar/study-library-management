@@ -2405,6 +2405,14 @@ export const PinLock = {
 
   init() {
     if (typeof window === 'undefined') return;
+    // Guard: Never mount front-desk PIN lock on public portals
+    const path = window.location.pathname || '';
+    if (path.includes('/register') || path.includes('/landing') || path.includes('/student-login') || path.includes('/kiosk')) {
+      return;
+    }
+    if (!document.getElementById('app') && !document.getElementById('sidebar')) {
+      return;
+    }
     if (document.getElementById('pin-lock-overlay')) return;
 
     this._overlay = document.createElement('div');

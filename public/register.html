@@ -587,11 +587,6 @@
       '440': { city: 'Nagpur', state: 'Maharashtra' },
       '560': { city: 'Bengaluru', state: 'Karnataka' },
       '500': { city: 'Hyderabad', state: 'Telangana' },
-      '600': { city: 'Chennai', state: 'Tamil Nadu' },
-      '380': { city: 'Ahmedabad', state: 'Gujarat' },
-      '302': { city: 'Jaipur', state: 'Rajasthan' },
-      '226': { city: 'Lucknow', state: 'Uttar Pradesh' },
-      '800': { city: 'Patna', state: 'Bihar' },
       '700': { city: 'Kolkata', state: 'West Bengal' }
     };
 
@@ -617,6 +612,13 @@
           }
         }
       }
+
+      // Auto-load seats whenever entering the seat selection step
+      const activeStepEl = document.getElementById(`step-${currentStep}`);
+      if (activeStepEl && activeStepEl.querySelector('#public-seat-grid-container')) {
+        loadPublicSeats();
+      }
+
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -679,11 +681,13 @@
       if (!seatContainer) return;
       
       try {
-        const url = selectedBranchId ? `/api/seats/public-available?branch=${selectedBranchId}` : '/api/seats/public-available';
+        const branchSelect = document.getElementById('reg-branch');
+        const activeBranch = selectedBranchId || branchSelect?.value || '';
+        const url = activeBranch ? `/api/seats/public-available?branch=${encodeURIComponent(activeBranch)}` : '/api/seats/public-available';
         const res = await fetch(url);
         const json = await res.json();
         if (!json.success || !json.data || json.data.length === 0) {
-          seatContainer.innerHTML = '<div class="text-center text-muted p-3">No available seats for this study centre currently. Reception desk will assign seat on arrival.</div>';
+          seatContainer.innerHTML = '<div class="text-center text-muted p-3">No specific desks allocated for this study centre yet. Reception desk will assign your desk on arrival.</div>';
           return;
         }
 
@@ -692,19 +696,21 @@
         
         seats.forEach(s => {
           const isAvailable = s.status === 'available';
-          const bg = isAvailable ? 'var(--color-surface)' : 'rgba(239, 68, 68, 0.08)';
-          const color = isAvailable ? 'var(--color-text-primary)' : 'var(--color-text-muted)';
-          const border = isAvailable ? '1.5px solid var(--color-success)' : '1px dashed var(--color-border)';
-          const indicatorBg = isAvailable ? 'var(--color-success)' : 'var(--color-danger)';
+          const isSelected = document.getElementById('reg-selected-seat')?.value === s._id;
+          const bg = isSelected ? 'var(--color-primary)' : (isAvailable ? 'var(--color-surface)' : 'rgba(239, 68, 68, 0.08)');
+          const color = isSelected ? '#ffffff' : (isAvailable ? 'var(--color-text-primary)' : 'var(--color-text-muted)');
+          const border = isSelected ? '2px solid var(--color-primary)' : (isAvailable ? '1.5px solid var(--color-success)' : '1px dashed var(--color-border)');
+          const indicatorBg = isSelected ? '#ffffff' : (isAvailable ? 'var(--color-success)' : 'var(--color-danger)');
+          const indicatorColor = isSelected ? 'var(--color-primary)' : '#ffffff';
           
           gridHtml += `
-            <button type="button" class="seat-picker-btn" data-id="${escapeHTML(s._id)}" data-number="${escapeHTML(s.seatNumber)}" ${!isAvailable ? 'disabled' : ''} 
+            <button type="button" class="seat-picker-btn ${isSelected ? 'selected' : ''}" data-id="${escapeHTML(s._id)}" data-number="${escapeHTML(s.seatNumber)}" ${!isAvailable ? 'disabled' : ''} 
               style="padding: 10px 4px; min-height: 48px; border-radius: var(--radius-md); font-weight: 800; font-size: 0.88rem; background: ${bg}; color: ${color}; border: ${border}; cursor: ${isAvailable ? 'pointer' : 'not-allowed'}; text-align: center; transition: all 0.2s; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; touch-action: manipulation;">
-              <span style="width: 22px; height: 22px; border-radius: 50%; background: ${indicatorBg}; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
-                ${isAvailable ? '✓' : '✕'}
+              <span style="width: 22px; height: 22px; border-radius: 50%; background: ${indicatorBg}; color: ${indicatorColor}; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+                ${isSelected ? '★' : (isAvailable ? '✓' : '✕')}
               </span>
               <span>${escapeHTML(s.seatNumber)}</span>
-              <span style="font-size: 0.65rem; font-weight: 600; color: var(--color-text-secondary);">${escapeHTML(s.zone || 'Hall')}</span>
+              <span style="font-size: 0.65rem; font-weight: 600; color: ${isSelected ? 'rgba(255,255,255,0.85)' : 'var(--color-text-secondary)'};">${escapeHTML(s.zone || 'Hall')}</span>
             </button>
           `;
         });
@@ -725,7 +731,10 @@
               if (ind) {
                 ind.style.background = 'var(--color-success)';
                 ind.style.color = '#fff';
+                ind.textContent = '✓';
               }
+              const zoneSpan = b.querySelector('span:last-child');
+              if (zoneSpan) zoneSpan.style.color = 'var(--color-text-secondary)';
             });
 
             if (currentSelected === seatId) {
@@ -739,7 +748,10 @@
               if (ind) {
                 ind.style.background = '#ffffff';
                 ind.style.color = 'var(--color-primary)';
+                ind.textContent = '★';
               }
+              const zoneSpan = btn.querySelector('span:last-child');
+              if (zoneSpan) zoneSpan.style.color = 'rgba(255,255,255,0.85)';
               document.getElementById('reg-selected-seat').value = seatId;
               document.getElementById('selected-seat-display').textContent = `✅ Selected Seat: ${seatNo}`;
             }
@@ -3421,6 +3433,9 @@
         if (dynamicExams.length > 0) {
           setupExamPills(dynamicExams);
         }
+
+        // Initialize Live Public Desk Map for Selected Branch
+        loadPublicSeats();
 
       } catch (err) {
         console.error('Failed to hydrate wizard:', err);

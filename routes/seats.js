@@ -14,7 +14,16 @@ const { moveToTrash } = require('./trash');
 // GET /public-available - Public endpoint for student registration seat selection
 router.get('/public-available', async (req, res) => {
   try {
-    const seats = await Seat.find({ isActive: true, isDeleted: { $ne: true } })
+    const { branch } = req.query;
+    let filter = { isActive: true, isDeleted: { $ne: true } };
+    if (branch && branch !== 'all' && branch !== 'undefined' && branch !== 'null' && branch !== '') {
+      filter.$or = [
+        { branch: branch },
+        { branch: null },
+        { branch: { $exists: false } }
+      ];
+    }
+    const seats = await Seat.find(filter)
       .select('seatNumber zone floor status type priceMultiplier branch')
       .populate('branch', 'name code')
       .sort('seatNumber')
