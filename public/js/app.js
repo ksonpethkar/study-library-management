@@ -6,8 +6,10 @@ import ShortcutManager from './shortcuts.js';
 import { Toast, Modal, Loading, renderMobileBottomNav, VoiceSearch, initPullToRefresh, initVisualViewportKeyboardListener, escapeHTML } from './ui.js';
 import { SearchPalette, GlobalSearch } from './search.js';
 import { AudioFeedback } from './utils/audioFeedback.js';
+import SmartLoading from './smartLoading.js';
 import { promptPWAInstall } from './pwaManager.js';
 import { SidebarSortable } from './dragDrop.js';
+import ErrorBoundary from './errorBoundary.js';
 
 /**
  * Global Crash Catchers & Error Recovery
@@ -74,6 +76,9 @@ class Application {
    * Main initialization — checks setup status, auth, and routes
    */
   async init() {
+    ErrorBoundary.init();
+    SmartLoading.init();
+
     // Apply saved theme
     const savedTheme = localStorage.getItem('sl_theme') ||
       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -747,6 +752,8 @@ class Application {
     pages.forEach(page => {
       this.router.addRoute(`#/${page}`, async () => {
         const content = document.getElementById('page-content');
+        // Show smart loading progress bar during page load
+        if (window.SmartLoading) window.SmartLoading.startProgress();
         try {
           const module = await import(`./pages/${page}.js`);
           if (typeof module.render !== 'function') {
@@ -763,6 +770,9 @@ class Application {
                 <pre style="text-align: left; background: var(--color-bg-secondary); padding: 1rem; border-radius: 8px; margin-top: 1rem; overflow-x: auto; font-size: 0.8rem; color: var(--color-danger);">${err.stack || err}</pre>
               </div>`;
           }
+        } finally {
+          // Always stop the progress bar
+          if (window.SmartLoading) window.SmartLoading.stopProgress();
         }
       });
     });

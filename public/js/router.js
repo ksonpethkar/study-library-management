@@ -112,7 +112,36 @@ export default class Router {
   }
 
   _runWithTransition(fn, direction = 'forward') {
-    fn();
+    const content = document.getElementById('page-content') ||
+                    document.getElementById('main-content') ||
+                    document.querySelector('.main-content');
+    
+    if (!content || !content.children.length) {
+      fn();
+      if (content) content.classList.add('page-enter');
+      return;
+    }
+
+    // Exit animation
+    content.classList.remove('page-enter');
+    content.classList.add('page-exit');
+    
+    // After exit completes, load new content
+    const onExit = () => {
+      content.classList.remove('page-exit');
+      fn();
+      // Enter animation
+      content.classList.add('page-enter');
+      // Clean up class after animation ends
+      const cleanup = () => {
+        content.classList.remove('page-enter');
+        content.removeEventListener('animationend', cleanup);
+      };
+      content.addEventListener('animationend', cleanup, { once: true });
+    };
+    
+    // Use animation duration (150ms) or fallback
+    setTimeout(onExit, 150);
   }
 
   updateSidebarActive(basePath) {

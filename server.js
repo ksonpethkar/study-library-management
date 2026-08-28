@@ -100,15 +100,29 @@ app.use(generalLimiter);
 
 // Compression Middleware for optimized asset delivery & performance
 const compression = require('compression');
-app.use(compression());
+app.use(compression({
+  level: 6,
+  threshold: 1024, // Only compress responses > 1KB
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  }
+}));
 
 // Static folder with smart cache headers
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
-    if (filePath.endsWith('sw.js') || filePath.endsWith('.html') || filePath.endsWith('.json')) {
+    // HTML & SW: never cache (always get latest)
+    if (filePath.endsWith('sw.js') || filePath.endsWith('.html') || filePath.endsWith('manifest.json')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+    // JS & CSS: cache 1 day (busted by ?v=X.Y.Z in index.html)
     } else if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
-      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=43200');
+    // Images & Fonts: cache 7 days
+    } else if (/\.(png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    // Everything else: 1 day
     } else {
       res.setHeader('Cache-Control', 'public, max-age=86400');
     }

@@ -4338,3 +4338,222 @@ button.btn-copy-text:hover {
 
 
 
+
+/* ══════════════════════════════════════════════════════════════════
+   SMART LOADING: Skeleton Screens, Page Transitions, Stagger Anims
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Shimmer base animation */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+/* Skeleton bone element */
+.skeleton {
+  background: linear-gradient(90deg, 
+    var(--color-bg-secondary, #f1f5f9) 25%, 
+    var(--color-bg-tertiary, #e2e8f0) 37%, 
+    var(--color-bg-secondary, #f1f5f9) 63%);
+  background-size: 800px 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+  display: block;
+}
+[data-theme="dark"] .skeleton {
+  background: linear-gradient(90deg, 
+    rgba(255,255,255,0.06) 25%, 
+    rgba(255,255,255,0.12) 37%, 
+    rgba(255,255,255,0.06) 63%);
+  background-size: 800px 100%;
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+  width: 100%;
+}
+.skeleton-text.short { width: 40%; }
+.skeleton-text.medium { width: 65%; }
+.skeleton-text.long { width: 85%; }
+
+.skeleton-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.skeleton-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.skeleton-btn {
+  width: 80px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+/* Skeleton table rows */
+.skeleton-table-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border-light, #e2e8f0);
+}
+[data-theme="dark"] .skeleton-table-row {
+  border-color: rgba(255,255,255,0.06);
+}
+.skeleton-table-row .skeleton-cell {
+  flex: 1;
+  height: 14px;
+  border-radius: 4px;
+}
+.skeleton-table-row .skeleton-cell:first-child { flex: 0.5; }
+.skeleton-table-row .skeleton-cell:last-child { flex: 0.3; }
+
+/* Skeleton stat card */
+.skeleton-stat-card {
+  padding: 20px;
+  border-radius: var(--radius-lg, 16px);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border-light, #e2e8f0);
+}
+[data-theme="dark"] .skeleton-stat-card {
+  background: var(--color-surface-dark, #1e293b);
+  border-color: rgba(255,255,255,0.08);
+}
+
+/* ── Page Transition Animations ── */
+@keyframes pageEnter {
+  from { 
+    opacity: 0; 
+    transform: translateY(12px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+@keyframes pageExit {
+  from { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+  to { 
+    opacity: 0; 
+    transform: translateY(-8px); 
+  }
+}
+
+.page-enter {
+  animation: pageEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.page-exit {
+  animation: pageExit 0.15s ease-out both;
+}
+
+/* ── Staggered Row Entrance ── */
+@keyframes rowSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-enter {
+  opacity: 0;
+  animation: rowSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Auto-stagger delay for up to 20 items */
+.stagger-enter:nth-child(1) { animation-delay: 0.02s; }
+.stagger-enter:nth-child(2) { animation-delay: 0.04s; }
+.stagger-enter:nth-child(3) { animation-delay: 0.06s; }
+.stagger-enter:nth-child(4) { animation-delay: 0.08s; }
+.stagger-enter:nth-child(5) { animation-delay: 0.10s; }
+.stagger-enter:nth-child(6) { animation-delay: 0.12s; }
+.stagger-enter:nth-child(7) { animation-delay: 0.14s; }
+.stagger-enter:nth-child(8) { animation-delay: 0.16s; }
+.stagger-enter:nth-child(9) { animation-delay: 0.18s; }
+.stagger-enter:nth-child(10) { animation-delay: 0.20s; }
+.stagger-enter:nth-child(11) { animation-delay: 0.22s; }
+.stagger-enter:nth-child(12) { animation-delay: 0.24s; }
+.stagger-enter:nth-child(13) { animation-delay: 0.26s; }
+.stagger-enter:nth-child(14) { animation-delay: 0.28s; }
+.stagger-enter:nth-child(15) { animation-delay: 0.30s; }
+.stagger-enter:nth-child(n+16) { animation-delay: 0.32s; }
+
+/* ── Stat Card Count-Up Shimmer ── */
+@keyframes statCountUp {
+  0% { opacity: 0; transform: scale(0.8) translateY(5px); }
+  60% { opacity: 1; transform: scale(1.04) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.stat-count-enter {
+  animation: statCountUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Smart Loading Progress Bar (Top of Page) ── */
+@keyframes progressIndeterminate {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(0%); }
+  100% { transform: translateX(200%); }
+}
+.loading-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  z-index: 99999;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.loading-progress-bar.active {
+  opacity: 1;
+}
+.loading-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--color-primary, #6366f1), transparent);
+  animation: progressIndeterminate 1.5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+/* Button micro-feedback */
+@keyframes btnSuccess {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.95); }
+  70% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+.btn-success-pulse {
+  animation: btnSuccess 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Fade-in for cards/panels */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up {
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
