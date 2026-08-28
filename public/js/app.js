@@ -4,11 +4,10 @@ import { initSetupWizard, initLoginPage, initAppEvents } from './auth.js';
 import { t } from './i18n.js';
 import ShortcutManager from './shortcuts.js';
 import { Toast, Modal, Loading, renderMobileBottomNav, VoiceSearch, initPullToRefresh, initVisualViewportKeyboardListener, escapeHTML } from './ui.js';
-import { SearchPalette } from './search.js';
+import { SearchPalette, GlobalSearch } from './search.js';
 import { AudioFeedback } from './utils/audioFeedback.js';
 import { promptPWAInstall } from './pwaManager.js';
 import { SidebarSortable } from './dragDrop.js';
-import { CommandPalette } from './commandPalette.js';
 
 /**
  * Global Crash Catchers & Error Recovery
@@ -86,14 +85,16 @@ class Application {
     // Prevent pinch-to-zoom and multi-touch zoom on mobile screens while allowing desktop zoom
     this.initMobileZoomLock();
 
-    // Init keyboard shortcuts & Global Command Palette
-    CommandPalette.init();
+    // Init keyboard shortcuts & Unified Global Search (Ctrl + K)
+    if (!this.searchPalette) {
+      this.searchPalette = GlobalSearch;
+    }
     if (!this.shortcuts) {
       this.shortcuts = new ShortcutManager();
       this.shortcuts.register('Ctrl+D', () => this.toggleTheme(), 'Toggle Dark Mode');
       this.shortcuts.register('Ctrl+K', () => {
-        CommandPalette.toggle();
-      }, 'Open Quick Actions & Command Palette');
+        if (this.searchPalette) this.searchPalette.toggle();
+      }, 'Open Unified Search & Command Palette');
     }
 
     // Init interactive ripples & audio feedback

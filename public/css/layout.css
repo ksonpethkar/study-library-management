@@ -302,29 +302,75 @@ html.dark-theme .main-header {
 .search-bar {
   display: flex;
   align-items: center;
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  padding: 0.5rem 1rem;
-  width: 300px;
-  cursor: text;
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-md);
-  transition: all var(--transition-fast);
+  background: var(--color-surface, #ffffff);
+  border-radius: 9999px;
+  padding: 0.45rem 1rem;
+  width: 380px;
+  max-width: 100%;
+  cursor: pointer;
+  border: 1px solid var(--color-border-light, #e2e8f0);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  transition: all 0.2s var(--ease-spring, cubic-bezier(0.16, 1, 0.3, 1));
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+[data-theme="dark"] .search-bar {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 .search-bar:hover {
-  border-color: var(--color-border);
-  background: var(--color-surface);
+  border-color: var(--color-primary, #6366f1);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.15);
+  transform: translateY(-1px);
 }
-.search-bar svg { width: 18px; height: 18px; color: var(--color-text-muted); margin-right: var(--space-2); }
-.search-bar span { color: var(--color-text-muted); font-size: var(--font-size-sm); flex: 1; }
+.search-bar:active {
+  transform: scale(0.98);
+}
+.search-bar svg { 
+  width: 18px; 
+  height: 18px; 
+  color: var(--color-primary, #6366f1); 
+  margin-right: 8px; 
+  flex-shrink: 0;
+}
+.search-bar span.search-placeholder-text { 
+  color: var(--color-text-muted, #64748b); 
+  font-size: 0.88rem; 
+  font-weight: 500;
+  flex: 1; 
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .search-shortcut {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  font-family: monospace;
+  background: var(--color-bg-secondary, #f1f5f9);
+  border: 1px solid var(--color-border-light, #e2e8f0);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-secondary, #64748b);
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+[data-theme="dark"] .search-shortcut {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+}
+
+@media (max-width: 768px) {
+  .search-bar {
+    width: auto;
+    flex: 1;
+    max-width: 220px;
+    padding: 0.4rem 0.75rem;
+    margin-right: 8px;
+  }
+  .search-shortcut {
+    display: none;
+  }
 }
 
 .header-actions {

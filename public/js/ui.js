@@ -2377,153 +2377,23 @@ export const NetworkBanner = {
 };
 
 /**
- * ── CommandPalette Module (Ctrl + K / Cmd + K Universal Search) ───────────────
+ * ── CommandPalette Bridge (Delegates to Unified GlobalSearch in search.js) ──
  */
 export const CommandPalette = {
-  _backdrop: null,
-  _isOpen: false,
-
   init() {
-    if (typeof window === 'undefined') return;
-    if (document.getElementById('command-palette-backdrop')) return;
-
-    this._backdrop = document.createElement('div');
-    this._backdrop.id = 'command-palette-backdrop';
-    this._backdrop.innerHTML = `
-      <div class="command-palette-modal">
-        <div class="command-search-box">
-          <span style="font-size: 1.25rem;">🔍</span>
-          <input type="text" class="command-search-input" placeholder="Type a command, student name, seat #, or receipt..." autofocus>
-          <span class="command-shortcut-badge">ESC</span>
-        </div>
-        <ul class="command-results-list" id="command-results-list"></ul>
-      </div>
-    `;
-    document.body.appendChild(this._backdrop);
-
-    const input = this._backdrop.querySelector('.command-search-input');
-    const list = this._backdrop.querySelector('#command-results-list');
-
-    this._backdrop.addEventListener('click', (e) => {
-      if (e.target === this._backdrop) this.close();
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        this.toggle();
-      } else if (e.key === 'Escape' && this._isOpen) {
-        this.close();
-      }
-    });
-
-    input.addEventListener('input', () => {
-      this.renderResults(input.value.trim().toLowerCase(), list);
-    });
-
-    input.addEventListener('keydown', (e) => {
-      const items = list.querySelectorAll('.command-result-item');
-      const selected = list.querySelector('.command-result-item.selected');
-      let index = Array.from(items).indexOf(selected);
-
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        index = (index + 1) % items.length;
-        items.forEach(i => i.classList.remove('selected'));
-        if (items[index]) {
-          items[index].classList.add('selected');
-          items[index].scrollIntoView({ block: 'nearest' });
-        }
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        index = (index - 1 + items.length) % items.length;
-        items.forEach(i => i.classList.remove('selected'));
-        if (items[index]) {
-          items[index].classList.add('selected');
-          items[index].scrollIntoView({ block: 'nearest' });
-        }
-      } else if (e.key === 'Enter' && selected) {
-        e.preventDefault();
-        selected.click();
-      }
-    });
+    if (window.GlobalSearch) window.GlobalSearch.buildUI?.();
   },
-
   toggle() {
-    if (this._isOpen) this.close();
-    else this.open();
+    if (window.GlobalSearch) window.GlobalSearch.toggle();
   },
-
   open() {
-    if (!this._backdrop) this.init();
-    this._isOpen = true;
-    this._backdrop.classList.add('open');
-    const input = this._backdrop.querySelector('.command-search-input');
-    input.value = '';
-    const list = this._backdrop.querySelector('#command-results-list');
-    this.renderResults('', list);
-    setTimeout(() => input.focus(), 50);
+    if (window.GlobalSearch) window.GlobalSearch.open();
   },
-
   close() {
-    if (!this._backdrop) return;
-    this._isOpen = false;
-    this._backdrop.classList.remove('open');
-  },
-
-  getCommands() {
-    return [
-      { id: 'nav-dashboard', label: 'Go to Dashboard', icon: '🏠', shortcut: 'G D', action: () => { window.location.hash = '#/dashboard'; } },
-      { id: 'nav-students', label: 'Manage Students', icon: '🎓', shortcut: 'G S', action: () => { window.location.hash = '#/students'; } },
-      { id: 'nav-seats', label: 'Live Seat Layout Map', icon: '🪑', shortcut: 'G L', action: () => { window.location.hash = '#/seats'; } },
-      { id: 'nav-payments', label: 'Fee Payments & Invoices', icon: '💳', shortcut: 'G P', action: () => { window.location.hash = '#/payments'; } },
-      { id: 'nav-attendance', label: 'Daily Attendance & Punch', icon: '📊', shortcut: 'G A', action: () => { window.location.hash = '#/attendance'; } },
-      { id: 'nav-operations', label: 'Operations & Waiting List', icon: '⚡', shortcut: 'G O', action: () => { window.location.hash = '#/operations'; } },
-      { id: 'nav-reports', label: 'Financial & Occupancy Reports', icon: '📈', shortcut: 'G R', action: () => { window.location.hash = '#/reports'; } },
-      { id: 'nav-settings', label: 'Library Master Settings', icon: '⚙️', shortcut: 'G ,', action: () => { window.location.hash = '#/settings'; } },
-      { id: 'act-pinlock', label: 'Lock Front-Desk Terminal', icon: '🔒', shortcut: 'PIN', action: () => { PinLock.lock(); } },
-      { id: 'act-kiosk', label: 'Open Student Punch Kiosk', icon: '📱', shortcut: 'KIOSK', action: () => { window.open('/kiosk', '_blank'); } },
-      { id: 'act-register', label: 'Open Online Admission Form', icon: '📝', shortcut: 'REG', action: () => { window.open('/register', '_blank'); } }
-    ];
-  },
-
-  renderResults(query, listEl) {
-    if (!listEl) return;
-    const commands = this.getCommands();
-    const filtered = query
-      ? commands.filter(c => c.label.toLowerCase().includes(query) || c.id.toLowerCase().includes(query))
-      : commands;
-
-    if (filtered.length === 0) {
-      listEl.innerHTML = `
-        <li style="padding: 24px; text-align: center; color: var(--color-text-muted);">
-          No matching actions or pages found for "${escapeHTML(query)}"
-        </li>
-      `;
-      return;
-    }
-
-    listEl.innerHTML = filtered.map((c, idx) => `
-      <li class="command-result-item ${idx === 0 ? 'selected' : ''}" data-id="${c.id}">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 1.15rem;">${c.icon}</span>
-          <span style="font-weight: 600;">${escapeHTML(c.label)}</span>
-        </div>
-        <span class="command-shortcut-badge">${c.shortcut}</span>
-      </li>
-    `).join('');
-
-    listEl.querySelectorAll('.command-result-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const cmd = commands.find(c => c.id === item.dataset.id);
-        if (cmd && typeof cmd.action === 'function') {
-          this.close();
-          cmd.action();
-        }
-      });
-    });
+    if (window.GlobalSearch) window.GlobalSearch.close();
   }
 };
+
 
 /**
  * ── PinLock Module (Front-Desk 4-Digit Security Lock) ─────────────────────────
