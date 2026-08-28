@@ -3731,5 +3731,347 @@ button:active,
   }
 }
 
+/* ==========================================================================
+   GANAKA / KHATABOOK PRO STYLE SYSTEM & MICRO-INTERACTIONS
+   ========================================================================== */
+
+/* ── 1. Hover-Lift & Tactile Tap Physics ── */
+.hover-lift {
+  transition: transform 0.22s var(--ease-spring, cubic-bezier(0.16, 1, 0.3, 1)),
+              box-shadow 0.22s var(--ease-spring, cubic-bezier(0.16, 1, 0.3, 1)) !important;
+}
+.hover-lift:hover {
+  transform: translateY(-2.5px) !important;
+  box-shadow: 0 10px 24px -3px rgba(99, 102, 241, 0.18), 0 4px 8px -2px rgba(15, 23, 42, 0.05) !important;
+}
+.hover-lift:active,
+.btn-tap-scale:active {
+  transform: scale(0.97) !important;
+}
+
+/* ── 2. Glassmorphism Elevation (.glass-card) ── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+  border-radius: var(--radius-xl, 16px) !important;
+}
+[data-theme="dark"] .glass-card {
+  background: rgba(30, 41, 59, 0.85) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* ── 3. Tabular & Financial Monospace Numbers ── */
+.font-mono-num,
+.kpi-value,
+.amount-text,
+.seat-number-tag,
+.utr-text,
+.receipt-id-tag {
+  font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace !important;
+  font-variant-numeric: tabular-nums lining-nums !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* ── 4. SegmentedControl (Sliding Pill Switcher) ── */
+.segmented-control {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  background: var(--color-bg-secondary, #f1f5f9);
+  padding: 4px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border-light, #e2e8f0);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  width: auto;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+[data-theme="dark"] .segmented-control {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.segmented-control-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #475569);
+  border: none;
+  background: transparent;
+  border-radius: 9999px;
+  cursor: pointer;
+  z-index: 2;
+  transition: color 0.18s ease;
+  white-space: nowrap;
+  min-height: 36px;
+}
+.segmented-control-item.active {
+  color: var(--color-text-primary, #0f172a);
+}
+[data-theme="dark"] .segmented-control-item.active {
+  color: #ffffff;
+}
+.segmented-control-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  background: var(--color-surface, #ffffff);
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12), 0 1px 2px rgba(15, 23, 42, 0.06);
+  transition: all 0.24s var(--ease-spring, cubic-bezier(0.16, 1, 0.3, 1));
+  z-index: 1;
+}
+[data-theme="dark"] .segmented-control-indicator {
+  background: var(--color-primary, #6366f1);
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+}
+
+/* ── 5. Network Connectivity Banner ── */
+#network-banner {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  transition: transform 0.3s var(--ease-spring, cubic-bezier(0.16, 1, 0.3, 1)), opacity 0.3s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+#network-banner.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+#network-banner.online {
+  background: rgba(16, 185, 129, 0.95);
+  color: #ffffff;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+#network-banner.offline {
+  background: rgba(245, 158, 11, 0.95);
+  color: #ffffff;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* ── 6. Universal Command Palette (Ctrl + K) ── */
+#command-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 999990;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 80px 16px 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s var(--ease-spring), visibility 0.2s;
+}
+#command-palette-backdrop.open {
+  opacity: 1;
+  visibility: visible;
+}
+.command-palette-modal {
+  width: 100%;
+  max-width: 620px;
+  background: var(--color-surface, #ffffff);
+  border-radius: 20px;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  transform: translateY(-20px) scale(0.96);
+  transition: transform 0.25s var(--ease-spring);
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+}
+#command-palette-backdrop.open .command-palette-modal {
+  transform: translateY(0) scale(1);
+}
+[data-theme="dark"] .command-palette-modal {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.command-search-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border-light, #e2e8f0);
+}
+[data-theme="dark"] .command-search-box {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.command-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #0f172a);
+  outline: none;
+  font-family: inherit;
+}
+[data-theme="dark"] .command-search-input {
+  color: #ffffff;
+}
+.command-results-list {
+  padding: 8px;
+  overflow-y: auto;
+  max-height: 420px;
+  list-style: none;
+  margin: 0;
+}
+.command-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--color-text-primary, #0f172a);
+  transition: background 0.12s ease;
+}
+[data-theme="dark"] .command-result-item {
+  color: #e2e8f0;
+}
+.command-result-item:hover,
+.command-result-item.selected {
+  background: var(--color-primary-bg, rgba(99, 102, 241, 0.12));
+  color: var(--color-primary, #6366f1);
+}
+[data-theme="dark"] .command-result-item:hover,
+[data-theme="dark"] .command-result-item.selected {
+  background: rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+}
+.command-shortcut-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--color-bg-secondary, #f1f5f9);
+  color: var(--color-text-muted, #64748b);
+  border: 1px solid var(--color-border-light, #e2e8f0);
+}
+[data-theme="dark"] .command-shortcut-badge {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+}
+
+/* ── 7. Front-Desk 4-Digit Security PIN Lock ── */
+#pin-lock-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  z-index: 9999999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+#pin-lock-overlay.active {
+  display: flex;
+}
+.pin-lock-card {
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+  color: #ffffff;
+}
+.pin-dot-container {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 24px 0 32px;
+}
+.pin-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  transition: all 0.15s var(--ease-spring);
+}
+.pin-dot.filled {
+  background: #6366f1;
+  border-color: #6366f1;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.6);
+  transform: scale(1.15);
+}
+.pin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  max-width: 280px;
+  margin: 0 auto;
+}
+.pin-key {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.08s;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.pin-key:active {
+  background: rgba(99, 102, 241, 0.4);
+  transform: scale(0.92);
+}
+.pin-key.key-action {
+  font-size: 1.1rem;
+  background: transparent;
+  border-color: transparent;
+}
+@keyframes pin-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-10px); }
+  40%, 80% { transform: translateX(10px); }
+}
+.pin-shake {
+  animation: pin-shake 0.35s ease-in-out;
+}
+
 
 

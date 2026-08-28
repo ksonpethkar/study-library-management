@@ -2266,6 +2266,402 @@ export function initVisualViewportKeyboardListener() {
   updateKeyboardState();
 }
 
+/**
+ * ── SegmentedControl Module (Animated Sliding Pill Tabs) ────────────────────
+ */
+export const SegmentedControl = {
+  create({ container, options = [], onChange, activeId = '' }) {
+    if (!container) return;
+    const currentActive = activeId || options[0]?.id || '';
+    
+    container.innerHTML = `
+      <div class="segmented-control" role="tablist">
+        <div class="segmented-control-indicator"></div>
+        ${options.map(opt => `
+          <button type="button" class="segmented-control-item ${opt.id === currentActive ? 'active' : ''}" data-id="${opt.id}" role="tab" aria-selected="${opt.id === currentActive}">
+            ${opt.icon ? `<span>${opt.icon}</span>` : ''}
+            <span>${opt.label}</span>
+            ${opt.badge !== undefined ? `<span class="badge badge-sm" style="margin-left: 4px; padding: 2px 6px; font-size: 0.7rem; border-radius: 9999px;">${opt.badge}</span>` : ''}
+          </button>
+        `).join('')}
+      </div>
+    `;
+
+    const el = container.querySelector('.segmented-control');
+    const indicator = el.querySelector('.segmented-control-indicator');
+    const items = el.querySelectorAll('.segmented-control-item');
+
+    const updateIndicator = (activeBtn) => {
+      if (!indicator || !activeBtn) return;
+      indicator.style.left = `${activeBtn.offsetLeft}px`;
+      indicator.style.width = `${activeBtn.offsetWidth}px`;
+    };
+
+    const initialActive = el.querySelector('.segmented-control-item.active') || items[0];
+    if (initialActive) {
+      setTimeout(() => updateIndicator(initialActive), 30);
+    }
+
+    items.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        items.forEach(i => {
+          i.classList.remove('active');
+          i.setAttribute('aria-selected', 'false');
+        });
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+        updateIndicator(btn);
+        if (navigator.vibrate) try { navigator.vibrate(10); } catch(err) {}
+        if (typeof onChange === 'function') onChange(btn.dataset.id);
+      });
+    });
+
+    window.addEventListener('resize', () => {
+      const active = el.querySelector('.segmented-control-item.active');
+      if (active) updateIndicator(active);
+    });
+
+    return {
+      setActive(id) {
+        const target = el.querySelector(`.segmented-control-item[data-id="${id}"]`);
+        if (target) target.click();
+      }
+    };
+  }
+};
+
+/**
+ * ── NetworkBanner Module (Live Online / Offline Connectivity) ───────────────
+ */
+export const NetworkBanner = {
+  _el: null,
+  _timer: null,
+
+  init() {
+    if (typeof window === 'undefined') return;
+    if (document.getElementById('network-banner')) return;
+
+    this._el = document.createElement('div');
+    this._el.id = 'network-banner';
+    this._el.className = 'online';
+    document.body.appendChild(this._el);
+
+    window.addEventListener('online', () => this.show('online'));
+    window.addEventListener('offline', () => this.show('offline'));
+
+    if (!navigator.onLine) {
+      this.show('offline');
+    }
+  },
+
+  show(status) {
+    if (!this._el) this.init();
+    if (this._timer) clearTimeout(this._timer);
+
+    if (status === 'online') {
+      this._el.className = 'online visible';
+      this._el.innerHTML = `<span>🟢</span><span>Back Online • System Synced</span>`;
+      this._timer = setTimeout(() => {
+        this._el.classList.remove('visible');
+      }, 3000);
+    } else {
+      this._el.className = 'offline visible';
+      this._el.innerHTML = `<span>🟡</span><span>Offline Mode • Changes Saved Locally</span>`;
+    }
+  },
+
+  hide() {
+    if (this._el) this._el.classList.remove('visible');
+  }
+};
+
+/**
+ * ── CommandPalette Module (Ctrl + K / Cmd + K Universal Search) ───────────────
+ */
+export const CommandPalette = {
+  _backdrop: null,
+  _isOpen: false,
+
+  init() {
+    if (typeof window === 'undefined') return;
+    if (document.getElementById('command-palette-backdrop')) return;
+
+    this._backdrop = document.createElement('div');
+    this._backdrop.id = 'command-palette-backdrop';
+    this._backdrop.innerHTML = `
+      <div class="command-palette-modal">
+        <div class="command-search-box">
+          <span style="font-size: 1.25rem;">🔍</span>
+          <input type="text" class="command-search-input" placeholder="Type a command, student name, seat #, or receipt..." autofocus>
+          <span class="command-shortcut-badge">ESC</span>
+        </div>
+        <ul class="command-results-list" id="command-results-list"></ul>
+      </div>
+    `;
+    document.body.appendChild(this._backdrop);
+
+    const input = this._backdrop.querySelector('.command-search-input');
+    const list = this._backdrop.querySelector('#command-results-list');
+
+    this._backdrop.addEventListener('click', (e) => {
+      if (e.target === this._backdrop) this.close();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        this.toggle();
+      } else if (e.key === 'Escape' && this._isOpen) {
+        this.close();
+      }
+    });
+
+    input.addEventListener('input', () => {
+      this.renderResults(input.value.trim().toLowerCase(), list);
+    });
+
+    input.addEventListener('keydown', (e) => {
+      const items = list.querySelectorAll('.command-result-item');
+      const selected = list.querySelector('.command-result-item.selected');
+      let index = Array.from(items).indexOf(selected);
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        index = (index + 1) % items.length;
+        items.forEach(i => i.classList.remove('selected'));
+        if (items[index]) {
+          items[index].classList.add('selected');
+          items[index].scrollIntoView({ block: 'nearest' });
+        }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        index = (index - 1 + items.length) % items.length;
+        items.forEach(i => i.classList.remove('selected'));
+        if (items[index]) {
+          items[index].classList.add('selected');
+          items[index].scrollIntoView({ block: 'nearest' });
+        }
+      } else if (e.key === 'Enter' && selected) {
+        e.preventDefault();
+        selected.click();
+      }
+    });
+  },
+
+  toggle() {
+    if (this._isOpen) this.close();
+    else this.open();
+  },
+
+  open() {
+    if (!this._backdrop) this.init();
+    this._isOpen = true;
+    this._backdrop.classList.add('open');
+    const input = this._backdrop.querySelector('.command-search-input');
+    input.value = '';
+    const list = this._backdrop.querySelector('#command-results-list');
+    this.renderResults('', list);
+    setTimeout(() => input.focus(), 50);
+  },
+
+  close() {
+    if (!this._backdrop) return;
+    this._isOpen = false;
+    this._backdrop.classList.remove('open');
+  },
+
+  getCommands() {
+    return [
+      { id: 'nav-dashboard', label: 'Go to Dashboard', icon: '🏠', shortcut: 'G D', action: () => { window.location.hash = '#/dashboard'; } },
+      { id: 'nav-students', label: 'Manage Students', icon: '🎓', shortcut: 'G S', action: () => { window.location.hash = '#/students'; } },
+      { id: 'nav-seats', label: 'Live Seat Layout Map', icon: '🪑', shortcut: 'G L', action: () => { window.location.hash = '#/seats'; } },
+      { id: 'nav-payments', label: 'Fee Payments & Invoices', icon: '💳', shortcut: 'G P', action: () => { window.location.hash = '#/payments'; } },
+      { id: 'nav-attendance', label: 'Daily Attendance & Punch', icon: '📊', shortcut: 'G A', action: () => { window.location.hash = '#/attendance'; } },
+      { id: 'nav-operations', label: 'Operations & Waiting List', icon: '⚡', shortcut: 'G O', action: () => { window.location.hash = '#/operations'; } },
+      { id: 'nav-reports', label: 'Financial & Occupancy Reports', icon: '📈', shortcut: 'G R', action: () => { window.location.hash = '#/reports'; } },
+      { id: 'nav-settings', label: 'Library Master Settings', icon: '⚙️', shortcut: 'G ,', action: () => { window.location.hash = '#/settings'; } },
+      { id: 'act-pinlock', label: 'Lock Front-Desk Terminal', icon: '🔒', shortcut: 'PIN', action: () => { PinLock.lock(); } },
+      { id: 'act-kiosk', label: 'Open Student Punch Kiosk', icon: '📱', shortcut: 'KIOSK', action: () => { window.open('/kiosk', '_blank'); } },
+      { id: 'act-register', label: 'Open Online Admission Form', icon: '📝', shortcut: 'REG', action: () => { window.open('/register', '_blank'); } }
+    ];
+  },
+
+  renderResults(query, listEl) {
+    if (!listEl) return;
+    const commands = this.getCommands();
+    const filtered = query
+      ? commands.filter(c => c.label.toLowerCase().includes(query) || c.id.toLowerCase().includes(query))
+      : commands;
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = `
+        <li style="padding: 24px; text-align: center; color: var(--color-text-muted);">
+          No matching actions or pages found for "${escapeHTML(query)}"
+        </li>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = filtered.map((c, idx) => `
+      <li class="command-result-item ${idx === 0 ? 'selected' : ''}" data-id="${c.id}">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.15rem;">${c.icon}</span>
+          <span style="font-weight: 600;">${escapeHTML(c.label)}</span>
+        </div>
+        <span class="command-shortcut-badge">${c.shortcut}</span>
+      </li>
+    `).join('');
+
+    listEl.querySelectorAll('.command-result-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const cmd = commands.find(c => c.id === item.dataset.id);
+        if (cmd && typeof cmd.action === 'function') {
+          this.close();
+          cmd.action();
+        }
+      });
+    });
+  }
+};
+
+/**
+ * ── PinLock Module (Front-Desk 4-Digit Security Lock) ─────────────────────────
+ */
+export const PinLock = {
+  _overlay: null,
+  _enteredPin: '',
+  _defaultPin: '1234',
+
+  init() {
+    if (typeof window === 'undefined') return;
+    if (document.getElementById('pin-lock-overlay')) return;
+
+    this._overlay = document.createElement('div');
+    this._overlay.id = 'pin-lock-overlay';
+    this._overlay.innerHTML = `
+      <div class="pin-lock-card">
+        <div style="font-size: 2.5rem; margin-bottom: 8px;">🔒</div>
+        <h3 style="font-weight: 700; margin: 0 0 6px 0; font-size: 1.35rem;">Front-Desk Locked</h3>
+        <p style="color: #94a3b8; font-size: 0.88rem; margin: 0;">Enter 4-digit PIN to unlock reception terminal</p>
+        
+        <div class="pin-dot-container" id="pin-dots">
+          <div class="pin-dot"></div>
+          <div class="pin-dot"></div>
+          <div class="pin-dot"></div>
+          <div class="pin-dot"></div>
+        </div>
+
+        <div class="pin-keypad">
+          <button type="button" class="pin-key" data-num="1">1</button>
+          <button type="button" class="pin-key" data-num="2">2</button>
+          <button type="button" class="pin-key" data-num="3">3</button>
+          <button type="button" class="pin-key" data-num="4">4</button>
+          <button type="button" class="pin-key" data-num="5">5</button>
+          <button type="button" class="pin-key" data-num="6">6</button>
+          <button type="button" class="pin-key" data-num="7">7</button>
+          <button type="button" class="pin-key" data-num="8">8</button>
+          <button type="button" class="pin-key" data-num="9">9</button>
+          <button type="button" class="pin-key key-action" id="btn-pin-clear">✕</button>
+          <button type="button" class="pin-key" data-num="0">0</button>
+          <button type="button" class="pin-key key-action" id="btn-pin-backspace">⌫</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(this._overlay);
+
+    this._overlay.querySelectorAll('.pin-key[data-num]').forEach(btn => {
+      btn.addEventListener('click', () => this.handleDigit(btn.dataset.num));
+    });
+
+    this._overlay.querySelector('#btn-pin-clear')?.addEventListener('click', () => this.clear());
+    this._overlay.querySelector('#btn-pin-backspace')?.addEventListener('click', () => this.backspace());
+
+    document.addEventListener('keydown', (e) => {
+      if (!this._overlay.classList.contains('active')) return;
+      if (/^[0-9]$/.test(e.key)) {
+        this.handleDigit(e.key);
+      } else if (e.key === 'Backspace') {
+        this.backspace();
+      } else if (e.key === 'Escape') {
+        this.clear();
+      }
+    });
+
+    if (sessionStorage.getItem('sl_desk_locked') === 'true') {
+      this.lock();
+    }
+  },
+
+  lock() {
+    if (!this._overlay) this.init();
+    this._enteredPin = '';
+    this.updateDots();
+    this._overlay.classList.add('active');
+    sessionStorage.setItem('sl_desk_locked', 'true');
+  },
+
+  unlock() {
+    if (!this._overlay) return;
+    this._overlay.classList.remove('active');
+    this._enteredPin = '';
+    this.updateDots();
+    sessionStorage.removeItem('sl_desk_locked');
+    Toast.success('Front-Desk terminal unlocked');
+  },
+
+  handleDigit(digit) {
+    if (this._enteredPin.length >= 4) return;
+    this._enteredPin += digit;
+    this.updateDots();
+    if (navigator.vibrate) try { navigator.vibrate(15); } catch (err) {}
+
+    if (this._enteredPin.length === 4) {
+      setTimeout(() => this.verify(), 100);
+    }
+  },
+
+  backspace() {
+    if (this._enteredPin.length > 0) {
+      this._enteredPin = this._enteredPin.slice(0, -1);
+      this.updateDots();
+    }
+  },
+
+  clear() {
+    this._enteredPin = '';
+    this.updateDots();
+  },
+
+  updateDots() {
+    const dots = this._overlay?.querySelectorAll('.pin-dot');
+    if (!dots) return;
+    dots.forEach((dot, idx) => {
+      if (idx < this._enteredPin.length) {
+        dot.classList.add('filled');
+      } else {
+        dot.classList.remove('filled');
+      }
+    });
+  },
+
+  verify() {
+    const storedPin = localStorage.getItem('sl_desk_pin') || this._defaultPin;
+    if (this._enteredPin === storedPin) {
+      this.unlock();
+    } else {
+      const card = this._overlay?.querySelector('.pin-lock-card');
+      if (card) {
+        card.classList.add('pin-shake');
+        setTimeout(() => card.classList.remove('pin-shake'), 400);
+      }
+      if (navigator.vibrate) try { navigator.vibrate([50, 50, 50]); } catch (err) {}
+      Toast.error('Incorrect PIN. Default PIN: 1234');
+      this.clear();
+    }
+  }
+};
+
 if (typeof window !== 'undefined') {
   window.Toast = Toast;
   window.Modal = Modal;
@@ -2278,6 +2674,10 @@ if (typeof window !== 'undefined') {
   window.BottomSheet = BottomSheet;
   window.FAB = FAB;
   window.ActionMenu = ActionMenu;
+  window.SegmentedControl = SegmentedControl;
+  window.NetworkBanner = NetworkBanner;
+  window.CommandPalette = CommandPalette;
+  window.PinLock = PinLock;
   window.initPullToRefresh = initPullToRefresh;
   window.initVisualViewportKeyboardListener = initVisualViewportKeyboardListener;
   window.PDFExport = PDFExport;
@@ -2285,8 +2685,17 @@ if (typeof window !== 'undefined') {
   window.renderMobileBottomNav = renderMobileBottomNav;
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => initVisualViewportKeyboardListener());
+    document.addEventListener('DOMContentLoaded', () => {
+      initVisualViewportKeyboardListener();
+      NetworkBanner.init();
+      CommandPalette.init();
+      PinLock.init();
+    });
   } else {
     initVisualViewportKeyboardListener();
+    NetworkBanner.init();
+    CommandPalette.init();
+    PinLock.init();
   }
 }
+
