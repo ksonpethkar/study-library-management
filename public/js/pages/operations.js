@@ -130,14 +130,14 @@ export async function render() {
                     <td style="padding: 12px 16px;"><span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); text-transform: uppercase;">${escapeHTML(v.status)}</span></td>
                     <td style="padding: 12px 16px;">${new Date(v.createdAt).toLocaleDateString('en-IN')}</td>
                     <td style="padding: 12px 16px;">
-                      <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                        <button class="btn btn-sm btn-outline-success btn-convert-visitor" data-name="${escapeHTML(v.name)}" data-phone="${escapeHTML(v.phone)}" data-exam="${escapeHTML(v.targetExam || '')}" data-slot="${escapeHTML(v.preferredSlot || '')}" style="padding: 2px 8px; font-size: 0.75rem; font-weight: 600;" title="Convert Lead to Admission">
-                          🎓 Convert
+                      <div class="btn-icon-group">
+                        <button type="button" class="btn-icon-action action-verify btn-convert-visitor" data-name="${escapeHTML(v.name)}" data-phone="${escapeHTML(v.phone)}" data-exam="${escapeHTML(v.targetExam || '')}" data-slot="${escapeHTML(v.preferredSlot || '')}" data-tooltip="Convert Lead to Admission" aria-label="Convert Lead">
+                          🎓
                         </button>
-                        <a href="https://wa.me/91${escapeHTML(v.phone)}?text=${encodeURIComponent(`Hello ${v.name}! Greetings from ${window.store?.settings?.businessName || 'our Study Library'}. Desks are available for your ${v.targetExam || 'study'} preparation. Visit us to reserve your seat today!`)}" target="_blank" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size: 0.75rem; font-weight: 600; text-decoration: none;" title="Send WhatsApp Message">
-                          💬 WhatsApp
+                        <a href="https://wa.me/91${escapeHTML(v.phone)}?text=${encodeURIComponent(`Hello ${v.name}! Greetings from ${window.store?.settings?.businessName || 'our Study Library'}. Desks are available for your ${v.targetExam || 'study'} preparation. Visit us to reserve your seat today!`)}" target="_blank" class="btn-icon-action action-whatsapp" data-tooltip="Send WhatsApp Invitation" aria-label="WhatsApp">
+                          💬
                         </a>
-                        <button class="btn btn-sm btn-outline-danger btn-delete-visitor" data-id="${v._id}" style="padding: 2px 6px; font-size: 0.75rem;">Delete</button>
+                        <button type="button" class="btn-icon-action action-delete btn-delete-visitor" data-id="${v._id}" data-tooltip="Delete Visitor Lead" aria-label="Delete">🗑️</button>
                       </div>
                     </td>
                   </tr>
@@ -261,7 +261,7 @@ export async function render() {
                 <span class="badge" style="background: ${n.priority === 'urgent' ? 'rgba(214,48,49,0.2)' : 'rgba(108,92,231,0.15)'}; color: ${n.priority === 'urgent' ? 'var(--color-danger)' : 'var(--color-primary)'}; font-weight: 700; text-transform: uppercase; font-size: 0.7rem;">
                   ${escapeHTML(n.category)} • ${escapeHTML(n.priority)}
                 </span>
-                <button class="btn btn-sm btn-outline-danger btn-delete-notice" data-id="${n._id}" style="padding: 1px 6px; font-size: 0.75rem;">✕</button>
+                <button type="button" class="btn-icon-action action-delete btn-delete-notice" data-id="${n._id}" data-tooltip="Delete Notice Broadcast" aria-label="Delete">🗑️</button>
               </div>
               <h4 style="margin: 0 0 8px 0; font-size: 1.1rem; font-weight: 700; color: var(--color-text-primary);">${escapeHTML(n.title)}</h4>
               <p style="margin: 0 0 12px 0; font-size: 0.88rem; color: var(--color-text-secondary); line-height: 1.5;">${escapeHTML(n.message)}</p>
@@ -496,11 +496,11 @@ export async function render() {
                     </td>
                     <td style="padding: 12px 16px;">${escapeHTML(item.claimedBy || '-')}</td>
                     <td style="padding: 12px 16px;">
-                      <div style="display: flex; gap: 6px;">
+                      <div class="btn-icon-group">
                         ${item.status === 'found' ? `
-                          <button class="btn btn-sm btn-outline-success btn-claim-item" data-id="${item._id}" style="padding: 2px 6px; font-size: 0.75rem;">Mark Claimed</button>
+                          <button type="button" class="btn-icon-action action-verify btn-claim-item" data-id="${item._id}" data-tooltip="Mark Item Claimed" aria-label="Mark Claimed">✅</button>
                         ` : ''}
-                        <button class="btn btn-sm btn-outline-danger btn-delete-item" data-id="${item._id}" style="padding: 2px 6px; font-size: 0.75rem;">Delete</button>
+                        <button type="button" class="btn-icon-action action-delete btn-delete-item" data-id="${item._id}" data-tooltip="Delete Item Record" aria-label="Delete">🗑️</button>
                       </div>
                     </td>
                   </tr>
@@ -629,7 +629,7 @@ export async function render() {
                 <span class="badge" style="background: ${fb.status === 'resolved' ? 'rgba(0,184,148,0.2)' : 'rgba(253,203,110,0.2)'}; color: ${fb.status === 'resolved' ? 'var(--color-success)' : 'var(--color-warning)'};">
                   ${escapeHTML(fb.status)}
                 </span>
-                <button class="btn btn-sm btn-outline-primary btn-reply-feedback" data-id="${fb._id}" style="font-size: 0.75rem; padding: 2px 8px;">Reply</button>
+                <button type="button" class="btn-icon-action action-edit btn-reply-feedback" data-id="${fb._id}" data-tooltip="Reply to Feedback" aria-label="Reply">💬</button>
               </div>
             </div>
           `).join('') : `
@@ -761,9 +761,9 @@ export async function render() {
                     <td style="padding: 12px 16px; font-size: 0.8rem; color: var(--color-text-secondary);">${escapeHTML(l.adminReply || '-')}</td>
                     <td style="padding: 12px 16px; text-align: center;">
                       ${l.status === 'pending' ? `
-                        <div class="d-flex justify-content-center gap-1">
-                          <button class="btn btn-sm btn-success btn-approve-leave" data-id="${l._id}" style="padding: 2px 8px; font-size: 0.75rem;">✓ Approve</button>
-                          <button class="btn btn-sm btn-outline-danger btn-reject-leave" data-id="${l._id}" style="padding: 2px 8px; font-size: 0.75rem;">✕ Reject</button>
+                        <div class="btn-icon-group justify-content-center">
+                          <button type="button" class="btn-icon-action action-verify btn-approve-leave" data-id="${l._id}" data-tooltip="Approve Leave" aria-label="Approve">✅</button>
+                          <button type="button" class="btn-icon-action action-delete btn-reject-leave" data-id="${l._id}" data-tooltip="Reject Leave" aria-label="Reject">❌</button>
                         </div>
                       ` : `<span class="text-muted small">-</span>`}
                     </td>
@@ -842,9 +842,9 @@ export async function render() {
                     </td>
                     <td style="padding: 12px 16px; text-align: center;">
                       ${r.status === 'pending' ? `
-                        <div class="d-flex justify-content-center gap-1">
-                          <button class="btn btn-sm btn-success btn-transfer-seat" data-id="${r._id}" data-name="${escapeHTML(r.studentName)}" style="padding: 2px 8px; font-size: 0.75rem;">Allocate & Approve</button>
-                          <button class="btn btn-sm btn-outline-danger btn-reject-sc" data-id="${r._id}" style="padding: 2px 8px; font-size: 0.75rem;">✕ Reject</button>
+                        <div class="btn-icon-group justify-content-center">
+                          <button type="button" class="btn-icon-action action-verify btn-transfer-seat" data-id="${r._id}" data-name="${escapeHTML(r.studentName)}" data-tooltip="Allocate & Approve" aria-label="Allocate">✅</button>
+                          <button type="button" class="btn-icon-action action-delete btn-reject-sc" data-id="${r._id}" data-tooltip="Reject Request" aria-label="Reject">❌</button>
                         </div>
                       ` : `<span class="text-muted small">-</span>`}
                     </td>
@@ -1069,18 +1069,12 @@ export async function render() {
                         ${r.discountApplied ? `<span style="font-size: 0.72rem; color: var(--color-text-muted); display: block;">✓ Credited</span>` : ''}
                       </td>
                       <td style="padding: 12px 16px; text-align: center;">
-                        <div style="display: flex; gap: 4px; justify-content: center;">
+                        <div class="btn-icon-group justify-content-center">
                           ${!r.discountApplied && r.status !== 'rejected' ? `
-                            <button class="btn btn-sm btn-success btn-approve-ref-reward" data-id="${r._id}" data-amt="${r.rewardAmount || 100}" title="Approve & Apply Discount to Next Renewal" style="font-size: 0.75rem; padding: 3px 8px; font-weight: 700;">
-                              ⚡ Credit ₹${r.rewardAmount || 100}
-                            </button>
+                            <button type="button" class="btn-icon-action action-verify btn-approve-ref-reward" data-id="${r._id}" data-amt="${r.rewardAmount || 100}" data-tooltip="Credit ₹${r.rewardAmount || 100} Discount" aria-label="Credit Discount">⚡</button>
                           ` : ''}
-                          <button class="btn btn-sm btn-outline-secondary btn-edit-ref" data-ref='${JSON.stringify(r)}' title="Edit Referral" style="font-size: 0.75rem; padding: 3px 8px;">
-                            ✏️
-                          </button>
-                          <button class="btn btn-sm btn-outline-danger btn-delete-ref" data-id="${r._id}" title="Delete" style="font-size: 0.75rem; padding: 3px 8px;">
-                            🗑️
-                          </button>
+                          <button type="button" class="btn-icon-action action-edit btn-edit-ref" data-ref='${JSON.stringify(r)}' data-tooltip="Edit Referral" aria-label="Edit">✏️</button>
+                          <button type="button" class="btn-icon-action action-delete btn-delete-ref" data-id="${r._id}" data-tooltip="Delete Referral Record" aria-label="Delete">🗑️</button>
                         </div>
                       </td>
                     </tr>
@@ -1460,17 +1454,11 @@ export async function render() {
                         ${dateStr}
                       </td>
                       <td style="padding: 12px 16px; text-align: center;">
-                        <div class="d-flex justify-content-center gap-1">
+                        <div class="btn-icon-group justify-content-center">
                           ${it.status !== 'assigned' && it.status !== 'cancelled' ? `
-                            <button class="btn btn-sm btn-success btn-convert-admission" data-id="${it._id}" data-name="${escapeHTML(it.studentName)}" data-phone="${escapeHTML(it.studentPhone)}" data-shift="${escapeHTML(it.preferredShift || '')}" data-seat="${offeredSeatNum || ''}" title="1-Click Convert to Admission" style="padding: 3px 10px; font-size: 0.78rem; font-weight: 700;">
-                              ⚡ Convert to Admission
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary btn-offer-seat" data-id="${it._id}" data-name="${escapeHTML(it.studentName)}" title="Offer Vacant Seat (24h Hold)" style="padding: 3px 8px; font-size: 0.75rem;">
-                              💺 Offer Seat
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger btn-cancel-waiting" data-id="${it._id}" title="Cancel Entry" style="padding: 3px 8px; font-size: 0.75rem;">
-                              ✕
-                            </button>
+                            <button type="button" class="btn-icon-action action-verify btn-convert-admission" data-id="${it._id}" data-name="${escapeHTML(it.studentName)}" data-phone="${escapeHTML(it.studentPhone)}" data-shift="${escapeHTML(it.preferredShift || '')}" data-seat="${offeredSeatNum || ''}" data-tooltip="Convert to Admission" aria-label="Convert">⚡</button>
+                            <button type="button" class="btn-icon-action action-receipt btn-offer-seat" data-id="${it._id}" data-name="${escapeHTML(it.studentName)}" data-tooltip="Offer Vacant Desk (24h Hold)" aria-label="Offer Desk">💺</button>
+                            <button type="button" class="btn-icon-action action-delete btn-cancel-waiting" data-id="${it._id}" data-tooltip="Cancel Waiting Entry" aria-label="Cancel">✕</button>
                           ` : `<span class="badge badge-success" style="font-size: 0.75rem;">${it.status === 'assigned' ? '✓ Enrolled' : 'Cancelled'}</span>`}
                         </div>
                       </td>

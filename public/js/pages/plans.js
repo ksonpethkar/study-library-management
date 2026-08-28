@@ -513,9 +513,9 @@ function renderPlansGrid(plansList) {
             <input type="checkbox" class="plan-active-toggle" data-id="${plan._id}" ${plan.isActive ? 'checked' : ''} style="cursor: pointer;">
             <label class="small text-muted" style="margin: 0; font-weight: 600;">Active</label>
           </div>
-          <div class="d-flex gap-1 align-items-center">
-            <button class="btn btn-sm btn-outline-secondary btn-clone" data-id="${plan._id}" style="font-weight: 600; font-size: 0.8rem; padding: 3px 8px;" title="Clone Plan">📋 Clone</button>
-            <button class="btn btn-sm btn-outline-primary btn-edit" data-id="${plan._id}" style="font-weight: 600; font-size: 0.8rem; padding: 3px 8px;">✏️ Edit</button>
+          <div class="btn-icon-group">
+            <button type="button" class="btn-icon-action action-view btn-clone" data-id="${plan._id}" data-tooltip="Clone Plan" aria-label="Clone">📋</button>
+            <button type="button" class="btn-icon-action action-edit btn-edit" data-id="${plan._id}" data-tooltip="Edit Plan" aria-label="Edit">✏️</button>
             ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
               { header: 'Level 1: Plan Operations' },
               { id: 'edit', icon: '✏️', label: 'Edit Plan Configuration', bold: true },
@@ -701,8 +701,10 @@ function renderCouponsGrid() {
           <input type="checkbox" class="coupon-active-toggle" data-id="${c._id}" ${c.isActive ? 'checked' : ''} style="cursor: pointer;">
         </td>
         <td style="padding: 12px 16px;">
-          <button class="btn btn-sm btn-outline-primary btn-edit-coupon" data-id="${c._id}">Edit</button>
-          <button class="btn btn-sm btn-outline-danger btn-delete-coupon" data-id="${c._id}">Delete</button>
+          <div class="btn-icon-group">
+            <button type="button" class="btn-icon-action action-edit btn-edit-coupon" data-id="${c._id}" data-tooltip="Edit Coupon" aria-label="Edit">✏️</button>
+            <button type="button" class="btn-icon-action action-delete btn-delete-coupon" data-id="${c._id}" data-tooltip="Delete Coupon" aria-label="Delete">🗑️</button>
+          </div>
         </td>
       </tr>
     `;

@@ -535,18 +535,18 @@ function renderShiftsGrid() {
           </div>
 
           <!-- Action Buttons -->
-          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-            <a href="#/seats" class="btn btn-sm btn-outline-info" style="padding: 4px 8px; font-weight: 600; font-size: 0.78rem; text-decoration: none;" title="Filter Seats Matrix by this shift">
-              💺 Seats
+          <div class="btn-icon-group">
+            <a href="#/seats" class="btn-icon-action action-receipt" data-tooltip="View Shift Desks Matrix" aria-label="Seats">
+              💺
             </a>
-            <button type="button" class="btn btn-sm btn-outline-secondary btn-clone-shift" data-id="${shift._id}" title="Clone Shift Configuration" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 600;">
-              📋 Clone
+            <button type="button" class="btn-icon-action action-view btn-clone-shift" data-id="${shift._id}" data-tooltip="Clone Shift Configuration" aria-label="Clone">
+              📋
             </button>
-            <button type="button" class="btn btn-sm btn-outline-primary btn-edit-shift" data-id="${shift._id}" title="Edit Shift Details" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 600;">
-              ✏️ Edit
+            <button type="button" class="btn-icon-action action-edit btn-edit-shift" data-id="${shift._id}" data-tooltip="Edit Shift Details" aria-label="Edit">
+              ✏️
             </button>
-            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-shift" data-id="${shift._id}" title="Delete Shift" style="padding: 4px 8px; font-weight: 600; font-size: 0.78rem;">
-              🗑️ Delete
+            <button type="button" class="btn-icon-action action-delete btn-delete-shift" data-id="${shift._id}" data-tooltip="Delete Shift" aria-label="Delete">
+              🗑️
             </button>
             ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
               { header: 'Shift Options' },

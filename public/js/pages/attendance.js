@@ -390,7 +390,7 @@ function renderTable(records, isToday) {
 
     let actionBtn = '-';
     if (isToday && record.checkIn && !record.checkOut) {
-      actionBtn = `<button class="btn btn-sm btn-outline-primary btn-checkout" data-id="${student._id || ''}" style="cursor: pointer; padding: 3px 8px; font-size: 0.75rem;">Check Out</button>`;
+      actionBtn = `<button type="button" class="btn-icon-action action-verify btn-checkout" data-id="${student._id || ''}" data-tooltip="Check Out Student" aria-label="Check Out">🚪</button>`;
     }
 
     return `

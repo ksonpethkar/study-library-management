@@ -334,17 +334,17 @@ export class FormBuilder {
               <span class="fb-sec-toggle-caret" style="font-size: 0.8rem; font-weight: bold; color: var(--color-text-muted); margin-left: 4px;">▲</span>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-              ${secIdx > 0 ? `<button type="button" class="btn btn-sm btn-ghost fb-sec-up" data-sec="${sec.name}" title="Move Section Up">⬆️</button>` : ''}
-              ${secIdx < this.sections.length - 1 ? `<button type="button" class="btn btn-sm btn-ghost fb-sec-down" data-sec="${sec.name}" title="Move Section Down">⬇️</button>` : ''}
-              <button type="button" class="btn btn-sm ${isSecHidden ? 'btn-danger' : 'btn-outline-secondary'} fb-sec-visibility" data-sec="${sec.name}" title="${isSecHidden ? 'Section is Hidden in Registration Form — Click to Make Visible' : 'Click to Hide Section from Registration Form'}" style="font-size: 0.75rem; padding: 2px 8px; font-weight: 700;">
-                ${isSecHidden ? '👁️ Hidden' : '👁️ Visible'}
+            <div class="btn-icon-group">
+              ${secIdx > 0 ? `<button type="button" class="btn-icon-action fb-sec-up" data-sec="${sec.name}" data-tooltip="Move Section Up" aria-label="Move Up">⬆️</button>` : ''}
+              ${secIdx < this.sections.length - 1 ? `<button type="button" class="btn-icon-action fb-sec-down" data-sec="${sec.name}" data-tooltip="Move Section Down" aria-label="Move Down">⬇️</button>` : ''}
+              <button type="button" class="btn-icon-action fb-sec-visibility" data-sec="${sec.name}" data-tooltip="${isSecHidden ? 'Show Section in Registration Form' : 'Hide Section from Registration Form'}" aria-label="Toggle Visibility">
+                ${isSecHidden ? '🚫' : '👁️'}
               </button>
-              <button type="button" class="btn btn-sm btn-outline-secondary fb-sec-rename" data-sec="${sec.name}" title="Rename Section Title & Icon" style="font-size: 0.75rem; padding: 2px 7px;">✏️ Rename</button>
-              <button type="button" class="btn btn-sm btn-outline-secondary fb-sec-copy" data-sec="${sec.name}" title="Copy Section & All Questions" style="font-size: 0.75rem; padding: 2px 7px;">📋 Copy Sec</button>
-              <button type="button" class="btn btn-sm btn-outline-success fb-sec-paste-field" data-sec="${sec.name}" title="Paste Copied Question into this Section" style="font-size: 0.75rem; padding: 2px 7px;">📋 Paste Q</button>
-              <button type="button" class="btn btn-sm btn-outline-primary fb-sec-add-field" data-sec="${sec.name}" title="Add Question to this Section" style="font-size: 0.75rem; padding: 2px 8px;">➕ Add Question</button>
-              ${!isCoreSec ? `<button type="button" class="btn btn-sm btn-ghost text-danger fb-sec-delete" data-sec="${sec.name}" title="Delete Section" style="font-size: 0.75rem; padding: 2px 6px;">🗑️ Delete</button>` : ''}
+              <button type="button" class="btn-icon-action fb-sec-rename" data-sec="${sec.name}" data-tooltip="Rename Section Title & Icon" aria-label="Rename Section">✏️</button>
+              <button type="button" class="btn-icon-action fb-sec-copy" data-sec="${sec.name}" data-tooltip="Copy Section & Questions" aria-label="Copy Section">📋</button>
+              <button type="button" class="btn-icon-action fb-sec-paste-field" data-sec="${sec.name}" data-tooltip="Paste Copied Question Here" aria-label="Paste Question">📥</button>
+              <button type="button" class="btn-icon-action fb-sec-add-field" data-sec="${sec.name}" data-tooltip="Add Question to this Section" aria-label="Add Question">➕</button>
+              ${!isCoreSec ? `<button type="button" class="btn-icon-action action-delete fb-sec-delete" data-sec="${sec.name}" data-tooltip="Delete Section" aria-label="Delete Section">🗑️</button>` : ''}
             </div>
           </div>
 
@@ -670,27 +670,16 @@ export class FormBuilder {
 
   static renderSysToolbar(settingKey, compKey, isActive, label, index = 0, total = 5) {
     return `
-      <div class="fb-card-actions d-flex align-items-center gap-1 flex-shrink-0 flex-wrap" style="background: var(--color-bg-secondary); padding: 3px 6px; border-radius: 6px; border: 1px solid var(--color-border);">
-        <button type="button" class="btn btn-sm btn-ghost fb-sys-item-up" data-setting="${settingKey}" data-title="${escapeHTML(label)}" title="Move Up" style="padding: 2px 6px; font-size: 0.75rem;">⬆️</button>
-        <button type="button" class="btn btn-sm btn-ghost fb-sys-item-down" data-setting="${settingKey}" data-title="${escapeHTML(label)}" title="Move Down" style="padding: 2px 6px; font-size: 0.75rem;">⬇️</button>
-        
-        <button type="button" class="btn btn-sm btn-outline-secondary fb-sys-item-copy" data-setting="${settingKey}" data-component="${compKey}" data-title="${escapeHTML(label)}" title="Copy Component to Clipboard" style="font-size: 0.75rem; padding: 2px 8px; font-weight: 600;">
-          📋 Copy
+      <div class="btn-icon-group flex-shrink-0">
+        <button type="button" class="btn-icon-action fb-sys-item-up" data-setting="${settingKey}" data-title="${escapeHTML(label)}" data-tooltip="Move Up" aria-label="Move Up">⬆️</button>
+        <button type="button" class="btn-icon-action fb-sys-item-down" data-setting="${settingKey}" data-title="${escapeHTML(label)}" data-tooltip="Move Down" aria-label="Move Down">⬇️</button>
+        <button type="button" class="btn-icon-action fb-sys-item-copy" data-setting="${settingKey}" data-component="${compKey}" data-title="${escapeHTML(label)}" data-tooltip="Copy Settings JSON" aria-label="Copy Settings">📋</button>
+        <button type="button" class="btn-icon-action fb-sys-item-duplicate" data-setting="${settingKey}" data-component="${compKey}" data-title="${escapeHTML(label)}" data-tooltip="Duplicate as Custom Question" aria-label="Duplicate">📄</button>
+        <button type="button" class="btn-icon-action fb-sys-item-toggle" data-setting="${settingKey}" data-title="${escapeHTML(label)}" data-tooltip="${isActive ? 'Click to Disable Component' : 'Click to Enable Component'}" aria-label="Toggle Active">
+          ${isActive ? '🟢' : '🔴'}
         </button>
-        <button type="button" class="btn btn-sm btn-outline-secondary fb-sys-item-duplicate" data-setting="${settingKey}" data-component="${compKey}" data-title="${escapeHTML(label)}" title="Duplicate Component" style="font-size: 0.75rem; padding: 2px 8px; font-weight: 600;">
-          📄 Duplicate
-        </button>
-        <button type="button" class="btn btn-sm btn-ghost fb-sys-item-toggle" data-setting="${settingKey}" data-title="${escapeHTML(label)}" title="${isActive ? 'Click to Disable' : 'Click to Enable'}" style="font-size: 0.75rem; padding: 2px 8px; font-weight: 700; color: ${isActive ? 'var(--color-success, #22c55e)' : 'var(--color-danger, #ef4444)'};">
-          ${isActive ? '🟢 Active' : '🔴 Inactive'}
-        </button>
-        
-        <button type="button" class="btn btn-sm btn-outline-primary fb-edit-component" data-component="${compKey}" data-setting="${settingKey}" title="Edit Component Settings" style="font-size: 0.75rem; padding: 2px 10px; font-weight: 700;">
-          ✏️ Edit
-        </button>
-
-        <button type="button" class="btn btn-sm btn-ghost text-danger fb-sys-item-delete" data-setting="${settingKey}" data-title="${escapeHTML(label)}" title="Delete / Disable Component" style="font-size: 0.75rem; padding: 2px 6px; font-weight: 600;">
-          🗑️ Delete
-        </button>
+        <button type="button" class="btn-icon-action fb-edit-component" data-component="${compKey}" data-setting="${settingKey}" data-tooltip="Edit Component Settings" aria-label="Edit Component">✏️</button>
+        <button type="button" class="btn-icon-action action-delete fb-sys-item-delete" data-setting="${settingKey}" data-title="${escapeHTML(label)}" data-tooltip="Disable Component" aria-label="Disable Component">🗑️</button>
       </div>
     `;
   }
@@ -1079,27 +1068,16 @@ export class FormBuilder {
           </div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; flex-wrap: wrap;">
-          ${index > 0 ? `<button type="button" class="btn btn-sm btn-ghost fb-field-up" data-id="${field._id}" title="Move Question Up">⬆️</button>` : ''}
-          ${index < total - 1 ? `<button type="button" class="btn btn-sm btn-ghost fb-field-down" data-id="${field._id}" title="Move Question Down">⬇️</button>` : ''}
-          
-          <button type="button" class="btn btn-sm btn-outline-secondary fb-field-copy" data-id="${field._id}" title="Copy Question to Clipboard" style="font-size: 0.75rem; padding: 2px 6px;">
-            📋 Copy
+        <div class="btn-icon-group flex-shrink-0">
+          ${index > 0 ? `<button type="button" class="btn-icon-action fb-field-up" data-id="${field._id}" data-tooltip="Move Question Up" aria-label="Move Up">⬆️</button>` : ''}
+          ${index < total - 1 ? `<button type="button" class="btn-icon-action fb-field-down" data-id="${field._id}" data-tooltip="Move Question Down" aria-label="Move Down">⬇️</button>` : ''}
+          <button type="button" class="btn-icon-action fb-field-copy" data-id="${field._id}" data-tooltip="Copy Question to Clipboard" aria-label="Copy">📋</button>
+          <button type="button" class="btn-icon-action fb-field-duplicate" data-id="${field._id}" data-tooltip="Instant Duplicate Question" aria-label="Duplicate">📄</button>
+          <button type="button" class="btn-icon-action fb-field-toggle" data-id="${field._id}" data-tooltip="${isActive ? 'Click to Hide Question' : 'Click to Show Question'}" aria-label="Toggle Active">
+            ${isActive ? '🟢' : '⚪'}
           </button>
-          <button type="button" class="btn btn-sm btn-outline-secondary fb-field-duplicate" data-id="${field._id}" title="Instant Duplicate Question" style="font-size: 0.75rem; padding: 2px 6px;">
-            📄 Duplicate
-          </button>
-          <button type="button" class="btn btn-sm btn-ghost fb-field-toggle" data-id="${field._id}" title="${isActive ? 'Hide Question' : 'Show Question'}">
-            ${isActive ? '🟢 Active' : '⚪ Hidden'}
-          </button>
-          
-          <button type="button" class="btn btn-sm btn-outline-primary fb-field-edit" data-id="${field._id}" style="font-size: 0.75rem;">
-            ✏️ Edit
-          </button>
-
-          <button type="button" class="btn btn-sm btn-ghost text-danger fb-field-delete" data-id="${field._id}" title="Delete Question" style="font-size: 0.75rem;">
-            🗑️ Delete
-          </button>
+          <button type="button" class="btn-icon-action fb-field-edit" data-id="${field._id}" data-tooltip="Edit Question Settings" aria-label="Edit">✏️</button>
+          <button type="button" class="btn-icon-action action-delete fb-field-delete" data-id="${field._id}" data-tooltip="Delete Question" aria-label="Delete">🗑️</button>
         </div>
       </div>
     `;

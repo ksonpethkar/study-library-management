@@ -653,8 +653,10 @@ export async function render(container) {
           </td>
           <td class="text-center">
             ${!c.isSystem ? `
-              <button class="btn btn-sm btn-ghost text-primary btn-edit-cat" data-id="${c._id}" data-name="${escapeHTML(c.name)}" data-icon="${escapeHTML(c.icon || '')}" data-color="${escapeHTML(c.color || '#333')}" title="Edit">✏️</button>
-              <button class="btn btn-sm btn-ghost text-danger btn-delete-cat" data-id="${c._id}" title="Delete">🗑️</button>
+              <div class="btn-icon-group justify-content-center">
+                <button type="button" class="btn-icon-action action-edit btn-edit-cat" data-id="${c._id}" data-name="${escapeHTML(c.name)}" data-icon="${escapeHTML(c.icon || '')}" data-color="${escapeHTML(c.color || '#333')}" data-tooltip="Edit Expense Category" aria-label="Edit">✏️</button>
+                <button type="button" class="btn-icon-action action-delete btn-delete-cat" data-id="${c._id}" data-tooltip="Delete Expense Category" aria-label="Delete">🗑️</button>
+              </div>
             ` : '-'}
           </td>
         </tr>
