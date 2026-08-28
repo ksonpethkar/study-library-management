@@ -355,6 +355,8 @@
       box-shadow: 0 4px 14px rgba(108, 92, 231, 0.4); transition: all 0.2s;
     }
     .btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(108, 92, 231, 0.5); }
+    .btn-hero-primary:active, .btn-pill:active, .btn-outline:active { transform: scale(0.96) !important; opacity: 0.9 !important; }
+    .btn-hero-primary.btn-navigating, .btn-pill.btn-navigating { pointer-events: none; opacity: 0.85; filter: brightness(1.1); transform: scale(0.98); }
     .btn-hero-secondary {
       background: var(--surface); color: var(--text);
       border: 1.5px solid var(--border); padding: 14px 28px; border-radius: 12px;
@@ -362,6 +364,7 @@
       transition: all 0.2s;
     }
     .btn-hero-secondary:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-hero-secondary:active { transform: scale(0.96) !important; }
 
     /* Section Shared */
     .section-wrap {
@@ -2138,6 +2141,54 @@
         navigator.serviceWorker.register('/sw.js').catch(() => {});
       });
     }
+
+    // ── Ultra-Fast Instant Pre-loader Engine ──────────────────────────────
+    (function() {
+      const prefetched = new Set();
+      function prefetch(url) {
+        if (!url || prefetched.has(url)) return;
+        prefetched.add(url);
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = url;
+        document.head.appendChild(link);
+      }
+
+      // Pre-warm on page load
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => {
+          prefetch('/register');
+          prefetch('/student-login');
+          prefetch('/api/system/public-config');
+          prefetch('/api/branches/public-list');
+          prefetch('/api/plans');
+        });
+      } else {
+        setTimeout(() => {
+          prefetch('/register');
+          prefetch('/student-login');
+        }, 200);
+      }
+
+      // Instant pre-fetch on hover / touchstart for all navigation links
+      document.addEventListener('mouseover', (e) => {
+        const a = e.target.closest('a[href^="/"]');
+        if (a) prefetch(a.getAttribute('href'));
+      }, { passive: true });
+
+      document.addEventListener('touchstart', (e) => {
+        const a = e.target.closest('a[href^="/"]');
+        if (a) prefetch(a.getAttribute('href'));
+      }, { passive: true });
+
+      // Instant click tactile feedback
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('#hero-cta-primary, #nav-cta-primary, #drawer-cta-primary, .btn-hero-primary, .btn-pill, .btn-outline');
+        if (btn && btn.getAttribute('href')) {
+          btn.classList.add('btn-navigating');
+        }
+      });
+    })();
   </script>
 </body>
 </html>

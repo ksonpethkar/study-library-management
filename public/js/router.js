@@ -116,32 +116,27 @@ export default class Router {
                     document.getElementById('main-content') ||
                     document.querySelector('.main-content');
     
-    if (!content || !content.children.length) {
-      fn();
-      if (content) content.classList.add('page-enter');
+    if (!content) {
+      if (typeof fn === 'function') fn();
       return;
     }
 
-    // Exit animation
+    // Seamless instant transition: start rendering immediately
+    content.classList.remove('page-exit');
     content.classList.remove('page-enter');
-    content.classList.add('page-exit');
     
-    // After exit completes, load new content
-    const onExit = () => {
-      content.classList.remove('page-exit');
-      fn();
-      // Enter animation
+    // Execute page route immediately (0ms delay)
+    if (typeof fn === 'function') fn();
+
+    // Trigger fast 60fps enter animation
+    requestAnimationFrame(() => {
       content.classList.add('page-enter');
-      // Clean up class after animation ends
       const cleanup = () => {
         content.classList.remove('page-enter');
         content.removeEventListener('animationend', cleanup);
       };
       content.addEventListener('animationend', cleanup, { once: true });
-    };
-    
-    // Use animation duration (150ms) or fallback
-    setTimeout(onExit, 150);
+    });
   }
 
   updateSidebarActive(basePath) {
