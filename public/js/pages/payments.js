@@ -390,14 +390,15 @@ export async function render(container) {
                     `}
                 </td>
                 <td>
-                    <div class="d-inline-flex gap-1 align-items-center flex-wrap">
+                    <div class="btn-icon-group">
                         ${p.status === 'pending_verification' ? `
-                            <button class="btn btn-sm btn-success btn-verify-utr" data-id="${p._id}" data-utr="${escapeHTML(p.transactionId || '')}" data-receipt="${escapeHTML(p.receiptNumber || '')}" style="padding: 2px 8px; font-size: 0.78rem; font-weight: 700; background: #00b894; border-color: #00b894;" title="1-Click Approve UTR & Activate Student">✅ Verify</button>
-                            <button class="btn btn-sm btn-outline-danger btn-reject-utr" data-id="${p._id}" data-receipt="${escapeHTML(p.receiptNumber || '')}" style="padding: 2px 6px; font-size: 0.78rem;" title="Reject fake/invalid UTR">❌</button>
+                            <button type="button" class="btn-icon-action action-verify btn-verify-utr" data-id="${p._id}" data-utr="${escapeHTML(p.transactionId || '')}" data-receipt="${escapeHTML(p.receiptNumber || '')}" data-tooltip="Verify UTR (1-Click)" aria-label="Verify UTR">✅</button>
+                            <button type="button" class="btn-icon-action action-reject btn-reject-utr" data-id="${p._id}" data-receipt="${escapeHTML(p.receiptNumber || '')}" data-tooltip="Reject UTR" aria-label="Reject UTR">❌</button>
                         ` : ''}
-                        <button class="btn btn-sm btn-outline-primary btn-view" data-id="${p._id}" style="padding: 3px 8px; font-size: 0.8rem; font-weight: 600;">Receipt</button>
+                        <button type="button" class="btn-icon-action action-receipt btn-view" data-id="${p._id}" data-tooltip="View Receipt" aria-label="View Receipt">🧾</button>
+                        <button type="button" class="btn-icon-action action-whatsapp btn-wa-bill" data-id="${p._id}" data-tooltip="WhatsApp Bill" aria-label="WhatsApp Bill">💬</button>
                         ${p.status === 'partial' && p.balanceDue > 0 ? `
-                            <button class="btn btn-sm btn-warning btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" style="padding: 3px 8px; font-size: 0.8rem;">💰 Pay</button>
+                            <button type="button" class="btn-icon-action action-verify btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" data-tooltip="Pay Due ₹${p.balanceDue}" aria-label="Pay Balance">💰</button>
                         ` : ''}
                         ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
                             { header: 'Level 1: Verification & Receipts' },
@@ -511,6 +512,23 @@ export async function render(container) {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 showReceiptModal(btn.dataset.id);
+            });
+        });
+
+        tbody.querySelectorAll('.btn-wa-bill').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const payment = payments.find(p => p._id === btn.dataset.id);
+                if (!payment) return;
+                const phone = (payment.student?.phone || payment.phone || '').replace(/\D/g, '');
+                if (!phone) {
+                    Toast.error('No student phone number linked');
+                    return;
+                }
+                const cleanPhone = phone.length === 10 ? '91' + phone : phone;
+                const text = `Dear ${payment.student?.name || 'Student'}, your payment of ₹${payment.finalAmount || payment.amount} (Receipt: ${payment.receiptNumber || 'N/A'}) has been recorded. Thank you!`;
+                window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
             });
         });
         tbody.querySelectorAll('.btn-toggle-payment-status').forEach(btn => {

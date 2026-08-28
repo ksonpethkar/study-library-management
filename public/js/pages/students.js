@@ -227,10 +227,11 @@ export async function render() {
             </div>
           </td>
           <td style="white-space: nowrap;">
-            <div class="d-inline-flex gap-1 align-items-center">
-              <button class="btn btn-sm btn-outline-secondary btn-view" data-id="${escapeHTML(s._id)}" title="View 360° Profile" style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">👁️ View</button>
-              <button class="btn btn-sm btn-outline-success btn-wa-remind" data-id="${escapeHTML(s._id)}" title="Send WhatsApp Reminder" style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">📲 WA</button>
-              <button class="btn btn-sm btn-outline-primary btn-edit" data-id="${escapeHTML(s._id)}" title="Edit Student" style="padding: 4px 6px; font-size: 0.75rem;">✏️</button>
+            <div class="btn-icon-group">
+              <button type="button" class="btn-icon-action action-edit btn-view" data-id="${escapeHTML(s._id)}" data-tooltip="View Profile" aria-label="View Profile">👁️</button>
+              <button type="button" class="btn-icon-action action-whatsapp btn-wa-remind" data-id="${escapeHTML(s._id)}" data-tooltip="WhatsApp" aria-label="WhatsApp">💬</button>
+              <button type="button" class="btn-icon-action action-receipt btn-id-pass" data-id="${escapeHTML(s._id)}" data-tooltip="ID Card" aria-label="ID Card">🪪</button>
+              <button type="button" class="btn-icon-action action-edit btn-edit" data-id="${escapeHTML(s._id)}" data-tooltip="Edit" aria-label="Edit">✏️</button>
               ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
                 { header: 'Level 1: Core Operations' },
                 { id: 'view', icon: '👁️', label: 'View 360° Profile', bold: true },

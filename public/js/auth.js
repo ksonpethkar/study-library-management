@@ -225,9 +225,26 @@ export function initLoginPage() {
  * Initialize app-level event listeners (sidebar, header, theme, logout, etc.)
  */
 export async function initAppEvents() {
-  // Sidebar collapse toggle
+  // Sidebar compact rail toggle & persistence
+  const appContainer = document.getElementById('app');
+  const isCompactSaved = localStorage.getItem('sl_sidebar_compact');
+  
+  // Default to compact rail on desktop screens (>= 1200px)
+  if (isCompactSaved === 'true' || (isCompactSaved === null && window.innerWidth >= 1200)) {
+    appContainer?.classList.add('sidebar-collapsed');
+    document.getElementById('sidebar')?.classList.add('collapsed');
+  } else if (isCompactSaved === 'false') {
+    appContainer?.classList.remove('sidebar-collapsed');
+    document.getElementById('sidebar')?.classList.remove('collapsed');
+  }
+
   document.getElementById('sidebar-collapse-btn')?.addEventListener('click', () => {
+    const isCollapsed = appContainer?.classList.toggle('sidebar-collapsed');
     document.getElementById('sidebar')?.classList.toggle('collapsed');
+    localStorage.setItem('sl_sidebar_compact', isCollapsed ? 'true' : 'false');
+    if (window.Toast) {
+      window.Toast.info(isCollapsed ? 'Compact Icon Rail mode' : 'Expanded Sidebar mode');
+    }
   });
 
   // Sidebar logout button

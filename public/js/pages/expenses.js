@@ -355,8 +355,8 @@ export async function render(container) {
             ${formatCurrency(exp.amount)}
           </td>
           <td class="text-center">
-            <div class="d-flex justify-content-center align-items-center gap-1">
-              <button class="btn btn-sm btn-outline-primary btn-edit-exp" data-id="${exp._id}" title="Edit Expense" style="padding: 2px 6px; font-size: 0.75rem;">✏️ Edit</button>
+            <div class="btn-icon-group">
+              <button type="button" class="btn-icon-action action-edit btn-edit-exp" data-id="${exp._id}" data-tooltip="Edit Expense" aria-label="Edit Expense">✏️</button>
               ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
                 { header: 'Level 1: Expense Operations' },
                 { id: 'edit', icon: '✏️', label: 'Edit Expense Details', bold: true },
