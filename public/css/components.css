@@ -4166,14 +4166,12 @@ button.pin-key.key-action:hover {
 /* ========================================================
    CIRCULAR RING ICON ACTION BUTTONS (NO BACKGROUND, PURE RING)
    ======================================================== */
-/* ========================================================
-   CIRCULAR RING ICON ACTION BUTTONS (NO BACKGROUND, PURE RING)
-   ======================================================== */
-.btn-icon-group {
+.btn-icon-group,
+div.btn-icon-group {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 6px !important;
+  gap: 8px !important; /* Standard comfortable breathing space between icons */
   background: transparent !important;
   background-color: transparent !important;
   border: none !important;
@@ -4187,7 +4185,8 @@ button.pin-key.key-action:hover {
 .btn-icon-action,
 .btn-icon-group .btn-icon-action,
 .btn-icon-group .btn-action-menu-trigger,
-button.btn-icon-action {
+button.btn-icon-action,
+a.btn-icon-action {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -4222,10 +4221,16 @@ button.btn-icon-action {
 [data-theme="dark"] .btn-icon-action,
 [data-theme="dark"] .btn-icon-group .btn-icon-action,
 [data-theme="dark"] .btn-icon-group .btn-action-menu-trigger,
+[data-theme="dark"] button.btn-icon-action,
+[data-theme="dark"] a.btn-icon-action,
 body.dark-theme .btn-icon-action,
 body.dark-theme .btn-icon-group .btn-icon-action,
-body.dark-theme .btn-icon-group .btn-action-menu-trigger {
-  border-color: rgba(255, 255, 255, 0.22) !important;
+body.dark-theme .btn-icon-group .btn-action-menu-trigger,
+body.dark-theme button.btn-icon-action,
+body.dark-theme a.btn-icon-action {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  background: transparent !important;
+  background-color: transparent !important;
   color: #f8fafc !important;
 }
 
@@ -4233,17 +4238,22 @@ body.dark-theme .btn-icon-group .btn-action-menu-trigger {
 .btn-icon-action:hover,
 .btn-icon-group .btn-icon-action:hover,
 .btn-icon-group .btn-action-menu-trigger:hover,
-button.btn-icon-action:hover {
+button.btn-icon-action:hover,
+a.btn-icon-action:hover {
   background: transparent !important;
   background-color: transparent !important;
   transform: scale(1.15) !important;
   border-color: var(--color-primary, #6366f1) !important;
-  box-shadow: 0 0 8px rgba(99, 102, 241, 0.35) !important;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.45) !important;
 }
 
 .btn-icon-action:active,
 .btn-icon-group .btn-icon-action:active,
-.btn-icon-group .btn-action-menu-trigger:active {
+.btn-icon-group .btn-action-menu-trigger:active,
+button.btn-icon-action:active,
+a.btn-icon-action:active {
+  background: transparent !important;
+  background-color: transparent !important;
   transform: scale(0.92) !important;
 }
 

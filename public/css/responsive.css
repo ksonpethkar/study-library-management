@@ -2267,15 +2267,15 @@ body.virtual-keyboard-open select:focus {
     box-shadow: none !important;
   }
 
-  /* Reliable finger touch targets for all interactive buttons & controls */
-  button,
-  .btn,
-  .btn-primary,
-  .btn-secondary,
-  .btn-outline-primary,
-  .btn-outline-secondary,
-  .btn-danger,
-  .btn-success,
+  /* Reliable finger touch targets for standard form & action buttons (excluding circular ring icons) */
+  button:not(.btn-icon-action):not(.btn-copy-text):not(.pin-key):not(.voice-search-btn):not(.btn-close):not(.modal-close-btn),
+  .btn:not(.btn-icon-action):not(.btn-copy-text):not(.pin-key),
+  .btn-primary:not(.btn-icon-action),
+  .btn-secondary:not(.btn-icon-action),
+  .btn-outline-primary:not(.btn-icon-action),
+  .btn-outline-secondary:not(.btn-icon-action),
+  .btn-danger:not(.btn-icon-action),
+  .btn-success:not(.btn-icon-action),
   .action-btn,
   .nav-item,
   .mobile-nav-item,
