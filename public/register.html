@@ -3167,61 +3167,76 @@
                     <span>⚡</span> <span>1-Tap Instant Mobile UPI Checkout</span>
                   </div>
                   <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-bottom: 12px;">
-                    Select your preferred UPI app below to pay fee with zero typing.
+                    Scan QR code or use 1-tap UPI app buttons below to pay your admission fee.
                   </div>
 
-                  <div id="upi-mobile-apps-wrap" style="margin: 0 auto 12px auto; max-width: 460px; padding: 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; text-align: center; box-shadow: var(--shadow-sm);">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px;">
-                      <button type="button" class="btn btn-sm upi-intent-btn" data-app="gpay" style="background: #4285F4; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.84rem; padding: 10px 6px; box-shadow: 0 3px 8px rgba(66, 133, 244, 0.25); display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <span style="font-size: 1.2rem;">🔵</span>
-                        <span>Google Pay</span>
-                      </button>
-                      <button type="button" class="btn btn-sm upi-intent-btn" data-app="phonepe" style="background: #5f259f; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.84rem; padding: 10px 6px; box-shadow: 0 3px 8px rgba(95, 37, 159, 0.25); display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <span style="font-size: 1.2rem;">🟣</span>
-                        <span>PhonePe</span>
-                      </button>
-                      <button type="button" class="btn btn-sm upi-intent-btn" data-app="paytm" style="background: #00baf2; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.84rem; padding: 10px 6px; box-shadow: 0 3px 8px rgba(0, 186, 242, 0.25); display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <span style="font-size: 1.2rem;">💙</span>
-                        <span>Paytm</span>
-                      </button>
-                      <button type="button" class="btn btn-sm upi-intent-btn" data-app="generic" style="background: #00b894; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.84rem; padding: 10px 6px; box-shadow: 0 3px 8px rgba(0, 184, 148, 0.25); display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <span style="font-size: 1.2rem;">📲</span>
-                        <span>Any UPI</span>
-                      </button>
+                  <!-- Prominent Official UPI Payment Card -->
+                  <div style="margin: 0 auto 12px auto; max-width: 480px; background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 16px; padding: 16px; text-align: center; box-shadow: var(--shadow-sm);">
+                    
+                    <!-- QR Code Mount -->
+                    <div style="margin-bottom: 12px;">
+                      <div id="admission-upi-qr-mount" style="background: #fff; padding: 12px; border-radius: 14px; display: inline-block; margin: 0 auto 8px auto; border: 1.5px solid var(--color-border); box-shadow: var(--shadow-sm);"></div>
+                      
+                      <!-- UPI ID & Copy Action Bar -->
+                      <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 10px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
+                        <div style="text-align: left;">
+                          <div style="font-size: 0.72rem; color: var(--color-text-muted); font-weight: 600;">Official UPI ID</div>
+                          <span style="font-family: monospace; font-size: 0.92rem; font-weight: 700; color: var(--color-primary);" id="display-upi-id">${escapeHTML(libraryUpiId)}</span>
+                        </div>
+                        <button type="button" id="btn-copy-upi" class="btn btn-sm btn-outline-primary" style="padding: 4px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 8px;">
+                          📋 Copy UPI ID
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- 1-Tap UPI Intent Shortcuts -->
+                    <div style="margin-top: 14px; border-top: 1px dashed var(--color-border); padding-top: 12px;">
+                      <div style="font-size: 0.78rem; font-weight: 700; color: var(--color-text-secondary); margin-bottom: 8px;">
+                        Or Open Directly in Installed UPI App:
+                      </div>
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 8px;">
+                        <button type="button" class="btn btn-sm upi-intent-btn" data-app="gpay" style="background: #4285F4; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px;">
+                          <span style="font-size: 1.15rem;">🔵</span>
+                          <span>GPay</span>
+                        </button>
+                        <button type="button" class="btn btn-sm upi-intent-btn" data-app="phonepe" style="background: #5f259f; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px;">
+                          <span style="font-size: 1.15rem;">🟣</span>
+                          <span>PhonePe</span>
+                        </button>
+                        <button type="button" class="btn btn-sm upi-intent-btn" data-app="paytm" style="background: #00baf2; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px;">
+                          <span style="font-size: 1.15rem;">💙</span>
+                          <span>Paytm</span>
+                        </button>
+                        <button type="button" class="btn btn-sm upi-intent-btn" data-app="generic" style="background: #00b894; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px;">
+                          <span style="font-size: 1.15rem;">📲</span>
+                          <span>Other UPI</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- NPCI Risk Guidance Alert -->
+                    <div style="margin-top: 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 8px 10px; text-align: left; font-size: 0.76rem; color: var(--color-text-secondary); line-height: 1.35;">
+                      <strong style="color: #d97706;">💡 Payment Tip:</strong> If your UPI app shows a security check on 1-tap links, simply <strong>Scan the QR Code</strong> or tap <strong>📋 Copy UPI ID</strong> and pay directly in your UPI app.
                     </div>
 
                     <!-- Auto-Verify Status Banner -->
                     <div id="upi-auto-verify-status" style="display: none; margin-top: 12px; background: rgba(108, 92, 231, 0.08); border: 1.5px solid var(--color-primary); border-radius: 10px; padding: 10px 14px; text-align: center;"></div>
                   </div>
 
-                  <!-- Collapsible QR Code (For Desktop / Laptop Users) -->
-                  <details style="margin: 12px auto; max-width: 460px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 8px 12px; text-align: center;">
-                    <summary style="cursor: pointer; font-size: 0.84rem; font-weight: 700; color: var(--color-primary); user-select: none;">
-                      🖼️ Or Scan QR Code on Another Mobile Phone
-                    </summary>
-                    <div style="padding-top: 10px;">
-                      <div id="admission-upi-qr-mount" style="background: #fff; padding: 10px; border-radius: 12px; display: inline-block; margin: 4px 0; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm);"></div>
-                      <div style="font-family: monospace; font-size: 0.88rem; color: var(--color-text-primary); margin-top: 8px; display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;" id="admission-upi-id-label">
-                        <span>UPI ID: <strong style="color: var(--color-primary);">${escapeHTML(libraryUpiId)}</strong></span>
-                        <button type="button" id="btn-copy-upi" class="btn btn-xs btn-outline-primary" style="padding: 2px 8px; font-size: 0.75rem; border-radius: 4px;">📋 Copy</button>
-                      </div>
-                    </div>
-                  </details>
-
                   <!-- Prominent Manual 12-Digit UTR Input Card -->
-                  <div style="margin: 12px auto 0 auto; max-width: 460px; text-align: left; background: var(--color-surface); padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--color-border); box-shadow: var(--shadow-sm);">
+                  <div style="margin: 12px auto 0 auto; max-width: 480px; text-align: left; background: var(--color-surface); padding: 14px 16px; border-radius: 14px; border: 1.5px solid var(--color-border); box-shadow: var(--shadow-sm);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                      <label class="form-label mb-0" style="font-weight: 700; font-size: 0.86rem; color: var(--color-text-primary);">
+                      <label class="form-label mb-0" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary);">
                         <span>💳</span> 12-Digit Bank UTR / Reference No.
                       </label>
-                      <span class="badge" style="background: rgba(108, 92, 231, 0.12); color: var(--color-primary); font-size: 0.72rem; font-weight: 700;">Required for Direct UPI</span>
+                      <span class="badge" style="background: rgba(108, 92, 231, 0.12); color: var(--color-primary); font-size: 0.72rem; font-weight: 700;">Required</span>
                     </div>
                     <div style="display: flex; gap: 8px;">
                       <input type="text" id="reg-upi-ref" class="form-control" placeholder="e.g. 423819203912 (12 digits)" maxlength="25" style="font-family: monospace; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.5px;">
-                      <button type="button" id="btn-paste-upi-ref" class="btn btn-outline-primary" style="font-size: 0.8rem; padding: 6px 12px; white-space: nowrap; border-radius: 8px;">📋 Paste</button>
+                      <button type="button" id="btn-paste-upi-ref" class="btn btn-outline-primary" style="font-size: 0.8rem; padding: 6px 14px; white-space: nowrap; border-radius: 8px; font-weight: 700;">📋 Paste</button>
                     </div>
-                    <small class="text-muted" id="reg-payment-note-upi" style="font-size: 0.74rem; display: block; margin-top: 5px;">
-                      💡 Find your 12-digit UTR in Google Pay / PhonePe / Paytm payment details and enter above.
+                    <small class="text-muted" id="reg-payment-note-upi" style="font-size: 0.75rem; display: block; margin-top: 6px;">
+                      💡 Find your 12-digit UTR in Google Pay / PhonePe / Paytm payment receipt and paste above to confirm admission.
                     </small>
                   </div>
                 </div>
