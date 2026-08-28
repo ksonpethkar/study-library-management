@@ -125,7 +125,7 @@ export async function render() {
         </div>
         <div class="kpi-card kpi-slate">
           <div class="kpi-label">MAINTENANCE <span>⚪</span></div>
-          <div class="kpi-value" id="stat-maintenance" style="color: #64748b;">-</div>
+          <div class="kpi-value" id="stat-maintenance" style="color: var(--color-text-muted);">-</div>
           <div class="kpi-subtext">Under repair</div>
         </div>
       </div>
@@ -1504,7 +1504,7 @@ function showSeatDetailModal(seat, container) {
         <div class="p-3 mb-3" style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: var(--radius-md);">
           <div class="d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-3">
-              <div style="width: 46px; height: 46px; border-radius: 50%; background: #ef4444; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem;">
+              <div style="width: 46px; height: 46px; border-radius: 50%; background: var(--color-danger); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem;">
                 ${escapeHTML(student.name.charAt(0).toUpperCase())}
               </div>
               <div>
@@ -2374,7 +2374,7 @@ export function showZoneCustomizerModal(container) {
                         <span>🪑 <strong>${z.total}</strong> Desks</span>
                         <span style="color: var(--color-success);">🟢 ${z.available} Vacant</span>
                         <span style="color: var(--color-danger);">🔴 ${z.occupied} Occupied</span>
-                        ${z.reserved > 0 ? `<span style="color: #f59e0b;">🟡 ${z.reserved} Hold</span>` : ''}
+                        ${z.reserved > 0 ? `<span style="color: var(--color-warning);">🟡 ${z.reserved} Hold</span>` : ''}
                       </div>
                     </div>
                   </div>

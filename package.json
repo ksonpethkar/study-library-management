@@ -15,7 +15,9 @@
     "app:admin:init": "node scripts/build_mobile_apps.js admin init",
     "app:admin:sync": "node scripts/build_mobile_apps.js admin sync",
     "app:admin:open": "node scripts/build_mobile_apps.js admin open",
-    "app:build:all": "node scripts/build_mobile_apps.js all sync"
+    "app:build:all": "node scripts/build_mobile_apps.js all sync",
+    "minify": "node scripts/minify.js",
+    "minify:dry": "node scripts/minify.js --dry"
   },
   "keywords": [
     "library",
@@ -48,5 +50,8 @@
     "multer": "^2.2.0",
     "node-cron": "^4.6.0",
     "nodemailer": "^9.0.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

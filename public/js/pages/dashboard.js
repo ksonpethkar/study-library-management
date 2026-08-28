@@ -416,7 +416,7 @@ function openCustomizeModal(onSaved) {
                 <label class="switch-label" style="margin-left: 8px;">
                   <input type="checkbox" class="widget-toggle-input" data-index="${idx}" ${w.isEnabled ? 'checked' : ''}>
                   <span class="switch-slider"></span>
-                  <span class="small ms-1" style="font-size: 12px; min-width: 32px; font-weight: 700; color: ${w.isEnabled ? '#10b981' : 'var(--color-text-muted, #888)'};">
+                  <span class="small ms-1" style="font-size: 12px; min-width: 32px; font-weight: 700; color: ${w.isEnabled ? 'var(--color-success)' : 'var(--color-text-muted, #888)'};">
                     ${w.isEnabled ? 'ON' : 'OFF'}
                   </span>
                 </label>
@@ -698,11 +698,11 @@ export async function render(container) {
         margin-bottom: 1.25rem;
       ">
         <a href="#/students" class="admin-app-tile" title="Manage Students & Admissions" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
-          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.08)); color: #6366f1;">🎓</div>
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.08)); color: var(--color-primary);">🎓</div>
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Students</div>
         </a>
         <a href="#/seats" class="admin-app-tile" title="Seat Matrix & Floor Plan" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
-          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08)); color: #10b981;">💺</div>
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08)); color: var(--color-success);">💺</div>
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Seats</div>
         </a>
         <a href="#/payments" class="admin-app-tile" title="Fee Collections & Invoices" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
@@ -718,7 +718,7 @@ export async function render(container) {
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Expenses</div>
         </a>
         <a href="#/notifications" class="admin-app-tile" title="Send WhatsApp & Push Alerts" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
-          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08)); color: #f59e0b;">📢</div>
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08)); color: var(--color-warning);">📢</div>
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Broadcast</div>
         </a>
         <a href="#/reports" class="admin-app-tile" title="Business Analytics & Tax Reports" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
@@ -726,7 +726,7 @@ export async function render(container) {
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Reports</div>
         </a>
         <a href="#/settings" class="admin-app-tile" title="System & POS Configuration" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
-          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(100, 116, 139, 0.18), rgba(100, 116, 139, 0.08)); color: #64748b;">⚙️</div>
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(100, 116, 139, 0.18), rgba(100, 116, 139, 0.08)); color: var(--color-text-muted);">⚙️</div>
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Settings</div>
         </a>
       </div>

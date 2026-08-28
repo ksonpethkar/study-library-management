@@ -10,6 +10,7 @@ import SmartLoading from './smartLoading.js';
 import { promptPWAInstall } from './pwaManager.js';
 import { SidebarSortable } from './dragDrop.js';
 import ErrorBoundary from './errorBoundary.js';
+import PerformanceMonitor from './performanceMonitor.js';
 
 /**
  * Global Crash Catchers & Error Recovery
@@ -78,6 +79,7 @@ class Application {
   async init() {
     ErrorBoundary.init();
     SmartLoading.init();
+    PerformanceMonitor.init();
 
     // Apply saved theme
     const savedTheme = localStorage.getItem('sl_theme') ||
@@ -646,6 +648,7 @@ class Application {
    * Transition to a page with animation and page-specific loading screen
    */
   showPage(pageId, renderFn) {
+    const _perfStart = performance.now();
     const content = document.getElementById('page-content');
     if (!content) return;
 
@@ -715,6 +718,12 @@ class Application {
     };
 
     doRender();
+
+    requestAnimationFrame(() => {
+      if (window.PerformanceMonitor) {
+        window.PerformanceMonitor.trackPageLoad(pageId, performance.now() - _perfStart);
+      }
+    });
   }
 
   /**

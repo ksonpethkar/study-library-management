@@ -191,7 +191,7 @@ export async function render() {
     let rowsHtml = state.students.map(s => {
       let statusStyle = 'background: rgba(255,255,255,0.08); color: #ccc;';
       if (s.status === 'active') statusStyle = 'background: rgba(0, 184, 148, 0.2); color: var(--color-success, #00b894);';
-      else if (s.status === 'pending_payment' || s.status === 'pending') statusStyle = 'background: rgba(245, 158, 11, 0.2); color: var(--color-warning, #f59e0b);';
+      else if (s.status === 'pending_payment' || s.status === 'pending') statusStyle = 'background: rgba(245, 158, 11, 0.2); color: var(--color-warning, var(--color-warning));';
       else if (s.status === 'expired') statusStyle = 'background: rgba(214, 48, 49, 0.2); color: var(--color-danger, #d63031);';
       else if (s.status === 'suspended') statusStyle = 'background: rgba(253, 203, 110, 0.2); color: var(--color-warning, #fdcb6e);';
 
@@ -218,11 +218,11 @@ export async function render() {
           <td class="col-status" style="white-space: nowrap;"><span class="badge btn-toggle-student-status" data-id="${escapeHTML(s._id)}" style="${statusStyle} padding: 4px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; cursor: pointer;" title="Click to toggle status">${escapeHTML(s.status || 'active')}</span></td>
           <td style="white-space: nowrap;">
             <div style="width: 85px;" title="KYC Profile Completion: ${s.profileCompletion || 60}%">
-              <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.72rem; font-weight: 800; color: ${s.profileCompletion >= 100 ? 'var(--color-success)' : '#f59e0b'}; margin-bottom: 2px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.72rem; font-weight: 800; color: ${s.profileCompletion >= 100 ? 'var(--color-success)' : 'var(--color-warning)'}; margin-bottom: 2px;">
                 <span>${s.profileCompletion >= 100 ? '🟢 100%' : `🟡 ${s.profileCompletion || 60}%`}</span>
               </div>
               <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow: hidden;">
-                <div style="height: 100%; width: ${s.profileCompletion || 60}%; background: ${s.profileCompletion >= 100 ? '#00b894' : 'linear-gradient(90deg, #f59e0b, #00b894)'}; border-radius: 4px;"></div>
+                <div style="height: 100%; width: ${s.profileCompletion || 60}%; background: ${s.profileCompletion >= 100 ? '#00b894' : 'linear-gradient(90deg, var(--color-warning), #00b894)'}; border-radius: 4px;"></div>
               </div>
             </div>
           </td>
@@ -842,7 +842,7 @@ export async function render() {
           <div class="${colClass} dynamic-field-wrapper" ${depAttr}>
             <label class="form-label" style="font-weight: 500;">⭐ ${escapeHTML(f.label)}${reqMark}</label>
             <div class="star-rating-wrap modal-star-rating" data-field="${escapeHTML(f.fieldName)}" style="display: inline-flex; gap: 6px; font-size: 1.4rem; cursor: pointer;">
-              ${[1, 2, 3, 4, 5].map(v => `<span class="star-rating-item ${v <= curRating ? 'active' : ''}" data-val="${v}" style="color: ${v <= curRating ? '#f59e0b' : '#d1d5db'};">★</span>`).join('')}
+              ${[1, 2, 3, 4, 5].map(v => `<span class="star-rating-item ${v <= curRating ? 'active' : ''}" data-val="${v}" style="color: ${v <= curRating ? 'var(--color-warning)' : '#d1d5db'};">★</span>`).join('')}
             </div>
             <input type="hidden" class="custom-dyn-input" data-field="${escapeHTML(f.fieldName)}" name="${escapeHTML(f.fieldName)}" value="${curRating}">
             ${helpText}
@@ -1612,7 +1612,7 @@ export async function render() {
           stars.forEach((s, idx) => {
             if (idx < val) {
               s.classList.add('active');
-              s.style.color = '#f59e0b';
+              s.style.color = 'var(--color-warning)';
             } else {
               s.classList.remove('active');
               s.style.color = '#d1d5db';
@@ -2147,7 +2147,7 @@ export async function render() {
       <div style="font-family: 'Outfit', sans-serif;">
         <!-- Student Header Card -->
         <div style="display: flex; align-items: center; gap: 16px; padding: 16px; background: var(--color-surface-hover); border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--color-border);">
-          <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 24px; color: #fff; font-weight: 700; overflow: hidden;">
+          <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, var(--color-primary), #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 24px; color: #fff; font-weight: 700; overflow: hidden;">
             ${student.photo ? `<img src="${student.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : (student.name || 'S').charAt(0)}
           </div>
           <div style="flex: 1;">

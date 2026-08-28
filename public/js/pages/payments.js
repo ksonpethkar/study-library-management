@@ -72,7 +72,7 @@ export async function render(container) {
         <div id="payments-bulk-bar" style="
           display: none; position: sticky; top: 64px; z-index: 98;
           margin-bottom: 1rem;
-          background: linear-gradient(135deg, #1e293b, #0f172a);
+          background: linear-gradient(135deg, #1e293b, var(--color-text-primary));
           color: #fff; padding: 10px 16px; border-radius: 12px;
           box-shadow: 0 4px 24px rgba(0,0,0,0.4);
           align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
