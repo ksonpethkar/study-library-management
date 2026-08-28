@@ -21,13 +21,13 @@ const TYPE_CONFIG = {
   plan: { label: 'Membership Plans', icon: '💎', color: '#f59e0b' },
   shift: { label: 'Study Shifts', icon: '⏰', color: '#06b6d4' },
   branch: { label: 'Branches', icon: '🏢', color: '#ec4899' },
-  locker: { label: 'Lockers', icon: '🔒', color: '#64748b' },
+  locker: { label: 'Lockers', icon: '🔒', color: 'var(--color-text-muted)' },
   custom_field: { label: 'Custom Questions', icon: '📝', color: '#14b8a6' },
   coupon: { label: 'Coupons / Promos', icon: '🎟️', color: '#f97316' },
   waiting_list: { label: 'Waitlist', icon: '⏳', color: '#a855f7' },
   announcement: { label: 'Notices', icon: '📢', color: '#eab308' },
   holiday: { label: 'Holidays', icon: '🏖️', color: '#06b6d4' },
-  visitor: { label: 'Visitors', icon: '👥', color: '#64748b' },
+  visitor: { label: 'Visitors', icon: '👥', color: 'var(--color-text-muted)' },
   lost_found: { label: 'Lost & Found', icon: '🔍', color: '#f43f5e' },
   feedback: { label: 'Feedback', icon: '💬', color: '#8b5cf6' }
 };
@@ -265,7 +265,7 @@ async function _loadTrashList() {
           </thead>
           <tbody>
             ${items.map(item => {
-              const cfg = TYPE_CONFIG[item.itemType] || { label: item.itemType, icon: '📦', color: '#64748b' };
+              const cfg = TYPE_CONFIG[item.itemType] || { label: item.itemType, icon: '📦', color: 'var(--color-text-muted)' };
               const timeStr = _formatRelativeDate(item.deletedAt);
               const isSelected = selectedItemIds.has(item._id);
 
