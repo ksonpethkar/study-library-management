@@ -716,9 +716,12 @@
   <!-- Header Navbar -->
   <nav class="landing-nav">
     <div class="nav-container">
-      <a href="/landing" class="nav-brand">
+      <a href="/landing" class="nav-brand" title="The Cozy Corner Centre Study Library & Reading Hall">
         <span class="nav-logo" id="nav-logo-icon">📚</span>
-        <span id="nav-brand-name">The Cozy Corner Centre</span>
+        <div style="display: flex; flex-direction: column; text-align: left;">
+          <span id="nav-brand-name" style="font-weight: 800; font-size: 1.15rem; line-height: 1.2;">The Cozy Corner Centre</span>
+          <span id="nav-brand-sub" style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); line-height: 1.1;">Study Library &amp; Reading Hall</span>
+        </div>
       </a>
 
       <ul class="nav-menu" id="nav-menu-list">
@@ -751,7 +754,13 @@
   <!-- Mobile Drawer -->
   <div class="mobile-drawer" id="mobile-drawer">
     <div class="drawer-header">
-      <div class="nav-brand"><span class="nav-logo">📚</span> <span id="drawer-brand-name">The Cozy Corner Centre</span></div>
+      <div class="nav-brand">
+        <span class="nav-logo">📚</span>
+        <div style="display: flex; flex-direction: column; text-align: left;">
+          <span id="drawer-brand-name" style="font-weight: 800; font-size: 1.1rem; line-height: 1.2;">The Cozy Corner Centre</span>
+          <span id="drawer-brand-sub" style="font-size: 0.72rem; font-weight: 600; color: var(--text-muted);">Study Library &amp; Reading Hall</span>
+        </div>
+      </div>
       <button class="drawer-close" onclick="toggleMobileMenu()">×</button>
     </div>
     <div class="drawer-links" id="drawer-links-container" onclick="toggleMobileMenu()">
@@ -779,7 +788,7 @@
       </div>
 
       <h1 class="hero-title" id="hero-title">
-        <span>Study Library</span> & Reading Hall
+        <span>The Cozy Corner Centre</span> Study Library &amp; Reading Hall
       </h1>
 
       <p class="hero-subtitle" id="hero-subtitle">
@@ -1488,12 +1497,16 @@
                 t = t.replace(/{library_name}/gi, brandName);
               }
               if (!t.includes('<span>') && !t.includes('</span>')) {
-                if (brandName && t.includes(brandName)) {
+                if (t.includes('The Cozy Corner Centre')) {
+                  t = t.replace('The Cozy Corner Centre', '<span>The Cozy Corner Centre</span>');
+                } else if (t.includes('The Cozy Corner')) {
+                  t = t.replace('The Cozy Corner', '<span>The Cozy Corner</span>');
+                } else if (brandName && t.includes(brandName)) {
                   t = t.replace(brandName, `<span>${escapeHTML(brandName)}</span>`);
                 } else {
                   const words = t.split(' ');
-                  if (words.length > 2) {
-                    t = `<span>${escapeHTML(words.slice(0, 2).join(' '))}</span> ${escapeHTML(words.slice(2).join(' '))}`;
+                  if (words.length > 4) {
+                    t = `<span>${escapeHTML(words.slice(0, 4).join(' '))}</span> ${escapeHTML(words.slice(4).join(' '))}`;
                   } else {
                     t = `<span>${escapeHTML(t)}</span>`;
                   }

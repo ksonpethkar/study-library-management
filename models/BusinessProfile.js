@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const businessProfileSchema = new mongoose.Schema({
   businessName: {
     type: String,
-    default: 'The Cozy Corner Centre'
+    default: 'The Cozy Corner Centre Study Library & Reading Hall'
   },
   tagline: String,
   logo: String,
