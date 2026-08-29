@@ -2046,18 +2046,27 @@ export const ActionMenu = {
         height: 'auto'
       });
 
-      const sheetEl = document.getElementById('bottom-sheet');
+      // sheet IS the bottom-sheet DOM element (returned by BottomSheet.open())
+      // Attach listener directly on it (getElementById('bottom-sheet') would fail since no id is set)
+      const sheetEl = sheet instanceof HTMLElement
+        ? sheet
+        : document.querySelector('.bottom-sheet');
+
       if (sheetEl) {
-        sheetEl.addEventListener('click', (e) => {
+        // Use both click and touchend to maximise mobile reliability
+        const sheetActionHandler = (e) => {
           const item = e.target.closest('.action-menu-item, .btn-mobile-sheet-action');
           if (!item) return;
           e.preventDefault();
           e.stopPropagation();
           const action = item.dataset.action;
           const id = item.dataset.id || entityId;
-          if (sheet && sheet.close) sheet.close();
-          executeAction(action, id);
-        });
+          // Close the sheet then execute
+          BottomSheet.close();
+          setTimeout(() => executeAction(action, id), 80);
+        };
+        sheetEl.addEventListener('click', sheetActionHandler);
+        sheetEl.addEventListener('touchend', sheetActionHandler, { passive: false });
       }
       return;
     }
@@ -2210,18 +2219,37 @@ if (typeof document !== 'undefined') {
       return;
     }
 
-    // Outside click closes active floating menu
-    if (!e.target.closest('#floating-action-menu-portal, #bottom-sheet')) {
+    // Outside click closes active floating menu (not bottom-sheet)
+    if (!e.target.closest('#floating-action-menu-portal, #bottom-sheet, .bottom-sheet-overlay')) {
       ActionMenu.closeAll();
     }
   });
 
-  window.addEventListener('resize', () => ActionMenu.closeAll());
-  window.addEventListener('scroll', () => ActionMenu.closeAll(), { passive: true });
+  // Also handle touchend for mobile tap reliability on the menu trigger
+  document.addEventListener('touchend', (e) => {
+    const trigger = e.target.closest('.btn-action-menu-trigger');
+    if (!trigger) return;
+    // Let the click handler fire; prevent double-tap zoom
+    e.preventDefault();
+  }, { passive: false });
+
+  window.addEventListener('resize', () => {
+    // Only close desktop floating menu on resize, not bottom sheet
+    if (ActionMenu._activeFloatingMenu && !document.getElementById('bottom-sheet')) {
+      ActionMenu.closeAll();
+    }
+  });
+  window.addEventListener('scroll', () => {
+    // Only close desktop floating portal menu on scroll; bottom sheet stays open
+    if (ActionMenu._activeFloatingMenu) {
+      ActionMenu.closeAll();
+    }
+  }, { passive: true });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') ActionMenu.closeAll();
   });
 }
+
 
 /**
  * Virtual Keyboard Viewport Responsiveness Listener

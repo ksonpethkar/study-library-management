@@ -6,6 +6,7 @@ import api from '../api.js';
 import { IDBStorage } from '../utils/idbStorage.js';
 import { OptimisticUI } from '../utils/optimisticUI.js';
 import { buildReceiptHTML, printReceiptDocument } from '../pdfGenerator.js';
+import { PaymentStudio } from '../paymentStudio.js';
 
 const formatCurrency = (amount) => SmartFormatters.currency(amount);
 
@@ -1055,10 +1056,13 @@ export async function render(container) {
         const payTxnInput = content.querySelector('#payTransactionId');
         const utrWarnMsg = content.querySelector('#utrWarnMsg');
 
-        // Dynamic Payment Method UI Adapter
+        // Dynamic Payment Method UI Adapter with PaymentStudio
         const updatePaymentMethodUI = () => {
             const method = payMethodSelect?.value || 'upi';
-            const upiId = window.store?.settings?.businessProfile?.upiId || window.store?.profile?.upiId || '';
+            const amount = parseFloat(payAmount?.value) || 0;
+            const discount = parseFloat(payDiscount?.value) || 0;
+            const late = parseFloat(payLateFee?.value) || 0;
+            const final = Math.max(0, amount - discount + late);
 
             if (method === 'cash') {
                 if (payTxnLabel) payTxnLabel.innerHTML = '💵 Cash Collector Note / Register Slip (Optional)';
@@ -1076,12 +1080,8 @@ export async function render(container) {
                 if (payTxnLabel) payTxnLabel.innerHTML = '🏛️ Bank NEFT / IMPS / RTGS UTR Number *';
                 if (payTxnInput) payTxnInput.placeholder = 'e.g. Bank Ref # / IMPS Transaction Reference';
                 if (payMethodContext) {
-                    payMethodContext.innerHTML = `
-                        <div style="background: rgba(9, 132, 227, 0.1); border: 1px solid #0984e3; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
-                            <span>🏛️</span>
-                            <span><strong>Bank Transfer:</strong> Direct deposit / IMPS / NEFT into library bank account.</span>
-                        </div>
-                    `;
+                    payMethodContext.innerHTML = PaymentStudio.renderBankDetailsWidget();
+                    PaymentStudio.attachEventListeners(payMethodContext);
                 }
                 if (utrWarnMsg) utrWarnMsg.style.display = 'none';
             } else if (method === 'card') {
@@ -1097,16 +1097,17 @@ export async function render(container) {
                 }
                 if (utrWarnMsg) utrWarnMsg.style.display = 'none';
             } else {
-                // Default: UPI
+                // Default: High-Conversion UPI Studio
                 if (payTxnLabel) payTxnLabel.innerHTML = '⚡ UPI / 12-Digit UTR Transaction ID *';
                 if (payTxnInput) payTxnInput.placeholder = 'e.g. 12-digit UTR (e.g. 423456789012)';
                 if (payMethodContext) {
-                    payMethodContext.innerHTML = `
-                        <div style="background: rgba(108, 92, 231, 0.1); border: 1px solid var(--color-primary, #6c5ce7); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                            <span>📱 <strong>UPI Payment:</strong> Instant collection via GPay, PhonePe, Paytm, BHIM.</span>
-                            ${upiId ? `<span class="badge" style="background: var(--color-primary); color: #fff; font-family: monospace; font-size: 0.78rem;">UPI: ${escapeHTML(upiId)}</span>` : ''}
-                        </div>
-                    `;
+                    payMethodContext.innerHTML = PaymentStudio.renderUPIWidget({
+                        amount: final,
+                        note: 'Library Fee Payment',
+                        showUtrInput: false,
+                        mountId: 'collect-pay-upi-qr-mount'
+                    });
+                    PaymentStudio.attachEventListeners(payMethodContext);
                 }
             }
         };
@@ -1122,6 +1123,17 @@ export async function render(container) {
             const late = parseFloat(payLateFee.value) || 0;
             const final = Math.max(0, amount - discount + late);
             finalDisplay.textContent = formatCurrency(final);
+
+            // Dynamically refresh UPI QR if UPI is active
+            if (payMethodSelect?.value === 'upi' && payMethodContext) {
+                payMethodContext.innerHTML = PaymentStudio.renderUPIWidget({
+                    amount: final,
+                    note: 'Library Fee Payment',
+                    showUtrInput: false,
+                    mountId: 'collect-pay-upi-qr-mount'
+                });
+                PaymentStudio.attachEventListeners(payMethodContext);
+            }
         };
 
         [payAmount, payDiscount, payLateFee].forEach(input => {

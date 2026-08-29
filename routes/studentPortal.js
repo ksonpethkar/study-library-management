@@ -948,7 +948,13 @@ router.get('/renewal-quote', async (req, res) => {
         selectedPlanId: selectedPlan?._id || '',
         selectedShiftId: selectedShift?._id || '',
         planName: selectedPlan?.name || 'Standard Study Plan',
-        durationDays: selectedPlan?.duration || 30,
+        durationDays: (() => {
+          const dur = selectedPlan?.duration || 30;
+          const dt = selectedPlan?.durationType || 'days';
+          if (dt === 'months') return dur * 30;
+          if (dt === 'years') return dur * 365;
+          return dur;
+        })(),
         basePrice,
         discount,
         availableWalletBalance,
@@ -1008,7 +1014,9 @@ router.post('/renewal-request', async (req, res) => {
       targetPlan = typeof student.plan === 'object' ? student.plan : await Plan.findById(student.plan).lean();
     }
 
-    const durationDays = targetPlan?.duration || 30;
+    const rawDur = targetPlan?.duration || 30;
+    const durType = targetPlan?.durationType || 'days';
+    const durationDays = durType === 'months' ? rawDur * 30 : durType === 'years' ? rawDur * 365 : rawDur;
     const basePrice = targetPlan?.price || 1000;
     const planDiscount = targetPlan?.discount ? Math.round(basePrice * targetPlan.discount / 100) : 0;
     

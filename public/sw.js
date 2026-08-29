@@ -2,7 +2,7 @@
  * Study Library Management System — Service Worker (PWA) v4
  * Phase 4: Updated cache, offline fallback page, stale-while-revalidate
  */
-const CACHE_NAME = 'studylib-pwa-v60';
+const CACHE_NAME = 'studylib-pwa-v61';
 
 // All static assets to pre-cache on install
 const STATIC_ASSETS = [
@@ -45,6 +45,7 @@ const STATIC_ASSETS = [
   '/js/pdfGenerator.js',
   '/js/signatureStudio.js',
   '/js/mediaStudio.js',
+  '/js/paymentStudio.js',
   '/js/errorBoundary.js',
   '/js/smartLoading.js',
   '/js/performanceMonitor.js'

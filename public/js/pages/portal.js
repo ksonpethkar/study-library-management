@@ -21,8 +21,17 @@ export async function render() {
   `;
 
   try {
-    const res = await api.get('/api/student-portal/dashboard');
+    // Fetch dashboard data + portal feature flags in parallel for fast load
+    const [res, configRes] = await Promise.all([
+      api.get('/api/student-portal/dashboard'),
+      api.get('/api/student-portal/config').catch(() => null)
+    ]);
     if (!res.success || !res.data) throw new Error(res.message);
+
+    // Merge feature flags into window.store for universal access
+    const features = configRes?.data?.features || {};
+    if (!window.store) window.store = {};
+    window.store.portalFeatures = features;
 
     let analytics = null;
     try {
@@ -33,6 +42,9 @@ export async function render() {
     }
 
     renderPortalUI(container, res.data, analytics);
+
+    // Apply feature flags to hide/show sections after render
+    applyPortalFeatureFlags(container, features);
 
     // ── Phase 2: Inject full-year heatmap into student portal ────────────────
     // Runs after the portal HTML is in the DOM
@@ -75,7 +87,53 @@ export async function render() {
   return container;
 }
 
+/**
+ * Apply admin portal feature flags to show/hide portal sections.
+ * Called after renderPortalUI() so elements exist in the DOM.
+ * Feature keys match those in settings.js renderStudentPortalStudio().
+ */
+function applyPortalFeatureFlags(container, features = {}) {
+  // Helper: feature is ON unless explicitly set to false
+  const isOn = (key) => features[key] !== false && features[key] !== 'false' && features[key] !== 0;
+
+  // Map feature keys to selector patterns for matching portal sections
+  const featureMap = [
+    { key: 'enableOnlineRenewal',    selectors: ['#btn-portal-renew', '#tile-portal-renew', '[data-feature="renewal"]', '.portal-renewal-section'] },
+    { key: 'enableSeatTransfer',     selectors: ['#btn-portal-seat-change', '#tile-portal-seat-change', '[data-feature="seat-transfer"]', '.portal-seat-transfer-section'] },
+    { key: 'enableShiftSwitch',      selectors: ['#btn-portal-leave', '#tile-portal-leave', '[data-feature="shift-switch"]', '.portal-shift-switch-section'] },
+    { key: 'enableIdPassDownload',   selectors: ['#btn-portal-id-pass', '#tile-portal-id-pass', '[data-feature="id-pass"]', '.portal-id-pass-section'] },
+    { key: 'enableReceiptDownload',  selectors: ['#btn-portal-receipts', '#tile-portal-receipts', '[data-feature="receipts"]', '.portal-receipts-section'] },
+    { key: 'enableProfileEdit',      selectors: ['#btn-portal-edit-profile', '#tile-portal-edit-profile', '[data-feature="profile-edit"]', '.portal-profile-edit-section'] },
+    { key: 'enableGamifiedBadges',   selectors: ['[data-feature="badges"]', '.portal-badges-section', '.portal-streak-section', '.study-streak-card'] },
+    { key: 'enableReferralProgram',  selectors: ['[data-feature="referral"]', '.portal-referral-section', '#portal-referral-card'] },
+    { key: 'enableAttendanceLogs',   selectors: ['[data-feature="heatmap"]', '.portal-analytics-card', '#portal-analytics-section', '#portal-year-heatmap'] },
+    { key: 'enableAnnouncements',    selectors: ['[data-feature="announcements"]', '.portal-announcements-section', '#portal-announcements-card'] },
+    { key: 'enableLockerRequests',   selectors: ['[data-feature="locker"]', '.portal-locker-section', '#btn-portal-locker'] },
+  ];
+
+  featureMap.forEach(({ key, selectors }) => {
+    const enabled = isOn(key);
+    selectors.forEach(sel => {
+      container.querySelectorAll(sel).forEach(el => {
+        if (!enabled) {
+          el.style.display = 'none';
+          el.setAttribute('data-feature-disabled', '1');
+        } else {
+          if (el.getAttribute('data-feature-disabled') === '1') {
+            el.style.display = '';
+            el.removeAttribute('data-feature-disabled');
+          }
+        }
+      });
+    });
+  });
+
+  // Store features for later event handler checks
+  window._portalFeatures = features;
+}
+
 function formatPunchTime(val) {
+
   if (!val) return '';
   try {
     const d = new Date(val);
@@ -2986,11 +3044,16 @@ function renderPortalUI(container, data, analytics = null) {
               <div class="col-md-6">
                 <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Select Membership Plan *</label>
                 <select id="renewal-plan-select" class="form-select" style="font-weight: 600;">
-                  ${(q.allPlans || []).map(p => `
+                  ${(q.allPlans || []).map(p => {
+                    const dt = p.durationType || 'days';
+                    const d = p.duration || 30;
+                    const durLabel = dt === 'months' ? `${d} Month${d > 1 ? 's' : ''}` : dt === 'years' ? `${d} Year${d > 1 ? 's' : ''}` : `${d} Day${d !== 1 ? 's' : ''}`;
+                    return `
                     <option value="${p._id}" ${String(p._id) === String(q.selectedPlanId) ? 'selected' : ''}>
-                      ${escapeHTML(p.name)} — ₹${Number(p.price || 0).toLocaleString('en-IN')} (${p.duration || 30} Days)
-                    </option>
-                  `).join('')}
+                      ${escapeHTML(p.name)} — ₹${Number(p.price || 0).toLocaleString('en-IN')} (${durLabel})
+                    </option>`;
+                  }).join('')}
+
                 </select>
               </div>
 
@@ -3047,7 +3110,7 @@ function renderPortalUI(container, data, analytics = null) {
               <h4 style="margin: 6px 0 2px 0; font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary);">
                 ${escapeHTML(q.planName)}
               </h4>
-              <p class="text-muted small" style="margin: 0; font-size: 0.8rem;">Extends membership by ${q.durationDays} days from expiry.</p>
+              <p class="text-muted small" style="margin: 0; font-size: 0.8rem;">Extends membership by ${q.durationDays >= 365 ? Math.round(q.durationDays / 365) + ' Year(s)' : q.durationDays >= 28 ? Math.round(q.durationDays / 30) + ' Month(s)' : q.durationDays + ' Day(s)'} from expiry.</p>
             </div>
 
             <!-- Fee Calculation Table -->
