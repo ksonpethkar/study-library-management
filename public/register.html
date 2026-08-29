@@ -1047,6 +1047,7 @@
     function renderDynamicFieldHtml(f) {
       if (!f) return '';
       const name = (f.fieldName || f.name || '').trim();
+      const fieldName = name;
       const lowerName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
       const type = f.type || 'text';
       const label = f.label || name;
@@ -1279,7 +1280,7 @@
           <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
             <div class="form-group mb-2">
               <label class="form-label" style="font-weight: 600;">🚨 ${escapeHTML(label)}${reqMark}</label>
-              <input type="text" id="reg-emergency-name" name="emergencyName" class="form-control custom-dyn-input" data-field="${escapeHTML(fieldName)}" placeholder="${escapeHTML(placeholder || 'Parent / Guardian Full Name')}" ${required}>
+              <input type="text" id="reg-emergency-name" name="emergencyName" class="form-control custom-dyn-input" data-field="${escapeHTML(name)}" placeholder="${escapeHTML(placeholder || 'Parent / Guardian Full Name')}" ${required}>
               ${helpText}
             </div>
           </div>
@@ -1290,7 +1291,7 @@
           <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
             <div class="form-group mb-2">
               <label class="form-label" style="font-weight: 600;">📞 ${escapeHTML(label)}${reqMark}</label>
-              <input type="tel" id="reg-emergency-phone" name="emergencyPhone" class="form-control custom-dyn-input" data-field="${escapeHTML(fieldName)}" placeholder="${escapeHTML(placeholder || '10-digit emergency contact phone')}" maxlength="10" ${required}>
+              <input type="tel" id="reg-emergency-phone" name="emergencyPhone" class="form-control custom-dyn-input" data-field="${escapeHTML(name)}" placeholder="${escapeHTML(placeholder || '10-digit emergency contact phone')}" maxlength="10" ${required}>
               ${helpText}
             </div>
           </div>
@@ -1301,7 +1302,7 @@
           <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
             <div class="form-group mb-2">
               <label class="form-label" style="font-weight: 600;">👥 ${escapeHTML(label)}${reqMark}</label>
-              <select id="reg-emergency-relation" name="relationship" class="form-select custom-dyn-input" data-field="${escapeHTML(fieldName)}">
+              <select id="reg-emergency-relation" name="relationship" class="form-select custom-dyn-input" data-field="${escapeHTML(name)}">
                 <option value="Parent" selected>Parent</option>
                 <option value="Guardian">Guardian</option>
                 <option value="Father">Father</option>
