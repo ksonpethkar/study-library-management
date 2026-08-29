@@ -138,17 +138,22 @@ export async function render(container) {
                     <button id="btnFilterPendingVerification" class="btn btn-sm w-100 w-md-auto" style="font-weight: 700; border: 1.5px solid #f39c12; color: #b78103; background: rgba(243, 156, 18, 0.12);">⚡ Verification Queue</button>
                     <button id="btnPendingInstallments" class="btn btn-sm btn-outline-warning w-100 w-md-auto" style="font-weight: 600;">⏳ Balances</button>
                     <button id="btnExportPaymentsCSV" class="btn btn-sm btn-outline-success w-100 w-md-auto" style="font-weight: 600;">📥 Export CSV</button>
+                    <button type="button" id="btnTogglePayFeed" class="btn btn-sm btn-outline-primary w-100 w-md-auto" style="font-weight: 700; border-radius: 999px;" title="Switch between Card Feed and Table View">📱 Feed View</button>
                 </div>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                <!-- Sleek Transaction Feed View (Matches User Shared Image) -->
+                <div id="paymentsFeedContainer" class="p-3" style="display: none;"></div>
+
+                <!-- Standard Data Table View -->
+                <div class="table-responsive" id="paymentsTableWrapper">
                     <table class="table data-table mb-0">
                         <thead>
                             <tr>
                                 <th style="width: 36px; padding: 8px 10px;">
                                   <input type="checkbox" id="payments-check-all" title="Select all" style="cursor: pointer; width: 16px; height: 16px;">
                                 </th>
-                                <th>Receipt #</th>
+                                <th>Receipt / Transaction</th>
                                 <th>Student</th>
                                 <th>Amount</th>
                                 <th>Method</th>
@@ -220,6 +225,26 @@ export async function render(container) {
 
         const btnExport = container.querySelector('#btnExportPaymentsCSV');
         if (btnExport) btnExport.addEventListener('click', exportPaymentsCSV);
+
+        const btnToggleFeed = container.querySelector('#btnTogglePayFeed');
+        if (btnToggleFeed) {
+            btnToggleFeed.addEventListener('click', () => {
+                const tableWrapper = container.querySelector('#paymentsTableWrapper');
+                const feedContainer = container.querySelector('#paymentsFeedContainer');
+                const isFeed = feedContainer?.style.display !== 'none';
+                if (isFeed) {
+                    if (feedContainer) feedContainer.style.display = 'none';
+                    if (tableWrapper) tableWrapper.style.display = 'block';
+                    btnToggleFeed.textContent = '📱 Feed View';
+                    btnToggleFeed.className = 'btn btn-sm btn-outline-primary w-100 w-md-auto';
+                } else {
+                    if (feedContainer) feedContainer.style.display = 'block';
+                    if (tableWrapper) tableWrapper.style.display = 'none';
+                    btnToggleFeed.textContent = '📑 Table View';
+                    btnToggleFeed.className = 'btn btn-sm btn-primary w-100 w-md-auto';
+                }
+            });
+        }
     }, 0);
 
     async function exportPaymentsCSV() {
@@ -366,22 +391,26 @@ export async function render(container) {
                   <input type="checkbox" class="payment-row-check" data-id="${p._id}" style="cursor: pointer; width: 16px; height: 16px; accent-color: #6c5ce7;">
                 </td>
                 <td>
-                    <a href="#" class="receipt-link" data-id="${p._id}" style="font-family: monospace; font-weight: 700; color: var(--color-primary, #6c5ce7);">${escapeHTML(p.receiptNumber || 'N/A')}</a>
-                    <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(p.receiptNumber || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Receipt Number">📋</button>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        ${PaymentStudio.renderDebitTrayIcon(32)}
+                        <div>
+                            <a href="#" class="receipt-link" data-id="${p._id}" style="font-family: monospace; font-weight: 700; color: var(--color-primary, #6c5ce7); display: block;">${escapeHTML(p.receiptNumber || 'N/A')}</a>
+                            <span class="tx-badge-pill tx-badge-debit" style="font-size: 0.65rem; padding: 1px 6px;">↓ DEBIT</span>
+                        </div>
+                    </div>
                 </td>
                 <td>
                     <div style="font-weight: 600;">${escapeHTML(p.student?.name || p.studentName || (p.notes && !p.notes.startsWith('{') ? p.notes : 'Registered Student'))}</div>
                     <small class="text-muted">${escapeHTML(SmartFormatters.phone(p.student?.phone) || '')}</small>
-                    ${p.student?.phone ? `<button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(p.student.phone)}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">📋</button>` : ''}
                 </td>
-                <td><strong style="font-size: 1.05rem;">${formatCurrency(p.finalAmount)}</strong></td>
+                <td><strong class="tx-amount tx-amount-green" style="font-size: 1.05rem;">-₹${Number(p.finalAmount || 0).toLocaleString('en-IN')}</strong></td>
                 <td><span class="badge" style="background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px; text-transform: uppercase;">${escapeHTML(p.paymentMethod)}</span></td>
                 <td>${formatDate(p.paymentDate)} <small class="text-muted">(${SmartFormatters.timeAgo(p.paymentDate)})</small></td>
                 <td>
                     ${p.status === 'paid' ? `
-                        <span class="badge" style="background: rgba(0, 184, 148, 0.18); color: var(--color-success); padding: 4px 8px; border-radius: 4px; font-weight: 700;">✅ Paid</span>
+                        <span class="tx-badge-pill tx-badge-paid">✓ Paid</span>
                     ` : p.status === 'pending_verification' ? `
-                        <span class="badge" style="background: rgba(255, 179, 0, 0.2); color: #e67e22; padding: 4px 8px; border-radius: 4px; font-weight: 700; border: 1px solid #f39c12;" title="Submitted UTR: ${escapeHTML(p.transactionId || 'N/A')}">⏳ Pending Verification</span>
+                        <span class="tx-badge-pill tx-badge-pending" title="Submitted UTR: ${escapeHTML(p.transactionId || 'N/A')}">⏳ Verification</span>
                     ` : p.status === 'partial' || p.status === 'partially_paid' ? `
                         <span class="badge" style="background: rgba(9, 132, 227, 0.18); color: #0984e3; padding: 4px 8px; border-radius: 4px; font-weight: 700;">💳 Due: ₹${p.balanceDue || 0}</span>
                     ` : p.status === 'failed' ? `
@@ -391,35 +420,95 @@ export async function render(container) {
                     `}
                 </td>
                 <td>
-                    <div class="btn-icon-group">
+                    <div style="display: flex; align-items: center; gap: 6px;">
                         ${p.status === 'pending_verification' ? `
                             <button type="button" class="btn-icon-action action-verify btn-verify-utr" data-id="${p._id}" data-utr="${escapeHTML(p.transactionId || '')}" data-receipt="${escapeHTML(p.receiptNumber || '')}" data-tooltip="Verify UTR (1-Click)" aria-label="Verify UTR">✅</button>
                             <button type="button" class="btn-icon-action action-reject btn-reject-utr" data-id="${p._id}" data-receipt="${escapeHTML(p.receiptNumber || '')}" data-tooltip="Reject UTR" aria-label="Reject UTR">❌</button>
                         ` : ''}
-                        <button type="button" class="btn-icon-action action-receipt btn-view" data-id="${p._id}" data-tooltip="View Receipt" aria-label="View Receipt">🧾</button>
-                        <button type="button" class="btn-icon-action action-whatsapp btn-wa-bill" data-id="${p._id}" data-tooltip="WhatsApp Bill" aria-label="WhatsApp Bill">💬</button>
-                        ${p.status === 'partial' && p.balanceDue > 0 ? `
-                            <button type="button" class="btn-icon-action action-verify btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" data-tooltip="Pay Due ₹${p.balanceDue}" aria-label="Pay Balance">💰</button>
-                        ` : ''}
-                        ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
-                            { header: 'Level 1: Verification & Receipts' },
-                            { id: 'view-receipt', icon: '🧾', label: 'View / Print POS Receipt', bold: true },
-                            { id: 'wa-receipt', icon: '📲', label: 'WhatsApp Receipt Alert' },
-                            ...(p.status === 'pending_verification' ? [
-                                { id: 'quick-verify', icon: '✅', label: 'Approve & Verify UTR', bold: true },
-                                { id: 'quick-reject', icon: '❌', label: 'Reject UTR Submission', danger: true }
-                            ] : []),
-                            { divider: true },
-                            { header: 'Level 2: Financial Governance' },
-                            { id: 'toggle-status', icon: p.status === 'paid' ? '⏳' : '✅', label: p.status === 'paid' ? 'Mark as Pending' : 'Mark as Paid' },
-                            { divider: true },
-                            { header: 'Level 3: Danger Zone' },
-                            { id: 'delete', icon: '🗑️', label: 'Delete Payment Record', danger: true }
-                        ], p._id) : ''}
+                        ${PaymentStudio.renderActionCapsule({
+                            id: p._id,
+                            copyText: p.receiptNumber || '',
+                            shareText: `Receipt ${p.receiptNumber}: ₹${p.finalAmount} paid by ${p.student?.name || 'Student'}`
+                        })}
                     </div>
                 </td>
             </tr>
         `).join('');
+
+        // Populate Mobile / Feed View (Matches User Shared Image)
+        const feedContainer = document.getElementById('paymentsFeedContainer');
+        if (feedContainer) {
+            if (!payments || payments.length === 0) {
+                feedContainer.innerHTML = '<div class="text-center p-4 text-muted">No transactions recorded yet.</div>';
+            } else {
+                feedContainer.innerHTML = `
+                    <div class="tx-history-wrapper">
+                        ${payments.map((p, idx) => PaymentStudio.renderTransactionCard({
+                            _id: p._id,
+                            amount: p.finalAmount || p.amount,
+                            title: p.student?.name || p.studentName || 'Student Admission',
+                            paymentDate: p.paymentDate || p.createdAt,
+                            balanceDue: p.balanceDue || 0,
+                            receiptNumber: p.receiptNumber || p.transactionId,
+                            status: p.status || 'paid',
+                            paymentMethod: p.paymentMethod
+                        }, { type: 'debit', showStem: idx < payments.length - 1 })).join('')}
+                    </div>
+                `;
+                PaymentStudio.attachTransactionActionListeners(feedContainer, {
+                    onCopy: (id, btn) => {
+                        const rec = btn.dataset.copy;
+                        if (rec) copyToClipboard(rec, btn);
+                    },
+                    onEdit: (id) => {
+                        const row = tbody.querySelector(`.payment-row[data-id="${id}"]`);
+                        row?.querySelector('.receipt-link')?.click();
+                    },
+                    onDelete: (id) => {
+                        deleteSinglePayment(id);
+                    },
+                    onShare: (id) => {
+                        const p = payments.find(x => x._id === id);
+                        if (p) sendWhatsAppBill(p);
+                    }
+                });
+            }
+        }
+
+        // Attach action listeners for table action capsule buttons
+        tbody.querySelectorAll('.btn-copy-tx').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const copyVal = btn.dataset.copy;
+                if (copyVal) copyToClipboard(copyVal, btn);
+            });
+        });
+
+        tbody.querySelectorAll('.btn-edit-tx').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                const recLink = tbody.querySelector(`.receipt-link[data-id="${id}"]`);
+                if (recLink) recLink.click();
+            });
+        });
+
+        tbody.querySelectorAll('.btn-share-tx').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                const p = payments.find(x => x._id === id);
+                if (p) sendWhatsAppBill(p);
+            });
+        });
+
+        tbody.querySelectorAll('.btn-delete-tx').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                deleteSinglePayment(id);
+            });
+        });
 
         // ActionMenu click handling on tbody
         tbody.querySelectorAll('.action-menu-item').forEach(item => {
@@ -960,7 +1049,12 @@ export async function render(container) {
 
         let plansOptions = '<option value="">-- Select Plan --</option>';
         plansList.forEach(p => {
-            plansOptions += `<option value="${p._id}" data-price="${p.price}">${escapeHTML(p.name)} - ₹${p.price} (${p.duration} ${p.durationType})</option>`;
+            const orig = Number(p.price) || 0;
+            const disc = Number(p.discount) || 0;
+            const discAmt = Math.round(orig * (disc / 100));
+            const eff = Math.round(p.effectivePrice !== undefined ? p.effectivePrice : (orig - discAmt));
+            const discTag = disc > 0 ? ` [${disc}% OFF, was ₹${orig.toLocaleString('en-IN')}]` : '';
+            plansOptions += `<option value="${p._id}" data-price="${orig}" data-discount-pct="${disc}" data-discount-amt="${discAmt}" data-effective="${eff}">${escapeHTML(p.name)} - ₹${eff.toLocaleString('en-IN')} (${p.duration} ${p.durationType})${discTag}</option>`;
         });
 
         let studentsOptions = '<option value="">-- Select Student --</option>';
@@ -995,6 +1089,8 @@ export async function render(container) {
                             <option value="upi" selected>⚡ UPI (GPay / PhonePe / Paytm / BHIM)</option>
                             <option value="bank_transfer">🏛️ Bank Transfer (NEFT / IMPS / RTGS)</option>
                             <option value="card">💳 Debit / Credit Card (POS Terminal)</option>
+                            <option value="desk">💵 Pay Later at Front Desk</option>
+                            <option value="netbanking">🏦 NetBanking / Online Transfer</option>
                         </select>
                     </div>
 
@@ -1064,19 +1160,19 @@ export async function render(container) {
             const late = parseFloat(payLateFee?.value) || 0;
             const final = Math.max(0, amount - discount + late);
 
-            if (method === 'cash') {
-                if (payTxnLabel) payTxnLabel.innerHTML = '💵 Cash Collector Note / Register Slip (Optional)';
-                if (payTxnInput) payTxnInput.placeholder = 'e.g. Cash received at reception desk';
+            if (method === 'cash' || method === 'desk') {
+                if (payTxnLabel) payTxnLabel.innerHTML = '💵 Cash / Front Desk Note (Optional)';
+                if (payTxnInput) payTxnInput.placeholder = 'e.g. Received at reception desk';
                 if (payMethodContext) {
                     payMethodContext.innerHTML = `
                         <div style="background: rgba(0, 184, 148, 0.1); border: 1px solid var(--color-success, #00b894); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
                             <span>💵</span>
-                            <span><strong>Cash Payment:</strong> Instant official receipt generation. No transaction ID required.</span>
+                            <span><strong>Desk / Cash Payment:</strong> Official receipt generation. No online reference ID required.</span>
                         </div>
                     `;
                 }
                 if (utrWarnMsg) utrWarnMsg.style.display = 'none';
-            } else if (method === 'bank_transfer') {
+            } else if (method === 'bank_transfer' || method === 'netbanking') {
                 if (payTxnLabel) payTxnLabel.innerHTML = '🏛️ Bank NEFT / IMPS / RTGS UTR Number *';
                 if (payTxnInput) payTxnInput.placeholder = 'e.g. Bank Ref # / IMPS Transaction Reference';
                 if (payMethodContext) {
@@ -1144,6 +1240,7 @@ export async function render(container) {
             const opt = planSelect.options[planSelect.selectedIndex];
             if (opt && opt.dataset.price) {
                 payAmount.value = opt.dataset.price;
+                payDiscount.value = opt.dataset.discountAmt || 0;
                 calculateFinal();
             }
         });
@@ -1155,6 +1252,7 @@ export async function render(container) {
             const opt = planSelect.options[planSelect.selectedIndex];
             if (opt && opt.dataset.price) {
                 payAmount.value = opt.dataset.price;
+                payDiscount.value = opt.dataset.discountAmt || 0;
                 calculateFinal();
             }
         }

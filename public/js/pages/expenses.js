@@ -2,6 +2,7 @@ import api from '../api.js';
 import { Toast, Modal, Confirm, escapeHTML } from '../ui.js';
 import { ChartEngine } from '../charts.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
+import { PaymentStudio } from '../paymentStudio.js';
 
 function formatCurrency(num) {
   return new Intl.NumberFormat('en-IN', {
@@ -337,8 +338,16 @@ export async function render(container) {
         <tr>
           <td style="font-weight: 500; font-size: 0.85rem;">${formatDate(exp.date)}</td>
           <td>
-            <div style="font-weight: 600; font-size: 0.9rem;">${escapeHTML(exp.title)}</div>
-            ${exp.description ? `<div class="text-muted small" style="font-size: 0.75rem;">${escapeHTML(exp.description)}</div>` : ''}
+            <div style="display: flex; align-items: center; gap: 10px;">
+              ${PaymentStudio.renderCreditTrayIcon(32)}
+              <div>
+                <div style="font-weight: 600; font-size: 0.9rem;">${escapeHTML(exp.title)}</div>
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                  <span class="tx-badge-pill tx-badge-credit" style="font-size: 0.65rem; padding: 1px 6px;">↑ CREDIT</span>
+                  ${exp.description ? `<span class="text-muted small" style="font-size: 0.75rem;">${escapeHTML(exp.description)}</span>` : ''}
+                </div>
+              </div>
+            </div>
           </td>
           <td>
             <span class="badge" style="background: rgba(108, 92, 231, 0.12); color: var(--color-primary); font-size: 0.75rem;">
@@ -351,25 +360,77 @@ export async function render(container) {
               ${escapeHTML(exp.paymentMethod)}
             </span>
           </td>
-          <td class="text-right" style="font-weight: 700; color: var(--color-danger); font-size: 0.95rem;">
-            ${formatCurrency(exp.amount)}
+          <td class="text-right" style="font-weight: 700; color: #ef4444; font-size: 0.95rem;">
+            +${formatCurrency(exp.amount)}
           </td>
           <td class="text-center">
-            <div class="btn-icon-group">
-              <button type="button" class="btn-icon-action action-edit btn-edit-exp" data-id="${exp._id}" data-tooltip="Edit Expense" aria-label="Edit Expense">✏️</button>
-              ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
-                { header: 'Level 1: Expense Operations' },
-                { id: 'edit', icon: '✏️', label: 'Edit Expense Details', bold: true },
-                { id: 'clone', icon: '📑', label: 'Duplicate / Re-record Expense' },
-                { divider: true },
-                { header: 'Level 2: Danger Zone' },
-                { id: 'delete', icon: '🗑️', label: 'Delete Expense Record', danger: true }
-              ], exp._id) : ''}
+            <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+              ${PaymentStudio.renderActionCapsule({
+                id: exp._id,
+                copyText: `${exp.title}: ₹${exp.amount}`,
+                shareText: `Expense: ${exp.title} - ₹${exp.amount} (${exp.category})`
+              })}
             </div>
           </td>
         </tr>
       `;
     }).join('');
+
+    // Wire action capsule buttons
+    tbody.querySelectorAll('.btn-copy-tx').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const copyText = btn.dataset.copy;
+        if (copyText) {
+          navigator.clipboard.writeText(copyText).then(() => {
+            Toast.success(`Copied: ${copyText}`);
+          });
+        }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-edit-tx').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const exp = state.expenses.find(e => e._id === id);
+        if (exp) showExpenseModal(exp);
+      });
+    });
+
+    tbody.querySelectorAll('.btn-delete-tx').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const exp = state.expenses.find(e => e._id === id);
+        if (!exp) return;
+        const ok = await Confirm.show({
+          title: 'Delete Expense',
+          message: `Are you sure you want to delete "${exp.title}" (₹${exp.amount})?`,
+          confirmText: 'Delete',
+          cancelText: 'Cancel'
+        });
+        if (ok) {
+          try {
+            await api.delete(`/api/expenses/${id}`);
+            Toast.success('Expense deleted');
+            loadExpenses();
+          } catch (err) {
+            Toast.error('Failed to delete expense');
+          }
+        }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-share-tx').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const text = btn.dataset.share;
+        if (text) {
+          window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        }
+      });
+    });
 
     // Wire edit, delete & ActionMenu
     tbody.querySelectorAll('.action-menu-item').forEach(item => {

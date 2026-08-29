@@ -396,7 +396,7 @@ function renderMasterHubUI(container, store) {
   // Studio Render Registry
   const studios = {
     branding: () => renderBrandingStudio(profile, gen),
-    memberships: () => renderMembershipsStudio(pay, adm, plans),
+    memberships: () => renderMembershipsStudio(pay, adm, plans, store),
     formbuilder: () => renderFormBuilderStudio(container),
     centers_seats: () => renderCentersSeatsStudio(branches, shifts),
     billing_receipt: () => renderBillingReceiptStudio(profile, billing, pay, store),
@@ -681,8 +681,68 @@ function renderBrandingStudio(profile, gen) {
 // -------------------------------------------------------------
 // 2. 💳 Membership Plans & Late Fine Studio
 // -------------------------------------------------------------
-function renderMembershipsStudio(pay, adm, plans, locker) {
-  const lockerConfig = locker || {};
+function renderMembershipsStudio(pay, adm, plans, store) {
+  const lockerConfig = store?.settings?.locker || {};
+  const profile = store?.profile || {};
+  const storedMethods = Array.isArray(profile.paymentMethods) ? profile.paymentMethods : [];
+  const storedMap = new Map(storedMethods.map(m => [m.key, m]));
+
+  const CANONICAL_METHODS = [
+    { key: 'upi', name: 'Dynamic UPI QR & 1-Tap Apps', subtitle: 'GPay / PhonePe / Paytm / BHIM (Instant)', icon: '⚡', defaultEnabled: true, instructions: 'Scan QR code or use 1-tap UPI app buttons and enter 12-digit UTR number', refLabel: '12-Digit Bank UTR / Reference Number *', requiresRef: true },
+    { key: 'card', name: 'Debit / Credit Card', subtitle: 'Visa, Mastercard, RuPay & POS Swipe', icon: '💳', defaultEnabled: true, instructions: 'Swipe / pay via card machine or online POS and enter card txn reference', refLabel: 'Card Transaction Reference / Approval Code *', requiresRef: true },
+    { key: 'netbanking', name: 'NetBanking / Direct Bank Transfer', subtitle: 'NEFT / IMPS / RTGS (All Indian Banks)', icon: '🏦', defaultEnabled: true, instructions: 'Transfer fee to official library bank account and enter transaction UTR or upload slip', refLabel: 'Bank Transaction Reference / UTR *', requiresRef: true },
+    { key: 'desk', name: 'Pay Later at Front Desk', subtitle: 'Cash / Spot Pay on Arrival', icon: '💵', defaultEnabled: true, instructions: 'Your chosen seat is reserved for 24 hours. Pay cash or UPI at the front desk upon arrival.', refLabel: '', requiresRef: false }
+  ];
+
+  const payMethodsHtml = CANONICAL_METHODS.map(def => {
+    const sm = storedMap.get(def.key);
+    const isEnabled = sm ? sm.enabled !== false : def.defaultEnabled;
+    const name = sm?.name || def.name;
+    const sub = sm?.subtitle || def.subtitle;
+    const inst = sm?.instructions || def.instructions;
+    const reqRef = sm?.requiresRef !== undefined ? sm.requiresRef : def.requiresRef;
+    const refLbl = sm?.refLabel || def.refLabel;
+
+    return `
+      <div class="setting-paymethod-row card p-3" data-key="${def.key}" data-name="${escapeHTML(name)}" data-icon="${def.icon}" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); transition: all 0.2s;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.4rem;">${def.icon}</span>
+            <div>
+              <strong style="font-size: 0.95rem; color: var(--color-text-primary);">${escapeHTML(def.name)}</strong>
+              <div class="text-muted small">${escapeHTML(def.subtitle)}</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="badge ${isEnabled ? 'badge-success' : 'badge-secondary'}" id="spm-badge-${def.key}" style="font-size: 0.72rem; padding: 4px 8px;">${isEnabled ? 'PORTAL ACTIVE' : 'DISABLED'}</span>
+            <div class="form-check form-switch mb-0" style="font-size: 1.15rem;">
+              <input class="form-check-input spm-enabled" type="checkbox" id="spm-toggle-${def.key}" ${isEnabled ? 'checked' : ''} onchange="const b=document.getElementById('spm-badge-${def.key}'); if(b){ b.className='badge '+(this.checked?'badge-success':'badge-secondary'); b.textContent=this.checked?'PORTAL ACTIVE':'DISABLED'; }">
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-2 mt-1">
+          <div class="col-md-6">
+            <label class="form-label small mb-1" style="font-weight: 700;">Portal Display Title</label>
+            <input type="text" class="form-control form-control-sm spm-name" value="${escapeHTML(name)}" placeholder="${escapeHTML(def.name)}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-1" style="font-weight: 700;">Subtitle / Badge</label>
+            <input type="text" class="form-control form-control-sm spm-sub" value="${escapeHTML(sub)}" placeholder="${escapeHTML(def.subtitle)}">
+          </div>
+          <div class="col-md-8">
+            <label class="form-label small mb-1" style="font-weight: 700;">Student Instructions</label>
+            <input type="text" class="form-control form-control-sm spm-instructions" value="${escapeHTML(inst)}" placeholder="${escapeHTML(def.instructions)}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1" style="font-weight: 700;">UTR / Ref Label</label>
+            <input type="text" class="form-control form-control-sm spm-reflabel" value="${escapeHTML(refLbl)}" placeholder="e.g. UTR / Ref *">
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
   return `
     <div class="card" style="padding: 1.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
       <div style="border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
@@ -791,25 +851,52 @@ function renderMembershipsStudio(pay, adm, plans, locker) {
                   <th>Duration</th>
                   <th>Shift</th>
                   <th>Base Price</th>
-                  <th>Admission Fee</th>
-                  <th>Deposit</th>
+                  <th>Discount</th>
+                  <th>Effective Fee</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                ${plans.length > 0 ? plans.map(p => `
+                ${plans.length > 0 ? plans.map(p => {
+                  const orig = Number(p.price || 0);
+                  const disc = Number(p.discount || 0);
+                  const eff = Math.round(p.effectivePrice !== undefined ? p.effectivePrice : (orig * (1 - disc / 100)));
+                  return `
                   <tr>
                     <td><strong>${escapeHTML(p.name)}</strong></td>
                     <td>${p.duration} ${p.durationType || 'months'}</td>
                     <td><span class="badge" style="background: rgba(108,92,231,0.15); color: var(--color-primary); text-transform: uppercase;">${p.shift || 'Any'}</span></td>
-                    <td><strong>₹${Number(p.price || 0).toLocaleString('en-IN')}</strong></td>
-                    <td>₹${Number(p.admissionFee || 0).toLocaleString('en-IN')}</td>
-                    <td>₹${Number(p.securityDeposit || 0).toLocaleString('en-IN')}</td>
+                    <td style="${disc > 0 ? 'text-decoration: line-through; color: var(--color-text-muted);' : ''}">₹${orig.toLocaleString('en-IN')}</td>
+                    <td>${disc > 0 ? `<span class="badge badge-danger" style="background: #ef4444; color: #fff; font-weight: 700; font-size: 0.72rem;">${disc}% OFF</span>` : '—'}</td>
+                    <td><strong style="color: var(--color-primary);">₹${eff.toLocaleString('en-IN')}</strong></td>
                     <td><span class="badge" style="background: ${p.isActive !== false ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}; color: ${p.isActive !== false ? '#10b981' : '#ef4444'};">${p.isActive !== false ? 'Active' : 'Inactive'}</span></td>
                   </tr>
-                `).join('') : '<tr><td colspan="7" class="text-center p-3 text-muted">No plans created yet.</td></tr>'}
+                `;}).join('') : '<tr><td colspan="7" class="text-center p-3 text-muted">No plans created yet.</td></tr>'}
               </tbody>
             </table>
+          </div>
+        </div>
+      <!-- Section 4: 💳 Self-Registration Portal Payment Gateways (Enable / Disable) -->
+      <div class="card settings-accordion-card">
+        <div class="settings-accordion-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h5><span>💳</span> Self-Registration Portal Payment Gateways &amp; Options</h5>
+          </div>
+          <span class="settings-accordion-toggle">▲</span>
+        </div>
+        <div class="settings-accordion-body">
+          <div style="margin-bottom: 14px; font-size: 0.84rem; color: var(--color-text-secondary); line-height: 1.4;">
+            Control which payment methods are active and displayed on the student public self-registration portal (<a href="/register" target="_blank" style="font-weight: 700; color: var(--color-primary);">/register ↗</a>). You can enable or disable any method, edit titles, and set instructions.
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px;" id="setting-paymethods-list">
+            ${payMethodsHtml}
+          </div>
+
+          <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
+            <button type="button" id="btn-save-reg-payment-methods" class="btn btn-sm btn-primary" style="font-weight: 800; padding: 7px 20px;">
+              💾 Save Registration Payment Methods
+            </button>
           </div>
         </div>
       </div>
@@ -4323,6 +4410,40 @@ function initStudioAccordions(scope) {
 // Helper: Bind Studio Events
 // -------------------------------------------------------------
 function bindStudioEvents(container, studioId, store) {
+  // Bind Registration Payment Methods Save
+  container.querySelector('#btn-save-reg-payment-methods')?.addEventListener('click', async () => {
+    try {
+      const rows = container.querySelectorAll('.setting-paymethod-row');
+      if (rows.length === 0) return;
+
+      const paymentMethods = Array.from(rows).map((row, idx) => ({
+        key: row.dataset.key,
+        name: row.querySelector('.spm-name')?.value?.trim() || row.dataset.name,
+        subtitle: row.querySelector('.spm-sub')?.value?.trim() || '',
+        icon: row.dataset.icon || '💳',
+        enabled: row.querySelector('.spm-enabled') ? row.querySelector('.spm-enabled').checked : true,
+        order: idx + 1,
+        instructions: row.querySelector('.spm-instructions')?.value?.trim() || '',
+        requiresRef: row.querySelector('.spm-reqref') ? row.querySelector('.spm-reqref').checked : true,
+        refLabel: row.querySelector('.spm-reflabel')?.value?.trim() || 'Transaction Reference / UTR *'
+      }));
+
+      Loading.show('Saving Self-Registration Payment Methods...');
+      const res = await api.put('/api/settings', { paymentMethods });
+      Loading.hide();
+
+      if (res.success) {
+        if (store && store.profile) store.profile.paymentMethods = paymentMethods;
+        Toast.success('✅ Self-registration payment options updated successfully! Changes are live on the registration portal.');
+      } else {
+        Toast.error(res.message || 'Failed to save payment options');
+      }
+    } catch (err) {
+      Loading.hide();
+      Toast.error('Failed to update payment options: ' + err.message);
+    }
+  });
+
   // Bind PIN lock save
   container.querySelector('#btn-save-pin')?.addEventListener('click', () => {
     const pin = container.querySelector('#setting-sec-pin')?.value;
@@ -4901,6 +5022,21 @@ async function saveActiveStudioSettings(container, studioId, store) {
         facebook: container.querySelector('#setting-social-fb')?.value?.trim() || store.profile.socialLinks?.facebook
       }
     };
+
+    const payMethodRows = container.querySelectorAll('.setting-paymethod-row');
+    if (payMethodRows.length > 0) {
+      profilePayload.paymentMethods = Array.from(payMethodRows).map((row, idx) => ({
+        key: row.dataset.key,
+        name: row.querySelector('.spm-name')?.value?.trim() || row.dataset.name,
+        subtitle: row.querySelector('.spm-sub')?.value?.trim() || '',
+        icon: row.dataset.icon || '💳',
+        enabled: row.querySelector('.spm-enabled') ? row.querySelector('.spm-enabled').checked : true,
+        order: idx + 1,
+        instructions: row.querySelector('.spm-instructions')?.value?.trim() || '',
+        requiresRef: row.querySelector('.spm-reqref') ? row.querySelector('.spm-reqref').checked : true,
+        refLabel: row.querySelector('.spm-reflabel')?.value?.trim() || 'Transaction Reference / UTR *'
+      }));
+    }
 
     // 2. Merge and build System Settings Payload
     const sysPayload = {

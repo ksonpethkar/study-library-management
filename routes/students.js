@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
 
     const [students, total] = await Promise.all([
       Student.find(query)
-        .populate('plan', 'name price duration durationType shift')
+        .populate('plan', 'name price discount effectivePrice duration durationType shift')
         .populate('seat', 'seatNumber zone status branch')
         .populate('locker', 'lockerNumber monthlyFee status')
         .populate('shift', 'name startTime endTime code')
@@ -99,7 +99,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const student = await Student.findById(req.params.id)
-      .populate('plan', 'name price duration durationType shift')
+      .populate('plan', 'name price discount effectivePrice duration durationType shift')
       .populate('seat', 'seatNumber zone status branch floor')
       .populate('locker', 'lockerNumber monthlyFee status')
       .populate('shift', 'name startTime endTime code')

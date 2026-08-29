@@ -277,7 +277,8 @@ app.get('/api/system/public-config', async (req, res) => {
     const SystemSetting = require('./models/SystemSetting');
     const Seat = require('./models/Seat');
 
-    const [businessProfile, customFields, template, plans, shifts, rawBranches, seatStats, totalSystemSeats, availableSystemSeats, systemSettingsList] = await Promise.all([
+    const Student = require('./models/Student');
+    const [businessProfile, customFields, template, plans, shifts, rawBranches, seatStats, totalSystemSeats, availableSystemSeats, systemSettingsList, studentCounts] = await Promise.all([
       BusinessProfile.getProfile().catch(() => ({})),
       CustomField.find({ isDeleted: { $ne: true } }).sort({ order: 1, createdAt: 1 }).lean().catch(() => []),
       FormTemplate.getActiveTemplate().catch(() => null),
@@ -295,8 +296,27 @@ app.get('/api/system/public-config', async (req, res) => {
       ]).catch(() => []),
       Seat.countDocuments({ isActive: true, isDeleted: { $ne: true } }).catch(() => 0),
       Seat.countDocuments({ isActive: true, isDeleted: { $ne: true }, status: { $in: ['available', 'vacant'] } }).catch(() => 0),
-      SystemSetting.find().lean().catch(() => [])
+      SystemSetting.find().lean().catch(() => []),
+      Student.aggregate([
+        { $match: { isDeleted: { $ne: true }, status: 'active', plan: { $exists: true, $ne: null } } },
+        { $group: { _id: '$plan', count: { $sum: 1 } } }
+      ]).catch(() => [])
     ]);
+
+    const memberCountMap = {};
+    (studentCounts || []).forEach(m => { memberCountMap[String(m._id)] = m.count; });
+
+    const enrichedPlans = (plans || []).map(p => {
+      const origPrice = Number(p.price) || 0;
+      const discount = Number(p.discount) || 0;
+      const effectivePrice = Math.round(origPrice * (1 - discount / 100));
+      return {
+        ...p,
+        discount,
+        effectivePrice,
+        activeMembersCount: memberCountMap[String(p._id)] || 0
+      };
+    });
 
     const settingsMap = {};
     (systemSettingsList || []).forEach(s => { settingsMap[s.key] = s.value; });
@@ -344,14 +364,103 @@ app.get('/api/system/public-config', async (req, res) => {
       }];
     }
 
+    // Canonical Payment Methods for Self-Registration Portal
+    const CANONICAL_PAYMENT_METHODS = [
+      {
+        key: 'upi',
+        name: 'Dynamic UPI QR & 1-Tap Apps',
+        subtitle: 'GPay / PhonePe / Paytm / BHIM (Instant)',
+        icon: '⚡',
+        enabled: true,
+        order: 1,
+        instructions: 'Scan QR code or use 1-tap UPI app buttons and enter 12-digit UTR number',
+        requiresRef: true,
+        refLabel: '12-Digit Bank UTR / Reference Number *'
+      },
+      {
+        key: 'card',
+        name: 'Debit / Credit Card',
+        subtitle: 'Visa, Mastercard, RuPay & POS Swipe',
+        icon: '💳',
+        enabled: true,
+        order: 2,
+        instructions: 'Swipe / pay via card machine or online POS and enter card txn reference',
+        requiresRef: true,
+        refLabel: 'Card Transaction Reference / Approval Code *'
+      },
+      {
+        key: 'netbanking',
+        name: 'NetBanking / Direct Bank Transfer',
+        subtitle: 'NEFT / IMPS / RTGS (All Indian Banks)',
+        icon: '🏦',
+        enabled: true,
+        order: 3,
+        instructions: 'Transfer fee to official library bank account and enter transaction UTR or upload slip',
+        requiresRef: true,
+        refLabel: 'Bank Transaction Reference / UTR *'
+      },
+      {
+        key: 'desk',
+        name: 'Pay Later at Front Desk',
+        subtitle: 'Cash / Spot Pay on Arrival',
+        icon: '💵',
+        enabled: true,
+        order: 4,
+        instructions: 'Your chosen seat is reserved for 24 hours. Pay cash or UPI at the front desk upon arrival.',
+        requiresRef: false,
+        refLabel: ''
+      }
+    ];
+
+    const storedMethods = Array.isArray(businessProfile?.paymentMethods) ? businessProfile.paymentMethods : [];
+    const storedMap = new Map(storedMethods.map(m => [m.key, m]));
+    const tplS = template?.settings || {};
+
+    const mergedPaymentMethods = CANONICAL_PAYMENT_METHODS.map(def => {
+      const stored = storedMap.get(def.key);
+      let isEnabled = stored ? Boolean(stored.enabled) : def.enabled;
+
+      if (def.key === 'upi' && tplS.showUpiPayment !== undefined) isEnabled = Boolean(tplS.showUpiPayment);
+      else if (def.key === 'desk' && tplS.showDeskPayment !== undefined) isEnabled = Boolean(tplS.showDeskPayment);
+      else if (def.key === 'netbanking' && tplS.showNetBankingPayment !== undefined) isEnabled = Boolean(tplS.showNetBankingPayment);
+      else if (def.key === 'card' && tplS.showCardPayment !== undefined) isEnabled = Boolean(tplS.showCardPayment);
+
+      return {
+        ...def,
+        ...(stored ? (typeof stored.toObject === 'function' ? stored.toObject() : stored) : {}),
+        enabled: isEnabled,
+        name: (def.key === 'upi' && tplS.upiPaymentLabel) ? tplS.upiPaymentLabel :
+              (def.key === 'card' && tplS.cardPaymentLabel) ? tplS.cardPaymentLabel :
+              (def.key === 'desk' && tplS.deskPaymentLabel) ? tplS.deskPaymentLabel :
+              (def.key === 'netbanking' && tplS.netBankingPaymentLabel) ? tplS.netBankingPaymentLabel :
+              (stored?.name || def.name),
+        subtitle: (def.key === 'upi' && tplS.upiPaymentSubtext) ? tplS.upiPaymentSubtext :
+                  (def.key === 'card' && tplS.cardPaymentSubtext) ? tplS.cardPaymentSubtext :
+                  (def.key === 'desk' && tplS.deskPaymentSubtext) ? tplS.deskPaymentSubtext :
+                  (def.key === 'netbanking' && tplS.netBankingPaymentSubtext) ? tplS.netBankingPaymentSubtext :
+                  (stored?.subtitle || def.subtitle)
+      };
+    });
+
+    storedMethods.forEach(sm => {
+      if (!CANONICAL_PAYMENT_METHODS.some(def => def.key === sm.key)) {
+        mergedPaymentMethods.push(typeof sm.toObject === 'function' ? sm.toObject() : sm);
+      }
+    });
+
+    const enrichedBusinessProfile = {
+      ...(typeof businessProfile?.toObject === 'function' ? businessProfile.toObject() : (businessProfile || {})),
+      paymentMethods: mergedPaymentMethods
+    };
+
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.json({
       success: true,
       data: {
-        businessProfile,
+        businessProfile: enrichedBusinessProfile,
         customFields,
         template,
-        plans: plans || [],
+        plans: enrichedPlans,
         shifts: shifts || [],
         branches,
         locker: lockerConfig

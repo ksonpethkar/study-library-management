@@ -576,7 +576,11 @@ export async function render() {
 
     plansList.forEach(p => {
       const selected = (student && student.plan && (student.plan._id === p._id || student.plan === p._id)) ? 'selected' : '';
-      plansOptions += `<option value="${p._id}" ${selected}>${escapeHTML(p.name)} - ₹${p.price} (${p.duration} ${p.durationType})</option>`;
+      const orig = Number(p.price) || 0;
+      const disc = Number(p.discount) || 0;
+      const eff = Math.round(p.effectivePrice !== undefined ? p.effectivePrice : (orig * (1 - disc / 100)));
+      const discText = disc > 0 ? ` [${disc}% OFF, was ₹${orig.toLocaleString('en-IN')}]` : '';
+      plansOptions += `<option value="${p._id}" data-price="${orig}" data-discount="${disc}" data-effective="${eff}" ${selected}>${escapeHTML(p.name)} - ₹${eff.toLocaleString('en-IN')} (${p.duration || 1} ${p.durationType || 'months'})${discText}</option>`;
     });
 
     seatsList.forEach(s => {
@@ -1034,6 +1038,8 @@ export async function render() {
                   <option value="upi">⚡ Direct UPI (GPay / PhonePe / Paytm / BHIM)</option>
                   <option value="bank_transfer">🏛️ Bank Transfer (NEFT / IMPS / RTGS)</option>
                   <option value="card">💳 Debit / Credit Card (POS Terminal)</option>
+                  <option value="desk">💵 Pay Later at Front Desk</option>
+                  <option value="netbanking">🏦 NetBanking / Online Transfer</option>
                 </select>
               </div>
 
@@ -1513,19 +1519,19 @@ export async function render() {
       const mode = admPaySelect?.value || 'cash';
       const upiId = window.store?.settings?.businessProfile?.upiId || window.store?.profile?.upiId || '';
 
-      if (mode === 'cash') {
-        if (admPayTxnLabel) admPayTxnLabel.innerHTML = '💵 Cash Collector Note (Optional)';
-        if (admPayTxnInput) admPayTxnInput.placeholder = 'e.g. Cash received at reception desk';
+      if (mode === 'cash' || mode === 'desk') {
+        if (admPayTxnLabel) admPayTxnLabel.innerHTML = '💵 Cash / Front Desk Note (Optional)';
+        if (admPayTxnInput) admPayTxnInput.placeholder = 'e.g. Received at reception desk';
         if (admPayContext) {
           admPayContext.innerHTML = `
             <div style="background: rgba(0, 184, 148, 0.1); border: 1px solid var(--color-success, #00b894); border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
               <span>💵</span>
-              <span><strong>Cash Admission:</strong> Instant membership activation. No transaction reference required.</span>
+              <span><strong>Cash / Desk Admission:</strong> Instant membership activation. No online transaction reference required.</span>
             </div>
           `;
         }
         if (admPayUtrWarn) admPayUtrWarn.style.display = 'none';
-      } else if (mode === 'bank_transfer') {
+      } else if (mode === 'bank_transfer' || mode === 'netbanking') {
         if (admPayTxnLabel) admPayTxnLabel.innerHTML = '🏛️ Bank NEFT / IMPS / RTGS Reference Number';
         if (admPayTxnInput) admPayTxnInput.placeholder = 'e.g. Bank Reference / UTR Number';
         if (admPayContext) {

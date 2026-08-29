@@ -386,13 +386,60 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
       }
     }
 
-    // Validate custom fields safely
+    // Validate custom fields safely & flexibly
     const activeFields = await CustomField.getActiveFields().catch(() => []);
     const missingFields = [];
     for (const field of activeFields) {
       if (field.required && !field.isSystemField) {
-        const val = customFields ? (customFields[field.fieldName] ?? customFields[`cf_${field.fieldName}`]) : null;
+        const slug = field.fieldName;
+        const normSlug = (slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const normLabel = (field.label || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        let val = customFields ? (customFields[slug] ?? customFields[`cf_${slug}`]) : null;
+
+        // Check top-level req.body
         if (val === undefined || val === null || val === '') {
+          val = req.body[slug] ?? req.body[`cf_${slug}`];
+        }
+
+        // Check emergencyContact object if field relates to emergency / parent / guardian
+        if (val === undefined || val === null || val === '') {
+          if (normSlug.includes('relation') || normLabel.includes('relation')) {
+            val = req.body.emergencyContact?.relation || req.body.emergencyRelation || req.body.relationship || customFields?.relationship || customFields?.relation;
+          } else if (normSlug.includes('parent') || normSlug.includes('guardian') || normLabel.includes('parent') || normLabel.includes('guardian') || normSlug.includes('emergencyname') || normLabel.includes('emergencycontactperson') || normLabel.includes('emergencycontactname')) {
+            val = req.body.emergencyContact?.name || req.body.emergencyName || req.body.parentName || customFields?.emergencyName || customFields?.parentName;
+          } else if (normSlug.includes('emergencyphone') || normSlug.includes('emergencycontact') || normLabel.includes('emergencyphone') || normLabel.includes('parentmobile')) {
+            val = req.body.emergencyContact?.phone || req.body.emergencyPhone || customFields?.emergencyPhone || customFields?.emergencycontact;
+          }
+        }
+
+        // Fuzzy match in customFields keys by normalized string
+        if ((val === undefined || val === null || val === '') && customFields) {
+          for (const [k, v] of Object.entries(customFields)) {
+            const normK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (normK === normSlug || normK === normLabel) {
+              val = v;
+              break;
+            }
+          }
+        }
+
+        // Also check if field maps to top-level student schema fields (address, city, state, pincode, occupation, dob, gender, photo, etc.)
+        if (val === undefined || val === null || val === '') {
+          if (normSlug === 'address' || normSlug === 'residentialaddress') val = req.body.address;
+          else if (normSlug === 'city') val = req.body.city;
+          else if (normSlug === 'state') val = req.body.state;
+          else if (normSlug === 'pincode') val = req.body.pincode;
+          else if (normSlug === 'occupation') val = req.body.occupation;
+          else if (normSlug === 'idprooftype') val = req.body.idProofType;
+          else if (normSlug === 'idproofnumber') val = req.body.idProofNumber;
+          else if (normSlug === 'dob' || normSlug === 'dateofbirth') val = req.body.dob || req.body.dateOfBirth;
+          else if (normSlug === 'gender') val = req.body.gender;
+          else if (normSlug === 'bloodgroup') val = req.body.bloodGroup;
+          else if (normSlug === 'photo') val = req.body.photo;
+        }
+
+        if (val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)) {
           missingFields.push(field.label || field.fieldName);
         }
       }
@@ -508,6 +555,8 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
 
     const rawDob = dob || req.body.dateOfBirth || req.body.dateofbirth || req.body.date_of_birth || req.body.birthDate || (customF && (customF.dateOfBirth || customF.dob || customF.dateofbirth || customF.date_of_birth || customF.birthDate));
     const parsedDob = rawDob && !isNaN(new Date(rawDob).getTime()) ? new Date(rawDob) : null;
+    const finalNotes = (notes && String(notes).trim()) || (req.body.specialNotes && String(req.body.specialNotes).trim()) || 'Online Student Self-Registration';
+    const initialStatus = (paymentMethod === 'desk' || paymentMethod === 'cash') ? 'pending_payment' : 'active';
 
     // Create Student Document
     const newStudent = new Student({
@@ -619,6 +668,10 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
       const totalDiscount = planDiscountAmount + referralDiscount;
       const finalAmount = Math.max(0, effectivePlanPrice - referralDiscount);
 
+      const normalizedPaymentMethod = (paymentMethod === 'netbanking') 
+        ? 'bank_transfer' 
+        : ((paymentMethod === 'desk') ? 'cash' : (paymentMethod || 'upi'));
+
       if (isOnlinePayment) {
         const isGatewayVerified = req.body.isGatewayVerified === true || Boolean(req.body.razorpay_payment_id);
         await Payment.create({
@@ -627,7 +680,7 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
           amount: origPlanPrice,
           discount: totalDiscount,
           finalAmount,
-          paymentMethod: paymentMethod || 'upi',
+          paymentMethod: normalizedPaymentMethod,
           transactionId: cleanUtr || transactionId || `TXN-${Date.now()}`,
           paymentDate: new Date(),
           periodStart: new Date(),
@@ -635,7 +688,7 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
           status: isGatewayVerified ? 'paid' : 'pending_verification',
           notes: isGatewayVerified 
             ? `Online Gateway Payment Auto-Verified (ID: ${req.body.razorpay_payment_id || cleanUtr})` 
-            : `Online Admission: Submitted UPI UTR ${cleanUtr} (Pending Front Desk Verification)`
+            : `Online Admission: Submitted UPI UTR ${cleanUtr || 'N/A'} (Pending Front Desk Verification)`
         });
       } else {
         await Payment.create({
@@ -676,19 +729,6 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
       type: 'student',
       link: '#/students'
     });
-
-    if (referringStudent) {
-      await Referral.create({
-        referrerStudent: referringStudent._id,
-        referrerName: referringStudent.name,
-        referrerPhone: referringStudent.phone,
-        refereeName: name,
-        refereePhone: phone,
-        refereeEmail: email || '',
-        status: 'converted',
-        convertedStudent: newStudent._id
-      });
-    }
 
     const business = await BusinessProfile.getProfile();
 

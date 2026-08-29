@@ -690,23 +690,78 @@ export class FormBuilder {
 
     if (secName === 'plan' || secName === 'plans' || secLabel.includes('plan')) {
       const planCards = (this.plans && this.plans.length > 0)
-        ? this.plans.map(p => `
-            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
-              <div style="font-weight: 700; color: var(--color-text-primary);">${escapeHTML(p.name)}</div>
-              <div style="color: var(--color-primary); font-weight: 800; font-size: 0.88rem; margin: 2px 0;">₹${p.price} <small style="font-weight: 400; color: var(--color-text-secondary);">/ ${p.duration || 1} ${p.durationType || 'month'}</small></div>
-              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Shift: ${escapeHTML(p.shift || 'Any Shift')}</div>
-            </div>
-          `).join('')
+        ? this.plans.map(p => {
+            const origPrice = Number(p.price) || 0;
+            const discount = Number(p.discount) || 0;
+            const effectivePrice = Math.round(p.effectivePrice !== undefined ? p.effectivePrice : (origPrice * (1 - discount / 100)));
+            const seatType = p.seatType || 'regular';
+            const shift = p.shift || 'fullday';
+            const activeCount = p.activeMembersCount !== undefined ? p.activeMembersCount : 0;
+            const features = Array.isArray(p.features) ? p.features : [];
+
+            return `
+              <div style="background: var(--color-bg-secondary); border: 1.5px solid var(--color-border); border-radius: 10px; padding: 12px; font-size: 0.8rem; position: relative; display: flex; flex-direction: column; justify-content: space-between; box-shadow: var(--shadow-sm);">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin-bottom: 4px;">
+                    <div style="font-weight: 800; font-size: 0.95rem; color: var(--color-text-primary);">${escapeHTML(p.name)}</div>
+                    ${discount > 0 ? `<span class="badge badge-danger" style="font-size: 0.68rem; font-weight: 800; background: #ef4444; color: #fff; padding: 2px 6px; border-radius: 4px;">${discount}% OFF</span>` : ''}
+                  </div>
+                  
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px;">
+                    <span class="badge badge-secondary" style="font-size: 0.68rem; padding: 2px 6px; text-transform: lowercase;">${escapeHTML(seatType)} • ${escapeHTML(shift)}</span>
+                    <span style="font-size: 0.7rem; color: var(--color-text-secondary); font-weight: 600;">👥 ${activeCount} Active Members</span>
+                  </div>
+
+                  <div style="display: flex; align-items: baseline; gap: 6px; margin: 4px 0 6px 0;">
+                    <span style="color: var(--color-primary); font-weight: 800; font-size: 1.05rem;">₹${effectivePrice.toLocaleString('en-IN')}</span>
+                    ${(discount > 0 && origPrice > effectivePrice) ? `<span style="text-decoration: line-through; color: var(--color-text-muted); font-size: 0.78rem; font-weight: 600;">₹${origPrice.toLocaleString('en-IN')}</span>` : ''}
+                    <span style="font-size: 0.72rem; color: var(--color-text-secondary); font-weight: 500;">/ ${p.duration || 1} ${p.durationType || 'months'}</span>
+                  </div>
+
+                  ${p.description ? `<div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-bottom: 6px; font-style: italic; line-height: 1.3;">${escapeHTML(p.description)}</div>` : ''}
+                </div>
+
+                ${features.length > 0 ? `
+                  <div style="border-top: 1px dashed var(--color-border); padding-top: 6px; margin-top: 4px; font-size: 0.7rem; color: var(--color-text-secondary);">
+                    ${features.slice(0, 3).map(f => `<div style="display: flex; align-items: center; gap: 4px;"><span>✓</span> <span>${escapeHTML(f)}</span></div>`).join('')}
+                    ${features.length > 3 ? `<div style="font-size: 0.65rem; color: var(--color-text-muted); font-weight: 600;">+${features.length - 3} more amenities</div>` : ''}
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')
         : `
-            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
-              <div style="font-weight: 700; color: var(--color-text-primary);">💎 Monthly Plan</div>
-              <div style="color: var(--color-primary); font-weight: 800; font-size: 0.88rem;">₹1,000 / Month</div>
-              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Shift: All Day (24 Hours)</div>
+            <div style="background: var(--color-bg-secondary); border: 1.5px solid var(--color-border); border-radius: 10px; padding: 12px; font-size: 0.8rem;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                <div style="font-weight: 800; font-size: 0.95rem; color: var(--color-text-primary);">💎 Monthly Plan</div>
+                <span class="badge badge-danger" style="font-size: 0.68rem; font-weight: 800; background: #ef4444; color: #fff; padding: 2px 6px; border-radius: 4px;">30% OFF</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                <span class="badge badge-secondary" style="font-size: 0.68rem; padding: 2px 6px;">regular • fullday</span>
+                <span style="font-size: 0.7rem; color: var(--color-text-secondary); font-weight: 600;">👥 1 Active Members</span>
+              </div>
+              <div style="display: flex; align-items: baseline; gap: 6px; margin: 4px 0;">
+                <span style="color: var(--color-primary); font-weight: 800; font-size: 1.05rem;">₹700</span>
+                <span style="text-decoration: line-through; color: var(--color-text-muted); font-size: 0.78rem; font-weight: 600;">₹1,000</span>
+                <span style="font-size: 0.72rem; color: var(--color-text-secondary);">/ 1 months</span>
+              </div>
+              <div style="font-size: 0.72rem; color: var(--color-text-secondary); font-style: italic;">Flat 30% Discount On Introductory offer</div>
             </div>
-            <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; font-size: 0.8rem;">
-              <div style="font-weight: 700; color: var(--color-text-primary);">💎 Quarterly Plan</div>
-              <div style="color: var(--color-primary); font-weight: 800; font-size: 0.88rem;">₹4,000 / 3 Months</div>
-              <div style="font-size: 0.72rem; color: var(--color-text-secondary);">Shift: All Day (24 Hours)</div>
+            <div style="background: var(--color-bg-secondary); border: 1.5px solid var(--color-border); border-radius: 10px; padding: 12px; font-size: 0.8rem;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                <div style="font-weight: 800; font-size: 0.95rem; color: var(--color-text-primary);">💎 Quarterly Plan</div>
+                <span class="badge badge-danger" style="font-size: 0.68rem; font-weight: 800; background: #ef4444; color: #fff; padding: 2px 6px; border-radius: 4px;">40% OFF</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                <span class="badge badge-secondary" style="font-size: 0.68rem; padding: 2px 6px;">premium • fullday</span>
+                <span style="font-size: 0.7rem; color: var(--color-text-secondary); font-weight: 600;">👥 0 Active Members</span>
+              </div>
+              <div style="display: flex; align-items: baseline; gap: 6px; margin: 4px 0;">
+                <span style="color: var(--color-primary); font-weight: 800; font-size: 1.05rem;">₹2,400</span>
+                <span style="text-decoration: line-through; color: var(--color-text-muted); font-size: 0.78rem; font-weight: 600;">₹4,000</span>
+                <span style="font-size: 0.72rem; color: var(--color-text-secondary);">/ 3 months</span>
+              </div>
+              <div style="font-size: 0.72rem; color: var(--color-text-secondary); font-style: italic;">Limited Period offer, Flat 40% off</div>
             </div>
           `;
 
@@ -814,6 +869,7 @@ export class FormBuilder {
     if (secName === 'payment' || secName === 'payments' || secLabel.includes('payment') || secName === 'step_6') {
       const s = this.template?.settings || {};
       const showUpi = s.showUpiPayment !== false;
+      const showCard = s.showCardPayment !== false;
       const showDesk = s.showDeskPayment !== false;
       const showNetBanking = s.showNetBankingPayment !== false;
       const showWhatsapp = s.showWhatsappReceipt !== false;
@@ -822,10 +878,12 @@ export class FormBuilder {
 
       const upiLabel = s.upiPaymentLabel || 'Dynamic UPI QR';
       const upiSub = s.upiPaymentSubtext || 'GPay / PhonePe / Paytm + 12-digit UTR Verification';
+      const cardLabel = s.cardPaymentLabel || 'Debit / Credit Card';
+      const cardSub = s.cardPaymentSubtext || 'Visa, Mastercard, RuPay & POS Swipe';
       const deskLabel = s.deskPaymentLabel || 'Pay Later at Desk';
       const deskSub = s.deskPaymentSubtext || 'Pre-reserves admission & seat; cash paid on arrival';
-      const nbLabel = s.netBankingPaymentLabel || 'NetBanking / Cards';
-      const nbSub = s.netBankingPaymentSubtext || 'Bank reference logging & printable receipt generator';
+      const nbLabel = s.netBankingPaymentLabel || 'NetBanking / Bank Transfer';
+      const nbSub = s.netBankingPaymentSubtext || 'NEFT / IMPS / RTGS (All Indian banks)';
 
       return `
         <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 8px; padding: 14px; font-size: 0.83rem;">
@@ -858,10 +916,23 @@ export class FormBuilder {
                   <div style="font-size: 0.72rem; color: var(--color-text-secondary);">${escapeHTML(upiSub)}</div>
                 </div>
               </div>
-              ${FormBuilder.renderSysToolbar('showUpiPayment', 'upi', showUpi, upiLabel, 0, 6)}
+              ${FormBuilder.renderSysToolbar('showUpiPayment', 'upi', showUpi, upiLabel, 0, 7)}
             </div>
 
-            <!-- 2. Pay Later at Desk -->
+            <!-- 2. Debit / Credit Card -->
+            <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showCard ? '1' : '0.6'};">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+                <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
+                <span style="font-size: 1.1rem; flex-shrink: 0;">💳</span>
+                <div style="overflow: hidden;">
+                  <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(cardLabel)}</div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-secondary);">${escapeHTML(cardSub)}</div>
+                </div>
+              </div>
+              ${FormBuilder.renderSysToolbar('showCardPayment', 'card', showCard, cardLabel, 1, 7)}
+            </div>
+
+            <!-- 3. Pay Later at Desk -->
             <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showDesk ? '1' : '0.6'};">
               <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
                 <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
@@ -871,10 +942,10 @@ export class FormBuilder {
                   <div style="font-size: 0.72rem; color: var(--color-text-secondary);">${escapeHTML(deskSub)}</div>
                 </div>
               </div>
-              ${FormBuilder.renderSysToolbar('showDeskPayment', 'desk', showDesk, deskLabel, 1, 6)}
+              ${FormBuilder.renderSysToolbar('showDeskPayment', 'desk', showDesk, deskLabel, 2, 7)}
             </div>
 
-            <!-- 3. NetBanking / Cards -->
+            <!-- 4. NetBanking / Direct Bank Transfer -->
             <div class="fb-field-row" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; opacity: ${showNetBanking ? '1' : '0.6'};">
               <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
                 <div class="fb-field-drag-handle" style="cursor: grab; font-size: 1.1rem; color: var(--color-text-secondary); user-select: none;">⠿</div>
@@ -884,7 +955,7 @@ export class FormBuilder {
                   <div style="font-size: 0.72rem; color: var(--color-text-secondary);">${escapeHTML(nbSub)}</div>
                 </div>
               </div>
-              ${FormBuilder.renderSysToolbar('showNetBankingPayment', 'netbanking', showNetBanking, nbLabel, 2, 6)}
+              ${FormBuilder.renderSysToolbar('showNetBankingPayment', 'netbanking', showNetBanking, nbLabel, 3, 7)}
             </div>
 
             <!-- 4. WhatsApp Receipt -->
@@ -1212,15 +1283,28 @@ export class FormBuilder {
       const showShiftSelection = tplSettings.showShiftSelection !== false;
       const showFeeBreakdown = tplSettings.showFeeBreakdown !== false;
 
-      const planOptions = this.plans.map(p => `<option value="${p._id}" ${this.selectedPlanId === p._id ? 'selected' : ''}>${escapeHTML(p.name)} — ₹${p.price} / ${p.duration} ${p.durationType} (${p.shift ? p.shift.toUpperCase() : 'ANY SHIFT'})</option>`).join('');
-      const selectedPlan = this.plans.find(p => p._id === this.selectedPlanId) || this.plans[0] || { name: 'Standard Full Day Plan', price: 1500, shift: 'All Day (24 Hours)' };
+      const planOptions = this.plans.map(p => {
+        const orig = Number(p.price) || 0;
+        const disc = Number(p.discount) || 0;
+        const eff = Math.round(p.effectivePrice !== undefined ? p.effectivePrice : (orig * (1 - disc / 100)));
+        const discTag = disc > 0 ? ` [${disc}% OFF]` : '';
+        return `<option value="${p._id}" ${this.selectedPlanId === p._id ? 'selected' : ''}>${escapeHTML(p.name)} — ₹${eff.toLocaleString('en-IN')} / ${p.duration || 1} ${p.durationType || 'months'}${discTag} (${p.shift ? p.shift.toUpperCase() : 'ANY SHIFT'})</option>`;
+      }).join('');
+
+      const selectedPlan = this.plans.find(p => p._id === this.selectedPlanId) || this.plans[0] || { name: 'Standard Full Day Plan', price: 1000, discount: 30, shift: 'All Day (24 Hours)' };
+      const selOrig = Number(selectedPlan.price) || 0;
+      const selDisc = Number(selectedPlan.discount) || 0;
+      const selDiscAmt = Math.round(selOrig * (selDisc / 100));
+      const selEff = Math.round(selectedPlan.effectivePrice !== undefined ? selectedPlan.effectivePrice : (selOrig - selDiscAmt));
+      const lockerAdd = showLockerAddon ? 200 : 0;
+      const netPayable = Math.max(0, selEff + lockerAdd);
 
       return `
         <div style="display: flex; flex-direction: column; gap: 12px;">
           ${showPlans ? `
             <div>
               <label class="form-label text-xs" style="font-weight:700;">Select Membership Plan *</label>
-              <select class="form-select form-control-sm" id="prev-plan-select">${planOptions || '<option>Standard 12-Hour Study Plan (₹1,500/mo)</option>'}</select>
+              <select class="form-select form-control-sm" id="prev-plan-select">${planOptions || '<option>Monthly Plan (₹700/mo)</option>'}</select>
             </div>
           ` : ''}
 
@@ -1255,8 +1339,14 @@ export class FormBuilder {
               <div style="font-weight: 700; color: var(--color-primary); margin-bottom: 6px;">💰 Live Fee Breakdown</div>
               <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                 <span>Base Plan Fee (${escapeHTML(selectedPlan.name)})</span>
-                <span style="font-weight:700;">₹${selectedPlan.price || 1500}</span>
+                <span style="font-weight:700;">₹${selOrig.toLocaleString('en-IN')}</span>
               </div>
+              ${selDisc > 0 ? `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--color-danger, #ef4444);">
+                  <span>Plan Discount (${selDisc}% OFF)</span>
+                  <span style="font-weight:700;">-₹${selDiscAmt.toLocaleString('en-IN')}</span>
+                </div>
+              ` : ''}
               ${showLockerAddon ? `
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--color-primary);">
                   <span>Locker Add-on Fee</span>
@@ -1271,7 +1361,7 @@ export class FormBuilder {
               ` : ''}
               <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--color-border); padding-top: 6px; font-weight: 800; font-size: 0.95rem;">
                 <span>Net Payable Amount</span>
-                <span style="color: var(--color-primary);">₹${(selectedPlan.price || 1500) + (showLockerAddon ? 200 : 0)}</span>
+                <span style="color: var(--color-primary);">₹${netPayable.toLocaleString('en-IN')}</span>
               </div>
             </div>
           ` : ''}
@@ -1285,15 +1375,18 @@ export class FormBuilder {
     if (secName === 'payment') {
       const s = this.template?.settings || {};
       const showUpi = s.showUpiPayment !== false;
+      const showCard = s.showCardPayment !== false;
       const showDesk = s.showDeskPayment !== false;
       const showNetBanking = s.showNetBankingPayment !== false;
       const upiLabel = s.upiPaymentLabel || 'Dynamic UPI QR';
+      const cardLabel = s.cardPaymentLabel || 'Debit / Credit Card';
       const deskLabel = s.deskPaymentLabel || 'Pay Later at Desk';
-      const nbLabel = s.netBankingPaymentLabel || 'NetBanking / Cards';
+      const nbLabel = s.netBankingPaymentLabel || 'NetBanking / Bank Transfer';
 
       const availableModes = [];
       if (showUpi) availableModes.push({ mode: 'upi', label: `⚡ ${upiLabel}` });
-      if (showNetBanking) availableModes.push({ mode: 'card', label: `🏦 ${nbLabel}` });
+      if (showCard) availableModes.push({ mode: 'card', label: `💳 ${cardLabel}` });
+      if (showNetBanking) availableModes.push({ mode: 'netbanking', label: `🏦 ${nbLabel}` });
       if (showDesk) availableModes.push({ mode: 'desk', label: `💵 ${deskLabel}` });
 
       if (availableModes.length > 0 && !availableModes.some(m => m.mode === this.selectedPaymentMode)) {
@@ -2216,9 +2309,41 @@ export class FormBuilder {
           </label>
         </div>
         <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; font-size: 0.8rem;">
-          <div style="font-weight: 700; color: var(--color-primary); margin-bottom: 4px;">💡 Need to add or edit study plans?</div>
-          <div style="color: var(--color-text-secondary); margin-bottom: 8px;">You currently have <strong>${this.plans?.length || 0} active plans</strong> configured in the database.</div>
-          <a href="#/plans" class="btn btn-xs btn-outline-primary" style="font-weight: 700;">Open Plans Manager ↗</a>
+          <div style="font-weight: 700; color: var(--color-primary); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+            <span>📋 Active Database Plans (${this.plans?.length || 0})</span>
+            <a href="#/plans" class="btn btn-xs btn-outline-primary" style="font-weight: 700;">Edit in Plans & Pricing ↗</a>
+          </div>
+          ${(this.plans && this.plans.length > 0) ? `
+            <div style="overflow-x: auto;">
+              <table class="table table-sm" style="font-size: 0.75rem; margin-bottom: 0;">
+                <thead>
+                  <tr style="color: var(--color-text-secondary);">
+                    <th>Plan Name</th>
+                    <th>Shift</th>
+                    <th>Base Price</th>
+                    <th>Discount</th>
+                    <th>Effective Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${this.plans.map(p => {
+                    const orig = Number(p.price) || 0;
+                    const disc = Number(p.discount) || 0;
+                    const eff = Math.round(p.effectivePrice !== undefined ? p.effectivePrice : (orig * (1 - disc / 100)));
+                    return `
+                      <tr>
+                        <td><strong>${escapeHTML(p.name)}</strong> <small class="text-muted">(${p.duration || 1} ${p.durationType || 'mo'})</small></td>
+                        <td><span class="badge badge-secondary" style="font-size: 0.65rem;">${escapeHTML(p.shift || 'fullday')}</span></td>
+                        <td style="${disc > 0 ? 'text-decoration: line-through; color: var(--color-text-muted);' : ''}">₹${orig.toLocaleString('en-IN')}</td>
+                        <td>${disc > 0 ? `<span class="badge badge-danger" style="font-size: 0.65rem;">${disc}% OFF</span>` : '—'}</td>
+                        <td><strong style="color: var(--color-primary);">₹${eff.toLocaleString('en-IN')}</strong></td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : '<div style="color: var(--color-text-secondary);">No active plans found in database.</div>'}
         </div>
       `;
     } else if (compKey === 'locker_addon') {
@@ -2489,32 +2614,48 @@ export class FormBuilder {
         </div>
       `;
     } else if (compKey === 'payment_all') {
-      title = '⚙️ Configure All Payment Gateways & Notices';
+      title = '⚙️ Configure All Payment Gateways & Portal Methods';
       const showUpi = s.showUpiPayment !== false;
+      const showCard = s.showCardPayment !== false;
       const showDesk = s.showDeskPayment !== false;
       const showNetBanking = s.showNetBankingPayment !== false;
       const upiLabel = s.upiPaymentLabel || 'Dynamic UPI QR';
+      const cardLabel = s.cardPaymentLabel || 'Debit / Credit Card';
       const deskLabel = s.deskPaymentLabel || 'Pay Later at Desk';
-      const nbLabel = s.netBankingPaymentLabel || 'NetBanking / Cards';
+      const nbLabel = s.netBankingPaymentLabel || 'NetBanking / Bank Transfer';
       formHtml = `
         <div style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- 1. UPI QR -->
           <div style="background: var(--color-bg-secondary); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-weight: 700; font-size: 0.85rem;">⚡ Dynamic UPI QR</span>
+              <span style="font-weight: 700; font-size: 0.85rem;">⚡ Dynamic UPI QR & 1-Tap UPI</span>
               <input type="checkbox" id="ce-all-upi" ${showUpi ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer;">
             </div>
             <input type="text" id="ce-all-upi-label" class="form-control form-control-sm" value="${escapeHTML(upiLabel)}" placeholder="Gateway Display Name">
           </div>
+
+          <!-- 2. Card -->
           <div style="background: var(--color-bg-secondary); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-weight: 700; font-size: 0.85rem;">💵 Pay Later at Desk</span>
+              <span style="font-weight: 700; font-size: 0.85rem;">💳 Debit / Credit Card & POS</span>
+              <input type="checkbox" id="ce-all-card" ${showCard ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer;">
+            </div>
+            <input type="text" id="ce-all-card-label" class="form-control form-control-sm" value="${escapeHTML(cardLabel)}" placeholder="Gateway Display Name">
+          </div>
+
+          <!-- 3. Pay Later at Desk -->
+          <div style="background: var(--color-bg-secondary); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: 700; font-size: 0.85rem;">💵 Pay Later at Front Desk (Cash)</span>
               <input type="checkbox" id="ce-all-desk" ${showDesk ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer;">
             </div>
             <input type="text" id="ce-all-desk-label" class="form-control form-control-sm" value="${escapeHTML(deskLabel)}" placeholder="Method Display Name">
           </div>
+
+          <!-- 4. NetBanking -->
           <div style="background: var(--color-bg-secondary); padding: 12px; border-radius: 8px; border: 1px solid var(--color-border);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-weight: 700; font-size: 0.85rem;">🏦 NetBanking / Cards</span>
+              <span style="font-weight: 700; font-size: 0.85rem;">🏦 NetBanking / Bank Transfer</span>
               <input type="checkbox" id="ce-all-nb" ${showNetBanking ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--color-primary); cursor: pointer;">
             </div>
             <input type="text" id="ce-all-nb-label" class="form-control form-control-sm" value="${escapeHTML(nbLabel)}" placeholder="Gateway Display Name">
@@ -2747,9 +2888,15 @@ export class FormBuilder {
           s.showEmailConfirmation = modalContent.querySelector('#ce-em-active').checked;
           s.taxInvoiceLabel = modalContent.querySelector('#ce-tax-label').value.trim();
           s.showTaxInvoice = modalContent.querySelector('#ce-tax-active').checked;
+        } else if (compKey === 'card') {
+          s.cardPaymentLabel = modalContent.querySelector('#ce-label').value.trim();
+          s.cardPaymentSubtext = modalContent.querySelector('#ce-subtext').value.trim();
+          s.showCardPayment = modalContent.querySelector('#ce-active').checked;
         } else if (compKey === 'payment_all') {
           s.showUpiPayment = modalContent.querySelector('#ce-all-upi').checked;
           s.upiPaymentLabel = modalContent.querySelector('#ce-all-upi-label').value.trim();
+          s.showCardPayment = modalContent.querySelector('#ce-all-card').checked;
+          s.cardPaymentLabel = modalContent.querySelector('#ce-all-card-label').value.trim();
           s.showDeskPayment = modalContent.querySelector('#ce-all-desk').checked;
           s.deskPaymentLabel = modalContent.querySelector('#ce-all-desk-label').value.trim();
           s.showNetBankingPayment = modalContent.querySelector('#ce-all-nb').checked;

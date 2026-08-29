@@ -648,24 +648,75 @@
     }
     @media (max-width: 768px) {
       .nav-container {
-        padding: 10px 14px !important;
+        padding: 8px 12px !important;
+        gap: 8px !important;
       }
       .nav-brand {
-        font-size: 1.05rem !important;
-        max-width: calc(100% - 130px) !important;
+        font-size: 0.95rem !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        margin-right: 6px !important;
+        gap: 8px !important;
       }
-      .nav-brand span:not(.nav-logo) {
+      .nav-brand > div {
+        min-width: 0 !important;
+        overflow: hidden !important;
+      }
+      #nav-brand-name {
         overflow: hidden !important;
         text-overflow: ellipsis !important;
         white-space: nowrap !important;
-        display: inline-block !important;
+        display: block !important;
+        font-size: 0.92rem !important;
+      }
+      #nav-brand-sub {
+        display: none !important;
       }
       .nav-actions {
-        gap: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex-shrink: 0 !important;
+      }
+      .theme-toggle {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        padding: 0 !important;
+        font-size: 1.05rem !important;
+        border-radius: 50% !important;
+        border: 1.5px solid var(--border) !important;
+        background: var(--surface) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
       }
       .nav-actions .btn-pill {
-        padding: 6px 12px !important;
-        font-size: 0.8rem !important;
+        padding: 6px 11px !important;
+        font-size: 0.76rem !important;
+        white-space: nowrap !important;
+        border-radius: 20px !important;
+        letter-spacing: 0.2px !important;
+      }
+      .mobile-toggle {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        padding: 0 !important;
+        font-size: 1.15rem !important;
+        border-radius: 8px !important;
+        border: 1.5px solid var(--border) !important;
+        background: var(--surface) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+      .dropdown-menu {
+        right: 0 !important;
+        left: auto !important;
+        top: calc(100% + 4px) !important;
       }
       .hero-title {
         font-size: 1.6rem !important;
@@ -1267,8 +1318,9 @@
           <div class="plan-card">
             ${discount > 0 ? `<div class="plan-badge">${discount}% OFF</div>` : ''}
             <h3 class="plan-name">${p.name}</h3>
-            <div class="plan-price-row">
+            <div class="plan-price-row" style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
               <span class="plan-price">₹${finalPrice.toLocaleString('en-IN')}</span>
+              ${(discount > 0 && p.price > finalPrice) ? `<span style="text-decoration: line-through; color: var(--text-muted); font-size: 0.95rem; font-weight: 500;">₹${Number(p.price).toLocaleString('en-IN')}</span>` : ''}
               <span class="plan-period">/ ${durationLabel}</span>
             </div>
             <ul class="plan-features">

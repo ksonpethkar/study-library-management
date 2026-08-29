@@ -685,18 +685,33 @@ function renderPortalUI(container, data, analytics = null) {
                 <tbody>
                   ${payments && payments.length > 0 ? payments.map(p => `
                     <tr style="border-bottom: 1px solid var(--color-divider); font-size: 0.88rem;">
-                      <td style="padding: 10px 14px; font-family: monospace; font-weight: 700;">
-                        ${escapeHTML(p.receiptNumber || 'REC')}
-                        <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(p.receiptNumber || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Receipt #">📋</button>
+                      <td style="padding: 10px 14px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                          ${PaymentStudio.renderDebitTrayIcon(28)}
+                          <div>
+                            <span style="font-family: monospace; font-weight: 700; color: var(--color-primary);">${escapeHTML(p.receiptNumber || 'REC')}</span>
+                            <div class="tx-badge-pill tx-badge-debit" style="font-size: 0.65rem; padding: 1px 6px; margin-top: 2px;">↓ DEBIT</div>
+                          </div>
+                        </div>
                       </td>
                       <td style="padding: 10px 14px;">${new Date(p.paymentDate).toLocaleDateString('en-IN')} <small class="text-muted">(${SmartFormatters.timeAgo(p.paymentDate)})</small></td>
                       <td style="padding: 10px 14px; text-transform: uppercase;">${escapeHTML(p.paymentMethod || 'UPI')}</td>
-                      <td style="padding: 10px 14px; font-weight: 700; color: var(--color-success);">${SmartFormatters.currency(p.finalAmount)}</td>
-                      <td style="padding: 10px 14px;"><span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success);">Paid</span></td>
+                      <td style="padding: 10px 14px; font-weight: 700; color: #10b981;" class="tx-amount tx-amount-green">-₹${Number(p.finalAmount || 0).toLocaleString('en-IN')}</td>
+                      <td style="padding: 10px 14px;">
+                        <span class="tx-badge-pill tx-badge-paid">✓ Paid</span>
+                      </td>
                       <td style="padding: 10px 14px; text-align: right;">
-                        <button class="btn btn-sm btn-primary btn-view-receipt" data-receipt='${JSON.stringify(p)}' style="font-size: 0.78rem; padding: 4px 10px; font-weight: 600;">
-                          📥 Download / Print
-                        </button>
+                        <div class="tx-action-capsule" style="margin: 0; display: inline-flex;">
+                          <button type="button" class="btn-tx-action action-copy btn-copy-text" data-copy="${escapeHTML(p.receiptNumber || '')}" title="Copy Receipt Number">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                          </button>
+                          <button type="button" class="btn-tx-action action-edit btn-view-receipt" data-receipt='${JSON.stringify(p)}' title="Download / View Receipt">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                          </button>
+                          <button type="button" class="btn-tx-action action-share btn-portal-wa-share" data-receipt="${escapeHTML(p.receiptNumber || '')}" data-amount="${p.finalAmount || 0}" title="Share via WhatsApp">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   `).join('') : `

@@ -1496,11 +1496,20 @@ export async function render(container) {
 
       let planOptions = '<option value="">-- Select Subscription Plan --</option>';
       let defaultPrice = 0;
+      let defaultDiscount = 0;
 
       plans.forEach(p => {
         const isSelected = p._id === currentPlanId;
-        if (isSelected) defaultPrice = p.price;
-        planOptions += `<option value="${p._id}" data-price="${p.price}" ${isSelected ? 'selected' : ''}>${escapeHTML(p.name)} - ₹${p.price} (${p.duration} ${p.durationType})</option>`;
+        const orig = Number(p.price) || 0;
+        const disc = Number(p.discount) || 0;
+        const discAmt = Math.round(orig * (disc / 100));
+        const eff = Math.round(p.effectivePrice !== undefined ? p.effectivePrice : (orig - discAmt));
+        if (isSelected) {
+          defaultPrice = orig;
+          defaultDiscount = discAmt;
+        }
+        const discTag = disc > 0 ? ` [${disc}% OFF, was ₹${orig.toLocaleString('en-IN')}]` : '';
+        planOptions += `<option value="${p._id}" data-price="${orig}" data-discount="${discAmt}" ${isSelected ? 'selected' : ''}>${escapeHTML(p.name)} - ₹${eff.toLocaleString('en-IN')} (${p.duration} ${p.durationType})${discTag}</option>`;
       });
 
       const formContent = `
@@ -1526,7 +1535,7 @@ export async function render(container) {
 
             <div class="form-group mb-0">
               <label class="form-label">Discount (₹)</label>
-              <input type="number" id="modalDiscount" class="form-control" value="0" min="0" />
+              <input type="number" id="modalDiscount" class="form-control" value="${defaultDiscount}" min="0" />
             </div>
           </div>
 
@@ -1534,11 +1543,12 @@ export async function render(container) {
             <div class="form-group mb-0">
               <label class="form-label">Payment Method</label>
               <select id="modalMethod" class="form-select form-control">
-                <option value="upi" selected>UPI (GPay / PhonePe / Paytm)</option>
-                <option value="cash">Cash</option>
-                <option value="bank_transfer">Bank Transfer / IMPS</option>
-                <option value="card">Debit / Credit Card</option>
-                <option value="other">Other</option>
+                <option value="cash">💵 Cash</option>
+                <option value="upi" selected>⚡ UPI (Instant)</option>
+                <option value="bank_transfer">🏛️ Bank Transfer / NEFT</option>
+                <option value="card">💳 Debit / Credit Card</option>
+                <option value="desk">💵 Pay Later at Front Desk</option>
+                <option value="netbanking">🏦 NetBanking / Online Transfer</option>
               </select>
             </div>
 
@@ -1555,7 +1565,7 @@ export async function render(container) {
 
           <div style="background: var(--color-primary-bg); padding: 12px; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center;">
             <span style="font-weight: 500; color: var(--color-primary);">Final Payable Amount:</span>
-            <strong id="modalFinalDisplay" style="font-size: 1.2rem; color: var(--color-primary);">${formatCurrency(defaultPrice)}</strong>
+            <strong id="modalFinalDisplay" style="font-size: 1.2rem; color: var(--color-primary);">${formatCurrency(Math.max(0, defaultPrice - defaultDiscount))}</strong>
           </div>
 
         </form>
@@ -1568,7 +1578,7 @@ export async function render(container) {
         actions: `
           <button class="btn btn-secondary" onclick="document.getElementById('modal-container').close()">Cancel</button>
           <button class="btn btn-primary d-flex align-items-center gap-2" id="btnSubmitCollectFee">
-            <span>💰</span> Confirm Payment & Renew
+            <span>💾 Record Payment</span>
           </button>
         `
       });
@@ -1590,8 +1600,10 @@ export async function render(container) {
         planSelect.addEventListener('change', (e) => {
           const selectedOption = e.target.options[e.target.selectedIndex];
           const price = selectedOption.dataset.price;
+          const disc = selectedOption.dataset.discount || 0;
           if (price && amountInput) {
             amountInput.value = price;
+            if (discountInput) discountInput.value = disc;
             updatePayable();
           }
         });

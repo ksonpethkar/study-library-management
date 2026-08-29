@@ -503,7 +503,7 @@
       </div>
 
       <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-        <button id="btn-print-slip" class="btn btn-secondary" style="font-weight: 600;">📄 Download / Print Admission Slip</button>
+        <button id="btn-print-slip" type="button" class="btn btn-secondary" style="font-weight: 600;">📄 Download / Print Admission Slip</button>
         <a id="btn-success-whatsapp" href="#" target="_blank" class="btn btn-success" style="background: #25D366; border-color: #25D366; font-weight: 700; color: #fff;">
           📲 Send to my WhatsApp
         </a>
@@ -617,6 +617,14 @@
       const activeStepEl = document.getElementById(`step-${currentStep}`);
       if (activeStepEl && activeStepEl.querySelector('#public-seat-grid-container')) {
         loadPublicSeats();
+      }
+
+      // Auto-load payment gateways whenever entering payment step
+      if (activeStepEl && activeStepEl.querySelector('#payment-methods-radio-grid')) {
+        const pGrid = activeStepEl.querySelector('#payment-methods-radio-grid');
+        if (pGrid && pGrid.children.length === 0 && typeof window.renderPaymentGateways === 'function') {
+          window.renderPaymentGateways();
+        }
       }
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1227,7 +1235,7 @@
           <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
             <div class="form-group mb-2">
               <label class="form-label" style="font-weight: 600;">🚨 ${escapeHTML(label)}${reqMark}</label>
-              <input type="text" id="reg-emergency-name" name="emergencyName" class="form-control" placeholder="${escapeHTML(placeholder || 'Parent / Guardian Full Name')}" ${required}>
+              <input type="text" id="reg-emergency-name" name="emergencyName" class="form-control custom-dyn-input" data-field="${escapeHTML(fieldName)}" placeholder="${escapeHTML(placeholder || 'Parent / Guardian Full Name')}" ${required}>
               ${helpText}
             </div>
           </div>
@@ -1238,7 +1246,7 @@
           <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
             <div class="form-group mb-2">
               <label class="form-label" style="font-weight: 600;">📞 ${escapeHTML(label)}${reqMark}</label>
-              <input type="tel" id="reg-emergency-phone" name="emergencyPhone" class="form-control" placeholder="${escapeHTML(placeholder || '10-digit emergency contact phone')}" maxlength="10" ${required}>
+              <input type="tel" id="reg-emergency-phone" name="emergencyPhone" class="form-control custom-dyn-input" data-field="${escapeHTML(fieldName)}" placeholder="${escapeHTML(placeholder || '10-digit emergency contact phone')}" maxlength="10" ${required}>
               ${helpText}
             </div>
           </div>
@@ -1249,7 +1257,7 @@
           <div class="dynamic-field-wrapper" ${depAttr} style="${colStyle}">
             <div class="form-group mb-2">
               <label class="form-label" style="font-weight: 600;">👥 ${escapeHTML(label)}${reqMark}</label>
-              <select id="reg-emergency-relation" name="relationship" class="form-select">
+              <select id="reg-emergency-relation" name="relationship" class="form-select custom-dyn-input" data-field="${escapeHTML(fieldName)}">
                 <option value="Parent" selected>Parent</option>
                 <option value="Guardian">Guardian</option>
                 <option value="Father">Father</option>
@@ -1552,9 +1560,21 @@
         };
         const icon = iconMap[sec.icon] || iconMap[secName] || (sec.icon && sec.icon.length <= 4 ? sec.icon : '📋');
 
+        const sName = (secName || '').toLowerCase();
+        const sLabel = (sec.label || '').toLowerCase();
+        const sIcon = (sec.icon || '').toLowerCase();
+
+        const isPaymentSec = sName === 'payment' || sName === 'payments' || sName.includes('payment') || sLabel.includes('payment') || sIcon === 'payment' || sIcon === '💳';
+        const isPlanSec = !isPaymentSec && (sName === 'plan' || sName === 'plans' || sName.includes('plan') || (sLabel.includes('plan') && !sLabel.includes('payment')) || (sLabel.includes('membership') && !sLabel.includes('payment')) || sIcon === 'plan');
+        const isSeatSec = sName === 'seat' || sName === 'seats' || sName.includes('seat') || sLabel.includes('seat') || sLabel.includes('desk') || sIcon === 'seat' || sIcon === '🪑';
+        const isPersonalSec = sName === 'personal' || sName.includes('personal') || sLabel.includes('basic') || sLabel.includes('personal');
+        const isAddressSec = sName === 'address' || sName === 'contact' || sName.includes('address') || sName.includes('contact') || sLabel.includes('address') || sLabel.includes('contact') || sLabel.includes('emergency');
+        const isKycSec = sName === 'kyc' || sName === 'verification' || sName.includes('kyc') || sLabel.includes('kyc') || sLabel.includes('id proof') || sLabel.includes('verification');
+        const isAcademicSec = sName === 'academic' || sName === 'goals' || sName.includes('academic') || sName.includes('goal') || sLabel.includes('academic') || sLabel.includes('goal');
+
         let stepBodyHtml = '';
 
-        if (secName === 'personal') {
+        if (isPersonalSec) {
           const effectivePersonalFields = (secFields && secFields.length > 0)
             ? secFields
             : defaultSysFields.filter(df => df.section === 'personal' && !explicitlyHiddenNames.has(canonicalizeFieldName(df.name)));
@@ -1562,28 +1582,28 @@
             <div id="duplicate-alert-box" class="alert alert-danger mb-3" style="display: none; padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.88rem; font-weight: 600; color: #dc3545; background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.2);"></div>
             ${buildFieldGroupHtml(effectivePersonalFields)}
           `;
-        } else if (secName === 'address' || secName === 'contact') {
+        } else if (isAddressSec) {
           const effectiveAddressFields = (secFields && secFields.length > 0)
             ? secFields
             : defaultSysFields.filter(df => (df.section === 'address' || df.section === 'contact') && !explicitlyHiddenNames.has(canonicalizeFieldName(df.name)));
           stepBodyHtml = `
             ${buildFieldGroupHtml(effectiveAddressFields)}
           `;
-        } else if (secName === 'kyc' || secName === 'verification') {
+        } else if (isKycSec) {
           const effectiveKycFields = (secFields && secFields.length > 0)
             ? secFields
             : defaultSysFields.filter(df => (df.section === 'kyc' || df.section === 'verification') && !explicitlyHiddenNames.has(canonicalizeFieldName(df.name)));
           stepBodyHtml = `
             ${buildFieldGroupHtml(effectiveKycFields)}
           `;
-        } else if (secName === 'academic' || secName === 'goals') {
+        } else if (isAcademicSec) {
           const effectiveAcademicFields = (secFields && secFields.length > 0)
             ? secFields
             : defaultSysFields.filter(df => (df.section === 'academic' || df.section === 'goals') && !explicitlyHiddenNames.has(canonicalizeFieldName(df.name)));
           stepBodyHtml = `
             ${buildFieldGroupHtml(effectiveAcademicFields)}
           `;
-        } else if (secName === 'plan') {
+        } else if (isPlanSec) {
           stepBodyHtml = `
             <!-- Interactive Visual Plan Cards Grid -->
             <div class="form-group mb-4" id="reg-plan-selection-wrap">
@@ -1664,7 +1684,7 @@
               </div>
             </div>
           `;
-        } else if (secName === 'payment') {
+        } else if (isPaymentSec) {
           stepBodyHtml = `
             <div id="payment-methods-radio-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 1.5rem;"></div>
 
@@ -1674,7 +1694,7 @@
             <!-- Dynamic Fields for Payment Section -->
             ${secFields.length ? buildFieldGroupHtml(secFields) : ''}
           `;
-        } else if (secName === 'seat') {
+        } else if (isSeatSec) {
           const tplSettings = template?.settings || {};
           const showSeat = tplSettings.showSeatSelection !== false;
           const seatLabel = tplSettings.seatSelectionLabel || 'Interactive Study Desk Map';
@@ -1866,17 +1886,6 @@
             alert('Please select a membership plan to proceed.');
             planInp.focus();
             return;
-          }
-
-          // Payment Section Validation
-          const pmMode = stepContent.querySelector('input[name="reg-payment-mode"]:checked')?.value;
-          if (pmMode === 'upi' && selectedPlanData) {
-            const utr = document.getElementById('reg-upi-ref')?.value?.trim();
-            if (!utr) {
-              alert('Please enter your 12-digit UPI UTR / Reference number to continue.');
-              document.getElementById('reg-upi-ref')?.focus();
-              return;
-            }
           }
 
           if (stepContent.getAttribute('data-section') === 'payment') {
@@ -2126,7 +2135,40 @@
           else if (app === 'phonepe') schemeUrl = `phonepe://pay?${baseParams}`;
           else if (app === 'paytm') schemeUrl = `paytmmp://pay?${baseParams}`;
 
-          window.location.href = schemeUrl;
+          const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+          if (!isMobile) {
+            // Desktop browser guidance: don't attempt mobile scheme navigation
+            if (statusCard) {
+              statusCard.style.display = 'block';
+              statusCard.style.borderColor = 'var(--color-primary)';
+              statusCard.style.background = 'rgba(108, 92, 231, 0.08)';
+              statusCard.innerHTML = `
+                <div style="font-weight: 700; font-size: 0.92rem; color: var(--color-primary); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                  <span>📱</span> <span>Scan QR Code on Screen</span>
+                </div>
+                <small style="display: block; margin-top: 4px; color: var(--color-text-secondary);">
+                  Please open <strong>${appName}</strong> on your mobile phone, scan the QR code above to pay <strong>₹${payable}</strong>, then enter the 12-digit UTR below.
+                </small>
+              `;
+            }
+            const upiQrMount = document.getElementById('admission-upi-qr-mount');
+            if (upiQrMount) {
+              upiQrMount.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+          }
+
+          // Mobile device: Safe intent trigger without unloading current page
+          try {
+            const tempLink = document.createElement('a');
+            tempLink.href = schemeUrl;
+            tempLink.style.display = 'none';
+            document.body.appendChild(tempLink);
+            tempLink.click();
+            setTimeout(() => { tempLink.remove(); }, 600);
+          } catch (err) {
+            window.location.href = schemeUrl;
+          }
         };
       });
 
@@ -2317,9 +2359,147 @@
       });
     }
 
+    const DRAFT_STORAGE_KEY = 'sl_student_reg_draft_v2';
+    let draftSaveTimeout = null;
+
+    function saveRegistrationDraft() {
+      if (draftSaveTimeout) clearTimeout(draftSaveTimeout);
+      draftSaveTimeout = setTimeout(() => {
+        try {
+          const formEl = document.getElementById('public-reg-form');
+          if (!formEl) return;
+
+          const draft = {
+            currentStep,
+            selectedBranchId,
+            selectedPlanId: selectedPlanData?._id || document.getElementById('reg-plan')?.value,
+            selectedShiftId: selectedShiftData?._id || document.getElementById('reg-shift')?.value,
+            selectedSeatId: document.getElementById('reg-selected-seat')?.value,
+            selectedExams: Array.from(selectedExams || []),
+            paymentMode: document.querySelector('input[name="reg-payment-mode"]:checked')?.value,
+            upiRef: document.getElementById('reg-upi-ref')?.value,
+            nbRef: document.getElementById('reg-nb-ref')?.value,
+            fields: {}
+          };
+
+          formEl.querySelectorAll('input:not([type="password"]):not([type="file"]), select, textarea').forEach(inp => {
+            const key = inp.name || inp.id;
+            if (!key) return;
+            if (inp.type === 'checkbox') {
+              draft.fields[key] = inp.checked;
+            } else if (inp.type === 'radio') {
+              if (inp.checked) draft.fields[key] = inp.value;
+            } else {
+              draft.fields[key] = inp.value;
+            }
+          });
+
+          sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+        } catch (e) {}
+      }, 250);
+    }
+
+    function restoreRegistrationDraft() {
+      try {
+        const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+        if (!raw) return;
+        const draft = JSON.parse(raw);
+        if (!draft || !draft.fields) return;
+
+        const formEl = document.getElementById('public-reg-form');
+        if (!formEl) return;
+
+        Object.entries(draft.fields).forEach(([key, val]) => {
+          if (val === undefined || val === null || val === '') return;
+          const el = formEl.querySelector(`[name="${key}"]`) || document.getElementById(key);
+          if (el) {
+            if (el.type === 'checkbox') {
+              el.checked = Boolean(val);
+            } else if (el.type === 'radio') {
+              const rad = formEl.querySelector(`[name="${key}"][value="${val}"]`);
+              if (rad) rad.checked = true;
+            } else {
+              el.value = val;
+            }
+          }
+        });
+
+        if (draft.selectedPlanId) {
+          const planInput = document.getElementById('reg-plan');
+          if (planInput) {
+            planInput.value = draft.selectedPlanId;
+            selectedPlanData = plansMap[draft.selectedPlanId] || null;
+            document.querySelectorAll('.plan-pick-card').forEach(c => {
+              if (c.dataset.id === draft.selectedPlanId) {
+                c.classList.add('selected');
+                c.style.borderColor = 'var(--color-primary)';
+              } else {
+                c.classList.remove('selected');
+                c.style.borderColor = 'var(--color-border)';
+              }
+            });
+          }
+        }
+        if (draft.selectedShiftId) {
+          const shiftInput = document.getElementById('reg-shift');
+          if (shiftInput) {
+            shiftInput.value = draft.selectedShiftId;
+            selectedShiftData = shiftsMap[draft.selectedShiftId] || null;
+          }
+        }
+        if (draft.selectedSeatId) {
+          const seatInput = document.getElementById('reg-selected-seat');
+          if (seatInput) seatInput.value = draft.selectedSeatId;
+          const seatDisplay = document.getElementById('selected-seat-display');
+          if (seatDisplay) seatDisplay.textContent = `Assigned Desk #${draft.selectedSeatId}`;
+        }
+        if (draft.paymentMode) {
+          const pmRadio = document.querySelector(`input[name="reg-payment-mode"][value="${draft.paymentMode}"]`);
+          if (pmRadio) {
+            pmRadio.checked = true;
+            pmRadio.dispatchEvent(new Event('change'));
+          }
+        }
+        if (draft.upiRef) {
+          const upiInput = document.getElementById('reg-upi-ref');
+          if (upiInput) upiInput.value = draft.upiRef;
+        }
+        if (draft.nbRef) {
+          const nbInput = document.getElementById('reg-nb-ref');
+          if (nbInput) nbInput.value = draft.nbRef;
+        }
+
+        if (typeof updateCalculator === 'function') {
+          updateCalculator();
+        }
+
+        if (draft.currentStep && draft.currentStep > 1 && draft.currentStep <= totalSteps) {
+          currentStep = draft.currentStep;
+          if (typeof updateStepper === 'function') updateStepper();
+        }
+      } catch (e) {}
+    }
+
+    function clearRegistrationDraft() {
+      try {
+        sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+      } catch (e) {}
+    }
+
     function bindFormSubmit() {
       const form = document.getElementById('public-reg-form');
       if (!form) return;
+
+      form.addEventListener('input', saveRegistrationDraft);
+      form.addEventListener('change', saveRegistrationDraft);
+      form.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'submit') {
+          e.preventDefault();
+          const activeStepEl = document.querySelector('.wizard-step-content.active');
+          const nextBtn = activeStepEl?.querySelector('.btn-next');
+          if (nextBtn) nextBtn.click();
+        }
+      });
 
       form.onsubmit = async (e) => {
         e.preventDefault();
@@ -2395,10 +2575,52 @@
         }
 
         let txnId = '';
-        if (pmMode === 'upi') txnId = document.getElementById('reg-upi-ref')?.value?.trim() || '';
+        if (pmMode === 'upi') txnId = document.getElementById('reg-upi-ref')?.value?.trim() || `UPI_${Date.now()}`;
+        else if (pmMode === 'card') txnId = document.getElementById('reg-card-ref')?.value?.trim() || document.getElementById('reg-custom-ref-card')?.value?.trim() || `CARD_${Date.now()}`;
         else if (pmMode === 'netbanking') txnId = document.getElementById('reg-nb-ref')?.value?.trim() || '';
-        else if (pmMode !== 'desk') {
+        else if (pmMode === 'desk') txnId = 'DESK_CASH_ON_ARRIVAL';
+        else {
           txnId = document.getElementById(`reg-custom-ref-${pmMode}`)?.value?.trim() || '';
+        }
+
+        // Ensure standard fields & emergency contact are mirrored into customFields with all possible slug aliases
+        const emName = document.getElementById('reg-emergency-name')?.value?.trim() ||
+          document.querySelector('[name="parent___guardian_name"]')?.value?.trim() ||
+          document.querySelector('[name="emergencyName"]')?.value?.trim() ||
+          document.querySelector('[name="parentName"]')?.value?.trim() || '';
+        const emPhone = document.getElementById('reg-emergency-phone')?.value?.trim() ||
+          document.querySelector('[name="emergencycontact"]')?.value?.trim() ||
+          document.querySelector('[name="emergencyPhone"]')?.value?.trim() || '';
+        const emRel = document.getElementById('reg-emergency-relation')?.value?.trim() ||
+          document.querySelector('[name="relationship"]')?.value?.trim() ||
+          document.querySelector('[name="relation"]')?.value?.trim() || 'Parent';
+
+        if (emName) {
+          customFields['emergencyName'] = emName;
+          customFields['emergency_name'] = emName;
+          customFields['parentName'] = emName;
+          customFields['parent_name'] = emName;
+          customFields['parent___guardian_name'] = emName;
+          customFields['emergency_contact_parent___guardian_name'] = emName;
+          customFields['emergency_contact_parent_guardian_name'] = emName;
+          customFields['guardianName'] = emName;
+          customFields['fatherName'] = emName;
+        }
+        if (emPhone) {
+          customFields['emergencyPhone'] = emPhone;
+          customFields['emergency_phone'] = emPhone;
+          customFields['emergencyContact'] = emPhone;
+          customFields['emergencycontact'] = emPhone;
+          customFields['parentPhone'] = emPhone;
+          customFields['parent_phone'] = emPhone;
+          customFields['emergency_contact_phone'] = emPhone;
+        }
+        if (emRel) {
+          customFields['relationship'] = emRel;
+          customFields['relation'] = emRel;
+          customFields['emergencyRelation'] = emRel;
+          customFields['emergency_relation'] = emRel;
+          customFields['parent_relation'] = emRel;
         }
 
         const payload = {
@@ -2525,6 +2747,8 @@
             }
             return;
           }
+
+          clearRegistrationDraft();
 
           // Show Rich Celebration Slip or Waiting List Ticket
           document.getElementById('registration-form-wrap').style.display = 'none';
@@ -3110,39 +3334,100 @@
             updateCalculator();
           }
 
-        // Render Payment Gateways
-        const showUpi = tplSettings.showUpiPayment !== false;
-        const showDesk = tplSettings.showDeskPayment !== false;
-        const showNetBanking = tplSettings.showNetBankingPayment !== false;
+        // 7. Dynamic Payment Gateways Engine
+        function renderPaymentGateways() {
+          const radioGrid = document.getElementById('payment-methods-radio-grid');
+          const subpanesContainer = document.getElementById('payment-methods-subpanes-container');
+          if (!radioGrid || !subpanesContainer) return;
 
-        const upiName = tplSettings.upiPaymentLabel || 'Dynamic UPI QR';
-        const upiSub = tplSettings.upiPaymentSubtext || 'GPay / PhonePe / Paytm / BHIM';
-        const deskName = tplSettings.deskPaymentLabel || 'Pay Later at Front Desk';
-        const deskSub = tplSettings.deskPaymentSubtext || 'Pay cash on arrival';
-        const nbName = tplSettings.netBankingPaymentLabel || 'NetBanking / Cards';
-        const nbSub = tplSettings.netBankingPaymentSubtext || 'All major Indian banks';
+          const showUpi = tplSettings.showUpiPayment !== false;
+          const showCard = tplSettings.showCardPayment !== false;
+          const showDesk = tplSettings.showDeskPayment !== false;
+          const showNetBanking = tplSettings.showNetBankingPayment !== false;
 
-        const paymentMethods = (Array.isArray(bp?.paymentMethods) && bp.paymentMethods.length > 0)
-          ? bp.paymentMethods.map(m => {
-              if (m.key === 'upi') return { ...m, name: upiName, subtitle: upiSub, enabled: showUpi && (m.enabled !== false) };
-              if (m.key === 'desk') return { ...m, name: deskName, subtitle: deskSub, enabled: showDesk && (m.enabled !== false) };
-              if (m.key === 'netbanking' || m.key === 'card') return { ...m, name: nbName, subtitle: nbSub, enabled: showNetBanking && (m.enabled !== false) };
-              return m;
-            })
-          : [
-              { key: 'upi', name: upiName, subtitle: upiSub, icon: '⚡', enabled: showUpi, order: 1, instructions: 'Scan QR code and enter 12-digit UTR number', requiresRef: true, refLabel: 'UPI UTR / Reference Number *' },
-              { key: 'card', name: 'Debit / Credit Card', subtitle: 'Visa, Mastercard, RuPay', icon: '💳', enabled: showNetBanking, order: 2, instructions: 'Enter cardholder name and card transaction reference', requiresRef: true, refLabel: 'Card Reference / Transaction ID *' },
-              { key: 'netbanking', name: nbName, subtitle: nbSub, icon: '🏦', enabled: showNetBanking, order: 3, instructions: 'Transfer fee to official bank account and enter bank UTR', requiresRef: true, refLabel: 'Bank Transaction Reference / UTR *' },
-              { key: 'desk', name: deskName, subtitle: deskSub, icon: '💵', enabled: showDesk, order: 4, instructions: 'Admission will be pre-reserved. Pay cash at front reception desk on arrival.', requiresRef: false, refLabel: '' }
-            ];
+          const upiName = tplSettings.upiPaymentLabel || 'Dynamic UPI QR';
+          const upiSub = tplSettings.upiPaymentSubtext || 'GPay / PhonePe / Paytm / BHIM';
+          const cardName = tplSettings.cardPaymentLabel || 'Debit / Credit Card';
+          const cardSub = tplSettings.cardPaymentSubtext || 'Visa, Mastercard, RuPay & POS';
+          const deskName = tplSettings.deskPaymentLabel || 'Pay Later at Front Desk';
+          const deskSub = tplSettings.deskPaymentSubtext || 'Pay cash on arrival';
+          const nbName = tplSettings.netBankingPaymentLabel || 'NetBanking / Direct Bank Transfer';
+          const nbSub = tplSettings.netBankingPaymentSubtext || 'NEFT / IMPS / RTGS (All Indian banks)';
 
-        const activeMethods = paymentMethods
-          .filter(m => m.enabled === true || m.enabled === 'true' || m.enabled === 1 || m.enabled === '1')
-          .sort((a, b) => (a.order || 0) - (b.order || 0));
-        const radioGrid = document.getElementById('payment-methods-radio-grid');
-        const subpanesContainer = document.getElementById('payment-methods-subpanes-container');
+          const CANONICAL_METHODS = [
+            { key: 'upi', name: upiName, subtitle: upiSub, icon: '⚡', enabled: showUpi, order: 1, instructions: 'Scan QR code or use 1-tap UPI app buttons and enter 12-digit UTR', requiresRef: true, refLabel: 'UPI UTR / Reference Number *' },
+            { key: 'card', name: cardName, subtitle: cardSub, icon: '💳', enabled: showCard, order: 2, instructions: 'Enter cardholder name and card transaction reference / approval code', requiresRef: true, refLabel: 'Card Reference / Approval Code *' },
+            { key: 'netbanking', name: nbName, subtitle: nbSub, icon: '🏦', enabled: showNetBanking, order: 3, instructions: 'Transfer fee to official bank account and enter bank UTR or upload slip', requiresRef: true, refLabel: 'Bank Transaction Reference / UTR *' },
+            { key: 'desk', name: deskName, subtitle: deskSub, icon: '💵', enabled: showDesk, order: 4, instructions: 'Your admission will be reserved for 24 hours. Pay cash or UPI at front reception desk on arrival.', requiresRef: false, refLabel: '' }
+          ];
 
-        if (radioGrid && subpanesContainer && activeMethods.length > 0) {
+          // Merge with bp.paymentMethods if available
+          const bpMethods = Array.isArray(bp?.paymentMethods) && bp.paymentMethods.length > 0 ? bp.paymentMethods : [];
+          const bpMap = new Map(bpMethods.map(m => [m.key, m]));
+
+          const paymentMethods = CANONICAL_METHODS.map(def => {
+            const bpm = bpMap.get(def.key);
+            let isEnabled = false;
+
+            if (def.key === 'upi') {
+              const tplVal = tplSettings.showUpiPayment;
+              const bpVal = bpm ? (bpm.enabled === true || bpm.enabled === 'true' || bpm.enabled === 1 || bpm.enabled === '1') : null;
+              if (tplVal === true) isEnabled = true;
+              else if (tplVal === false) isEnabled = false;
+              else if (bpVal !== null) isEnabled = bpVal;
+              else isEnabled = true;
+            } else if (def.key === 'desk') {
+              const tplVal = tplSettings.showDeskPayment;
+              const bpVal = bpm ? (bpm.enabled === true || bpm.enabled === 'true' || bpm.enabled === 1 || bpm.enabled === '1') : null;
+              if (tplVal === true) isEnabled = true;
+              else if (tplVal === false) isEnabled = false;
+              else if (bpVal !== null) isEnabled = bpVal;
+              else isEnabled = true;
+            } else if (def.key === 'card') {
+              const tplVal = tplSettings.showCardPayment;
+              const bpVal = bpm ? (bpm.enabled === true || bpm.enabled === 'true' || bpm.enabled === 1 || bpm.enabled === '1') : null;
+              if (tplVal === true) isEnabled = true;
+              else if (tplVal === false) isEnabled = false;
+              else if (bpVal !== null) isEnabled = bpVal;
+              else isEnabled = false;
+            } else if (def.key === 'netbanking') {
+              const tplVal = tplSettings.showNetBankingPayment;
+              const bpVal = bpm ? (bpm.enabled === true || bpm.enabled === 'true' || bpm.enabled === 1 || bpm.enabled === '1') : null;
+              if (tplVal === true) isEnabled = true;
+              else if (tplVal === false) isEnabled = false;
+              else if (bpVal !== null) isEnabled = bpVal;
+              else isEnabled = false;
+            } else {
+              isEnabled = bpm ? (bpm.enabled === true || bpm.enabled === 'true') : def.enabled;
+            }
+
+            return {
+              ...def,
+              ...(bpm || {}),
+              enabled: isEnabled,
+              name: (bpm && bpm.name) ? bpm.name : def.name,
+              subtitle: (bpm && bpm.subtitle) ? bpm.subtitle : def.subtitle,
+              icon: (bpm && bpm.icon) ? bpm.icon : def.icon,
+              instructions: (bpm && bpm.instructions) ? bpm.instructions : def.instructions
+            };
+          });
+
+          // Add any custom extra methods configured by admin
+          bpMethods.forEach(bpm => {
+            if (!CANONICAL_METHODS.some(c => c.key === bpm.key)) {
+              paymentMethods.push(bpm);
+            }
+          });
+
+          let activeMethods = paymentMethods
+            .filter(m => m.enabled === true || m.enabled === 'true' || m.enabled === 1 || m.enabled === '1')
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+          // Safety fallback: if all methods were turned off or undetermined, ensure at least UPI & Desk are available
+          if (activeMethods.length === 0) {
+            activeMethods = CANONICAL_METHODS.filter(m => m.key === 'desk' || m.key === 'upi');
+          }
+
           let radioHtml = '';
           let subpanesHtml = '';
 
@@ -3162,23 +3447,16 @@
               subpanesHtml += `
                 <div id="pm-sub-upi" class="pm-sub-pane" style="display: ${isFirst ? 'block' : 'none'}; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; text-align: center; margin-bottom: 1.5rem;">
                   
-                  <!-- Hero 1-Tap Mobile UPI App Selection -->
                   <div style="font-weight: 800; font-size: 1.02rem; color: var(--color-text-primary); margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <span>⚡</span> <span>1-Tap Instant Mobile UPI Checkout</span>
+                    <span>⚡</span> <span>1-Tap Instant UPI Checkout</span>
                   </div>
                   <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-bottom: 12px;">
                     Scan QR code or use 1-tap UPI app buttons below to pay your admission fee.
                   </div>
 
-                  <!-- Prominent Official UPI Payment Card -->
                   <div style="margin: 0 auto 12px auto; max-width: 480px; background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 16px; padding: 16px; text-align: center; box-shadow: var(--shadow-sm);">
-                    
-                    <!-- QR Code Mount -->
-                    <div style="margin-bottom: 12px;">
-                      <div id="admission-upi-qr-mount" style="background: #fff; padding: 12px; border-radius: 14px; display: inline-block; margin: 0 auto 8px auto; border: 1.5px solid var(--color-border); box-shadow: var(--shadow-sm);"></div>
-                      
-                      <!-- UPI ID & Copy Action Bar -->
-                      <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 10px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
+                    <div id="admission-upi-qr-mount" style="background: #fff; padding: 12px; border-radius: 14px; display: inline-block; margin: 0 auto 8px auto; border: 1.5px solid var(--color-border); box-shadow: var(--shadow-sm);"></div>
+                    <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 10px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px;">
                         <div style="text-align: left;">
                           <div style="font-size: 0.72rem; color: var(--color-text-muted); font-weight: 600;">Official UPI ID</div>
                           <span style="font-family: monospace; font-size: 0.92rem; font-weight: 700; color: var(--color-primary);" id="display-upi-id">${escapeHTML(libraryUpiId)}</span>
@@ -3186,7 +3464,6 @@
                         <button type="button" id="btn-copy-upi" class="btn btn-sm btn-outline-primary" style="padding: 4px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 8px;">
                           📋 Copy UPI ID
                         </button>
-                      </div>
                     </div>
 
                     <!-- 1-Tap UPI Intent Shortcuts -->
@@ -3194,50 +3471,36 @@
                       <div style="font-size: 0.78rem; font-weight: 700; color: var(--color-text-secondary); margin-bottom: 8px;">
                         Or Open Directly in Installed UPI App:
                       </div>
-                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 8px;">
-                        <button type="button" class="btn btn-sm upi-intent-btn" data-app="gpay" style="background: #4285F4; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px;">
-                          <span style="font-size: 1.15rem;">🔵</span>
-                          <span>GPay</span>
-                        </button>
-                        <button type="button" class="btn btn-sm upi-intent-btn" data-app="phonepe" style="background: #5f259f; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px;">
-                          <span style="font-size: 1.15rem;">🟣</span>
-                          <span>PhonePe</span>
-                        </button>
-                        <button type="button" class="btn btn-sm upi-intent-btn" data-app="paytm" style="background: #00baf2; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px;">
-                          <span style="font-size: 1.15rem;">💙</span>
-                          <span>Paytm</span>
-                        </button>
-                        <button type="button" class="btn btn-sm upi-intent-btn" data-app="generic" style="background: #00b894; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px;">
-                          <span style="font-size: 1.15rem;">📲</span>
-                          <span>Other UPI</span>
-                        </button>
+                      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                        <a id="upi-btn-gpay" href="#" class="btn btn-sm btn-outline-secondary upi-app-link" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 8px;">
+                          <span>🟢</span> GPay
+                        </a>
+                        <a id="upi-btn-phonepe" href="#" class="btn btn-sm btn-outline-secondary upi-app-link" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 8px;">
+                          <span>🟣</span> PhonePe
+                        </a>
+                        <a id="upi-btn-paytm" href="#" class="btn btn-sm btn-outline-secondary upi-app-link" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 8px;">
+                          <span>🔵</span> Paytm
+                        </a>
+                        <a id="upi-btn-bhim" href="#" class="btn btn-sm btn-outline-secondary upi-app-link" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 8px;">
+                          <span>🇮🇳</span> BHIM
+                        </a>
                       </div>
                     </div>
-
-                    <!-- NPCI Risk Guidance Alert -->
-                    <div style="margin-top: 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 8px 10px; text-align: left; font-size: 0.76rem; color: var(--color-text-secondary); line-height: 1.35;">
-                      <strong style="color: #d97706;">💡 Payment Tip:</strong> If your UPI app shows a security check on 1-tap links, simply <strong>Scan the QR Code</strong> or tap <strong>📋 Copy UPI ID</strong> and pay directly in your UPI app.
-                    </div>
-
-                    <!-- Auto-Verify Status Banner -->
-                    <div id="upi-auto-verify-status" style="display: none; margin-top: 12px; background: rgba(108, 92, 231, 0.08); border: 1.5px solid var(--color-primary); border-radius: 10px; padding: 10px 14px; text-align: center;"></div>
                   </div>
 
-                  <!-- Prominent Manual 12-Digit UTR Input Card -->
-                  <div style="margin: 12px auto 0 auto; max-width: 480px; text-align: left; background: var(--color-surface); padding: 14px 16px; border-radius: 14px; border: 1.5px solid var(--color-border); box-shadow: var(--shadow-sm);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <!-- UTR Transaction ID Input -->
+                  <div style="background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 14px; padding: 16px; margin: 0 auto 12px auto; max-width: 480px; text-align: left; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                       <label class="form-label mb-0" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary);">
-                        <span>💳</span> 12-Digit Bank UTR / Reference No.
+                        <span>⚡</span> 12-Digit UPI Reference Number (UTR) *
                       </label>
-                      <span class="badge" style="background: rgba(108, 92, 231, 0.12); color: var(--color-primary); font-size: 0.72rem; font-weight: 700;">Required</span>
+                      <span class="badge" style="background: rgba(108, 92, 231, 0.12); color: var(--color-primary); font-size: 0.72rem; font-weight: 700;">Required for Instant Activation</span>
                     </div>
-                    <div style="display: flex; gap: 8px;">
-                      <input type="text" id="reg-upi-ref" class="form-control" placeholder="e.g. 423819203912 (12 digits)" maxlength="25" style="font-family: monospace; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.5px;">
-                      <button type="button" id="btn-paste-upi-ref" class="btn btn-outline-primary" style="font-size: 0.8rem; padding: 6px 14px; white-space: nowrap; border-radius: 8px; font-weight: 700;">📋 Paste</button>
-                    </div>
-                    <small class="text-muted" id="reg-payment-note-upi" style="font-size: 0.75rem; display: block; margin-top: 6px;">
-                      💡 Find your 12-digit UTR in Google Pay / PhonePe / Paytm payment receipt and paste above to confirm admission.
+                    <input type="text" id="reg-upi-ref" class="form-control" placeholder="Enter 12-digit UTR (e.g. 423456789012)" maxlength="20" style="font-family: monospace; font-size: 1.05rem; font-weight: 700; letter-spacing: 1.5px;">
+                    <small class="text-muted" style="font-size: 0.75rem; display: block; margin-top: 6px;">
+                      💡 You can find the 12-digit UTR / UPI Reference ID in your payment app (Google Pay, PhonePe, Paytm) under payment details.
                     </small>
+                    <div id="utr-validation-msg" style="font-size: 0.75rem; font-weight: 600; margin-top: 4px; display: none;"></div>
                   </div>
                 </div>
               `;
@@ -3245,104 +3508,69 @@
               subpanesHtml += `
                 <div id="pm-sub-netbanking" class="pm-sub-pane" style="display: ${isFirst ? 'block' : 'none'}; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem;">
                   
+                  <div style="font-weight: 800; font-size: 1.02rem; color: var(--color-text-primary); margin-bottom: 4px; text-align: center;">
+                    <span>🏦</span> Official Bank Account Details
+                  </div>
+                  <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-bottom: 14px; text-align: center;">
+                    Transfer admission fee via IMPS, NEFT or RTGS to our official library bank account.
+                  </div>
+
+                  <div style="max-width: 480px; margin: 0 auto 14px auto; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px; padding: 14px 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.86rem;">
+                      <div>
+                        <div class="text-muted small" style="font-size: 0.72rem;">Bank Name</div>
+                        <strong id="display-bank-name">${escapeHTML(libraryBank.bankName || 'State Bank of India')}</strong>
+                      </div>
+                      <div>
+                        <div class="text-muted small" style="font-size: 0.72rem;">Account Type</div>
+                        <strong id="display-bank-type">${escapeHTML(libraryBank.accountType || 'Current Account')}</strong>
+                      </div>
+                      <div>
+                        <div class="text-muted small" style="font-size: 0.72rem;">Account Number</div>
+                        <strong style="font-family: monospace; font-size: 0.95rem; color: var(--color-primary);" id="display-bank-acc">${escapeHTML(libraryBank.accountNumber || '41238902145')}</strong>
+                      </div>
+                      <div>
+                        <div class="text-muted small" style="font-size: 0.72rem;">IFSC Code</div>
+                        <strong style="font-family: monospace; font-size: 0.95rem; color: var(--color-primary);" id="display-bank-ifsc">${escapeHTML(libraryBank.ifscCode || 'SBIN0001234')}</strong>
+                      </div>
+                      <div style="grid-column: 1 / -1; border-top: 1px dashed var(--color-border); padding-top: 8px;">
+                        <div class="text-muted small" style="font-size: 0.72rem;">Account Holder Name</div>
+                        <strong>${escapeHTML(libraryBank.accountHolder || bp?.businessName || 'The Cozy Corner Centre')}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Bank Reference Input -->
+                  <div style="max-width: 480px; margin: 0 auto; background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 12px; padding: 14px 16px; text-align: left;">
+                    <label class="form-label" style="font-weight: 700; font-size: 0.85rem; margin-bottom: 6px;">
+                      Bank Transaction Reference / UTR Number *
+                    </label>
+                    <input type="text" id="reg-netbanking-ref" class="form-control" placeholder="Enter NEFT / IMPS Reference number" style="font-family: monospace; font-weight: 600;">
+                  </div>
+                </div>
+              `;
+            } else if (m.key === 'card') {
+              subpanesHtml += `
+                <div id="pm-sub-card" class="pm-sub-pane" style="display: ${isFirst ? 'block' : 'none'}; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem; text-align: center; margin-bottom: 1.5rem;">
                   <div style="font-weight: 800; font-size: 1.02rem; color: var(--color-text-primary); margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <span>🏛️</span> <span>Smart Instant Bank Transfer (NEFT / IMPS / RTGS)</span>
+                    <span>💳</span> <span>Debit / Credit Card Payment (POS / Online)</span>
                   </div>
-                  <div style="font-size: 0.82rem; color: var(--color-text-secondary); text-align: center; margin-bottom: 14px;">
-                    Copy details below with 1-tap or open your bank app to transfer fee with zero typing.
-                  </div>
-
-                  <!-- 1-Tap Quick Copy Bank Details Card -->
-                  <div id="admission-bank-details-card" style="background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 14px; padding: 1rem; margin-bottom: 1rem; box-shadow: var(--shadow-sm);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--color-border); padding-bottom: 6px;">
-                      <span style="font-weight: 700; font-size: 0.88rem; color: var(--color-primary);">🏛️ Official Beneficiary Account</span>
-                      <button type="button" id="btn-copy-all-bank" class="btn btn-xs btn-outline-primary" style="padding: 2px 8px; font-size: 0.75rem; border-radius: 6px;">📋 Copy All</button>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; font-size: 0.84rem;">
-                      <div style="background: var(--color-bg-secondary); padding: 8px 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                          <div style="font-size: 0.72rem; color: var(--color-text-muted);">Bank Name</div>
-                          <strong id="nb-display-bank" style="color: var(--color-text-primary);">${escapeHTML(libraryBankDetails.bankName || 'State Bank of India')}</strong>
-                        </div>
-                      </div>
-
-                      <div style="background: var(--color-bg-secondary); padding: 8px 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                          <div style="font-size: 0.72rem; color: var(--color-text-muted);">Account Number</div>
-                          <strong id="nb-display-accNum" style="font-family: monospace; font-size: 0.95rem; color: var(--color-primary);">${escapeHTML(libraryBankDetails.accountNumber || '50200012345678')}</strong>
-                        </div>
-                        <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-field" data-copy="${escapeHTML(libraryBankDetails.accountNumber || '50200012345678')}" style="padding: 2px 6px; font-size: 0.72rem;">📋</button>
-                      </div>
-
-                      <div style="background: var(--color-bg-secondary); padding: 8px 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                          <div style="font-size: 0.72rem; color: var(--color-text-muted);">IFSC Code</div>
-                          <strong id="nb-display-ifsc" style="font-family: monospace; font-size: 0.95rem; color: var(--color-primary);">${escapeHTML(libraryBankDetails.ifscCode || 'SBIN0001234')}</strong>
-                        </div>
-                        <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-field" data-copy="${escapeHTML(libraryBankDetails.ifscCode || 'SBIN0001234')}" style="padding: 2px 6px; font-size: 0.72rem;">📋</button>
-                      </div>
-
-                      <div style="background: var(--color-bg-secondary); padding: 8px 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                          <div style="font-size: 0.72rem; color: var(--color-text-muted);">Beneficiary Name</div>
-                          <strong id="nb-display-accName" style="color: var(--color-text-primary); font-size: 0.82rem;">${escapeHTML(libraryBankDetails.accountName || libraryBusinessName || 'Study Library')}</strong>
-                        </div>
-                        <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-field" data-copy="${escapeHTML(libraryBankDetails.accountName || libraryBusinessName || 'Study Library')}" style="padding: 2px 6px; font-size: 0.72rem;">📋</button>
-                      </div>
-                    </div>
+                  <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-bottom: 14px;">
+                    Pay using your RuPay, Visa, or Mastercard at the front desk POS terminal or online gateway.
                   </div>
 
-                  <!-- 1-Tap Open Banking Apps Launchpad -->
-                  <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; padding: 12px; margin-bottom: 1rem; text-align: center;">
-                    <div style="font-size: 0.82rem; font-weight: 700; color: var(--color-primary); margin-bottom: 8px;">
-                      📲 1-Tap Open Bank App &amp; Auto-Attach Reference
+                  <div style="background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 14px; padding: 16px; margin: 0 auto 12px auto; max-width: 480px; text-align: left; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <label class="form-label mb-0" style="font-weight: 700; font-size: 0.88rem; color: var(--color-text-primary);">
+                        <span>💳</span> ${escapeHTML(m.refLabel || 'Card Transaction Reference / Approval Code *')}
+                      </label>
+                      <span class="badge" style="background: rgba(108, 92, 231, 0.12); color: var(--color-primary); font-size: 0.72rem; font-weight: 700;">Required</span>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px;">
-                      <button type="button" class="btn btn-sm bank-intent-btn" data-bank="sbi" style="background: #1a4d8c; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.8rem; padding: 8px 4px;">
-                        🏛️ SBI YONO
-                      </button>
-                      <button type="button" class="btn btn-sm bank-intent-btn" data-bank="hdfc" style="background: #004c8f; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.8rem; padding: 8px 4px;">
-                        🏛️ HDFC Bank
-                      </button>
-                      <button type="button" class="btn btn-sm bank-intent-btn" data-bank="icici" style="background: #b82b2b; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.8rem; padding: 8px 4px;">
-                        🏛️ ICICI Bank
-                      </button>
-                      <button type="button" class="btn btn-sm bank-intent-btn" data-bank="other" style="background: #0f766e; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.8rem; padding: 8px 4px;">
-                        🏛️ Other Bank
-                      </button>
-                    </div>
-
-                    <!-- Auto-Verify Bank Status Banner -->
-                    <div id="nb-auto-verify-status" style="display: none; margin-top: 10px; background: rgba(108, 92, 231, 0.08); border: 1.5px solid var(--color-primary); border-radius: 10px; padding: 10px; text-align: center; font-size: 0.84rem;"></div>
+                    <input type="text" id="reg-card-ref" class="form-control" placeholder="e.g. TXN987654321 / Card Approval Code" style="font-family: monospace; font-size: 0.95rem; font-weight: 600;">
+                    <small class="text-muted" style="font-size: 0.75rem; display: block; margin-top: 6px;">
+                      💡 Enter approval / transaction ID from your card payment terminal receipt slip or SMS.
+                    </small>
                   </div>
-
-                  <!-- 📸 1-Tap Slip Upload (Auto-Proof Scanner) -->
-                  <div style="background: var(--color-surface); border: 1.5px dashed var(--color-primary); border-radius: 12px; padding: 12px; text-align: center; margin-bottom: 10px;">
-                    <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-primary); margin-bottom: 4px;">
-                      📸 Upload Bank Slip / Screenshot (Zero Typing)
-                    </div>
-                    <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-bottom: 8px;">
-                      Upload your NEFT / IMPS transfer screenshot to auto-attach proof.
-                    </div>
-                    <input type="file" id="reg-nb-slip-input" accept="image/*,application/pdf" style="display: none;">
-                    <button type="button" id="btn-trigger-slip-upload" class="btn btn-sm btn-outline-primary" style="font-weight: 700; border-radius: 8px; padding: 6px 16px;">
-                      📷 Choose Slip / Screenshot
-                    </button>
-                    <div id="nb-slip-preview-container" style="display: none; margin-top: 8px; font-size: 0.78rem; color: var(--color-success); font-weight: 700;"></div>
-                  </div>
-
-                  <!-- Collapsible Manual Reference Number Input -->
-                  <details style="margin: 8px auto 0 auto; text-align: left;">
-                    <summary style="cursor: pointer; font-size: 0.78rem; color: var(--color-text-muted); user-select: none;">
-                      ✏️ Or enter 12-22 digit Bank Reference No. manually (Optional)
-                    </summary>
-                    <div class="form-group mt-2" style="background: var(--color-surface); padding: 10px; border-radius: 8px; border: 1px solid var(--color-border);">
-                      <label class="form-label" style="font-weight: 600; font-size: 0.82rem;">Bank NEFT / IMPS Reference / UTR *</label>
-                      <input type="text" id="reg-nb-ref" class="form-control form-control-sm" placeholder="e.g. 423456789012 or CMS12345678" maxlength="35">
-                      <small class="text-muted" style="font-size: 0.72rem; display: block; margin-top: 2px;">Auto-filled when you tap a bank app or upload slip above.</small>
-                    </div>
-                  </details>
                 </div>
               `;
             } else if (m.key === 'desk') {
@@ -3370,8 +3598,8 @@
                   ${m.instructions ? `<div class="text-muted small mb-3">${escapeHTML(m.instructions)}</div>` : ''}
                   ${m.requiresRef !== false ? `
                     <div class="form-group mb-3">
-                      <label class="form-label" style="font-weight: 600;">${escapeHTML(m.refLabel || 'Transaction Reference / Receipt ID *')}</label>
-                      <input type="text" id="reg-custom-ref-${escapeHTML(m.key)}" class="form-control reg-custom-ref-input" data-key="${escapeHTML(m.key)}" placeholder="Enter reference number">
+                      <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">${escapeHTML(m.refLabel || 'Transaction Reference ID *')}</label>
+                      <input type="text" id="reg-${escapeHTML(m.key)}-ref" class="form-control" placeholder="Enter transaction reference">
                     </div>
                   ` : ''}
                 </div>
@@ -3420,6 +3648,9 @@
           bindBankTransferEvents();
         }
 
+        window.renderPaymentGateways = renderPaymentGateways;
+        renderPaymentGateways();
+
         // Render Dynamic Library Rules from Admin Settings
         const rulesBox = document.getElementById('reg-rules-scroll-box');
         const customRulesText = tplSettings.quietStudyAgreementRules;
@@ -3451,6 +3682,9 @@
 
         // Initialize Live Public Desk Map for Selected Branch
         loadPublicSeats();
+
+        // Restore saved draft state if student returns or reloads
+        restoreRegistrationDraft();
 
       } catch (err) {
         console.error('Failed to hydrate wizard:', err);

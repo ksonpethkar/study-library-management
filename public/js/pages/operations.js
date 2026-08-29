@@ -1530,10 +1530,27 @@ export async function render() {
                 <div class="form-group">
                   <label class="form-label" style="font-weight: 700;">Membership Plan</label>
                   <select id="conv-plan-id" class="form-select form-control">
-                    <option value="">-- Select Plan --</option>
-                    ${plansList.map(p => `<option value="${p._id}">${escapeHTML(p.name)} (₹${p.price})</option>`).join('')}
+                    ${plansList.map(p => {
+                      const orig = Number(p.price) || 0;
+                      const disc = Number(p.discount) || 0;
+                      const eff = Math.round(p.effectivePrice !== undefined ? p.effectivePrice : (orig * (1 - disc / 100)));
+                      const discText = disc > 0 ? ` [${disc}% OFF, ₹${eff.toLocaleString('en-IN')}]` : ` (₹${eff.toLocaleString('en-IN')})`;
+                      return `<option value="${p._id}">${escapeHTML(p.name)}${discText}</option>`;
+                    }).join('')}
                   </select>
                 </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Payment Method</label>
+                <select id="conv-pay-method" class="form-select form-control">
+                  <option value="cash" selected>💵 Cash at Reception Desk</option>
+                  <option value="upi">⚡ Direct UPI (GPay / PhonePe / Paytm / BHIM)</option>
+                  <option value="bank_transfer">🏛️ Bank Transfer / NEFT</option>
+                  <option value="card">💳 Debit / Credit Card</option>
+                  <option value="desk">💵 Pay Later at Front Desk</option>
+                  <option value="netbanking">🏦 NetBanking / Online Transfer</option>
+                </select>
               </div>
 
               <div class="form-group">
@@ -1563,6 +1580,7 @@ export async function render() {
                 seatId: modalContent.querySelector('#conv-seat-id').value,
                 shiftId: modalContent.querySelector('#conv-shift-id').value || null,
                 planId: modalContent.querySelector('#conv-plan-id').value || null,
+                paymentMethod: modalContent.querySelector('#conv-pay-method')?.value || 'cash',
                 notes: modalContent.querySelector('#conv-notes').value.trim()
               };
 

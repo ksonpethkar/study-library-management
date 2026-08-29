@@ -325,7 +325,220 @@ export const PaymentStudio = {
       `After payment, please reply with your 12-digit UTR number or screenshot to confirm.\n\nThank you! 🙏`;
 
     return `https://wa.me/${cleanPhone ? (cleanPhone.startsWith('91') ? cleanPhone : '91' + cleanPhone) : ''}?text=${encodeURIComponent(message)}`;
+  },
+
+  /**
+   * Render 3D Isometric Acrylic Tray Icon with Neon Green Downward Arrow (Debit / Money In)
+   * Matches User Shared Screenshot Exactly
+   */
+  renderDebitTrayIcon(size = 38) {
+    return `
+      <div class="tx-tray-icon" style="width: ${size}px; height: ${size}px;">
+        <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="tray-body-debit" x1="20" y1="16" x2="20" y2="34" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#475569" stop-opacity="0.8"/>
+              <stop offset="1" stop-color="#0f172a" stop-opacity="0.95"/>
+            </linearGradient>
+            <linearGradient id="tray-front-debit" x1="20" y1="23" x2="20" y2="34" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#e2e8f0" stop-opacity="0.9"/>
+              <stop offset="1" stop-color="#94a3b8" stop-opacity="0.5"/>
+            </linearGradient>
+            <filter id="neon-glow-debit" x="8" y="2" width="24" height="24" filterUnits="userSpaceOnUse">
+              <feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#10b981" flood-opacity="0.65"/>
+            </filter>
+          </defs>
+          <!-- 3D Isometric Tray Body -->
+          <rect x="5" y="17" width="30" height="16" rx="4" fill="url(#tray-body-debit)" stroke="#64748b" stroke-width="1.2"/>
+          <!-- Front Lip Rim -->
+          <path d="M5 24h7c1 0 1.8.8 2.2 1.8l.4 1c.4 1 1.2 1.6 2.4 1.6h6c1.2 0 2-.6 2.4-1.6l.4-1c.4-1 1.2-1.8 2.2-1.8h7" stroke="url(#tray-front-debit)" stroke-width="1.6" stroke-linecap="round"/>
+          <!-- Downward Neon Green Arrow -->
+          <g filter="url(#neon-glow-debit)">
+            <path d="M20 5v14m0 0l-4.5-4.5M20 19l4.5-4.5" stroke="#10b981" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+        </svg>
+      </div>
+    `;
+  },
+
+  /**
+   * Render 3D Isometric Acrylic Tray Icon with Neon Red Upward Arrow (Credit / Outflow / Expense)
+   * Matches User Shared Screenshot Exactly
+   */
+  renderCreditTrayIcon(size = 38) {
+    return `
+      <div class="tx-tray-icon" style="width: ${size}px; height: ${size}px;">
+        <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="tray-body-credit" x1="20" y1="16" x2="20" y2="34" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#475569" stop-opacity="0.8"/>
+              <stop offset="1" stop-color="#0f172a" stop-opacity="0.95"/>
+            </linearGradient>
+            <linearGradient id="tray-front-credit" x1="20" y1="23" x2="20" y2="34" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#e2e8f0" stop-opacity="0.9"/>
+              <stop offset="1" stop-color="#94a3b8" stop-opacity="0.5"/>
+            </linearGradient>
+            <filter id="neon-glow-credit" x="8" y="2" width="24" height="24" filterUnits="userSpaceOnUse">
+              <feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#ef4444" flood-opacity="0.65"/>
+            </filter>
+          </defs>
+          <!-- 3D Isometric Tray Body -->
+          <rect x="5" y="17" width="30" height="16" rx="4" fill="url(#tray-body-credit)" stroke="#64748b" stroke-width="1.2"/>
+          <!-- Front Lip Rim -->
+          <path d="M5 24h7c1 0 1.8.8 2.2 1.8l.4 1c.4 1 1.2 1.6 2.4 1.6h6c1.2 0 2-.6 2.4-1.6l.4-1c.4-1 1.2-1.8 2.2-1.8h7" stroke="url(#tray-front-credit)" stroke-width="1.6" stroke-linecap="round"/>
+          <!-- Upward Neon Red Arrow -->
+          <g filter="url(#neon-glow-credit)">
+            <path d="M20 19V5m0 0l-4.5 4.5M20 5l4.5 4.5" stroke="#ef4444" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+        </svg>
+      </div>
+    `;
+  },
+
+  /**
+   * Render Sleek Action Capsule Bar with Copy, Edit, Delete, and Share
+   * Matches User Shared Screenshot Exactly
+   */
+  renderActionCapsule({ id = '', copyText = '', shareText = '', showEdit = true, showDelete = true, showShare = true, showCopy = true } = {}) {
+    return `
+      <div class="tx-action-capsule" data-id="${escapeHTML(id)}">
+        ${showCopy ? `
+          <button type="button" class="btn-tx-action action-copy btn-copy-tx" data-id="${escapeHTML(id)}" data-copy="${escapeHTML(copyText)}" title="Copy Receipt / Reference">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </button>
+        ` : ''}
+        ${showEdit ? `
+          <button type="button" class="btn-tx-action action-edit btn-edit-tx" data-id="${escapeHTML(id)}" title="Edit / Update Details">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          </button>
+        ` : ''}
+        ${showDelete ? `
+          <button type="button" class="btn-tx-action action-delete btn-delete-tx" data-id="${escapeHTML(id)}" title="Delete Record">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+        ` : ''}
+        ${showShare ? `
+          <button type="button" class="btn-tx-action action-share btn-share-tx" data-id="${escapeHTML(id)}" data-share="${escapeHTML(shareText)}" title="Share on WhatsApp / Link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+          </button>
+        ` : ''}
+      </div>
+    `;
+  },
+
+  /**
+   * Render Complete Transaction Card Matching User Screenshot
+   */
+  renderTransactionCard(item, { type = 'debit', showStem = true } = {}) {
+    const isDebit = type === 'debit';
+    const amount = Number(item.amount || item.finalAmount || 0);
+    const title = item.title || item.student?.name || item.studentName || item.paymentMethod?.toUpperCase() || 'Transaction';
+    const rawDate = item.paymentDate || item.date || item.createdAt || new Date();
+    const formattedDate = new Date(rawDate).toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+    const balance = item.balanceDue !== undefined ? item.balanceDue : (item.balance || 0);
+    const receiptNo = item.receiptNumber || item.reference || item.transactionId || item._id;
+
+    return `
+      <div class="tx-feed-card" data-id="${escapeHTML(item._id || '')}">
+        <!-- Left Column: 3D Tray Icon & Timeline Stem -->
+        <div class="tx-icon-col">
+          ${isDebit ? this.renderDebitTrayIcon(38) : this.renderCreditTrayIcon(38)}
+          ${showStem ? '<div class="tx-timeline-stem"></div>' : ''}
+        </div>
+
+        <!-- Middle Column: Title, Timestamp, Badges -->
+        <div class="tx-info-col">
+          <h4 class="tx-title" title="${escapeHTML(title)}">${escapeHTML(title)}</h4>
+          <div class="tx-timestamp">${escapeHTML(formattedDate)}</div>
+
+          <div class="tx-badge-row">
+            ${isDebit ? `
+              <span class="tx-badge-pill tx-badge-debit">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                DEBIT
+              </span>
+            ` : `
+              <span class="tx-badge-pill tx-badge-credit">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                CREDIT
+              </span>
+            `}
+
+            ${item.status === 'paid' || isDebit ? `
+              <span class="tx-badge-pill tx-badge-paid">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Paid
+              </span>
+            ` : item.status === 'pending_verification' ? `
+              <span class="tx-badge-pill tx-badge-pending">⏳ Verification</span>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Right Column: Amount, Balance, Action Capsule -->
+        <div class="tx-meta-col">
+          <div class="tx-amount ${isDebit ? 'tx-amount-green' : 'tx-amount-red'}">
+            ${isDebit ? '-' : '+'}₹${amount.toLocaleString('en-IN')}
+          </div>
+          <div class="tx-balance">Bal: ₹${Number(balance).toLocaleString('en-IN')}</div>
+          ${this.renderActionCapsule({
+            id: item._id,
+            copyText: receiptNo || String(amount),
+            shareText: `${title}: ₹${amount} (${receiptNo})`
+          })}
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Attach Listeners for Transaction Card Action Buttons
+   */
+  attachTransactionActionListeners(container, { onCopy, onEdit, onDelete, onShare } = {}) {
+    if (!container) return;
+
+    container.querySelectorAll('.btn-copy-tx').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const copyText = btn.dataset.copy;
+        if (copyText) {
+          navigator.clipboard.writeText(copyText).then(() => {
+            Toast?.success ? Toast.success(`Copied: ${copyText}`) : null;
+          });
+        }
+        if (typeof onCopy === 'function') onCopy(btn.dataset.id, btn);
+      });
+    });
+
+    container.querySelectorAll('.btn-edit-tx').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof onEdit === 'function') onEdit(btn.dataset.id, btn);
+      });
+    });
+
+    container.querySelectorAll('.btn-delete-tx').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof onDelete === 'function') onDelete(btn.dataset.id, btn);
+      });
+    });
+
+    container.querySelectorAll('.btn-share-tx').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof onShare === 'function') onShare(btn.dataset.id, btn);
+      });
+    });
   }
 };
 
 export default PaymentStudio;
+

@@ -32,7 +32,7 @@ const paymentSchema = new mongoose.Schema({
     },
     paymentMethod: {
         type: String,
-        enum: ['cash', 'upi', 'bank_transfer', 'card', 'other', 'upi_gateway', 'razorpay', 'cashfree', 'phonepe'],
+        enum: ['cash', 'upi', 'bank_transfer', 'netbanking', 'desk', 'card', 'other', 'upi_gateway', 'razorpay', 'cashfree', 'phonepe'],
         default: 'cash'
     },
     paymentDate: {

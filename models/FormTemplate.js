@@ -36,6 +36,7 @@ const formTemplateSchema = new mongoose.Schema({
 
     // Step 6: Live Payment Methods & Sub-Option Gateway Breakdown Controls
     showUpiPayment: { type: Boolean, default: true },
+    showCardPayment: { type: Boolean, default: true },
     showDeskPayment: { type: Boolean, default: true },
     showNetBankingPayment: { type: Boolean, default: true },
     showWhatsappReceipt: { type: Boolean, default: true },
@@ -43,10 +44,12 @@ const formTemplateSchema = new mongoose.Schema({
     showTaxInvoice: { type: Boolean, default: true },
     upiPaymentLabel: { type: String, default: 'Dynamic UPI QR' },
     upiPaymentSubtext: { type: String, default: 'GPay / PhonePe / Paytm + 12-digit UTR Verification' },
+    cardPaymentLabel: { type: String, default: 'Debit / Credit Card' },
+    cardPaymentSubtext: { type: String, default: 'Visa, Mastercard, RuPay & POS' },
     deskPaymentLabel: { type: String, default: 'Pay Later at Desk' },
     deskPaymentSubtext: { type: String, default: 'Pre-reserves admission & seat; cash paid on arrival' },
-    netBankingPaymentLabel: { type: String, default: 'NetBanking / Cards' },
-    netBankingPaymentSubtext: { type: String, default: 'Bank reference logging & printable receipt generator' },
+    netBankingPaymentLabel: { type: String, default: 'NetBanking / Bank Transfer' },
+    netBankingPaymentSubtext: { type: String, default: 'NEFT / IMPS / RTGS (All Indian banks)' },
     whatsappReceiptLabel: { type: String, default: 'Automated WhatsApp Receipt' },
     emailConfirmationLabel: { type: String, default: 'Email Payment Confirmation' },
     taxInvoiceLabel: { type: String, default: 'Tax Invoice Generation' },
