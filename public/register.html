@@ -561,6 +561,50 @@
     let explicitlyHiddenNames = new Set();
     const selectedExams = new Set();
 
+    // Section Normalizer to eliminate naming mismatches between custom fields & template sections
+    function normalizeSection(sec) {
+      if (!sec) return 'personal';
+      const s = String(sec).toLowerCase().trim().replace(/[^a-z]/g, '');
+      if (s.includes('person') || s.includes('basic') || s.includes('profile')) return 'personal';
+      if (s.includes('address') || s.includes('contact') || s.includes('residen') || s.includes('emerg')) return 'address';
+      if (s.includes('kyc') || s.includes('verif') || s.includes('ident') || s.includes('doc')) return 'kyc';
+      if (s.includes('acad') || s.includes('goal') || s.includes('edu') || s.includes('exam')) return 'academic';
+      if (s.includes('plan') || s.includes('member') || s.includes('pack')) return 'plan';
+      if (s.includes('pay') || s.includes('fee') || s.includes('bank') || s.includes('upi')) return 'payment';
+      if (s.includes('seat') || s.includes('desk') || s.includes('sign')) return 'seat';
+      if (s.includes('other') || s.includes('addit') || s.includes('misc')) return 'other';
+      return sec;
+    }
+
+    // Canonicalize field names to prevent duplicate fields (e.g. dob vs dateOfBirth vs birthDate)
+    function canonicalizeFieldName(name) {
+      if (!name) return '';
+      const n = String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (['dob', 'dateofbirth', 'birthdate', 'birth_date', 'date_of_birth'].includes(n) || n.includes('birth') || (n.includes('date') && n.includes('birth'))) return 'dob';
+      if (['name', 'fullname', 'studentname', 'student_name', 'full_name'].includes(n)) return 'name';
+      if (['phone', 'mobile', 'mobilenumber', 'whatsapp', 'contactnumber'].includes(n) || n.includes('whatsapp') || n.includes('mobile')) return 'phone';
+      if (['email', 'emailaddress', 'email_address'].includes(n) || n.includes('email')) return 'email';
+      if (['gender', 'sex'].includes(n)) return 'gender';
+      if (['bloodgroup', 'blood_group'].includes(n) || n.includes('blood')) return 'bloodGroup';
+      if (['address', 'residentialaddress', 'fulladdress', 'hosteladdress'].includes(n)) return 'address';
+      if (['pincode', 'postalcode', 'zipcode', 'pin'].includes(n)) return 'pincode';
+      if (n === 'city') return 'city';
+      if (n === 'state') return 'state';
+      if (['branch', 'studycentre', 'studycenter', 'center', 'centre'].includes(n)) return 'branch';
+      if (['photo', 'profilephoto', 'passportphoto', 'selfie', 'studentphoto'].includes(n)) return 'photo';
+      if (['targetexams', 'exams', 'targetexam', 'competitiveexam', 'goal'].includes(n) || n.includes('exam')) return 'targetExams';
+      if (['college', 'institute', 'university'].includes(n)) return 'college';
+      if (['qualification', 'education', 'highestqualification'].includes(n)) return 'qualification';
+      if (['emergencyname', 'emergencycontactname', 'guardianname', 'parentname', 'parentguardianname', 'fathername', 'mothername', 'parentcontactname'].includes(n) || ((n.includes('emerg') || n.includes('parent') || n.includes('guardian') || n.includes('father')) && (n.includes('name') || n.includes('person')))) return 'emergencyName';
+      if (['emergencyphone', 'emergencycontactphone', 'guardianphone', 'parentphone', 'emergencymobile', 'emergencycontact', 'parentmobile', 'guardianmobile'].includes(n) || ((n.includes('emerg') || n.includes('parent') || n.includes('guardian')) && (n.includes('phone') || n.includes('mob') || n.includes('contact')))) return 'emergencyPhone';
+      if (['idprooftype', 'govtid', 'prooftype'].includes(n) || (n.includes('proof') && n.includes('type'))) return 'idProofType';
+      if (['idproofnumber', 'idnumber', 'aadhaarnumber', 'pannumber', 'documentnumber'].includes(n) || (n.includes('proof') && (n.includes('number') || n.includes('num') || n.includes('digit')))) return 'idProofNumber';
+      if (['idproofimage', 'idproofphoto', 'idproofdoc', 'idproofdocument', 'proofdocument'].includes(n) || ((n.includes('proof') || n.includes('id')) && (n.includes('image') || n.includes('photo') || n.includes('upload') || n.includes('scan') || n.includes('doc')))) return 'idProofImage';
+      if (['idproof', 'aadhaar', 'pancard'].includes(n)) return 'idProofType';
+      if (['password', 'portalpassword'].includes(n)) return 'password';
+      return n;
+    }
+
     const PIN_CLIENT_MAP = {
       '4135': { city: 'Latur / Ausa', state: 'Maharashtra' },
       '4136': { city: 'Dharashiv (Osmanabad)', state: 'Maharashtra' },
@@ -2911,50 +2955,6 @@
             }
           }
         }
-
-        // Section Normalizer to eliminate naming mismatches between custom fields & template sections
-        const normalizeSection = (sec) => {
-          if (!sec) return 'personal';
-          const s = String(sec).toLowerCase().trim().replace(/[^a-z]/g, '');
-          if (s.includes('person') || s.includes('basic') || s.includes('profile')) return 'personal';
-          if (s.includes('address') || s.includes('contact') || s.includes('residen') || s.includes('emerg')) return 'address';
-          if (s.includes('kyc') || s.includes('verif') || s.includes('ident') || s.includes('doc')) return 'kyc';
-          if (s.includes('acad') || s.includes('goal') || s.includes('edu') || s.includes('exam')) return 'academic';
-          if (s.includes('plan') || s.includes('member') || s.includes('pack')) return 'plan';
-          if (s.includes('pay') || s.includes('fee') || s.includes('bank') || s.includes('upi')) return 'payment';
-          if (s.includes('seat') || s.includes('desk') || s.includes('sign')) return 'seat';
-          if (s.includes('other') || s.includes('addit') || s.includes('misc')) return 'other';
-          return sec;
-        };
-
-        // Canonicalize field names to prevent duplicate fields (e.g. dob vs dateOfBirth vs birthDate)
-        const canonicalizeFieldName = (name) => {
-          if (!name) return '';
-          const n = String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (['dob', 'dateofbirth', 'birthdate', 'birth_date', 'date_of_birth'].includes(n) || n.includes('birth') || (n.includes('date') && n.includes('birth'))) return 'dob';
-          if (['name', 'fullname', 'studentname', 'student_name', 'full_name'].includes(n)) return 'name';
-          if (['phone', 'mobile', 'mobilenumber', 'whatsapp', 'contactnumber'].includes(n) || n.includes('whatsapp') || n.includes('mobile')) return 'phone';
-          if (['email', 'emailaddress', 'email_address'].includes(n) || n.includes('email')) return 'email';
-          if (['gender', 'sex'].includes(n)) return 'gender';
-          if (['bloodgroup', 'blood_group'].includes(n) || n.includes('blood')) return 'bloodGroup';
-          if (['address', 'residentialaddress', 'fulladdress', 'hosteladdress'].includes(n)) return 'address';
-          if (['pincode', 'postalcode', 'zipcode', 'pin'].includes(n)) return 'pincode';
-          if (n === 'city') return 'city';
-          if (n === 'state') return 'state';
-          if (['branch', 'studycentre', 'studycenter', 'center', 'centre'].includes(n)) return 'branch';
-          if (['photo', 'profilephoto', 'passportphoto', 'selfie', 'studentphoto'].includes(n)) return 'photo';
-          if (['targetexams', 'exams', 'targetexam', 'competitiveexam', 'goal'].includes(n) || n.includes('exam')) return 'targetExams';
-          if (['college', 'institute', 'university'].includes(n)) return 'college';
-          if (['qualification', 'education', 'highestqualification'].includes(n)) return 'qualification';
-          if (['emergencyname', 'emergencycontactname', 'guardianname', 'parentname', 'parentguardianname', 'fathername', 'mothername', 'parentcontactname'].includes(n) || ((n.includes('emerg') || n.includes('parent') || n.includes('guardian') || n.includes('father')) && (n.includes('name') || n.includes('person')))) return 'emergencyName';
-          if (['emergencyphone', 'emergencycontactphone', 'guardianphone', 'parentphone', 'emergencymobile', 'emergencycontact', 'parentmobile', 'guardianmobile'].includes(n) || ((n.includes('emerg') || n.includes('parent') || n.includes('guardian')) && (n.includes('phone') || n.includes('mob') || n.includes('contact')))) return 'emergencyPhone';
-          if (['idprooftype', 'govtid', 'prooftype'].includes(n) || (n.includes('proof') && n.includes('type'))) return 'idProofType';
-          if (['idproofnumber', 'idnumber', 'aadhaarnumber', 'pannumber', 'documentnumber'].includes(n) || (n.includes('proof') && (n.includes('number') || n.includes('num') || n.includes('digit')))) return 'idProofNumber';
-          if (['idproofimage', 'idproofphoto', 'idproofdoc', 'idproofdocument', 'proofdocument'].includes(n) || ((n.includes('proof') || n.includes('id')) && (n.includes('image') || n.includes('photo') || n.includes('upload') || n.includes('scan') || n.includes('doc')))) return 'idProofImage';
-          if (['idproof', 'aadhaar', 'pancard'].includes(n)) return 'idProofType';
-          if (['password', 'portalpassword'].includes(n)) return 'password';
-          return n;
-        };
 
         // Custom Fields and Sections Partitioning (Merge standard system fields + dynamic custom questions)
         const defaultFields = getDefaultSystemFields();
