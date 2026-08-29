@@ -171,18 +171,13 @@ router.post('/:id/pay-balance', roleCheck('owner', 'branch_manager'), async (req
         if (payment.balanceDue <= 0) {
             payment.status = 'paid';
             if (payment.plan) {
-    const plan = await Plan.findById(payment.plan).lean();
+                const plan = await Plan.findById(payment.plan).lean();
                 if (plan) {
                     const student = await Student.findById(payment.student);
                     if (student) {
                         student.status = 'active';
                         const baseDate = (student.expiryDate && student.expiryDate > new Date()) ? student.expiryDate : new Date();
-                        const newExpiry = new Date(baseDate);
-                        const dur = plan.duration || 30;
-                        const durType = plan.durationType || 'days';
-                        const addDays = durType === 'months' ? dur * 30 : durType === 'years' ? dur * 365 : dur;
-                        newExpiry.setDate(newExpiry.getDate() + addDays);
-                        student.expiryDate = newExpiry;
+                        student.expiryDate = Plan.calculateExpiryDate(plan, baseDate);
                         await student.save();
                     }
                 }
@@ -263,18 +258,13 @@ router.post('/', roleCheck('owner', 'branch_manager'), validatePaymentCreate, as
         await payment.save();
         
         if (payment.plan && payment.status === 'paid') {
-    const plan = await Plan.findById(payment.plan).lean();
+            const plan = await Plan.findById(payment.plan).lean();
             if (plan) {
                 const student = await Student.findById(payment.student);
                 if (student) {
                     student.status = 'active';
                     const baseDate = (student.expiryDate && student.expiryDate > new Date()) ? student.expiryDate : new Date();
-                    const newExpiry = new Date(baseDate);
-                    const dur = plan.duration || 30;
-                    const durType = plan.durationType || 'days';
-                    const addDays = durType === 'months' ? dur * 30 : durType === 'years' ? dur * 365 : dur;
-                    newExpiry.setDate(newExpiry.getDate() + addDays);
-                    student.expiryDate = newExpiry;
+                    student.expiryDate = Plan.calculateExpiryDate(plan, baseDate);
                     await student.save();
                 }
             }

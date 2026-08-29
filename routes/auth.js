@@ -377,12 +377,35 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
     let calculatedExpiryDate = new Date();
     calculatedExpiryDate.setMonth(calculatedExpiryDate.getMonth() + 1); // Default 1 month
 
-    if (plan && mongoose.Types.ObjectId.isValid(plan)) {
-      selectedPlanDoc = await Plan.findById(plan);
-      if (selectedPlanDoc && (selectedPlanDoc.durationInMonths || selectedPlanDoc.durationMonths)) {
-        const months = selectedPlanDoc.durationInMonths || selectedPlanDoc.durationMonths || 1;
-        calculatedExpiryDate = new Date();
-        calculatedExpiryDate.setMonth(calculatedExpiryDate.getMonth() + months);
+    if (plan) {
+      if (mongoose.Types.ObjectId.isValid(plan)) {
+        selectedPlanDoc = await Plan.findById(plan);
+      }
+      if (!selectedPlanDoc) {
+        selectedPlanDoc = await Plan.findOne({
+          $or: [
+            { name: plan },
+            { name: new RegExp('^' + String(plan).trim() + '$', 'i') }
+          ]
+        });
+      }
+
+      if (selectedPlanDoc) {
+        calculatedExpiryDate = Plan.calculateExpiryDate(selectedPlanDoc, new Date());
+      } else {
+        // Direct keyword matching on plan identifier/name string
+        const pLower = String(plan).toLowerCase();
+        const d = new Date();
+        if (pLower.includes('quarter') || pLower.includes('quater') || pLower.includes('3 month') || pLower.includes('3-month')) {
+          d.setMonth(d.getMonth() + 3);
+          calculatedExpiryDate = d;
+        } else if (pLower.includes('annual') || pLower.includes('year') || pLower.includes('12 month')) {
+          d.setFullYear(d.getFullYear() + 1);
+          calculatedExpiryDate = d;
+        } else if (pLower.includes('half') || pLower.includes('6 month') || pLower.includes('semi')) {
+          d.setMonth(d.getMonth() + 6);
+          calculatedExpiryDate = d;
+        }
       }
     }
 

@@ -301,17 +301,7 @@ router.post('/', validateStudentCreate, roleCheck('owner', 'branch_manager'), as
       const Plan = require('../models/Plan');
       const planDoc = await Plan.findById(req.body.plan).lean();
       if (planDoc) {
-        const d = new Date();
-        const durationType = planDoc.durationType || 'months';
-        const duration = Number(planDoc.duration) || 1;
-        if (durationType === 'days') {
-          d.setDate(d.getDate() + duration);
-        } else if (durationType === 'years') {
-          d.setFullYear(d.getFullYear() + duration);
-        } else {
-          d.setMonth(d.getMonth() + duration);
-        }
-        student.expiryDate = d;
+        student.expiryDate = Plan.calculateExpiryDate(planDoc, new Date());
       }
     }
 
@@ -485,6 +475,15 @@ router.put('/:id', validateStudentUpdate, roleCheck('owner', 'branch_manager'), 
       }
       student.markModified('branch');
       delete req.body.branch;
+    }
+
+    if (req.body.plan && String(req.body.plan) !== String(student.plan) && !req.body.expiryDate) {
+      const Plan = require('../models/Plan');
+      const planDoc = await Plan.findById(req.body.plan).lean();
+      if (planDoc) {
+        const baseDate = (student.expiryDate && student.expiryDate > new Date()) ? student.expiryDate : new Date();
+        student.expiryDate = Plan.calculateExpiryDate(planDoc, baseDate);
+      }
     }
 
     Object.assign(student, req.body);

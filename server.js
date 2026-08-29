@@ -868,6 +868,46 @@ const startServer = async () => {
     const { initCronJobs } = require('./utils/cronJobs');
     initCronJobs();
 
+    // Self-Healing Plan Expiry Sync: Fix any students whose plan duration doesn't match expiryDate
+    try {
+      const Student = require('./models/Student');
+      const Payment = require('./models/Payment');
+      const studentsToFix = await Student.find({
+        plan: { $ne: null },
+        expiryDate: { $ne: null }
+      }).populate('plan');
+
+      let fixedCount = 0;
+      for (const s of studentsToFix) {
+        if (!s.plan) continue;
+        const baseDate = new Date(s.createdAt || s.admissionDate || Date.now());
+        const expectedExpiry = Plan.calculateExpiryDate(s.plan, baseDate);
+
+        // If currently set expiryDate is significantly shorter (>= 15 days shorter) than expected expiry:
+        const diffMs = expectedExpiry.getTime() - new Date(s.expiryDate).getTime();
+        if (diffMs >= 15 * 86400000) {
+          const oldExpStr = new Date(s.expiryDate).toISOString().split('T')[0];
+          const newExpStr = expectedExpiry.toISOString().split('T')[0];
+          s.expiryDate = expectedExpiry;
+          await s.save();
+
+          // Also synchronize initial admission receipt periodEnd if needed
+          await Payment.updateMany(
+            { student: s._id, periodEnd: { $lt: expectedExpiry } },
+            { $set: { periodEnd: expectedExpiry } }
+          ).catch(() => {});
+
+          fixedCount++;
+          console.log(`  🔧 Auto-healed expiry date for student ${s.studentId || s.name} (${s.plan.name}): corrected ${oldExpStr} -> ${newExpStr}`);
+        }
+      }
+      if (fixedCount > 0) {
+        console.log(`  ✅ Successfully auto-healed ${fixedCount} student expiry date(s) to match full plan duration.`);
+      }
+    } catch (healErr) {
+      console.warn('  ⚠️ Plan expiry auto-heal check skipped:', healErr.message);
+    }
+
     console.log('  ⚙️  System settings, Branch & Shifts initialized');
     console.log('  ✨ Ready!\n');
   } catch (error) {

@@ -152,4 +152,47 @@ planSchema.statics.seedDefaults = async function() {
   }
 };
 
+/**
+ * Canonical plan expiry date calculation across the entire system.
+ * Handles days, months, years, and handles heuristics like "Quarterly", "Annual", "Half-Yearly".
+ */
+planSchema.methods.calculateExpiryDate = function(startDate = new Date()) {
+  return planSchema.statics.calculateExpiryDate(this, startDate);
+};
+
+planSchema.statics.calculateExpiryDate = function(planDoc, startDate = new Date()) {
+  const d = new Date(startDate || Date.now());
+  if (!planDoc) {
+    d.setMonth(d.getMonth() + 1);
+    return d;
+  }
+
+  const durType = String(planDoc.durationType || 'months').toLowerCase().trim();
+  let dur = Number(planDoc.duration) || Number(planDoc.durationInMonths) || Number(planDoc.durationMonths) || 1;
+  const nameLower = String(planDoc.name || '').toLowerCase().trim();
+
+  // Smart heuristic: enforce minimum period matching plan name semantics
+  if (nameLower.includes('quarter') || nameLower.includes('quater') || nameLower.includes('3 month') || nameLower.includes('3-month')) {
+    if (durType === 'months' && dur < 3) dur = 3;
+    if (durType === 'days' && dur < 80) dur = 90;
+  } else if (nameLower.includes('half') || nameLower.includes('6 month') || nameLower.includes('semi')) {
+    if (durType === 'months' && dur < 6) dur = 6;
+    if (durType === 'days' && dur < 170) dur = 180;
+  } else if (nameLower.includes('annual') || nameLower.includes('year') || nameLower.includes('12 month')) {
+    if (durType === 'years' && dur < 1) dur = 1;
+    if (durType === 'months' && dur < 12) dur = 12;
+    if (durType === 'days' && dur < 350) dur = 365;
+  }
+
+  if (durType === 'days') {
+    d.setDate(d.getDate() + dur);
+  } else if (durType === 'years') {
+    d.setFullYear(d.getFullYear() + dur);
+  } else {
+    // Default 'months'
+    d.setMonth(d.getMonth() + dur);
+  }
+  return d;
+};
+
 module.exports = mongoose.model('Plan', planSchema);

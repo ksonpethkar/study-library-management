@@ -32,18 +32,13 @@ router.post('/webhook/payment-captured', optionalAuth, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Student not found for webhook payload' });
     }
 
-    let durationDays = 30;
     const targetPlanId = planId || student.plan;
+    let planDoc = null;
     if (targetPlanId) {
-      const planDoc = await Plan.findById(targetPlanId).lean();
-      if (planDoc) {
-        const rawDur = planDoc.duration || 30;
-        const dt = planDoc.durationType || 'days';
-        durationDays = dt === 'months' ? rawDur * 30 : dt === 'years' ? rawDur * 365 : rawDur;
-      }
+      planDoc = await Plan.findById(targetPlanId).lean();
     }
     const validFrom = student.expiryDate && new Date(student.expiryDate) > new Date() ? new Date(student.expiryDate) : new Date();
-    const validUntil = new Date(validFrom.getTime() + durationDays * 24 * 60 * 60 * 1000);
+    const validUntil = Plan.calculateExpiryDate(planDoc, validFrom);
 
     const payment = new Payment({
       student: student._id,
@@ -1054,7 +1049,7 @@ router.post('/renewal-request', async (req, res) => {
     const payAmount = Number(amountPaid) || Math.max(0, basePrice - planDiscount - walletDeduction + (student.pendingFine || 0));
     
     const validFrom = student.expiryDate && new Date(student.expiryDate) > new Date() ? new Date(student.expiryDate) : new Date();
-    const validUntil = new Date(validFrom.getTime() + durationDays * 24 * 60 * 60 * 1000);
+    const validUntil = Plan.calculateExpiryDate(targetPlan, validFrom);
 
     // Create payment log conforming to Payment schema
     const isGatewayVerified = Boolean(req.body.isGatewayVerified) || Boolean(req.body.razorpay_payment_id);
