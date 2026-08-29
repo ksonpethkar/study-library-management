@@ -7,6 +7,7 @@ import { PushNotifications } from '../utils/pushNotifications.js';
 import { renderHeatmap, renderBehaviorBadge, calculateBehaviorScore } from '../utils/attendanceHeatmap.js';
 import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
 import { SmartIntelligence } from '../utils/smartIntelligence.js';
+import { PaymentStudio } from '../paymentStudio.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -3163,142 +3164,52 @@ function renderPortalUI(container, data, analytics = null) {
                 <label class="form-label" style="font-weight: 700;">Choose Payment Method *</label>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
                   <button type="button" class="btn btn-sm ${selectedPortalPayMode === 'upi' ? 'btn-primary' : 'btn-outline-secondary'} btn-portal-pm" data-mode="upi" style="font-weight: 700; padding: 7px 10px;">
-                    ⚡               <!-- Dynamic Subpanes Container -->
+                    ⚡ Instant UPI / QR
+                  </button>
+                  <button type="button" class="btn btn-sm ${selectedPortalPayMode === 'bank_transfer' ? 'btn-primary' : 'btn-outline-secondary'} btn-portal-pm" data-mode="bank_transfer" style="font-weight: 700; padding: 7px 10px;">
+                    🏛️ Bank Transfer
+                  </button>
+                  <button type="button" class="btn btn-sm ${selectedPortalPayMode === 'desk' ? 'btn-primary' : 'btn-outline-secondary'} btn-portal-pm" data-mode="desk" style="font-weight: 700; padding: 7px 10px;">
+                    💵 Pay at Desk
+                  </button>
+                </div>
+              </div>
+
+              <!-- Dynamic Subpanes Container -->
               <div id="portal-payment-subpane" class="mb-3">
                 ${selectedPortalPayMode === 'upi' ? `
-                  <!-- 1-Tap Mobile UPI Intent Checkout Section -->
-                  <div style="background: var(--color-surface); padding: 14px; border-radius: 14px; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); text-align: center;">
-                    <div style="font-weight: 800; font-size: 0.98rem; color: var(--color-text-primary); margin-bottom: 2px;">
-                      ⚡ 1-Tap Instant Mobile UPI Renewal
-                    </div>
-                    <div style="font-size: 0.80rem; color: var(--color-text-secondary); margin-bottom: 12px;">
-                      Tap your UPI app below to pay <strong>₹${q.totalPayable.toLocaleString('en-IN')}</strong> with zero typing.
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 8px; margin-bottom: 12px;">
-                      <button type="button" class="btn btn-sm btn-renewal-intent" data-app="gpay" style="background: #4285F4; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 10px 4px; box-shadow: 0 2px 8px rgba(66, 133, 244, 0.25); display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <span style="font-size: 1.15rem;">🔵</span>
-                        <span>Google Pay</span>
-                      </button>
-                      <button type="button" class="btn btn-sm btn-renewal-intent" data-app="phonepe" style="background: #5f259f; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 10px 4px; box-shadow: 0 2px 8px rgba(95, 37, 159, 0.25); display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <span style="font-size: 1.15rem;">🟣</span>
-                        <span>PhonePe</span>
-                      </button>
-                      <button type="button" class="btn btn-sm btn-renewal-intent" data-app="paytm" style="background: #00baf2; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 10px 4px; box-shadow: 0 2px 8px rgba(0, 186, 242, 0.25); display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <span style="font-size: 1.15rem;">💙</span>
-                        <span>Paytm</span>
-                      </button>
-                      <button type="button" class="btn btn-sm btn-renewal-intent" data-app="generic" style="background: #00b894; color: #fff; border: none; font-weight: 700; border-radius: 10px; font-size: 0.82rem; padding: 10px 4px; box-shadow: 0 2px 8px rgba(0, 184, 148, 0.25); display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <span style="font-size: 1.15rem;">📲</span>
-                        <span>Any UPI</span>
-                      </button>
-                    </div>
-
-                    <!-- Auto-Verify Telemetry Banner -->
-                    <div id="renewal-auto-status" style="display: none; background: rgba(108, 92, 231, 0.08); border: 1.5px solid var(--color-primary); border-radius: 10px; padding: 10px; margin-bottom: 10px; font-size: 0.84rem;"></div>
-
-                    <!-- Collapsible Dynamic QR Code for Desktop -->
-                    <details style="margin: 8px auto; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 10px; padding: 6px 10px;">
-                      <summary style="cursor: pointer; font-size: 0.80rem; font-weight: 700; color: var(--color-primary);">
-                        🖼️ Or Scan QR Code on Another Phone
-                      </summary>
-                      <div style="padding-top: 8px;">
-                        <img id="renewal-qr-img" src="${q.qrCodeUrl}" alt="UPI QR Code" style="width: 140px; height: 140px; margin: 0 auto; border-radius: 8px; display: block; border: 1px solid var(--color-border); background: #fff; padding: 6px;">
-                        <div style="margin-top: 6px; font-size: 0.80rem; font-weight: 700; font-family: monospace;">
-                          UPI ID: <span style="color: var(--color-primary);">${escapeHTML(q.upiId)}</span>
-                        </div>
-                      </div>
-                    </details>
-
-                    <!-- Collapsible Manual UTR Input -->
-                    <details style="margin: 6px auto 0 auto; text-align: left;">
-                      <summary style="cursor: pointer; font-size: 0.76rem; color: var(--color-text-muted);">
-                        ✏️ Already paid? Enter UTR manually
-                      </summary>
-                      <div style="margin-top: 6px; background: var(--color-bg-secondary); padding: 8px; border-radius: 8px; border: 1px solid var(--color-border);">
-                        <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 2px;">12-Digit UPI UTR</label>
-                        <input type="text" id="renewal-utr-input" class="form-control form-control-sm" placeholder="e.g. 423456789012" maxlength="30">
-                      </div>
-                    </details>
-                  </div>
+                  ${PaymentStudio.renderUPIWidget({
+                    amount: q.totalPayable,
+                    upiId: q.upiId,
+                    note: `Renewal_${student.studentId || ''}`,
+                    showUtrInput: true,
+                    utrInputId: 'renewal-utr-input',
+                    mountId: 'renewal-upi-qr-mount'
+                  })}
                 ` : selectedPortalPayMode === 'bank_transfer' ? `
-                  <!-- Smart Bank Transfer Details Card -->
-                  <div style="background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 14px; padding: 14px; box-shadow: var(--shadow-sm);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--color-border); padding-bottom: 6px;">
-                      <span style="font-weight: 800; font-size: 0.90rem; color: var(--color-primary);">🏛️ Library Bank Details (1-Tap Copy)</span>
-                      <button type="button" id="btn-portal-copy-all-bank" class="btn btn-xs btn-outline-primary" style="padding: 2px 8px; font-size: 0.75rem; border-radius: 6px;">📋 Copy All</button>
+                  ${PaymentStudio.renderBankDetailsWidget()}
+
+                  <!-- 📸 1-Tap Slip Upload Trigger -->
+                  <div style="background: var(--color-bg-secondary); border: 1.5px dashed var(--color-primary); border-radius: 10px; padding: 10px; text-align: center; margin-bottom: 10px;">
+                    <input type="file" id="renewal-slip-file-input" accept="image/*,application/pdf" style="display: none;">
+                    <button type="button" id="btn-renewal-slip-trigger" class="btn btn-sm btn-outline-primary" style="font-weight: 700; font-size: 0.80rem; border-radius: 6px; padding: 5px 14px;">
+                      📸 Attach Payment Screenshot / Slip
+                    </button>
+                    <div id="renewal-slip-preview" style="display: none; margin-top: 6px; font-size: 0.76rem; color: var(--color-success); font-weight: 700;"></div>
+                  </div>
+
+                  <!-- 12-Digit Bank Ref / UTR Input -->
+                  <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                      <label class="form-label mb-0" style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">
+                        🏛️ Bank NEFT / IMPS Reference / UTR *
+                      </label>
+                      <span class="badge" style="background: rgba(108, 92, 231, 0.12); color: var(--color-primary); font-size: 0.7rem; font-weight: 700;">Required</span>
                     </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; font-size: 0.82rem; margin-bottom: 10px;">
-                      <div style="background: var(--color-bg-secondary); padding: 6px 8px; border-radius: 8px;">
-                        <div style="font-size: 0.70rem; color: var(--color-text-muted);">Bank Name</div>
-                        <strong>${escapeHTML(q.bankDetails?.bankName || 'HDFC Bank')}</strong>
-                      </div>
-                      <div style="background: var(--color-bg-secondary); padding: 6px 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                          <div style="font-size: 0.70rem; color: var(--color-text-muted);">Account Number</div>
-                          <strong style="font-family: monospace; color: var(--color-primary);">${escapeHTML(q.bankDetails?.accountNumber || '50200012345678')}</strong>
-                        </div>
-                        <button type="button" class="btn btn-xs btn-outline-secondary btn-portal-copy-bank" data-copy="${escapeHTML(q.bankDetails?.accountNumber || '50200012345678')}" style="padding: 1px 5px; font-size: 0.70rem;">📋</button>
-                      </div>
-                      <div style="background: var(--color-bg-secondary); padding: 6px 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                          <div style="font-size: 0.70rem; color: var(--color-text-muted);">IFSC Code</div>
-                          <strong style="font-family: monospace; color: var(--color-primary);">${escapeHTML(q.bankDetails?.ifscCode || 'HDFC0000123')}</strong>
-                        </div>
-                        <button type="button" class="btn btn-xs btn-outline-secondary btn-portal-copy-bank" data-copy="${escapeHTML(q.bankDetails?.ifscCode || 'HDFC0000123')}" style="padding: 1px 5px; font-size: 0.70rem;">📋</button>
-                      </div>
-                      <div style="background: var(--color-bg-secondary); padding: 6px 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                          <div style="font-size: 0.70rem; color: var(--color-text-muted);">Account Holder</div>
-                          <strong>${escapeHTML(q.bankDetails?.accountHolderName || q.businessName || 'Study Library')}</strong>
-                        </div>
-                        <button type="button" class="btn btn-xs btn-outline-secondary btn-portal-copy-bank" data-copy="${escapeHTML(q.bankDetails?.accountHolderName || q.businessName || 'Study Library')}" style="padding: 1px 5px; font-size: 0.70rem;">📋</button>
-                      </div>
+                    <div style="display: flex; gap: 6px;">
+                      <input type="text" id="renewal-utr-input" class="form-control" placeholder="e.g. 423819203912 or Bank Ref # (12 digits)" maxlength="35" style="font-family: monospace; font-size: 0.92rem; font-weight: 600;">
+                      <button type="button" class="btn btn-outline-primary btn-ps-paste-utr" data-target="renewal-utr-input" style="font-size: 0.8rem; padding: 6px 12px; white-space: nowrap; border-radius: 8px; font-weight: 700;">📋 Paste</button>
                     </div>
-
-                    <!-- 1-Tap Open Bank App Grid -->
-                    <div style="margin-bottom: 10px; text-align: center;">
-                      <div style="font-size: 0.78rem; font-weight: 700; color: var(--color-primary); margin-bottom: 6px;">
-                        📲 1-Tap Open Banking App
-                      </div>
-                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(85px, 1fr)); gap: 6px;">
-                        <button type="button" class="btn btn-sm btn-renewal-bank-intent" data-bank="sbi" style="background: #1a4d8c; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.78rem; padding: 6px 4px;">
-                          🏛️ SBI YONO
-                        </button>
-                        <button type="button" class="btn btn-sm btn-renewal-bank-intent" data-bank="hdfc" style="background: #004c8f; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.78rem; padding: 6px 4px;">
-                          🏛️ HDFC Bank
-                        </button>
-                        <button type="button" class="btn btn-sm btn-renewal-bank-intent" data-bank="icici" style="background: #b82b2b; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.78rem; padding: 6px 4px;">
-                          🏛️ ICICI Bank
-                        </button>
-                        <button type="button" class="btn btn-sm btn-renewal-bank-intent" data-bank="other" style="background: #0f766e; color: #fff; border: none; font-weight: 700; border-radius: 8px; font-size: 0.78rem; padding: 6px 4px;">
-                          🏛️ Other Bank
-                        </button>
-                      </div>
-
-                      <div id="renewal-nb-auto-status" style="display: none; margin-top: 8px; background: rgba(108, 92, 231, 0.08); border: 1.5px solid var(--color-primary); border-radius: 8px; padding: 8px; font-size: 0.80rem;"></div>
-                    </div>
-
-                    <!-- 📸 1-Tap Slip Upload Trigger -->
-                    <div style="background: var(--color-bg-secondary); border: 1.5px dashed var(--color-primary); border-radius: 10px; padding: 10px; text-align: center; margin-bottom: 8px;">
-                      <input type="file" id="renewal-slip-file-input" accept="image/*,application/pdf" style="display: none;">
-                      <button type="button" id="btn-renewal-slip-trigger" class="btn btn-sm btn-outline-primary" style="font-weight: 700; font-size: 0.80rem; border-radius: 6px; padding: 4px 12px;">
-                        📸 Attach Payment Screenshot / Slip
-                      </button>
-                      <div id="renewal-slip-preview" style="display: none; margin-top: 6px; font-size: 0.76rem; color: var(--color-success); font-weight: 700;"></div>
-                    </div>
-
-                    <!-- Collapsible Manual Reference Number Input -->
-                    <details style="text-align: left;">
-                      <summary style="cursor: pointer; font-size: 0.76rem; color: var(--color-text-muted);">
-                        ✏️ Or Enter Bank Ref manually
-                      </summary>
-                      <div style="margin-top: 6px; background: var(--color-bg-secondary); padding: 8px; border-radius: 8px; border: 1px solid var(--color-border);">
-                        <label style="font-size: 0.76rem; font-weight: 600; display: block; margin-bottom: 2px;">Bank NEFT / IMPS Reference *</label>
-                        <input type="text" id="renewal-utr-input" class="form-control form-control-sm" placeholder="e.g. Bank Ref #984210" maxlength="35">
-                      </div>
-                    </details>
                   </div>
                 ` : `
                   <!-- Pay at Desk Notice -->
@@ -3326,6 +3237,8 @@ function renderPortalUI(container, data, analytics = null) {
       }
 
       function bindEvents() {
+        // Attach Universal PaymentStudio listeners (Copy UPI, Copy Bank, Paste UTR, App Intents)
+        PaymentStudio.attachEventListeners(modalContent);
         // Payment mode toggle buttons
         modalContent.querySelectorAll('.btn-portal-pm').forEach(btn => {
           btn.addEventListener('click', () => {

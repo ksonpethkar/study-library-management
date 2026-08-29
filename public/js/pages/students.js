@@ -12,6 +12,7 @@ import { OptimisticUI } from '../utils/optimisticUI.js';
 import { SmartIntelligence } from '../utils/smartIntelligence.js';
 import { renderHeatmap, renderBehaviorBadge, calculateBehaviorScore } from '../utils/attendanceHeatmap.js';
 import { Validators } from '../utils/validators.js';
+import { PaymentStudio } from '../paymentStudio.js';
 
 export async function render() {
   const container = document.createElement('div');
@@ -2516,25 +2517,46 @@ export async function render() {
   async function sendWhatsAppReminder(student, reminderType = 'renewal_reminder') {
     try {
       Loading.show('Preparing WhatsApp reminder & UPI payment link...');
-      const res = await api.post('/api/messages/send-reminder', {
-        studentId: student._id,
-        reminderType
-      });
-      Loading.hide();
-      if (res.success && res.data) {
-        const targetUrl = res.data.whatsappUrl || res.data.waUrl;
-        if (targetUrl) {
-          const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-          if (isMobile) {
-            window.location.href = targetUrl;
-          } else {
-            const w = window.open(targetUrl, '_blank');
-            if (!w) window.location.href = targetUrl;
-          }
+      let targetUrl = '';
+      try {
+        const res = await api.post('/api/messages/send-reminder', {
+          studentId: student._id,
+          reminderType
+        });
+        if (res.success && res.data) {
+          targetUrl = res.data.whatsappUrl || res.data.waUrl;
         }
-        Toast.success(`WhatsApp reminder opened for ${res.data.studentName}!`);
+      } catch (apiErr) {
+        console.warn('Backend send-reminder error, generating direct WhatsApp payment link:', apiErr);
+      }
+
+      // Fallback: If backend didn't return URL or was unavailable, generate rich client-side payment link
+      if (!targetUrl) {
+        const amount = student.balanceDue || student.pendingFine || student.plan?.price || 0;
+        const pType = reminderType === 'balance_due' ? 'Balance Due' : 'Membership Renewal';
+        const expStr = student.expiryDate ? new Date(student.expiryDate).toLocaleDateString('en-IN') : '';
+        targetUrl = PaymentStudio.generateWhatsAppPaymentLink({
+          phone: student.phone,
+          studentName: student.name,
+          amount,
+          dueDate: expStr,
+          planName: student.plan?.name || '',
+          paymentType: pType
+        });
+      }
+
+      Loading.hide();
+      if (targetUrl) {
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isMobile) {
+          window.location.href = targetUrl;
+        } else {
+          const w = window.open(targetUrl, '_blank');
+          if (!w) window.location.href = targetUrl;
+        }
+        Toast.success(`WhatsApp reminder opened for ${escapeHTML(student.name || 'Student')}!`);
       } else {
-        Toast.error(res.message || 'Failed to dispatch reminder');
+        Toast.error('Could not construct WhatsApp link');
       }
     } catch (err) {
       Loading.hide();

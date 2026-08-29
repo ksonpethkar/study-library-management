@@ -178,7 +178,10 @@ router.post('/:id/pay-balance', roleCheck('owner', 'branch_manager'), async (req
                         student.status = 'active';
                         const baseDate = (student.expiryDate && student.expiryDate > new Date()) ? student.expiryDate : new Date();
                         const newExpiry = new Date(baseDate);
-                        newExpiry.setDate(newExpiry.getDate() + (plan.duration || 30));
+                        const dur = plan.duration || 30;
+                        const durType = plan.durationType || 'days';
+                        const addDays = durType === 'months' ? dur * 30 : durType === 'years' ? dur * 365 : dur;
+                        newExpiry.setDate(newExpiry.getDate() + addDays);
                         student.expiryDate = newExpiry;
                         await student.save();
                     }
@@ -267,7 +270,10 @@ router.post('/', roleCheck('owner', 'branch_manager'), validatePaymentCreate, as
                     student.status = 'active';
                     const baseDate = (student.expiryDate && student.expiryDate > new Date()) ? student.expiryDate : new Date();
                     const newExpiry = new Date(baseDate);
-                    newExpiry.setDate(newExpiry.getDate() + (plan.duration || 30));
+                    const dur = plan.duration || 30;
+                    const durType = plan.durationType || 'days';
+                    const addDays = durType === 'months' ? dur * 30 : durType === 'years' ? dur * 365 : dur;
+                    newExpiry.setDate(newExpiry.getDate() + addDays);
                     student.expiryDate = newExpiry;
                     await student.save();
                 }

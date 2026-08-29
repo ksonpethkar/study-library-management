@@ -1298,8 +1298,11 @@ export async function render(container) {
         const balanceTxnLabel = content.querySelector('#balancePayTxnLabel');
         const balanceTxnInput = content.querySelector('#balancePayTxnInput');
 
+        const balanceAmountInput = content.querySelector('input[name="amount"]');
+
         const updateBalanceMethodUI = () => {
             const m = balanceMethodSelect?.value || 'upi';
+            const curAmt = parseFloat(balanceAmountInput?.value) || parseFloat(balanceDue) || 0;
             if (m === 'cash') {
                 if (balanceTxnLabel) balanceTxnLabel.innerHTML = '💵 Cash Collector Note (Optional)';
                 if (balanceTxnInput) balanceTxnInput.placeholder = 'e.g. Cash received at reception desk';
@@ -1315,12 +1318,8 @@ export async function render(container) {
                 if (balanceTxnLabel) balanceTxnLabel.innerHTML = '🏛️ Bank NEFT / IMPS Reference Number';
                 if (balanceTxnInput) balanceTxnInput.placeholder = 'e.g. Bank Ref # / IMPS Transaction Reference';
                 if (balanceMethodContext) {
-                    balanceMethodContext.innerHTML = `
-                        <div style="background: rgba(9, 132, 227, 0.1); border: 1px solid #0984e3; border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
-                            <span>🏛️</span>
-                            <span><strong>Bank Transfer:</strong> Direct deposit / IMPS / NEFT into library bank account.</span>
-                        </div>
-                    `;
+                    balanceMethodContext.innerHTML = PaymentStudio.renderBankDetailsWidget();
+                    PaymentStudio.attachEventListeners(balanceMethodContext);
                 }
             } else if (m === 'card') {
                 if (balanceTxnLabel) balanceTxnLabel.innerHTML = '💳 POS Slip Code / Card Last 4 Digits';
@@ -1334,15 +1333,16 @@ export async function render(container) {
                     `;
                 }
             } else {
-                if (balanceTxnLabel) balanceTxnLabel.innerHTML = '⚡ UPI / 12-Digit UTR Transaction ID';
+                if (balanceTxnLabel) balanceTxnLabel.innerHTML = '⚡ UPI / 12-Digit UTR Transaction ID *';
                 if (balanceTxnInput) balanceTxnInput.placeholder = 'e.g. 12-digit UTR (e.g. 423456789012)';
                 if (balanceMethodContext) {
-                    balanceMethodContext.innerHTML = `
-                        <div style="background: rgba(108, 92, 231, 0.1); border: 1px solid var(--color-primary, #6c5ce7); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 8px;">
-                            <span>📱</span>
-                            <span><strong>UPI Transfer:</strong> GPay, PhonePe, Paytm, BHIM.</span>
-                        </div>
-                    `;
+                    balanceMethodContext.innerHTML = PaymentStudio.renderUPIWidget({
+                        amount: curAmt,
+                        note: 'Balance Due Payment',
+                        showUtrInput: false,
+                        mountId: 'balance-pay-upi-qr-mount'
+                    });
+                    PaymentStudio.attachEventListeners(balanceMethodContext);
                 }
             }
         };
@@ -1351,6 +1351,19 @@ export async function render(container) {
             balanceMethodSelect.addEventListener('change', updateBalanceMethodUI);
             updateBalanceMethodUI();
         }
+
+        balanceAmountInput?.addEventListener('input', () => {
+            if (balanceMethodSelect?.value === 'upi' && balanceMethodContext) {
+                const curAmt = parseFloat(balanceAmountInput.value) || 0;
+                balanceMethodContext.innerHTML = PaymentStudio.renderUPIWidget({
+                    amount: curAmt,
+                    note: 'Balance Due Payment',
+                    showUtrInput: false,
+                    mountId: 'balance-pay-upi-qr-mount'
+                });
+                PaymentStudio.attachEventListeners(balanceMethodContext);
+            }
+        });
         
         const form = content.querySelector('#payBalanceForm');
         form.addEventListener('submit', async (e) => {

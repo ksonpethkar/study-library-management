@@ -32,7 +32,16 @@ router.post('/webhook/payment-captured', optionalAuth, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Student not found for webhook payload' });
     }
 
-    const durationDays = 30;
+    let durationDays = 30;
+    const targetPlanId = planId || student.plan;
+    if (targetPlanId) {
+      const planDoc = await Plan.findById(targetPlanId).lean();
+      if (planDoc) {
+        const rawDur = planDoc.duration || 30;
+        const dt = planDoc.durationType || 'days';
+        durationDays = dt === 'months' ? rawDur * 30 : dt === 'years' ? rawDur * 365 : rawDur;
+      }
+    }
     const validFrom = student.expiryDate && new Date(student.expiryDate) > new Date() ? new Date(student.expiryDate) : new Date();
     const validUntil = new Date(validFrom.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
@@ -700,6 +709,12 @@ router.post('/seat-change', async (req, res) => {
     const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
 
+    const SystemSetting = require('../models/SystemSetting');
+    const flag = await SystemSetting.findOne({ key: 'portal.enableSeatTransfer' }).lean();
+    if (flag && (flag.value === false || flag.value === 'false')) {
+      return res.status(403).json({ success: false, message: 'Seat transfer requests are currently disabled by administrator.' });
+    }
+
     const { targetBranch, targetBranchName, targetSeat, targetSeatNumber, preferredZone, reason } = req.body;
     if (!reason) {
       return res.status(400).json({ success: false, message: 'Reason for seat transfer is required' });
@@ -987,6 +1002,12 @@ router.post('/renewal-request', async (req, res) => {
   try {
     const student = await getStudentForUser(req.user, req);
     if (!student) return res.status(404).json({ success: false, message: 'Student record not found' });
+
+    const SystemSetting = require('../models/SystemSetting');
+    const renewalFlag = await SystemSetting.findOne({ key: 'portal.enableOnlineRenewal' }).lean();
+    if (renewalFlag && (renewalFlag.value === false || renewalFlag.value === 'false')) {
+      return res.status(403).json({ success: false, message: 'Online fee renewal is currently disabled by administrator.' });
+    }
 
     const { utrNumber, planId, shiftId, amountPaid, applyWallet, paymentMode = 'upi', notes } = req.body;
     if (!utrNumber || !utrNumber.trim()) {
