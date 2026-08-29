@@ -331,31 +331,20 @@ export const PaymentStudio = {
    * Render 3D Isometric Acrylic Tray Icon with Neon Green Downward Arrow (Debit / Money In)
    * Matches User Shared Screenshot Exactly
    */
-  renderDebitTrayIcon(size = 38) {
+  renderDebitTrayIcon(size = 32) {
     return `
-      <div class="tx-tray-icon" style="width: ${size}px; height: ${size}px;">
-        <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="tray-body-debit" x1="20" y1="16" x2="20" y2="34" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#475569" stop-opacity="0.8"/>
-              <stop offset="1" stop-color="#0f172a" stop-opacity="0.95"/>
-            </linearGradient>
-            <linearGradient id="tray-front-debit" x1="20" y1="23" x2="20" y2="34" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#e2e8f0" stop-opacity="0.9"/>
-              <stop offset="1" stop-color="#94a3b8" stop-opacity="0.5"/>
-            </linearGradient>
-            <filter id="neon-glow-debit" x="8" y="2" width="24" height="24" filterUnits="userSpaceOnUse">
-              <feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#10b981" flood-opacity="0.65"/>
-            </filter>
-          </defs>
-          <!-- 3D Isometric Tray Body -->
-          <rect x="5" y="17" width="30" height="16" rx="4" fill="url(#tray-body-debit)" stroke="#64748b" stroke-width="1.2"/>
-          <!-- Front Lip Rim -->
-          <path d="M5 24h7c1 0 1.8.8 2.2 1.8l.4 1c.4 1 1.2 1.6 2.4 1.6h6c1.2 0 2-.6 2.4-1.6l.4-1c.4-1 1.2-1.8 2.2-1.8h7" stroke="url(#tray-front-debit)" stroke-width="1.6" stroke-linecap="round"/>
-          <!-- Downward Neon Green Arrow -->
-          <g filter="url(#neon-glow-debit)">
-            <path d="M20 5v14m0 0l-4.5-4.5M20 19l4.5-4.5" stroke="#10b981" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </g>
+      <div class="tx-tray-icon" style="display: inline-flex; align-items: center; justify-content: center; width: ${size}px; height: ${size}px; min-width: ${size}px; flex-shrink: 0;">
+        <svg width="${size}" height="${size}" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 3D Metallic Isometric Drawer / Tray Base -->
+          <path d="M4 17L18 23L32 17V26L18 32L4 26V17Z" fill="#1e293b" stroke="#475569" stroke-width="1.2"/>
+          <path d="M4 17L18 23L32 17L18 11L4 17Z" fill="#334155" stroke="#64748b" stroke-width="1.2"/>
+          <!-- Front Lip Highlight -->
+          <path d="M4 26L18 32L32 26" stroke="#94a3b8" stroke-width="1.5"/>
+          <!-- Neon Green Downward Arrow -->
+          <path d="M18 4V20" stroke="#10b981" stroke-width="3" stroke-linecap="round"/>
+          <path d="M12 15L18 21L24 15" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Arrow Tip Accent Glow -->
+          <circle cx="18" cy="21" r="2" fill="#34d399"/>
         </svg>
       </div>
     `;
@@ -365,31 +354,20 @@ export const PaymentStudio = {
    * Render 3D Isometric Acrylic Tray Icon with Neon Red Upward Arrow (Credit / Outflow / Expense)
    * Matches User Shared Screenshot Exactly
    */
-  renderCreditTrayIcon(size = 38) {
+  renderCreditTrayIcon(size = 32) {
     return `
-      <div class="tx-tray-icon" style="width: ${size}px; height: ${size}px;">
-        <svg width="${size}" height="${size}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="tray-body-credit" x1="20" y1="16" x2="20" y2="34" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#475569" stop-opacity="0.8"/>
-              <stop offset="1" stop-color="#0f172a" stop-opacity="0.95"/>
-            </linearGradient>
-            <linearGradient id="tray-front-credit" x1="20" y1="23" x2="20" y2="34" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#e2e8f0" stop-opacity="0.9"/>
-              <stop offset="1" stop-color="#94a3b8" stop-opacity="0.5"/>
-            </linearGradient>
-            <filter id="neon-glow-credit" x="8" y="2" width="24" height="24" filterUnits="userSpaceOnUse">
-              <feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#ef4444" flood-opacity="0.65"/>
-            </filter>
-          </defs>
-          <!-- 3D Isometric Tray Body -->
-          <rect x="5" y="17" width="30" height="16" rx="4" fill="url(#tray-body-credit)" stroke="#64748b" stroke-width="1.2"/>
-          <!-- Front Lip Rim -->
-          <path d="M5 24h7c1 0 1.8.8 2.2 1.8l.4 1c.4 1 1.2 1.6 2.4 1.6h6c1.2 0 2-.6 2.4-1.6l.4-1c.4-1 1.2-1.8 2.2-1.8h7" stroke="url(#tray-front-credit)" stroke-width="1.6" stroke-linecap="round"/>
-          <!-- Upward Neon Red Arrow -->
-          <g filter="url(#neon-glow-credit)">
-            <path d="M20 19V5m0 0l-4.5 4.5M20 5l4.5 4.5" stroke="#ef4444" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </g>
+      <div class="tx-tray-icon" style="display: inline-flex; align-items: center; justify-content: center; width: ${size}px; height: ${size}px; min-width: ${size}px; flex-shrink: 0;">
+        <svg width="${size}" height="${size}" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 3D Metallic Isometric Drawer / Tray Base -->
+          <path d="M4 17L18 23L32 17V26L18 32L4 26V17Z" fill="#1e293b" stroke="#475569" stroke-width="1.2"/>
+          <path d="M4 17L18 23L32 17L18 11L4 17Z" fill="#334155" stroke="#64748b" stroke-width="1.2"/>
+          <!-- Front Lip Highlight -->
+          <path d="M4 26L18 32L32 26" stroke="#94a3b8" stroke-width="1.5"/>
+          <!-- Neon Red Upward Arrow -->
+          <path d="M18 22V6" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+          <path d="M12 11L18 5L24 11" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Arrow Tip Accent Glow -->
+          <circle cx="18" cy="5" r="2" fill="#f87171"/>
         </svg>
       </div>
     `;

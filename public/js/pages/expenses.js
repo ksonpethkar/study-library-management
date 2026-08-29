@@ -363,13 +363,18 @@ export async function render(container) {
           <td class="text-right" style="font-weight: 700; color: #ef4444; font-size: 0.95rem;">
             +${formatCurrency(exp.amount)}
           </td>
-          <td class="text-center">
-            <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-              ${PaymentStudio.renderActionCapsule({
-                id: exp._id,
-                copyText: `${exp.title}: ₹${exp.amount}`,
-                shareText: `Expense: ${exp.title} - ₹${exp.amount} (${exp.category})`
-              })}
+          <td class="text-center" style="white-space: nowrap;">
+            <div class="btn-icon-group" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+              <button type="button" class="btn-icon-action action-edit btn-edit-exp" data-id="${exp._id}" data-tooltip="Edit Expense" aria-label="Edit Expense">✏️</button>
+              <button type="button" class="btn-icon-action action-whatsapp btn-share-exp" data-id="${exp._id}" data-share="Expense: ${escapeHTML(exp.title)} - ₹${exp.amount} (${escapeHTML(exp.category || '')})" data-tooltip="Share Expense" aria-label="Share">📲</button>
+              ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
+                { header: 'Level 1: Expense Operations' },
+                { id: 'edit', icon: '✏️', label: 'Edit Expense Details', bold: true },
+                { id: 'clone', icon: '📑', label: 'Duplicate / Re-record Expense' },
+                { divider: true },
+                { header: 'Level 2: Danger Zone' },
+                { id: 'delete', icon: '🗑️', label: 'Delete Expense Record', danger: true }
+              ], exp._id) : ''}
             </div>
           </td>
         </tr>
@@ -422,7 +427,7 @@ export async function render(container) {
       });
     });
 
-    tbody.querySelectorAll('.btn-share-tx').forEach(btn => {
+    tbody.querySelectorAll('.btn-share-tx, .btn-share-exp').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const text = btn.dataset.share;

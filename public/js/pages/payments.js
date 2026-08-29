@@ -419,17 +419,33 @@ export async function render(container) {
                         <span class="badge" style="background: rgba(214, 48, 49, 0.18); color: var(--color-danger); padding: 4px 8px; border-radius: 4px; font-weight: 700;">⚠️ Pending Fee</span>
                     `}
                 </td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 6px;">
+                <td style="white-space: nowrap;">
+                    <div class="btn-icon-group" style="display: inline-flex; align-items: center; gap: 4px;">
                         ${p.status === 'pending_verification' ? `
                             <button type="button" class="btn-icon-action action-verify btn-verify-utr" data-id="${p._id}" data-utr="${escapeHTML(p.transactionId || '')}" data-receipt="${escapeHTML(p.receiptNumber || '')}" data-tooltip="Verify UTR (1-Click)" aria-label="Verify UTR">✅</button>
                             <button type="button" class="btn-icon-action action-reject btn-reject-utr" data-id="${p._id}" data-receipt="${escapeHTML(p.receiptNumber || '')}" data-tooltip="Reject UTR" aria-label="Reject UTR">❌</button>
                         ` : ''}
-                        ${PaymentStudio.renderActionCapsule({
-                            id: p._id,
-                            copyText: p.receiptNumber || '',
-                            shareText: `Receipt ${p.receiptNumber}: ₹${p.finalAmount} paid by ${p.student?.name || 'Student'}`
-                        })}
+                        <button type="button" class="btn-icon-action action-receipt btn-view" data-id="${p._id}" data-tooltip="View / Print Receipt" aria-label="View Receipt">🧾</button>
+                        <button type="button" class="btn-icon-action action-whatsapp btn-wa-bill" data-id="${p._id}" data-tooltip="WhatsApp Bill" aria-label="WhatsApp Bill">💬</button>
+                        <button type="button" class="btn-icon-action action-edit btn-copy-text" data-copy="${escapeHTML(p.receiptNumber || '')}" data-tooltip="Copy Receipt #" aria-label="Copy">📋</button>
+                        ${p.status === 'partial' && p.balanceDue > 0 ? `
+                            <button type="button" class="btn-icon-action action-verify btn-pay-balance" data-id="${p._id}" data-balance="${p.balanceDue}" data-tooltip="Pay Due ₹${p.balanceDue}" aria-label="Pay Balance">💰</button>
+                        ` : ''}
+                        ${typeof ActionMenu !== 'undefined' ? ActionMenu.renderHtml([
+                            { header: 'Level 1: Verification & Receipts' },
+                            { id: 'view-receipt', icon: '🧾', label: 'View / Print POS Receipt', bold: true },
+                            { id: 'wa-receipt', icon: '📲', label: 'WhatsApp Receipt Alert' },
+                            ...(p.status === 'pending_verification' ? [
+                                { id: 'quick-verify', icon: '✅', label: 'Approve & Verify UTR', bold: true },
+                                { id: 'quick-reject', icon: '❌', label: 'Reject UTR Submission', danger: true }
+                            ] : []),
+                            { divider: true },
+                            { header: 'Level 2: Financial Governance' },
+                            { id: 'toggle-status', icon: p.status === 'paid' ? '⏳' : '✅', label: p.status === 'paid' ? 'Mark as Pending' : 'Mark as Paid' },
+                            { divider: true },
+                            { header: 'Level 3: Danger Zone' },
+                            { id: 'delete', icon: '🗑️', label: 'Delete Payment Record', danger: true }
+                        ], p._id) : ''}
                     </div>
                 </td>
             </tr>
