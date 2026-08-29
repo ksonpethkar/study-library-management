@@ -690,13 +690,13 @@ function renderPortalUI(container, data, analytics = null) {
                           ${PaymentStudio.renderDebitTrayIcon(28)}
                           <div>
                             <span style="font-family: monospace; font-weight: 700; color: var(--color-primary);">${escapeHTML(p.receiptNumber || 'REC')}</span>
-                            <div class="tx-badge-pill tx-badge-debit" style="font-size: 0.65rem; padding: 1px 6px; margin-top: 2px;">↓ DEBIT</div>
+                            <div class="tx-badge-pill tx-badge-paid" style="font-size: 0.65rem; padding: 1px 6px; margin-top: 2px;">↓ RECEIVED</div>
                           </div>
                         </div>
                       </td>
                       <td style="padding: 10px 14px;">${new Date(p.paymentDate).toLocaleDateString('en-IN')} <small class="text-muted">(${SmartFormatters.timeAgo(p.paymentDate)})</small></td>
                       <td style="padding: 10px 14px; text-transform: uppercase;">${escapeHTML(p.paymentMethod || 'UPI')}</td>
-                      <td style="padding: 10px 14px; font-weight: 700; color: #10b981;" class="tx-amount tx-amount-green">-₹${Number(p.finalAmount || 0).toLocaleString('en-IN')}</td>
+                      <td style="padding: 10px 14px; font-weight: 700; color: #10b981;" class="tx-amount tx-amount-green">₹${Number(p.finalAmount || 0).toLocaleString('en-IN')}</td>
                       <td style="padding: 10px 14px;">
                         <span class="tx-badge-pill tx-badge-paid">✓ Paid</span>
                       </td>

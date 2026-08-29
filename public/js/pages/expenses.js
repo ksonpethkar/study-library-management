@@ -343,7 +343,7 @@ export async function render(container) {
               <div>
                 <div style="font-weight: 600; font-size: 0.9rem;">${escapeHTML(exp.title)}</div>
                 <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
-                  <span class="tx-badge-pill tx-badge-credit" style="font-size: 0.65rem; padding: 1px 6px;">↑ CREDIT</span>
+                  <span class="tx-badge-pill tx-badge-debit" style="font-size: 0.65rem; padding: 1px 6px;">↑ EXPENSE</span>
                   ${exp.description ? `<span class="text-muted small" style="font-size: 0.75rem;">${escapeHTML(exp.description)}</span>` : ''}
                 </div>
               </div>
@@ -361,7 +361,7 @@ export async function render(container) {
             </span>
           </td>
           <td class="text-right" style="font-weight: 700; color: #ef4444; font-size: 0.95rem;">
-            +${formatCurrency(exp.amount)}
+            -${formatCurrency(exp.amount)}
           </td>
           <td class="text-center" style="white-space: nowrap;">
             <div class="btn-icon-group" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">

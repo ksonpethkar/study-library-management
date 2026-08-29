@@ -463,7 +463,7 @@ export const PaymentStudio = {
         <!-- Right Column: Amount, Balance, Action Capsule -->
         <div class="tx-meta-col">
           <div class="tx-amount ${isDebit ? 'tx-amount-green' : 'tx-amount-red'}">
-            ${isDebit ? '-' : '+'}₹${amount.toLocaleString('en-IN')}
+            ${isDebit ? '' : '-'}₹${amount.toLocaleString('en-IN')}
           </div>
           <div class="tx-balance">Bal: ₹${Number(balance).toLocaleString('en-IN')}</div>
           ${this.renderActionCapsule({

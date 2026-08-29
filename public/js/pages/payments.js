@@ -395,7 +395,7 @@ export async function render(container) {
                         ${PaymentStudio.renderDebitTrayIcon(32)}
                         <div>
                             <a href="#" class="receipt-link" data-id="${p._id}" style="font-family: monospace; font-weight: 700; color: var(--color-primary, #6c5ce7); display: block;">${escapeHTML(p.receiptNumber || 'N/A')}</a>
-                            <span class="tx-badge-pill tx-badge-debit" style="font-size: 0.65rem; padding: 1px 6px;">↓ DEBIT</span>
+                            <span class="tx-badge-pill tx-badge-paid" style="font-size: 0.65rem; padding: 1px 6px;">↓ RECEIVED</span>
                         </div>
                     </div>
                 </td>
@@ -403,7 +403,7 @@ export async function render(container) {
                     <div style="font-weight: 600;">${escapeHTML(p.student?.name || p.studentName || (p.notes && !p.notes.startsWith('{') ? p.notes : 'Registered Student'))}</div>
                     <small class="text-muted">${escapeHTML(SmartFormatters.phone(p.student?.phone) || '')}</small>
                 </td>
-                <td><strong class="tx-amount tx-amount-green" style="font-size: 1.05rem;">-₹${Number(p.finalAmount || 0).toLocaleString('en-IN')}</strong></td>
+                <td><strong class="tx-amount tx-amount-green" style="font-size: 1.05rem; color: #10b981;">₹${Number(p.finalAmount || 0).toLocaleString('en-IN')}</strong></td>
                 <td><span class="badge" style="background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px; text-transform: uppercase;">${escapeHTML(p.paymentMethod)}</span></td>
                 <td>${formatDate(p.paymentDate)} <small class="text-muted">(${SmartFormatters.timeAgo(p.paymentDate)})</small></td>
                 <td>
