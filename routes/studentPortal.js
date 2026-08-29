@@ -927,7 +927,7 @@ router.get('/renewal-quote', async (req, res) => {
     
     // Wallet & Referral Credit Balance Calculation
     const availableWalletBalance = Math.max(0, (student.walletBalance || 0) + (student.referralCredits || 0));
-    const isWalletRequested = applyWallet === undefined || applyWallet === 'true' || applyWallet === true;
+    const isWalletRequested = applyWallet === 'true' || applyWallet === true;
     
     const appliedWalletDiscount = isWalletRequested 
       ? Math.min(availableWalletBalance, Math.max(0, basePrice - discount)) 

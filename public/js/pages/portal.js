@@ -3017,7 +3017,7 @@ function renderPortalUI(container, data, analytics = null) {
   // Renew Membership Plan with Dynamic UPI QR Code & Plan/Shift Selection
   container.querySelector('#btn-portal-renew')?.addEventListener('click', async () => {
     try {
-      const quoteRes = await api.get('/api/student-portal/renewal-quote');
+      const quoteRes = await api.get('/api/student-portal/renewal-quote?applyWallet=false');
       if (!quoteRes.success) throw new Error(quoteRes.message);
       let q = quoteRes.data;
       let selectedPortalPayMode = 'upi';
@@ -3070,39 +3070,6 @@ function renderPortalUI(container, data, analytics = null) {
               </div>
             </div>
 
-            <!-- Interactive Wallet Balance & Discount Card -->
-            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 12px 14px; margin-bottom: 1rem;">
-              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 1.25rem;">👛</span>
-                  <div>
-                    <div style="font-weight: 700; font-size: 0.9rem; color: var(--color-text-primary);">
-                      Available Wallet Balance
-                    </div>
-                    <div style="font-size: 0.78rem; color: var(--color-text-secondary);">
-                      Referral Rewards & Cash Credits
-                    </div>
-                  </div>
-                </div>
-                <div style="font-size: 1.1rem; font-weight: 800; color: #10b981;">
-                  ₹${(q.availableWalletBalance || 0).toLocaleString('en-IN')}
-                </div>
-              </div>
-
-              ${(q.availableWalletBalance || 0) > 0 ? `
-                <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(16, 185, 129, 0.2); display: flex; align-items: center; gap: 8px;">
-                  <input type="checkbox" id="renewal-apply-wallet" class="form-check-input" ${q.isWalletApplied !== false ? 'checked' : ''} style="cursor: pointer; width: 18px; height: 18px;">
-                  <label for="renewal-apply-wallet" style="margin: 0; font-size: 0.85rem; font-weight: 700; color: #10b981; cursor: pointer;">
-                    Use Wallet Balance for Extra Discount (${q.isWalletApplied ? '- ₹' + q.appliedWalletDiscount.toLocaleString('en-IN') : 'Check to apply'})
-                  </label>
-                </div>
-              ` : `
-                <div style="margin-top: 8px; font-size: 0.78rem; color: var(--color-text-secondary);">
-                  💡 Earn ₹100 wallet credit for every friend who joins using your referral link!
-                </div>
-              `}
-            </div>
-
             <!-- Dynamic Renewal Summary Card -->
             <div style="text-align: center; margin-bottom: 1rem; background: rgba(108, 92, 231, 0.06); padding: 10px; border-radius: 10px; border: 1px solid rgba(108, 92, 231, 0.2);">
               <span class="badge" style="background: rgba(108, 92, 231, 0.2); color: var(--color-primary); font-weight: 700; font-size: 0.8rem; padding: 4px 10px;">
@@ -3124,12 +3091,6 @@ function renderPortalUI(container, data, analytics = null) {
                 <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; color: var(--color-success);">
                   <span>Special Discount:</span>
                   <span style="font-weight: 600;">- ₹${q.discount.toLocaleString('en-IN')}</span>
-                </div>
-              ` : ''}
-              ${q.appliedWalletDiscount > 0 ? `
-                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; color: #10b981; font-weight: 700;">
-                  <span>👛 Wallet Balance Discount:</span>
-                  <span>- ₹${q.appliedWalletDiscount.toLocaleString('en-IN')}</span>
                 </div>
               ` : ''}
               ${q.pendingFine > 0 ? `
@@ -3252,14 +3213,12 @@ function renderPortalUI(container, data, analytics = null) {
 
         const planSelect = modalContent.querySelector('#renewal-plan-select');
         const shiftSelect = modalContent.querySelector('#renewal-shift-select');
-        const walletCheckbox = modalContent.querySelector('#renewal-apply-wallet');
 
         async function onSelectionChange() {
           const selectedPlanId = planSelect ? planSelect.value : '';
           const selectedShiftId = shiftSelect ? shiftSelect.value : '';
-          const applyWallet = walletCheckbox ? walletCheckbox.checked : false;
           try {
-            const freshQuote = await api.get(`/api/student-portal/renewal-quote?planId=${selectedPlanId}&shiftId=${selectedShiftId}&applyWallet=${applyWallet}`);
+            const freshQuote = await api.get(`/api/student-portal/renewal-quote?planId=${selectedPlanId}&shiftId=${selectedShiftId}&applyWallet=false`);
             if (freshQuote.success && freshQuote.data) {
               q = freshQuote.data;
               updateModalBody();
@@ -3271,7 +3230,6 @@ function renderPortalUI(container, data, analytics = null) {
 
         if (planSelect) planSelect.addEventListener('change', onSelectionChange);
         if (shiftSelect) shiftSelect.addEventListener('change', onSelectionChange);
-        if (walletCheckbox) walletCheckbox.addEventListener('change', onSelectionChange);
 
         // 1-Tap UPI Intent Apps Binding
         let renewalTxnRef = null;
@@ -3452,7 +3410,7 @@ function renderPortalUI(container, data, analytics = null) {
             const utrNumber = selectedPortalPayMode === 'desk' ? 'DESK_CASH' : utrInput?.value?.trim();
             const selectedPlanId = planSelect ? planSelect.value : q.selectedPlanId;
             const selectedShiftId = shiftSelect ? shiftSelect.value : q.selectedShiftId;
-            const applyWallet = walletCheckbox ? walletCheckbox.checked : q.isWalletApplied;
+            const applyWallet = false;
 
             const btn = modalContent.querySelector('#btn-submit-renewal-utr');
             Loading.button(btn, true);
