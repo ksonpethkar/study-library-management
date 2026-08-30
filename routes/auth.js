@@ -1241,7 +1241,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
     const cleanInput = identifier.trim().toLowerCase();
     const cleanPhone = identifier.replace(/[^0-9]/g, '').slice(-10);
 
-    const businessProfile = await BusinessProfile.getProfile();
+    const businessProfile = await BusinessProfile.findOne().lean().catch(() => ({}));
     const rawPhone = businessProfile?.phone || businessProfile?.whatsapp || process.env.BUSINESS_PHONE || '8625982248';
     const ownerPhone = rawPhone.replace(/[^0-9]/g, '').slice(-10) || '8625982248';
 
@@ -1324,7 +1324,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
       const staffUser = await User.findOne({
         $or: [{ email: cleanInput }, { phone: cleanInput }],
         role: { $in: ['owner', 'branch_manager', 'staff'] }
-      });
+      }).lean();
 
       if (!staffUser) {
         return res.status(404).json({ success: false, message: `No staff account found for "${identifier}".` });
