@@ -29,6 +29,7 @@ async function checkStudentExpiries(options = {}) {
   try {
     const now = new Date();
     const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     // Fetch Business Profile for UPI deep links & library branding
     const profile = await BusinessProfile.getProfile();
@@ -85,7 +86,6 @@ async function checkStudentExpiries(options = {}) {
       const exp = new Date(expDate);
 
       // Exact Calendar-Day Difference (Midnight to Midnight)
-      const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const expMidnight = new Date(exp.getFullYear(), exp.getMonth(), exp.getDate());
       const diffDays = Math.round((expMidnight.getTime() - todayMidnight.getTime()) / (1000 * 60 * 60 * 24));
       const diffHours = Math.round((exp.getTime() - now.getTime()) / (1000 * 60 * 60));
