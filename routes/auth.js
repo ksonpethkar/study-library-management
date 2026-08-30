@@ -1241,9 +1241,7 @@ router.post('/forgot-password', async (req, res) => {
     const cleanInput = identifier.trim().toLowerCase();
     const cleanPhone = identifier.replace(/[^0-9]/g, '').slice(-10);
 
-    const businessProfile = await BusinessProfile.findOne().lean().catch(() => ({}));
-    const rawPhone = businessProfile?.phone || businessProfile?.whatsapp || process.env.BUSINESS_PHONE || '8625982248';
-    const ownerPhone = rawPhone.replace(/[^0-9]/g, '').slice(-10) || '8625982248';
+    const ownerPhone = (process.env.BUSINESS_PHONE || '8625982248').replace(/[^0-9]/g, '').slice(-10);
 
     if (portalType === 'student') {
       const student = await Student.findOne({
