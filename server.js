@@ -177,7 +177,7 @@ app.use('/uploads', async (req, res, next) => {
 
 // Ensure MongoDB connection is active for serverless invocations (e.g. Vercel)
 app.use(async (req, res, next) => {
-  if (req.path.startsWith('/api') && req.path !== '/api/health') {
+  if (req.path.startsWith('/api')) {
     try {
       await connectDB();
     } catch (dbErr) {
@@ -221,6 +221,11 @@ app.use('/api/ai', require('./routes/aiInsights'));
 // Health check endpoint for uptime monitoring, diagnostics & Render.com
 app.get('/api/health', async (req, res) => {
   const mongoose = require('mongoose');
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await connectDB();
+    } catch (e) {}
+  }
   const dbConnected = mongoose.connection.readyState === 1;
   const dbStateMap = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
   const dbStatus = dbStateMap[mongoose.connection.readyState] || 'unknown';
