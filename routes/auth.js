@@ -127,10 +127,10 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
     }
 
     user.lastLogin = Date.now();
-    await user.save({ validateBeforeSave: false });
+    await user.save({ validateBeforeSave: false }).catch(() => {});
 
     const token = user.generateAuthToken();
-    const businessProfile = await BusinessProfile.getProfile();
+    const businessProfile = await BusinessProfile.getProfile().catch(() => ({}));
 
     res.json({
       success: true,

@@ -81,9 +81,7 @@ app.use(helmet({
 
 const allowedOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) 
-  : (process.env.NODE_ENV === 'production' 
-      ? ['https://study-library-management.onrender.com'] 
-      : '*');
+  : '*';
 
 app.use(cors({
   origin: allowedOrigins,
