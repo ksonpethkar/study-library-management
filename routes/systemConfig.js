@@ -11,6 +11,7 @@ const CustomField = require('../models/CustomField');
 const ReceiptConfig = require('../models/ReceiptConfig');
 const LandingPage = require('../models/LandingPage');
 const SystemSetting = require('../models/SystemSetting');
+const memoryCache = require('../utils/memoryCache');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
 
@@ -45,6 +46,13 @@ const guessShiftIcon = (name) => {
  * @access  Public
  */
 router.get('/public-config', async (req, res) => {
+  const cacheKey = 'ssot_public_config';
+  const cached = memoryCache.get(cacheKey);
+  if (cached) {
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    return res.json(cached);
+  }
+
   try {
     // Seed default custom fields if none exist
     try {
@@ -441,7 +449,7 @@ router.get('/public-config', async (req, res) => {
     }
 
     // Return unified SSOT response
-    res.json({
+    const responsePayload = {
       success: true,
       data: {
         businessName: formattedBusinessProfile.businessName,
@@ -458,7 +466,11 @@ router.get('/public-config', async (req, res) => {
         landing: landingConfig,
         theme: formattedTheme
       }
-    });
+    };
+
+    memoryCache.set('ssot_public_config', responsePayload, 180);
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    return res.json(responsePayload);
   } catch (err) {
     console.error('Error fetching public config:', err);
     res.status(500).json({

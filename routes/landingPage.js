@@ -28,7 +28,12 @@ const roleCheck = (...roles) => {
  * @access  Public
  */
 router.get('/', async (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  const cachedPayload = memoryCache.get('landing_page_payload');
+  if (cachedPayload) {
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    return res.json(cachedPayload);
+  }
+
   try {
     let landingConfig = null;
     let businessProfile = {};
@@ -36,12 +41,20 @@ router.get('/', async (req, res) => {
     let shifts = [];
 
     try {
-      [landingConfig, businessProfile, plans, shifts] = await Promise.all([
+      const fetchPromise = Promise.all([
         LandingPage.getPageConfig().catch(() => LandingPage.getDefaults()),
         BusinessProfile.getProfile().catch(() => ({})),
-        Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort({ displayOrder: 1, price: 1 }).catch(() => []),
-        Shift.find({ isActive: true }).catch(() => [])
+        Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort({ displayOrder: 1, price: 1 }).lean().catch(() => []),
+        Shift.find({ isActive: true }).lean().catch(() => [])
       ]);
+      const timeoutPromise = new Promise(resolve => setTimeout(() => resolve([
+        LandingPage.getDefaults(),
+        {},
+        [],
+        []
+      ]), 3500));
+
+      [landingConfig, businessProfile, plans, shifts] = await Promise.race([fetchPromise, timeoutPromise]);
     } catch (dbErr) {
       console.warn('Falling back to default landing configuration:', dbErr.message);
       landingConfig = LandingPage.getDefaults();
@@ -123,7 +136,7 @@ router.get('/', async (req, res) => {
     if (!landingConfig.shifts) landingConfig.shifts = {};
     landingConfig.shifts.items = mergedShiftItems;
 
-    res.json({
+    const responseData = {
       success: true,
       data: {
         landing: landingConfig,
@@ -170,7 +183,11 @@ router.get('/', async (req, res) => {
           priceMultiplier: s.priceMultiplier
         }))
       }
-    });
+    };
+
+    memoryCache.set('landing_page_payload', responseData, 300);
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    return res.json(responseData);
   } catch (err) {
     console.error('Error fetching landing page data:', err);
     res.json({
