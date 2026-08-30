@@ -8,17 +8,33 @@ try {
 
 const mongoose = require('mongoose');
 
+let cachedPromise = null;
+
 /**
- * Connect to MongoDB database
- * @returns {Promise<void>}
+ * Connect to MongoDB database (supports serverless connection caching)
+ * @returns {Promise<any>}
  */
 const connectDB = async () => {
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
+  if (cachedPromise) {
+    try {
+      await cachedPromise;
+      return mongoose.connection;
+    } catch (e) {
+      cachedPromise = null;
+    }
+  }
+
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+    cachedPromise = mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 20000,
       socketTimeoutMS: 45000,
     });
 
+    const conn = await cachedPromise;
     console.log(`  🗄️  MongoDB connected: ${conn.connection.host}`);
 
     mongoose.connection.on('error', (err) => {
@@ -27,13 +43,16 @@ const connectDB = async () => {
 
     mongoose.connection.on('disconnected', () => {
       console.log('MongoDB disconnected — attempting reconnect...');
+      cachedPromise = null;
     });
 
     mongoose.connection.on('reconnected', () => {
       console.log('MongoDB reconnected');
     });
 
+    return conn;
   } catch (error) {
+    cachedPromise = null;
     console.error(`Error connecting to MongoDB: ${error.message}`);
     throw error;
   }

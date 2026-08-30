@@ -131,8 +131,12 @@ app.use(express.static(path.join(__dirname, 'public'), {
   lastModified: true
 }));
 const uploadsDir = path.join(__dirname, 'uploads');
-if (!require('fs').existsSync(uploadsDir)) {
-  require('fs').mkdirSync(uploadsDir, { recursive: true });
+try {
+  if (!require('fs').existsSync(uploadsDir)) {
+    require('fs').mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (fsErr) {
+  // Read-only filesystem in serverless environments (e.g. Vercel)
 }
 
 // Persistent /uploads file server (Serves from local disk cache or auto-restores from MongoDB Atlas)
@@ -171,7 +175,20 @@ app.use('/uploads', async (req, res, next) => {
   next();
 }, express.static(uploadsDir, { maxAge: '7d' }));
 
+// Ensure MongoDB connection is active for serverless invocations (e.g. Vercel)
+app.use(async (req, res, next) => {
+  if (req.path.startsWith('/api') && req.path !== '/api/health') {
+    try {
+      await connectDB();
+    } catch (dbErr) {
+      console.error('Serverless DB connect error:', dbErr.message);
+    }
+  }
+  next();
+});
+
 // API Routes
+app.use('/api/cron', require('./routes/cron'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/students', require('./routes/students'));
@@ -922,4 +939,6 @@ if (require.main === module) {
   startServer();
 }
 
-module.exports = { app, startServer };
+module.exports = app;
+module.exports.app = app;
+module.exports.startServer = startServer;
