@@ -496,9 +496,12 @@ app.get('/api/system/public-config', async (req, res) => {
 // High-Speed In-Memory Pre-hydration Cache (Sub-millisecond delivery for public landing & registration)
 const _hydratedHtmlCache = new Map();
 const HYDRATE_CACHE_TTL_MS = 60000; // 60s memory cache
+let _preloadedRegisterCache = null;
+let _preloadedRegisterCacheTime = 0;
 
 function invalidateHydratedCache() {
   _hydratedHtmlCache.clear();
+  _preloadedRegisterCache = null;
 }
 app.set('invalidateHydratedCache', invalidateHydratedCache);
 
@@ -725,47 +728,57 @@ async function generateHydratedHTML(htmlPath) {
   // 8. Pre-inject Instant Admission Configuration into /register
   if (htmlPath.includes('register.html')) {
     try {
-      const CustomField = require('./models/CustomField');
-      const FormTemplate = require('./models/FormTemplate');
-      const Branch = require('./models/Branch');
-      const SystemSetting = require('./models/SystemSetting');
+      const now = Date.now();
+      let preloadedConfig = (_preloadedRegisterCache && (now - _preloadedRegisterCacheTime < 180000)) 
+        ? _preloadedRegisterCache 
+        : null;
 
-      let [cFields, template, rPlans, rShifts, branches, settingsList] = await Promise.all([
-        CustomField.find({ isDeleted: { $ne: true } }).sort({ order: 1, createdAt: 1 }).lean().catch(() => []),
-        FormTemplate.getActiveTemplate().catch(() => null),
-        Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort('displayOrder').lean().catch(() => []),
-        Shift.find({ isActive: true }).sort('startTime').lean().catch(() => []),
-        Branch.find({ isActive: true, isDeleted: { $ne: true } }).lean().catch(() => []),
-        SystemSetting.find().lean().catch(() => [])
-      ]);
+      if (!preloadedConfig) {
+        const CustomField = require('./models/CustomField');
+        const FormTemplate = require('./models/FormTemplate');
+        const Branch = require('./models/Branch');
+        const SystemSetting = require('./models/SystemSetting');
 
-      if (!rPlans || rPlans.length === 0) {
-        rPlans = await Plan.find({ isDeleted: { $ne: true } }).lean().catch(() => []);
-      }
+        let [cFields, template, rPlans, rShifts, branches, settingsList] = await Promise.all([
+          CustomField.find({ isDeleted: { $ne: true } }).sort({ order: 1, createdAt: 1 }).lean().catch(() => []),
+          FormTemplate.getActiveTemplate().catch(() => null),
+          Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort('displayOrder').lean().catch(() => []),
+          Shift.find({ isActive: true }).sort('startTime').lean().catch(() => []),
+          Branch.find({ isActive: true, isDeleted: { $ne: true } }).lean().catch(() => []),
+          SystemSetting.find().lean().catch(() => [])
+        ]);
 
-      const settingsMap = {};
-      (settingsList || []).forEach(s => { settingsMap[s.key] = s.value; });
-
-      const preloadedConfig = {
-        businessProfile: profile,
-        customFields: cFields,
-        template,
-        plans: rPlans,
-        shifts: rShifts,
-        branches: branches.length > 0 ? branches : [{
-          _id: 'default_main',
-          name: profile?.businessName || 'The Cozy Corner Centre',
-          city: profile?.city || 'PARLI',
-          totalSeats: 59,
-          availableSeats: 57
-        }],
-        settings: settingsMap,
-        locker: {
-          enableAddon: settingsMap['locker.enableAddon'] !== false,
-          monthlyFee: Number(settingsMap['locker.monthlyFee']) || 200,
-          deposit: Number(settingsMap['locker.deposit']) || 0
+        if (!rPlans || rPlans.length === 0) {
+          rPlans = await Plan.find({ isDeleted: { $ne: true } }).lean().catch(() => []);
         }
-      };
+
+        const settingsMap = {};
+        (settingsList || []).forEach(s => { settingsMap[s.key] = s.value; });
+
+        preloadedConfig = {
+          businessProfile: profile,
+          customFields: cFields,
+          template,
+          plans: rPlans,
+          shifts: rShifts,
+          branches: branches.length > 0 ? branches : [{
+            _id: 'default_main',
+            name: profile?.businessName || 'The Cozy Corner Centre',
+            city: profile?.city || 'PARLI',
+            totalSeats: 59,
+            availableSeats: 57
+          }],
+          settings: settingsMap,
+          locker: {
+            enableAddon: settingsMap['locker.enableAddon'] !== false,
+            monthlyFee: Number(settingsMap['locker.monthlyFee']) || 200,
+            deposit: Number(settingsMap['locker.deposit']) || 0
+          }
+        };
+
+        _preloadedRegisterCache = preloadedConfig;
+        _preloadedRegisterCacheTime = now;
+      }
 
       const configJson = JSON.stringify(preloadedConfig).replace(/</g, '\\u003c');
       const injectedScript = `<script id="initial-public-config" type="application/json">${configJson}</script>`;

@@ -34,12 +34,14 @@
         if (cached) {
           const bp = JSON.parse(cached);
           document.addEventListener('DOMContentLoaded', function() {
-            const titleEl = document.getElementById('lib-title');
-            if (titleEl) titleEl.textContent = 'Student Registration Form';
-            if (bp && bp.tagline) {
+            try {
+              const pcfg = JSON.parse(localStorage.getItem('sl_public_config_cache') || '{}');
+              const activeTagline = pcfg?.template?.branding?.tagline || pcfg?.businessProfile?.tagline || bp?.tagline || 'Silence, Focus & Success';
               const tagEl = document.getElementById('lib-tagline');
-              if (tagEl) tagEl.textContent = bp.tagline;
-            }
+              if (tagEl) tagEl.textContent = activeTagline;
+              const titleEl = document.getElementById('lib-title');
+              if (titleEl) titleEl.textContent = pcfg?.template?.branding?.headerText || 'Student Registration Form';
+            } catch (err) {}
           });
         }
       } catch(e) {}
@@ -2914,11 +2916,11 @@
           const slipBiz = document.getElementById('slip-business-name');
           if (slipBiz) slipBiz.textContent = bp.businessName;
         }
-        if (bp?.tagline) {
-          document.getElementById('lib-tagline').textContent = bp.tagline;
-          const slipTag = document.getElementById('slip-business-tagline');
-          if (slipTag) slipTag.textContent = bp.tagline;
-        }
+        const effectiveTagline = activeTemplate?.branding?.tagline || bp?.tagline || 'Silence, Focus & Success';
+        const tagEl = document.getElementById('lib-tagline');
+        if (tagEl) tagEl.textContent = effectiveTagline;
+        const slipTag = document.getElementById('slip-business-tagline');
+        if (slipTag) slipTag.textContent = effectiveTagline;
         if (bp?.upiId) libraryUpiId = bp.upiId;
         if (bp?.upiQrCode) libraryCustomQrImage = bp.upiQrCode;
         if (bp?.bankDetails) libraryBankDetails = bp.bankDetails;
@@ -3021,18 +3023,16 @@
           fields = defaultFields.filter(df => !explicitlyHiddenNames.has(canonicalizeFieldName(df.name)));
         }
 
-        // Build active sections list (from MongoDB template or dynamic sections from fields)
+        // Build authoritative active sections list from MongoDB template
         let templateSecs = (activeTemplate && Array.isArray(activeTemplate.sections) && activeTemplate.sections.length > 0)
           ? activeTemplate.sections
           : [
               { name: 'personal', label: 'Step 1: Study Centre & Personal Info', icon: 'personal', order: 1, isSystem: true },
-              { name: 'address', label: 'Step 2: Address & Emergency Contact', icon: 'contact', order: 2, isSystem: false },
-              { name: 'kyc', label: 'Step 3: KYC & Verification', icon: 'kyc', order: 3, isSystem: false },
-              { name: 'academic', label: 'Step 4: Academic Goals & KYC Proof', icon: 'academic', order: 4, isSystem: false },
-              { name: 'plan', label: 'Step 5: Membership Plan & Fee Calculator', icon: 'plan', order: 5, isSystem: true },
-              { name: 'payment', label: 'Step 6: Dynamic Payment Selection', icon: 'payment', order: 6, isSystem: true },
-              { name: 'seat', label: 'Step 7: Seat Selection & Digital Signature', icon: 'seat', order: 7, isSystem: true },
-              { name: 'other', label: 'Step 8: Additional Information', icon: 'other', order: 8, isSystem: false }
+              { name: 'contact', label: 'Step 2: Address & Emergency Contact', icon: 'contact', order: 2, isSystem: false },
+              { name: 'academic', label: 'Step 3: Academic Goals & KYC Proof', icon: 'academic', order: 3, isSystem: false },
+              { name: 'plan', label: 'Step 4: Membership Plan & Fee Calculator', icon: 'plan', order: 4, isSystem: true },
+              { name: 'payment', label: 'Step 5: Dynamic Payment Selection', icon: 'payment', order: 5, isSystem: true },
+              { name: 'seat', label: 'Step 6: Seat Selection & Digital Signature', icon: 'seat', order: 6, isSystem: true }
             ];
 
         const sectionsMap = new Map();
@@ -3043,16 +3043,22 @@
           });
         });
 
-        // Add any section that contains fields
+        // Authoritative home mapping: map every active field into one of the configured sections
+        const validSectionNames = Array.from(sectionsMap.keys());
+        const primarySecName = validSectionNames[0] || 'personal';
+
         fields.forEach(f => {
-          if (f.section && !sectionsMap.has(f.section)) {
-            sectionsMap.set(f.section, {
-              name: f.section,
-              label: f.sectionLabel || f.section.charAt(0).toUpperCase() + f.section.slice(1),
-              icon: f.sectionIcon || 'other',
-              order: sectionsMap.size + 1,
-              isSystem: false
-            });
+          if (!f.section || !sectionsMap.has(f.section)) {
+            const rawSec = String(f.section || '').toLowerCase().trim();
+            if (rawSec === 'address' || rawSec === 'emergency' || rawSec === 'contact') {
+              f.section = validSectionNames.find(n => n === 'contact' || n === 'address' || (sectionsMap.get(n)?.label || '').toLowerCase().includes('address') || (sectionsMap.get(n)?.label || '').toLowerCase().includes('contact')) || primarySecName;
+            } else if (rawSec === 'kyc' || rawSec === 'verification' || rawSec === 'other' || rawSec === 'additional' || rawSec === 'academic') {
+              f.section = validSectionNames.find(n => n === 'academic' || n === 'kyc' || (sectionsMap.get(n)?.label || '').toLowerCase().includes('academic') || (sectionsMap.get(n)?.label || '').toLowerCase().includes('kyc') || (sectionsMap.get(n)?.label || '').toLowerCase().includes('additional')) || primarySecName;
+            } else if (rawSec.includes('branch') || rawSec.includes('centre')) {
+              f.section = validSectionNames.find(n => n.includes('branch') || n.includes('centre') || (sectionsMap.get(n)?.label || '').toLowerCase().includes('branch') || (sectionsMap.get(n)?.label || '').toLowerCase().includes('centre')) || primarySecName;
+            } else {
+              f.section = primarySecName;
+            }
           }
         });
 

@@ -1,5 +1,5 @@
 import api from './api.js';
-import { Toast, Modal, Loading, Confirm, escapeHTML } from './ui.js';
+import { Toast, Modal, Loading, Confirm, ActionMenu, escapeHTML } from './ui.js';
 import { MediaFieldPicker } from './mediaStudio.js';
 
 const FIELD_ICONS = {
@@ -322,6 +322,24 @@ export class FormBuilder {
       const isCoreSec = ['personal', 'plan', 'payment', 'seat'].includes(sec.name);
 
       const isSecHidden = Boolean(sec.isHidden);
+      const sectionActions = [
+        { header: 'Reorder Position' },
+        ...(secIdx > 0 ? [{ icon: '⬆️', label: 'Move Section Up', action: 'fb-sec-up' }] : []),
+        ...(secIdx < this.sections.length - 1 ? [{ icon: '⬇️', label: 'Move Section Down', action: 'fb-sec-down' }] : []),
+        { divider: true },
+        { header: 'Customize Section' },
+        { icon: '✏️', label: 'Rename Title & Icon', action: 'fb-sec-rename', bold: true },
+        { icon: isSecHidden ? '👁️' : '🚫', label: isSecHidden ? 'Show in Registration Form' : 'Hide from Registration Form', action: 'fb-sec-visibility' },
+        { icon: '➕', label: 'Add Question Field', action: 'fb-sec-add-field' },
+        { icon: '📋', label: 'Copy Section Config', action: 'fb-sec-copy' },
+        { icon: '📥', label: 'Paste Question Field', action: 'fb-sec-paste-field' },
+        ...(!isCoreSec ? [
+          { divider: true },
+          { header: 'Danger Zone' },
+          { icon: '🗑️', label: 'Delete Section', action: 'fb-sec-delete', danger: true }
+        ] : [])
+      ];
+
       return `
         <div class="fb-sec-card" data-section="${sec.name}" style="background: var(--color-surface-hover); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; margin-bottom: 12px; ${isSecHidden ? 'opacity: 0.82;' : ''}">
           <div class="fb-sec-header" style="padding: 10px 14px; background: var(--color-bg-secondary); border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
@@ -334,17 +352,8 @@ export class FormBuilder {
               <span class="fb-sec-toggle-caret" style="font-size: 0.8rem; font-weight: bold; color: var(--color-text-muted); margin-left: 4px;">▲</span>
             </div>
 
-            <div class="btn-icon-group">
-              ${secIdx > 0 ? `<button type="button" class="btn-icon-action fb-sec-up" data-sec="${sec.name}" data-tooltip="Move Section Up" aria-label="Move Up">⬆️</button>` : ''}
-              ${secIdx < this.sections.length - 1 ? `<button type="button" class="btn-icon-action fb-sec-down" data-sec="${sec.name}" data-tooltip="Move Section Down" aria-label="Move Down">⬇️</button>` : ''}
-              <button type="button" class="btn-icon-action fb-sec-visibility" data-sec="${sec.name}" data-tooltip="${isSecHidden ? 'Show Section in Registration Form' : 'Hide Section from Registration Form'}" aria-label="Toggle Visibility">
-                ${isSecHidden ? '🚫' : '👁️'}
-              </button>
-              <button type="button" class="btn-icon-action fb-sec-rename" data-sec="${sec.name}" data-tooltip="Rename Section Title & Icon" aria-label="Rename Section">✏️</button>
-              <button type="button" class="btn-icon-action fb-sec-copy" data-sec="${sec.name}" data-tooltip="Copy Section & Questions" aria-label="Copy Section">📋</button>
-              <button type="button" class="btn-icon-action fb-sec-paste-field" data-sec="${sec.name}" data-tooltip="Paste Copied Question Here" aria-label="Paste Question">📥</button>
-              <button type="button" class="btn-icon-action fb-sec-add-field" data-sec="${sec.name}" data-tooltip="Add Question to this Section" aria-label="Add Question">➕</button>
-              ${!isCoreSec ? `<button type="button" class="btn-icon-action action-delete fb-sec-delete" data-sec="${sec.name}" data-tooltip="Delete Section" aria-label="Delete Section">🗑️</button>` : ''}
+            <div class="d-flex align-items-center gap-2">
+              ${ActionMenu.renderHtml(sectionActions, sec.name)}
             </div>
           </div>
 
@@ -470,95 +479,75 @@ export class FormBuilder {
       });
     }
 
-    // Attach Section & Question Action Listeners
-    container.querySelectorAll('.fb-sec-up').forEach(btn => {
-      btn.addEventListener('click', () => this.moveSection(btn.dataset.sec, -1));
+    // Attach Centralized ActionMenu Click Listeners
+    container.querySelectorAll('.action-menu-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        ActionMenu.closeAll();
+        const action = item.dataset.action;
+        const id = item.dataset.id;
+        this.handleAction(action, id);
+      });
     });
 
-    container.querySelectorAll('.fb-sec-down').forEach(btn => {
-      btn.addEventListener('click', () => this.moveSection(btn.dataset.sec, 1));
-    });
-
-    container.querySelectorAll('.fb-sec-rename').forEach(btn => {
-      btn.addEventListener('click', () => this.openRenameSectionModal(btn.dataset.sec));
-    });
-
-    container.querySelectorAll('.fb-sec-copy').forEach(btn => {
-      btn.addEventListener('click', () => this.copySection(btn.dataset.sec));
-    });
-
-    container.querySelectorAll('.fb-sec-paste-field').forEach(btn => {
-      btn.addEventListener('click', () => this.pasteField(btn.dataset.sec));
-    });
-
-    container.querySelectorAll('.fb-sec-add-field').forEach(btn => {
-      btn.addEventListener('click', () => this.openFieldEditor(null, btn.dataset.sec));
-    });
-
-    container.querySelectorAll('.fb-sec-delete').forEach(btn => {
-      btn.addEventListener('click', () => this.deleteSection(btn.dataset.sec));
-    });
-
-    container.querySelectorAll('.fb-sec-visibility').forEach(btn => {
-      btn.addEventListener('click', () => this.toggleSectionVisibility(btn.dataset.sec));
-    });
+    if (!this._actionMenuBound) {
+      this._actionMenuBound = true;
+      document.addEventListener('action-menu-click', (e) => {
+        const { action, id } = e.detail || {};
+        if (action && (action.startsWith('fb-') || action === 'fb-edit-component')) {
+          this.handleAction(action, id);
+        }
+      });
+    }
 
     container.querySelectorAll('.fb-plan-setting-toggle').forEach(chk => {
       chk.addEventListener('change', () => {
         this.toggleTemplateSetting(chk.dataset.setting, chk.checked);
       });
     });
+  }
 
-    container.querySelectorAll('.fb-field-copy').forEach(btn => {
-      btn.addEventListener('click', () => this.copyField(btn.dataset.id));
-    });
+  static async handleAction(action, id) {
+    if (!action) return;
 
-    container.querySelectorAll('.fb-field-duplicate').forEach(btn => {
-      btn.addEventListener('click', () => this.duplicateField(btn.dataset.id));
-    });
+    // 1. Section actions
+    if (action === 'fb-sec-up') return this.moveSection(id, -1);
+    if (action === 'fb-sec-down') return this.moveSection(id, 1);
+    if (action === 'fb-sec-rename') return this.openRenameSectionModal(id);
+    if (action === 'fb-sec-visibility') return this.toggleSectionVisibility(id);
+    if (action === 'fb-sec-add-field') return this.openFieldEditor(null, id);
+    if (action === 'fb-sec-copy') return this.copySection(id);
+    if (action === 'fb-sec-paste-field') return this.pasteField(id);
+    if (action === 'fb-sec-delete') return this.deleteSection(id);
 
-    container.querySelectorAll('.fb-field-edit').forEach(btn => {
-      btn.addEventListener('click', () => this.openFieldEditor(btn.dataset.id));
-    });
+    // 2. Field actions
+    if (action === 'fb-field-edit') return this.openFieldEditor(id);
+    if (action === 'fb-field-toggle') return this.toggleFieldActive(id);
+    if (action === 'fb-field-up') return this.moveField(id, -1);
+    if (action === 'fb-field-down') return this.moveField(id, 1);
+    if (action === 'fb-field-duplicate') return this.duplicateField(id);
+    if (action === 'fb-field-copy') return this.copyField(id);
+    if (action === 'fb-field-delete') return this.deleteField(id);
 
-    container.querySelectorAll('.fb-edit-component').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.openComponentEditor(btn.dataset.component);
-      });
-    });
+    // 3. System component actions (id format: settingKey:::compKey:::title)
+    if (action.startsWith('fb-sys-item-') || action === 'fb-edit-component') {
+      const parts = (id || '').split(':::');
+      const settingKey = parts[0] || '';
+      const compKey = parts[1] || '';
+      const title = decodeURIComponent(parts[2] || 'Component');
 
-    container.querySelectorAll('.fb-field-toggle').forEach(btn => {
-      btn.addEventListener('click', () => this.toggleFieldActive(btn.dataset.id));
-    });
+      if (action === 'fb-edit-component') {
+        return this.openComponentEditor(compKey);
+      }
 
-    container.querySelectorAll('.fb-field-delete').forEach(btn => {
-      btn.addEventListener('click', () => this.deleteField(btn.dataset.id));
-    });
-
-    container.querySelectorAll('.fb-field-up').forEach(btn => {
-      btn.addEventListener('click', () => this.moveField(btn.dataset.id, -1));
-    });
-
-    container.querySelectorAll('.fb-field-down').forEach(btn => {
-      btn.addEventListener('click', () => this.moveField(btn.dataset.id, 1));
-    });
-
-    // Customization Action Bar Event Handlers for System Items (Plans, Gateways, Seat Map, etc.)
-    container.querySelectorAll('.fb-sys-item-toggle').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const settingKey = btn.dataset.setting;
-        const title = btn.dataset.title || 'Component';
+      if (action === 'fb-sys-item-toggle') {
         if (!this.template) this.template = {};
         if (!this.template.settings) this.template.settings = {};
         const currentVal = this.template.settings[settingKey] !== false;
         this.template.settings[settingKey] = !currentVal;
-        
         try {
-          await api.put('/api/custom-fields/templates/active', {
-            settings: this.template.settings
-          });
+          await api.put('/api/custom-fields/templates/active', { settings: this.template.settings });
           FormBuilder.bustPublicFormCache();
           Toast.success(`${title} is now ${!currentVal ? 'Active' : 'Inactive'}`);
           this.renderSections();
@@ -566,18 +555,12 @@ export class FormBuilder {
         } catch (err) {
           Toast.error(err.message || 'Failed to toggle component status');
         }
-      });
-    });
+        return;
+      }
 
-    container.querySelectorAll('.fb-sys-item-copy').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const settingKey = btn.dataset.setting;
-        const compKey = btn.dataset.component;
-        const title = btn.dataset.title || 'Component';
+      if (action === 'fb-sys-item-copy') {
         const val = this.template?.settings?.[settingKey] !== false;
         const copyPayload = JSON.stringify({ component: compKey, setting: settingKey, label: title, active: val }, null, 2);
-        
         try {
           if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(copyPayload);
@@ -586,15 +569,10 @@ export class FormBuilder {
         } catch (err) {
           Toast.success(`Copied "${title}" configuration!`);
         }
-      });
-    });
+        return;
+      }
 
-    container.querySelectorAll('.fb-sys-item-duplicate').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const compKey = btn.dataset.component;
-        const title = btn.dataset.title || 'Component';
-        
+      if (action === 'fb-sys-item-duplicate') {
         const sectionName = (compKey.includes('seat') || compKey.includes('signature') || compKey.includes('photo') || compKey.includes('quiet') || compKey.includes('kiosk'))
           ? (this.sections.find(s => s.name === 'seat' || s.name === 'branch')?.name || 'seat')
           : (compKey.includes('upi') || compKey.includes('desk') || compKey.includes('netbanking') || compKey.includes('receipt'))
@@ -624,30 +602,21 @@ export class FormBuilder {
         } catch (err) {
           Toast.error(err.message || 'Failed to duplicate component');
         }
-      });
-    });
+        return;
+      }
 
-    container.querySelectorAll('.fb-sys-item-delete').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const settingKey = btn.dataset.setting;
-        const title = btn.dataset.title || 'Component';
-
+      if (action === 'fb-sys-item-delete') {
         const ok = await Confirm.show({
           title: `Disable / Remove ${title}`,
           message: `Do you want to disable "${title}" on the student registration form? You can reactivate it anytime.`,
           danger: true
         });
-
         if (ok) {
           if (!this.template) this.template = {};
           if (!this.template.settings) this.template.settings = {};
           this.template.settings[settingKey] = false;
-
           try {
-            await api.put('/api/custom-fields/templates/active', {
-              settings: this.template.settings
-            });
+            await api.put('/api/custom-fields/templates/active', { settings: this.template.settings });
             FormBuilder.bustPublicFormCache();
             Toast.info(`"${title}" disabled and hidden from registration portal`);
             this.renderSections();
@@ -656,30 +625,38 @@ export class FormBuilder {
             Toast.error(err.message || 'Failed to update component setting');
           }
         }
-      });
-    });
+        return;
+      }
 
-    container.querySelectorAll('.fb-sys-item-up, .fb-sys-item-down').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const title = btn.dataset.title || 'Component';
+      if (action === 'fb-sys-item-up' || action === 'fb-sys-item-down') {
         Toast.info(`Priority order updated for "${title}"`);
-      });
-    });
+        return;
+      }
+    }
   }
 
   static renderSysToolbar(settingKey, compKey, isActive, label, index = 0, total = 5) {
+    const sysActions = [
+      { header: 'Configure Component' },
+      { icon: '✏️', label: 'Edit Component Settings', action: 'fb-edit-component', bold: true },
+      { icon: isActive ? '🟢' : '🔴', label: isActive ? 'Disable Component' : 'Enable Component', action: 'fb-sys-item-toggle' },
+      { divider: true },
+      { header: 'Reorder' },
+      { icon: '⬆️', label: 'Move Up', action: 'fb-sys-item-up' },
+      { icon: '⬇️', label: 'Move Down', action: 'fb-sys-item-down' },
+      { divider: true },
+      { header: 'Clone & Export' },
+      { icon: '📄', label: 'Duplicate as Custom Field', action: 'fb-sys-item-duplicate' },
+      { icon: '📋', label: 'Copy Configuration JSON', action: 'fb-sys-item-copy' },
+      { divider: true },
+      { header: 'Danger Zone' },
+      { icon: '🗑️', label: 'Disable & Hide from Form', action: 'fb-sys-item-delete', danger: true }
+    ];
+
+    const entityId = `${settingKey}:::${compKey}:::${encodeURIComponent(label)}`;
     return `
-      <div class="btn-icon-group flex-shrink-0">
-        <button type="button" class="btn-icon-action fb-sys-item-up" data-setting="${settingKey}" data-title="${escapeHTML(label)}" data-tooltip="Move Up" aria-label="Move Up">⬆️</button>
-        <button type="button" class="btn-icon-action fb-sys-item-down" data-setting="${settingKey}" data-title="${escapeHTML(label)}" data-tooltip="Move Down" aria-label="Move Down">⬇️</button>
-        <button type="button" class="btn-icon-action fb-sys-item-copy" data-setting="${settingKey}" data-component="${compKey}" data-title="${escapeHTML(label)}" data-tooltip="Copy Settings JSON" aria-label="Copy Settings">📋</button>
-        <button type="button" class="btn-icon-action fb-sys-item-duplicate" data-setting="${settingKey}" data-component="${compKey}" data-title="${escapeHTML(label)}" data-tooltip="Duplicate as Custom Question" aria-label="Duplicate">📄</button>
-        <button type="button" class="btn-icon-action fb-sys-item-toggle" data-setting="${settingKey}" data-title="${escapeHTML(label)}" data-tooltip="${isActive ? 'Click to Disable Component' : 'Click to Enable Component'}" aria-label="Toggle Active">
-          ${isActive ? '🟢' : '🔴'}
-        </button>
-        <button type="button" class="btn-icon-action fb-edit-component" data-component="${compKey}" data-setting="${settingKey}" data-tooltip="Edit Component Settings" aria-label="Edit Component">✏️</button>
-        <button type="button" class="btn-icon-action action-delete fb-sys-item-delete" data-setting="${settingKey}" data-title="${escapeHTML(label)}" data-tooltip="Disable Component" aria-label="Disable Component">🗑️</button>
+      <div class="d-flex align-items-center gap-2 flex-shrink-0">
+        ${ActionMenu.renderHtml(sysActions, entityId)}
       </div>
     `;
   }
@@ -1121,6 +1098,25 @@ export class FormBuilder {
     const isRequired = !!field.required;
     const isActive = field.isActive !== false;
 
+    const fieldActions = [
+      { header: 'Edit & Configure' },
+      { icon: '✏️', label: 'Edit Question Settings', action: 'fb-field-edit', bold: true },
+      { icon: isActive ? '🟢' : '⚪', label: isActive ? 'Set as Inactive (Hide)' : 'Set as Active (Show)', action: 'fb-field-toggle' },
+      { divider: true },
+      { header: 'Reorder Position' },
+      ...(index > 0 ? [{ icon: '⬆️', label: 'Move Question Up', action: 'fb-field-up' }] : []),
+      ...(index < total - 1 ? [{ icon: '⬇️', label: 'Move Question Down', action: 'fb-field-down' }] : []),
+      { divider: true },
+      { header: 'Clone & Copy' },
+      { icon: '📄', label: 'Duplicate Question', action: 'fb-field-duplicate' },
+      { icon: '📋', label: 'Copy Question Config', action: 'fb-field-copy' },
+      ...(!field.isSystemField ? [
+        { divider: true },
+        { header: 'Danger Zone' },
+        { icon: '🗑️', label: 'Delete Question', action: 'fb-field-delete', danger: true }
+      ] : [])
+    ];
+
     return `
       <div class="fb-field-row" data-id="${field._id}" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; opacity: ${isActive ? '1' : '0.55'};">
         <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
@@ -1139,16 +1135,8 @@ export class FormBuilder {
           </div>
         </div>
 
-        <div class="btn-icon-group flex-shrink-0">
-          ${index > 0 ? `<button type="button" class="btn-icon-action fb-field-up" data-id="${field._id}" data-tooltip="Move Question Up" aria-label="Move Up">⬆️</button>` : ''}
-          ${index < total - 1 ? `<button type="button" class="btn-icon-action fb-field-down" data-id="${field._id}" data-tooltip="Move Question Down" aria-label="Move Down">⬇️</button>` : ''}
-          <button type="button" class="btn-icon-action fb-field-copy" data-id="${field._id}" data-tooltip="Copy Question to Clipboard" aria-label="Copy">📋</button>
-          <button type="button" class="btn-icon-action fb-field-duplicate" data-id="${field._id}" data-tooltip="Instant Duplicate Question" aria-label="Duplicate">📄</button>
-          <button type="button" class="btn-icon-action fb-field-toggle" data-id="${field._id}" data-tooltip="${isActive ? 'Click to Hide Question' : 'Click to Show Question'}" aria-label="Toggle Active">
-            ${isActive ? '🟢' : '⚪'}
-          </button>
-          <button type="button" class="btn-icon-action fb-field-edit" data-id="${field._id}" data-tooltip="Edit Question Settings" aria-label="Edit">✏️</button>
-          <button type="button" class="btn-icon-action action-delete fb-field-delete" data-id="${field._id}" data-tooltip="Delete Question" aria-label="Delete">🗑️</button>
+        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+          ${ActionMenu.renderHtml(fieldActions, field._id)}
         </div>
       </div>
     `;

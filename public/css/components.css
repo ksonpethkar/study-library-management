@@ -4185,6 +4185,8 @@ div.btn-icon-group {
 .btn-icon-action,
 .btn-icon-group .btn-icon-action,
 .btn-icon-group .btn-action-menu-trigger,
+.action-menu-wrapper .btn-action-menu-trigger,
+button.btn-action-menu-trigger,
 button.btn-icon-action,
 a.btn-icon-action {
   display: inline-flex !important;
@@ -4221,11 +4223,13 @@ a.btn-icon-action {
 [data-theme="dark"] .btn-icon-action,
 [data-theme="dark"] .btn-icon-group .btn-icon-action,
 [data-theme="dark"] .btn-icon-group .btn-action-menu-trigger,
+[data-theme="dark"] button.btn-action-menu-trigger,
 [data-theme="dark"] button.btn-icon-action,
 [data-theme="dark"] a.btn-icon-action,
 body.dark-theme .btn-icon-action,
 body.dark-theme .btn-icon-group .btn-icon-action,
 body.dark-theme .btn-icon-group .btn-action-menu-trigger,
+body.dark-theme button.btn-action-menu-trigger,
 body.dark-theme button.btn-icon-action,
 body.dark-theme a.btn-icon-action {
   border-color: rgba(255, 255, 255, 0.25) !important;
