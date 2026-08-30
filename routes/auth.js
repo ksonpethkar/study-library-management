@@ -1231,7 +1231,7 @@ router.post('/biometric/login', authLimiter, async (req, res) => {
 
 // @route   POST /api/auth/forgot-password
 // @desc    Smart Forgot Password Recovery for Students & Admin/Staff
-router.post('/forgot-password', authLimiter, async (req, res) => {
+router.post('/forgot-password', async (req, res) => {
   try {
     const { identifier, portalType } = req.body;
     if (!identifier || !identifier.trim()) {
@@ -1321,10 +1321,12 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
 
     } else {
       // Staff / Admin Password Recovery
-      const staffUser = await User.findOne({
+      const fetchStaff = User.findOne({
         $or: [{ email: cleanInput }, { phone: cleanInput }],
         role: { $in: ['owner', 'branch_manager', 'staff'] }
       }).lean();
+      const timeoutStaff = new Promise(resolve => setTimeout(() => resolve(null), 3000));
+      const staffUser = await Promise.race([fetchStaff, timeoutStaff]);
 
       if (!staffUser) {
         return res.status(404).json({ success: false, message: `No staff account found for "${identifier}".` });
