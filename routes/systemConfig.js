@@ -54,26 +54,12 @@ router.get('/public-config', async (req, res) => {
   }
 
   try {
-    // Seed default custom fields if none exist
-    try {
-      await CustomField.seedDefaultFields();
-    } catch (seedErr) {
-      console.warn('CustomField seed check note:', seedErr.message);
-    }
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
 
-    const [
-      businessProfileRes,
-      plansRes,
-      shiftsRes,
-      branchesRes,
-      customFieldsRes,
-      receiptConfigRes,
-      landingConfigRes,
-      activeStudentsRes,
-      settingsRes,
-      attendanceStatsRes,
-      occupiedCountsRes
-    ] = await Promise.allSettled([
+    const fetchPromise = Promise.allSettled([
       BusinessProfile.getProfile(),
       Plan.find({ isActive: true, isDeleted: { $ne: true } }).sort({ displayOrder: 1, price: 1 }).lean(),
       Shift.find({ isActive: true }).sort({ startTime: 1, name: 1 }).lean(),
@@ -81,14 +67,35 @@ router.get('/public-config', async (req, res) => {
       CustomField.getActiveFields(),
       ReceiptConfig.getConfig(),
       LandingPage.getPageConfig(),
-      Student.find({ status: 'active' }).populate('plan', 'shift name').lean(),
+      Student.find({ status: 'active' }).select('shift plan').populate('plan', 'shift').lean(),
       SystemSetting.find().lean(),
       Attendance.getTodayStats(),
       Seat.aggregate([
         { $match: { status: 'occupied', isActive: true, branch: { $ne: null } } },
         { $group: { _id: '$branch', count: { $sum: 1 } } }
-      ])
+      ]),
+      Attendance.countDocuments({
+        date: { $gte: startOfDay, $lte: endOfDay },
+        checkIn: { $ne: null },
+        checkOut: { $ne: null }
+      })
     ]);
+
+    const timeoutPromise = new Promise(resolve => setTimeout(() => resolve([]), 3500));
+    const [
+      businessProfileRes = {},
+      plansRes = {},
+      shiftsRes = {},
+      branchesRes = {},
+      customFieldsRes = {},
+      receiptConfigRes = {},
+      landingConfigRes = {},
+      activeStudentsRes = {},
+      settingsRes = {},
+      attendanceStatsRes = {},
+      occupiedCountsRes = {},
+      checkoutsRes = {}
+    ] = await Promise.race([fetchPromise, timeoutPromise]);
 
     const businessProfile = businessProfileRes.status === 'fulfilled' && businessProfileRes.value ? businessProfileRes.value : {};
     const rawPlans = plansRes.status === 'fulfilled' && Array.isArray(plansRes.value) ? plansRes.value : [];
@@ -399,16 +406,7 @@ router.get('/public-config', async (req, res) => {
       checkOutVoiceTemplate: settingsMap['kiosk.farewellMessage'] || 'Goodbye {studentName}! Total study duration {duration}.'
     };
 
-    // 8. Live Punch Stats
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-    const totalCheckouts = await Attendance.countDocuments({
-      date: { $gte: startOfDay, $lte: endOfDay },
-      checkIn: { $ne: null },
-      checkOut: { $ne: null }
-    }).catch(() => 0);
+    const totalCheckouts = checkoutsRes.status === 'fulfilled' && typeof checkoutsRes.value === 'number' ? checkoutsRes.value : 0;
 
     const livePunchStats = {
       currentlyCheckedIn: todayStats.currentlyCheckedIn || 0,
