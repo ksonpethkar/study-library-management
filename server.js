@@ -177,12 +177,14 @@ app.use('/uploads', async (req, res, next) => {
 
 // Ensure MongoDB connection is active for serverless invocations (e.g. Vercel)
 app.use(async (req, res, next) => {
-  if (req.path.startsWith('/api')) {
-    try {
-      await connectDB();
-    } catch (dbErr) {
-      console.error('Serverless DB connect error:', dbErr.message);
-    }
+  // Skip static asset files (.js, .css, .png, etc.)
+  if (req.method === 'GET' && /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|json)$/i.test(req.path)) {
+    return next();
+  }
+  try {
+    await connectDB();
+  } catch (dbErr) {
+    console.error('Serverless DB connect error:', dbErr.message);
   }
   next();
 });
@@ -804,8 +806,9 @@ async function sendHydratedHTML(res, htmlPath) {
       return;
     }
 
-    // 3. First-run generation
-    const html = await generateHydratedHTML(htmlPath);
+    // 3. First-run generation with 2.5s timeout protection (prevents Vercel 504)
+    const timeoutFallback = new Promise((_, reject) => setTimeout(() => reject(new Error('Hydration Timeout')), 2500));
+    const html = await Promise.race([generateHydratedHTML(htmlPath), timeoutFallback]);
     _hydratedHtmlCache.set(htmlPath, { html, timestamp: Date.now() });
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
