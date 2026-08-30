@@ -89,9 +89,21 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-webhook-secret']
 }));
 
-// Body parser (protected 10MB limit for high-res photo/signature uploads)
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body parser (safely handles pre-parsed Vercel serverless bodies and standard streams)
+app.use((req, res, next) => {
+  if (req._body || (req.body !== undefined && req.body !== null && typeof req.body === 'object')) {
+    req._body = true;
+    return next();
+  }
+  express.json({ limit: '10mb' })(req, res, (err) => {
+    if (err) return next(err);
+    if (req._body || (req.body !== undefined && req.body !== null && typeof req.body === 'object')) {
+      req._body = true;
+      return next();
+    }
+    express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+  });
+});
 
 // Apply rate limiting
 app.use(generalLimiter);
