@@ -6,8 +6,12 @@ const { protect } = require('../middleware/auth');
 
 // Ensure uploads folder exists
 const uploadsDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (e) {
+  // Read-only filesystem in serverless runtimes (e.g. Vercel)
 }
 
 /**
@@ -46,7 +50,11 @@ router.post('/', async (req, res) => {
       const filename = `doc_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
       const targetPath = path.join(uploadsDir, filename);
 
-      await fs.promises.writeFile(targetPath, buffer);
+      try {
+        await fs.promises.writeFile(targetPath, buffer);
+      } catch (fsWriteErr) {
+        // Disk write can fail in serverless; MongoDB Atlas below is the primary persistent store
+      }
 
       // Persist to MongoDB Atlas so file survives container rebuilds/redeploys
       try {
