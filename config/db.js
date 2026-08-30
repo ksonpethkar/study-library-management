@@ -3,7 +3,9 @@ try {
   if (dns.setDefaultResultOrder) {
     dns.setDefaultResultOrder('ipv4first');
   }
-  dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+  if (!process.env.VERCEL) {
+    dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+  }
 } catch (e) {}
 
 const mongoose = require('mongoose');
@@ -30,8 +32,8 @@ const connectDB = async () => {
 
   try {
     cachedPromise = mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 20000,
-      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 30000,
     });
 
     const conn = await cachedPromise;

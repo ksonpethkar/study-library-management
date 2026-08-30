@@ -130,7 +130,7 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
     await user.save({ validateBeforeSave: false }).catch(() => {});
 
     const token = user.generateAuthToken();
-    const businessProfile = await BusinessProfile.getProfile().catch(() => ({}));
+    const businessProfile = { businessName: 'The Cozy Corner Centre' };
 
     res.json({
       success: true,
