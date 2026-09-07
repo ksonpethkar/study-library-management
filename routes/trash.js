@@ -218,27 +218,51 @@ router.post('/restore-bulk', async (req, res) => {
     }
 
     const trashDocs = await Trash.find({ _id: { $in: ids } });
-    let restoredCount = 0;
-
-    for (const doc of trashDocs) {
-      const Model = MODEL_MAP[doc.itemType];
-      if (Model) {
-        const existing = await Model.findById(doc.itemId);
-        if (existing) {
-          existing.isDeleted = false;
-          existing.deletedAt = undefined;
-          existing.deletedBy = undefined;
-          await existing.save();
-        } else if (doc.itemData) {
-          const cleanData = { ...doc.itemData };
-          delete cleanData.isDeleted;
-          delete cleanData.deletedAt;
-          await Model.create(cleanData);
-        }
-      }
-      await Trash.findByIdAndDelete(doc._id);
-      restoredCount++;
+    if (!trashDocs || trashDocs.length === 0) {
+      return res.status(404).json({ success: false, message: 'No matching recycle bin records found' });
     }
+
+    // Group items by model type for batch database execution
+    const itemsByType = new Map();
+    for (const doc of trashDocs) {
+      if (!itemsByType.has(doc.itemType)) {
+        itemsByType.set(doc.itemType, []);
+      }
+      itemsByType.get(doc.itemType).push(doc);
+    }
+
+    let restoredCount = 0;
+    for (const [itemType, docs] of itemsByType.entries()) {
+      const Model = MODEL_MAP[itemType];
+      if (!Model) continue;
+
+      const itemIds = docs.map(d => d.itemId).filter(Boolean);
+      // Batch update existing records that were soft-deleted
+      const updateResult = await Model.updateMany(
+        { _id: { $in: itemIds } },
+        { $set: { isDeleted: false }, $unset: { deletedAt: '', deletedBy: '' } }
+      ).catch(() => ({ modifiedCount: 0 }));
+
+      // Check if any missing records need re-creation from snapshot
+      const existingIds = new Set((await Model.find({ _id: { $in: itemIds } }).select('_id').lean()).map(m => String(m._id)));
+      const docsToRecreate = docs.filter(d => !existingIds.has(String(d.itemId)) && d.itemData);
+
+      if (docsToRecreate.length > 0) {
+        const cleanDocs = docsToRecreate.map(d => {
+          const c = { ...d.itemData };
+          delete c.isDeleted;
+          delete c.deletedAt;
+          delete c.deletedBy;
+          return c;
+        });
+        await Model.insertMany(cleanDocs, { ordered: false }).catch(() => {});
+      }
+
+      restoredCount += docs.length;
+    }
+
+    // Batch delete processed trash docs in a single atomic query
+    await Trash.deleteMany({ _id: { $in: trashDocs.map(d => d._id) } });
 
     res.json({
       success: true,

@@ -604,21 +604,33 @@ router.post('/bulk-renew', roleCheck('owner', 'branch_manager'), async (req, res
       return res.status(400).json({ success: false, message: 'No students selected' });
     }
 
-    const students = await Student.find({ _id: { $in: studentIds } });
-    let updatedCount = 0;
-
-    for (const s of students) {
-      const currentExpiry = s.expiryDate && new Date(s.expiryDate) > new Date() ? new Date(s.expiryDate) : new Date();
-      const newExpiry = new Date(currentExpiry.getTime() + days * 24 * 60 * 60 * 1000);
-      s.expiryDate = newExpiry;
-      s.status = 'active';
-      await s.save();
-      updatedCount++;
+    const students = await Student.find({ _id: { $in: studentIds } }).select('_id expiryDate').lean();
+    if (!students || students.length === 0) {
+      return res.status(404).json({ success: false, message: 'No matching students found' });
     }
+
+    const now = new Date();
+    const bulkOps = students.map(s => {
+      const currentExpiry = s.expiryDate && new Date(s.expiryDate) > now ? new Date(s.expiryDate) : now;
+      const newExpiry = new Date(currentExpiry.getTime() + days * 24 * 60 * 60 * 1000);
+      return {
+        updateOne: {
+          filter: { _id: s._id },
+          update: {
+            $set: {
+              expiryDate: newExpiry,
+              status: 'active'
+            }
+          }
+        }
+      };
+    });
+
+    const result = await Student.bulkWrite(bulkOps, { ordered: false });
 
     res.json({
       success: true,
-      message: `Successfully renewed memberships for ${updatedCount} student(s) by ${days} days.`
+      message: `Successfully renewed memberships for ${result.modifiedCount || students.length} student(s) by ${days} days.`
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

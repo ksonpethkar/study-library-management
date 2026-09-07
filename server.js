@@ -475,7 +475,8 @@ app.get('/api/system/public-config', async (req, res) => {
       paymentMethods: mergedPaymentMethods
     };
 
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    // Edge SWR cache: 60s fresh, 300s stale-while-revalidate (eliminates 6 DB queries per request)
+    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
     res.json({
       success: true,
       data: {
