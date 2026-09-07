@@ -187,36 +187,49 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// API Routes
-app.use('/api/cron', require('./routes/cron'));
-app.use('/api/upload', require('./routes/upload'));
+// Helper for lazy loading route modules on first request (drastically reduces serverless cold start times)
+const lazyRoute = (modulePath) => {
+  let router = null;
+  return (req, res, next) => {
+    if (!router) {
+      router = require(modulePath);
+    }
+    return router(req, res, next);
+  };
+};
+
+// API Routes — Core Critical (Eagerly Loaded)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/students', require('./routes/students'));
 app.use('/api/seats', require('./routes/seats'));
 app.use('/api/plans', require('./routes/plans'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/attendance', require('./routes/attendance'));
-app.use('/api/branches', require('./routes/branches'));
-app.use('/api/shifts', require('./routes/shifts'));
-app.use('/api/reports', require('./routes/reports'));
 app.use('/api/settings', require('./routes/settings'));
-app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/search', require('./routes/search'));
-app.use('/api/student-portal', require('./routes/studentPortal'));
-app.use('/api/operations', require('./routes/operations'));
-app.use('/api/expenses', require('./routes/expenses'));
-app.use('/api/custom-fields', require('./routes/customFields'));
-app.use('/api/waiting-list', require('./routes/waitingList'));
-app.use('/api/lockers', require('./routes/lockers'));
-app.use('/api/messages', require('./routes/messages'));
-app.use('/api/backup', require('./routes/backup'));
-app.use('/api/landing', require('./routes/landingPage'));
-app.use('/api/audit-logs', require('./routes/auditLogs'));
-app.use('/api/coupons', require('./routes/coupons'));
-app.use('/api/trash', require('./routes/trash'));
 app.use('/api/system', require('./routes/systemConfig'));
 app.use('/api/system', require('./routes/systemHealth'));
-app.use('/api/ai', require('./routes/aiInsights'));
+
+// API Routes — Auxiliary & Heavy (Lazy Loaded on Demand)
+app.use('/api/cron', lazyRoute('./routes/cron'));
+app.use('/api/upload', lazyRoute('./routes/upload'));
+app.use('/api/branches', lazyRoute('./routes/branches'));
+app.use('/api/shifts', lazyRoute('./routes/shifts'));
+app.use('/api/reports', lazyRoute('./routes/reports'));
+app.use('/api/notifications', lazyRoute('./routes/notifications'));
+app.use('/api/search', lazyRoute('./routes/search'));
+app.use('/api/student-portal', lazyRoute('./routes/studentPortal'));
+app.use('/api/operations', lazyRoute('./routes/operations'));
+app.use('/api/expenses', lazyRoute('./routes/expenses'));
+app.use('/api/custom-fields', lazyRoute('./routes/customFields'));
+app.use('/api/waiting-list', lazyRoute('./routes/waitingList'));
+app.use('/api/lockers', lazyRoute('./routes/lockers'));
+app.use('/api/messages', lazyRoute('./routes/messages'));
+app.use('/api/backup', lazyRoute('./routes/backup'));
+app.use('/api/landing', lazyRoute('./routes/landingPage'));
+app.use('/api/audit-logs', lazyRoute('./routes/auditLogs'));
+app.use('/api/coupons', lazyRoute('./routes/coupons'));
+app.use('/api/trash', lazyRoute('./routes/trash'));
+app.use('/api/ai', lazyRoute('./routes/aiInsights'));
 
 // Health check endpoint for uptime monitoring, diagnostics & Render.com
 app.get('/api/health', async (req, res) => {
