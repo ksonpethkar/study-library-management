@@ -1,6 +1,32 @@
 {
   "version": 2,
   "regions": ["bom1"],
+  "headers": [
+    {
+      "source": "/js/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
+      ]
+    },
+    {
+      "source": "/css/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
+      ]
+    },
+    {
+      "source": "/icons/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=604800, immutable" }
+      ]
+    },
+    {
+      "source": "/(sw.js|manifest.json)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    }
+  ],
   "functions": {
     "api/index.js": {
       "includeFiles": "public/**",
@@ -9,7 +35,19 @@
   },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/uploads/(.*)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/(landing|register|student-login|portal-login|kiosk)",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/((?!js|css|icons|sounds|img|uploads|sw.js|manifest.json|favicon.ico|robots.txt).*)",
       "destination": "/api/index.js"
     }
   ],
@@ -20,3 +58,4 @@
     }
   ]
 }
+

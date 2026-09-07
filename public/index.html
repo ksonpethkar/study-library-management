@@ -12,7 +12,7 @@
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Dancing+Script:wght@600&family=Great+Vibes&family=Pacifico&family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   
   <link rel="manifest" href="/manifest-admin.json">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
@@ -23,10 +23,11 @@
   <link rel="stylesheet" href="css/responsive.css?v=3.0.0">
   <link rel="stylesheet" href="css/mobile-nav.css?v=3.0.0">
   <link rel="stylesheet" href="css/mobile-cards.css?v=3.0.0">
-  <link rel="stylesheet" href="css/mobile-settings.css?v=3.0.0">
-  <link rel="stylesheet" href="css/mobile-overrides.css?v=3.0.0">
-  <link rel="stylesheet" href="css/mobile-portal.css?v=3.0.0">
-  <link rel="stylesheet" href="css/mobile-delight.css?v=3.0.0">
+  <!-- Defer auxiliary screen & animation stylesheets -->
+  <link rel="stylesheet" href="css/mobile-settings.css?v=3.0.0" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/mobile-overrides.css?v=3.0.0" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/mobile-portal.css?v=3.0.0" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/mobile-delight.css?v=3.0.0" media="print" onload="this.media='all'">
   <link rel="stylesheet" media="print" href="css/print.css?v=2.9.5">
   <style>
     #sidebar-logo, #sys-preloader-icon, .app-brand-logo, .dynamic-brand-logo {
@@ -472,10 +473,7 @@
     </div>
   </div>
 
-  <!-- Chart.js v4 — used by ChartEngine in charts.js for reports/dashboard -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- Dynamic on-demand libraries: Chart.js, Sortable, and Tesseract are lazy-loaded when modules open -->
   <script src="js/utils/imageCompressor.js"></script>
   <script src="js/nativeBridge.js"></script>
   <script type="module" src="js/app.js"></script>

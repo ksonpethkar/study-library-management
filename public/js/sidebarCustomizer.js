@@ -53,6 +53,14 @@ class SidebarCustomizer {
       }
     } catch (e) {}
 
+    // Dynamic lazy-load Sortable if not already present
+    if (typeof window !== 'undefined' && !window.Sortable) {
+      try {
+        const { loadSortable } = await import('./dragDrop.js');
+        if (typeof loadSortable === 'function') await loadSortable();
+      } catch (e) {}
+    }
+
     await this.loadConfig();
     this.render();
   }
