@@ -20,7 +20,7 @@ const APPS = {
     appId: 'com.cozycorner.studentapp',
     appName: 'Cozy Corner Student Portal',
     androidDir: path.join(ROOT_DIR, 'android-student'),
-    serverUrl: 'https://study-library-management.onrender.com/student-login'
+    serverUrl: 'https://study-library-management.vercel.app/student-login'
   },
   admin: {
     name: 'Admin & Staff Portal App',
@@ -28,7 +28,7 @@ const APPS = {
     appId: 'com.cozycorner.adminapp',
     appName: 'Cozy Corner Admin Hub',
     androidDir: path.join(ROOT_DIR, 'android-admin'),
-    serverUrl: 'https://study-library-management.onrender.com'
+    serverUrl: 'https://study-library-management.vercel.app'
   }
 };
 

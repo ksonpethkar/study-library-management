@@ -4,7 +4,7 @@
   "webDir": "public",
   "bundledWebRuntime": false,
   "server": {
-    "url": "https://study-library-management.onrender.com",
+    "url": "https://study-library-management.vercel.app",
     "cleartext": true,
     "androidScheme": "https"
   },
