@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Online Admission Portal — Study Library</title>
   <meta name="description" content="Online Student Registration & Desk Allotment for Study Library and Reading Hall.">
   <meta name="theme-color" content="#6c5ce7">
@@ -25,7 +25,8 @@
   <link rel="stylesheet" href="css/base.css?v=2.9.0">
   <link rel="stylesheet" href="css/components.css?v=2.9.0">
   <link rel="stylesheet" href="css/layout.css?v=2.9.0">
-  <link rel="stylesheet" href="css/responsive.css?v=2.9.0">
+  <link rel="stylesheet" href="css/responsive.css?v=3.0.0">
+  <link rel="stylesheet" href="css/mobile-overrides.css?v=3.0.0">
   <script src="js/themeManager.js?v=2.9.0"></script>
   <script>
     (function() {
@@ -436,7 +437,7 @@
       </div>
 
       <!-- Dynamic Wizard Form -->
-      <form id="public-reg-form">
+      <form id="public-reg-form" novalidate>
         <div class="text-center p-4">
           <div class="spinner-border text-primary" role="status"></div>
           <p class="text-muted mt-2">Loading admission form...</p>
@@ -1942,6 +1943,7 @@
           if (valid && step < totalSteps) {
             currentStep++;
             updateStepper();
+            saveRegistrationDraft(true);
           }
         });
       });
@@ -1951,6 +1953,7 @@
           if (currentStep > 1) {
             currentStep--;
             updateStepper();
+            saveRegistrationDraft(true);
           }
         });
       });
@@ -2406,17 +2409,19 @@
       });
     }
 
-    const DRAFT_STORAGE_KEY = 'sl_student_reg_draft_v2';
+    const DRAFT_STORAGE_KEY = 'sl_student_reg_draft_v3';
     let draftSaveTimeout = null;
+    let isRegistrationSubmitted = false;
 
-    function saveRegistrationDraft() {
+    function saveRegistrationDraft(immediate) {
       if (draftSaveTimeout) clearTimeout(draftSaveTimeout);
-      draftSaveTimeout = setTimeout(() => {
+      const doSave = () => {
         try {
           const formEl = document.getElementById('public-reg-form');
           if (!formEl) return;
 
           const draft = {
+            timestamp: Date.now(),
             currentStep,
             selectedBranchId,
             selectedPlanId: selectedPlanData?._id || document.getElementById('reg-plan')?.value,
@@ -2425,7 +2430,7 @@
             selectedExams: Array.from(selectedExams || []),
             paymentMode: document.querySelector('input[name="reg-payment-mode"]:checked')?.value,
             upiRef: document.getElementById('reg-upi-ref')?.value,
-            nbRef: document.getElementById('reg-nb-ref')?.value,
+            nbRef: document.getElementById('reg-netbanking-ref')?.value,
             fields: {}
           };
 
@@ -2441,17 +2446,32 @@
             }
           });
 
-          sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+          localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
         } catch (e) {}
-      }, 250);
+      };
+      if (immediate) { doSave(); } else { draftSaveTimeout = setTimeout(doSave, 250); }
     }
+
+    // Warn before accidental refresh/close
+    window.addEventListener('beforeunload', (e) => {
+      if (!isRegistrationSubmitted && currentStep > 1) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
 
     function restoreRegistrationDraft() {
       try {
-        const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+        const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
         if (!raw) return;
         const draft = JSON.parse(raw);
         if (!draft || !draft.fields) return;
+
+        // Check 24hr TTL
+        if (draft.timestamp && (Date.now() - draft.timestamp) > 24 * 60 * 60 * 1000) {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+          return;
+        }
 
         const formEl = document.getElementById('public-reg-form');
         if (!formEl) return;
@@ -2471,13 +2491,21 @@
           }
         });
 
+        // Restore branch selection
+        if (draft.selectedBranchId) {
+          selectedBranchId = draft.selectedBranchId;
+          const branchSelect = document.getElementById('reg-branch');
+          if (branchSelect) branchSelect.value = draft.selectedBranchId;
+        }
+
         if (draft.selectedPlanId) {
           const planInput = document.getElementById('reg-plan');
           if (planInput) {
             planInput.value = draft.selectedPlanId;
             selectedPlanData = plansMap[draft.selectedPlanId] || null;
-            document.querySelectorAll('.plan-pick-card').forEach(c => {
-              if (c.dataset.id === draft.selectedPlanId) {
+            document.querySelectorAll('.plan-card-item, .plan-pick-card').forEach(c => {
+              const cardId = c.dataset.planId || c.dataset.id;
+              if (cardId === draft.selectedPlanId) {
                 c.classList.add('selected');
                 c.style.borderColor = 'var(--color-primary)';
               } else {
@@ -2512,8 +2540,15 @@
           if (upiInput) upiInput.value = draft.upiRef;
         }
         if (draft.nbRef) {
-          const nbInput = document.getElementById('reg-nb-ref');
+          const nbInput = document.getElementById('reg-netbanking-ref');
           if (nbInput) nbInput.value = draft.nbRef;
+        }
+
+        // Restore selected exams
+        if (draft.selectedExams && Array.isArray(draft.selectedExams) && draft.selectedExams.length > 0) {
+          if (typeof selectedExams !== 'undefined') {
+            draft.selectedExams.forEach(ex => selectedExams.add(ex));
+          }
         }
 
         if (typeof updateCalculator === 'function') {
@@ -2529,7 +2564,7 @@
 
     function clearRegistrationDraft() {
       try {
-        sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
       } catch (e) {}
     }
 
@@ -2795,6 +2830,7 @@
             return;
           }
 
+          isRegistrationSubmitted = true;
           clearRegistrationDraft();
 
           // Show Rich Celebration Slip or Waiting List Ticket

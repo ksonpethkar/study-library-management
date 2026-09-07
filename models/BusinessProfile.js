@@ -121,13 +121,44 @@ const businessProfileSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Static method to get the singleton profile
-businessProfileSchema.statics.getProfile = async function() {
-  let profile = await this.findOne();
-  if (!profile) {
-    profile = await this.create({});
+let _cachedProfile = null;
+let _cachedProfileTime = 0;
+
+// Static method to get the singleton profile with caching and fallback
+businessProfileSchema.statics.getProfile = async function(forceRefresh = false) {
+  if (!forceRefresh && _cachedProfile && (Date.now() - _cachedProfileTime < 60000)) {
+    return _cachedProfile;
   }
-  return profile;
+  try {
+    const fetchPromise = this.findOne().lean();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('BusinessProfile query timed out')), 2500)
+    );
+    let profile = await Promise.race([fetchPromise, timeoutPromise]);
+    if (!profile) {
+      const doc = await this.create({});
+      profile = doc.toObject ? doc.toObject() : doc;
+    }
+    _cachedProfile = profile;
+    _cachedProfileTime = Date.now();
+    return profile;
+  } catch (err) {
+    if (_cachedProfile) return _cachedProfile;
+    return {
+      businessName: 'The Cozy Corner Centre Study Library & Reading Hall',
+      rules: [
+        'Maintain absolute silence in reading zones at all times.',
+        'Mobile phones must remain on silent mode. Calls must be attended outside.',
+        'Do not reserve empty desks with personal belongings when away.'
+      ],
+      targetExams: ['UPSC Civil Services', 'State PSC / MPSC', 'SSC / CGL', 'Banking & RBI', 'IIT-JEE', 'NEET Medical']
+    };
+  }
+};
+
+businessProfileSchema.statics.invalidateCache = function() {
+  _cachedProfile = null;
+  _cachedProfileTime = 0;
 };
 
 module.exports = mongoose.model('BusinessProfile', businessProfileSchema);

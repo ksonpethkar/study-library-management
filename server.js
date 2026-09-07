@@ -355,14 +355,14 @@ app.get('/api/system/public-config', async (req, res) => {
       const statsMap = new Map((seatStats || []).map(c => [String(c._id), c]));
       branches = rawBranches.map(b => {
         const stat = statsMap.get(String(b._id));
-        const totalSeats = stat ? stat.total : (b.totalSeats || totalSystemSeats || 59);
+        const totalSeats = stat ? stat.total : (b.totalSeats || totalSystemSeats || 0);
         const occupiedSeats = stat ? stat.occupied : 0;
         const availableSeats = stat ? stat.available : Math.max(0, totalSeats - occupiedSeats);
         return {
           _id: b._id,
           name: b.name,
           code: b.code || 'MAIN',
-          city: b.city || 'Central City',
+          city: b.city || '',
           address: b.address || '',
           phone: b.phone || '',
           totalSeats,
@@ -371,14 +371,14 @@ app.get('/api/system/public-config', async (req, res) => {
         };
       });
     } else {
-      const liveTotal = totalSystemSeats || 59;
-      const liveAvail = availableSystemSeats || 57;
+      const liveTotal = totalSystemSeats || 0;
+      const liveAvail = availableSystemSeats || 0;
       branches = [{
         _id: 'default_main',
-        name: businessProfile?.businessName || 'Cozy Corner (Main Centre)',
+        name: businessProfile?.businessName || 'Main Study Centre',
         code: 'MAIN',
-        city: businessProfile?.city || 'PARLI',
-        address: businessProfile?.address || 'Main Study Hall',
+        city: businessProfile?.city || '',
+        address: businessProfile?.address || '',
         phone: businessProfile?.phone || '',
         totalSeats: liveTotal,
         occupiedSeats: Math.max(0, liveTotal - liveAvail),

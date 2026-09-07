@@ -694,15 +694,103 @@ router.post('/check-out', protect, validate([
   }
 });
 
+// POST /batch-sync - Ingest offline-queued attendance events with original timestamps
+router.post('/batch-sync', protect, async (req, res) => {
+  try {
+    const { records } = req.body;
+    if (!Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ success: false, message: 'No records array provided' });
+    }
+
+    const Student = require('../models/Student');
+    const Seat = require('../models/Seat');
+    const results = { synced: 0, failed: 0, errors: [] };
+
+    for (const item of records) {
+      try {
+        const { type, payload, queuedAt } = item;
+        const studentId = payload?.studentId || payload?.student;
+        if (!studentId) {
+          results.failed++;
+          continue;
+        }
+
+        const student = await Student.findById(studentId);
+        if (!student) {
+          results.failed++;
+          continue;
+        }
+
+        const eventTime = queuedAt ? new Date(queuedAt) : new Date();
+
+        if (type === 'check-in') {
+          const startOfDay = new Date(eventTime);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(eventTime);
+          endOfDay.setHours(23, 59, 59, 999);
+
+          let existing = await Attendance.findOne({
+            student: student._id,
+            date: { $gte: startOfDay, $lte: endOfDay }
+          });
+
+          if (!existing) {
+            await Attendance.create({
+              student: student._id,
+              seat: payload?.seatId || student.seat || null,
+              date: startOfDay,
+              checkIn: eventTime,
+              status: 'present',
+              source: 'offline_sync',
+              shift: student.shift || 'Full Day'
+            });
+            if (student.seat) {
+              await Seat.findByIdAndUpdate(student.seat, { status: 'occupied' }).catch(() => {});
+            }
+          }
+          results.synced++;
+        } else if (type === 'check-out') {
+          let openRecord = await Attendance.findOne({
+            student: student._id,
+            checkOut: null
+          }).sort({ checkIn: -1 });
+
+          if (openRecord) {
+            openRecord.checkOut = eventTime;
+            const diffMins = Math.max(0, Math.round((eventTime.getTime() - new Date(openRecord.checkIn).getTime()) / 60000));
+            openRecord.duration = diffMins;
+            openRecord.totalStudyMinutes = diffMins;
+            await openRecord.save();
+          }
+          results.synced++;
+        }
+      } catch (recErr) {
+        results.failed++;
+        results.errors.push(recErr.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Batch sync complete: ${results.synced} processed, ${results.failed} failed`,
+      data: results
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /check-out-all - Bulk check-out all active in hall
 router.post('/check-out-all', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
   try {
-    const eighteenHoursAgo = new Date(Date.now() - 18 * 60 * 60 * 1000);
+    const SystemSetting = require('../models/SystemSetting');
+    const autoCheckoutHours = Number(await SystemSetting.getSetting('operations.autoCheckoutHours')) || 16;
+    const cutoffTime = new Date(Date.now() - autoCheckoutHours * 60 * 60 * 1000);
     const now = new Date();
     
-    // Find all un-closed checkins in last 18 hours
+    // Find all un-closed checkins within the configured checkout window
     const activeRecords = await Attendance.find({
-      checkIn: { $gte: eighteenHoursAgo },
+      checkIn: { $gte: cutoffTime },
       checkOut: null
     });
 

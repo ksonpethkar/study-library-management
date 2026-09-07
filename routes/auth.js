@@ -413,7 +413,7 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
     const activeFields = await CustomField.getActiveFields().catch(() => []);
     const missingFields = [];
     for (const field of activeFields) {
-      if (field.required && !field.isSystemField) {
+      if (field.required) {
         const slug = field.fieldName;
         const normSlug = (slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         const normLabel = (field.label || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -462,7 +462,7 @@ router.post('/public-register', authLimiter, validatePublicRegister, async (req,
           else if (normSlug === 'photo') val = req.body.photo;
         }
 
-        if (val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)) {
+        if (val === undefined || val === null || val === '' || val === false || (Array.isArray(val) && val.length === 0)) {
           missingFields.push(field.label || field.fieldName);
         }
       }

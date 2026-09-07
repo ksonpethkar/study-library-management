@@ -42,13 +42,33 @@ systemSettingSchema.statics.getDefaultDashboardWidgets = function() {
   return JSON.parse(JSON.stringify(DEFAULT_DASHBOARD_WIDGETS));
 };
 
+let _settingCache = new Map();
+let _settingCacheTime = 0;
+
 systemSettingSchema.statics.getSetting = async function(key) {
-  const setting = await this.findOne({ key });
-  return setting ? setting.value : null;
+  if (_settingCache.has(key) && (Date.now() - _settingCacheTime < 30000)) {
+    return _settingCache.get(key);
+  }
+  try {
+    const setting = await this.findOne({ key }).lean().maxTimeMS(3000);
+    const val = setting ? setting.value : null;
+    _settingCache.set(key, val);
+    _settingCacheTime = Date.now();
+    return val;
+  } catch (e) {
+    if (_settingCache.has(key)) return _settingCache.get(key);
+    return null;
+  }
 };
 
 systemSettingSchema.statics.setSetting = async function(key, value) {
-  return await this.findOneAndUpdate({ key }, { value }, { new: true });
+  _settingCache.delete(key);
+  return await this.findOneAndUpdate({ key }, { value }, { returnDocument: 'after' });
+};
+
+systemSettingSchema.statics.invalidateCache = function() {
+  _settingCache.clear();
+  _settingCacheTime = 0;
 };
 
 systemSettingSchema.statics.getByCategory = async function(category) {

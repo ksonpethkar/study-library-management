@@ -1,354 +1,9 @@
-/**
- * Study Library Management System
- * Premium PDF Registration & Admission Form Generator & Interactive Modal Preview
- */
-
-function escapeHTML(str) {
-  if (!str) return '';
-  return String(str).replace(/[&<>"']/g, m => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  }[m]));
-}
-
-export function buildAdmissionFormHTML(student, options = {}) {
-  const defaults = {
-    template: 'modern_glass', // 'modern_glass' | 'classic_formal' | 'compact_card'
-    showPhoto: true,
-    showSignature: true,
-    showQrCode: true,
-    showFormBuilderAnswers: true,
-    showUploadedDocuments: true,
-    showPaymentDetails: true,
-    showRules: true,
-    showWatermarkStamp: true
-  };
-
-  const opts = { ...defaults, ...options };
-  const s = student || {};
-
-  // Dynamically resolve organization / business profile with zero hardcoding
-  let cachedProfile = {};
-  if (typeof localStorage !== 'undefined') {
-    try {
-      cachedProfile = JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}');
-    } catch (e) {}
-  }
-
-  const sysBiz = (typeof window !== 'undefined' ? (window.store?.settings?.businessProfile || window.store?.profile) : null) || cachedProfile || {};
-  const passedBiz = (options.business && (options.business.businessName || options.business.name)) ? options.business : null;
-  const activeBiz = passedBiz || sysBiz;
-
-  const b = {
-    businessName: activeBiz.businessName || activeBiz.name || 'The Cozy Corner Centre',
-    tagline: activeBiz.tagline || 'Silence, Focus and Success',
-    address: activeBiz.address || '',
-    phone: activeBiz.phone || '',
-    email: activeBiz.email || '',
-    logo: activeBiz.logo || activeBiz.logoUrl || '',
-    stampImage: activeBiz.stampImage || activeBiz.stamp || ''
-  };
-
-  const rc = opts.receiptConfig || (typeof window !== 'undefined' ? window.store?.settings?.receipt : null) || {};
-  const rcHeader = rc.header || {};
-  const rcFooter = rc.footer || {};
-
-  const studentId = s.studentId || 'STU-2026-0001';
-  const studentName = s.name || 'Student Name';
-  const phone = s.phone || 'N/A';
-  const alternatePhone = s.whatsappPhone || s.alternatePhone || s.customFields?.whatsapp || s.customFields?.alternate_phone || s.customFields?.alt_phone || '';
-  const email = s.email || 'N/A';
-
-  // 1. Date of Birth Resolution (Inspect root, customFields, Map, and aliases)
-  const rawDob = s.dateOfBirth || s.dob || s.birthDate || (s.customFields && (s.customFields.dateOfBirth || s.customFields.dob || s.customFields.dateofbirth || s.customFields.date_of_birth || s.customFields.birthDate || (s.customFields instanceof Map ? (s.customFields.get('dateOfBirth') || s.customFields.get('dob') || s.customFields.get('dateofbirth')) : null)));
-  const parsedDob = rawDob ? new Date(rawDob) : null;
-  const dob = parsedDob && !isNaN(parsedDob.getTime()) ? parsedDob.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A';
-
-  const gender = (s.gender || 'Other').toUpperCase();
-  const bloodGroup = s.bloodGroup || s.customFields?.bloodGroup || s.customFields?.blood_group || s.customFields?.bloodgroup || 'N/A';
-  const pincode = s.pincode || s.customFields?.pincode || 'N/A';
-  const city = s.city || s.customFields?.city || 'N/A';
-  const state = s.state || s.customFields?.state || 'N/A';
-  const fullAddress = s.address || s.customFields?.address || '';
-  const occupation = s.occupation || s.collegeOrCompany || s.customFields?.occupation || s.customFields?.college || s.customFields?.company || 'Student / Aspirant';
-
-  // Branch & Campus Details
-  const branchName = s.branch?.name || s.branchName || 'Main Branch';
-  const branchAddress = s.branch?.address || '';
-
-  // Seating, Shift & Membership Details
-  const planName = s.plan?.name || s.planName || 'Standard Study Membership';
-  const planPrice = s.plan?.price !== undefined ? `₹ ${s.plan.price}` : (s.feeAmount ? `₹ ${s.feeAmount}` : '');
-  const planDuration = s.plan?.duration ? `${s.plan.duration} ${s.plan.durationType || 'month(s)'}` : '';
-  
-  let shiftTimingStr = '';
-  if (s.shift && (s.shift.startTime || s.shift.endTime)) {
-    shiftTimingStr = `${s.shift.name || 'Shift'} (${s.shift.startTime || ''} - ${s.shift.endTime || ''})`;
-  } else if (s.plan?.shift) {
-    shiftTimingStr = String(s.plan.shift).toUpperCase();
-  } else if (s.shift) {
-    shiftTimingStr = typeof s.shift === 'string' ? s.shift.toUpperCase() : (s.shift.name || 'FULL DAY').toUpperCase();
-  } else {
-    shiftTimingStr = 'FULL DAY SHIFT';
-  }
-
-  const seatNumber = s.seat?.seatNumber || s.seatNumber || 'Floating Desk';
-  const seatZone = s.seat?.zone || s.seatZone || 'General Zone';
-  const seatFloor = s.seat?.floor ? ` • Floor: ${s.seat.floor}` : '';
-  const lockerNumber = s.locker?.lockerNumber || s.lockerNumber || s.customFields?.lockerNumber || s.customFields?.locker || '';
-
-  const joinedDate = s.admissionDate || s.joinedDate || s.createdAt 
-    ? new Date(s.admissionDate || s.joinedDate || s.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) 
-    : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const expiryDate = s.expiryDate 
-    ? new Date(s.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) 
-    : 'N/A';
-  const status = (s.status || 'active').toUpperCase();
-
-  const isPaid = status === 'ACTIVE' || status === 'PAID';
-  const stampText = options.stampText || (isPaid ? 'PAID & VERIFIED' : 'PROVISIONAL ADMISSION');
-  const stampColor = isPaid ? '#059669' : '#d97706';
-
-  // Target Competitive Exams
-  let targetExamsList = [];
-  if (Array.isArray(s.targetExams) && s.targetExams.length > 0) {
-    targetExamsList = s.targetExams;
-  } else if (typeof s.targetExams === 'string' && s.targetExams.trim()) {
-    targetExamsList = s.targetExams.split(',').map(x => x.trim()).filter(Boolean);
-  } else if (s.customFields?.targetExams || s.customFields?.target_exams || s.customFields?.competitive_exams) {
-    const raw = s.customFields.targetExams || s.customFields.target_exams || s.customFields.competitive_exams;
-    targetExamsList = Array.isArray(raw) ? raw : String(raw).split(',').map(x => x.trim()).filter(Boolean);
-  }
-
-  // Emergency / Guardian Contacts
-  const emergencyName = s.emergencyContact?.name || s.emergencyContactName || s.customFields?.['parent___guardian_name'] || s.customFields?.['parentguardianname'] || s.customFields?.['Parent / Guardian Name'] || s.customFields?.['Emergency Contact Name'] || s.customFields?.['Father / Guardian Name'] || s.customFields?.parentName || s.customFields?.guardianName || s.customFields?.fatherName || s.customFields?.emergencyContactName || '';
-  const emergencyPhone = s.emergencyContact?.phone || s.emergencyContactPhone || s.customFields?.emergencycontact || s.customFields?.emergencyContact || s.customFields?.['Emergency Contact Phone'] || s.customFields?.['Parent Phone'] || s.customFields?.parentPhone || '';
-  const emergencyRelation = s.emergencyContact?.relation || s.emergencyContactRelation || s.customFields?.relationship || s.customFields?.relation || s.customFields?.['Relationship'] || s.customFields?.['Relation'] || s.customFields?.parentRelation || 'Parent';
-
-  // Government ID Proof & KYC Details
-  const idProofType = s.idProof?.type || s.idProofType || s.customFields?.idProofType || s.customFields?.id_proof_type || s.customFields?.idprooftype || 'Aadhaar Card';
-  const idProofNumber = s.idProof?.number || s.idProofNumber || s.customFields?.idProofNumber || s.customFields?.id_proof_number || s.customFields?.idproofnumber || s.customFields?.aadhaar || s.customFields?.pan || '';
-  const idProofImage = s.idProof?.image || s.idProofImage || s.customFields?.idProofImage || s.customFields?.id_proof_image || s.customFields?.idproofimage || s.customFields?.idProof || s.customFields?.id_proof || '';
-
-  // 1. Resolve active Custom Field definitions and Form Template sections
-  let allCustomFieldDefs = [];
-  if (Array.isArray(opts.customFields) && opts.customFields.length > 0) {
-    allCustomFieldDefs = opts.customFields;
-  } else if (typeof window !== 'undefined') {
-    allCustomFieldDefs = window.store?.customFields || window.store?.settings?.customFields || window.FormBuilder?.allFields || [];
-    if (!allCustomFieldDefs || allCustomFieldDefs.length === 0) {
-      try {
-        const cached = JSON.parse(localStorage.getItem('sl_custom_fields_cache') || '[]');
-        if (Array.isArray(cached) && cached.length > 0) allCustomFieldDefs = cached;
-      } catch (e) {}
-    }
-  }
-
-  let allTemplateSections = [];
-  if (opts.templateConfig && Array.isArray(opts.templateConfig.sections)) {
-    allTemplateSections = opts.templateConfig.sections;
-  } else if (typeof window !== 'undefined') {
-    allTemplateSections = window.store?.formTemplate?.sections || window.store?.settings?.formTemplate?.sections || window.FormBuilder?.sections || [];
-    if (!allTemplateSections || allTemplateSections.length === 0) {
-      try {
-        const cachedTpl = JSON.parse(localStorage.getItem('sl_form_template_cache') || '{}');
-        if (Array.isArray(cachedTpl?.sections)) allTemplateSections = cachedTpl.sections;
-      } catch (e) {}
-    }
-  }
-
-  // Format human-friendly label fallback from camelCase or snake_case or SCREAMING_SNAKE_CASE
-  function formatHumanLabel(rawKey) {
-    if (!rawKey) return '';
-    let str = String(rawKey).trim();
-    if (str.includes('___')) {
-      str = str.replace(/___/g, ' / ');
-    }
-    str = str.replace(/_/g, ' ');
-    str = str.replace(/([a-z])([A-Z])/g, '$1 $2');
-    return str
-      .split(' ')
-      .filter(Boolean)
-      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join(' ')
-      .replace(/\s*\/\s*/g, ' / ');
-  }
-
-  // Form Builder Custom Fields & Uploaded Document Attachments Extraction
-  const customFieldEntries = [];
-  const uploadedDocEntries = [];
-
-  const coreExcluded = new Set([
-    'name', 'fullname', 'phone', 'mobile', 'email', 'gender', 'dob', 'dateofbirth', 'birthdate',
-    'photo', 'signature', 'seat', 'plan', 'status', 'branch', 'shift', 'feeamount',
-    'idproofimage', 'idproof', 'idprooftype', 'idproofnumber', 'targetexams', 'target_exams', 'competitive_exams',
-    'address', 'city', 'state', 'pincode', 'bloodgroup', 'blood_group', 'emergencycontact', 'emergencycontactname',
-    'emergencycontactphone', 'emergencycontactrelation', 'parentphone', 'fathername', 'rfidcardnumber', 'biometricid',
-    'parentguardianname', 'parent___guardian_name', 'parentname', 'guardianname', 'relationship', 'relation',
-    'whatsapp', 'alternatephone', 'altphone', 'lockernumber', 'occupation', 'collegeorcompany', 'college', 'company'
-  ]);
-
-  function processCustomField(key, val) {
-    if (val === undefined || val === null || val === '') return;
-    const cleanKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (coreExcluded.has(cleanKey)) return;
-
-    // Match against configured custom field definition
-    const def = allCustomFieldDefs.find(f => {
-      const fn = (f.fieldName || f.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const fl = (f.label || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      return fn === cleanKey || fl === cleanKey;
-    });
-
-    const label = def?.label || formatHumanLabel(key);
-    const section = def?.section || 'additional';
-    const order = def?.order !== undefined ? def.order : 999;
-    const strVal = String(val).trim();
-
-    // Check if value is an uploaded image / document
-    if (strVal.startsWith('data:image/') || strVal.startsWith('http://') || strVal.startsWith('https://') || strVal.startsWith('/uploads/') || strVal.includes('res.cloudinary.com')) {
-      uploadedDocEntries.push({ label: label, url: strVal });
-    } else {
-      let formattedVal = strVal;
-      if (typeof val === 'boolean' || strVal === 'true' || strVal === 'false') {
-        formattedVal = (val === true || strVal === 'true') ? 'Yes' : 'No';
-      }
-      customFieldEntries.push({
-        key,
-        label,
-        value: formattedVal,
-        section,
-        order,
-        type: def?.type || 'text'
-      });
-    }
-  }
-
-  if (s.customFields) {
-    if (s.customFields instanceof Map) {
-      for (const [k, v] of s.customFields.entries()) {
-        processCustomField(k, v);
-      }
-    } else if (typeof s.customFields === 'object') {
-      for (const [k, v] of Object.entries(s.customFields)) {
-        processCustomField(k, v);
-      }
-    }
-  }
-
-  // Include idProofImage in uploaded docs if available
-  if (idProofImage && (idProofImage.startsWith('data:image/') || idProofImage.startsWith('http://') || idProofImage.startsWith('https://') || idProofImage.startsWith('/uploads/') || idProofImage.includes('res.cloudinary.com'))) {
-    if (!uploadedDocEntries.some(d => d.url === idProofImage)) {
-      uploadedDocEntries.unshift({ label: `${idProofType} KYC Document Scan`, url: idProofImage });
-    }
-  }
-
-  // Group custom fields by sections as configured in Form Builder
-  const sectionGroups = [];
-  const secIcons = {
-    personal: '👤',
-    academic: '🎯',
-    plan: '⏰',
-    payment: '💳',
-    seat: '🪑',
-    contact: '📍',
-    kyc: '🪪',
-    parent: '👨‍👩‍👧',
-    vehicle: '🚗',
-    transport: '🚲',
-    custom: '📋',
-    additional: '📋',
-    other: '📝'
-  };
-
-  if (allTemplateSections.length > 0) {
-    allTemplateSections.forEach(sec => {
-      const matchingFields = customFieldEntries
-        .filter(f => f.section === sec.name)
-        .sort((a, b) => a.order - b.order);
-      
-      if (matchingFields.length > 0) {
-        sectionGroups.push({
-          name: sec.name,
-          label: sec.label || formatHumanLabel(sec.name),
-          icon: sec.icon && sec.icon.length <= 4 ? sec.icon : (secIcons[sec.name] || '📋'),
-          fields: matchingFields
-        });
-      }
-    });
-
-    const handledKeys = new Set(sectionGroups.flatMap(g => g.fields.map(f => f.key)));
-    const unhandled = customFieldEntries.filter(f => !handledKeys.has(f.key));
-    if (unhandled.length > 0) {
-      sectionGroups.push({
-        name: 'additional',
-        label: 'Additional Registration Information',
-        icon: '📋',
-        fields: unhandled.sort((a, b) => a.order - b.order)
-      });
-    }
-  } else {
-    const secMap = new Map();
-    customFieldEntries.forEach(f => {
-      const sName = f.section || 'additional';
-      if (!secMap.has(sName)) {
-        secMap.set(sName, {
-          name: sName,
-          label: formatHumanLabel(sName),
-          icon: secIcons[sName] || '📋',
-          fields: []
-        });
-      }
-      secMap.get(sName).fields.push(f);
-    });
-    secMap.forEach(g => {
-      g.fields.sort((a, b) => a.order - b.order);
-      sectionGroups.push(g);
-    });
-  }
-
-  // Photo & Signature & Stamp URLs
-  const winStore = typeof window !== 'undefined' ? window.store : null;
-  const photoUrl = s.photo || s.photoUrl || s.customFields?.photo || s.customFields?.passport_photo || s.avatar || winStore?.user?.photo || winStore?.user?.avatar || '';
-  const sigUrl = s.signature || s.signatureUrl || s.customFields?.signature || '';
-  const logoUrl = rcHeader.logoUrl || b.logo || b.logoUrl || winStore?.profile?.logo || winStore?.settings?.businessProfile?.logo || cachedProfile?.logo || '';
-  const stampImageUrl = rcFooter.stampImage || b.stampImage || b.stamp || winStore?.profile?.stampImage || winStore?.settings?.businessProfile?.stampImage || cachedProfile?.stampImage || '';
-  const managerSigUrl = rcFooter.signatureImage || '';
-  const gstNumber = rcHeader.gstNumber || rcHeader.taxNumber || b.gstNumber || b.taxNumber || '';
-  const termsText = rcFooter.termsText || rc.terms || b.rules || '';
-  const customNote = rcFooter.customNote || '';
-
-  // Generate QR Code SVG / Image URL
-  let qrCodeImg = '';
-  if (opts.showQrCode) {
-    if (typeof qrcode !== 'undefined') {
-      try {
-        const qr = qrcode(0, 'M');
-        qr.addData(studentId);
-        qr.make();
-        qrCodeImg = qr.createImgTag(3.2, 0);
-      } catch (e) {}
-    }
-    if (!qrCodeImg) {
-      const upiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(studentId)}`;
-      qrCodeImg = `<img src="${upiUrl}" alt="QR Code" style="width: 90px; height: 90px; object-fit: contain;">`;
-    }
-  }
-
-  const isModern = opts.template === 'modern_glass';
-  const isClassic = opts.template === 'classic_formal';
-  const isCompact = opts.template === 'compact_card';
-  const hasAnnexure = opts.showUploadedDocuments && uploadedDocEntries.length > 0;
-
-  return `
+function t(c){return c?String(c).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[m]):""}function Se(c,m={}){const a={template:"modern_glass",showPhoto:!0,showSignature:!0,showQrCode:!0,showFormBuilderAnswers:!0,showUploadedDocuments:!0,showPaymentDetails:!0,showRules:!0,showWatermarkStamp:!0,...m},e=c||{};let r={};if(typeof localStorage<"u")try{r=JSON.parse(localStorage.getItem("sl_public_profile_cache")||"{}")}catch{}const u=(typeof window<"u"?window.store?.settings?.businessProfile||window.store?.profile:null)||r||{},i=(m.business&&(m.business.businessName||m.business.name)?m.business:null)||u,d={businessName:i.businessName||i.name||"The Cozy Corner Centre",tagline:i.tagline||"Silence, Focus and Success",address:i.address||"",phone:i.phone||"",email:i.email||"",logo:i.logo||i.logoUrl||"",stampImage:i.stampImage||i.stamp||""},x=a.receiptConfig||(typeof window<"u"?window.store?.settings?.receipt:null)||{},f=x.header||{},g=x.footer||{},p=e.studentId||"STU-2026-0001",b=e.name||"Student Name",A=e.phone||"N/A",D=e.whatsappPhone||e.alternatePhone||e.customFields?.whatsapp||e.customFields?.alternate_phone||e.customFields?.alt_phone||"",$=e.email||"N/A",v=e.dateOfBirth||e.dob||e.birthDate||e.customFields&&(e.customFields.dateOfBirth||e.customFields.dob||e.customFields.dateofbirth||e.customFields.date_of_birth||e.customFields.birthDate||(e.customFields instanceof Map?e.customFields.get("dateOfBirth")||e.customFields.get("dob")||e.customFields.get("dateofbirth"):null)),he=v?new Date(v):null,Z=he&&!isNaN(he.getTime())?he.toLocaleDateString("en-IN",{day:"2-digit",month:"2-digit",year:"numeric"}):"N/A",ye=(e.gender||"Other").toUpperCase(),pe=e.bloodGroup||e.customFields?.bloodGroup||e.customFields?.blood_group||e.customFields?.bloodgroup||"N/A",T=e.pincode||e.customFields?.pincode||"N/A",q=e.city||e.customFields?.city||"N/A",W=e.state||e.customFields?.state||"N/A",ee=e.address||e.customFields?.address||"",Q=e.occupation||e.collegeOrCompany||e.customFields?.occupation||e.customFields?.college||e.customFields?.company||"Student / Aspirant",Y=e.branch?.name||e.branchName||"Main Branch",we=e.branch?.address||"",ce=e.plan?.name||e.planName||"Standard Study Membership",$e=e.plan?.price!==void 0?`\u20B9 ${e.plan.price}`:e.feeAmount?`\u20B9 ${e.feeAmount}`:"",te=e.plan?.duration?`${e.plan.duration} ${e.plan.durationType||"month(s)"}`:"";let E="";e.shift&&(e.shift.startTime||e.shift.endTime)?E=`${e.shift.name||"Shift"} (${e.shift.startTime||""} - ${e.shift.endTime||""})`:e.plan?.shift?E=String(e.plan.shift).toUpperCase():e.shift?E=typeof e.shift=="string"?e.shift.toUpperCase():(e.shift.name||"FULL DAY").toUpperCase():E="FULL DAY SHIFT";const me=e.seat?.seatNumber||e.seatNumber||"Floating Desk",fe=e.seat?.zone||e.seatZone||"General Zone",ie=e.seat?.floor?` \u2022 Floor: ${e.seat.floor}`:"",oe=e.locker?.lockerNumber||e.lockerNumber||e.customFields?.lockerNumber||e.customFields?.locker||"",U=e.admissionDate||e.joinedDate||e.createdAt?new Date(e.admissionDate||e.joinedDate||e.createdAt).toLocaleDateString("en-IN",{day:"2-digit",month:"2-digit",year:"numeric"}):new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"2-digit",year:"numeric"}),ge=e.expiryDate?new Date(e.expiryDate).toLocaleDateString("en-IN",{day:"2-digit",month:"2-digit",year:"numeric"}):"N/A",C=(e.status||"active").toUpperCase(),N=C==="ACTIVE"||C==="PAID",Fe=m.stampText||(N?"PAID & VERIFIED":"PROVISIONAL ADMISSION"),ue=N?"#059669":"#d97706";let G=[];if(Array.isArray(e.targetExams)&&e.targetExams.length>0)G=e.targetExams;else if(typeof e.targetExams=="string"&&e.targetExams.trim())G=e.targetExams.split(",").map(o=>o.trim()).filter(Boolean);else if(e.customFields?.targetExams||e.customFields?.target_exams||e.customFields?.competitive_exams){const o=e.customFields.targetExams||e.customFields.target_exams||e.customFields.competitive_exams;G=Array.isArray(o)?o:String(o).split(",").map(n=>n.trim()).filter(Boolean)}const xe=e.emergencyContact?.name||e.emergencyContactName||e.customFields?.parent___guardian_name||e.customFields?.parentguardianname||e.customFields?.["Parent / Guardian Name"]||e.customFields?.["Emergency Contact Name"]||e.customFields?.["Father / Guardian Name"]||e.customFields?.parentName||e.customFields?.guardianName||e.customFields?.fatherName||e.customFields?.emergencyContactName||"",ve=e.emergencyContact?.phone||e.emergencyContactPhone||e.customFields?.emergencycontact||e.customFields?.emergencyContact||e.customFields?.["Emergency Contact Phone"]||e.customFields?.["Parent Phone"]||e.customFields?.parentPhone||"",V=e.emergencyContact?.relation||e.emergencyContactRelation||e.customFields?.relationship||e.customFields?.relation||e.customFields?.Relationship||e.customFields?.Relation||e.customFields?.parentRelation||"Parent",_=e.idProof?.type||e.idProofType||e.customFields?.idProofType||e.customFields?.id_proof_type||e.customFields?.idprooftype||"Aadhaar Card",s=e.idProof?.number||e.idProofNumber||e.customFields?.idProofNumber||e.customFields?.id_proof_number||e.customFields?.idproofnumber||e.customFields?.aadhaar||e.customFields?.pan||"",F=e.idProof?.image||e.idProofImage||e.customFields?.idProofImage||e.customFields?.id_proof_image||e.customFields?.idproofimage||e.customFields?.idProof||e.customFields?.id_proof||"";let H=[];if(Array.isArray(a.customFields)&&a.customFields.length>0)H=a.customFields;else if(typeof window<"u"&&(H=window.store?.customFields||window.store?.settings?.customFields||window.FormBuilder?.allFields||[],!H||H.length===0))try{const o=JSON.parse(localStorage.getItem("sl_custom_fields_cache")||"[]");Array.isArray(o)&&o.length>0&&(H=o)}catch{}let z=[];if(a.templateConfig&&Array.isArray(a.templateConfig.sections))z=a.templateConfig.sections;else if(typeof window<"u"&&(z=window.store?.formTemplate?.sections||window.store?.settings?.formTemplate?.sections||window.FormBuilder?.sections||[],!z||z.length===0))try{const o=JSON.parse(localStorage.getItem("sl_form_template_cache")||"{}");Array.isArray(o?.sections)&&(z=o.sections)}catch{}function K(o){if(!o)return"";let n=String(o).trim();return n.includes("___")&&(n=n.replace(/___/g," / ")),n=n.replace(/_/g," "),n=n.replace(/([a-z])([A-Z])/g,"$1 $2"),n.split(" ").filter(Boolean).map(l=>l.charAt(0).toUpperCase()+l.slice(1).toLowerCase()).join(" ").replace(/\s*\/\s*/g," / ")}const ae=[],S=[],y=new Set(["name","fullname","phone","mobile","email","gender","dob","dateofbirth","birthdate","photo","signature","seat","plan","status","branch","shift","feeamount","idproofimage","idproof","idprooftype","idproofnumber","targetexams","target_exams","competitive_exams","address","city","state","pincode","bloodgroup","blood_group","emergencycontact","emergencycontactname","emergencycontactphone","emergencycontactrelation","parentphone","fathername","rfidcardnumber","biometricid","parentguardianname","parent___guardian_name","parentname","guardianname","relationship","relation","whatsapp","alternatephone","altphone","lockernumber","occupation","collegeorcompany","college","company"]);function se(o,n){if(n==null||n==="")return;const l=o.toLowerCase().replace(/[^a-z0-9]/g,"");if(y.has(l))return;const h=H.find(le=>{const Pe=(le.fieldName||le.name||"").toLowerCase().replace(/[^a-z0-9]/g,""),ke=(le.label||"").toLowerCase().replace(/[^a-z0-9]/g,"");return Pe===l||ke===l}),re=h?.label||K(o),Ae=h?.section||"additional",ze=h?.order!==void 0?h.order:999,k=String(n).trim();if(k.startsWith("data:image/")||k.startsWith("http://")||k.startsWith("https://")||k.startsWith("/uploads/")||k.includes("res.cloudinary.com"))S.push({label:re,url:k});else{let le=k;(typeof n=="boolean"||k==="true"||k==="false")&&(le=n===!0||k==="true"?"Yes":"No"),ae.push({key:o,label:re,value:le,section:Ae,order:ze,type:h?.type||"text"})}}if(e.customFields){if(e.customFields instanceof Map)for(const[o,n]of e.customFields.entries())se(o,n);else if(typeof e.customFields=="object")for(const[o,n]of Object.entries(e.customFields))se(o,n)}F&&(F.startsWith("data:image/")||F.startsWith("http://")||F.startsWith("https://")||F.startsWith("/uploads/")||F.includes("res.cloudinary.com"))&&(S.some(o=>o.url===F)||S.unshift({label:`${_} KYC Document Scan`,url:F}));const j=[],J={personal:"\u{1F464}",academic:"\u{1F3AF}",plan:"\u23F0",payment:"\u{1F4B3}",seat:"\u{1FA91}",contact:"\u{1F4CD}",kyc:"\u{1FAAA}",parent:"\u{1F468}\u200D\u{1F469}\u200D\u{1F467}",vehicle:"\u{1F697}",transport:"\u{1F6B2}",custom:"\u{1F4CB}",additional:"\u{1F4CB}",other:"\u{1F4DD}"};if(z.length>0){z.forEach(l=>{const h=ae.filter(re=>re.section===l.name).sort((re,Ae)=>re.order-Ae.order);h.length>0&&j.push({name:l.name,label:l.label||K(l.name),icon:l.icon&&l.icon.length<=4?l.icon:J[l.name]||"\u{1F4CB}",fields:h})});const o=new Set(j.flatMap(l=>l.fields.map(h=>h.key))),n=ae.filter(l=>!o.has(l.key));n.length>0&&j.push({name:"additional",label:"Additional Registration Information",icon:"\u{1F4CB}",fields:n.sort((l,h)=>l.order-h.order)})}else{const o=new Map;ae.forEach(n=>{const l=n.section||"additional";o.has(l)||o.set(l,{name:l,label:K(l),icon:J[l]||"\u{1F4CB}",fields:[]}),o.get(l).fields.push(n)}),o.forEach(n=>{n.fields.sort((l,h)=>l.order-h.order),j.push(n)})}const w=typeof window<"u"?window.store:null,R=e.photo||e.photoUrl||e.customFields?.photo||e.customFields?.passport_photo||e.avatar||w?.user?.photo||w?.user?.avatar||"",ne=e.signature||e.signatureUrl||e.customFields?.signature||"",I=f.logoUrl||d.logo||d.logoUrl||w?.profile?.logo||w?.settings?.businessProfile?.logo||r?.logo||"",L=g.stampImage||d.stampImage||d.stamp||w?.profile?.stampImage||w?.settings?.businessProfile?.stampImage||r?.stampImage||"",P=g.signatureImage||"",de=f.gstNumber||f.taxNumber||d.gstNumber||d.taxNumber||"",O=g.termsText||x.terms||d.rules||"",be=g.customNote||"";let X="";if(a.showQrCode){if(typeof qrcode<"u")try{const o=qrcode(0,"M");o.addData(p),o.make(),X=o.createImgTag(3.2,0)}catch{}X||(X=`<img src="${`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(p)}`}" alt="QR Code" style="width: 90px; height: 90px; object-fit: contain;">`)}const B=a.template==="modern_glass",M=a.template==="classic_formal",Ne=a.template==="compact_card",Ie=a.showUploadedDocuments&&S.length>0;return`
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Official Admission Form — ${studentId} (${studentName})</title>
+  <title>Official Admission Form \u2014 ${p} (${b})</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -417,8 +72,8 @@ export function buildAdmissionFormHTML(student, options = {}) {
       position: absolute;
       top: 250px;
       right: 40px;
-      border: 3px dashed ${stampColor};
-      color: ${stampColor};
+      border: 3px dashed ${ue};
+      color: ${ue};
       padding: 6px 14px;
       font-size: 0.82rem;
       font-weight: 800;
@@ -433,7 +88,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
     /* Template Header */
     .mg-header {
-      background: ${isClassic ? '#1e293b' : isCompact ? '#0284c7' : 'linear-gradient(135deg, #3730a3, #047857)'};
+      background: ${M?"#1e293b":Ne?"#0284c7":"linear-gradient(135deg, #3730a3, #047857)"};
       color: #ffffff;
       padding: 10px 14px;
       border-radius: 6px;
@@ -461,8 +116,8 @@ export function buildAdmissionFormHTML(student, options = {}) {
     .sec-title {
       font-weight: 700;
       font-size: 11px;
-      color: ${isClassic ? '#1e293b' : '#3730a3'};
-      border-bottom: 1.5px solid ${isClassic ? '#1e293b' : '#4338ca'};
+      color: ${M?"#1e293b":"#3730a3"};
+      border-bottom: 1.5px solid ${M?"#1e293b":"#4338ca"};
       padding-bottom: 3px;
       margin-bottom: 5px;
       text-transform: uppercase;
@@ -580,23 +235,23 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
   <!-- ==================== PAGE 1: OFFICIAL ADMISSION CERTIFICATE & FORM ==================== -->
   <div class="page-frame">
-    ${opts.showWatermarkStamp ? `<div class="watermark-stamp">${stampText}</div>` : ''}
+    ${a.showWatermarkStamp?`<div class="watermark-stamp">${Fe}</div>`:""}
 
     <div class="page-content-flow">
       <!-- 1. Header -->
       <div class="mg-header">
         <div style="display: flex; align-items: center; gap: 10px;">
-          ${logoUrl ? `<img src="${logoUrl}" style="max-height: 42px; max-width: 65px; object-fit: contain; background: #fff; padding: 2px; border-radius: 4px;">` : ''}
+          ${I?`<img src="${I}" style="max-height: 42px; max-width: 65px; object-fit: contain; background: #fff; padding: 2px; border-radius: 4px;">`:""}
           <div>
-            <h1>${b.businessName}</h1>
-            <p>${b.tagline || 'Silence, Focus and Success'}</p>
-            <p style="margin-top: 2px; font-size: 9px;">📍 ${b.address || ''} • 📞 ${b.phone || ''} ${gstNumber ? `• GSTIN: ${gstNumber}` : ''}</p>
+            <h1>${d.businessName}</h1>
+            <p>${d.tagline||"Silence, Focus and Success"}</p>
+            <p style="margin-top: 2px; font-size: 9px;">\u{1F4CD} ${d.address||""} \u2022 \u{1F4DE} ${d.phone||""} ${de?`\u2022 GSTIN: ${de}`:""}</p>
           </div>
         </div>
         <div style="text-align: right; background: rgba(255,255,255,0.22); padding: 4px 10px; border-radius: 5px; min-width: 140px; white-space: nowrap; flex-shrink: 0;">
           <div style="font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">OFFICIAL ADMISSION FORM</div>
-          <div style="font-size: 13px; font-weight: 700; font-family: monospace; margin: 1px 0;">${studentId}</div>
-          <div style="font-size: 9px; font-weight: 600;">Date: ${joinedDate}</div>
+          <div style="font-size: 13px; font-weight: 700; font-family: monospace; margin: 1px 0;">${p}</div>
+          <div style="font-size: 9px; font-weight: 600;">Date: ${U}</div>
         </div>
       </div>
 
@@ -608,85 +263,85 @@ export function buildAdmissionFormHTML(student, options = {}) {
           
           <!-- Student Personal Information -->
           <div class="sec-card" style="margin-bottom: 0;">
-            <div class="sec-title">👤 Student Personal Information</div>
+            <div class="sec-title">\u{1F464} Student Personal Information</div>
             
             <div class="grid-3" style="margin-bottom: 4px;">
               <div>
                 <div class="field-label">Full Student Name</div>
-                <div class="field-value">${studentName}</div>
+                <div class="field-value">${b}</div>
               </div>
               <div>
                 <div class="field-label">Mobile Number</div>
-                <div class="field-value">📞 ${phone}</div>
+                <div class="field-value">\u{1F4DE} ${A}</div>
               </div>
               <div>
                 <div class="field-label">Email Address</div>
-                <div class="field-value">${email}</div>
+                <div class="field-value">${$}</div>
               </div>
             </div>
 
             <div class="grid-4" style="margin-bottom: 4px;">
               <div>
                 <div class="field-label">Gender</div>
-                <div class="field-value">${gender}</div>
+                <div class="field-value">${ye}</div>
               </div>
               <div>
                 <div class="field-label">Date of Birth</div>
-                <div class="field-value" style="color: #3730a3; font-weight: 700;">${dob}</div>
+                <div class="field-value" style="color: #3730a3; font-weight: 700;">${Z}</div>
               </div>
               <div>
                 <div class="field-label">Blood Group</div>
-                <div class="field-value" style="color: #dc2626; font-weight: 700;">${bloodGroup}</div>
+                <div class="field-value" style="color: #dc2626; font-weight: 700;">${pe}</div>
               </div>
               <div>
                 <div class="field-label">City & State</div>
-                <div class="field-value">${city}${state && state !== 'N/A' ? ', ' + state : ''}</div>
+                <div class="field-value">${q}${W&&W!=="N/A"?", "+W:""}</div>
               </div>
             </div>
 
-            ${fullAddress ? `
+            ${ee?`
               <div style="border-top: 1px dashed #cbd5e1; padding-top: 3px;">
                 <div class="field-label">Resident / Permanent Address</div>
-                <div class="field-value" style="font-size: 10px;">${fullAddress}${pincode && pincode !== 'N/A' ? ' (PIN: ' + pincode + ')' : ''}</div>
+                <div class="field-value" style="font-size: 10px;">${ee}${T&&T!=="N/A"?" (PIN: "+T+")":""}</div>
               </div>
-            ` : ''}
+            `:""}
           </div>
 
           <!-- Study Centre, Shift & Seating Allocation -->
           <div class="sec-card" style="margin-bottom: 0;">
-            <div class="sec-title">🏢 Study Centre & Seating Allocation</div>
+            <div class="sec-title">\u{1F3E2} Study Centre & Seating Allocation</div>
             
             <div class="grid-3" style="margin-bottom: 4px;">
               <div>
                 <div class="field-label">Campus / Branch</div>
-                <div class="field-value" style="color: #3730a3;">${branchName}</div>
+                <div class="field-value" style="color: #3730a3;">${Y}</div>
               </div>
               <div>
                 <div class="field-label">Assigned Desk / Seat</div>
-                <div class="field-value" style="color: #047857; font-size: 11.5px;">${seatNumber} (${seatZone}${seatFloor})</div>
+                <div class="field-value" style="color: #047857; font-size: 11.5px;">${me} (${fe}${ie})</div>
               </div>
               <div>
                 <div class="field-label">Study Shift & Timings</div>
-                <div class="field-value">${shiftTimingStr}</div>
+                <div class="field-value">${E}</div>
               </div>
             </div>
 
             <div class="grid-4">
               <div>
                 <div class="field-label">Membership Plan</div>
-                <div class="field-value">${planName} ${planDuration ? '(' + planDuration + ')' : ''}</div>
+                <div class="field-value">${ce} ${te?"("+te+")":""}</div>
               </div>
               <div>
                 <div class="field-label">Plan Fee Amount</div>
-                <div class="field-value" style="color: #047857;">${planPrice || 'Standard Rate'}</div>
+                <div class="field-value" style="color: #047857;">${$e||"Standard Rate"}</div>
               </div>
               <div>
                 <div class="field-label">Admission Date</div>
-                <div class="field-value">${joinedDate}</div>
+                <div class="field-value">${U}</div>
               </div>
               <div>
                 <div class="field-label">Validity Expiry Date</div>
-                <div class="field-value" style="color: #dc2626; font-weight: 700;">${expiryDate}</div>
+                <div class="field-value" style="color: #dc2626; font-weight: 700;">${ge}</div>
               </div>
             </div>
           </div>
@@ -700,7 +355,7 @@ export function buildAdmissionFormHTML(student, options = {}) {
           <div style="width: 100%; text-align: center;">
             <div class="field-label" style="margin-bottom: 2px; font-size: 8px;">PASSPORT PHOTO</div>
             <div class="photo-frame">
-              ${photoUrl ? `<img src="${photoUrl}" alt="Photo">` : `<span style="color:#94a3b8; font-size:8.5px; font-weight:600;">AFFIX PHOTO</span>`}
+              ${R?`<img src="${R}" alt="Photo">`:'<span style="color:#94a3b8; font-size:8.5px; font-weight:600;">AFFIX PHOTO</span>'}
             </div>
           </div>
 
@@ -709,9 +364,9 @@ export function buildAdmissionFormHTML(student, options = {}) {
             <div class="field-label" style="margin-bottom: 2px; font-size: 8px;">VERIFY ID QR</div>
             <div class="qr-frame" style="margin: 0 auto;">
               <div style="display: flex; align-items: center; justify-content: center;">
-                ${qrCodeImg}
+                ${X}
               </div>
-              <div style="font-size: 7.5px; font-weight: 700; font-family: monospace; color: #475569; margin-top: 1px;">${studentId}</div>
+              <div style="font-size: 7.5px; font-weight: 700; font-family: monospace; color: #475569; margin-top: 1px;">${p}</div>
             </div>
           </div>
 
@@ -721,69 +376,69 @@ export function buildAdmissionFormHTML(student, options = {}) {
 
       <!-- 3. Academic Focus, Locker & Guardian Emergency Contact -->
       <div class="sec-card">
-        <div class="sec-title">🎯 Academic Goals, Facilities & Emergency Contact</div>
+        <div class="sec-title">\u{1F3AF} Academic Goals, Facilities & Emergency Contact</div>
         
         <div class="grid-3" style="margin-bottom: 4px;">
           <div>
             <div class="field-label">Target Competitive Exams</div>
             <div class="field-value" style="color: #3730a3;">
-              ${targetExamsList.length > 0 ? targetExamsList.join(', ') : 'General Competitive Exams / Self Study'}
+              ${G.length>0?G.join(", "):"General Competitive Exams / Self Study"}
             </div>
           </div>
           <div>
             <div class="field-label">College / Company / Occupation</div>
-            <div class="field-value">${occupation}</div>
+            <div class="field-value">${Q}</div>
           </div>
           <div>
             <div class="field-label">Locker & Access Card</div>
-            <div class="field-value">${lockerNumber ? `Locker #${lockerNumber}` : 'No Locker Assigned'} • Bio/RFID: ${s.rfidCardNumber || s.biometricCardNumber || s.biometricId || 'N/A'}</div>
+            <div class="field-value">${oe?`Locker #${oe}`:"No Locker Assigned"} \u2022 Bio/RFID: ${e.rfidCardNumber||e.biometricCardNumber||e.biometricId||"N/A"}</div>
           </div>
         </div>
 
-        ${emergencyName || emergencyPhone ? `
+        ${xe||ve?`
           <div style="border-top: 1px dashed #cbd5e1; padding-top: 3px;" class="grid-3">
             <div>
               <div class="field-label">Guardian / Parent Name</div>
-              <div class="field-value">${emergencyName || 'N/A'}</div>
+              <div class="field-value">${xe||"N/A"}</div>
             </div>
             <div>
               <div class="field-label">Guardian Contact Phone</div>
-              <div class="field-value">📞 ${emergencyPhone || 'N/A'}</div>
+              <div class="field-value">\u{1F4DE} ${ve||"N/A"}</div>
             </div>
             <div>
               <div class="field-label">Relationship</div>
-              <div class="field-value">${emergencyRelation}</div>
+              <div class="field-value">${V}</div>
             </div>
           </div>
-        ` : ''}
+        `:""}
       </div>
 
       <!-- 4. Government KYC & Identity Proof Verification -->
       <div class="sec-card">
-        <div class="sec-title">🪪 Government ID Proof & KYC Verification</div>
+        <div class="sec-title">\u{1FAAA} Government ID Proof & KYC Verification</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center;">
           
           <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 5px; padding: 5px 9px; display: flex; align-items: center; justify-content: space-between;">
             <div>
-              <div style="font-weight: 700; font-size: 10.5px; color: #0f172a;">📑 ${idProofType}</div>
+              <div style="font-weight: 700; font-size: 10.5px; color: #0f172a;">\u{1F4D1} ${_}</div>
               <div style="font-size: 9.5px; color: #334155; font-family: monospace; font-weight: 600; margin-top: 1px;">
-                ${idProofNumber ? `ID Number: ${idProofNumber}` : 'Document Attached on Record'}
+                ${s?`ID Number: ${s}`:"Document Attached on Record"}
               </div>
             </div>
             <span style="font-size: 8px; font-weight: 700; color: #047857; background: #d1fae5; padding: 2px 6px; border-radius: 3px; border: 1px solid #10b981;">
-              KYC VERIFIED ✓
+              KYC VERIFIED \u2713
             </span>
           </div>
 
           <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 5px; padding: 5px 9px; display: flex; align-items: center; justify-content: space-between;">
             <div>
-              <div style="font-weight: 700; font-size: 10.5px; color: #0f172a;">📋 Admission & Fee Status</div>
+              <div style="font-weight: 700; font-size: 10.5px; color: #0f172a;">\u{1F4CB} Admission & Fee Status</div>
               <div style="font-size: 9.5px; color: #334155; font-family: monospace; font-weight: 600; margin-top: 1px;">
-                Status: ${status} (${isPaid ? 'CONFIRMED' : 'PROVISIONAL'})
+                Status: ${C} (${N?"CONFIRMED":"PROVISIONAL"})
               </div>
             </div>
-            <span style="font-size: 8px; font-weight: 700; color: ${isPaid ? '#047857' : '#d97706'}; background: ${isPaid ? '#d1fae5' : '#fef3c7'}; padding: 2px 6px; border-radius: 3px; border: 1px solid ${isPaid ? '#10b981' : '#f59e0b'};">
-              ${isPaid ? 'ACTIVE ACCESS' : 'PENDING'}
+            <span style="font-size: 8px; font-weight: 700; color: ${N?"#047857":"#d97706"}; background: ${N?"#d1fae5":"#fef3c7"}; padding: 2px 6px; border-radius: 3px; border: 1px solid ${N?"#10b981":"#f59e0b"};">
+              ${N?"ACTIVE ACCESS":"PENDING"}
             </span>
           </div>
 
@@ -791,84 +446,84 @@ export function buildAdmissionFormHTML(student, options = {}) {
       </div>
 
       <!-- 5. Form Builder Custom Questions & Sections (Organized matching Admin Form Builder) -->
-      ${sectionGroups.map(grp => `
+      ${j.map(o=>`
         <div class="sec-card">
-          <div class="sec-title">${grp.icon} ${escapeHTML(grp.label)}</div>
+          <div class="sec-title">${o.icon} ${t(o.label)}</div>
           <div class="grid-2">
-            ${grp.fields.map(e => `
+            ${o.fields.map(n=>`
               <div style="margin-bottom: 2px;">
-                <div class="field-label">${escapeHTML(e.label)}</div>
-                <div class="field-value" style="font-size: 10px;">${escapeHTML(e.value)}</div>
+                <div class="field-label">${t(n.label)}</div>
+                <div class="field-value" style="font-size: 10px;">${t(n.value)}</div>
               </div>
-            `).join('')}
+            `).join("")}
           </div>
         </div>
-      `).join('')}
+      `).join("")}
 
       <!-- 6. Discipline Code, Terms of Admission & Declaration -->
-      ${opts.showRules ? `
+      ${a.showRules?`
         <div class="sec-card">
-          <div class="sec-title">📜 Discipline Code & Student Declaration</div>
-          ${termsText ? `<div class="rules-list" style="margin-bottom: 3px;">${termsText}</div>` : `
+          <div class="sec-title">\u{1F4DC} Discipline Code & Student Declaration</div>
+          ${O?`<div class="rules-list" style="margin-bottom: 3px;">${O}</div>`:`
           <ol class="rules-list">
             <li>Maintain complete silence in the study hall. Mobile phones must strictly be kept on Silent mode.</li>
             <li>Seats are reserved for the registered student and non-transferable without prior management approval.</li>
             <li>Eatables, tea, and open beverages are strictly prohibited inside reading rooms.</li>
             <li>I declare that the information provided is accurate and agree to adhere to all library rules and timings.</li>
           </ol>`}
-          ${customNote ? `<p style="font-size: 8.5px; color: #3730a3; font-weight: 600; margin-top: 2px;">Notice: ${customNote}</p>` : ''}
+          ${be?`<p style="font-size: 8.5px; color: #3730a3; font-weight: 600; margin-top: 2px;">Notice: ${be}</p>`:""}
 
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #cbd5e1;">
             <div>
               <div class="field-label">Date & Place</div>
-              <div class="field-value">${joinedDate} • ${city !== 'N/A' ? city : 'Campus'}</div>
+              <div class="field-value">${U} \u2022 ${q!=="N/A"?q:"Campus"}</div>
             </div>
 
-            ${opts.showSignature ? `
+            ${a.showSignature?`
               <div style="text-align: center;">
                 <div class="field-label">Student Digital Signature</div>
                 <div class="sig-box">
-                  ${sigUrl ? `<img src="${sigUrl}" alt="Signature">` : `<span style="font-family: Arial, sans-serif; font-size:10.5px; font-weight:600;">${studentName}</span>`}
+                  ${ne?`<img src="${ne}" alt="Signature">`:`<span style="font-family: Arial, sans-serif; font-size:10.5px; font-weight:600;">${b}</span>`}
                 </div>
               </div>
-            ` : ''}
+            `:""}
 
             <div style="text-align: center;">
-              <div class="field-label">${rcFooter.signatureLabel || 'Authorized Seal & Signatory'}</div>
+              <div class="field-label">${g.signatureLabel||"Authorized Seal & Signatory"}</div>
               <div class="sig-box" style="border-bottom-style: dotted; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                ${stampImageUrl ? `<img src="${stampImageUrl}" style="max-height: 36px; opacity: 0.92;">` : ''}
-                ${managerSigUrl ? `<img src="${managerSigUrl}" style="max-height: 32px;">` : ''}
-                ${!stampImageUrl && !managerSigUrl ? `<span style="font-size:8px; color:#64748b; font-weight:700; border:1px solid #cbd5e1; padding:2px 6px; border-radius:3px;">OFFICIAL SEAL</span>` : ''}
+                ${L?`<img src="${L}" style="max-height: 36px; opacity: 0.92;">`:""}
+                ${P?`<img src="${P}" style="max-height: 32px;">`:""}
+                ${!L&&!P?'<span style="font-size:8px; color:#64748b; font-weight:700; border:1px solid #cbd5e1; padding:2px 6px; border-radius:3px;">OFFICIAL SEAL</span>':""}
               </div>
             </div>
           </div>
         </div>
-      ` : ''}
+      `:""}
     </div>
 
     <!-- Page 1 Footer -->
     <div class="doc-footer">
-      <div>Generated via ${b.businessName || 'Study Library Management'} • ${hasAnnexure ? 'Page 1 of 2 (Official Admission Form)' : 'Official Admission & Registration Record'}</div>
-      <div>Document Ref: ${studentId} • Verified Student Copy</div>
+      <div>Generated via ${d.businessName||"Study Library Management"} \u2022 ${Ie?"Page 1 of 2 (Official Admission Form)":"Official Admission & Registration Record"}</div>
+      <div>Document Ref: ${p} \u2022 Verified Student Copy</div>
     </div>
   </div>
 
-  <!-- ==================== PAGE 2: ANNEXURE — ATTACHED KYC DOCUMENT SCAN ==================== -->
-  ${hasAnnexure ? `
-    ${uploadedDocEntries.map((doc, idx) => `
+  <!-- ==================== PAGE 2: ANNEXURE \u2014 ATTACHED KYC DOCUMENT SCAN ==================== -->
+  ${Ie?`
+    ${S.map((o,n)=>`
       <div class="page-frame page-break">
         <!-- Annexure Header -->
         <div class="annexure-header">
           <div style="display: flex; align-items: center; gap: 10px;">
-            ${logoUrl ? `<img src="${logoUrl}" style="max-height: 38px; max-width: 60px; object-fit: contain; background: #fff; padding: 2px; border-radius: 4px;">` : ''}
+            ${I?`<img src="${I}" style="max-height: 38px; max-width: 60px; object-fit: contain; background: #fff; padding: 2px; border-radius: 4px;">`:""}
             <div>
-              <h1 style="font-size: 14.5px; font-weight: 700; margin: 0;">${b.businessName}</h1>
-              <p style="font-size: 9px; opacity: 0.9; margin: 0;">ANNEXURE ${uploadedDocEntries.length > 1 ? String.fromCharCode(65 + idx) : 'A'} — GOVERNMENT ID & KYC VERIFICATION PROOF</p>
+              <h1 style="font-size: 14.5px; font-weight: 700; margin: 0;">${d.businessName}</h1>
+              <p style="font-size: 9px; opacity: 0.9; margin: 0;">ANNEXURE ${S.length>1?String.fromCharCode(65+n):"A"} \u2014 GOVERNMENT ID & KYC VERIFICATION PROOF</p>
             </div>
           </div>
           <div style="text-align: right; background: rgba(255,255,255,0.18); padding: 4px 10px; border-radius: 5px;">
             <div style="font-size: 7.5px; text-transform: uppercase; font-weight: 700;">STUDENT IDENTIFICATION</div>
-            <div style="font-size: 12px; font-weight: 700; font-family: monospace;">${studentId}</div>
+            <div style="font-size: 12px; font-weight: 700; font-family: monospace;">${p}</div>
           </div>
         </div>
 
@@ -876,157 +531,59 @@ export function buildAdmissionFormHTML(student, options = {}) {
         <div class="doc-preview-card-full">
           <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px;">
             <span style="font-size: 10.5px; font-weight: 700; color: #1e293b; text-transform: uppercase;">
-              📄 ${escapeHTML(doc.label)}
+              \u{1F4C4} ${t(o.label)}
             </span>
             <span style="font-size: 8.5px; font-weight: 700; color: #047857; background: #d1fae5; padding: 2px 7px; border-radius: 3px; border: 1px solid #10b981;">
-              OFFICIAL RECORD ATTACHMENT ✓
+              OFFICIAL RECORD ATTACHMENT \u2713
             </span>
           </div>
           
           <div style="flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; background: #ffffff; padding: 4px;">
-            <img src="${doc.url}" alt="${escapeHTML(doc.label)}" class="doc-preview-img-full">
+            <img src="${o.url}" alt="${t(o.label)}" class="doc-preview-img-full">
           </div>
 
           <div style="width: 100%; font-size: 8.5px; color: #64748b; margin-top: 4px; border-top: 1px solid #e2e8f0; padding-top: 4px; font-family: monospace; display: flex; justify-content: space-between;">
-            <span>Document Reference: ${studentId} • Verified KYC Record Proof</span>
-            <span>Name: ${studentName} • Date: ${joinedDate}</span>
+            <span>Document Reference: ${p} \u2022 Verified KYC Record Proof</span>
+            <span>Name: ${b} \u2022 Date: ${U}</span>
           </div>
         </div>
 
         <!-- Page 2 Footer -->
         <div class="doc-footer">
-          <div>Generated via ${b.businessName || 'Study Library Management'} • Page ${2 + idx} of ${1 + uploadedDocEntries.length} (Verified KYC Document)</div>
-          <div>Document Ref: ${studentId} • Official Verification Attachment</div>
+          <div>Generated via ${d.businessName||"Study Library Management"} \u2022 Page ${2+n} of ${1+S.length} (Verified KYC Document)</div>
+          <div>Document Ref: ${p} \u2022 Official Verification Attachment</div>
         </div>
       </div>
-    `).join('')}
-  ` : ''}
+    `).join("")}
+  `:""}
 
 </body>
 </html>
-  `;
-}
-
-/**
- * Direct Print PDF Trigger
- */
-export async function generateAdmissionFormPDF(student, options = {}) {
-  let fullStudent = student;
-  const opts = { ...options };
-  try {
-    const token = (typeof localStorage !== 'undefined') ? (localStorage.getItem('sl_token') || localStorage.getItem('token')) : null;
-    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-    
-    const [stuRes, cfRes, tplRes] = await Promise.all([
-      (student && student._id && (!student.plan?.name || !student.shift?.name || !student.branch?.name || !student.idProof?.image))
-        ? fetch(`/api/students/${student._id}`, { headers }).then(r => r.json()).catch(() => null)
-        : null,
-      (!opts.customFields)
-        ? fetch('/api/custom-fields/all', { headers }).then(r => r.json()).catch(() => null)
-        : null,
-      (!opts.templateConfig)
-        ? fetch('/api/custom-fields/templates/active', { headers }).then(r => r.json()).catch(() => null)
-        : null
-    ]);
-
-    if (stuRes?.success && stuRes?.data) fullStudent = stuRes.data;
-    if (cfRes?.success && Array.isArray(cfRes.data)) opts.customFields = cfRes.data;
-    if (tplRes?.success && tplRes.data) opts.templateConfig = tplRes.data;
-  } catch (e) {}
-
-  const htmlContent = buildAdmissionFormHTML(fullStudent, opts);
-  
-  // Try popup window first on desktop
-  let printWindow = null;
-  try {
-    printWindow = window.open('', '_blank', 'width=900,height=1100');
-  } catch (_) {}
-
-  if (printWindow) {
-    printWindow.document.open();
-    printWindow.document.write(htmlContent + `
+  `}async function De(c,m={}){let a=c;const e={...m};try{const i=typeof localStorage<"u"?localStorage.getItem("sl_token")||localStorage.getItem("token"):null,d=i?{Authorization:`Bearer ${i}`}:{},[x,f,g]=await Promise.all([c&&c._id&&(!c.plan?.name||!c.shift?.name||!c.branch?.name||!c.idProof?.image)?fetch(`/api/students/${c._id}`,{headers:d}).then(p=>p.json()).catch(()=>null):null,e.customFields?null:fetch("/api/custom-fields/all",{headers:d}).then(p=>p.json()).catch(()=>null),e.templateConfig?null:fetch("/api/custom-fields/templates/active",{headers:d}).then(p=>p.json()).catch(()=>null)]);x?.success&&x?.data&&(a=x.data),f?.success&&Array.isArray(f.data)&&(e.customFields=f.data),g?.success&&g.data&&(e.templateConfig=g.data)}catch{}const r=Se(a,e);let u=null;try{u=window.open("","_blank","width=900,height=1100")}catch{}if(u)u.document.open(),u.document.write(r+`
       <script>
         window.onload = function() {
           setTimeout(() => { window.print(); }, 400);
         };
-      </script>
-    `);
-    printWindow.document.close();
-  } else {
-    // Mobile / Popup-blocked Fallback: Sandboxed hidden iframe
-    let printFrame = document.getElementById('pdf-print-sandbox-frame');
-    if (!printFrame) {
-      printFrame = document.createElement('iframe');
-      printFrame.id = 'pdf-print-sandbox-frame';
-      printFrame.style.position = 'fixed';
-      printFrame.style.right = '0';
-      printFrame.style.bottom = '0';
-      printFrame.style.width = '0';
-      printFrame.style.height = '0';
-      printFrame.style.border = '0';
-      document.body.appendChild(printFrame);
-    }
-    const doc = printFrame.contentWindow.document;
-    doc.open();
-    doc.write(htmlContent);
-    doc.close();
-    setTimeout(() => {
-      try {
-        printFrame.contentWindow.focus();
-        printFrame.contentWindow.print();
-      } catch (err) {
-        window.print();
-      }
-    }, 500);
-  }
-}
-
-/**
- * Interactive Modal Preview for Student & Admin before downloading PDF
- */
-export function previewAdmissionFormPDF(student, options = {}) {
-  const currentOpts = {
-    template: 'modern_glass',
-    showPhoto: true,
-    showSignature: true,
-    showQrCode: true,
-    showPaymentDetails: true,
-    showRules: true,
-    showWatermarkStamp: true,
-    showUploadedDocuments: true,
-    ...options
-  };
-
-  // Create Modal Overlay
-  const overlay = document.createElement('div');
-  overlay.id = 'pdf-preview-modal-overlay';
-  overlay.style.cssText = `
+      <\/script>
+    `),u.document.close();else{let i=document.getElementById("pdf-print-sandbox-frame");i||(i=document.createElement("iframe"),i.id="pdf-print-sandbox-frame",i.style.position="fixed",i.style.right="0",i.style.bottom="0",i.style.width="0",i.style.height="0",i.style.border="0",document.body.appendChild(i));const d=i.contentWindow.document;d.open(),d.write(r),d.close(),setTimeout(()=>{try{i.contentWindow.focus(),i.contentWindow.print()}catch{window.print()}},500)}}function Te(c,m={}){const a={template:"modern_glass",showPhoto:!0,showSignature:!0,showQrCode:!0,showPaymentDetails:!0,showRules:!0,showWatermarkStamp:!0,showUploadedDocuments:!0,...m},e=document.createElement("div");e.id="pdf-preview-modal-overlay",e.style.cssText=`
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);
     z-index: 2147483647; display: flex; flex-direction: column;
     align-items: center; justify-content: center; padding: 1.25rem;
     animation: fadeIn 0.25s ease forwards;
-  `;
-
-  const modal = document.createElement('div');
-  modal.style.cssText = `
+  `;const r=document.createElement("div");r.style.cssText=`
     width: 100%; max-width: 950px; height: 92vh; background: var(--color-surface, #ffffff);
     border-radius: 16px; border: 1px solid var(--color-border, #e2e8f0);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); display: flex;
     flex-direction: column; overflow: hidden;
-  `;
-
-  const studentName = student?.name || 'Student';
-  const studentId = student?.studentId || 'CONFIRMED';
-
-  modal.innerHTML = `
+  `;const u=c?.name||"Student",i=c?.studentId||"CONFIRMED";r.innerHTML=`
     <!-- Top Modal Toolbar Header -->
     <div style="padding: 1rem 1.5rem; background: var(--color-bg-secondary, #f8fafc); border-bottom: 1px solid var(--color-border, #e2e8f0); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
       <div style="display: flex; align-items: center; gap: 10px;">
-        <div style="font-size: 1.5rem;">📄</div>
+        <div style="font-size: 1.5rem;">\u{1F4C4}</div>
         <div>
           <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: var(--color-text-primary, #1e293b);">
-            Admission Form Preview — ${studentName} (${studentId})
+            Admission Form Preview \u2014 ${u} (${i})
           </h3>
           <span class="text-muted small" style="font-size: 0.8rem; color: #64748b;">
             Includes all personal data, seating allotment, custom questions & uploaded documents
@@ -1036,17 +593,17 @@ export function previewAdmissionFormPDF(student, options = {}) {
 
       <div style="display: flex; align-items: center; gap: 10px;">
         <select id="pdf-prev-preset" class="form-select" style="padding: 6px 12px; font-size: 0.85rem; font-weight: 700; border-radius: 8px;">
-          <option value="modern_glass" ${currentOpts.template === 'modern_glass' ? 'selected' : ''}>💎 Modern Glass Slate</option>
-          <option value="classic_formal" ${currentOpts.template === 'classic_formal' ? 'selected' : ''}>🏛️ Classic Indian Format</option>
-          <option value="compact_card" ${currentOpts.template === 'compact_card' ? 'selected' : ''}>🪪 1-Page Pass Slip</option>
+          <option value="modern_glass" ${a.template==="modern_glass"?"selected":""}>\u{1F48E} Modern Glass Slate</option>
+          <option value="classic_formal" ${a.template==="classic_formal"?"selected":""}>\u{1F3DB}\uFE0F Classic Indian Format</option>
+          <option value="compact_card" ${a.template==="compact_card"?"selected":""}>\u{1FAAA} 1-Page Pass Slip</option>
         </select>
 
         <button id="btn-pdf-modal-print" class="btn btn-primary" style="font-weight: 700; padding: 7px 16px; border-radius: 8px; background: #6c5ce7; border: none;">
-          🖨️ Print / Download PDF
+          \u{1F5A8}\uFE0F Print / Download PDF
         </button>
 
         <button id="btn-pdf-modal-close" class="btn btn-secondary" style="padding: 7px 12px; border-radius: 8px; font-weight: 700;">
-          ✕ Close
+          \u2715 Close
         </button>
       </div>
     </div>
@@ -1058,199 +615,31 @@ export function previewAdmissionFormPDF(student, options = {}) {
         background: #ffffff; border: none; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
       "></iframe>
     </div>
-  `;
-
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  const iframe = modal.querySelector('#pdf-preview-iframe');
-  let activeStudent = student;
-  
-  function updateIframePreview() {
-    const html = buildAdmissionFormHTML(activeStudent, currentOpts);
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
-  }
-
-  updateIframePreview();
-
-  // Asynchronously fetch fresh full student record, custom fields & template to guarantee exact labels & section ordering
-  (async () => {
-    try {
-      const token = (typeof localStorage !== 'undefined') ? (localStorage.getItem('sl_token') || localStorage.getItem('token')) : null;
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-      const [stuRes, cfRes, tplRes, bizRes] = await Promise.all([
-        student?._id ? fetch(`/api/students/${student._id}`, { headers }).then(r => r.json()).catch(() => null) : null,
-        fetch('/api/custom-fields/all', { headers }).then(r => r.json()).catch(() => null),
-        fetch('/api/custom-fields/templates/active', { headers }).then(r => r.json()).catch(() => null),
-        (!currentOpts.business || !currentOpts.business.businessName || currentOpts.business.businessName === 'Study Library Management')
-          ? fetch('/api/settings', { headers }).then(r => r.json()).catch(() => null)
-          : null
-      ]);
-
-      if (stuRes?.success && stuRes?.data) activeStudent = stuRes.data;
-      if (cfRes?.success && Array.isArray(cfRes.data)) {
-        currentOpts.customFields = cfRes.data;
-        try { localStorage.setItem('sl_custom_fields_cache', JSON.stringify(cfRes.data)); } catch (e) {}
-      }
-      if (tplRes?.success && tplRes.data) {
-        currentOpts.templateConfig = tplRes.data;
-        try { localStorage.setItem('sl_form_template_cache', JSON.stringify(tplRes.data)); } catch (e) {}
-      }
-      if (bizRes?.success && bizRes?.data?.businessProfile) {
-        currentOpts.business = bizRes.data.businessProfile;
-        if (bizRes.data.receipt) currentOpts.receiptConfig = bizRes.data.receipt;
-      }
-
-      updateIframePreview();
-    } catch (e) {}
-  })();
-
-  // Template switch handler
-  modal.querySelector('#pdf-prev-preset')?.addEventListener('change', (e) => {
-    currentOpts.template = e.target.value;
-    updateIframePreview();
-  });
-
-  // Print button handler
-  modal.querySelector('#btn-pdf-modal-print')?.addEventListener('click', () => {
-    generateAdmissionFormPDF(activeStudent, currentOpts);
-  });
-
-  // Close handler
-  modal.querySelector('#btn-pdf-modal-close')?.addEventListener('click', () => {
-    overlay.remove();
-  });
-
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.remove();
-  });
-}
-
-/**
- * 🧾 Universal Receipt Generator for POS Thermal (80mm/58mm), Standard A4 & Modern Digital Pass
- * Strictly obeys Admin's ReceiptConfig visibility flags across all formats.
- */
-export function buildReceiptHTML(payment = {}, options = {}) {
-  const rc = options.receiptConfig || (typeof window !== 'undefined' ? window.store?.settings?.receipt : {}) || {};
-  const bp = options.businessProfile || options.business || (typeof window !== 'undefined' ? window.store?.profile : {}) || {};
-  
-  // Format normalization: 'thermal80', 'thermal58', 'standardA4', 'modern_minimal'
-  let rawTemplate = options.template || rc.activeTemplate || 'thermal80';
-  let format = 'thermal80';
-  if (rawTemplate === 'thermal_58' || rawTemplate === 'thermal58') format = 'thermal58';
-  else if (rawTemplate === 'standard_a4' || rawTemplate === 'standardA4' || rawTemplate === 'gst_invoice') format = 'standardA4';
-  else if (rawTemplate === 'modern_minimal' || rawTemplate === 'digital') format = 'modern_minimal';
-  else format = 'thermal80';
-
-  const head = rc.header || {};
-  const bdy = rc.body || {};
-  const stp = rc.stamp || {};
-  const ftr = rc.footer || {};
-  const dt = rc.dateTime || {};
-  const gst = rc.gst || {};
-
-  const bizName = bp.businessName || 'Study Library';
-  const address = bp.address || '';
-  const phone = bp.phone || '';
-  const email = bp.email || '';
-  const gstin = head.gstNumber || bp.gstNumber || '';
-  const taxNumber = head.taxNumber || bp.registrationNumber || '';
-  const logoUrl = head.logoUrl || bp.logo || bp.logoUrl || '';
-  const upiId = bp.upiId || 'library@upi';
-
-  const subtitle = head.subtitle || 'Official Fee Payment Receipt';
-  const headerColor = head.headerColor || '#4f46e5';
-
-  const showLogo = head.showLogo !== false && Boolean(logoUrl);
-  const showBusinessName = head.showBusinessName !== false;
-  const showAddress = head.showAddress !== false && Boolean(address);
-  const showPhone = head.showPhone !== false && Boolean(phone);
-  const showEmail = head.showEmail !== false && Boolean(email);
-  const showGst = head.showGst !== false && Boolean(gstin);
-
-  const showStuId = bdy.showStudentId !== false;
-  const showStuPhone = bdy.showStudentPhone !== false;
-  const showSeat = bdy.showSeatNumber !== false;
-  const showShift = bdy.showShift !== false;
-  const showPeriod = bdy.showPeriod !== false;
-  const showBreakdown = bdy.showDiscount !== false && bdy.showPlanDetails !== false;
-  const showPaymentMode = bdy.showPaymentMethod !== false;
-  const showTxnId = bdy.showTransactionId !== false && showPaymentMode;
-
-  const showStamp = stp.showStamp !== false;
-  const stampText = stp.stampText || 'PAID • OFFICIAL RECEIPT';
-  const stampColor = stp.stampColor || '#059669';
-  const stampImg = stp.stampImage || ftr.stampImage || bp.stampImage || '';
-
-  const showSignature = ftr.showSignature !== false;
-  const signatureLabel = ftr.signatureLabel || 'Authorized Signatory';
-  const sigImg = ftr.signatureImage || '';
-
-  const showUpiQr = Boolean(ftr.showUpiQr);
-  const showTimestamp = dt.showTimestamp !== false && ftr.showTimestamp !== false;
-  const termsText = ftr.termsText || 'This is an authorized computer-generated fee receipt.';
-  const customNote = ftr.customNote || 'Thank you for choosing our study library!';
-
-  // Payment data extraction
-  const p = payment || {};
-  const receiptNo = p.receiptNumber || (p._id ? `REC-${String(p._id).slice(-6).toUpperCase()}` : 'REC-001');
-  const pDate = p.paymentDate || p.createdAt || p.date || new Date();
-  const dateObj = new Date(pDate);
-  const formattedDate = dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const timeStr = dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-  const fullDateTime = showTimestamp ? `${formattedDate} ${timeStr}` : formattedDate;
-
-  const studentObj = (p.student && typeof p.student === 'object') ? p.student : {};
-  const studentName = studentObj.name || p.studentName || 'Student Member';
-  const studentId = studentObj.studentId || p.studentId || 'N/A';
-  const studentPhone = studentObj.phone || p.phone || '';
-  const seatName = (studentObj.seat && typeof studentObj.seat === 'object') ? studentObj.seat.seatNumber : (studentObj.seat || p.seatNumber || '');
-  const shiftName = (studentObj.shift && typeof studentObj.shift === 'object') ? studentObj.shift.name : (studentObj.shift || p.shiftName || '');
-
-  const planObj = (p.plan && typeof p.plan === 'object') ? p.plan : {};
-  const planName = planObj.name || p.planName || 'Study Space Membership';
-
-  const paidAmount = Number(p.finalAmount !== undefined ? p.finalAmount : (p.amount || 0));
-  const baseAmount = Number(p.amount !== undefined ? p.amount : paidAmount);
-  const discountAmount = Number(p.discount || (baseAmount > paidAmount ? baseAmount - paidAmount : 0));
-  const paymentMethod = (p.paymentMethod || p.method || 'UPI').toUpperCase();
-  const txnId = p.transactionId || p.utrNumber || p.utr || '';
-
-  const validFrom = p.periodStart ? new Date(p.periodStart).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
-  const validUntil = p.periodEnd ? new Date(p.periodEnd).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
-  const validityText = (validFrom && validUntil) ? `${validFrom} – ${validUntil}` : '';
-
-  // 1. STANDARD A4 INVOICE FORMAT
-  if (format === 'standardA4') {
-    return `
+  `,e.appendChild(r),document.body.appendChild(e);const d=r.querySelector("#pdf-preview-iframe");let x=c;function f(){const g=Se(x,a),p=d.contentWindow.document;p.open(),p.write(g),p.close()}f(),(async()=>{try{const g=typeof localStorage<"u"?localStorage.getItem("sl_token")||localStorage.getItem("token"):null,p=g?{Authorization:`Bearer ${g}`}:{},[b,A,D,$]=await Promise.all([c?._id?fetch(`/api/students/${c._id}`,{headers:p}).then(v=>v.json()).catch(()=>null):null,fetch("/api/custom-fields/all",{headers:p}).then(v=>v.json()).catch(()=>null),fetch("/api/custom-fields/templates/active",{headers:p}).then(v=>v.json()).catch(()=>null),!a.business||!a.business.businessName||a.business.businessName==="Study Library Management"?fetch("/api/settings",{headers:p}).then(v=>v.json()).catch(()=>null):null]);if(b?.success&&b?.data&&(x=b.data),A?.success&&Array.isArray(A.data)){a.customFields=A.data;try{localStorage.setItem("sl_custom_fields_cache",JSON.stringify(A.data))}catch{}}if(D?.success&&D.data){a.templateConfig=D.data;try{localStorage.setItem("sl_form_template_cache",JSON.stringify(D.data))}catch{}}$?.success&&$?.data?.businessProfile&&(a.business=$.data.businessProfile,$.data.receipt&&(a.receiptConfig=$.data.receipt)),f()}catch{}})(),r.querySelector("#pdf-prev-preset")?.addEventListener("change",g=>{a.template=g.target.value,f()}),r.querySelector("#btn-pdf-modal-print")?.addEventListener("click",()=>{De(x,a)}),r.querySelector("#btn-pdf-modal-close")?.addEventListener("click",()=>{e.remove()}),e.addEventListener("click",g=>{g.target===e&&e.remove()})}function Ce(c={},m={}){const a=m.receiptConfig||(typeof window<"u"?window.store?.settings?.receipt:{})||{},e=m.businessProfile||m.business||(typeof window<"u"?window.store?.profile:{})||{};let r=m.template||a.activeTemplate||"thermal80",u="thermal80";r==="thermal_58"||r==="thermal58"?u="thermal58":r==="standard_a4"||r==="standardA4"||r==="gst_invoice"?u="standardA4":r==="modern_minimal"||r==="digital"?u="modern_minimal":u="thermal80";const i=a.header||{},d=a.body||{},x=a.stamp||{},f=a.footer||{},g=a.dateTime||{},p=a.gst||{},b=e.businessName||"Study Library",A=e.address||"",D=e.phone||"",$=e.email||"",v=i.gstNumber||e.gstNumber||"",he=i.taxNumber||e.registrationNumber||"",Z=i.logoUrl||e.logo||e.logoUrl||"",ye=e.upiId||"library@upi",pe=i.subtitle||"Official Fee Payment Receipt",T=i.headerColor||"#4f46e5",q=i.showLogo!==!1&&!!Z,W=i.showBusinessName!==!1,ee=i.showAddress!==!1&&!!A,Q=i.showPhone!==!1&&!!D,Y=i.showEmail!==!1&&!!$,we=i.showGst!==!1&&!!v,ce=d.showStudentId!==!1,$e=d.showStudentPhone!==!1,te=d.showSeatNumber!==!1,E=d.showShift!==!1,me=d.showPeriod!==!1,fe=d.showDiscount!==!1&&d.showPlanDetails!==!1,ie=d.showPaymentMethod!==!1,oe=d.showTransactionId!==!1&&ie,U=x.showStamp!==!1,ge=x.stampText||"PAID \u2022 OFFICIAL RECEIPT",C=x.stampColor||"#059669",N=x.stampImage||f.stampImage||e.stampImage||"",Fe=f.showSignature!==!1,ue=f.signatureLabel||"Authorized Signatory",G=f.signatureImage||"",xe=!!f.showUpiQr,ve=g.showTimestamp!==!1&&f.showTimestamp!==!1,V=f.termsText||"This is an authorized computer-generated fee receipt.",_=f.customNote||"Thank you for choosing our study library!",s=c||{},F=s.receiptNumber||(s._id?`REC-${String(s._id).slice(-6).toUpperCase()}`:"REC-001"),H=s.paymentDate||s.createdAt||s.date||new Date,z=new Date(H),K=z.toLocaleDateString("en-IN",{day:"2-digit",month:"2-digit",year:"numeric"}),ae=z.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:!0}),S=ve?`${K} ${ae}`:K,y=s.student&&typeof s.student=="object"?s.student:{},se=y.name||s.studentName||"Student Member",j=y.studentId||s.studentId||"N/A",J=y.phone||s.phone||"",w=y.seat&&typeof y.seat=="object"?y.seat.seatNumber:y.seat||s.seatNumber||"",R=y.shift&&typeof y.shift=="object"?y.shift.name:y.shift||s.shiftName||"",ne=(s.plan&&typeof s.plan=="object"?s.plan:{}).name||s.planName||"Study Space Membership",I=Number(s.finalAmount!==void 0?s.finalAmount:s.amount||0),L=Number(s.amount!==void 0?s.amount:I),P=Number(s.discount||(L>I?L-I:0)),de=(s.paymentMethod||s.method||"UPI").toUpperCase(),O=s.transactionId||s.utrNumber||s.utr||"",be=s.periodStart?new Date(s.periodStart).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"",X=s.periodEnd?new Date(s.periodEnd).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"",B=be&&X?`${be} \u2013 ${X}`:"";if(u==="standardA4")return`
       <div class="receipt-document format-standard-a4" style="width: 100%; max-width: 680px; margin: 0 auto; background: #fff; color: #111827; padding: 28px; font-family: 'Inter', Arial, sans-serif; box-sizing: border-box; position: relative; overflow: hidden; border: 1px solid #e5e7eb; border-radius: 8px;">
         
         <!-- Header -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2.5px solid ${headerColor}; padding-bottom: 16px; margin-bottom: 18px; gap: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2.5px solid ${T}; padding-bottom: 16px; margin-bottom: 18px; gap: 16px;">
           <div>
-            ${showLogo ? `<img src="${logoUrl}" style="max-height: 54px; max-width: 120px; object-fit: contain; margin-bottom: 8px;" alt="Logo"><br>` : ''}
-            ${showBusinessName ? `<h2 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: ${headerColor}; text-transform: uppercase;">${escapeHTML(bizName)}</h2>` : ''}
-            <div style="font-size: 0.85rem; font-weight: 700; color: #4b5563; margin-top: 2px;">${escapeHTML(subtitle)}</div>
-            ${showAddress ? `<div style="font-size: 0.78rem; color: #6b7280; margin-top: 3px;">${escapeHTML(address)}</div>` : ''}
+            ${q?`<img src="${Z}" style="max-height: 54px; max-width: 120px; object-fit: contain; margin-bottom: 8px;" alt="Logo"><br>`:""}
+            ${W?`<h2 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: ${T}; text-transform: uppercase;">${t(b)}</h2>`:""}
+            <div style="font-size: 0.85rem; font-weight: 700; color: #4b5563; margin-top: 2px;">${t(pe)}</div>
+            ${ee?`<div style="font-size: 0.78rem; color: #6b7280; margin-top: 3px;">${t(A)}</div>`:""}
             <div style="font-size: 0.78rem; color: #6b7280;">
-              ${showPhone ? `<span>📞 ${escapeHTML(phone)}</span>` : ''}
-              ${showEmail ? `<span style="margin-left: 8px;">✉️ ${escapeHTML(email)}</span>` : ''}
+              ${Q?`<span>\u{1F4DE} ${t(D)}</span>`:""}
+              ${Y?`<span style="margin-left: 8px;">\u2709\uFE0F ${t($)}</span>`:""}
             </div>
-            ${showGst ? `<div style="font-size: 0.78rem; font-weight: 700; color: #1f2937; margin-top: 2px;">GSTIN: ${escapeHTML(gstin)}</div>` : ''}
+            ${we?`<div style="font-size: 0.78rem; font-weight: 700; color: #1f2937; margin-top: 2px;">GSTIN: ${t(v)}</div>`:""}
           </div>
           <div style="text-align: right;">
             <div style="font-size: 0.75rem; font-weight: 700; color: #6b7280; text-transform: uppercase;">RECEIPT NUMBER</div>
-            <div style="font-size: 1.15rem; font-weight: 900; font-family: monospace; color: #111827;">${escapeHTML(receiptNo)}</div>
-            <div style="font-size: 0.75rem; color: #6b7280; margin-top: 6px;">Date: <strong>${fullDateTime}</strong></div>
-            ${showStamp ? `
-              <div style="display: inline-block; margin-top: 10px; border: 2px dashed ${stampColor}; color: ${stampColor}; font-weight: 800; font-size: 0.8rem; padding: 4px 10px; border-radius: 4px; text-transform: uppercase; transform: rotate(-5deg); background: rgba(255,255,255,0.9);">
-                ✔ ${escapeHTML(stampText)}
+            <div style="font-size: 1.15rem; font-weight: 900; font-family: monospace; color: #111827;">${t(F)}</div>
+            <div style="font-size: 0.75rem; color: #6b7280; margin-top: 6px;">Date: <strong>${S}</strong></div>
+            ${U?`
+              <div style="display: inline-block; margin-top: 10px; border: 2px dashed ${C}; color: ${C}; font-weight: 800; font-size: 0.8rem; padding: 4px 10px; border-radius: 4px; text-transform: uppercase; transform: rotate(-5deg); background: rgba(255,255,255,0.9);">
+                \u2714 ${t(ge)}
               </div>
-            ` : ''}
+            `:""}
           </div>
         </div>
 
@@ -1258,15 +647,15 @@ export function buildReceiptHTML(payment = {}, options = {}) {
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px 16px; margin-bottom: 18px; font-size: 0.82rem;">
           <div>
             <div style="font-size: 0.7rem; font-weight: 700; color: #6b7280; text-transform: uppercase;">STUDENT DETAILS</div>
-            <div style="font-weight: 800; font-size: 0.95rem; color: #111827; margin-top: 2px;">${escapeHTML(studentName)}</div>
-            ${showStuId ? `<div style="font-family: monospace; color: #4b5563;">ID: ${escapeHTML(studentId)}</div>` : ''}
-            ${showStuPhone && studentPhone ? `<div>Phone: ${escapeHTML(studentPhone)}</div>` : ''}
+            <div style="font-weight: 800; font-size: 0.95rem; color: #111827; margin-top: 2px;">${t(se)}</div>
+            ${ce?`<div style="font-family: monospace; color: #4b5563;">ID: ${t(j)}</div>`:""}
+            ${$e&&J?`<div>Phone: ${t(J)}</div>`:""}
           </div>
           <div>
             <div style="font-size: 0.7rem; font-weight: 700; color: #6b7280; text-transform: uppercase;">ADMISSION &amp; DESK</div>
-            ${showSeat && seatName ? `<div>Allocated Seat: <strong>Desk #${escapeHTML(seatName)}</strong></div>` : ''}
-            ${showShift && shiftName ? `<div>Shift Timing: <strong>${escapeHTML(shiftName)}</strong></div>` : ''}
-            ${showPeriod && validityText ? `<div style="color: #059669; font-weight: 700; margin-top: 2px;">Validity: ${escapeHTML(validityText)}</div>` : ''}
+            ${te&&w?`<div>Allocated Seat: <strong>Desk #${t(w)}</strong></div>`:""}
+            ${E&&R?`<div>Shift Timing: <strong>${t(R)}</strong></div>`:""}
+            ${me&&B?`<div style="color: #059669; font-weight: 700; margin-top: 2px;">Validity: ${t(B)}</div>`:""}
           </div>
         </div>
 
@@ -1275,348 +664,313 @@ export function buildReceiptHTML(payment = {}, options = {}) {
           <thead>
             <tr style="background: #f3f4f6; border-bottom: 2px solid #e5e7eb; color: #374151; font-weight: 700; text-transform: uppercase; font-size: 0.74rem;">
               <th style="padding: 8px 10px; text-align: left;">Description</th>
-              <th style="padding: 8px 10px; text-align: right;">Amount (₹)</th>
+              <th style="padding: 8px 10px; text-align: right;">Amount (\u20B9)</th>
             </tr>
           </thead>
           <tbody>
             <tr style="border-bottom: 1px solid #e5e7eb;">
               <td style="padding: 10px 10px;">
-                <strong>${escapeHTML(planName)}</strong>
-                ${validityText ? `<div style="font-size: 0.75rem; color: #6b7280;">Duration: ${escapeHTML(validityText)}</div>` : ''}
+                <strong>${t(ne)}</strong>
+                ${B?`<div style="font-size: 0.75rem; color: #6b7280;">Duration: ${t(B)}</div>`:""}
               </td>
-              <td style="padding: 10px 10px; text-align: right; font-weight: 600;">₹${baseAmount.toFixed(2)}</td>
+              <td style="padding: 10px 10px; text-align: right; font-weight: 600;">\u20B9${L.toFixed(2)}</td>
             </tr>
-            ${(showBreakdown && discountAmount > 0) ? `
+            ${fe&&P>0?`
               <tr style="border-bottom: 1px solid #e5e7eb; color: #dc2626;">
                 <td style="padding: 6px 10px;">Discount Applied</td>
-                <td style="padding: 6px 10px; text-align: right; font-weight: 600;">-₹${discountAmount.toFixed(2)}</td>
+                <td style="padding: 6px 10px; text-align: right; font-weight: 600;">-\u20B9${P.toFixed(2)}</td>
               </tr>
-            ` : ''}
+            `:""}
           </tbody>
           <tfoot>
             <tr style="border-top: 2px solid #111827; font-weight: 800; font-size: 1rem;">
               <td style="padding: 10px 10px;">TOTAL AMOUNT PAID:</td>
-              <td style="padding: 10px 10px; text-align: right; color: #059669;">₹${paidAmount.toFixed(2)}</td>
+              <td style="padding: 10px 10px; text-align: right; color: #059669;">\u20B9${I.toFixed(2)}</td>
             </tr>
           </tfoot>
         </table>
 
         <!-- Payment Mode & Reference Block (Strictly Hidden if Admin unchecks Payment Mode) -->
-        ${showPaymentMode ? `
+        ${ie?`
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <span>Payment Mode: <strong>${escapeHTML(paymentMethod)}</strong></span>
-              ${showTxnId && txnId ? `<span style="margin-left: 10px; font-family: monospace; color: #475569;">(Ref / Txn ID: ${escapeHTML(txnId)})</span>` : ''}
+              <span>Payment Mode: <strong>${t(de)}</strong></span>
+              ${oe&&O?`<span style="margin-left: 10px; font-family: monospace; color: #475569;">(Ref / Txn ID: ${t(O)})</span>`:""}
             </div>
             <span style="font-size: 0.75rem; font-weight: 800; color: #047857; background: #d1fae5; padding: 2px 8px; border-radius: 4px;">
-              PAID &amp; SETTLED ✓
+              PAID &amp; SETTLED \u2713
             </span>
           </div>
-        ` : ''}
+        `:""}
 
         <!-- Terms, Footer & Signature Block -->
         <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #e5e7eb; padding-top: 14px; margin-top: 12px; gap: 16px;">
           <div style="font-size: 0.72rem; color: #6b7280; max-width: 65%;">
-            ${customNote ? `<div style="font-weight: 700; color: #1f2937; margin-bottom: 4px;">${escapeHTML(customNote)}</div>` : ''}
-            ${termsText ? `<div>${escapeHTML(termsText)}</div>` : ''}
+            ${_?`<div style="font-weight: 700; color: #1f2937; margin-bottom: 4px;">${t(_)}</div>`:""}
+            ${V?`<div>${t(V)}</div>`:""}
           </div>
-          ${showSignature ? `
+          ${Fe?`
             <div style="text-align: center; min-width: 140px;">
-              ${sigImg ? `<img src="${sigImg}" style="max-height: 40px; margin-bottom: 4px;" alt="Signature"><br>` : '<div style="height: 34px;"></div>'}
-              <div style="border-top: 1.5px solid #111827; padding-top: 4px; font-size: 0.72rem; font-weight: 700; color: #111827;">${escapeHTML(signatureLabel)}</div>
+              ${G?`<img src="${G}" style="max-height: 40px; margin-bottom: 4px;" alt="Signature"><br>`:'<div style="height: 34px;"></div>'}
+              <div style="border-top: 1.5px solid #111827; padding-top: 4px; font-size: 0.72rem; font-weight: 700; color: #111827;">${t(ue)}</div>
             </div>
-          ` : ''}
+          `:""}
         </div>
 
       </div>
-    `;
-  }
-
-  // 2. MODERN DIGITAL PASS FORMAT
-  if (format === 'modern_minimal') {
-    return `
+    `;if(u==="modern_minimal")return`
       <div class="receipt-document format-modern-digital" style="width: 100%; max-width: 420px; margin: 0 auto; background: #ffffff; color: #0f172a; padding: 22px; font-family: 'Inter', Arial, sans-serif; box-sizing: border-box; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; position: relative;">
         
         <!-- Header -->
-        <div style="text-align: center; border-bottom: 2px solid ${headerColor}; padding-bottom: 12px; margin-bottom: 14px;">
-          ${showLogo ? `<img src="${logoUrl}" style="max-height: 44px; max-width: 90px; object-fit: contain; margin-bottom: 6px;" alt="Logo"><br>` : ''}
-          ${showBusinessName ? `<h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: ${headerColor}; text-transform: uppercase;">${escapeHTML(bizName)}</h3>` : ''}
-          <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; margin-top: 2px;">${escapeHTML(subtitle)}</div>
-          ${showAddress ? `<div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">${escapeHTML(address)}</div>` : ''}
-          ${(showPhone || showEmail) ? `<div style="font-size: 0.72rem; color: #64748b;">${showPhone ? `📞 ${escapeHTML(phone)} ` : ''}${showEmail ? `✉️ ${escapeHTML(email)}` : ''}</div>` : ''}
-          ${showGst ? `<div style="font-size: 0.72rem; font-weight: 700; color: #334155; margin-top: 2px;">GSTIN: ${escapeHTML(gstin)}</div>` : ''}
+        <div style="text-align: center; border-bottom: 2px solid ${T}; padding-bottom: 12px; margin-bottom: 14px;">
+          ${q?`<img src="${Z}" style="max-height: 44px; max-width: 90px; object-fit: contain; margin-bottom: 6px;" alt="Logo"><br>`:""}
+          ${W?`<h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: ${T}; text-transform: uppercase;">${t(b)}</h3>`:""}
+          <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; margin-top: 2px;">${t(pe)}</div>
+          ${ee?`<div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">${t(A)}</div>`:""}
+          ${Q||Y?`<div style="font-size: 0.72rem; color: #64748b;">${Q?`\u{1F4DE} ${t(D)} `:""}${Y?`\u2709\uFE0F ${t($)}`:""}</div>`:""}
+          ${we?`<div style="font-size: 0.72rem; font-weight: 700; color: #334155; margin-top: 2px;">GSTIN: ${t(v)}</div>`:""}
         </div>
 
         <!-- Receipt Metadata Grid -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; font-size: 0.78rem; margin-bottom: 14px; background: #f8fafc; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
           <div>
             <div style="font-size: 0.65rem; color: #64748b; font-weight: 700; text-transform: uppercase;">RECEIPT NO.</div>
-            <div style="font-weight: 800; font-family: monospace; color: #0f172a;">${escapeHTML(receiptNo)}</div>
+            <div style="font-weight: 800; font-family: monospace; color: #0f172a;">${t(F)}</div>
           </div>
           <div style="text-align: right;">
             <div style="font-size: 0.65rem; color: #64748b; font-weight: 700; text-transform: uppercase;">DATE &amp; TIME</div>
-            <div style="font-weight: 600; color: #0f172a;">${fullDateTime}</div>
+            <div style="font-weight: 600; color: #0f172a;">${S}</div>
           </div>
           <div>
             <div style="font-size: 0.65rem; color: #64748b; font-weight: 700; text-transform: uppercase;">STUDENT NAME</div>
-            <div style="font-weight: 800; color: #0f172a;">${escapeHTML(studentName)}</div>
-            ${showStuId ? `<div style="font-size: 0.68rem; color: #64748b; font-family: monospace;">ID: ${escapeHTML(studentId)}</div>` : ''}
+            <div style="font-weight: 800; color: #0f172a;">${t(se)}</div>
+            ${ce?`<div style="font-size: 0.68rem; color: #64748b; font-family: monospace;">ID: ${t(j)}</div>`:""}
           </div>
           <div style="text-align: right;">
-            ${showSeat && seatName ? `
+            ${te&&w?`
               <div style="font-size: 0.65rem; color: #64748b; font-weight: 700; text-transform: uppercase;">ALLOCATED DESK</div>
-              <div style="font-weight: 700; color: #047857;">Desk #${escapeHTML(seatName)}</div>
-            ` : ''}
-            ${showShift && shiftName ? `<div style="font-size: 0.68rem; color: #64748b;">${escapeHTML(shiftName)}</div>` : ''}
+              <div style="font-weight: 700; color: #047857;">Desk #${t(w)}</div>
+            `:""}
+            ${E&&R?`<div style="font-size: 0.68rem; color: #64748b;">${t(R)}</div>`:""}
           </div>
-          ${showPeriod && validityText ? `
+          ${me&&B?`
             <div style="grid-column: span 2; border-top: 1px dashed #cbd5e1; padding-top: 4px; margin-top: 2px;">
               <span style="font-size: 0.68rem; color: #64748b;">Validity:</span>
-              <strong style="color: #059669; margin-left: 4px;">${escapeHTML(validityText)}</strong>
+              <strong style="color: #059669; margin-left: 4px;">${t(B)}</strong>
             </div>
-          ` : ''}
+          `:""}
         </div>
 
         <!-- Plan Description & Total -->
         <div style="border-bottom: 1.5px dashed #cbd5e1; padding-bottom: 10px; margin-bottom: 12px; font-size: 0.82rem;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-            <span>${escapeHTML(planName)}</span>
-            <span style="font-weight: 600;">₹${baseAmount.toFixed(2)}</span>
+            <span>${t(ne)}</span>
+            <span style="font-weight: 600;">\u20B9${L.toFixed(2)}</span>
           </div>
-          ${(showBreakdown && discountAmount > 0) ? `
+          ${fe&&P>0?`
             <div style="display: flex; justify-content: space-between; color: #dc2626; font-size: 0.76rem;">
               <span>Special Discount</span>
-              <span>-₹${discountAmount.toFixed(2)}</span>
+              <span>-\u20B9${P.toFixed(2)}</span>
             </div>
-          ` : ''}
+          `:""}
           <div style="display: flex; justify-content: space-between; font-weight: 800; font-size: 1.05rem; margin-top: 8px; border-top: 1.5px solid #0f172a; padding-top: 6px;">
             <span>TOTAL PAID:</span>
-            <span style="color: #059669;">₹${paidAmount.toFixed(2)}</span>
+            <span style="color: #059669;">\u20B9${I.toFixed(2)}</span>
           </div>
         </div>
 
         <!-- Payment Mode & Reference (Strictly Hidden if Admin unchecks Payment Mode) -->
-        ${showPaymentMode ? `
+        ${ie?`
           <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px;">
             <div>
-              <span>Mode: <strong style="color: #0f172a;">${escapeHTML(paymentMethod)}</strong></span>
-              ${showTxnId && txnId ? `<div style="font-family: monospace; font-size: 0.68rem; color: #64748b;">Txn: ${escapeHTML(txnId)}</div>` : ''}
+              <span>Mode: <strong style="color: #0f172a;">${t(de)}</strong></span>
+              ${oe&&O?`<div style="font-family: monospace; font-size: 0.68rem; color: #64748b;">Txn: ${t(O)}</div>`:""}
             </div>
             <span style="font-size: 0.68rem; font-weight: 700; color: #047857; background: #d1fae5; padding: 2px 7px; border-radius: 4px; border: 1px solid #10b981;">
-              PAID &amp; VERIFIED ✓
+              PAID &amp; VERIFIED \u2713
             </span>
           </div>
-        ` : ''}
+        `:""}
 
         <!-- Official Stamp -->
-        ${showStamp ? `
+        ${U?`
           <div style="text-align: center; margin: 10px 0;">
-            <div style="display: inline-block; border: 2px solid ${stampColor}; color: ${stampColor}; font-weight: 800; font-size: 0.85rem; padding: 3px 12px; border-radius: 6px; text-transform: uppercase; transform: rotate(-2deg);">
-              ✔ ${escapeHTML(stampText)}
+            <div style="display: inline-block; border: 2px solid ${C}; color: ${C}; font-weight: 800; font-size: 0.85rem; padding: 3px 12px; border-radius: 6px; text-transform: uppercase; transform: rotate(-2deg);">
+              \u2714 ${t(ge)}
             </div>
           </div>
-        ` : ''}
+        `:""}
 
         <!-- Dynamic UPI QR -->
-        ${showUpiQr ? `
+        ${xe?`
           <div style="text-align: center; margin: 8px 0; padding: 6px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent('upi://pay?pa=' + upiId + '&pn=' + bizName + '&am=0&cu=INR')}" style="width: 70px; height: 70px; display: block; margin: 0 auto 3px;" alt="QR">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent("upi://pay?pa="+ye+"&pn="+b+"&am=0&cu=INR")}" style="width: 70px; height: 70px; display: block; margin: 0 auto 3px;" alt="QR">
             <div style="font-size: 0.62rem; font-weight: 700; color: #475569;">Scan to Verify via UPI</div>
           </div>
-        ` : ''}
+        `:""}
 
         <!-- Footer -->
         <div style="text-align: center; font-size: 0.68rem; color: #94a3b8; margin-top: 8px;">
-          ${customNote ? `<div style="font-weight: 700; color: #475569; margin-bottom: 2px;">${escapeHTML(customNote)}</div>` : ''}
-          ${termsText ? `<div>${escapeHTML(termsText)}</div>` : ''}
+          ${_?`<div style="font-weight: 700; color: #475569; margin-bottom: 2px;">${t(_)}</div>`:""}
+          ${V?`<div>${t(V)}</div>`:""}
         </div>
 
       </div>
-    `;
-  }
-
-  // 3. POS THERMAL 80mm & 58mm FORMATS
-  const is58 = format === 'thermal58';
-  const paperWidth = is58 ? '260px' : '340px';
-  const fontSize = is58 ? '11px' : '12.5px';
-
-  return `
-    <div class="receipt-document format-thermal" style="width: ${paperWidth}; max-width: 100%; margin: 0 auto; background: #ffffff; color: #111827; padding: ${is58 ? '12px 10px' : '18px 16px'}; font-family: 'Courier New', Courier, monospace; font-size: ${fontSize}; line-height: 1.4; box-sizing: border-box;">
+    `;const M=u==="thermal58";return`
+    <div class="receipt-document format-thermal" style="width: ${M?"260px":"340px"}; max-width: 100%; margin: 0 auto; background: #ffffff; color: #111827; padding: ${M?"12px 10px":"18px 16px"}; font-family: 'Courier New', Courier, monospace; font-size: ${M?"11px":"12.5px"}; line-height: 1.4; box-sizing: border-box;">
       
       <!-- Receipt Header -->
       <div style="text-align: center; border-bottom: 1.5px dashed #333; padding-bottom: 8px; margin-bottom: 8px;">
-        ${showLogo ? `<img src="${logoUrl}" style="max-height: ${is58 ? '36px' : '44px'}; max-width: 100px; object-fit: contain; margin-bottom: 4px;" alt="Logo"><br>` : ''}
-        ${showBusinessName ? `<div style="font-weight: 800; font-size: ${is58 ? '0.95rem' : '1.05rem'}; text-transform: uppercase; color: ${headerColor}; letter-spacing: 0.5px;">${escapeHTML(bizName)}</div>` : ''}
-        <div style="font-size: 0.78rem; font-weight: 700; color: #555; text-transform: uppercase;">${escapeHTML(subtitle)}</div>
-        ${showAddress ? `<div style="font-size: 0.72rem; color: #444; margin-top: 2px;">${escapeHTML(address)}</div>` : ''}
-        ${(showPhone || showEmail) ? `<div style="font-size: 0.72rem; color: #444;">${showPhone ? `Tel: ${escapeHTML(phone)} ` : ''}${showEmail ? `• ${escapeHTML(email)}` : ''}</div>` : ''}
-        ${showGst ? `<div style="font-size: 0.72rem; font-weight: 700; color: #222; margin-top: 2px;">GSTIN: ${escapeHTML(gstin)}</div>` : ''}
+        ${q?`<img src="${Z}" style="max-height: ${M?"36px":"44px"}; max-width: 100px; object-fit: contain; margin-bottom: 4px;" alt="Logo"><br>`:""}
+        ${W?`<div style="font-weight: 800; font-size: ${M?"0.95rem":"1.05rem"}; text-transform: uppercase; color: ${T}; letter-spacing: 0.5px;">${t(b)}</div>`:""}
+        <div style="font-size: 0.78rem; font-weight: 700; color: #555; text-transform: uppercase;">${t(pe)}</div>
+        ${ee?`<div style="font-size: 0.72rem; color: #444; margin-top: 2px;">${t(A)}</div>`:""}
+        ${Q||Y?`<div style="font-size: 0.72rem; color: #444;">${Q?`Tel: ${t(D)} `:""}${Y?`\u2022 ${t($)}`:""}</div>`:""}
+        ${we?`<div style="font-size: 0.72rem; font-weight: 700; color: #222; margin-top: 2px;">GSTIN: ${t(v)}</div>`:""}
       </div>
 
       <!-- Receipt Metadata -->
       <div style="border-bottom: 1px dashed #666; padding-bottom: 6px; margin-bottom: 6px; font-size: 0.8rem;">
         <div style="display: flex; justify-content: space-between;">
           <span>Receipt No:</span>
-          <strong style="font-family: monospace;">${escapeHTML(receiptNo)}</strong>
+          <strong style="font-family: monospace;">${t(F)}</strong>
         </div>
         <div style="display: flex; justify-content: space-between;">
           <span>Date &amp; Time:</span>
-          <span>${fullDateTime}</span>
+          <span>${S}</span>
         </div>
         <div style="display: flex; justify-content: space-between;">
           <span>Student Name:</span>
-          <strong>${escapeHTML(studentName)}</strong>
+          <strong>${t(se)}</strong>
         </div>
-        ${showStuId ? `
+        ${ce?`
           <div style="display: flex; justify-content: space-between;">
             <span>Student ID:</span>
-            <span style="font-family: monospace;">${escapeHTML(studentId)}</span>
+            <span style="font-family: monospace;">${t(j)}</span>
           </div>
-        ` : ''}
-        ${showStuPhone && studentPhone ? `
+        `:""}
+        ${$e&&J?`
           <div style="display: flex; justify-content: space-between;">
             <span>Phone:</span>
-            <span>${escapeHTML(studentPhone)}</span>
+            <span>${t(J)}</span>
           </div>
-        ` : ''}
-        ${showSeat && seatName ? `
+        `:""}
+        ${te&&w?`
           <div style="display: flex; justify-content: space-between;">
             <span>Allocated Seat:</span>
-            <strong>Desk #${escapeHTML(seatName)}</strong>
+            <strong>Desk #${t(w)}</strong>
           </div>
-        ` : ''}
-        ${showShift && shiftName ? `
+        `:""}
+        ${E&&R?`
           <div style="display: flex; justify-content: space-between;">
             <span>Shift Timing:</span>
-            <span>${escapeHTML(shiftName)}</span>
+            <span>${t(R)}</span>
           </div>
-        ` : ''}
-        ${showPeriod && validityText ? `
+        `:""}
+        ${me&&B?`
           <div style="display: flex; justify-content: space-between; margin-top: 2px;">
             <span>Validity:</span>
-            <strong style="color: #059669;">${escapeHTML(validityText)}</strong>
+            <strong style="color: #059669;">${t(B)}</strong>
           </div>
-        ` : ''}
+        `:""}
       </div>
 
       <!-- Line Items / Fee Breakdown -->
-      ${showBreakdown ? `
+      ${fe?`
         <div style="border-bottom: 1.5px dashed #333; padding-bottom: 6px; margin-bottom: 6px; font-size: 0.8rem;">
           <div style="display: flex; justify-content: space-between; font-weight: 700; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 3px;">
             <span>Description</span>
-            <span>Amount (₹)</span>
+            <span>Amount (\u20B9)</span>
           </div>
           <div style="display: flex; justify-content: space-between;">
-            <span>${escapeHTML(planName)}</span>
-            <span>${baseAmount.toFixed(2)}</span>
+            <span>${t(ne)}</span>
+            <span>${L.toFixed(2)}</span>
           </div>
-          ${discountAmount > 0 ? `
+          ${P>0?`
             <div style="display: flex; justify-content: space-between; color: #dc2626;">
               <span>Special Discount</span>
-              <span>-${discountAmount.toFixed(2)}</span>
+              <span>-${P.toFixed(2)}</span>
             </div>
-          ` : ''}
+          `:""}
         </div>
-      ` : ''}
+      `:""}
 
       <!-- Total Paid & Payment Method -->
       <div style="border-bottom: 1.5px dashed #333; padding-bottom: 6px; margin-bottom: 6px;">
         <div style="display: flex; justify-content: space-between; font-weight: 800; font-size: 0.95rem;">
           <span>TOTAL PAID:</span>
-          <span>₹${paidAmount.toFixed(2)}</span>
+          <span>\u20B9${I.toFixed(2)}</span>
         </div>
         <div style="display: flex; justify-content: space-between; font-size: 0.76rem; color: #059669; font-weight: 700; margin-top: 2px;">
           <span>Balance Due:</span>
-          <span>₹0.00 (PAID IN FULL)</span>
+          <span>\u20B90.00 (PAID IN FULL)</span>
         </div>
-        ${showPaymentMode ? `
+        ${ie?`
           <div style="display: flex; justify-content: space-between; font-size: 0.76rem; color: #444; margin-top: 3px;">
             <span>Payment Mode:</span>
-            <span>${escapeHTML(paymentMethod)}</span>
+            <span>${t(de)}</span>
           </div>
-          ${showTxnId && txnId ? `
+          ${oe&&O?`
             <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #666; font-family: monospace;">
               <span>Txn Ref / UTR:</span>
-              <span>${escapeHTML(txnId)}</span>
+              <span>${t(O)}</span>
             </div>
-          ` : ''}
-        ` : ''}
+          `:""}
+        `:""}
       </div>
 
       <!-- Paid Official Stamp -->
-      ${showStamp ? `
+      ${U?`
         <div style="text-align: center; margin: 8px 0;">
-          ${stampImg ? `<img src="${stampImg}" style="max-height: 40px; margin-bottom: 2px;" alt="Stamp"><br>` : ''}
-          <div style="display: inline-block; border: 2px solid ${stampColor}; color: ${stampColor}; font-weight: 900; font-size: 0.85rem; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; transform: rotate(-3deg);">
-            ✔ ${escapeHTML(stampText)}
+          ${N?`<img src="${N}" style="max-height: 40px; margin-bottom: 2px;" alt="Stamp"><br>`:""}
+          <div style="display: inline-block; border: 2px solid ${C}; color: ${C}; font-weight: 900; font-size: 0.85rem; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; transform: rotate(-3deg);">
+            \u2714 ${t(ge)}
           </div>
         </div>
-      ` : ''}
+      `:""}
 
       <!-- Dynamic UPI QR -->
-      ${showUpiQr ? `
+      ${xe?`
         <div style="text-align: center; margin: 8px 0; padding: 6px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px;">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent('upi://pay?pa=' + upiId + '&pn=' + bizName + '&am=0&cu=INR')}" style="width: 70px; height: 70px; display: block; margin: 0 auto 3px;" alt="UPI QR">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent("upi://pay?pa="+ye+"&pn="+b+"&am=0&cu=INR")}" style="width: 70px; height: 70px; display: block; margin: 0 auto 3px;" alt="UPI QR">
           <div style="font-size: 0.62rem; font-weight: 700; color: #374151;">Scan to Verify via UPI</div>
         </div>
-      ` : ''}
+      `:""}
 
       <!-- Terms & Signature -->
       <div style="font-size: 0.7rem; color: #4b5563; margin-top: 6px;">
-        ${customNote ? `<div style="font-weight: 700; text-align: center; margin-bottom: 4px; color: #111827;">${escapeHTML(customNote)}</div>` : ''}
-        ${termsText ? `<div style="line-height: 1.25; font-size: 0.65rem; color: #6b7280; text-align: center; margin-bottom: 6px;">${escapeHTML(termsText)}</div>` : ''}
+        ${_?`<div style="font-weight: 700; text-align: center; margin-bottom: 4px; color: #111827;">${t(_)}</div>`:""}
+        ${V?`<div style="line-height: 1.25; font-size: 0.65rem; color: #6b7280; text-align: center; margin-bottom: 6px;">${t(V)}</div>`:""}
         
-        ${showSignature ? `
+        ${Fe?`
           <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 10px; padding-top: 6px; border-top: 1px solid #eee;">
             <div style="font-size: 0.62rem; color: #9ca3af;">
-              ${showTimestamp ? `Generated: ${formattedDate}` : ''}
+              ${ve?`Generated: ${K}`:""}
             </div>
             <div style="text-align: center;">
-              <div style="font-size: 0.68rem; font-weight: 700; color: #111827; border-top: 1px solid #111827; padding-top: 2px;">${escapeHTML(signatureLabel)}</div>
+              <div style="font-size: 0.68rem; font-weight: 700; color: #111827; border-top: 1px solid #111827; padding-top: 2px;">${t(ue)}</div>
             </div>
           </div>
-        ` : ''}
+        `:""}
       </div>
 
     </div>
-  `;
-}
-
-/**
- * 🖨️ Isolated Printer for Receipt Documents
- */
-export function printReceiptDocument(payment, options = {}) {
-  const rc = options.receiptConfig || (typeof window !== 'undefined' ? window.store?.settings?.receipt : {}) || {};
-  let rawTemplate = options.template || rc.activeTemplate || 'thermal80';
-  let widthCss = '80mm';
-  if (rawTemplate === 'thermal_58' || rawTemplate === 'thermal58') widthCss = '58mm';
-  else if (rawTemplate === 'standard_a4' || rawTemplate === 'standardA4' || rawTemplate === 'gst_invoice') widthCss = '210mm';
-  else widthCss = '80mm';
-
-  const receiptHtml = buildReceiptHTML(payment, options);
-  const printWin = window.open('', '_blank', 'width=750,height=800');
-  if (!printWin) {
-    window.print();
-    return;
-  }
-
-  printWin.document.open();
-  printWin.document.write(`
+  `}function Ee(c,m={}){const a=m.receiptConfig||(typeof window<"u"?window.store?.settings?.receipt:{})||{};let e=m.template||a.activeTemplate||"thermal80",r="80mm";e==="thermal_58"||e==="thermal58"?r="58mm":e==="standard_a4"||e==="standardA4"||e==="gst_invoice"?r="210mm":r="80mm";const u=Ce(c,m),i=window.open("","_blank","width=750,height=800");if(!i){window.print();return}i.document.open(),i.document.write(`
     <!DOCTYPE html>
     <html lang="en">
     <head>
       <meta charset="UTF-8">
-      <title>Receipt — ${payment?.receiptNumber || 'Receipt'}</title>
+      <title>Receipt \u2014 ${c?.receiptNumber||"Receipt"}</title>
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
       <style>
-        @page { size: ${widthCss === '210mm' ? 'A4 portrait' : `${widthCss} auto`}; margin: 0; }
+        @page { size: ${r==="210mm"?"A4 portrait":`${r} auto`}; margin: 0; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
           background: #ffffff !important;
           color: #000000 !important;
-          width: ${widthCss};
+          width: ${r};
           max-width: 100%;
           margin: 0 auto;
           padding: 8px;
@@ -1624,13 +978,13 @@ export function printReceiptDocument(payment, options = {}) {
         }
         img { max-width: 100%; }
         @media print {
-          body { width: ${widthCss}; margin: 0 auto; padding: 4px; }
+          body { width: ${r}; margin: 0 auto; padding: 4px; }
           * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
       </style>
     </head>
     <body>
-      ${receiptHtml}
+      ${u}
       <script>
         window.onload = function() {
           setTimeout(function() {
@@ -1638,10 +992,7 @@ export function printReceiptDocument(payment, options = {}) {
             window.close();
           }, 350);
         };
-      </script>
+      <\/script>
     </body>
     </html>
-  `);
-  printWin.document.close();
-}
-
+  `),i.document.close()}export{Se as buildAdmissionFormHTML,Ce as buildReceiptHTML,De as generateAdmissionFormPDF,Te as previewAdmissionFormPDF,Ee as printReceiptDocument};

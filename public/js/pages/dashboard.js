@@ -1,73 +1,8 @@
-import { App } from '../app.js';
-import { t } from '../i18n.js';
-import { escapeHTML, Toast, Modal } from '../ui.js';
-import api from '../api.js';
-import { ChartEngine } from '../charts.js';
-
-const DEFAULT_WIDGETS = [
-  { id: 'kpi_active_students', label: 'Active Students', isEnabled: true, order: 1, category: 'kpi', icon: '👥' },
-  { id: 'kpi_available_seats', label: 'Available Seats & Live Occupancy', isEnabled: true, order: 2, category: 'kpi', icon: '💺' },
-  { id: 'kpi_today_revenue', label: "Today's Fee Collection", isEnabled: true, order: 3, category: 'kpi', icon: '💰' },
-  { id: 'kpi_expiring_soon', label: 'Expiring in 48 Hours', isEnabled: true, order: 4, category: 'kpi', icon: '⏰' },
-  { id: 'kpi_defaulter_dues', label: 'Overdue Fee Balances', isEnabled: true, order: 5, category: 'kpi', icon: '⚠️' },
-  { id: 'kpi_total_seats', label: 'Total Seat Capacity', isEnabled: true, order: 6, category: 'kpi', icon: '🏢' },
-  { id: 'kpi_renewals_week', label: 'Renewals Due This Week', isEnabled: true, order: 7, category: 'kpi', icon: '📅' },
-  { id: 'kpi_occupancy_gauge', label: 'Live Seat Occupancy Gauge', isEnabled: true, order: 8, category: 'kpi', icon: '🎯' },
-  { id: 'kpi_behavior_alerts', label: 'At-Risk Student Alerts', isEnabled: true, order: 9, category: 'kpi', icon: '🔴' },
-  { id: 'chart_revenue_trend', label: 'Monthly Revenue Trend Chart', isEnabled: true, order: 10, category: 'chart', icon: '📈' },
-  { id: 'chart_shift_occupancy', label: 'Shift Occupancy Distribution Chart', isEnabled: true, order: 11, category: 'chart', icon: '🕒' },
-  { id: 'chart_exam_stats', label: 'Student Exam Preparation Breakdown', isEnabled: true, order: 12, category: 'chart', icon: '🎯' },
-  { id: 'quick_actions', label: 'Quick 1-Tap Action Toolbar', isEnabled: true, order: 13, category: 'action', icon: '⚡' },
-  { id: 'system_health', label: 'System Health Monitor', isEnabled: true, order: 14, category: 'kpi', icon: '⚡' }
-];
-
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0
-  }).format(amount || 0);
-};
-
-let activeWidgetConfig = [];
-
-/**
- * Fetch saved or default widget configuration
- */
-async function getWidgetConfig() {
-  try {
-    const res = await api.get('/api/settings/dashboard-widgets');
-    if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-      // Merge with metadata (icons, categories) from defaults
-      return res.data.map((w, idx) => {
-        const def = DEFAULT_WIDGETS.find(d => d.id === w.id) || {};
-        return {
-          id: w.id,
-          label: w.label || def.label || w.id,
-          isEnabled: w.isEnabled !== undefined ? Boolean(w.isEnabled) : true,
-          order: w.order !== undefined ? Number(w.order) : idx + 1,
-          category: w.category || def.category || 'kpi',
-          icon: def.icon || '📊'
-        };
-      }).sort((a, b) => a.order - b.order);
-    }
-  } catch (err) {
-    console.warn('Could not load custom dashboard widgets, using defaults:', err);
-  }
-  return JSON.parse(JSON.stringify(DEFAULT_WIDGETS));
-}
-
-/**
- * Generate HTML markup for an individual widget
- */
-function renderWidgetHTML(widget) {
-  switch (widget.id) {
-    case 'kpi_active_students':
-      return `
+import{App as Ie}from"../app.js";import{t as R}from"../i18n.js";import{escapeHTML as A,Toast as B,Modal as U}from"../ui.js";import f from"../api.js";import{ChartEngine as H}from"../charts.js";const V=[{id:"kpi_active_students",label:"Active Students",isEnabled:!0,order:1,category:"kpi",icon:"\u{1F465}"},{id:"kpi_available_seats",label:"Available Seats & Live Occupancy",isEnabled:!0,order:2,category:"kpi",icon:"\u{1F4BA}"},{id:"kpi_today_revenue",label:"Today's Fee Collection",isEnabled:!0,order:3,category:"kpi",icon:"\u{1F4B0}"},{id:"kpi_expiring_soon",label:"Expiring in 48 Hours",isEnabled:!0,order:4,category:"kpi",icon:"\u23F0"},{id:"kpi_defaulter_dues",label:"Overdue Fee Balances",isEnabled:!0,order:5,category:"kpi",icon:"\u26A0\uFE0F"},{id:"kpi_total_seats",label:"Total Seat Capacity",isEnabled:!0,order:6,category:"kpi",icon:"\u{1F3E2}"},{id:"kpi_renewals_week",label:"Renewals Due This Week",isEnabled:!0,order:7,category:"kpi",icon:"\u{1F4C5}"},{id:"kpi_occupancy_gauge",label:"Live Seat Occupancy Gauge",isEnabled:!0,order:8,category:"kpi",icon:"\u{1F3AF}"},{id:"kpi_behavior_alerts",label:"At-Risk Student Alerts",isEnabled:!0,order:9,category:"kpi",icon:"\u{1F534}"},{id:"chart_revenue_trend",label:"Monthly Revenue Trend Chart",isEnabled:!0,order:10,category:"chart",icon:"\u{1F4C8}"},{id:"chart_shift_occupancy",label:"Shift Occupancy Distribution Chart",isEnabled:!0,order:11,category:"chart",icon:"\u{1F552}"},{id:"chart_exam_stats",label:"Student Exam Preparation Breakdown",isEnabled:!0,order:12,category:"chart",icon:"\u{1F3AF}"},{id:"quick_actions",label:"Quick 1-Tap Action Toolbar",isEnabled:!0,order:13,category:"action",icon:"\u26A1"},{id:"system_health",label:"System Health Monitor",isEnabled:!0,order:14,category:"kpi",icon:"\u26A1"}],L=c=>new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(c||0);let q=[];async function Te(){try{const c=await f.get("/api/settings/dashboard-widgets");if(c&&c.success&&Array.isArray(c.data)&&c.data.length>0)return c.data.map((i,l)=>{const p=V.find(x=>x.id===i.id)||{};return{id:i.id,label:i.label||p.label||i.id,isEnabled:i.isEnabled!==void 0?!!i.isEnabled:!0,order:i.order!==void 0?Number(i.order):l+1,category:i.category||p.category||"kpi",icon:p.icon||"\u{1F4CA}"}}).sort((i,l)=>i.order-l.order)}catch(c){console.warn("Could not load custom dashboard widgets, using defaults:",c)}return JSON.parse(JSON.stringify(V))}function De(c){switch(c.id){case"kpi_active_students":return`
         <div class="stat-card card" data-widget-id="kpi_active_students" style="border-left: 4px solid var(--color-primary, #6c5ce7);">
           <div class="stat-card-body">
             <div class="stat-card-info">
-              <div class="stat-card-title">${t('dashboard.totalStudents', 'Active Students')}</div>
+              <div class="stat-card-title">${R("dashboard.totalStudents","Active Students")}</div>
               <div class="stat-card-value" id="dash-kpi-active-students" style="color: var(--color-primary, #6c5ce7);">0</div>
               <div class="text-xs text-muted" id="dash-kpi-total-students-sub" style="margin-top: 4px;">Total registered: 0</div>
             </div>
@@ -76,14 +11,11 @@ function renderWidgetHTML(widget) {
             </div>
           </div>
         </div>
-      `;
-
-    case 'kpi_available_seats':
-      return `
+      `;case"kpi_available_seats":return`
         <div class="stat-card card" data-widget-id="kpi_available_seats" style="border-left: 4px solid var(--color-success, #00b894);">
           <div class="stat-card-body">
             <div class="stat-card-info">
-              <div class="stat-card-title">${t('dashboard.occupiedSeats', 'Available Seats & Occupancy')}</div>
+              <div class="stat-card-title">${R("dashboard.occupiedSeats","Available Seats & Occupancy")}</div>
               <div class="stat-card-value" id="dash-kpi-available-seats" style="color: var(--color-success, #00b894);">0 Available</div>
               <div class="text-xs text-muted" id="dash-kpi-seats-sub" style="margin-top: 4px;">0 / 0 Occupied</div>
             </div>
@@ -92,26 +24,20 @@ function renderWidgetHTML(widget) {
             </div>
           </div>
         </div>
-      `;
-
-    case 'kpi_today_revenue':
-      return `
+      `;case"kpi_today_revenue":return`
         <div class="stat-card card" data-widget-id="kpi_today_revenue" style="border-left: 4px solid var(--color-info, #0984e3);">
           <div class="stat-card-body">
             <div class="stat-card-info">
               <div class="stat-card-title">Today's Fee Collection</div>
-              <div class="stat-card-value" id="dash-kpi-today-revenue" style="color: var(--color-info, #0984e3);">₹0</div>
-              <div class="text-xs text-muted" id="dash-kpi-month-rev-sub" style="margin-top: 4px;">Month: ₹0</div>
+              <div class="stat-card-value" id="dash-kpi-today-revenue" style="color: var(--color-info, #0984e3);">\u20B90</div>
+              <div class="text-xs text-muted" id="dash-kpi-month-rev-sub" style="margin-top: 4px;">Month: \u20B90</div>
             </div>
             <div class="stat-card-icon" style="background: rgba(9, 132, 227, 0.15); color: var(--color-info, #0984e3);">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
             </div>
           </div>
         </div>
-      `;
-
-    case 'kpi_expiring_soon':
-      return `
+      `;case"kpi_expiring_soon":return`
         <div class="stat-card card" data-widget-id="kpi_expiring_soon" style="border-left: 4px solid #fdcb6e;">
           <div class="stat-card-body">
             <div class="stat-card-info">
@@ -124,15 +50,12 @@ function renderWidgetHTML(widget) {
             </div>
           </div>
         </div>
-      `;
-
-    case 'kpi_defaulter_dues':
-      return `
+      `;case"kpi_defaulter_dues":return`
         <div class="stat-card card" data-widget-id="kpi_defaulter_dues" style="border-left: 4px solid var(--color-danger, #d63031);">
           <div class="stat-card-body">
             <div class="stat-card-info">
-              <div class="stat-card-title">${t('dashboard.pendingDues', 'Overdue Fee Balances')}</div>
-              <div class="stat-card-value" id="dash-kpi-defaulter-dues" style="color: var(--color-danger, #d63031);">₹0</div>
+              <div class="stat-card-title">${R("dashboard.pendingDues","Overdue Fee Balances")}</div>
+              <div class="stat-card-value" id="dash-kpi-defaulter-dues" style="color: var(--color-danger, #d63031);">\u20B90</div>
               <div class="text-xs text-muted" id="dash-kpi-dues-sub" style="margin-top: 4px;">Pending payments</div>
             </div>
             <div class="stat-card-icon" style="background: rgba(214, 48, 49, 0.15); color: var(--color-danger, #d63031);">
@@ -140,10 +63,7 @@ function renderWidgetHTML(widget) {
             </div>
           </div>
         </div>
-      `;
-
-    case 'kpi_total_seats':
-      return `
+      `;case"kpi_total_seats":return`
         <div class="stat-card card" data-widget-id="kpi_total_seats" style="border-left: 4px solid #a29bfe;">
           <div class="stat-card-body">
             <div class="stat-card-info">
@@ -156,13 +76,10 @@ function renderWidgetHTML(widget) {
             </div>
           </div>
         </div>
-      `;
-
-    case 'quick_actions':
-      return `
+      `;case"quick_actions":return`
         <div class="card mb-4" data-widget-id="quick_actions">
           <div class="card-header flex-between">
-            <h5 style="margin: 0; font-size: 1.05rem; font-weight: 600;">⚡ Quick 1-Tap Action Toolbar</h5>
+            <h5 style="margin: 0; font-size: 1.05rem; font-weight: 600;">\u26A1 Quick 1-Tap Action Toolbar</h5>
             <span class="badge badge-primary" style="font-size: 11px;">Fast Shortcuts</span>
           </div>
           <div class="card-body" style="display: flex; gap: var(--space-3); flex-wrap: wrap;">
@@ -172,35 +89,32 @@ function renderWidgetHTML(widget) {
             </a>
             <a href="#/payments" class="btn btn-success d-flex align-items-center gap-2">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-              💰 Collect Fee Payment
+              \u{1F4B0} Collect Fee Payment
             </a>
             <a href="#/seats" class="btn btn-outline-secondary d-flex align-items-center gap-2">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M5 16V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v12"></path><path d="M3 16h18"></path></svg>
-              💺 View Seat Matrix
+              \u{1F4BA} View Seat Matrix
             </a>
             <a href="#/lockers" class="btn btn-outline-secondary d-flex align-items-center gap-2">
-              🔐 Manage Lockers
+              \u{1F510} Manage Lockers
             </a>
             <a href="#/attendance" class="btn btn-outline-secondary d-flex align-items-center gap-2">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
-              ⏱️ Daily Attendance Log
+              \u23F1\uFE0F Daily Attendance Log
             </a>
             <a href="/kiosk" target="_blank" class="btn btn-outline-secondary d-flex align-items-center gap-2">
-              📲 Launch Gate Kiosk
+              \u{1F4F2} Launch Gate Kiosk
             </a>
             <a href="#/reports" class="btn btn-outline-secondary d-flex align-items-center gap-2">
-              📊 Analytics & EOD
+              \u{1F4CA} Analytics & EOD
             </a>
           </div>
         </div>
-      `;
-
-    case 'chart_revenue_trend':
-      return `
+      `;case"chart_revenue_trend":return`
         <div class="card" data-widget-id="chart_revenue_trend">
           <div class="card-header flex-between">
-            <h5 style="margin: 0; font-size: 1.05rem; font-weight: 600;">📈 Monthly Revenue Trend</h5>
-            <span class="badge badge-info" id="dash-trend-total">₹0 Total</span>
+            <h5 style="margin: 0; font-size: 1.05rem; font-weight: 600;">\u{1F4C8} Monthly Revenue Trend</h5>
+            <span class="badge badge-info" id="dash-trend-total">\u20B90 Total</span>
           </div>
           <div class="card-body">
             <div style="position: relative; height: 220px; width: 100%;">
@@ -208,13 +122,10 @@ function renderWidgetHTML(widget) {
             </div>
           </div>
         </div>
-      `;
-
-    case 'chart_shift_occupancy':
-      return `
+      `;case"chart_shift_occupancy":return`
         <div class="card" data-widget-id="chart_shift_occupancy">
           <div class="card-header flex-between">
-            <h5 style="margin: 0; font-size: 1.05rem; font-weight: 600;">🕒 Shift Occupancy Distribution</h5>
+            <h5 style="margin: 0; font-size: 1.05rem; font-weight: 600;">\u{1F552} Shift Occupancy Distribution</h5>
             <span class="badge badge-success" id="dash-shift-total">0 Enrolled</span>
           </div>
           <div class="card-body">
@@ -224,13 +135,10 @@ function renderWidgetHTML(widget) {
             <div id="chart-shift-legend" class="d-flex justify-content-center flex-wrap gap-2 mt-3" style="font-size: 12px;"></div>
           </div>
         </div>
-      `;
-
-    case 'chart_exam_stats':
-      return `
+      `;case"chart_exam_stats":return`
         <div class="card" data-widget-id="chart_exam_stats">
           <div class="card-header flex-between">
-            <h5 style="margin: 0; font-size: 1.05rem; font-weight: 600;">🎯 Student Exam Preparation Breakdown</h5>
+            <h5 style="margin: 0; font-size: 1.05rem; font-weight: 600;">\u{1F3AF} Student Exam Preparation Breakdown</h5>
             <span class="badge badge-primary" id="dash-exam-total">Target Exams</span>
           </div>
           <div class="card-body">
@@ -240,32 +148,26 @@ function renderWidgetHTML(widget) {
             <div id="chart-exam-legend" class="d-flex justify-content-center flex-wrap gap-2 mt-3" style="font-size: 12px;"></div>
           </div>
         </div>
-      `;
-
-    case 'kpi_renewals_week':
-      return `
+      `;case"kpi_renewals_week":return`
         <div class="stat-card card" data-widget-id="kpi_renewals_week" style="border-left: 4px solid #6c5ce7; cursor:pointer;" onclick="window.location.hash='#/students'">
           <div class="stat-card-body">
             <div class="stat-card-info">
-              <div class="stat-card-title">📅 Renewals Due This Week</div>
+              <div class="stat-card-title">\u{1F4C5} Renewals Due This Week</div>
               <div class="stat-card-value" id="dash-kpi-renewals-week" style="color:#6c5ce7;">0 students</div>
               <div class="text-xs text-muted" id="dash-kpi-renewals-sub" style="margin-top:4px;">Expiring in next 7 days</div>
             </div>
-            <div class="stat-card-icon" style="background:rgba(108,92,231,0.15);color:#6c5ce7;">📅</div>
+            <div class="stat-card-icon" style="background:rgba(108,92,231,0.15);color:#6c5ce7;">\u{1F4C5}</div>
           </div>
           <div style="padding:0 16px 12px;display:flex;gap:8px;flex-wrap:wrap;" id="dash-renewal-wa-actions">
             <button class="btn btn-xs btn-outline-success dash-wa-blast-btn" style="font-size:0.72rem;padding:3px 10px;" onclick="event.stopPropagation();window._dashWABlast && window._dashWABlast()">
-              📲 WA Blast Renewals
+              \u{1F4F2} WA Blast Renewals
             </button>
           </div>
-        </div>`;
-
-    case 'kpi_occupancy_gauge':
-      return `
+        </div>`;case"kpi_occupancy_gauge":return`
         <div class="stat-card card" data-widget-id="kpi_occupancy_gauge" style="border-left: 4px solid #00cec9;">
           <div class="stat-card-body">
             <div class="stat-card-info">
-              <div class="stat-card-title">🎯 Seat Occupancy</div>
+              <div class="stat-card-title">\u{1F3AF} Seat Occupancy</div>
               <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
                 <div style="position:relative;width:56px;height:56px;flex-shrink:0;">
                   <svg viewBox="0 0 36 36" style="width:56px;height:56px;transform:rotate(-90deg);">
@@ -283,322 +185,90 @@ function renderWidgetHTML(widget) {
               </div>
             </div>
           </div>
-        </div>`;
-
-    case 'kpi_behavior_alerts':
-      return `
+        </div>`;case"kpi_behavior_alerts":return`
         <div class="stat-card card" data-widget-id="kpi_behavior_alerts" style="border-left: 4px solid #d63031; cursor:pointer;" onclick="window.location.hash='#/students'">
           <div class="stat-card-body">
             <div class="stat-card-info">
-              <div class="stat-card-title">🔴 At-Risk Students</div>
+              <div class="stat-card-title">\u{1F534} At-Risk Students</div>
               <div class="stat-card-value" id="dash-kpi-behavior-alerts" style="color:#d63031;">0</div>
               <div class="text-xs text-muted" id="dash-kpi-alerts-sub" style="margin-top:4px;">Low attendance (&lt;50%) or expired</div>
             </div>
-            <div class="stat-card-icon" style="background:rgba(214,48,49,0.15);color:#d63031;">⚠️</div>
+            <div class="stat-card-icon" style="background:rgba(214,48,49,0.15);color:#d63031;">\u26A0\uFE0F</div>
           </div>
-        </div>`;
-
-    case 'system_health':
-      return `
+        </div>`;case"system_health":return`
         <div data-widget-id="system_health" id="dash-system-health-widget">
-          ${window.PerformanceMonitor ? window.PerformanceMonitor.renderHealthWidget() : '<div class="card p-3 text-center text-muted">⚡ System Health loading...</div>'}
+          ${window.PerformanceMonitor?window.PerformanceMonitor.renderHealthWidget():'<div class="card p-3 text-center text-muted">\u26A1 System Health loading...</div>'}
         </div>
-      `;
-
-    default:
-      return '';
-  }
-}
-
-/**
- * Group ordered widgets into cohesive layout chunks
- */
-function buildDashboardLayoutHTML(widgets) {
-  const enabled = widgets.filter(w => w.isEnabled).sort((a, b) => a.order - b.order);
-  
-  if (enabled.length === 0) {
-    return `
+      `;default:return""}}function Le(c){const i=c.filter(b=>b.isEnabled).sort((b,m)=>b.order-m.order);if(i.length===0)return`
       <div class="card text-center p-5 mb-4">
-        <div style="font-size: 3rem; margin-bottom: 12px;">🎛️</div>
+        <div style="font-size: 3rem; margin-bottom: 12px;">\u{1F39B}\uFE0F</div>
         <h4 style="margin: 0 0 8px 0;">All Dashboard Widgets are Hidden</h4>
         <p class="text-muted mb-3">Click customize above to re-enable KPI cards, charts, and quick actions.</p>
         <div>
-          <button id="btn-empty-customize" class="btn btn-primary">⚙️ Customize Dashboard Widgets</button>
+          <button id="btn-empty-customize" class="btn btn-primary">\u2699\uFE0F Customize Dashboard Widgets</button>
         </div>
       </div>
-    `;
-  }
-
-  let html = '<div class="dashboard-dynamic-container">';
-  let currentGroupCategory = null;
-  let currentGroupHTML = [];
-
-  const flushGroup = () => {
-    if (currentGroupHTML.length === 0) return;
-    if (currentGroupCategory === 'kpi') {
-      html += `<div class="stats-grid mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 1rem;">${currentGroupHTML.join('')}</div>`;
-    } else if (currentGroupCategory === 'chart') {
-      html += `<div class="charts-grid mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 1.5rem;">${currentGroupHTML.join('')}</div>`;
-    } else {
-      html += currentGroupHTML.join('');
-    }
-    currentGroupHTML = [];
-    currentGroupCategory = null;
-  };
-
-  enabled.forEach(w => {
-    const markup = renderWidgetHTML(w);
-    if (!markup) return;
-
-    if (w.category === 'kpi') {
-      if (currentGroupCategory !== 'kpi') flushGroup();
-      currentGroupCategory = 'kpi';
-      currentGroupHTML.push(markup);
-    } else if (w.category === 'chart') {
-      if (currentGroupCategory !== 'chart') flushGroup();
-      currentGroupCategory = 'chart';
-      currentGroupHTML.push(markup);
-    } else {
-      flushGroup();
-      currentGroupHTML.push(markup);
-      flushGroup();
-    }
-  });
-
-  flushGroup();
-  html += '</div>';
-  return html;
-}
-
-/**
- * Open interactive Widget Customization & KPI Studio modal
- */
-function openCustomizeModal(onSaved) {
-  let workingWidgets = JSON.parse(JSON.stringify(activeWidgetConfig));
-
-  const modalContainer = document.createElement('div');
-  modalContainer.className = 'dashboard-customize-container';
-
-  const renderModalList = () => {
-    modalContainer.innerHTML = `
+    `;let l='<div class="dashboard-dynamic-container">',p=null,x=[];const y=()=>{x.length!==0&&(p==="kpi"?l+=`<div class="stats-grid mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 1rem;">${x.join("")}</div>`:p==="chart"?l+=`<div class="charts-grid mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 1.5rem;">${x.join("")}</div>`:l+=x.join(""),x=[],p=null)};return i.forEach(b=>{const m=De(b);m&&(b.category==="kpi"?(p!=="kpi"&&y(),p="kpi",x.push(m)):b.category==="chart"?(p!=="chart"&&y(),p="chart",x.push(m)):(y(),x.push(m),y()))}),y(),l+="</div>",l}function Se(c){let i=JSON.parse(JSON.stringify(q));const l=document.createElement("div");l.className="dashboard-customize-container";const p=()=>{l.innerHTML=`
       <div style="margin-bottom: 16px;">
         <p class="text-muted small mb-3">
-          Toggle switch to show/hide widgets. Drag the handle <span style="font-weight: bold;">⋮⋮</span> or use ⬆️ / ⬇️ buttons to reorder your dashboard layout.
+          Toggle switch to show/hide widgets. Drag the handle <span style="font-weight: bold;">\u22EE\u22EE</span> or use \u2B06\uFE0F / \u2B07\uFE0F buttons to reorder your dashboard layout.
         </p>
       </div>
       
       <div id="customize-widget-list" class="d-flex flex-column gap-2" style="max-height: 440px; overflow-y: auto; padding-right: 4px;">
-        ${workingWidgets.map((w, idx) => {
-          let badgeClass = 'badge-primary';
-          let catLabel = 'KPI';
-          if (w.category === 'chart') { badgeClass = 'badge-info'; catLabel = 'Chart'; }
-          else if (w.category === 'action') { badgeClass = 'badge-warning'; catLabel = 'Action'; }
-
-          return `
+        ${i.map((e,a)=>{let o="badge-primary",h="KPI";return e.category==="chart"?(o="badge-info",h="Chart"):e.category==="action"&&(o="badge-warning",h="Action"),`
             <div class="customize-item card p-3" 
                  draggable="true" 
-                 data-id="${escapeHTML(w.id)}" 
-                 data-index="${idx}"
+                 data-id="${A(e.id)}" 
+                 data-index="${a}"
                  style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; background: var(--color-bg-secondary, rgba(255,255,255,0.03)); border: 1px solid var(--color-border, rgba(255,255,255,0.08)); border-radius: 8px; cursor: grab; user-select: none; transition: background 0.15s ease;">
               
               <div class="d-flex align-items-center gap-3" style="flex: 1; min-width: 0;">
-                <span class="drag-handle text-muted" style="cursor: grab; font-size: 1.2rem; line-height: 1;" title="Drag to reorder">⋮⋮</span>
-                <span style="font-size: 1.3rem;">${escapeHTML(w.icon || '📊')}</span>
+                <span class="drag-handle text-muted" style="cursor: grab; font-size: 1.2rem; line-height: 1;" title="Drag to reorder">\u22EE\u22EE</span>
+                <span style="font-size: 1.3rem;">${A(e.icon||"\u{1F4CA}")}</span>
                 <div style="min-width: 0;">
                   <div style="font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                    <span>${escapeHTML(w.label)}</span>
-                    <span class="badge ${badgeClass}" style="font-size: 10px; padding: 2px 6px;">${catLabel}</span>
+                    <span>${A(e.label)}</span>
+                    <span class="badge ${o}" style="font-size: 10px; padding: 2px 6px;">${h}</span>
                   </div>
-                  <div class="text-xs text-muted">Position #${idx + 1}</div>
+                  <div class="text-xs text-muted">Position #${a+1}</div>
                 </div>
               </div>
 
               <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-sm btn-icon btn-move-up" data-index="${idx}" ${idx === 0 ? 'disabled style="opacity: 0.3;"' : ''} title="Move Up" style="padding: 4px 8px; font-size: 13px;">
-                  ⬆️
+                <button type="button" class="btn btn-sm btn-icon btn-move-up" data-index="${a}" ${a===0?'disabled style="opacity: 0.3;"':""} title="Move Up" style="padding: 4px 8px; font-size: 13px;">
+                  \u2B06\uFE0F
                 </button>
-                <button type="button" class="btn btn-sm btn-icon btn-move-down" data-index="${idx}" ${idx === workingWidgets.length - 1 ? 'disabled style="opacity: 0.3;"' : ''} title="Move Down" style="padding: 4px 8px; font-size: 13px;">
-                  ⬇️
+                <button type="button" class="btn btn-sm btn-icon btn-move-down" data-index="${a}" ${a===i.length-1?'disabled style="opacity: 0.3;"':""} title="Move Down" style="padding: 4px 8px; font-size: 13px;">
+                  \u2B07\uFE0F
                 </button>
 
                 <label class="switch-label" style="margin-left: 8px;">
-                  <input type="checkbox" class="widget-toggle-input" data-index="${idx}" ${w.isEnabled ? 'checked' : ''}>
+                  <input type="checkbox" class="widget-toggle-input" data-index="${a}" ${e.isEnabled?"checked":""}>
                   <span class="switch-slider"></span>
-                  <span class="small ms-1" style="font-size: 12px; min-width: 32px; font-weight: 700; color: ${w.isEnabled ? 'var(--color-success)' : 'var(--color-text-muted, #888)'};">
-                    ${w.isEnabled ? 'ON' : 'OFF'}
+                  <span class="small ms-1" style="font-size: 12px; min-width: 32px; font-weight: 700; color: ${e.isEnabled?"var(--color-success)":"var(--color-text-muted, #888)"};">
+                    ${e.isEnabled?"ON":"OFF"}
                   </span>
                 </label>
               </div>
             </div>
-          `;
-        }).join('')}
+          `}).join("")}
       </div>
 
       <div class="d-flex justify-content-between align-items-center mt-4 pt-3" style="border-top: 1px solid var(--color-divider, rgba(255,255,255,0.08));">
         <button type="button" id="btn-reset-widgets" class="btn btn-outline text-muted btn-sm">
-          🔄 Reset Defaults
+          \u{1F504} Reset Defaults
         </button>
         <div class="d-flex gap-2">
           <button type="button" id="btn-cancel-widgets" class="btn btn-outline-secondary">
             Cancel
           </button>
           <button type="button" id="btn-save-widgets" class="btn btn-primary d-flex align-items-center gap-2">
-            💾 Save Layout
+            \u{1F4BE} Save Layout
           </button>
         </div>
       </div>
-    `;
-
-    // Attach Drag and Drop listeners
-    const listEl = modalContainer.querySelector('#customize-widget-list');
-    let draggedIndex = null;
-
-    const items = listEl.querySelectorAll('.customize-item');
-    items.forEach(item => {
-      item.addEventListener('dragstart', (e) => {
-        draggedIndex = Number(item.getAttribute('data-index'));
-        e.dataTransfer.effectAllowed = 'move';
-        item.style.opacity = '0.4';
-      });
-
-      item.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        item.style.borderTop = '2px solid var(--color-primary, #6c5ce7)';
-      });
-
-      item.addEventListener('dragleave', () => {
-        item.style.borderTop = '1px solid var(--color-border, rgba(255,255,255,0.08))';
-      });
-
-      item.addEventListener('drop', (e) => {
-        e.preventDefault();
-        item.style.borderTop = '1px solid var(--color-border, rgba(255,255,255,0.08))';
-        const targetIndex = Number(item.getAttribute('data-index'));
-        if (draggedIndex !== null && draggedIndex !== targetIndex) {
-          const moved = workingWidgets.splice(draggedIndex, 1)[0];
-          workingWidgets.splice(targetIndex, 0, moved);
-          workingWidgets.forEach((w, i) => { w.order = i + 1; });
-          renderModalList();
-        }
-      });
-
-      item.addEventListener('dragend', () => {
-        item.style.opacity = '1';
-      });
-    });
-
-    // Move Up
-    modalContainer.querySelectorAll('.btn-move-up').forEach(btn => {
-      btn.onclick = () => {
-        const i = Number(btn.getAttribute('data-index'));
-        if (i > 0) {
-          const temp = workingWidgets[i];
-          workingWidgets[i] = workingWidgets[i - 1];
-          workingWidgets[i - 1] = temp;
-          workingWidgets.forEach((w, idx) => { w.order = idx + 1; });
-          renderModalList();
-        }
-      };
-    });
-
-    // Move Down
-    modalContainer.querySelectorAll('.btn-move-down').forEach(btn => {
-      btn.onclick = () => {
-        const i = Number(btn.getAttribute('data-index'));
-        if (i < workingWidgets.length - 1) {
-          const temp = workingWidgets[i];
-          workingWidgets[i] = workingWidgets[i + 1];
-          workingWidgets[i + 1] = temp;
-          workingWidgets.forEach((w, idx) => { w.order = idx + 1; });
-          renderModalList();
-        }
-      };
-    });
-
-    // Toggle ON/OFF
-    modalContainer.querySelectorAll('.widget-toggle-input').forEach(chk => {
-      chk.onchange = () => {
-        const i = Number(chk.getAttribute('data-index'));
-        workingWidgets[i].isEnabled = chk.checked;
-        renderModalList();
-      };
-    });
-
-    // Reset Defaults
-    const resetBtn = modalContainer.querySelector('#btn-reset-widgets');
-    if (resetBtn) {
-      resetBtn.onclick = () => {
-        workingWidgets = JSON.parse(JSON.stringify(DEFAULT_WIDGETS));
-        renderModalList();
-        Toast.info('Layout reset to default order');
-      };
-    }
-
-    // Cancel
-    const cancelBtn = modalContainer.querySelector('#btn-cancel-widgets');
-    if (cancelBtn) {
-      cancelBtn.onclick = () => {
-        Modal.close();
-      };
-    }
-
-    // Save Layout
-    const saveBtn = modalContainer.querySelector('#btn-save-widgets');
-    if (saveBtn) {
-      saveBtn.onclick = async () => {
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = 'Saving...';
-        try {
-          workingWidgets.forEach((w, i) => { w.order = i + 1; });
-          const res = await api.put('/api/settings/dashboard-widgets', { widgets: workingWidgets });
-          if (res && res.success) {
-            Toast.success('Dashboard layout saved successfully!');
-            activeWidgetConfig = workingWidgets;
-            Modal.close();
-            if (onSaved) onSaved(workingWidgets);
-          } else {
-            Toast.error(res?.message || 'Failed to save widget layout');
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = '💾 Save Layout';
-          }
-        } catch (err) {
-          console.error(err);
-          Toast.error(err.message || 'Error saving dashboard widgets');
-          saveBtn.disabled = false;
-          saveBtn.innerHTML = '💾 Save Layout';
-        }
-      };
-    }
-  };
-
-  renderModalList();
-
-  Modal.show({
-    title: '⚙️ Customize Dashboard Layout & KPI Studio',
-    content: modalContainer,
-    size: 'lg'
-  });
-}
-
-/**
- * Main dashboard render function
- */
-export async function render(container) {
-  const content = container || document.getElementById('page-content');
-  if (!content) return;
-
-  const user = App.getUser() || { name: 'Admin' };
-  const canCustomize = ['owner', 'branch_manager', 'admin'].includes(user.role);
-
-  // 1. Fetch saved widget configuration
-  activeWidgetConfig = await getWidgetConfig();
-
-  const currentHour = new Date().getHours();
-  const timeGreeting = currentHour < 12 ? '🌅 Good Morning' : (currentHour < 17 ? '🌤️ Good Afternoon' : '🌙 Good Evening');
-
-  // 2. Render base page skeleton
-  content.innerHTML = `
+    `;const x=l.querySelector("#customize-widget-list");let y=null;x.querySelectorAll(".customize-item").forEach(e=>{e.addEventListener("dragstart",a=>{y=Number(e.getAttribute("data-index")),a.dataTransfer.effectAllowed="move",e.style.opacity="0.4"}),e.addEventListener("dragover",a=>{a.preventDefault(),a.dataTransfer.dropEffect="move",e.style.borderTop="2px solid var(--color-primary, #6c5ce7)"}),e.addEventListener("dragleave",()=>{e.style.borderTop="1px solid var(--color-border, rgba(255,255,255,0.08))"}),e.addEventListener("drop",a=>{a.preventDefault(),e.style.borderTop="1px solid var(--color-border, rgba(255,255,255,0.08))";const o=Number(e.getAttribute("data-index"));if(y!==null&&y!==o){const h=i.splice(y,1)[0];i.splice(o,0,h),i.forEach((k,$)=>{k.order=$+1}),p()}}),e.addEventListener("dragend",()=>{e.style.opacity="1"})}),l.querySelectorAll(".btn-move-up").forEach(e=>{e.onclick=()=>{const a=Number(e.getAttribute("data-index"));if(a>0){const o=i[a];i[a]=i[a-1],i[a-1]=o,i.forEach((h,k)=>{h.order=k+1}),p()}}}),l.querySelectorAll(".btn-move-down").forEach(e=>{e.onclick=()=>{const a=Number(e.getAttribute("data-index"));if(a<i.length-1){const o=i[a];i[a]=i[a+1],i[a+1]=o,i.forEach((h,k)=>{h.order=k+1}),p()}}}),l.querySelectorAll(".widget-toggle-input").forEach(e=>{e.onchange=()=>{const a=Number(e.getAttribute("data-index"));i[a].isEnabled=e.checked,p()}});const b=l.querySelector("#btn-reset-widgets");b&&(b.onclick=()=>{i=JSON.parse(JSON.stringify(V)),p(),B.info("Layout reset to default order")});const m=l.querySelector("#btn-cancel-widgets");m&&(m.onclick=()=>{U.close()});const w=l.querySelector("#btn-save-widgets");w&&(w.onclick=async()=>{w.disabled=!0,w.innerHTML="Saving...";try{i.forEach((a,o)=>{a.order=o+1});const e=await f.put("/api/settings/dashboard-widgets",{widgets:i});e&&e.success?(B.success("Dashboard layout saved successfully!"),q=i,U.close(),c&&c(i)):(B.error(e?.message||"Failed to save widget layout"),w.disabled=!1,w.innerHTML="\u{1F4BE} Save Layout")}catch(e){console.error(e),B.error(e.message||"Error saving dashboard widgets"),w.disabled=!1,w.innerHTML="\u{1F4BE} Save Layout"}})};p(),U.show({title:"\u2699\uFE0F Customize Dashboard Layout & KPI Studio",content:l,size:"lg"})}async function W(c){const i=c||document.getElementById("page-content");if(!i)return;const l=Ie.getUser()||{name:"Admin"},p=["owner","branch_manager","admin"].includes(l.role);q=await Te();const x=new Date().getHours(),y=x<12?"\u{1F305} Good Morning":x<17?"\u{1F324}\uFE0F Good Afternoon":"\u{1F319} Good Evening";i.innerHTML=`
     <div class="portal-container">
       
       <!-- Top Welcome & Master Action Header -->
@@ -612,14 +282,14 @@ export async function render(container) {
               border: 2px solid var(--color-primary); flex-shrink: 0;
               box-shadow: 0 4px 12px rgba(108, 92, 231, 0.2);
             ">
-              👑
+              \u{1F451}
             </div>
             <div>
               <div style="font-size: 0.76rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 2px;">
-                ${timeGreeting}, ${escapeHTML(user.name)}!
+                ${y}, ${A(l.name)}!
               </div>
               <h1 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--color-text-primary); line-height: 1.2;">
-                ${t('nav.dashboard', 'Admin Console')}
+                ${R("nav.dashboard","Admin Console")}
               </h1>
               <div style="font-size: 0.78rem; color: var(--color-text-muted); margin-top: 2px; font-weight: 600;">
                 Live Study Library Command Centre
@@ -629,15 +299,15 @@ export async function render(container) {
 
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <button id="btn-refresh-dashboard" class="btn btn-outline-secondary btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border-radius: 10px;">
-              🔄 Refresh
+              \u{1F504} Refresh
             </button>
-            ${canCustomize ? `
+            ${p?`
               <button id="btn-customize-dashboard" class="btn btn-outline-primary btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border-radius: 10px;">
-                ⚙️ Widgets
+                \u2699\uFE0F Widgets
               </button>
-            ` : ''}
+            `:""}
             <a href="/kiosk" target="_blank" class="btn btn-primary btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 14px; border-radius: 10px;">
-              📲 Kiosk
+              \u{1F4F2} Kiosk
             </a>
           </div>
         </div>
@@ -664,14 +334,14 @@ export async function render(container) {
               0 / 0 Seats
             </div>
             <div style="font-size: 0.78rem; opacity: 0.92; margin-top: 2px; font-weight: 600; color: #ffffff;" id="dash-hero-checkin">
-              🟢 0 students checked in right now
+              \u{1F7E2} 0 students checked in right now
             </div>
           </div>
 
           <!-- Today's Revenue Pill -->
           <div style="text-align: right;">
             <span style="background: rgba(255,255,255,0.22); backdrop-filter: blur(8px); padding: 5px 12px; border-radius: 20px; font-weight: 800; font-size: 0.84rem; letter-spacing: 0.3px; border: 1px solid rgba(255,255,255,0.3); display: inline-block; color: #ffffff;" id="dash-hero-revenue">
-              ₹0 Today
+              \u20B90 Today
             </span>
             <div style="font-size: 0.72rem; opacity: 0.88; margin-top: 4px; font-weight: 600; color: #ffffff;" id="dash-hero-students">
               0 Active Members
@@ -687,13 +357,13 @@ export async function render(container) {
         <!-- Quick 1-Tap Admin Action Triggers -->
         <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,0.25); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; position: relative; z-index: 1;">
           <a href="#/students" class="btn btn-sm btn-success" style="font-weight: 800; font-size: 0.84rem; padding: 7px 16px; border-radius: 10px; text-decoration: none; flex: 1 1 140px; text-align: center;">
-            ➕ New Admission
+            \u2795 New Admission
           </a>
           <a href="#/payments" class="btn btn-sm" style="background: rgba(255,255,255,0.22); color: #ffffff; border: 1px solid rgba(255,255,255,0.4); font-weight: 700; font-size: 0.82rem; padding: 7px 14px; border-radius: 10px; backdrop-filter: blur(8px); text-decoration: none; flex: 1 1 120px; text-align: center;">
-            💳 Collect Fee
+            \u{1F4B3} Collect Fee
           </a>
           <a href="#/notifications" class="btn btn-sm" style="background: rgba(255,255,255,0.22); color: #ffffff; border: 1px solid rgba(255,255,255,0.4); font-weight: 700; font-size: 0.82rem; padding: 7px 14px; border-radius: 10px; backdrop-filter: blur(8px); text-decoration: none; flex: 1 1 120px; text-align: center;">
-            📢 Broadcast
+            \u{1F4E2} Broadcast
           </a>
         </div>
       </div>
@@ -706,35 +376,35 @@ export async function render(container) {
         margin-bottom: 1.25rem;
       ">
         <a href="#/students" class="admin-app-tile" title="Manage Students & Admissions" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
-          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.08)); color: var(--color-primary);">🎓</div>
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.08)); color: var(--color-primary);">\u{1F393}</div>
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Students</div>
         </a>
         <a href="#/seats" class="admin-app-tile" title="Seat Matrix & Floor Plan" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
-          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08)); color: var(--color-success);">💺</div>
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08)); color: var(--color-success);">\u{1F4BA}</div>
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Seats</div>
         </a>
         <a href="#/payments" class="admin-app-tile" title="Fee Collections & Invoices" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
-          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0.08)); color: #0ea5e9;">💳</div>
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0.08)); color: #0ea5e9;">\u{1F4B3}</div>
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Payments</div>
         </a>
         <a href="#/attendance" class="admin-app-tile" title="Live Attendance & RFID Log" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
-          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(20, 184, 166, 0.08)); color: #14b8a6;">👥</div>
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(20, 184, 166, 0.08)); color: #14b8a6;">\u{1F465}</div>
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Attendance</div>
         </a>
         <a href="#/expenses" class="admin-app-tile" title="Expenses & Daily P&L" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
-          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(236, 72, 153, 0.08)); color: #ec4899;">📊</div>
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(236, 72, 153, 0.08)); color: #ec4899;">\u{1F4CA}</div>
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Expenses</div>
         </a>
         <a href="#/notifications" class="admin-app-tile" title="Send WhatsApp & Push Alerts" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
-          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08)); color: var(--color-warning);">📢</div>
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08)); color: var(--color-warning);">\u{1F4E2}</div>
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Broadcast</div>
         </a>
         <a href="#/reports" class="admin-app-tile" title="Business Analytics & Tax Reports" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
-          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08)); color: #a855f7;">📈</div>
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08)); color: #a855f7;">\u{1F4C8}</div>
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Reports</div>
         </a>
         <a href="#/settings" class="admin-app-tile" title="System & POS Configuration" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 12px 6px; border-radius: 16px; background: var(--color-surface); border: 1px solid var(--color-border); cursor: pointer; min-height: 88px; box-sizing: border-box; text-decoration: none; box-shadow: var(--shadow-sm);">
-          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(100, 116, 139, 0.18), rgba(100, 116, 139, 0.08)); color: var(--color-text-muted);">⚙️</div>
+          <div class="admin-tile-icon" style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: linear-gradient(135deg, rgba(100, 116, 139, 0.18), rgba(100, 116, 139, 0.08)); color: var(--color-text-muted);">\u2699\uFE0F</div>
           <div class="admin-tile-label" style="font-size: 0.76rem; font-weight: 700; color: var(--color-text-primary); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">Settings</div>
         </a>
       </div>
@@ -742,20 +412,20 @@ export async function render(container) {
       <!-- 3. Segmented Tab Navigation Track -->
       <div class="portal-tab-track" style="display: flex; background: var(--color-bg-secondary); padding: 4px; border-radius: 14px; border: 1px solid var(--color-border); margin-bottom: 1.25rem; gap: 4px; overflow-x: auto;">
         <button type="button" class="portal-tab-pill active" data-admin-tab="live-ops" style="flex: 1; min-width: 110px; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; border-radius: 10px; border: none; cursor: pointer; background: var(--color-surface); color: var(--color-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.12); transition: all 0.2s; white-space: nowrap; padding: 6px 12px;">
-          📊 Operations & KPI
+          \u{1F4CA} Operations & KPI
         </button>
         <button type="button" class="portal-tab-pill" data-admin-tab="expiring" style="flex: 1; min-width: 110px; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; border-radius: 10px; border: none; cursor: pointer; background: transparent; color: var(--color-text-secondary); transition: all 0.2s; white-space: nowrap; padding: 6px 12px;">
-          ⏳ Expiring Soon
+          \u23F3 Expiring Soon
         </button>
         <button type="button" class="portal-tab-pill" data-admin-tab="pulse" style="flex: 1; min-width: 110px; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; border-radius: 10px; border: none; cursor: pointer; background: transparent; color: var(--color-text-secondary); transition: all 0.2s; white-space: nowrap; padding: 6px 12px;">
-          📈 Analytics & Trends
+          \u{1F4C8} Analytics & Trends
         </button>
       </div>
 
       <!-- TAB PANE 1: Operations & Dynamic KPI -->
       <div id="pane-admin-live-ops" class="admin-tab-pane">
         <div id="dashboard-layout-root">
-          ${buildDashboardLayoutHTML(activeWidgetConfig)}
+          ${Le(q)}
         </div>
       </div>
 
@@ -763,7 +433,7 @@ export async function render(container) {
       <div id="pane-admin-expiring" class="admin-tab-pane" style="display: none;">
         <div class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
           <div class="card-header p-3" style="border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
-            <h5 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--color-text-primary);">⏰ Memberships Expiring in 7 Days</h5>
+            <h5 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--color-text-primary);">\u23F0 Memberships Expiring in 7 Days</h5>
             <a href="#/students" class="btn btn-sm btn-outline-primary" style="font-size: 0.78rem; padding: 4px 10px; font-weight: 600; text-decoration: none;">View All Students</a>
           </div>
           <div class="card-body p-0" id="dash-expiring-container" style="max-height: 480px; overflow-y: auto;">
@@ -778,8 +448,8 @@ export async function render(container) {
           <!-- Live Overview & Hourly Activity -->
           <div class="card" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
             <div class="card-header p-3 flex-between" style="border-bottom: 1px solid var(--color-divider);">
-              <h5 style="margin: 0; font-size: 1.02rem; font-weight: 700;">🔔 Real-Time Attendance Pulse</h5>
-              <span class="badge badge-success" style="font-weight: 700; font-size: 0.72rem;">● Live</span>
+              <h5 style="margin: 0; font-size: 1.02rem; font-weight: 700;">\u{1F514} Real-Time Attendance Pulse</h5>
+              <span class="badge badge-success" style="font-weight: 700; font-size: 0.72rem;">\u25CF Live</span>
             </div>
             <div class="card-body p-3">
               <div class="d-flex flex-column gap-2 mb-3">
@@ -802,480 +472,44 @@ export async function render(container) {
         </div>
       </div>
     </div>
-  `;
+  `;const b=i.querySelectorAll(".portal-tab-pill[data-admin-tab]"),m={"live-ops":i.querySelector("#pane-admin-live-ops"),expiring:i.querySelector("#pane-admin-expiring"),pulse:i.querySelector("#pane-admin-pulse")},w=e=>{b.forEach(a=>{const o=a.getAttribute("data-admin-tab")===e;a.classList.toggle("active",o),a.style.background=o?"var(--color-surface)":"transparent",a.style.color=o?"var(--color-primary)":"var(--color-text-secondary)",a.style.boxShadow=o?"0 2px 8px rgba(0, 0, 0, 0.12)":"none"}),Object.keys(m).forEach(a=>{m[a]&&(m[a].style.display=a===e?"block":"none")})};b.forEach(e=>{e.addEventListener("click",()=>{w(e.getAttribute("data-admin-tab"))})}),(()=>{const e=document.getElementById("btn-refresh-dashboard");e&&(e.onclick=()=>{B.info("Refreshing live dashboard telemetry..."),W(c)});const a=document.getElementById("btn-customize-dashboard");a&&(a.onclick=()=>Se(h=>{W(c)}));const o=document.getElementById("btn-empty-customize");o&&(o.onclick=()=>Se(h=>{W(c)}))})();try{const[e,a,o,h,k,$,G,I]=await Promise.allSettled([f.get("/api/students/stats"),f.get("/api/seats/stats"),f.get("/api/payments/stats"),f.get("/api/attendance/today"),f.get("/api/reports/expiries?days=7"),f.get("/api/shifts/stats"),f.get("/api/reports/revenue"),f.get("/api/students?limit=200")]),F=e.status==="fulfilled"&&e.value?.success?e.value.data:{},M=a.status==="fulfilled"&&a.value?.success?a.value.data:{},T=o.status==="fulfilled"&&o.value?.success?o.value.data:{},N=h.status==="fulfilled"&&h.value?.success?h.value.data:{},j=k.status==="fulfilled"&&k.value?.data?k.value.data:{},D=Array.isArray(j?.students)?j.students:Array.isArray(j)?j:[],P=$.status==="fulfilled"&&$.value?.data?$.value.data:{},S=G.status==="fulfilled"&&G.value?.data?G.value.data:{},J=I.status==="fulfilled"&&I.value?.data?.students?I.value.data.students:Array.isArray(I.value?.data)?I.value.data:[],Y=document.getElementById("dash-hero-occ"),X=document.getElementById("dash-hero-checkin"),Z=document.getElementById("dash-hero-revenue"),ee=document.getElementById("dash-hero-students"),te=document.getElementById("dash-hero-progress-bar"),z=M.occupied??0,C=M.total??0,ae=M.available??Math.max(0,C-z),_=C>0?Math.round(z/C*100):0,ze=N.stats?.totalPresent||N.stats?.totalCheckedIn||0;Y&&(Y.textContent=`${z} / ${C} Seats (${_}%)`),X&&(X.textContent=`\u{1F7E2} ${ze} students currently studying inside`),Z&&(Z.textContent=`${L(T.todayRevenue)} Today`),ee&&(ee.textContent=`${F.active||0} Active Members`),te&&(te.style.width=`${Math.min(100,Math.max(0,_))}%`);const ie=document.getElementById("dash-kpi-active-students"),se=document.getElementById("dash-kpi-total-students-sub");ie&&(ie.textContent=F.active??0),se&&(se.textContent=`Total registered: ${F.total??0}`);const re=document.getElementById("dash-kpi-available-seats"),ne=document.getElementById("dash-kpi-seats-sub");re&&(re.textContent=`${ae} Available`),ne&&(ne.textContent=`${z} / ${C} Occupied (${_}%)`);const de=document.getElementById("dash-kpi-today-revenue"),oe=document.getElementById("dash-kpi-month-rev-sub");de&&(de.textContent=L(T.todayRevenue)),oe&&(oe.textContent=`Month: ${L(T.monthRevenue)}`);const le=document.getElementById("dash-kpi-expiring-soon"),ce=document.getElementById("dash-kpi-expiring-sub"),pe=D.filter(t=>t.daysRemaining!==void 0?t.daysRemaining<=2:t.expiryDate?(new Date(t.expiryDate)-new Date)/864e5<=2:!1).length;le&&(le.textContent=`${pe} Students`),ce&&(ce.textContent=`Next 7 days: ${D.length} total`);const ue=document.getElementById("dash-kpi-defaulter-dues"),ge=document.getElementById("dash-kpi-dues-sub"),_e=T.totalPending||S.summary?.pendingDues||0;ue&&(ue.textContent=L(_e)),ge&&(ge.textContent=S.summary?.pendingStudentsCount?`${S.summary.pendingStudentsCount} students with dues`:"Pending recovery");const ve=document.getElementById("dash-kpi-total-seats"),xe=document.getElementById("dash-kpi-total-seats-sub");ve&&(ve.textContent=`${C} Desks`),xe&&(xe.textContent=`${z} Occupied, ${M.maintenance||0} Maintenance`);const he=document.getElementById("dash-kpi-renewals-week"),be=document.getElementById("dash-kpi-renewals-sub"),O=D.filter(t=>{if(t.daysRemaining!==void 0)return t.daysRemaining>=0&&t.daysRemaining<=7;if(t.expiryDate){const n=(new Date(t.expiryDate)-new Date)/864e5;return n>=0&&n<=7}return!1});he&&(he.textContent=`${O.length} students`),be&&(be.textContent=`${pe} expiring today / tomorrow`),window._dashWABlast=async()=>{if(!O.length){window.Toast&&B.info("No renewals due this week");return}let t="Study Library";try{t=(await f.get("/api/settings"))?.data?.businessProfile?.businessName||t}catch{}for(const n of O){const r=(n.phone||"").replace(/[^0-9]/g,"");if(!r||r.length<10)continue;const v=r.length===10?"91"+r:r,u=n.expiryDate?new Date(n.expiryDate).toLocaleDateString("en-IN"):"soon",s=`Hi ${n.name}! \u{1F44B}
+Your library membership expires on *${u}*.
+Please renew to continue your studies. \u{1F4DA}
 
-  // Segmented Tab Switcher Logic for Admin
-  const adminTabPills = content.querySelectorAll('.portal-tab-pill[data-admin-tab]');
-  const adminTabPanes = {
-    'live-ops': content.querySelector('#pane-admin-live-ops'),
-    'expiring': content.querySelector('#pane-admin-expiring'),
-    'pulse': content.querySelector('#pane-admin-pulse')
-  };
-
-  const switchAdminTab = (tabKey) => {
-    adminTabPills.forEach(pill => {
-      const isActive = pill.getAttribute('data-admin-tab') === tabKey;
-      pill.classList.toggle('active', isActive);
-      pill.style.background = isActive ? 'var(--color-surface)' : 'transparent';
-      pill.style.color = isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)';
-      pill.style.boxShadow = isActive ? '0 2px 8px rgba(0, 0, 0, 0.12)' : 'none';
-    });
-    Object.keys(adminTabPanes).forEach(k => {
-      if (adminTabPanes[k]) {
-        adminTabPanes[k].style.display = (k === tabKey) ? 'block' : 'none';
-      }
-    });
-  };
-
-  adminTabPills.forEach(pill => {
-    pill.addEventListener('click', () => {
-      switchAdminTab(pill.getAttribute('data-admin-tab'));
-    });
-  });
-
-  // Attach Customize click handlers
-  const attachCustomizeHandlers = () => {
-    const refreshBtn = document.getElementById('btn-refresh-dashboard');
-    if (refreshBtn) {
-      refreshBtn.onclick = () => {
-        Toast.info('Refreshing live dashboard telemetry...');
-        render(container);
-      };
-    }
-
-    const custBtn = document.getElementById('btn-customize-dashboard');
-    if (custBtn) {
-      custBtn.onclick = () => openCustomizeModal((newConfig) => {
-        render(container);
-      });
-    }
-
-    const emptyCustBtn = document.getElementById('btn-empty-customize');
-    if (emptyCustBtn) {
-      emptyCustBtn.onclick = () => openCustomizeModal((newConfig) => {
-        render(container);
-      });
-    }
-  };
-  attachCustomizeHandlers();
-
-  // 3. Fetch all live statistics & report data in parallel
-  try {
-    const [
-      stuRes,
-      seatRes,
-      payRes,
-      attRes,
-      expiringRes,
-      shiftsRes,
-      revenueRes,
-      studentsListRes
-    ] = await Promise.allSettled([
-      api.get('/api/students/stats'),
-      api.get('/api/seats/stats'),
-      api.get('/api/payments/stats'),
-      api.get('/api/attendance/today'),
-      api.get('/api/reports/expiries?days=7'),
-      api.get('/api/shifts/stats'),
-      api.get('/api/reports/revenue'),
-      api.get('/api/students?limit=200')
-    ]);
-
-    // Data extractions
-    const studentStats = (stuRes.status === 'fulfilled' && stuRes.value?.success) ? stuRes.value.data : {};
-    const seatStats = (seatRes.status === 'fulfilled' && seatRes.value?.success) ? seatRes.value.data : {};
-    const payStats = (payRes.status === 'fulfilled' && payRes.value?.success) ? payRes.value.data : {};
-    const attData = (attRes.status === 'fulfilled' && attRes.value?.success) ? attRes.value.data : {};
-    const expiringData = (expiringRes.status === 'fulfilled' && expiringRes.value?.data) ? expiringRes.value.data : {};
-    const expiringList = Array.isArray(expiringData?.students) ? expiringData.students : (Array.isArray(expiringData) ? expiringData : []);
-    const shiftData = (shiftsRes.status === 'fulfilled' && shiftsRes.value?.data) ? shiftsRes.value.data : {};
-    const revenueData = (revenueRes.status === 'fulfilled' && revenueRes.value?.data) ? revenueRes.value.data : {};
-    const allStudents = (studentsListRes.status === 'fulfilled' && studentsListRes.value?.data?.students) ? studentsListRes.value.data.students : (Array.isArray(studentsListRes.value?.data) ? studentsListRes.value.data : []);
-
-    // 3. Populate Executive Hero Card
-    const elHeroOcc = document.getElementById('dash-hero-occ');
-    const elHeroCheckin = document.getElementById('dash-hero-checkin');
-    const elHeroRevenue = document.getElementById('dash-hero-revenue');
-    const elHeroStudents = document.getElementById('dash-hero-students');
-    const elHeroProgressBar = document.getElementById('dash-hero-progress-bar');
-
-    const occupiedSeats = seatStats.occupied ?? 0;
-    const totalSeats = seatStats.total ?? 0;
-    const availSeats = seatStats.available ?? Math.max(0, totalSeats - occupiedSeats);
-    const occPct = totalSeats > 0 ? Math.round((occupiedSeats / totalSeats) * 100) : 0;
-    const presentNow = attData.stats?.totalPresent || attData.stats?.totalCheckedIn || 0;
-
-    if (elHeroOcc) elHeroOcc.textContent = `${occupiedSeats} / ${totalSeats} Seats (${occPct}%)`;
-    if (elHeroCheckin) elHeroCheckin.textContent = `🟢 ${presentNow} students currently studying inside`;
-    if (elHeroRevenue) elHeroRevenue.textContent = `${formatCurrency(payStats.todayRevenue)} Today`;
-    if (elHeroStudents) elHeroStudents.textContent = `${studentStats.active || 0} Active Members`;
-    if (elHeroProgressBar) elHeroProgressBar.style.width = `${Math.min(100, Math.max(0, occPct))}%`;
-
-    // 4. Populate KPI 1: Active Students
-    const elActiveStudents = document.getElementById('dash-kpi-active-students');
-    const elTotalStudentsSub = document.getElementById('dash-kpi-total-students-sub');
-    if (elActiveStudents) elActiveStudents.textContent = studentStats.active ?? 0;
-    if (elTotalStudentsSub) elTotalStudentsSub.textContent = `Total registered: ${studentStats.total ?? 0}`;
-
-    // 5. Populate KPI 2: Available Seats & Occupancy
-    const elAvailSeats = document.getElementById('dash-kpi-available-seats');
-    const elSeatsSub = document.getElementById('dash-kpi-seats-sub');
-    if (elAvailSeats) elAvailSeats.textContent = `${availSeats} Available`;
-    if (elSeatsSub) elSeatsSub.textContent = `${occupiedSeats} / ${totalSeats} Occupied (${occPct}%)`;
-
-    // 6. Populate KPI 3: Today's Fee Collection
-    const elTodayRev = document.getElementById('dash-kpi-today-revenue');
-    const elMonthRevSub = document.getElementById('dash-kpi-month-rev-sub');
-    if (elTodayRev) elTodayRev.textContent = formatCurrency(payStats.todayRevenue);
-    if (elMonthRevSub) elMonthRevSub.textContent = `Month: ${formatCurrency(payStats.monthRevenue)}`;
-
-    // 7. Populate KPI 4: Expiring in 48 Hours
-    const elExpiringSoon = document.getElementById('dash-kpi-expiring-soon');
-    const elExpiringSub = document.getElementById('dash-kpi-expiring-sub');
-    const expiring48h = expiringList.filter(s => {
-      if (s.daysRemaining !== undefined) return s.daysRemaining <= 2;
-      if (s.expiryDate) {
-        const diff = (new Date(s.expiryDate) - new Date()) / (1000 * 60 * 60 * 24);
-        return diff <= 2;
-      }
-      return false;
-    }).length;
-    if (elExpiringSoon) elExpiringSoon.textContent = `${expiring48h} Students`;
-    if (elExpiringSub) elExpiringSub.textContent = `Next 7 days: ${expiringList.length} total`;
-
-    // 8. Populate KPI 5: Overdue Fee Balances
-    const elDefaulterDues = document.getElementById('dash-kpi-defaulter-dues');
-    const elDuesSub = document.getElementById('dash-kpi-dues-sub');
-    const pendingDuesVal = payStats.totalPending || revenueData.summary?.pendingDues || 0;
-    if (elDefaulterDues) elDefaulterDues.textContent = formatCurrency(pendingDuesVal);
-    if (elDuesSub) elDuesSub.textContent = revenueData.summary?.pendingStudentsCount ? `${revenueData.summary.pendingStudentsCount} students with dues` : 'Pending recovery';
-
-    // 9. Populate KPI 6: Total Seat Capacity
-    const elTotalSeats = document.getElementById('dash-kpi-total-seats');
-    const elTotalSeatsSub = document.getElementById('dash-kpi-total-seats-sub');
-    if (elTotalSeats) elTotalSeats.textContent = `${totalSeats} Desks`;
-    if (elTotalSeatsSub) elTotalSeatsSub.textContent = `${occupiedSeats} Occupied, ${seatStats.maintenance || 0} Maintenance`;
-
-    // ── Phase 2 Smart Widget Data ─────────────────────────────────────────────
-
-    // KPI 7: Renewals Due This Week
-    const elRenewalsWeek = document.getElementById('dash-kpi-renewals-week');
-    const elRenewalsSub = document.getElementById('dash-kpi-renewals-sub');
-    const renewalsThisWeek = expiringList.filter(s => {
-      if (s.daysRemaining !== undefined) return s.daysRemaining >= 0 && s.daysRemaining <= 7;
-      if (s.expiryDate) {
-        const diff = (new Date(s.expiryDate) - new Date()) / (1000 * 60 * 60 * 24);
-        return diff >= 0 && diff <= 7;
-      }
-      return false;
-    });
-    if (elRenewalsWeek) elRenewalsWeek.textContent = `${renewalsThisWeek.length} students`;
-    if (elRenewalsSub) elRenewalsSub.textContent = `${expiring48h} expiring today / tomorrow`;
-
-    // Wire WA blast button on renewals widget
-    window._dashWABlast = async () => {
-      if (!renewalsThisWeek.length) { if (window.Toast) Toast.info('No renewals due this week'); return; }
-      let bizName = 'Study Library';
-      try { const s = await api.get('/api/settings'); bizName = s?.data?.businessProfile?.businessName || bizName; } catch (e) {}
-      for (const s of renewalsThisWeek) {
-        const ph = (s.phone||'').replace(/[^0-9]/g,'');
-        if (!ph || ph.length < 10) continue;
-        const intl = ph.length===10 ? '91'+ph : ph;
-        const exp = s.expiryDate ? new Date(s.expiryDate).toLocaleDateString('en-IN') : 'soon';
-        const msg = `Hi ${s.name}! 👋\nYour library membership expires on *${exp}*.\nPlease renew to continue your studies. 📚\n\n— ${bizName}`;
-        window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, '_blank');
-        await new Promise(r => setTimeout(r, 700));
-      }
-      if (window.Toast) Toast.success(`📲 Opened ${renewalsThisWeek.length} WA links`);
-    };
-
-    // KPI 8: Occupancy Gauge (animated SVG arc)
-    const gaugeArc = document.getElementById('dash-gauge-arc');
-    const gaugePct = document.getElementById('dash-gauge-pct');
-    const elOccValue = document.getElementById('dash-kpi-occ-value');
-    const elOccSub = document.getElementById('dash-kpi-occ-sub');
-    if (gaugeArc) gaugeArc.setAttribute('stroke-dasharray', `${occPct}, 100`);
-    if (gaugePct) gaugePct.textContent = `${occPct}%`;
-    if (elOccValue) elOccValue.textContent = `${occupiedSeats}/${totalSeats}`;
-    if (elOccSub) elOccSub.textContent = `Occupied / Total • ${occPct}% full`;
-
-    // KPI 9: At-Risk Students (expired + low attendance proxy = expired + pending)
-    const elAlerts = document.getElementById('dash-kpi-behavior-alerts');
-    const elAlertsSub = document.getElementById('dash-kpi-alerts-sub');
-    const atRiskCount = (studentStats.expired || 0) + (studentStats.inactive || 0);
-    if (elAlerts) elAlerts.textContent = atRiskCount;
-    if (elAlertsSub) elAlertsSub.textContent = `${studentStats.expired||0} expired + ${studentStats.inactive||0} inactive`;
-
-    // ── KPI Counter Animations ────────────────────────────────────────────────
-    // Animate all stat-card-value elements with number counting
-    document.querySelectorAll('.stat-card-value').forEach(el => {
-      const raw = el.textContent?.replace(/[₹,\s]/g, '').replace(/[^0-9.]/g, '');
-      const num = parseFloat(raw);
-      if (!isNaN(num) && num > 0 && !el.dataset.animated) {
-        el.dataset.animated = '1';
-        const prefix = el.textContent.startsWith('₹') ? '₹' : '';
-        const suffix = el.textContent.replace(/[₹0-9,.\s]/g, '').trim();
-        let start = 0;
-        const step = num / 30;
-        const timer = setInterval(() => {
-          start = Math.min(start + step, num);
-          el.textContent = prefix + Math.round(start).toLocaleString('en-IN') + (suffix ? ' ' + suffix : '');
-          if (start >= num) clearInterval(timer);
-        }, 20);
-      }
-    });
-
-    // Secondary Pulse widgets
-    const elPresToday = document.getElementById('dash-present-today');
-    const elAvailSeatsSec = document.getElementById('dash-available-seats');
-    const elActiveSubsSec = document.getElementById('dash-active-subs');
-    if (elPresToday) elPresToday.textContent = `${attData.stats?.totalPresent || attData.stats?.totalCheckedIn || 0} Students`;
-    if (elAvailSeatsSec) elAvailSeatsSec.textContent = `${availSeats} Available`;
-    if (elActiveSubsSec) elActiveSubsSec.textContent = `${studentStats.active ?? 0}`;
-
-    // Render Expiring Soon secondary list with WhatsApp trigger
-    const expiringContainer = document.getElementById('dash-expiring-container');
-    if (expiringContainer) {
-      if (expiringList.length === 0) {
-        expiringContainer.innerHTML = `
+\u2014 ${t}`;window.open(`https://wa.me/${v}?text=${encodeURIComponent(s)}`,"_blank"),await new Promise(d=>setTimeout(d,700))}window.Toast&&B.success(`\u{1F4F2} Opened ${O.length} WA links`)};const me=document.getElementById("dash-gauge-arc"),ye=document.getElementById("dash-gauge-pct"),fe=document.getElementById("dash-kpi-occ-value"),we=document.getElementById("dash-kpi-occ-sub");me&&me.setAttribute("stroke-dasharray",`${_}, 100`),ye&&(ye.textContent=`${_}%`),fe&&(fe.textContent=`${z}/${C}`),we&&(we.textContent=`Occupied / Total \u2022 ${_}% full`);const ke=document.getElementById("dash-kpi-behavior-alerts"),Ee=document.getElementById("dash-kpi-alerts-sub"),$e=(F.expired||0)+(F.inactive||0);ke&&(ke.textContent=$e),Ee&&(Ee.textContent=`${F.expired||0} expired + ${F.inactive||0} inactive`),document.querySelectorAll(".stat-card-value").forEach(t=>{const n=t.textContent?.replace(/[₹,\s]/g,"").replace(/[^0-9.]/g,""),r=parseFloat(n);if(!isNaN(r)&&r>0&&!t.dataset.animated){t.dataset.animated="1";const v=t.textContent.startsWith("\u20B9")?"\u20B9":"",u=t.textContent.replace(/[₹0-9,.\s]/g,"").trim();let s=0;const d=r/30,g=setInterval(()=>{s=Math.min(s+d,r),t.textContent=v+Math.round(s).toLocaleString("en-IN")+(u?" "+u:""),s>=r&&clearInterval(g)},20)}});const Fe=document.getElementById("dash-present-today"),Ae=document.getElementById("dash-available-seats"),Ce=document.getElementById("dash-active-subs");Fe&&(Fe.textContent=`${N.stats?.totalPresent||N.stats?.totalCheckedIn||0} Students`),Ae&&(Ae.textContent=`${ae} Available`),Ce&&(Ce.textContent=`${F.active??0}`);const K=document.getElementById("dash-expiring-container");if(K&&(D.length===0?K.innerHTML=`
           <div class="p-4 text-center text-muted">
-            <div style="font-size: 28px; margin-bottom: 4px;">🎉</div>
+            <div style="font-size: 28px; margin-bottom: 4px;">\u{1F389}</div>
             <p class="small mb-0">No memberships expiring in the next 7 days!</p>
           </div>
-        `;
-      } else {
-        expiringContainer.innerHTML = `
+        `:K.innerHTML=`
           <div class="d-flex flex-column divide-y">
-            ${expiringList.slice(0, 6).map(s => {
-              const expDateObj = s.expiryDate ? new Date(s.expiryDate) : null;
-              const isValidExp = expDateObj && !isNaN(expDateObj.getTime());
-              const daysLeft = s.daysRemaining ?? (isValidExp ? Math.ceil((expDateObj - new Date()) / (1000 * 60 * 60 * 24)) : 0);
-              const expDateStr = isValidExp ? expDateObj.toLocaleDateString('en-IN') : 'N/A';
-              const phone = (s.phone || '').replace(/[^0-9]/g, '');
-              const waText = encodeURIComponent(`Hi ${s.name}, friendly reminder from Study Library: Your desk membership expires on ${expDateStr}. Please renew to retain your seat!`);
-              const waLink = phone ? `https://api.whatsapp.com/send?phone=${phone.length === 10 ? '91' + phone : phone}&text=${waText}` : '#';
-
-              return `
+            ${D.slice(0,6).map(t=>{const n=t.expiryDate?new Date(t.expiryDate):null,r=n&&!isNaN(n.getTime()),v=t.daysRemaining??(r?Math.ceil((n-new Date)/(1e3*60*60*24)):0),u=r?n.toLocaleDateString("en-IN"):"N/A",s=(t.phone||"").replace(/[^0-9]/g,""),d=encodeURIComponent(`Hi ${t.name}, friendly reminder from Study Library: Your desk membership expires on ${u}. Please renew to retain your seat!`),g=s?`https://api.whatsapp.com/send?phone=${s.length===10?"91"+s:s}&text=${d}`:"#";return`
                 <div class="p-3 d-flex justify-content-between align-items-center" style="border-bottom: 1px solid var(--color-divider, rgba(255,255,255,0.06));">
                   <div>
-                    <div style="font-weight: 600; font-size: 14px;">${escapeHTML(s.name)}</div>
-                    <div class="text-xs text-muted">Seat: ${escapeHTML(s.seat?.seatNumber || s.seatNumber || 'N/A')} | Exp: ${expDateStr}</div>
+                    <div style="font-weight: 600; font-size: 14px;">${A(t.name)}</div>
+                    <div class="text-xs text-muted">Seat: ${A(t.seat?.seatNumber||t.seatNumber||"N/A")} | Exp: ${u}</div>
                   </div>
                   <div class="d-flex align-items-center gap-2">
-                    <span class="badge ${daysLeft <= 2 ? 'badge-danger' : 'badge-warning'}" style="font-size: 11px;">
-                      ${daysLeft <= 0 ? 'Expires Today' : `${daysLeft}d left`}
+                    <span class="badge ${v<=2?"badge-danger":"badge-warning"}" style="font-size: 11px;">
+                      ${v<=0?"Expires Today":`${v}d left`}
                     </span>
-                    ${phone ? `
-                      <a href="${waLink}" target="_blank" class="btn btn-sm btn-success" style="padding: 4px 8px; font-size: 12px; background: #25D366; border-color: #25D366;" title="Send WhatsApp Reminder">
-                        📲
+                    ${s?`
+                      <a href="${g}" target="_blank" class="btn btn-sm btn-success" style="padding: 4px 8px; font-size: 12px; background: #25D366; border-color: #25D366;" title="Send WhatsApp Reminder">
+                        \u{1F4F2}
                       </a>
-                    ` : ''}
+                    `:""}
                   </div>
                 </div>
-              `;
-            }).join('')}
+              `}).join("")}
           </div>
-        `;
-      }
-    }
-
-    // 10. Render Chart 1: Monthly Revenue Trend
-    const trendCanvas = document.getElementById('chart-revenue-trend-canvas');
-    if (trendCanvas) {
-      const trendData = Array.isArray(revenueData.trend) && revenueData.trend.length > 0
-        ? revenueData.trend.slice(-14)
-        : [
-            { date: 'Day 1', amount: 3200 },
-            { date: 'Day 3', amount: 4800 },
-            { date: 'Day 6', amount: 2900 },
-            { date: 'Day 9', amount: 6200 },
-            { date: 'Day 12', amount: 5100 },
-            { date: 'Day 15', amount: 7400 },
-            { date: 'Today', amount: payStats.todayRevenue || 4500 }
-          ];
-
-      const labels = trendData.map(d => {
-        if (!d.date) return '';
-        if (d.date.includes('-')) {
-          const parts = d.date.split('-');
-          return `${parts[2]}/${parts[1]}`;
-        }
-        return d.date;
-      });
-      const data = trendData.map(d => d.amount || 0);
-      const totalTrendAmt = data.reduce((a, b) => a + b, 0);
-
-      const elTrendTotal = document.getElementById('dash-trend-total');
-      if (elTrendTotal) elTrendTotal.textContent = formatCurrency(totalTrendAmt);
-
-      ChartEngine.lineChart('chart-revenue-trend-canvas', {
-        labels,
-        data,
-        color: '#0984e3',
-        fill: true,
-        title: 'Daily Collection (₹)'
-      });
-    }
-
-    // 11. Render Chart 2: Shift Occupancy Distribution
-    const shiftCanvas = document.getElementById('chart-shift-occupancy-canvas');
-    if (shiftCanvas) {
-      const shiftList = Array.isArray(shiftData.shiftStats) ? shiftData.shiftStats : (Array.isArray(shiftData) ? shiftData : []);
-      let shiftLabels = [];
-      let shiftCounts = [];
-      const shiftColors = ['#6c5ce7', '#00b894', '#0984e3', '#fdcb6e', '#e17055', '#a29bfe'];
-
-      if (shiftList.length > 0) {
-        shiftLabels = shiftList.map(s => s.name || s.code);
-        shiftCounts = shiftList.map(s => s.enrolledStudents ?? s.enrolled ?? 0);
-      } else {
-        shiftLabels = ['Morning', 'Evening', 'Full Day', 'Night'];
-        shiftCounts = [8, 12, 16, 4];
-      }
-
-      // Only use actual database counts (0 students = 0)
-      const totalEnrolled = shiftCounts.reduce((a, b) => a + b, 0);
-      const elShiftTotal = document.getElementById('dash-shift-total');
-      if (elShiftTotal) elShiftTotal.textContent = `${totalEnrolled} Students`;
-
-      ChartEngine.doughnutChart('chart-shift-occupancy-canvas', {
-        labels: totalEnrolled > 0 ? shiftLabels : ['No Students Enrolled'],
-        data: totalEnrolled > 0 ? shiftCounts : [1],
-        colors: totalEnrolled > 0 ? shiftColors : ['rgba(148, 163, 184, 0.2)'],
-        title: 'Shift Distribution'
-      });
-
-      const legendEl = document.getElementById('chart-shift-legend');
-      if (legendEl) {
-        if (totalEnrolled > 0) {
-          legendEl.innerHTML = shiftLabels.map((lbl, idx) => `
+        `),document.getElementById("chart-revenue-trend-canvas")){const t=Array.isArray(S.trend)&&S.trend.length>0?S.trend.slice(-14):[{date:"Day 1",amount:3200},{date:"Day 3",amount:4800},{date:"Day 6",amount:2900},{date:"Day 9",amount:6200},{date:"Day 12",amount:5100},{date:"Day 15",amount:7400},{date:"Today",amount:T.todayRevenue||4500}],n=t.map(s=>{if(!s.date)return"";if(s.date.includes("-")){const d=s.date.split("-");return`${d[2]}/${d[1]}`}return s.date}),r=t.map(s=>s.amount||0),v=r.reduce((s,d)=>s+d,0),u=document.getElementById("dash-trend-total");u&&(u.textContent=L(v)),H.lineChart("chart-revenue-trend-canvas",{labels:n,data:r,color:"#0984e3",fill:!0,title:"Daily Collection (\u20B9)"})}if(document.getElementById("chart-shift-occupancy-canvas")){const t=Array.isArray(P.shiftStats)?P.shiftStats:Array.isArray(P)?P:[];let n=[],r=[];const v=["#6c5ce7","#00b894","#0984e3","#fdcb6e","#e17055","#a29bfe"];t.length>0?(n=t.map(g=>g.name||g.code),r=t.map(g=>g.enrolledStudents??g.enrolled??0)):(n=["Morning","Evening","Full Day","Night"],r=[8,12,16,4]);const u=r.reduce((g,E)=>g+E,0),s=document.getElementById("dash-shift-total");s&&(s.textContent=`${u} Students`),H.doughnutChart("chart-shift-occupancy-canvas",{labels:u>0?n:["No Students Enrolled"],data:u>0?r:[1],colors:u>0?v:["rgba(148, 163, 184, 0.2)"],title:"Shift Distribution"});const d=document.getElementById("chart-shift-legend");d&&(u>0?d.innerHTML=n.map((g,E)=>`
             <span style="display: inline-flex; align-items: center; gap: 4px;">
-              <span style="width: 10px; height: 10px; border-radius: 50%; background: ${shiftColors[idx % shiftColors.length]}; display: inline-block;"></span>
-              ${escapeHTML(lbl)}: <strong>${shiftCounts[idx]}</strong>
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: ${v[E%v.length]}; display: inline-block;"></span>
+              ${A(g)}: <strong>${r[E]}</strong>
             </span>
-          `).join('');
-        } else {
-          legendEl.innerHTML = '<span class="text-muted small">No students assigned to shifts yet</span>';
-        }
-      }
-    }
-
-    // 12. Render Chart 3: Student Exam Preparation Breakdown
-    const examCanvas = document.getElementById('chart-exam-stats-canvas');
-    if (examCanvas) {
-      const examCountsMap = {
-        'UPSC / IAS': 0,
-        'SSC / CGL': 0,
-        'Banking / IBPS': 0,
-        'State PSC': 0,
-        'NEET / JEE': 0,
-        'Defence / NDA': 0,
-        'Other': 0
-      };
-
-      if (Array.isArray(allStudents) && allStudents.length > 0) {
-        allStudents.forEach(st => {
-          if (Array.isArray(st.targetExams) && st.targetExams.length > 0) {
-            st.targetExams.forEach(ex => {
-              const exTrim = String(ex).trim();
-              if (examCountsMap[exTrim] !== undefined) {
-                examCountsMap[exTrim]++;
-              } else {
-                let matched = false;
-                for (const key of Object.keys(examCountsMap)) {
-                  if (exTrim.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(exTrim.toLowerCase())) {
-                    examCountsMap[key]++;
-                    matched = true;
-                    break;
-                  }
-                }
-                if (!matched) examCountsMap['Other']++;
-              }
-            });
-          }
-        });
-      }
-
-      const totalExamsMarked = Object.values(examCountsMap).reduce((a, b) => a + b, 0);
-      const examLabels = Object.keys(examCountsMap).filter(k => examCountsMap[k] > 0);
-      const examData = examLabels.map(k => examCountsMap[k]);
-      const examColors = ['#6c5ce7', '#00cec9', '#fdcb6e', '#e84393', '#0984e3', '#00b894', '#636e72'];
-
-      ChartEngine.doughnutChart('chart-exam-stats-canvas', {
-        labels: totalExamsMarked > 0 ? examLabels : ['No Exam Records'],
-        data: totalExamsMarked > 0 ? examData : [1],
-        colors: totalExamsMarked > 0 ? examColors : ['rgba(148, 163, 184, 0.2)'],
-        title: 'Exam Preparation'
-      });
-
-      const examLegendEl = document.getElementById('chart-exam-legend');
-      if (examLegendEl) {
-        if (totalExamsMarked > 0) {
-          examLegendEl.innerHTML = examLabels.map((lbl, idx) => `
+          `).join(""):d.innerHTML='<span class="text-muted small">No students assigned to shifts yet</span>')}if(document.getElementById("chart-exam-stats-canvas")){const t={"UPSC / IAS":0,"SSC / CGL":0,"Banking / IBPS":0,"State PSC":0,"NEET / JEE":0,"Defence / NDA":0,Other:0};Array.isArray(J)&&J.length>0&&J.forEach(d=>{Array.isArray(d.targetExams)&&d.targetExams.length>0&&d.targetExams.forEach(g=>{const E=String(g).trim();if(t[E]!==void 0)t[E]++;else{let Be=!1;for(const Q of Object.keys(t))if(E.toLowerCase().includes(Q.toLowerCase())||Q.toLowerCase().includes(E.toLowerCase())){t[Q]++,Be=!0;break}Be||t.Other++}})});const n=Object.values(t).reduce((d,g)=>d+g,0),r=Object.keys(t).filter(d=>t[d]>0),v=r.map(d=>t[d]),u=["#6c5ce7","#00cec9","#fdcb6e","#e84393","#0984e3","#00b894","#636e72"];H.doughnutChart("chart-exam-stats-canvas",{labels:n>0?r:["No Exam Records"],data:n>0?v:[1],colors:n>0?u:["rgba(148, 163, 184, 0.2)"],title:"Exam Preparation"});const s=document.getElementById("chart-exam-legend");s&&(n>0?s.innerHTML=r.map((d,g)=>`
             <span style="display: inline-flex; align-items: center; gap: 4px;">
-              <span style="width: 10px; height: 10px; border-radius: 50%; background: ${examColors[idx % examColors.length]}; display: inline-block;"></span>
-              ${escapeHTML(lbl)}: <strong>${examData[idx]}</strong>
+              <span style="width: 10px; height: 10px; border-radius: 50%; background: ${u[g%u.length]}; display: inline-block;"></span>
+              ${A(d)}: <strong>${v[g]}</strong>
             </span>
-          `).join('');
-        } else {
-          examLegendEl.innerHTML = '<span class="text-muted small">No student exam targets registered yet</span>';
-        }
-      }
-    }
-
-    // 13. Render Attendance Pulse Bar Chart (Real 0s if no attendance logged yet)
-    const attCanvas = document.getElementById('dashboard-chart');
-    if (attCanvas) {
-      const realAttCounts = [0, 0, 0, 0, 0, 0, 0];
-      ChartEngine.barChart('dashboard-chart', {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        data: realAttCounts,
-        title: 'Weekly Attendance Pulse',
-        color: '#6c5ce7'
-      });
-    }
-
-    // Mount context-aware FAB for Dashboard page
-    if (typeof window !== 'undefined' && window.FAB) {
-      window.FAB.mount({
-        icon: '🚀',
-        label: 'Dashboard Quick Actions',
-        color: 'var(--color-primary, #6c5ce7)',
-        actions: [
-          {
-            icon: '🎓',
-            label: 'New Admission',
-            onClick: () => {
-              window.location.hash = '#/students';
-            }
-          },
-          {
-            icon: '💳',
-            label: 'Collect Fee',
-            onClick: () => {
-              window.location.hash = '#/payments';
-            }
-          },
-          {
-            icon: '⏱️',
-            label: 'Live Attendance',
-            onClick: () => {
-              window.location.hash = '#/attendance';
-            }
-          },
-          {
-            icon: '🪑',
-            label: 'Seating Hub',
-            onClick: () => {
-              window.location.hash = '#/seats';
-            }
-          }
-        ]
-      });
-    }
-
-  } catch (err) {
-    console.error('Error fetching dashboard statistics:', err);
-  }
-}
-
+          `).join(""):s.innerHTML='<span class="text-muted small">No student exam targets registered yet</span>')}if(document.getElementById("dashboard-chart")){const t=[0,0,0,0,0,0,0];H.barChart("dashboard-chart",{labels:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],data:t,title:"Weekly Attendance Pulse",color:"#6c5ce7"})}typeof window<"u"&&window.FAB&&window.FAB.mount({icon:"\u{1F680}",label:"Dashboard Quick Actions",color:"var(--color-primary, #6c5ce7)",actions:[{icon:"\u{1F393}",label:"New Admission",onClick:()=>{window.location.hash="#/students"}},{icon:"\u{1F4B3}",label:"Collect Fee",onClick:()=>{window.location.hash="#/payments"}},{icon:"\u23F1\uFE0F",label:"Live Attendance",onClick:()=>{window.location.hash="#/attendance"}},{icon:"\u{1FA91}",label:"Seating Hub",onClick:()=>{window.location.hash="#/seats"}}]})}catch(e){console.error("Error fetching dashboard statistics:",e)}}export{W as render};

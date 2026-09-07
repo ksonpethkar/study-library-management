@@ -257,6 +257,20 @@ const updateSystemSettingsHandler = async (req, res) => {
       'notification.enableAutoDuesBot': { key: 'notification.enableAutoDuesBot', category: 'notification', type: 'boolean', label: 'Enable Automated Balance Due WhatsApp Bot' },
       'enableConversationalBot': { key: 'notification.enableConversationalBot', category: 'notification', type: 'boolean', label: 'Enable Interactive WhatsApp Conversational Bot' },
       'notification.enableConversationalBot': { key: 'notification.enableConversationalBot', category: 'notification', type: 'boolean', label: 'Enable Interactive WhatsApp Conversational Bot' },
+      'whatsappProvider': { key: 'notification.whatsappProvider', category: 'notification', type: 'string', label: 'WhatsApp Gateway Provider' },
+      'notification.whatsappProvider': { key: 'notification.whatsappProvider', category: 'notification', type: 'string', label: 'WhatsApp Gateway Provider' },
+      'ultramsgInstanceId': { key: 'notification.ultramsgInstanceId', category: 'notification', type: 'string', label: 'UltraMsg Instance ID' },
+      'notification.ultramsgInstanceId': { key: 'notification.ultramsgInstanceId', category: 'notification', type: 'string', label: 'UltraMsg Instance ID' },
+      'ultramsgToken': { key: 'notification.ultramsgToken', category: 'notification', type: 'string', label: 'UltraMsg Token' },
+      'notification.ultramsgToken': { key: 'notification.ultramsgToken', category: 'notification', type: 'string', label: 'UltraMsg Token' },
+      'fast2smsApiKey': { key: 'notification.fast2smsApiKey', category: 'notification', type: 'string', label: 'Fast2SMS API Key' },
+      'notification.fast2smsApiKey': { key: 'notification.fast2smsApiKey', category: 'notification', type: 'string', label: 'Fast2SMS API Key' },
+      'metaPhoneNumberId': { key: 'notification.metaPhoneNumberId', category: 'notification', type: 'string', label: 'Meta WhatsApp Phone Number ID' },
+      'notification.metaPhoneNumberId': { key: 'notification.metaPhoneNumberId', category: 'notification', type: 'string', label: 'Meta WhatsApp Phone Number ID' },
+      'metaAccessToken': { key: 'notification.metaAccessToken', category: 'notification', type: 'string', label: 'Meta WhatsApp Access Token' },
+      'notification.metaAccessToken': { key: 'notification.metaAccessToken', category: 'notification', type: 'string', label: 'Meta WhatsApp Access Token' },
+      'webhookUrl': { key: 'notification.webhookUrl', category: 'notification', type: 'string', label: 'Custom WhatsApp Webhook URL' },
+      'notification.webhookUrl': { key: 'notification.webhookUrl', category: 'notification', type: 'string', label: 'Custom WhatsApp Webhook URL' },
 
 
       // General Settings
@@ -271,7 +285,75 @@ const updateSystemSettingsHandler = async (req, res) => {
       'autoBackup': { key: 'general.autoBackup', category: 'general', type: 'boolean', label: 'Auto Backup' },
       'general.autoBackup': { key: 'general.autoBackup', category: 'general', type: 'boolean', label: 'Auto Backup' },
       'inactivityTimeout': { key: 'general.inactivityTimeout', category: 'general', type: 'number', label: 'Inactivity Timeout' },
-      'general.inactivityTimeout': { key: 'general.inactivityTimeout', category: 'general', type: 'number', label: 'Inactivity Timeout' }
+      'general.inactivityTimeout': { key: 'general.inactivityTimeout', category: 'general', type: 'number', label: 'Inactivity Timeout' },
+
+      // Operations & Attendance Timing Settings
+      'operations.gracePeriodMinutes': { key: 'operations.gracePeriodMinutes', category: 'operations', type: 'number', label: 'Attendance Grace Period (Minutes)' },
+      'gracePeriodMinutes': { key: 'operations.gracePeriodMinutes', category: 'operations', type: 'number', label: 'Attendance Grace Period (Minutes)' },
+      'operations.autoCheckout': { key: 'operations.autoCheckout', category: 'operations', type: 'boolean', label: 'Enable Auto Checkout' },
+      'autoCheckout': { key: 'operations.autoCheckout', category: 'operations', type: 'boolean', label: 'Enable Auto Checkout' },
+      'operations.autoCheckoutHours': { key: 'operations.autoCheckoutHours', category: 'operations', type: 'number', label: 'Auto Checkout Duration (Hours)' },
+      'autoCheckoutHours': { key: 'operations.autoCheckoutHours', category: 'operations', type: 'number', label: 'Auto Checkout Duration (Hours)' },
+      'operations.autoCheckoutTime': { key: 'operations.autoCheckoutTime', category: 'operations', type: 'string', label: 'Daily Auto Checkout Time' },
+      'autoCheckoutTime': { key: 'operations.autoCheckoutTime', category: 'operations', type: 'string', label: 'Daily Auto Checkout Time' },
+      'operations.latePenaltyPerHour': { key: 'operations.latePenaltyPerHour', category: 'operations', type: 'number', label: 'Overstay Penalty Per Hour (₹)' },
+      'latePenaltyPerHour': { key: 'operations.latePenaltyPerHour', category: 'operations', type: 'number', label: 'Overstay Penalty Per Hour (₹)' },
+      'operations.openingTime': { key: 'operations.openingTime', category: 'operations', type: 'string', label: 'Daily Opening Time' },
+      'openingTime': { key: 'operations.openingTime', category: 'operations', type: 'string', label: 'Daily Opening Time' },
+      'operations.closingTime': { key: 'operations.closingTime', category: 'operations', type: 'string', label: 'Daily Closing Time' },
+      'closingTime': { key: 'operations.closingTime', category: 'operations', type: 'string', label: 'Daily Closing Time' },
+      'operations.weeklyOff': { key: 'operations.weeklyOff', category: 'operations', type: 'string', label: 'Weekly Off Day' },
+      'weeklyOff': { key: 'operations.weeklyOff', category: 'operations', type: 'string', label: 'Weekly Off Day' },
+      'operations.examExtendedHours': { key: 'operations.examExtendedHours', category: 'operations', type: 'boolean', label: 'Enable 24x7 Exam Season Hours' },
+      'examExtendedHours': { key: 'operations.examExtendedHours', category: 'operations', type: 'boolean', label: 'Enable 24x7 Exam Season Hours' },
+      'operations.emergencyNotice': { key: 'operations.emergencyNotice', category: 'operations', type: 'string', label: 'Emergency Notice Message' },
+      'emergencyNotice': { key: 'operations.emergencyNotice', category: 'operations', type: 'string', label: 'Emergency Notice Message' },
+      'operations.emergencyNoticeEnabled': { key: 'operations.emergencyNoticeEnabled', category: 'operations', type: 'boolean', label: 'Enable Emergency Notice' },
+      'emergencyNoticeEnabled': { key: 'operations.emergencyNoticeEnabled', category: 'operations', type: 'boolean', label: 'Enable Emergency Notice' },
+      'operations.requireBiometricForEntry': { key: 'operations.requireBiometricForEntry', category: 'operations', type: 'boolean', label: 'Require Biometric Verification' },
+      'requireBiometricForEntry': { key: 'operations.requireBiometricForEntry', category: 'operations', type: 'boolean', label: 'Require Biometric Verification' },
+
+      // Kiosk Settings
+      'kiosk.enableVoice': { key: 'kiosk.enableVoice', category: 'kiosk', type: 'boolean', label: 'Enable Kiosk Voice Audio' },
+      'kiosk.voiceLanguage': { key: 'kiosk.voiceLanguage', category: 'kiosk', type: 'string', label: 'Voice Audio Language' },
+      'kiosk.soundEnabled': { key: 'kiosk.soundEnabled', category: 'kiosk', type: 'boolean', label: 'Enable Sound Effects' },
+      'kiosk.autoCheckout': { key: 'kiosk.autoCheckout', category: 'kiosk', type: 'boolean', label: 'Kiosk Auto Checkout Enabled' },
+      'kiosk.autoCheckoutHours': { key: 'kiosk.autoCheckoutHours', category: 'kiosk', type: 'number', label: 'Kiosk Auto Checkout Hours' },
+      'kiosk.screenTimeoutSeconds': { key: 'kiosk.screenTimeoutSeconds', category: 'kiosk', type: 'number', label: 'Screen Timeout (Seconds)' },
+      'kiosk.announcementVolume': { key: 'kiosk.announcementVolume', category: 'kiosk', type: 'number', label: 'Voice Volume' },
+      'kiosk.welcomeMessage': { key: 'kiosk.welcomeMessage', category: 'kiosk', type: 'string', label: 'Welcome Audio Message' },
+      'kiosk.farewellMessage': { key: 'kiosk.farewellMessage', category: 'kiosk', type: 'string', label: 'Farewell Audio Message' },
+
+      // Billing & Invoicing
+      'billing.receiptPrefix': { key: 'billing.receiptPrefix', category: 'billing', type: 'string', label: 'Invoice / Receipt Prefix' },
+      'billing.nextReceiptNumber': { key: 'billing.nextReceiptNumber', category: 'billing', type: 'number', label: 'Starting Invoice Number' },
+      'billing.defaultTemplate': { key: 'billing.defaultTemplate', category: 'billing', type: 'string', label: 'Default Receipt Template' },
+      'billing.enableGst': { key: 'billing.enableGst', category: 'billing', type: 'boolean', label: 'Enable GST' },
+      'billing.gstRate': { key: 'billing.gstRate', category: 'billing', type: 'number', label: 'GST Percentage (%)' },
+      'billing.hsnSacCode': { key: 'billing.hsnSacCode', category: 'billing', type: 'string', label: 'HSN / SAC Code' },
+      'billing.allowPartialPayment': { key: 'billing.allowPartialPayment', category: 'billing', type: 'boolean', label: 'Allow Partial Payments' },
+      'billing.minPartialPercent': { key: 'billing.minPartialPercent', category: 'billing', type: 'number', label: 'Minimum Partial Payment (%)' },
+      'billing.refundPolicyDays': { key: 'billing.refundPolicyDays', category: 'billing', type: 'number', label: 'Refund Policy Window (Days)' },
+
+      // Automations
+      'automations.autoSeatExpiry': { key: 'automations.autoSeatExpiry', category: 'automations', type: 'boolean', label: 'Auto Release Expired Seats' },
+      'automations.autoDueReminders': { key: 'automations.autoDueReminders', category: 'automations', type: 'boolean', label: 'Auto Dispatch Due Reminders' },
+      'automations.autoReceiptGeneration': { key: 'automations.autoReceiptGeneration', category: 'automations', type: 'boolean', label: 'Auto Generate PDF Receipts' },
+      'automations.autoDailyBackup': { key: 'automations.autoDailyBackup', category: 'automations', type: 'boolean', label: 'Daily Automated Database Backup' },
+
+      // Student Portal Settings
+      'portal.enableOnlineRenewal': { key: 'portal.enableOnlineRenewal', category: 'portal', type: 'boolean', label: 'Online Fee Renewal' },
+      'portal.enableSeatTransfer': { key: 'portal.enableSeatTransfer', category: 'portal', type: 'boolean', label: 'Seat Transfer Requests' },
+      'portal.enableShiftSwitch': { key: 'portal.enableShiftSwitch', category: 'portal', type: 'boolean', label: 'Shift Switch Requests' },
+      'portal.enableIdPassDownload': { key: 'portal.enableIdPassDownload', category: 'portal', type: 'boolean', label: 'Digital Mobile ID Pass Download' },
+      'portal.enableReceiptDownload': { key: 'portal.enableReceiptDownload', category: 'portal', type: 'boolean', label: 'Fee Receipt PDF Download' },
+      'portal.enableProfileEdit': { key: 'portal.enableProfileEdit', category: 'portal', type: 'boolean', label: 'Student Profile Self-Edit' },
+      'portal.enableWebAuthn': { key: 'portal.enableWebAuthn', category: 'portal', type: 'boolean', label: 'Biometric Login' },
+      'portal.enableGamifiedBadges': { key: 'portal.enableGamifiedBadges', category: 'portal', type: 'boolean', label: 'Gamified Badges' },
+      'portal.enableReferralProgram': { key: 'portal.enableReferralProgram', category: 'portal', type: 'boolean', label: 'Student Referral Program' },
+      'portal.enableAttendanceLogs': { key: 'portal.enableAttendanceLogs', category: 'portal', type: 'boolean', label: 'Study Heatmap' },
+      'portal.enableAnnouncements': { key: 'portal.enableAnnouncements', category: 'portal', type: 'boolean', label: 'Announcements' },
+      'portal.enableLockerRequests': { key: 'portal.enableLockerRequests', category: 'portal', type: 'boolean', label: 'Locker Requests' }
     };
 
     // Flatten categorized nested objects

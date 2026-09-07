@@ -105,4 +105,51 @@ router.post('/restore', protect, roleCheck('owner', 'superadmin', 'admin'), asyn
   }
 });
 
+// POST /api/backup/run-now - Trigger instant automated backup
+router.post('/run-now', protect, roleCheck('owner', 'superadmin', 'admin'), async (req, res) => {
+  try {
+    const backupService = require('../services/backupService');
+    const result = await backupService.createBackup('manual_request');
+    res.json({
+      success: true,
+      message: `Backup created successfully (${result.sizeMB} MB)${result.telegramDispatched ? ' & dispatched to Telegram' : ''}`,
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/backup/list - List existing backup snapshots
+router.get('/list', protect, roleCheck('owner', 'superadmin', 'admin'), (req, res) => {
+  try {
+    const backupService = require('../services/backupService');
+    const list = backupService.listBackups();
+    res.json({
+      success: true,
+      data: list
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/backup/download/:filename - Download specific backup file
+router.get('/download/:filename', protect, roleCheck('owner', 'superadmin', 'admin'), (req, res) => {
+  try {
+    const path = require('path');
+    const fs = require('fs');
+    const filename = path.basename(req.params.filename);
+    const filePath = path.join(__dirname, '..', 'backups', filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: 'Backup file not found' });
+    }
+
+    res.download(filePath, filename);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

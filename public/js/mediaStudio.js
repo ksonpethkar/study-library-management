@@ -1,91 +1,18 @@
-import { escapeHTML, Toast, Modal } from './ui.js';
-
-/**
- * Universal Smart Media Studio & Live Camera Suite
- * Features:
- * - Live Camera (Front/Rear flip, 3s countdown, guide overlay, flash simulation)
- * - File Upload & Drag-and-Drop + Clipboard Paste (Ctrl+V)
- * - Manual Drag-to-Crop with 8 handles & aspect ratio presets (1:1, 3:4, 4:3, 16:9, Free)
- * - Smart Auto-Enhance (Auto-balance, Portrait, B&W Doc Scan, Magic Color, Transparent Stamp)
- * - Manual Adjustments (Brightness, Contrast, Saturation, Sharpness, Rotate 90°, Flip H/V)
- * - Client-side WebP/JPEG Compression (< 120KB)
- */
-export class MediaStudio {
-  constructor(options = {}) {
-    this.options = {
-      preset: options.preset || 'general', // 'passport' | 'document' | 'stamp_logo' | 'qr_code' | 'general'
-      title: options.title || 'Smart Image Studio',
-      aspectRatio: options.aspectRatio || null, // null = free, 1 = 1:1, 0.75 = 3:4, 1.33 = 4:3
-      value: options.value || '',
-      onSave: options.onSave || null,
-      maxSizeKB: options.maxSizeKB || 250,
-      maxWidth: options.maxWidth || 1200,
-      maxHeight: options.maxHeight || 1200,
-      ...options
-    };
-
-    // Set default aspect ratio based on preset if not specified
-    if (this.options.aspectRatio === null) {
-      if (this.options.preset === 'passport') this.options.aspectRatio = 1; // Square / 3:4
-      else if (this.options.preset === 'stamp_logo' || this.options.preset === 'qr_code') this.options.aspectRatio = 1;
-      else if (this.options.preset === 'document') this.options.aspectRatio = 1.33; // 4:3
-    }
-
-    this.activeSourceTab = 'upload'; // 'upload' | 'camera'
-    this.currentImage = null; // HTMLImageElement
-    this.stream = null; // MediaStream for camera
-    this.cameraFacingMode = 'user'; // 'user' | 'environment'
-    this.rotation = 0;
-    this.flipH = false;
-    this.flipV = false;
-    this.zoom = 1.0;
-    this.brightness = 0; // -100 to 100
-    this.contrast = 0;   // -100 to 100
-    this.saturation = 100; // 0 to 200%
-    this.activeFilter = 'none'; // 'none' | 'auto_enhance' | 'doc_scan' | 'magic_color' | 'transparent_bg'
-    this.bgThreshold = 215;
-
-    // Crop box coordinates (in canvas normalized percentage 0..1)
-    this.crop = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 };
-    this.isDraggingCrop = false;
-    this.activeHandle = null;
-    this.dragStart = { x: 0, y: 0 };
-    this.cropStart = { x: 0, y: 0, w: 0, h: 0 };
-
-    this.initModal();
-  }
-
-  static open(options = {}) {
-    return new Promise((resolve) => {
-      const studio = new MediaStudio({
-        ...options,
-        onSave: (dataUrl) => {
-          if (options.onSave) options.onSave(dataUrl);
-          resolve(dataUrl);
-        }
-      });
-      studio.show();
-    });
-  }
-
-  initModal() {
-    this.modalContent = document.createElement('div');
-    this.modalContent.className = 'media-studio-modal-wrapper';
-    this.modalContent.innerHTML = `
+import{escapeHTML as k,Toast as v,Modal as z}from"./ui.js";class F{constructor(t={}){this.options={preset:t.preset||"general",title:t.title||"Smart Image Studio",aspectRatio:t.aspectRatio||null,value:t.value||"",onSave:t.onSave||null,maxSizeKB:t.maxSizeKB||250,maxWidth:t.maxWidth||1200,maxHeight:t.maxHeight||1200,...t},this.options.aspectRatio===null&&(this.options.preset==="passport"?this.options.aspectRatio=1:this.options.preset==="stamp_logo"||this.options.preset==="qr_code"?this.options.aspectRatio=1:this.options.preset==="document"&&(this.options.aspectRatio=1.33)),this.activeSourceTab="upload",this.currentImage=null,this.stream=null,this.cameraFacingMode="user",this.rotation=0,this.flipH=!1,this.flipV=!1,this.zoom=1,this.brightness=0,this.contrast=0,this.saturation=100,this.activeFilter="none",this.bgThreshold=215,this.crop={x:.1,y:.1,w:.8,h:.8},this.isDraggingCrop=!1,this.activeHandle=null,this.dragStart={x:0,y:0},this.cropStart={x:0,y:0,w:0,h:0},this.initModal()}static open(t={}){return new Promise(s=>{new F({...t,onSave:n=>{t.onSave&&t.onSave(n),s(n)}}).show()})}initModal(){this.modalContent=document.createElement("div"),this.modalContent.className="media-studio-modal-wrapper",this.modalContent.innerHTML=`
       <div style="font-family: 'Outfit', sans-serif; user-select: none;">
         <!-- Top Source Selection Tabs -->
         <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
           <div class="d-flex gap-2">
             <button type="button" class="btn btn-sm btn-primary ms-tab-btn" data-tab="upload" style="font-weight: 600;">
-              📁 Upload & Drag-Drop
+              \u{1F4C1} Upload & Drag-Drop
             </button>
             <button type="button" class="btn btn-sm btn-outline-secondary ms-tab-btn" data-tab="camera" style="font-weight: 600;">
-              📸 Live Camera Capture
+              \u{1F4F8} Live Camera Capture
             </button>
           </div>
           <div class="d-flex align-items-center gap-1">
             <span class="badge badge-primary" style="text-transform: uppercase; font-size: 0.7rem;">
-              ${this.options.preset.replace('_', ' ')} MODE
+              ${this.options.preset.replace("_"," ")} MODE
             </span>
           </div>
         </div>
@@ -103,7 +30,7 @@ export class MediaStudio {
             
             <!-- Upload Drop Zone (Visible when no image) -->
             <div class="ms-drop-zone p-4 text-center" style="cursor: pointer; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-              <div style="font-size: 48px; margin-bottom: 8px;">🖼️</div>
+              <div style="font-size: 48px; margin-bottom: 8px;">\u{1F5BC}\uFE0F</div>
               <h4 style="margin: 0; color: #f8fafc; font-weight: 600; font-size: 1.1rem;">Choose image, drop file, or paste (Ctrl+V)</h4>
               <p style="color: #94a3b8; font-size: 0.8rem; margin: 4px 0 16px 0;">Supports JPG, PNG, WebP, HEIC (Max 15MB)</p>
               <input type="file" class="ms-file-input" accept="image/*" style="display: none;">
@@ -122,13 +49,13 @@ export class MediaStudio {
               <!-- Camera Controls Overlay -->
               <div style="position: absolute; bottom: 16px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 16px; z-index: 10;">
                 <button type="button" class="btn btn-sm btn-secondary ms-flip-cam-btn" title="Flip Camera" style="border-radius: 50%; width: 42px; height: 42px; padding: 0;">
-                  🔄
+                  \u{1F504}
                 </button>
                 <button type="button" class="btn btn-primary ms-snap-btn" style="border-radius: 50%; width: 60px; height: 60px; padding: 0; font-size: 24px; box-shadow: 0 0 0 4px rgba(255,255,255,0.4); background: #ef4444; border: 3px solid #fff;">
-                  📸
+                  \u{1F4F8}
                 </button>
                 <button type="button" class="btn btn-sm btn-secondary ms-timer-btn" title="3s Timer" style="border-radius: 50%; width: 42px; height: 42px; padding: 0; font-weight: 700; font-size: 0.8rem;">
-                  ⏱️ 3s
+                  \u23F1\uFE0F 3s
                 </button>
               </div>
 
@@ -176,49 +103,49 @@ export class MediaStudio {
             
             <!-- Quick Actions Toolbar -->
             <div style="background: var(--color-surface); padding: 10px; border-radius: 8px; border: 1px solid var(--color-border);">
-              <label class="form-label text-xs text-muted mb-1" style="font-weight: 700;">🔄 TRANSFORM</label>
+              <label class="form-label text-xs text-muted mb-1" style="font-weight: 700;">\u{1F504} TRANSFORM</label>
               <div class="d-flex gap-1 mb-2">
-                <button type="button" class="btn btn-sm btn-outline-secondary flex-1 ms-rotate-btn" title="Rotate 90°">🔄 90°</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary flex-1 ms-fliph-btn" title="Flip Horizontal">↔️</button>
-                <button type="button" class="btn btn-sm btn-outline-secondary flex-1 ms-flipv-btn" title="Flip Vertical">↕️</button>
-                <button type="button" class="btn btn-sm btn-outline-danger ms-reset-btn" title="Reset All">🧹</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary flex-1 ms-rotate-btn" title="Rotate 90\xB0">\u{1F504} 90\xB0</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary flex-1 ms-fliph-btn" title="Flip Horizontal">\u2194\uFE0F</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary flex-1 ms-flipv-btn" title="Flip Vertical">\u2195\uFE0F</button>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-reset-btn" title="Reset All">\u{1F9F9}</button>
               </div>
 
               <!-- Aspect Ratio Presets -->
-              <label class="form-label text-xs text-muted mb-1" style="font-weight: 700;">📐 ASPECT RATIO</label>
+              <label class="form-label text-xs text-muted mb-1" style="font-weight: 700;">\u{1F4D0} ASPECT RATIO</label>
               <div class="d-flex flex-wrap gap-1">
-                <button type="button" class="btn btn-xs ${this.options.aspectRatio === 1 ? 'btn-primary' : 'btn-outline-secondary'} ms-aspect-btn" data-aspect="1" style="font-size: 0.75rem; padding: 2px 6px;">1:1 Square</button>
-                <button type="button" class="btn btn-xs ${this.options.aspectRatio === 0.75 ? 'btn-primary' : 'btn-outline-secondary'} ms-aspect-btn" data-aspect="0.75" style="font-size: 0.75rem; padding: 2px 6px;">3:4 Passport</button>
-                <button type="button" class="btn btn-xs ${this.options.aspectRatio === 1.33 ? 'btn-primary' : 'btn-outline-secondary'} ms-aspect-btn" data-aspect="1.33" style="font-size: 0.75rem; padding: 2px 6px;">4:3 Doc</button>
-                <button type="button" class="btn btn-xs ${this.options.aspectRatio === null ? 'btn-primary' : 'btn-outline-secondary'} ms-aspect-btn" data-aspect="free" style="font-size: 0.75rem; padding: 2px 6px;">Free</button>
+                <button type="button" class="btn btn-xs ${this.options.aspectRatio===1?"btn-primary":"btn-outline-secondary"} ms-aspect-btn" data-aspect="1" style="font-size: 0.75rem; padding: 2px 6px;">1:1 Square</button>
+                <button type="button" class="btn btn-xs ${this.options.aspectRatio===.75?"btn-primary":"btn-outline-secondary"} ms-aspect-btn" data-aspect="0.75" style="font-size: 0.75rem; padding: 2px 6px;">3:4 Passport</button>
+                <button type="button" class="btn btn-xs ${this.options.aspectRatio===1.33?"btn-primary":"btn-outline-secondary"} ms-aspect-btn" data-aspect="1.33" style="font-size: 0.75rem; padding: 2px 6px;">4:3 Doc</button>
+                <button type="button" class="btn btn-xs ${this.options.aspectRatio===null?"btn-primary":"btn-outline-secondary"} ms-aspect-btn" data-aspect="free" style="font-size: 0.75rem; padding: 2px 6px;">Free</button>
               </div>
             </div>
 
             <!-- Smart Auto-Enhance & Filter Presets -->
             <div style="background: var(--color-surface); padding: 10px; border-radius: 8px; border: 1px solid var(--color-border);">
-              <label class="form-label text-xs text-muted mb-1" style="font-weight: 700;">⚡ SMART ENHANCE</label>
+              <label class="form-label text-xs text-muted mb-1" style="font-weight: 700;">\u26A1 SMART ENHANCE</label>
               <div class="d-flex flex-column gap-1">
                 <button type="button" class="btn btn-sm btn-outline-secondary text-start ms-filter-btn active" data-filter="none" style="font-size: 0.8rem;">
-                  ✨ Original / Natural
+                  \u2728 Original / Natural
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-secondary text-start ms-filter-btn" data-filter="auto_enhance" style="font-size: 0.8rem;">
-                  🌟 Auto Balance & Clarity
+                  \u{1F31F} Auto Balance & Clarity
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-secondary text-start ms-filter-btn" data-filter="doc_scan" style="font-size: 0.8rem;">
-                  📄 B&W Document Scanner
+                  \u{1F4C4} B&W Document Scanner
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-secondary text-start ms-filter-btn" data-filter="magic_color" style="font-size: 0.8rem;">
-                  🎨 Magic Color Contrast
+                  \u{1F3A8} Magic Color Contrast
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-secondary text-start ms-filter-btn" data-filter="transparent_bg" style="font-size: 0.8rem;">
-                  🧹 Transparent Background
+                  \u{1F9F9} Transparent Background
                 </button>
               </div>
             </div>
 
             <!-- Manual Fine-Tuning Sliders -->
             <div style="background: var(--color-surface); padding: 10px; border-radius: 8px; border: 1px solid var(--color-border);">
-              <label class="form-label text-xs text-muted mb-1" style="font-weight: 700;">🎛️ MANUAL ADJUST</label>
+              <label class="form-label text-xs text-muted mb-1" style="font-weight: 700;">\u{1F39B}\uFE0F MANUAL ADJUST</label>
               
               <div class="mb-2">
                 <div class="d-flex justify-content-between text-xs text-muted">
@@ -256,919 +183,58 @@ export class MediaStudio {
           <div class="d-flex gap-2">
             <button type="button" class="btn btn-secondary btn-sm ms-btn-cancel">Cancel</button>
             <button type="button" class="btn btn-primary btn-sm ms-btn-apply" disabled style="font-weight: 700; padding: 6px 16px;">
-              💾 Apply & Crop
+              \u{1F4BE} Apply & Crop
             </button>
           </div>
         </div>
       </div>
-    `;
-
-    this.initEvents();
-  }
-
-  renderGuideOverlay() {
-    if (this.options.preset === 'passport') {
-      return `
+    `,this.initEvents()}renderGuideOverlay(){return this.options.preset==="passport"?`
         <div style="width: 180px; height: 230px; border: 2px dashed #22c55e; border-radius: 50%; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);">
           <div style="text-align: center; color: #fff; font-size: 11px; margin-top: 240px; font-weight: 600; text-shadow: 0 1px 3px #000;">
             Align Face Inside Oval
           </div>
         </div>
-      `;
-    } else if (this.options.preset === 'document') {
-      return `
+      `:this.options.preset==="document"?`
         <div style="width: 80%; height: 75%; border: 2px dashed #38bdf8; border-radius: 8px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);">
           <div style="text-align: center; color: #fff; font-size: 11px; margin-top: 10px; font-weight: 600; text-shadow: 0 1px 3px #000;">
             Align Document / ID Card Inside Frame
           </div>
         </div>
-      `;
-    }
-    return `
+      `:`
       <div style="width: 70%; height: 70%; border: 2px dashed #e2e8f0; border-radius: 8px;"></div>
-    `;
-  }
-
-  initEvents() {
-    const wrap = this.modalContent;
-
-    // 1. Source Tab Switching
-    wrap.querySelectorAll('.ms-tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const tab = btn.dataset.tab;
-        this.activeSourceTab = tab;
-        wrap.querySelectorAll('.ms-tab-btn').forEach(b => {
-          b.classList.remove('btn-primary');
-          b.classList.add('btn-outline-secondary');
-        });
-        btn.classList.add('btn-primary');
-        btn.classList.remove('btn-outline-secondary');
-
-        if (tab === 'camera') {
-          this.startCamera();
-        } else {
-          this.stopCamera();
-          wrap.querySelector('.ms-camera-viewfinder').style.display = 'none';
-          if (this.currentImage) {
-            wrap.querySelector('.ms-crop-viewport').style.display = 'block';
-          } else {
-            wrap.querySelector('.ms-drop-zone').style.display = 'flex';
-          }
-        }
-      });
-    });
-
-    // 2. File Picker & Drag-and-Drop
-    const dropZone = wrap.querySelector('.ms-drop-zone');
-    const fileInput = wrap.querySelector('.ms-file-input');
-    const selectBtn = wrap.querySelector('.ms-select-file-btn');
-
-    selectBtn?.addEventListener('click', () => fileInput.click());
-    dropZone?.addEventListener('click', (e) => {
-      if (e.target !== selectBtn) fileInput.click();
-    });
-
-    fileInput?.addEventListener('change', (e) => {
-      if (e.target.files && e.target.files[0]) {
-        this.loadFile(e.target.files[0]);
-      }
-    });
-
-    // Drag-Drop
-    dropZone?.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.style.background = 'rgba(99, 102, 241, 0.15)';
-    });
-    dropZone?.addEventListener('dragleave', () => {
-      dropZone.style.background = 'transparent';
-    });
-    dropZone?.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.style.background = 'transparent';
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        this.loadFile(e.dataTransfer.files[0]);
-      }
-    });
-
-    // Paste from Clipboard (Ctrl+V)
-    window.addEventListener('paste', (e) => {
-      if (e.clipboardData && e.clipboardData.items) {
-        for (let item of e.clipboardData.items) {
-          if (item.type.indexOf('image') !== -1) {
-            const file = item.getAsFile();
-            this.loadFile(file);
-            Toast.info('Image pasted from clipboard');
-            break;
-          }
-        }
-      }
-    });
-
-    // 3. Camera Controls
-    wrap.querySelector('.ms-flip-cam-btn')?.addEventListener('click', () => {
-      this.cameraFacingMode = this.cameraFacingMode === 'user' ? 'environment' : 'user';
-      this.startCamera();
-    });
-
-    wrap.querySelector('.ms-timer-btn')?.addEventListener('click', () => {
-      this.snapWithCountdown(3);
-    });
-
-    wrap.querySelector('.ms-snap-btn')?.addEventListener('click', () => {
-      this.captureCamera();
-    });
-
-    // 4. Transform Tools (Rotate, Flip, Reset)
-    wrap.querySelector('.ms-rotate-btn')?.addEventListener('click', () => {
-      this.rotation = (this.rotation + 90) % 360;
-      this.renderCanvas();
-    });
-
-    wrap.querySelector('.ms-fliph-btn')?.addEventListener('click', () => {
-      this.flipH = !this.flipH;
-      this.renderCanvas();
-    });
-
-    wrap.querySelector('.ms-flipv-btn')?.addEventListener('click', () => {
-      this.flipV = !this.flipV;
-      this.renderCanvas();
-    });
-
-    wrap.querySelector('.ms-reset-btn')?.addEventListener('click', () => {
-      this.resetAdjustments();
-    });
-
-    // 5. Aspect Ratio Buttons
-    wrap.querySelectorAll('.ms-aspect-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        wrap.querySelectorAll('.ms-aspect-btn').forEach(b => {
-          b.classList.remove('btn-primary');
-          b.classList.add('btn-outline-secondary');
-        });
-        btn.classList.add('btn-primary');
-        btn.classList.remove('btn-outline-secondary');
-
-        const aspect = btn.dataset.aspect;
-        this.options.aspectRatio = aspect === 'free' ? null : parseFloat(aspect);
-        this.resetCropBox();
-      });
-    });
-
-    // 6. Filter Buttons
-    wrap.querySelectorAll('.ms-filter-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        wrap.querySelectorAll('.ms-filter-btn').forEach(b => {
-          b.classList.remove('btn-primary', 'active');
-          b.classList.add('btn-outline-secondary');
-        });
-        btn.classList.add('btn-primary', 'active');
-        btn.classList.remove('btn-outline-secondary');
-
-        this.activeFilter = btn.dataset.filter;
-        this.renderCanvas();
-      });
-    });
-
-    // 7. Manual Sliders
-    const bSlider = wrap.querySelector('.ms-slider-brightness');
-    bSlider?.addEventListener('input', (e) => {
-      this.brightness = parseInt(e.target.value, 10);
-      wrap.querySelector('.ms-val-brightness').textContent = this.brightness;
-      this.renderCanvas();
-    });
-
-    const cSlider = wrap.querySelector('.ms-slider-contrast');
-    cSlider?.addEventListener('input', (e) => {
-      this.contrast = parseInt(e.target.value, 10);
-      wrap.querySelector('.ms-val-contrast').textContent = this.contrast;
-      this.renderCanvas();
-    });
-
-    const sSlider = wrap.querySelector('.ms-slider-saturation');
-    sSlider?.addEventListener('input', (e) => {
-      this.saturation = parseInt(e.target.value, 10);
-      wrap.querySelector('.ms-val-saturation').textContent = `${this.saturation}%`;
-      this.renderCanvas();
-    });
-
-    // 8. Crop Box Draggable Interaction
-    this.initCropBoxEvents();
-
-    // 9. Footer Save & Cancel
-    wrap.querySelector('.ms-btn-apply')?.addEventListener('click', () => {
-      this.applyAndSave();
-    });
-
-    wrap.querySelector('.ms-btn-cancel')?.addEventListener('click', () => {
-      this.close();
-    });
-  }
-
-  initCropBoxEvents() {
-    const wrap = this.modalContent;
-    const cropBox = wrap.querySelector('.ms-crop-box');
-    const viewport = wrap.querySelector('.ms-crop-viewport');
-
-    const onMouseDown = (e) => {
-      e.preventDefault();
-      const rect = viewport.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      this.dragStart = { x: clientX, y: clientY };
-      this.cropStart = { ...this.crop };
-
-      if (e.target.classList.contains('ms-handle')) {
-        this.activeHandle = e.target.dataset.handle;
-      } else {
-        this.isDraggingCrop = true;
-      }
-
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', onMouseUp);
-      window.addEventListener('touchmove', onMouseMove, { passive: false });
-      window.addEventListener('touchend', onMouseUp);
-    };
-
-    const onMouseMove = (e) => {
-      const rect = viewport.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const dx = (clientX - this.dragStart.x) / rect.width;
-      const dy = (clientY - this.dragStart.y) / rect.height;
-
-      if (this.isDraggingCrop) {
-        this.crop.x = Math.max(0, Math.min(1 - this.crop.w, this.cropStart.x + dx));
-        this.crop.y = Math.max(0, Math.min(1 - this.crop.h, this.cropStart.y + dy));
-      } else if (this.activeHandle) {
-        this.handleResize(this.activeHandle, dx, dy, rect.width, rect.height);
-      }
-
-      this.updateCropBoxDOM();
-    };
-
-    const onMouseUp = () => {
-      this.isDraggingCrop = false;
-      this.activeHandle = null;
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-      window.removeEventListener('touchmove', onMouseMove);
-      window.removeEventListener('touchend', onMouseUp);
-    };
-
-    cropBox?.addEventListener('mousedown', onMouseDown);
-    cropBox?.addEventListener('touchstart', onMouseDown, { passive: false });
-  }
-
-  handleResize(handle, dx, dy, viewW, viewH) {
-    let { x, y, w, h } = this.cropStart;
-    const minSize = 0.1;
-
-    if (handle.includes('r')) w = Math.max(minSize, Math.min(1 - x, w + dx));
-    if (handle.includes('b')) h = Math.max(minSize, Math.min(1 - y, h + dy));
-    if (handle.includes('l')) {
-      const newX = Math.max(0, Math.min(x + w - minSize, x + dx));
-      w = w + (x - newX);
-      x = newX;
-    }
-    if (handle.includes('t')) {
-      const newY = Math.max(0, Math.min(y + h - minSize, y + dy));
-      h = h + (y - newY);
-      y = newY;
-    }
-
-    // Lock aspect ratio if required
-    if (this.options.aspectRatio) {
-      const pixelAspect = (w * viewW) / (h * viewH);
-      if (handle.includes('r') || handle.includes('l')) {
-        h = (w * viewW) / (this.options.aspectRatio * viewH);
-      } else {
-        w = (h * viewH * this.options.aspectRatio) / viewW;
-      }
-    }
-
-    this.crop = { x, y, w: Math.min(1 - x, w), h: Math.min(1 - y, h) };
-  }
-
-  resetCropBox() {
-    const wrap = this.modalContent;
-    const viewport = wrap.querySelector('.ms-crop-viewport');
-    if (!viewport) return;
-    const viewW = viewport.clientWidth || 500;
-    const viewH = viewport.clientHeight || 380;
-
-    let w = 0.8;
-    let h = 0.8;
-
-    if (this.options.aspectRatio) {
-      if (this.options.aspectRatio > 1) {
-        h = w / this.options.aspectRatio;
-      } else {
-        w = h * this.options.aspectRatio;
-      }
-    }
-
-    this.crop = {
-      x: (1 - w) / 2,
-      y: (1 - h) / 2,
-      w,
-      h
-    };
-
-    this.updateCropBoxDOM();
-  }
-
-  updateCropBoxDOM() {
-    const box = this.modalContent.querySelector('.ms-crop-box');
-    if (!box) return;
-    box.style.left = `${this.crop.x * 100}%`;
-    box.style.top = `${this.crop.y * 100}%`;
-    box.style.width = `${this.crop.w * 100}%`;
-    box.style.height = `${this.crop.h * 100}%`;
-  }
-
-  async startCamera() {
-    this.stopCamera();
-    const wrap = this.modalContent;
-    wrap.querySelector('.ms-drop-zone').style.display = 'none';
-    wrap.querySelector('.ms-crop-viewport').style.display = 'none';
-    const camView = wrap.querySelector('.ms-camera-viewfinder');
-    camView.style.display = 'block';
-
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: this.cameraFacingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      });
-      const video = wrap.querySelector('.ms-camera-video');
-      video.srcObject = this.stream;
-    } catch (err) {
-      Toast.error('Camera permission denied or camera not found');
-      wrap.querySelector('.ms-tab-btn[data-tab="upload"]').click();
-    }
-  }
-
-  stopCamera() {
-    if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
-      this.stream = null;
-    }
-  }
-
-  snapWithCountdown(seconds = 3) {
-    const wrap = this.modalContent;
-    const overlay = wrap.querySelector('.ms-countdown-overlay');
-    overlay.style.display = 'flex';
-    let count = seconds;
-    overlay.textContent = count;
-
-    const timer = setInterval(() => {
-      count--;
-      if (count > 0) {
-        overlay.textContent = count;
-      } else {
-        clearInterval(timer);
-        overlay.style.display = 'none';
-        this.captureCamera();
-      }
-    }, 1000);
-  }
-
-  captureCamera() {
-    const wrap = this.modalContent;
-    const video = wrap.querySelector('.ms-camera-video');
-    if (!video || !video.videoWidth) return;
-
-    const off = document.createElement('canvas');
-    off.width = video.videoWidth;
-    off.height = video.videoHeight;
-    const ctx = off.getContext('2d');
-
-    // Mirror selfie camera
-    if (this.cameraFacingMode === 'user') {
-      ctx.translate(off.width, 0);
-      ctx.scale(-1, 1);
-    }
-    ctx.drawImage(video, 0, 0);
-
-    const img = new Image();
-    img.onload = () => {
-      this.setImage(img);
-      this.stopCamera();
-      Toast.success('Photo captured! Adjust crop and filters.');
-    };
-    img.src = off.toDataURL('image/jpeg', 0.95);
-  }
-
-  loadFile(file) {
-    if (!file) return;
-    // File size validation (max 15MB)
-    const maxSize = 15 * 1024 * 1024;
-    if (file.size > maxSize) {
-      Toast.error(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 15MB.`);
-      return;
-    }
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      Toast.error('Please select a valid image file (JPEG, PNG, WebP)');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        this.setImage(img);
-        Toast.success('Image loaded successfully');
-      };
-      img.onerror = () => {
-        Toast.error('Failed to load image. The file may be corrupt or unsupported.');
-      };
-      img.src = e.target.result;
-    };
-    reader.onerror = () => {
-      Toast.error('Failed to read file. Please try again.');
-    };
-    reader.readAsDataURL(file);
-  }
-
-  setImage(img) {
-    this.currentImage = img;
-    const wrap = this.modalContent;
-    wrap.querySelector('.ms-drop-zone').style.display = 'none';
-    wrap.querySelector('.ms-camera-viewfinder').style.display = 'none';
-    wrap.querySelector('.ms-crop-viewport').style.display = 'block';
-    wrap.querySelector('.ms-btn-apply').disabled = false;
-
-    wrap.querySelector('.ms-file-info').textContent = `Dimensions: ${img.naturalWidth} × ${img.naturalHeight}px`;
-
-    this.resetAdjustments();
-    this.resetCropBox();
-    this.renderCanvas();
-  }
-
-  resetAdjustments() {
-    this.rotation = 0;
-    this.flipH = false;
-    this.flipV = false;
-    this.brightness = 0;
-    this.contrast = 0;
-    this.saturation = 100;
-    this.activeFilter = 'none';
-
-    const wrap = this.modalContent;
-    wrap.querySelector('.ms-slider-brightness').value = 0;
-    wrap.querySelector('.ms-val-brightness').textContent = 0;
-    wrap.querySelector('.ms-slider-contrast').value = 0;
-    wrap.querySelector('.ms-val-contrast').textContent = 0;
-    wrap.querySelector('.ms-slider-saturation').value = 100;
-    wrap.querySelector('.ms-val-saturation').textContent = '100%';
-
-    wrap.querySelectorAll('.ms-filter-btn').forEach(b => {
-      b.classList.remove('btn-primary', 'active');
-      b.classList.add('btn-outline-secondary');
-    });
-    wrap.querySelector('.ms-filter-btn[data-filter="none"]')?.classList.add('btn-primary', 'active');
-
-    this.renderCanvas();
-  }
-
-  renderCanvas() {
-    if (!this.currentImage) return;
-
-    const canvas = this.modalContent.querySelector('.ms-main-canvas');
-    const viewport = this.modalContent.querySelector('.ms-crop-viewport');
-    if (!canvas || !viewport) return;
-
-    canvas.width = viewport.clientWidth || 500;
-    canvas.height = viewport.clientHeight || 380;
-
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width;
-    const h = canvas.height;
-
-    ctx.clearRect(0, 0, w, h);
-
-    // Apply Filter Matrix
-    ctx.save();
-    ctx.translate(w / 2, h / 2);
-    ctx.rotate((this.rotation * Math.PI) / 180);
-    ctx.scale(this.flipH ? -1 : 1, this.flipV ? -1 : 1);
-
-    const isRot = this.rotation === 90 || this.rotation === 270;
-    const srcW = isRot ? this.currentImage.naturalHeight : this.currentImage.naturalWidth;
-    const srcH = isRot ? this.currentImage.naturalWidth : this.currentImage.naturalHeight;
-
-    const scale = Math.min(w / srcW, h / srcH);
-    const drawW = this.currentImage.naturalWidth * scale;
-    const drawH = this.currentImage.naturalHeight * scale;
-
-    ctx.drawImage(this.currentImage, -drawW / 2, -drawH / 2, drawW, drawH);
-    ctx.restore();
-
-    // Apply Pixel Processing Filters (Brightness, Contrast, Document Scan, Transparency)
-    this.applyPixelFilters(ctx, w, h);
-  }
-
-  applyPixelFilters(ctx, w, h) {
-    const imgData = ctx.getImageData(0, 0, w, h);
-    const data = imgData.data;
-
-    const bFactor = this.brightness * 1.5;
-    const cFactor = (259 * (this.contrast + 255)) / (255 * (259 - this.contrast));
-    const sFactor = this.saturation / 100;
-
-    for (let i = 0; i < data.length; i += 4) {
-      if (data[i + 3] === 0) continue; // Skip transparent
-
-      let r = data[i];
-      let g = data[i + 1];
-      let b = data[i + 2];
-
-      // 1. Brightness & Contrast
-      r = cFactor * (r + bFactor - 128) + 128;
-      g = cFactor * (g + bFactor - 128) + 128;
-      b = cFactor * (b + bFactor - 128) + 128;
-
-      // 2. Saturation
-      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-      r = gray + (r - gray) * sFactor;
-      g = gray + (g - gray) * sFactor;
-      b = gray + (b - gray) * sFactor;
-
-      // 3. Preset Filters
-      if (this.activeFilter === 'doc_scan') {
-        // High-contrast B&W document scan threshold
-        const threshold = 180;
-        const v = gray > threshold ? 255 : (gray < 80 ? 0 : gray * 0.5);
-        r = g = b = v;
-      } else if (this.activeFilter === 'magic_color') {
-        // Magic Color: Enhance contrast and remove yellow tint
-        r = Math.min(255, r * 1.15);
-        g = Math.min(255, g * 1.15);
-        b = Math.min(255, b * 1.25);
-      } else if (this.activeFilter === 'auto_enhance') {
-        // Portrait auto-enhance
-        r = Math.min(255, r * 1.08 + 5);
-        g = Math.min(255, g * 1.08 + 5);
-        b = Math.min(255, b * 1.08 + 5);
-      } else if (this.activeFilter === 'transparent_bg') {
-        // Remove light paper background
-        if (gray > this.bgThreshold) {
-          data[i + 3] = 0;
-        }
-      }
-
-      data[i] = Math.max(0, Math.min(255, r));
-      data[i + 1] = Math.max(0, Math.min(255, g));
-      data[i + 2] = Math.max(0, Math.min(255, b));
-    }
-
-    ctx.putImageData(imgData, 0, 0);
-  }
-
-  applyAndSave() {
-    const canvas = this.modalContent.querySelector('.ms-main-canvas');
-    if (!canvas) return;
-
-    const cropX = Math.floor(this.crop.x * canvas.width);
-    const cropY = Math.floor(this.crop.y * canvas.height);
-    const cropW = Math.floor(this.crop.w * canvas.width);
-    const cropH = Math.floor(this.crop.h * canvas.height);
-
-    const outCanvas = document.createElement('canvas');
-    outCanvas.width = Math.min(cropW, this.options.maxWidth);
-    outCanvas.height = Math.min(cropH, this.options.maxHeight);
-
-    const outCtx = outCanvas.getContext('2d');
-    outCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, outCanvas.width, outCanvas.height);
-
-    // Optimized WebP / JPEG Export (< 150KB)
-    const format = this.activeFilter === 'transparent_bg' ? 'image/png' : 'image/webp';
-    const dataUrl = outCanvas.toDataURL(format, 0.88);
-
-    if (this.options.onSave) {
-      this.options.onSave(dataUrl);
-    }
-
-    Toast.success('Enhanced photo saved successfully');
-    this.close();
-  }
-
-  show() {
-    const widthMap = { passport: 'md', document: 'lg', general: 'lg' };
-    const size = widthMap[this.options.preset] || 'lg';
-
-    this.dialog = Modal.show({
-      title: `📸 ${this.options.title || 'Photo & Media Studio'}`,
-      content: this.modalContent,
-      size,
-      onClose: () => {
-        this.stopCamera();
-      }
-    });
-
-    if (this.options.value) {
-      const img = new Image();
-      img.onload = () => this.setImage(img);
-      img.src = this.options.value;
-    }
-  }
-
-  close() {
-    this.stopCamera();
-    if (this.dialog) {
-      Modal.close(this.dialog);
-      this.dialog = null;
-    }
-  }
-}
-
-/**
- * MediaFieldPicker: Helper to render an interactive image picker component
- * Displays: Preview thumbnail, "Open Studio" button, "Remove" button, hidden input
- */
-export class MediaFieldPicker {
-  static create({ label = 'Select Photo', preset = 'passport', value = '', name = 'photo', onChange = null }) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'media-field-picker-wrapper';
-
-    const formatImgUrl = (val) => {
-      if (!val || typeof val !== 'string') return '';
-      let clean = val.trim();
-      if (!clean || clean === 'null' || clean === 'undefined' || clean === 'false') return '';
-      if (clean.startsWith('data:image') || clean.startsWith('data:application/pdf') || clean.startsWith('data:')) {
-        return clean;
-      }
-      if (clean.startsWith('uploads/') || clean.startsWith('uploads\\')) {
-        return '/' + clean.replace(/\\/g, '/');
-      }
-      if (!clean.startsWith('http://') && !clean.startsWith('https://') && !clean.startsWith('data:') && !clean.startsWith('/')) {
-        return '/' + clean;
-      }
-      return clean;
-    };
-
-    const renderPreview = (val) => {
-      const cleanUrl = formatImgUrl(val);
-      if (!cleanUrl) {
-        if (preset === 'qr_code') {
-          const upiString = `upi://pay?pa=thecozycorner@okaxis&pn=${encodeURIComponent('Study Library')}&am=0&cu=INR`;
-          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiString)}`;
-          return `<img src="${qrUrl}" alt="UPI QR" style="width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 2px;">`;
-        }
-        const defaultEmoji = preset === 'stamp_logo' ? '🏛️' : preset === 'qr_code' ? '📱' : preset === 'document' ? '📑' : '👤';
-        return `<span style="font-size: 2rem; line-height: 1; opacity: 0.85;">${defaultEmoji}</span>`;
-      }
-
-      if (cleanUrl.startsWith('data:application/pdf') || cleanUrl.toLowerCase().endsWith('.pdf')) {
-        return `
+    `}initEvents(){const t=this.modalContent;t.querySelectorAll(".ms-tab-btn").forEach(e=>{e.addEventListener("click",()=>{const i=e.dataset.tab;this.activeSourceTab=i,t.querySelectorAll(".ms-tab-btn").forEach(r=>{r.classList.remove("btn-primary"),r.classList.add("btn-outline-secondary")}),e.classList.add("btn-primary"),e.classList.remove("btn-outline-secondary"),i==="camera"?this.startCamera():(this.stopCamera(),t.querySelector(".ms-camera-viewfinder").style.display="none",this.currentImage?t.querySelector(".ms-crop-viewport").style.display="block":t.querySelector(".ms-drop-zone").style.display="flex")})});const s=t.querySelector(".ms-drop-zone"),n=t.querySelector(".ms-file-input"),d=t.querySelector(".ms-select-file-btn");d?.addEventListener("click",()=>n.click()),s?.addEventListener("click",e=>{e.target!==d&&n.click()}),n?.addEventListener("change",e=>{e.target.files&&e.target.files[0]&&this.loadFile(e.target.files[0])}),s?.addEventListener("dragover",e=>{e.preventDefault(),s.style.background="rgba(99, 102, 241, 0.15)"}),s?.addEventListener("dragleave",()=>{s.style.background="transparent"}),s?.addEventListener("drop",e=>{e.preventDefault(),s.style.background="transparent",e.dataTransfer.files&&e.dataTransfer.files[0]&&this.loadFile(e.dataTransfer.files[0])}),window.addEventListener("paste",e=>{if(e.clipboardData&&e.clipboardData.items){for(let i of e.clipboardData.items)if(i.type.indexOf("image")!==-1){const r=i.getAsFile();this.loadFile(r),v.info("Image pasted from clipboard");break}}}),t.querySelector(".ms-flip-cam-btn")?.addEventListener("click",()=>{this.cameraFacingMode=this.cameraFacingMode==="user"?"environment":"user",this.startCamera()}),t.querySelector(".ms-timer-btn")?.addEventListener("click",()=>{this.snapWithCountdown(3)}),t.querySelector(".ms-snap-btn")?.addEventListener("click",()=>{this.captureCamera()}),t.querySelector(".ms-rotate-btn")?.addEventListener("click",()=>{this.rotation=(this.rotation+90)%360,this.renderCanvas()}),t.querySelector(".ms-fliph-btn")?.addEventListener("click",()=>{this.flipH=!this.flipH,this.renderCanvas()}),t.querySelector(".ms-flipv-btn")?.addEventListener("click",()=>{this.flipV=!this.flipV,this.renderCanvas()}),t.querySelector(".ms-reset-btn")?.addEventListener("click",()=>{this.resetAdjustments()}),t.querySelectorAll(".ms-aspect-btn").forEach(e=>{e.addEventListener("click",()=>{t.querySelectorAll(".ms-aspect-btn").forEach(r=>{r.classList.remove("btn-primary"),r.classList.add("btn-outline-secondary")}),e.classList.add("btn-primary"),e.classList.remove("btn-outline-secondary");const i=e.dataset.aspect;this.options.aspectRatio=i==="free"?null:parseFloat(i),this.resetCropBox()})}),t.querySelectorAll(".ms-filter-btn").forEach(e=>{e.addEventListener("click",()=>{t.querySelectorAll(".ms-filter-btn").forEach(i=>{i.classList.remove("btn-primary","active"),i.classList.add("btn-outline-secondary")}),e.classList.add("btn-primary","active"),e.classList.remove("btn-outline-secondary"),this.activeFilter=e.dataset.filter,this.renderCanvas()})}),t.querySelector(".ms-slider-brightness")?.addEventListener("input",e=>{this.brightness=parseInt(e.target.value,10),t.querySelector(".ms-val-brightness").textContent=this.brightness,this.renderCanvas()}),t.querySelector(".ms-slider-contrast")?.addEventListener("input",e=>{this.contrast=parseInt(e.target.value,10),t.querySelector(".ms-val-contrast").textContent=this.contrast,this.renderCanvas()}),t.querySelector(".ms-slider-saturation")?.addEventListener("input",e=>{this.saturation=parseInt(e.target.value,10),t.querySelector(".ms-val-saturation").textContent=`${this.saturation}%`,this.renderCanvas()}),this.initCropBoxEvents(),t.querySelector(".ms-btn-apply")?.addEventListener("click",()=>{this.applyAndSave()}),t.querySelector(".ms-btn-cancel")?.addEventListener("click",()=>{this.close()})}initCropBoxEvents(){const t=this.modalContent,s=t.querySelector(".ms-crop-box"),n=t.querySelector(".ms-crop-viewport"),d=r=>{r.preventDefault();const p=n.getBoundingClientRect(),o=r.touches?r.touches[0].clientX:r.clientX,h=r.touches?r.touches[0].clientY:r.clientY;this.dragStart={x:o,y:h},this.cropStart={...this.crop},r.target.classList.contains("ms-handle")?this.activeHandle=r.target.dataset.handle:this.isDraggingCrop=!0,window.addEventListener("mousemove",e),window.addEventListener("mouseup",i),window.addEventListener("touchmove",e,{passive:!1}),window.addEventListener("touchend",i)},e=r=>{const p=n.getBoundingClientRect(),o=r.touches?r.touches[0].clientX:r.clientX,h=r.touches?r.touches[0].clientY:r.clientY,c=(o-this.dragStart.x)/p.width,u=(h-this.dragStart.y)/p.height;this.isDraggingCrop?(this.crop.x=Math.max(0,Math.min(1-this.crop.w,this.cropStart.x+c)),this.crop.y=Math.max(0,Math.min(1-this.crop.h,this.cropStart.y+u))):this.activeHandle&&this.handleResize(this.activeHandle,c,u,p.width,p.height),this.updateCropBoxDOM()},i=()=>{this.isDraggingCrop=!1,this.activeHandle=null,window.removeEventListener("mousemove",e),window.removeEventListener("mouseup",i),window.removeEventListener("touchmove",e),window.removeEventListener("touchend",i)};s?.addEventListener("mousedown",d),s?.addEventListener("touchstart",d,{passive:!1})}handleResize(t,s,n,d,e){let{x:i,y:r,w:p,h:o}=this.cropStart;const h=.1;if(t.includes("r")&&(p=Math.max(h,Math.min(1-i,p+s))),t.includes("b")&&(o=Math.max(h,Math.min(1-r,o+n))),t.includes("l")){const c=Math.max(0,Math.min(i+p-h,i+s));p=p+(i-c),i=c}if(t.includes("t")){const c=Math.max(0,Math.min(r+o-h,r+n));o=o+(r-c),r=c}if(this.options.aspectRatio){const c=p*d/(o*e);t.includes("r")||t.includes("l")?o=p*d/(this.options.aspectRatio*e):p=o*e*this.options.aspectRatio/d}this.crop={x:i,y:r,w:Math.min(1-i,p),h:Math.min(1-r,o)}}resetCropBox(){const t=this.modalContent.querySelector(".ms-crop-viewport");if(!t)return;const s=t.clientWidth||500,n=t.clientHeight||380;let d=.8,e=.8;this.options.aspectRatio&&(this.options.aspectRatio>1?e=d/this.options.aspectRatio:d=e*this.options.aspectRatio),this.crop={x:(1-d)/2,y:(1-e)/2,w:d,h:e},this.updateCropBoxDOM()}updateCropBoxDOM(){const t=this.modalContent.querySelector(".ms-crop-box");t&&(t.style.left=`${this.crop.x*100}%`,t.style.top=`${this.crop.y*100}%`,t.style.width=`${this.crop.w*100}%`,t.style.height=`${this.crop.h*100}%`)}async startCamera(){this.stopCamera();const t=this.modalContent;t.querySelector(".ms-drop-zone").style.display="none",t.querySelector(".ms-crop-viewport").style.display="none";const s=t.querySelector(".ms-camera-viewfinder");s.style.display="block";try{this.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:this.cameraFacingMode,width:{ideal:1280},height:{ideal:720}},audio:!1});const n=t.querySelector(".ms-camera-video");n.srcObject=this.stream}catch{v.error("Camera permission denied or camera not found"),t.querySelector('.ms-tab-btn[data-tab="upload"]').click()}}stopCamera(){this.stream&&(this.stream.getTracks().forEach(t=>t.stop()),this.stream=null)}snapWithCountdown(t=3){const s=this.modalContent.querySelector(".ms-countdown-overlay");s.style.display="flex";let n=t;s.textContent=n;const d=setInterval(()=>{n--,n>0?s.textContent=n:(clearInterval(d),s.style.display="none",this.captureCamera())},1e3)}captureCamera(){const t=this.modalContent.querySelector(".ms-camera-video");if(!t||!t.videoWidth)return;const s=document.createElement("canvas");s.width=t.videoWidth,s.height=t.videoHeight;const n=s.getContext("2d");this.cameraFacingMode==="user"&&(n.translate(s.width,0),n.scale(-1,1)),n.drawImage(t,0,0);const d=new Image;d.onload=()=>{this.setImage(d),this.stopCamera(),v.success("Photo captured! Adjust crop and filters.")},d.src=s.toDataURL("image/jpeg",.95)}loadFile(t){if(!t)return;const s=15*1024*1024;if(t.size>s){v.error(`File too large (${(t.size/1024/1024).toFixed(1)}MB). Maximum is 15MB.`);return}if(!t.type.startsWith("image/")){v.error("Please select a valid image file (JPEG, PNG, WebP)");return}const n=new FileReader;n.onload=d=>{const e=new Image;e.onload=()=>{this.setImage(e),v.success("Image loaded successfully")},e.onerror=()=>{v.error("Failed to load image. The file may be corrupt or unsupported.")},e.src=d.target.result},n.onerror=()=>{v.error("Failed to read file. Please try again.")},n.readAsDataURL(t)}setImage(t){this.currentImage=t;const s=this.modalContent;s.querySelector(".ms-drop-zone").style.display="none",s.querySelector(".ms-camera-viewfinder").style.display="none",s.querySelector(".ms-crop-viewport").style.display="block",s.querySelector(".ms-btn-apply").disabled=!1,s.querySelector(".ms-file-info").textContent=`Dimensions: ${t.naturalWidth} \xD7 ${t.naturalHeight}px`,this.resetAdjustments(),this.resetCropBox(),this.renderCanvas()}resetAdjustments(){this.rotation=0,this.flipH=!1,this.flipV=!1,this.brightness=0,this.contrast=0,this.saturation=100,this.activeFilter="none";const t=this.modalContent;t.querySelector(".ms-slider-brightness").value=0,t.querySelector(".ms-val-brightness").textContent=0,t.querySelector(".ms-slider-contrast").value=0,t.querySelector(".ms-val-contrast").textContent=0,t.querySelector(".ms-slider-saturation").value=100,t.querySelector(".ms-val-saturation").textContent="100%",t.querySelectorAll(".ms-filter-btn").forEach(s=>{s.classList.remove("btn-primary","active"),s.classList.add("btn-outline-secondary")}),t.querySelector('.ms-filter-btn[data-filter="none"]')?.classList.add("btn-primary","active"),this.renderCanvas()}renderCanvas(){if(!this.currentImage)return;const t=this.modalContent.querySelector(".ms-main-canvas"),s=this.modalContent.querySelector(".ms-crop-viewport");if(!t||!s)return;t.width=s.clientWidth||500,t.height=s.clientHeight||380;const n=t.getContext("2d"),d=t.width,e=t.height;n.clearRect(0,0,d,e),n.save(),n.translate(d/2,e/2),n.rotate(this.rotation*Math.PI/180),n.scale(this.flipH?-1:1,this.flipV?-1:1);const i=this.rotation===90||this.rotation===270,r=i?this.currentImage.naturalHeight:this.currentImage.naturalWidth,p=i?this.currentImage.naturalWidth:this.currentImage.naturalHeight,o=Math.min(d/r,e/p),h=this.currentImage.naturalWidth*o,c=this.currentImage.naturalHeight*o;n.drawImage(this.currentImage,-h/2,-c/2,h,c),n.restore(),this.applyPixelFilters(n,d,e)}applyPixelFilters(t,s,n){const d=t.getImageData(0,0,s,n),e=d.data,i=this.brightness*1.5,r=259*(this.contrast+255)/(255*(259-this.contrast)),p=this.saturation/100;for(let o=0;o<e.length;o+=4){if(e[o+3]===0)continue;let h=e[o],c=e[o+1],u=e[o+2];h=r*(h+i-128)+128,c=r*(c+i-128)+128,u=r*(u+i-128)+128;const b=.299*h+.587*c+.114*u;h=b+(h-b)*p,c=b+(c-b)*p,u=b+(u-b)*p,this.activeFilter==="doc_scan"?h=c=u=b>180?255:b<80?0:b*.5:this.activeFilter==="magic_color"?(h=Math.min(255,h*1.15),c=Math.min(255,c*1.15),u=Math.min(255,u*1.25)):this.activeFilter==="auto_enhance"?(h=Math.min(255,h*1.08+5),c=Math.min(255,c*1.08+5),u=Math.min(255,u*1.08+5)):this.activeFilter==="transparent_bg"&&b>this.bgThreshold&&(e[o+3]=0),e[o]=Math.max(0,Math.min(255,h)),e[o+1]=Math.max(0,Math.min(255,c)),e[o+2]=Math.max(0,Math.min(255,u))}t.putImageData(d,0,0)}applyAndSave(){const t=this.modalContent.querySelector(".ms-main-canvas");if(!t)return;const s=Math.floor(this.crop.x*t.width),n=Math.floor(this.crop.y*t.height),d=Math.floor(this.crop.w*t.width),e=Math.floor(this.crop.h*t.height),i=document.createElement("canvas");i.width=Math.min(d,this.options.maxWidth),i.height=Math.min(e,this.options.maxHeight),i.getContext("2d").drawImage(t,s,n,d,e,0,0,i.width,i.height);const r=this.activeFilter==="transparent_bg"?"image/png":"image/webp",p=i.toDataURL(r,.88);this.options.onSave&&this.options.onSave(p),v.success("Enhanced photo saved successfully"),this.close()}show(){const t={passport:"md",document:"lg",general:"lg"}[this.options.preset]||"lg";if(this.dialog=z.show({title:`\u{1F4F8} ${this.options.title||"Photo & Media Studio"}`,content:this.modalContent,size:t,onClose:()=>{this.stopCamera()}}),this.options.value){const s=new Image;s.onload=()=>this.setImage(s),s.src=this.options.value}}close(){this.stopCamera(),this.dialog&&(z.close(this.dialog),this.dialog=null)}}class R{static create({label:t="Select Photo",preset:s="passport",value:n="",name:d="photo",onChange:e=null}){const i=document.createElement("div");i.className="media-field-picker-wrapper";const r=l=>{if(!l||typeof l!="string")return"";let a=l.trim();return!a||a==="null"||a==="undefined"||a==="false"?"":a.startsWith("data:image")||a.startsWith("data:application/pdf")||a.startsWith("data:")?a:a.startsWith("uploads/")||a.startsWith("uploads\\")?"/"+a.replace(/\\/g,"/"):!a.startsWith("http://")&&!a.startsWith("https://")&&!a.startsWith("data:")&&!a.startsWith("/")?"/"+a:a},p=l=>{const a=r(l);if(!a){if(s==="qr_code"){const g=`upi://pay?pa=thecozycorner@okaxis&pn=${encodeURIComponent("Study Library")}&am=0&cu=INR`;return`<img src="${`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(g)}`}" alt="UPI QR" style="width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 2px;">`}return`<span style="font-size: 2rem; line-height: 1; opacity: 0.85;">${s==="stamp_logo"?"\u{1F3DB}\uFE0F":s==="qr_code"?"\u{1F4F1}":s==="document"?"\u{1F4D1}":"\u{1F464}"}</span>`}if(a.startsWith("data:application/pdf")||a.toLowerCase().endsWith(".pdf"))return`
           <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; background: #fee2e2; border-radius: 6px;">
-            <span style="font-size: 1.6rem; line-height: 1;">📑</span>
+            <span style="font-size: 1.6rem; line-height: 1;">\u{1F4D1}</span>
             <span style="font-size: 0.60rem; font-weight: 800; color: #dc2626; margin-top: 2px;">PDF DOC</span>
           </div>
-        `;
-      }
-
-      const safeSrc = cleanUrl.startsWith('data:') ? cleanUrl : escapeHTML(cleanUrl);
-      const fallbackUrl = preset === 'qr_code'
-        ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=thecozycorner@okaxis`
-        : `https://ui-avatars.com/api/?name=${encodeURIComponent(label.replace(/[^a-zA-Z0-9 ]/g, ''))}&background=6c5ce7&color=fff&size=128`;
-
-      return `<img src="${safeSrc}" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; background: #fff; border-radius: 6px;" onerror="this.onerror=null; this.src='${fallbackUrl}';">`;
-    };
-
-    wrapper.innerHTML = `
+        `;const m=a.startsWith("data:")?a:k(a),f=s==="qr_code"?"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=thecozycorner@okaxis":`https://ui-avatars.com/api/?name=${encodeURIComponent(t.replace(/[^a-zA-Z0-9 ]/g,""))}&background=6c5ce7&color=fff&size=128`;return`<img src="${m}" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; background: #fff; border-radius: 6px;" onerror="this.onerror=null; this.src='${f}';">`};i.innerHTML=`
       <div style="background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 12px; padding: 14px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 10px;">
-        <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${escapeHTML(label)}</div>
+        <div style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">${k(t)}</div>
         <div style="display: flex; align-items: center; gap: 14px;">
           <div class="mfp-preview" style="width: 68px; height: 68px; border-radius: 10px; background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid var(--color-border); flex-shrink: 0; cursor: pointer; box-shadow: var(--shadow-sm);" title="Click to Change / View Image">
-            ${renderPreview(value)}
+            ${p(n)}
           </div>
           <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
             <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
               <button type="button" class="btn btn-sm btn-primary mfp-upload-file-btn" style="font-size: 0.76rem; font-weight: 600; padding: 4px 10px;">
-                📁 ${value ? 'Change' : 'Upload'}
+                \u{1F4C1} ${n?"Change":"Upload"}
               </button>
               <button type="button" class="btn btn-sm btn-outline-primary mfp-open-btn" style="font-size: 0.76rem; font-weight: 600; padding: 4px 10px;">
-                📸 Camera / Studio
+                \u{1F4F8} Camera / Studio
               </button>
-              <button type="button" class="btn btn-sm btn-ghost text-danger mfp-remove-btn" style="font-size: 0.76rem; padding: 4px 8px; ${value ? '' : 'display: none;'}">
-                🗑️ Remove
+              <button type="button" class="btn btn-sm btn-ghost text-danger mfp-remove-btn" style="font-size: 0.76rem; padding: 4px 8px; ${n?"":"display: none;"}">
+                \u{1F5D1}\uFE0F Remove
               </button>
             </div>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <small style="color: var(--color-text-secondary); font-size: 0.72rem;">${preset === 'qr_code' ? '⚡ UPI QR for student fees' : preset === 'document' ? '📑 Clear KYC scan / photo' : '✨ 1:1 Transparent PNG / JPG'}</small>
-              <span class="mfp-view-link" style="${value ? 'display: inline-flex;' : 'display: none;'} align-items: center; gap: 3px; font-size: 0.72rem; font-weight: 700; color: var(--color-primary); cursor: pointer;">
-                👁️ View File
+              <small style="color: var(--color-text-secondary); font-size: 0.72rem;">${s==="qr_code"?"\u26A1 UPI QR for student fees":s==="document"?"\u{1F4D1} Clear KYC scan / photo":"\u2728 1:1 Transparent PNG / JPG"}</small>
+              <span class="mfp-view-link" style="${n?"display: inline-flex;":"display: none;"} align-items: center; gap: 3px; font-size: 0.72rem; font-weight: 700; color: var(--color-primary); cursor: pointer;">
+                \u{1F441}\uFE0F View File
               </span>
             </div>
           </div>
         </div>
         <input type="file" class="mfp-file-input" accept="image/*,.pdf,application/pdf" style="display: none;">
-        <input type="hidden" name="${name}" class="mfp-hidden-value" value="${escapeHTML(value)}">
+        <input type="hidden" name="${d}" class="mfp-hidden-value" value="${k(n)}">
       </div>
-    `;
-
-    const hiddenInput = wrapper.querySelector('.mfp-hidden-value');
-    const fileInput = wrapper.querySelector('.mfp-file-input');
-    const preview = wrapper.querySelector('.mfp-preview');
-    const removeBtn = wrapper.querySelector('.mfp-remove-btn');
-    const uploadBtn = wrapper.querySelector('.mfp-upload-file-btn');
-    const viewLink = wrapper.querySelector('.mfp-view-link');
-
-    const updateImageValue = async (dataUrl) => {
-      if (!dataUrl) {
-        hiddenInput.value = '';
-        preview.innerHTML = renderPreview('');
-        removeBtn.style.display = 'none';
-        if (viewLink) viewLink.style.display = 'none';
-        uploadBtn.innerHTML = '📁 Upload';
-        hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
-        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-        if (onChange) onChange('');
-        return;
-      }
-
-      hiddenInput.value = dataUrl;
-      preview.innerHTML = renderPreview(dataUrl);
-      removeBtn.style.display = 'inline-block';
-      if (viewLink) viewLink.style.display = 'inline-flex';
-      uploadBtn.innerHTML = '📁 Change';
-
-      hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
-      hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-
-      if (onChange) onChange(dataUrl);
-
-      if (dataUrl && (dataUrl.startsWith('data:image/') || dataUrl.startsWith('data:application/pdf'))) {
-        try {
-          const token = localStorage.getItem('sl_token') || localStorage.getItem('token');
-          const headers = { 'Content-Type': 'application/json' };
-          if (token) headers['Authorization'] = `Bearer ${token}`;
-
-          const res = await fetch('/api/upload', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ image: dataUrl })
-          });
-          const result = await res.json();
-          if (result.success && result.url) {
-            hiddenInput.value = result.url;
-            preview.innerHTML = renderPreview(result.url);
-            if (viewLink) viewLink.style.display = 'inline-flex';
-            hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
-            hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-            if (onChange) onChange(result.url);
-          }
-        } catch (err) {
-          console.error('Image background upload error:', err);
-        }
-      }
-    };
-
-    // View file in new tab if clicked
-    viewLink?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const val = hiddenInput.value;
-      if (!val) return;
-      if (val.startsWith('data:')) {
-        const win = window.open();
-        if (win) {
-          if (val.startsWith('data:application/pdf')) {
-            win.document.write(`<iframe src="${val}" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>`);
-          } else {
-            win.document.write(`<img src="${val}" style="max-width:100%; max-height:100%; margin:auto; display:block;">`);
-          }
-        }
-      } else {
-        window.open(val, '_blank');
-      }
-    });
-
-    // Clicking preview box also triggers upload
-    preview.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      fileInput.click();
-    });
-
-    // Direct File Upload click
-    uploadBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      fileInput.click();
-    });
-
-    // Helper to auto-compress image files on client-side
-    const compressUploadedFile = (file) => {
-      return new Promise((resolve) => {
-        if (!file.type.startsWith('image/')) {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target.result);
-          reader.onerror = () => resolve('');
-          reader.readAsDataURL(file);
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => {
-            try {
-              const canvas = document.createElement('canvas');
-              let maxW = preset === 'passport' ? 400 : 1200;
-              let maxH = preset === 'passport' ? 400 : 1200;
-              let { width, height } = img;
-
-              if (width > maxW || height > maxH) {
-                if (width > height) {
-                  height = Math.round((height * maxW) / width);
-                  width = maxW;
-                } else {
-                  width = Math.round((width * maxH) / height);
-                  height = maxH;
-                }
-              }
-
-              canvas.width = width;
-              canvas.height = height;
-              const ctx = canvas.getContext('2d');
-              ctx.imageSmoothingEnabled = true;
-              ctx.imageSmoothingQuality = 'high';
-              ctx.drawImage(img, 0, 0, width, height);
-
-              let dataUrl = canvas.toDataURL('image/webp', 0.85);
-              if (!dataUrl || dataUrl.length < 50) {
-                dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-              }
-              resolve(dataUrl);
-            } catch (err) {
-              resolve(e.target.result);
-            }
-          };
-          img.onerror = () => resolve(e.target.result);
-          img.src = e.target.result;
-        };
-        reader.onerror = () => resolve('');
-        reader.readAsDataURL(file);
-      });
-    };
-
-    // File Input change
-    fileInput.addEventListener('change', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const file = e.target.files[0];
-      if (!file) return;
-
-      if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-        Toast.error('Please select a valid image file (PNG, JPG, WebP) or PDF document');
-        return;
-      }
-
-      try {
-        const compressedDataUrl = await compressUploadedFile(file);
-        if (compressedDataUrl) {
-          await updateImageValue(compressedDataUrl);
-          Toast.success(`${label || 'Document'} uploaded & optimized successfully!`);
-        }
-      } catch (err) {
-        Toast.error(err.message || 'File processing failed');
-      }
-    });
-
-    // Open Camera & Filter Studio
-    wrapper.querySelector('.mfp-open-btn').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      MediaStudio.open({
-        title: label,
-        preset,
-        value: hiddenInput.value,
-        onSave: (dataUrl) => {
-          updateImageValue(dataUrl);
-        }
-      });
-    });
-
-    // Remove Image
-    removeBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      hiddenInput.value = '';
-      fileInput.value = '';
-      preview.innerHTML = renderPreview('');
-      removeBtn.style.display = 'none';
-      uploadBtn.innerHTML = '📁 Upload';
-      hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
-      hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-      if (onChange) onChange('');
-    });
-
-    return wrapper;
-  }
-}
-
+    `;const o=i.querySelector(".mfp-hidden-value"),h=i.querySelector(".mfp-file-input"),c=i.querySelector(".mfp-preview"),u=i.querySelector(".mfp-remove-btn"),b=i.querySelector(".mfp-upload-file-btn"),w=i.querySelector(".mfp-view-link"),q=async l=>{if(!l){o.value="",c.innerHTML=p(""),u.style.display="none",w&&(w.style.display="none"),b.innerHTML="\u{1F4C1} Upload",o.dispatchEvent(new Event("input",{bubbles:!0})),o.dispatchEvent(new Event("change",{bubbles:!0})),e&&e("");return}if(o.value=l,c.innerHTML=p(l),u.style.display="inline-block",w&&(w.style.display="inline-flex"),b.innerHTML="\u{1F4C1} Change",o.dispatchEvent(new Event("input",{bubbles:!0})),o.dispatchEvent(new Event("change",{bubbles:!0})),e&&e(l),l&&(l.startsWith("data:image/")||l.startsWith("data:application/pdf")))try{const a=localStorage.getItem("sl_token")||localStorage.getItem("token"),m={"Content-Type":"application/json"};a&&(m.Authorization=`Bearer ${a}`);const f=await(await fetch("/api/upload",{method:"POST",headers:m,body:JSON.stringify({image:l})})).json();f.success&&f.url&&(o.value=f.url,c.innerHTML=p(f.url),w&&(w.style.display="inline-flex"),o.dispatchEvent(new Event("input",{bubbles:!0})),o.dispatchEvent(new Event("change",{bubbles:!0})),e&&e(f.url))}catch(a){console.error("Image background upload error:",a)}};w?.addEventListener("click",l=>{l.stopPropagation();const a=o.value;if(a)if(a.startsWith("data:")){const m=window.open();m&&(a.startsWith("data:application/pdf")?m.document.write(`<iframe src="${a}" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>`):m.document.write(`<img src="${a}" style="max-width:100%; max-height:100%; margin:auto; display:block;">`))}else window.open(a,"_blank")}),c.addEventListener("click",l=>{l.preventDefault(),l.stopPropagation(),h.click()}),b.addEventListener("click",l=>{l.preventDefault(),l.stopPropagation(),h.click()});const I=l=>new Promise(a=>{if(!l.type.startsWith("image/")){const f=new FileReader;f.onload=g=>a(g.target.result),f.onerror=()=>a(""),f.readAsDataURL(l);return}const m=new FileReader;m.onload=f=>{const g=new Image;g.onload=()=>{try{const C=document.createElement("canvas");let E=s==="passport"?400:1200,L=s==="passport"?400:1200,{width:y,height:x}=g;(y>E||x>L)&&(y>x?(x=Math.round(x*E/y),y=E):(y=Math.round(y*L/x),x=L)),C.width=y,C.height=x;const M=C.getContext("2d");M.imageSmoothingEnabled=!0,M.imageSmoothingQuality="high",M.drawImage(g,0,0,y,x);let S=C.toDataURL("image/webp",.85);(!S||S.length<50)&&(S=C.toDataURL("image/jpeg",.85)),a(S)}catch{a(f.target.result)}},g.onerror=()=>a(f.target.result),g.src=f.target.result},m.onerror=()=>a(""),m.readAsDataURL(l)});return h.addEventListener("change",async l=>{l.preventDefault(),l.stopPropagation();const a=l.target.files[0];if(a){if(!a.type.startsWith("image/")&&a.type!=="application/pdf"){v.error("Please select a valid image file (PNG, JPG, WebP) or PDF document");return}try{const m=await I(a);m&&(await q(m),v.success(`${t||"Document"} uploaded & optimized successfully!`))}catch(m){v.error(m.message||"File processing failed")}}}),i.querySelector(".mfp-open-btn").addEventListener("click",l=>{l.preventDefault(),l.stopPropagation(),F.open({title:t,preset:s,value:o.value,onSave:a=>{q(a)}})}),u.addEventListener("click",l=>{l.preventDefault(),l.stopPropagation(),o.value="",h.value="",c.innerHTML=p(""),u.style.display="none",b.innerHTML="\u{1F4C1} Upload",o.dispatchEvent(new Event("input",{bubbles:!0})),o.dispatchEvent(new Event("change",{bubbles:!0})),e&&e("")}),i}}export{R as MediaFieldPicker,F as MediaStudio};

@@ -1,232 +1,46 @@
-import api from '../api.js';
-import { Toast, Modal, Confirm, Loading, escapeHTML, copyToClipboard } from '../ui.js';
-import { SmartFormatters } from '../utils/smartFormatters.js';
-import { t } from '../i18n.js';
-import { generateAdmissionFormPDF, previewAdmissionFormPDF, buildReceiptHTML, printReceiptDocument } from '../pdfGenerator.js';
-import { PushNotifications } from '../utils/pushNotifications.js';
-import { renderHeatmap, renderBehaviorBadge, calculateBehaviorScore } from '../utils/attendanceHeatmap.js';
-import { MediaStudio, MediaFieldPicker } from '../mediaStudio.js';
-import { SmartIntelligence } from '../utils/smartIntelligence.js';
-import { PaymentStudio } from '../paymentStudio.js';
-
-export async function render() {
-  const container = document.createElement('div');
-  container.className = 'page-container';
-  container.style.cssText = 'width: 100%; max-width: 100%; box-sizing: border-box; padding-bottom: 3rem;';
-
-  container.innerHTML = `
+import P from"../api.js";import{Toast as S,Modal as re,Confirm as Ze,Loading as he,escapeHTML as o,copyToClipboard as Be}from"../ui.js";import{SmartFormatters as we}from"../utils/smartFormatters.js";import"../i18n.js";import{previewAdmissionFormPDF as qe,buildReceiptHTML as Qe,printReceiptDocument as Je}from"../pdfGenerator.js";import{PushNotifications as ke}from"../utils/pushNotifications.js";import{renderHeatmap as Xe}from"../utils/attendanceHeatmap.js";import{MediaFieldPicker as et}from"../mediaStudio.js";import{SmartIntelligence as Oe}from"../utils/smartIntelligence.js";import{PaymentStudio as De}from"../paymentStudio.js";async function Ne(){const n=document.createElement("div");n.className="page-container",n.style.cssText="width: 100%; max-width: 100%; box-sizing: border-box; padding-bottom: 3rem;",n.innerHTML=`
     <div class="card p-5 text-center" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
       <div class="loading-spinner mb-3" style="margin: 0 auto;"></div>
       <p style="color: var(--color-text-secondary); margin: 0;">Loading Student Portal...</p>
     </div>
-  `;
-
-  try {
-    // Fetch dashboard data + portal feature flags in parallel for fast load
-    const [res, configRes] = await Promise.all([
-      api.get('/api/student-portal/dashboard'),
-      api.get('/api/student-portal/config').catch(() => null)
-    ]);
-    if (!res.success || !res.data) throw new Error(res.message);
-
-    // Merge feature flags into window.store for universal access
-    const features = configRes?.data?.features || {};
-    if (!window.store) window.store = {};
-    window.store.portalFeatures = features;
-
-    let analytics = null;
-    try {
-      const aRes = await api.get(`/api/attendance/analytics/${res.data.student._id}`);
-      if (aRes.success) analytics = aRes.data;
-    } catch (e) {
-      console.warn('Analytics fetch error:', e);
-    }
-
-    renderPortalUI(container, res.data, analytics);
-
-    // Apply feature flags to hide/show sections after render
-    applyPortalFeatureFlags(container, features);
-
-    // ── Phase 2: Inject full-year heatmap into student portal ────────────────
-    // Runs after the portal HTML is in the DOM
-    setTimeout(async () => {
-      // Find or create the year heatmap container below the 30-day grid
-      let yearHeatmapWrap = container.querySelector('#portal-year-heatmap');
-      if (!yearHeatmapWrap) {
-        const analyticsSection = container.querySelector('[data-section="analytics"]') ||
-          container.querySelector('#portal-analytics-section') ||
-          container.querySelector('.portal-analytics-card .card-body');
-        if (analyticsSection) {
-          yearHeatmapWrap = document.createElement('div');
-          yearHeatmapWrap.id = 'portal-year-heatmap';
-          yearHeatmapWrap.style.cssText = 'margin-top:18px;padding-top:14px;border-top:1px solid var(--color-border,rgba(255,255,255,0.08));';
-          analyticsSection.appendChild(yearHeatmapWrap);
-        }
-      }
-      if (yearHeatmapWrap && res.data?.student?._id) {
-        try {
-          await renderHeatmap(yearHeatmapWrap, res.data.student._id, new Date().getFullYear(), { compact: false });
-        } catch (e) {
-          yearHeatmapWrap.innerHTML = '<div class="text-muted small text-center p-2">Full attendance calendar unavailable</div>';
-        }
-      }
-    }, 200);
-
-  } catch (error) {
-    container.innerHTML = `
+  `;try{const[g,I]=await Promise.all([P.get("/api/student-portal/dashboard"),P.get("/api/student-portal/config").catch(()=>null)]);if(!g.success||!g.data)throw new Error(g.message);const t=I?.data?.features||{};window.store||(window.store={}),window.store.portalFeatures=t;let p=null;try{const E=await P.get(`/api/attendance/analytics/${g.data.student._id}`);E.success&&(p=E.data)}catch(E){console.warn("Analytics fetch error:",E)}je(n,g.data,p),tt(n,t),setTimeout(async()=>{let E=n.querySelector("#portal-year-heatmap");if(!E){const T=n.querySelector('[data-section="analytics"]')||n.querySelector("#portal-analytics-section")||n.querySelector(".portal-analytics-card .card-body");T&&(E=document.createElement("div"),E.id="portal-year-heatmap",E.style.cssText="margin-top:18px;padding-top:14px;border-top:1px solid var(--color-border,rgba(255,255,255,0.08));",T.appendChild(E))}if(E&&g.data?.student?._id)try{await Xe(E,g.data.student._id,new Date().getFullYear(),{compact:!1})}catch{E.innerHTML='<div class="text-muted small text-center p-2">Full attendance calendar unavailable</div>'}},200)}catch(g){n.innerHTML=`
       <div class="card p-5 text-center" style="background: var(--color-surface); border: 1px solid var(--color-danger); border-radius: var(--radius-lg);">
-        <div style="font-size: 3rem; margin-bottom: 0.5rem;">🎓</div>
+        <div style="font-size: 3rem; margin-bottom: 0.5rem;">\u{1F393}</div>
         <h3 style="color: var(--color-danger); margin-bottom: 0.5rem;">Student Portal</h3>
         <p style="color: var(--color-text-secondary); max-width: 500px; margin: 0 auto 1.5rem auto;">
-          ${escapeHTML(error.message || 'No enrolled student record found for your account.')}
+          ${o(g.message||"No enrolled student record found for your account.")}
         </p>
         <a href="#/dashboard" class="btn btn-primary">Return to Admin Dashboard</a>
       </div>
-    `;
-  }
-
-  return container;
-}
-
-/**
- * Apply admin portal feature flags to show/hide portal sections.
- * Called after renderPortalUI() so elements exist in the DOM.
- * Feature keys match those in settings.js renderStudentPortalStudio().
- */
-function applyPortalFeatureFlags(container, features = {}) {
-  // Helper: feature is ON unless explicitly set to false
-  const isOn = (key) => features[key] !== false && features[key] !== 'false' && features[key] !== 0;
-
-  // Map feature keys to selector patterns for matching portal sections
-  const featureMap = [
-    { key: 'enableOnlineRenewal',    selectors: ['#btn-portal-renew', '#tile-portal-renew', '[data-feature="renewal"]', '.portal-renewal-section'] },
-    { key: 'enableSeatTransfer',     selectors: ['#btn-portal-seat-change', '#tile-portal-seat-change', '[data-feature="seat-transfer"]', '.portal-seat-transfer-section'] },
-    { key: 'enableShiftSwitch',      selectors: ['#btn-portal-leave', '#tile-portal-leave', '[data-feature="shift-switch"]', '.portal-shift-switch-section'] },
-    { key: 'enableIdPassDownload',   selectors: ['#btn-portal-id-pass', '#tile-portal-id-pass', '[data-feature="id-pass"]', '.portal-id-pass-section'] },
-    { key: 'enableReceiptDownload',  selectors: ['#btn-portal-receipts', '#tile-portal-receipts', '[data-feature="receipts"]', '.portal-receipts-section'] },
-    { key: 'enableProfileEdit',      selectors: ['#btn-portal-edit-profile', '#tile-portal-edit-profile', '[data-feature="profile-edit"]', '.portal-profile-edit-section'] },
-    { key: 'enableGamifiedBadges',   selectors: ['[data-feature="badges"]', '.portal-badges-section', '.portal-streak-section', '.study-streak-card'] },
-    { key: 'enableReferralProgram',  selectors: ['[data-feature="referral"]', '.portal-referral-section', '#portal-referral-card'] },
-    { key: 'enableAttendanceLogs',   selectors: ['[data-feature="heatmap"]', '.portal-analytics-card', '#portal-analytics-section', '#portal-year-heatmap'] },
-    { key: 'enableAnnouncements',    selectors: ['[data-feature="announcements"]', '.portal-announcements-section', '#portal-announcements-card'] },
-    { key: 'enableLockerRequests',   selectors: ['[data-feature="locker"]', '.portal-locker-section', '#btn-portal-locker'] },
-  ];
-
-  featureMap.forEach(({ key, selectors }) => {
-    const enabled = isOn(key);
-    selectors.forEach(sel => {
-      container.querySelectorAll(sel).forEach(el => {
-        if (!enabled) {
-          el.style.display = 'none';
-          el.setAttribute('data-feature-disabled', '1');
-        } else {
-          if (el.getAttribute('data-feature-disabled') === '1') {
-            el.style.display = '';
-            el.removeAttribute('data-feature-disabled');
-          }
-        }
-      });
-    });
-  });
-
-  // Store features for later event handler checks
-  window._portalFeatures = features;
-}
-
-function formatPunchTime(val) {
-
-  if (!val) return '';
-  try {
-    const d = new Date(val);
-    if (isNaN(d.getTime())) return val;
-    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-  } catch (e) {
-    return val;
-  }
-}
-
-function renderPortalUI(container, data, analytics = null) {
-  const { student, business, daysRemaining, totalHours, todayAttendance, payments } = data;
-  const user = window.store?.user || (typeof App !== 'undefined' && App.getUser ? App.getUser() : {}) || {};
-
-  const initials = (student.name || 'S')
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-
-  const hasSeat = student.seat && student.seat.seatNumber;
-  const seatTitle = hasSeat ? escapeHTML(student.seat.seatNumber) : 'Floating Desk';
-  const seatBadge = hasSeat ? escapeHTML(student.seat.zone || 'Quiet Zone') : 'Open Access';
-  const planName = student.plan?.name || 'Standard Reading Room Plan';
-  const planPrice = student.plan?.price || 0;
-  const shiftName = student.shift?.name || student.shift?.timing || student.shift || student.plan?.shift || 'Full Day';
-  const expiryDateStr = student.expiryDate ? new Date(student.expiryDate).toLocaleDateString('en-IN') : 'Not Set';
-
-  const examTags = (student.targetExams && student.targetExams.length > 0)
-    ? student.targetExams.map(ex => `<span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary); font-size: 0.75rem;">${escapeHTML(ex)}</span>`).join('')
-    : '<span class="text-muted small">General Self-Study</span>';
-
-  // Immediately synchronize student photo into top-right header user-avatar
-  if (student.photo) {
-    const avatarEl = document.getElementById('user-avatar');
-    if (avatarEl) {
-      const cleanPhotoUrl = student.photo.startsWith('/') || student.photo.startsWith('http') || student.photo.startsWith('data:') ? student.photo : `/${student.photo}`;
-      avatarEl.style.overflow = 'hidden';
-      avatarEl.style.padding = '0';
-      avatarEl.innerHTML = `<img src="${cleanPhotoUrl}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.remove(); document.getElementById('user-avatar').textContent='${initials}';">`;
-    }
-    try {
-      const user = JSON.parse(localStorage.getItem('sl_user') || '{}');
-      user.photo = student.photo;
-      user.avatar = student.photo;
-      localStorage.setItem('sl_user', JSON.stringify(user));
-      if (window.store && window.store.user) {
-        window.store.user.photo = student.photo;
-        window.store.user.avatar = student.photo;
-      }
-    } catch(e) {}
-  }
-
-  const currentHour = new Date().getHours();
-  const timeGreeting = currentHour < 12 ? '🌅 Good Morning' : (currentHour < 17 ? '🌤️ Good Afternoon' : '🌙 Good Evening');
-  const isCheckedIn = todayAttendance && todayAttendance.checkIn && !todayAttendance.checkOut;
-  const punchStatusText = isCheckedIn
-    ? `🟢 Currently Checked In since <strong>${formatPunchTime(todayAttendance.checkIn)}</strong>`
-    : (todayAttendance && todayAttendance.checkOut)
-    ? `✅ Completed study session today (<strong>${formatPunchTime(todayAttendance.checkIn)}</strong> – <strong>${formatPunchTime(todayAttendance.checkOut)}</strong>)`
-    : `⚪ Not checked in today`;
-
-  container.innerHTML = `
+    `}return n}function tt(n,g={}){const I=t=>g[t]!==!1&&g[t]!=="false"&&g[t]!==0;[{key:"enableOnlineRenewal",selectors:["#btn-portal-renew","#tile-portal-renew",'[data-feature="renewal"]',".portal-renewal-section"]},{key:"enableSeatTransfer",selectors:["#btn-portal-seat-change","#tile-portal-seat-change",'[data-feature="seat-transfer"]',".portal-seat-transfer-section"]},{key:"enableShiftSwitch",selectors:["#btn-portal-leave","#tile-portal-leave",'[data-feature="shift-switch"]',".portal-shift-switch-section"]},{key:"enableIdPassDownload",selectors:["#btn-portal-id-pass","#tile-portal-id-pass",'[data-feature="id-pass"]',".portal-id-pass-section"]},{key:"enableReceiptDownload",selectors:["#btn-portal-receipts","#tile-portal-receipts",'[data-feature="receipts"]',".portal-receipts-section"]},{key:"enableProfileEdit",selectors:["#btn-portal-edit-profile","#tile-portal-edit-profile",'[data-feature="profile-edit"]',".portal-profile-edit-section"]},{key:"enableGamifiedBadges",selectors:['[data-feature="badges"]',".portal-badges-section",".portal-streak-section",".study-streak-card"]},{key:"enableReferralProgram",selectors:['[data-feature="referral"]',".portal-referral-section","#portal-referral-card"]},{key:"enableAttendanceLogs",selectors:['[data-feature="heatmap"]',".portal-analytics-card","#portal-analytics-section","#portal-year-heatmap"]},{key:"enableAnnouncements",selectors:['[data-feature="announcements"]',".portal-announcements-section","#portal-announcements-card"]},{key:"enableLockerRequests",selectors:['[data-feature="locker"]',".portal-locker-section","#btn-portal-locker"]}].forEach(({key:t,selectors:p})=>{const E=I(t);p.forEach(T=>{n.querySelectorAll(T).forEach(L=>{E?L.getAttribute("data-feature-disabled")==="1"&&(L.style.display="",L.removeAttribute("data-feature-disabled")):(L.style.display="none",L.setAttribute("data-feature-disabled","1"))})})}),window._portalFeatures=g}function Me(n){if(!n)return"";try{const g=new Date(n);return isNaN(g.getTime())?n:g.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:!0})}catch{return n}}function je(n,g,I=null){const{student:t,business:p,daysRemaining:E,totalHours:T,todayAttendance:L,payments:e}=g,ge=window.store?.user||(typeof App<"u"&&App.getUser?App.getUser():{})||{},ae=(t.name||"S").split(" ").map(a=>a[0]).join("").toUpperCase().slice(0,2),Ce=t.seat&&t.seat.seatNumber,te=Ce?o(t.seat.seatNumber):"Floating Desk",Ue=Ce?o(t.seat.zone||"Quiet Zone"):"Open Access",ie=t.plan?.name||"Standard Reading Room Plan",Ye=t.plan?.price||0,Ie=t.shift?.name||t.shift?.timing||t.shift||t.plan?.shift||"Full Day",be=t.expiryDate?new Date(t.expiryDate).toLocaleDateString("en-IN"):"Not Set",He=t.targetExams&&t.targetExams.length>0?t.targetExams.map(a=>`<span class="badge" style="background: rgba(108, 92, 231, 0.15); color: var(--color-primary); font-size: 0.75rem;">${o(a)}</span>`).join(""):'<span class="text-muted small">General Self-Study</span>';if(t.photo){const a=document.getElementById("user-avatar");if(a){const r=t.photo.startsWith("/")||t.photo.startsWith("http")||t.photo.startsWith("data:")?t.photo:`/${t.photo}`;a.style.overflow="hidden",a.style.padding="0",a.innerHTML=`<img src="${r}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;" onerror="this.remove(); document.getElementById('user-avatar').textContent='${ae}';">`}try{const r=JSON.parse(localStorage.getItem("sl_user")||"{}");r.photo=t.photo,r.avatar=t.photo,localStorage.setItem("sl_user",JSON.stringify(r)),window.store&&window.store.user&&(window.store.user.photo=t.photo,window.store.user.avatar=t.photo)}catch{}}const Fe=new Date().getHours(),Ee=Fe<12?"\u{1F305} Good Morning":Fe<17?"\u{1F324}\uFE0F Good Afternoon":"\u{1F319} Good Evening",Q=L&&L.checkIn&&!L.checkOut,Te=Q?`\u{1F7E2} Currently Checked In since <strong>${Me(L.checkIn)}</strong>`:L&&L.checkOut?`\u2705 Completed study session today (<strong>${Me(L.checkIn)}</strong> \u2013 <strong>${Me(L.checkOut)}</strong>)`:"\u26AA Not checked in today";n.innerHTML=`
     <div class="portal-container">
       <!-- Admin Preview Banner -->
-      ${data.isAdmin ? `
+      ${g.isAdmin?`
         <div class="card p-3 mb-3" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(0, 184, 148, 0.08)); border: 1px solid var(--color-primary); border-radius: var(--radius-lg); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
           <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 1.5rem;">👑</span>
+            <span style="font-size: 1.5rem;">\u{1F451}</span>
             <div>
-              <div style="font-weight: 700; color: var(--color-primary); font-size: 0.95rem;">Admin Inspection Mode — Student Portal Experience</div>
-              <div style="font-size: 0.8rem; color: var(--color-text-secondary);">You are logged in as Administrator. Inspecting live student view for <strong>${escapeHTML(student.name)}</strong>.</div>
+              <div style="font-weight: 700; color: var(--color-primary); font-size: 0.95rem;">Admin Inspection Mode \u2014 Student Portal Experience</div>
+              <div style="font-size: 0.8rem; color: var(--color-text-secondary);">You are logged in as Administrator. Inspecting live student view for <strong>${o(t.name)}</strong>.</div>
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
             <label style="font-size: 0.82rem; font-weight: 600;">Switch Student:</label>
             <select id="admin-switch-student" class="form-select form-control form-control-sm" style="min-width: 220px; font-weight: 600;">
-              ${(data.allStudents || []).map(s => `
-                <option value="${s._id}" ${String(s._id) === String(student._id) ? 'selected' : ''}>
-                  ${escapeHTML(s.name)} (${s.studentId || s.phone})
+              ${(g.allStudents||[]).map(a=>`
+                <option value="${a._id}" ${String(a._id)===String(t._id)?"selected":""}>
+                  ${o(a.name)} (${a.studentId||a.phone})
                 </option>
-              `).join('')}
+              `).join("")}
             </select>
-            <a href="#/students" class="btn btn-outline-secondary btn-sm" style="font-weight: 600;">➔ Students Directory</a>
+            <a href="#/students" class="btn btn-outline-secondary btn-sm" style="font-weight: 600;">\u2794 Students Directory</a>
           </div>
         </div>
-      ` : ''}
+      `:""}
 
       <!-- 1. Mobile-First Welcome & Identity Bar -->
       <div class="card mb-3 p-3" id="portal-welcome-banner" style="
-        background: ${business.bannerImage ? `linear-gradient(135deg, rgba(108, 92, 231, 0.90), rgba(15, 23, 42, 0.85)), url('${business.bannerImage}') center/cover` : 'var(--color-surface)'};
+        background: ${p.bannerImage?`linear-gradient(135deg, rgba(108, 92, 231, 0.90), rgba(15, 23, 42, 0.85)), url('${p.bannerImage}') center/cover`:"var(--color-surface)"};
         border: 1px solid var(--color-border);
         border-radius: var(--radius-lg);
       ">
@@ -236,40 +50,40 @@ function renderPortalUI(container, data, analytics = null) {
               width: 58px; height: 58px; border-radius: 50%;
               background: var(--color-primary-bg); color: var(--color-primary);
               font-size: 1.4rem; font-weight: 800; display: flex; align-items: center; justify-content: center;
-              border: 2.5px solid ${isCheckedIn ? '#10b981' : 'var(--color-primary)'}; flex-shrink: 0; overflow: hidden;
-              box-shadow: 0 4px 14px ${isCheckedIn ? 'rgba(16, 185, 129, 0.35)' : 'rgba(108, 92, 231, 0.2)'};
+              border: 2.5px solid ${Q?"#10b981":"var(--color-primary)"}; flex-shrink: 0; overflow: hidden;
+              box-shadow: 0 4px 14px ${Q?"rgba(16, 185, 129, 0.35)":"rgba(108, 92, 231, 0.2)"};
               position: relative;
             ">
-              ${(student.photo || user?.avatar) ? `
-                <img src="${escapeHTML(student.photo || user.avatar)}" alt="${escapeHTML(student.name)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
-                <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 800;">${initials}</span>
-              ` : initials}
+              ${t.photo||ge?.avatar?`
+                <img src="${o(t.photo||ge.avatar)}" alt="${o(t.name)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 800;">${ae}</span>
+              `:ae}
             </div>
             <div>
-              <div style="font-size: 0.76rem; font-weight: 600; color: ${business.bannerImage ? 'rgba(255,255,255,0.85)' : 'var(--color-text-secondary)'}; display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
-                <span>${timeGreeting}</span>
-                <span class="badge ${isCheckedIn ? 'badge-success' : 'badge-secondary'}" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 10px;">
-                  ${isCheckedIn ? '🟢 Active in Hall' : '⚪ Checked Out'}
+              <div style="font-size: 0.76rem; font-weight: 600; color: ${p.bannerImage?"rgba(255,255,255,0.85)":"var(--color-text-secondary)"}; display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+                <span>${Ee}</span>
+                <span class="badge ${Q?"badge-success":"badge-secondary"}" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 10px;">
+                  ${Q?"\u{1F7E2} Active in Hall":"\u26AA Checked Out"}
                 </span>
               </div>
-              <h2 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: ${business.bannerImage ? '#ffffff' : 'var(--color-text-primary)'}; white-space: normal; line-height: 1.25; text-transform: capitalize;">
-                ${escapeHTML((student.name || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()))}
+              <h2 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: ${p.bannerImage?"#ffffff":"var(--color-text-primary)"}; white-space: normal; line-height: 1.25; text-transform: capitalize;">
+                ${o((t.name||"").toLowerCase().replace(/\b\w/g,a=>a.toUpperCase()))}
               </h2>
-              <div style="font-size: 0.78rem; color: ${business.bannerImage ? '#a7f3d0' : 'var(--color-text-muted)'}; margin-top: 2px; font-family: monospace; font-weight: 600;">
-                ${escapeHTML(student.studentId || 'STU-MEMBER')} • ${escapeHTML(business.businessName || 'Study Library')}
+              <div style="font-size: 0.78rem; color: ${p.bannerImage?"#a7f3d0":"var(--color-text-muted)"}; margin-top: 2px; font-family: monospace; font-weight: 600;">
+                ${o(t.studentId||"STU-MEMBER")} \u2022 ${o(p.businessName||"Study Library")}
               </div>
             </div>
           </div>
 
           <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
             <button id="btn-portal-profile" class="btn btn-outline-secondary btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border-radius: 10px;">
-              👤 Profile
+              \u{1F464} Profile
             </button>
             <button id="btn-portal-renew" class="btn btn-primary btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 14px; border-radius: 10px;">
-              ⚡ Renew
+              \u26A1 Renew
             </button>
             <button id="btn-portal-logout" class="btn btn-outline-danger btn-sm" style="font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border-radius: 10px;" title="Log out from Student Portal">
-              🚪 Sign Out
+              \u{1F6AA} Sign Out
             </button>
           </div>
         </div>
@@ -293,36 +107,36 @@ function renderPortalUI(container, data, analytics = null) {
               Allotted Study Desk
             </div>
             <div style="font-size: 1.85rem; font-weight: 900; line-height: 1.1; margin-top: 2px; text-shadow: 0 2px 8px rgba(0,0,0,0.2); color: #ffffff;">
-              ${seatTitle}
+              ${te}
             </div>
             <div style="font-size: 0.78rem; opacity: 0.92; margin-top: 2px; font-weight: 600; color: #ffffff;">
-              Shift: <span style="color: #a7f3d0; font-weight: 700;">${escapeHTML(shiftName)}</span> • Plan: <span style="color: #c7d2fe; font-weight: 700;">${escapeHTML(planName)}</span>
+              Shift: <span style="color: #a7f3d0; font-weight: 700;">${o(Ie)}</span> \u2022 Plan: <span style="color: #c7d2fe; font-weight: 700;">${o(ie)}</span>
             </div>
           </div>
 
           <!-- Plan Expiry Pill -->
           <div style="text-align: right;">
             <span style="background: rgba(255,255,255,0.22); backdrop-filter: blur(8px); padding: 5px 12px; border-radius: 20px; font-weight: 800; font-size: 0.82rem; letter-spacing: 0.3px; border: 1px solid rgba(255,255,255,0.35); display: inline-block; color: #ffffff;">
-              ⏳ ${daysRemaining} ${daysRemaining === 1 ? 'Day' : 'Days'} Left
+              \u23F3 ${E} ${E===1?"Day":"Days"} Left
             </span>
             <div style="font-size: 0.72rem; opacity: 0.90; margin-top: 4px; font-weight: 600; color: #ffffff;">
-              Valid till ${expiryDateStr}
+              Valid till ${be}
             </div>
           </div>
         </div>
 
         <!-- Validity Progress Bar inside Pass -->
         <div style="margin-top: 14px; background: rgba(0,0,0,0.3); height: 6px; border-radius: 4px; overflow: hidden; position: relative; z-index: 1;">
-          <div style="height: 100%; width: ${Math.max(5, Math.min(100, (daysRemaining / 30) * 100))}%; background: linear-gradient(90deg, #34d399, #a7f3d0); border-radius: 4px;"></div>
+          <div style="height: 100%; width: ${Math.max(5,Math.min(100,E/30*100))}%; background: linear-gradient(90deg, #34d399, #a7f3d0); border-radius: 4px;"></div>
         </div>
 
         <!-- Pass Actions Row: 1-Tap Punch In/Out + ID Pass -->
         <div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,0.25); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: relative; z-index: 1;">
-          <button id="btn-self-punch" class="btn btn-sm ${isCheckedIn ? 'btn-danger' : 'btn-success'}" style="
+          <button id="btn-self-punch" class="btn btn-sm ${Q?"btn-danger":"btn-success"}" style="
             font-weight: 800; font-size: 0.86rem; padding: 8px 18px; border-radius: 12px;
             box-shadow: 0 4px 14px rgba(0,0,0,0.25); border: none; flex: 1 1 180px; min-height: 42px;
           ">
-            ${isCheckedIn ? '🔴 Punch-Out (Leave)' : (todayAttendance && todayAttendance.checkOut ? '🟢 Punch-In Again' : '🟢 1-Tap Attendance Punch')}
+            ${Q?"\u{1F534} Punch-Out (Leave)":L&&L.checkOut?"\u{1F7E2} Punch-In Again":"\u{1F7E2} 1-Tap Attendance Punch"}
           </button>
 
           <button id="btn-portal-idcard" class="btn btn-sm" style="
@@ -330,35 +144,35 @@ function renderPortalUI(container, data, analytics = null) {
             font-weight: 700; font-size: 0.84rem; padding: 8px 16px; border-radius: 12px; backdrop-filter: blur(8px);
             flex: 1 1 140px; min-height: 42px; text-shadow: 0 1px 3px rgba(0,0,0,0.3);
           ">
-            🪪 View Digital ID Pass
+            \u{1FAAA} View Digital ID Pass
           </button>
         </div>
       </div>
 
       <!-- 3. Mandatory Profile & KYC Completion Card (Rendered when profile < 100%) -->
-      ${(student.profileCompletion < 100 || !student.isProfileComplete) ? `
+      ${t.profileCompletion<100||!t.isProfileComplete?`
         <div class="card mb-3 p-3" style="background: rgba(245, 158, 11, 0.08); border: 1.5px solid rgba(245, 158, 11, 0.35); border-radius: var(--radius-lg);">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <div style="display: flex; align-items: center; gap: 12px; max-width: 650px;">
-              <div style="font-size: 2rem;">⚠️</div>
+              <div style="font-size: 2rem;">\u26A0\uFE0F</div>
               <div>
                 <h4 style="margin: 0 0 4px 0; font-size: 0.98rem; font-weight: 800; color: #f59e0b;">
-                  Action Required: Complete Profile & KYC Upload (${student.profileCompletion || 60}%)
+                  Action Required: Complete Profile & KYC Upload (${t.profileCompletion||60}%)
                 </h4>
                 <p style="margin: 0; font-size: 0.80rem; color: var(--color-text-secondary); line-height: 1.35;">
                   Upload your Profile Selfie and Aadhaar KYC proof to unlock official Digital Offline ID Card Pass.
                 </p>
                 <div style="margin-top: 6px; width: 100%; max-width: 320px; height: 5px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden;">
-                  <div style="height: 100%; width: ${student.profileCompletion || 60}%; background: linear-gradient(90deg, #f59e0b, #00b894); border-radius: 4px;"></div>
+                  <div style="height: 100%; width: ${t.profileCompletion||60}%; background: linear-gradient(90deg, #f59e0b, #00b894); border-radius: 4px;"></div>
                 </div>
               </div>
             </div>
             <button id="btn-portal-complete-kyc" class="btn btn-warning btn-sm" style="font-weight: 700; font-size: 0.82rem; padding: 6px 14px; border-radius: 10px;">
-              ✏️ Upload KYC
+              \u270F\uFE0F Upload KYC
             </button>
           </div>
         </div>
-      ` : ''}
+      `:""}
 
       <!-- 4. Modern App Launcher Grid (10 Colorful Gradient Tiles) -->
       <div class="mobile-app-grid" style="
@@ -368,43 +182,43 @@ function renderPortalUI(container, data, analytics = null) {
         margin-bottom: 1.25rem;
       ">
         <div class="portal-app-tile mobile-app-icon-card" id="tile-portal-idcard" title="Open Digital ID Card Studio">
-          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.08)); color: #6366f1;">🪪</div>
+          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.08)); color: #6366f1;">\u{1FAAA}</div>
           <div class="portal-tile-label icon-label">ID Pass</div>
         </div>
         <div class="portal-app-tile mobile-app-icon-card" id="tile-portal-renew" title="Renew Membership Plan">
-          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08)); color: #10b981;">⚡</div>
+          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.08)); color: #10b981;">\u26A1</div>
           <div class="portal-tile-label icon-label">Renew</div>
         </div>
         <div class="portal-app-tile mobile-app-icon-card" id="tile-portal-receipts" title="View Fee Receipts & Invoices">
-          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0.08)); color: #0ea5e9;">🧾</div>
+          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0.08)); color: #0ea5e9;">\u{1F9FE}</div>
           <div class="portal-tile-label icon-label">Receipts</div>
         </div>
         <div class="portal-app-tile mobile-app-icon-card" id="tile-portal-notices" title="Read Campus Notices">
-          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08)); color: #f59e0b;">📢</div>
+          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08)); color: #f59e0b;">\u{1F4E2}</div>
           <div class="portal-tile-label icon-label">Notices</div>
         </div>
         <div class="portal-app-tile mobile-app-icon-card" id="tile-portal-holidays" title="Check Holiday Calendar">
-          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(236, 72, 153, 0.08)); color: #ec4899;">📅</div>
+          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(236, 72, 153, 0.08)); color: #ec4899;">\u{1F4C5}</div>
           <div class="portal-tile-label icon-label">Holidays</div>
         </div>
         <div class="portal-app-tile mobile-app-icon-card" id="tile-portal-lostfound" title="Lost & Found Hub">
-          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(20, 184, 166, 0.08)); color: #14b8a6;">🔍</div>
+          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(20, 184, 166, 0.08)); color: #14b8a6;">\u{1F50D}</div>
           <div class="portal-tile-label icon-label">Lost/Found</div>
         </div>
         <div class="portal-app-tile mobile-app-icon-card" id="tile-portal-feedback" title="Submit Support Feedback">
-          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08)); color: #a855f7;">💬</div>
+          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.08)); color: #a855f7;">\u{1F4AC}</div>
           <div class="portal-tile-label icon-label">Feedback</div>
         </div>
         <div class="portal-app-tile mobile-app-icon-card" id="tile-portal-seat-change" title="Request Seat Transfer">
-          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(59, 130, 246, 0.08)); color: #3b82f6;">💺</div>
+          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(59, 130, 246, 0.08)); color: #3b82f6;">\u{1F4BA}</div>
           <div class="portal-tile-label icon-label">Shift/Seat</div>
         </div>
         <div class="portal-app-tile mobile-app-icon-card" id="tile-portal-leave" title="Apply for Leave">
-          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.18), rgba(249, 115, 22, 0.08)); color: #f97316;">🌴</div>
+          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(249, 115, 22, 0.18), rgba(249, 115, 22, 0.08)); color: #f97316;">\u{1F334}</div>
           <div class="portal-tile-label icon-label">Leave App</div>
         </div>
         <div class="portal-app-tile mobile-app-icon-card" id="tile-portal-referral" title="Refer a Friend">
-          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.18), rgba(234, 179, 8, 0.08)); color: #eab308;">🎁</div>
+          <div class="portal-tile-icon icon-badge" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.18), rgba(234, 179, 8, 0.08)); color: #eab308;">\u{1F381}</div>
           <div class="portal-tile-label icon-label">Referral</div>
         </div>
       </div>
@@ -412,13 +226,13 @@ function renderPortalUI(container, data, analytics = null) {
       <!-- 5. Segmented Tab Navigation Track -->
       <div class="portal-tab-track" style="display: flex; background: var(--color-bg-secondary); padding: 4px; border-radius: 14px; border: 1px solid var(--color-border); margin-bottom: 1.25rem; gap: 4px; overflow-x: auto;">
         <button type="button" class="portal-tab-pill active" data-portal-tab="overview" style="flex: 1; min-width: 100px; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; border-radius: 10px; border: none; cursor: pointer; background: var(--color-surface); color: var(--color-primary); box-shadow: 0 2px 8px rgba(0,0,0,0.12); transition: all 0.2s; white-space: nowrap; padding: 6px 10px;">
-          🏠 Overview & Streaks
+          \u{1F3E0} Overview & Streaks
         </button>
         <button type="button" class="portal-tab-pill" data-portal-tab="campus" style="flex: 1; min-width: 100px; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; border-radius: 10px; border: none; cursor: pointer; background: transparent; color: var(--color-text-secondary); transition: all 0.2s; white-space: nowrap; padding: 6px 10px;">
-          🏛️ Campus Life
+          \u{1F3DB}\uFE0F Campus Life
         </button>
         <button type="button" class="portal-tab-pill" data-portal-tab="receipts" style="flex: 1; min-width: 100px; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 0.84rem; border-radius: 10px; border: none; cursor: pointer; background: transparent; color: var(--color-text-secondary); transition: all 0.2s; white-space: nowrap; padding: 6px 10px;">
-          🧾 Fee Receipts
+          \u{1F9FE} Fee Receipts
         </button>
       </div>
 
@@ -429,23 +243,23 @@ function renderPortalUI(container, data, analytics = null) {
         <!-- 3 Quick Metrics Row -->
         <div class="quick-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 8px; margin-bottom: 1.25rem;">
           <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-            <div style="font-size: 0.74rem; font-weight: 700; color: var(--color-text-secondary);">🔥 Study Streak</div>
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--color-text-secondary);">\u{1F525} Study Streak</div>
             <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-warning); margin-top: 2px;">
-              ${analytics?.currentStreak || student.studyStreakDays || 0} Days
+              ${I?.currentStreak||t.studyStreakDays||0} Days
             </div>
-            <div style="font-size: 0.70rem; color: var(--color-text-muted);">Best Streak: ${analytics?.longestStreak || 1} days</div>
+            <div style="font-size: 0.70rem; color: var(--color-text-muted);">Best Streak: ${I?.longestStreak||1} days</div>
           </div>
           <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-            <div style="font-size: 0.74rem; font-weight: 700; color: var(--color-text-secondary);">📈 Total Study Time</div>
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--color-text-secondary);">\u{1F4C8} Total Study Time</div>
             <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-info); margin-top: 2px;">
-              ${totalHours} hrs
+              ${T} hrs
             </div>
-            <div style="font-size: 0.70rem; color: var(--color-text-muted);">${analytics?.totalDaysPresent || 1} days present this month</div>
+            <div style="font-size: 0.70rem; color: var(--color-text-muted);">${I?.totalDaysPresent||1} days present this month</div>
           </div>
           <div class="card p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
-            <div style="font-size: 0.74rem; font-weight: 700; color: var(--color-text-secondary);">🎖️ Badges Unlocked</div>
+            <div style="font-size: 0.74rem; font-weight: 700; color: var(--color-text-secondary);">\u{1F396}\uFE0F Badges Unlocked</div>
             <div style="font-size: 1.4rem; font-weight: 800; color: var(--color-primary); margin-top: 2px;">
-              ${(student.badges || []).length} / 4
+              ${(t.badges||[]).length} / 4
             </div>
             <div style="font-size: 0.70rem; color: var(--color-text-muted);">Library honors & achievements</div>
           </div>
@@ -455,7 +269,7 @@ function renderPortalUI(container, data, analytics = null) {
         <div class="card mb-4 p-3 p-md-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem;">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <span style="font-size: 1.5rem;">🧠</span>
+              <span style="font-size: 1.5rem;">\u{1F9E0}</span>
               <div>
                 <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--color-text-primary);">
                   AI Study Analytics & Consistency Score
@@ -468,10 +282,10 @@ function renderPortalUI(container, data, analytics = null) {
 
             <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
               <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.76rem; padding: 4px 8px; border-radius: 6px;">
-                ${escapeHTML(analytics?.peakStudyHours?.badge || '🌅 Peak: 08:00 AM – 02:00 PM')}
+                ${o(I?.peakStudyHours?.badge||"\u{1F305} Peak: 08:00 AM \u2013 02:00 PM")}
               </span>
               <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--color-warning); font-weight: 700; font-size: 0.76rem; padding: 4px 8px; border-radius: 6px;">
-                🔥 ${analytics?.currentStreak || 0} Day Streak
+                \u{1F525} ${I?.currentStreak||0} Day Streak
               </span>
             </div>
           </div>
@@ -479,26 +293,26 @@ function renderPortalUI(container, data, analytics = null) {
           <!-- Main Layout: Score Gauge + Heatmap + AI Recommendation -->
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 1.25rem; align-items: center;">
             <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 12px 14px; background: var(--color-bg-secondary); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
-              ${renderGaugeScoreSvg(analytics?.consistencyScore || 0)}
+              ${Ge(I?.consistencyScore||0)}
               <div style="font-size: 0.82rem; color: var(--color-text-secondary); margin-top: 4px;">
-                Avg: <strong>${escapeHTML(analytics?.averageDailyDuration?.formatted || '0m')}</strong> / day
+                Avg: <strong>${o(I?.averageDailyDuration?.formatted||"0m")}</strong> / day
               </div>
               <div style="font-size: 0.75rem; color: var(--color-text-muted);">
-                ${analytics?.totalDaysPresent || 0} / 30 days present
+                ${I?.totalDaysPresent||0} / 30 days present
               </div>
             </div>
 
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <span style="font-size: 0.84rem; font-weight: 700; color: var(--color-text-primary);">
-                  📅 30-Day Attendance Heatmap
+                  \u{1F4C5} 30-Day Attendance Heatmap
                 </span>
                 <span style="font-size: 0.72rem; color: var(--color-text-muted);">
                   Daily study intensity
                 </span>
               </div>
 
-              ${renderHeatmapGridHtml(analytics?.heatmap || [])}
+              ${We(I?.heatmap||[])}
 
               <div style="
                 margin-top: 10px;
@@ -510,20 +324,20 @@ function renderPortalUI(container, data, analytics = null) {
                 align-items: center;
                 gap: 8px;
               ">
-                <span style="font-size: 1.15rem; flex-shrink: 0;">💡</span>
+                <span style="font-size: 1.15rem; flex-shrink: 0;">\u{1F4A1}</span>
                 <div style="font-size: 0.80rem; color: var(--color-text-primary); line-height: 1.35;">
-                  <strong>AI Study Tip:</strong> ${escapeHTML(analytics?.aiRecommendation || analytics?.aiStudyTip || 'Consistency is the key to cracking competitive exams. Try regular study blocks every morning!')}
+                  <strong>AI Study Tip:</strong> ${o(I?.aiRecommendation||I?.aiStudyTip||"Consistency is the key to cracking competitive exams. Try regular study blocks every morning!")}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 🏆 Achievements & Badges Studio Card -->
+        <!-- \u{1F3C6} Achievements & Badges Studio Card -->
         <div class="card mb-4 p-3 p-md-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--color-divider); padding-bottom: 0.75rem;">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <span style="font-size: 1.5rem;">🏆</span>
+              <span style="font-size: 1.5rem;">\u{1F3C6}</span>
               <div>
                 <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--color-text-primary);">
                   Achievements & Badges Studio
@@ -535,47 +349,28 @@ function renderPortalUI(container, data, analytics = null) {
             </div>
 
             <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--color-primary); font-weight: 700; font-size: 0.80rem; padding: 4px 10px; border-radius: 12px;">
-              🎖️ ${(student.badges || []).length} / 4 Badges Unlocked
+              \u{1F396}\uFE0F ${(t.badges||[]).length} / 4 Badges Unlocked
             </span>
           </div>
 
           <!-- 4 Badges Progress Grid -->
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px;">
-            ${(() => {
-              const badgeProgress = data?.badgeProgress || analytics?.badgeProgress || [];
-              return [
-                { badgeId: 'early_bird', title: '🌅 Early Bird', icon: '🌅', description: 'Checked in before 07:00 AM 5+ times', target: 5, unit: 'check-ins' },
-                { badgeId: 'study_warrior', title: '⚔️ 100-Hr Warrior', icon: '⚔️', description: 'Total study hours >= 100', target: 100, unit: 'hrs' },
-                { badgeId: 'night_owl', title: '🦉 Night Owl', icon: '🦉', description: 'Checked in after 08:00 PM 5+ times', target: 5, unit: 'check-ins' },
-                { badgeId: 'streak_champion', title: '🏆 30-Day Streak', icon: '🏆', description: 'Consecutive attendance streak >= 30 days', target: 30, unit: 'days' }
-              ].map(b => {
-                const earnedBadge = (student.badges || []).find(eb => eb.badgeId === b.badgeId);
-                const isEarned = !!earnedBadge;
-                
-                let progVal = 0;
-                if (badgeProgress && Array.isArray(badgeProgress)) {
-                  const bp = badgeProgress.find(p => p.badgeId === b.badgeId);
-                  if (bp) progVal = bp.progress || 0;
-                }
-                if (isEarned) progVal = Math.max(progVal, b.target);
-                const percent = Math.min(100, Math.round((progVal / b.target) * 100));
-
-                return `
-                  <div style="background: var(--color-bg-secondary); border: 1px solid ${isEarned ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
-                    ${isEarned ? `
+            ${(()=>{const a=g?.badgeProgress||I?.badgeProgress||[];return[{badgeId:"early_bird",title:"\u{1F305} Early Bird",icon:"\u{1F305}",description:"Checked in before 07:00 AM 5+ times",target:5,unit:"check-ins"},{badgeId:"study_warrior",title:"\u2694\uFE0F 100-Hr Warrior",icon:"\u2694\uFE0F",description:"Total study hours >= 100",target:100,unit:"hrs"},{badgeId:"night_owl",title:"\u{1F989} Night Owl",icon:"\u{1F989}",description:"Checked in after 08:00 PM 5+ times",target:5,unit:"check-ins"},{badgeId:"streak_champion",title:"\u{1F3C6} 30-Day Streak",icon:"\u{1F3C6}",description:"Consecutive attendance streak >= 30 days",target:30,unit:"days"}].map(r=>{const i=!!(t.badges||[]).find(f=>f.badgeId===r.badgeId);let s=0;if(a&&Array.isArray(a)){const f=a.find(h=>h.badgeId===r.badgeId);f&&(s=f.progress||0)}i&&(s=Math.max(s,r.target));const u=Math.min(100,Math.round(s/r.target*100));return`
+                  <div style="background: var(--color-bg-secondary); border: 1px solid ${i?"var(--color-primary)":"var(--color-border)"}; border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+                    ${i?`
                       <div style="position: absolute; top: 6px; right: 6px; background: var(--color-success); color: white; font-size: 0.60rem; font-weight: 800; padding: 2px 6px; border-radius: 8px; text-transform: uppercase;">
                         Unlocked
                       </div>
-                    ` : ''}
+                    `:""}
                     <div>
                       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                        <span style="font-size: 1.5rem; opacity: ${isEarned ? '1' : '0.6'};">${b.icon}</span>
+                        <span style="font-size: 1.5rem; opacity: ${i?"1":"0.6"};">${r.icon}</span>
                         <div>
-                          <div style="font-weight: 700; font-size: 0.88rem; color: ${isEarned ? 'var(--color-primary)' : 'var(--color-text-primary)'};">
-                            ${escapeHTML(b.title)}
+                          <div style="font-weight: 700; font-size: 0.88rem; color: ${i?"var(--color-primary)":"var(--color-text-primary)"};">
+                            ${o(r.title)}
                           </div>
                           <div style="font-size: 0.72rem; color: var(--color-text-secondary);">
-                            ${escapeHTML(b.description)}
+                            ${o(r.description)}
                           </div>
                         </div>
                       </div>
@@ -584,16 +379,14 @@ function renderPortalUI(container, data, analytics = null) {
                     <div style="margin-top: 10px;">
                       <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; margin-bottom: 3px; font-weight: 600;">
                         <span style="color: var(--color-text-muted);">Progress</span>
-                        <span style="color: ${isEarned ? 'var(--color-success)' : 'var(--color-primary)'};">${progVal} / ${b.target} (${percent}%)</span>
+                        <span style="color: ${i?"var(--color-success)":"var(--color-primary)"};">${s} / ${r.target} (${u}%)</span>
                       </div>
                       <div style="height: 5px; background: var(--color-surface); border-radius: 4px; overflow: hidden;">
-                        <div style="width: ${percent}%; height: 100%; background: ${isEarned ? 'var(--color-success)' : 'var(--color-primary)'}; border-radius: 4px;"></div>
+                        <div style="width: ${u}%; height: 100%; background: ${i?"var(--color-success)":"var(--color-primary)"}; border-radius: 4px;"></div>
                       </div>
                     </div>
                   </div>
-                `;
-              }).join('');
-            })()}
+                `}).join("")})()}
           </div>
         </div>
 
@@ -601,7 +394,7 @@ function renderPortalUI(container, data, analytics = null) {
         <div class="card mb-4 p-3" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <span style="font-size: 1.6rem;">🔔</span>
+              <span style="font-size: 1.6rem;">\u{1F514}</span>
               <div>
                 <div style="font-weight: 700; font-size: 0.92rem; color: var(--color-text-primary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                   <span>Mobile Push Notifications</span>
@@ -630,7 +423,7 @@ function renderPortalUI(container, data, analytics = null) {
         <div id="student-campus-hub-card" class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
           <div class="card-header p-3" style="border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 1.3rem;">🏛️</span>
+              <span style="font-size: 1.3rem;">\u{1F3DB}\uFE0F</span>
               <div>
                 <h4 style="margin: 0; font-size: 1.02rem; font-weight: 700; color: var(--color-text-primary);">
                   Campus Notice Board & Services
@@ -640,10 +433,10 @@ function renderPortalUI(container, data, analytics = null) {
             </div>
             
             <div class="btn-group btn-group-sm" id="campus-hub-tabs" role="tablist">
-              <button type="button" class="btn btn-primary btn-campus-tab active" data-tab="notices" style="font-weight: 700;">📢 Notices</button>
-              <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="holidays" style="font-weight: 700;">📅 Holidays</button>
-              <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="lostfound" style="font-weight: 700;">🔍 Lost &amp; Found</button>
-              <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="feedback" style="font-weight: 700;">💬 Feedback</button>
+              <button type="button" class="btn btn-primary btn-campus-tab active" data-tab="notices" style="font-weight: 700;">\u{1F4E2} Notices</button>
+              <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="holidays" style="font-weight: 700;">\u{1F4C5} Holidays</button>
+              <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="lostfound" style="font-weight: 700;">\u{1F50D} Lost &amp; Found</button>
+              <button type="button" class="btn btn-outline-secondary btn-campus-tab" data-tab="feedback" style="font-weight: 700;">\u{1F4AC} Feedback</button>
             </div>
           </div>
 
@@ -665,7 +458,7 @@ function renderPortalUI(container, data, analytics = null) {
         <div id="student-receipts-card" class="card mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
           <div class="card-header p-3" style="border-bottom: 1px solid var(--color-divider); background: var(--color-surface-hover); display: flex; justify-content: space-between; align-items: center;">
             <h4 style="margin: 0; font-size: 1.02rem; font-weight: 700; color: var(--color-text-primary);">
-              💳 My Payment Receipts & Invoices
+              \u{1F4B3} My Payment Receipts & Invoices
             </h4>
             <span style="font-size: 0.78rem; color: var(--color-text-muted);">Official Tax & Fee Invoices</span>
           </div>
@@ -683,38 +476,38 @@ function renderPortalUI(container, data, analytics = null) {
                   </tr>
                 </thead>
                 <tbody>
-                  ${payments && payments.length > 0 ? payments.map(p => `
+                  ${e&&e.length>0?e.map(a=>`
                     <tr style="border-bottom: 1px solid var(--color-divider); font-size: 0.88rem;">
                       <td style="padding: 10px 14px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                          ${PaymentStudio.renderDebitTrayIcon(28)}
+                          ${De.renderDebitTrayIcon(28)}
                           <div>
-                            <span style="font-family: monospace; font-weight: 700; color: var(--color-primary);">${escapeHTML(p.receiptNumber || 'REC')}</span>
-                            <div class="tx-badge-pill tx-badge-paid" style="font-size: 0.65rem; padding: 1px 6px; margin-top: 2px;">↓ RECEIVED</div>
+                            <span style="font-family: monospace; font-weight: 700; color: var(--color-primary);">${o(a.receiptNumber||"REC")}</span>
+                            <div class="tx-badge-pill tx-badge-paid" style="font-size: 0.65rem; padding: 1px 6px; margin-top: 2px;">\u2193 RECEIVED</div>
                           </div>
                         </div>
                       </td>
-                      <td style="padding: 10px 14px;">${new Date(p.paymentDate).toLocaleDateString('en-IN')} <small class="text-muted">(${SmartFormatters.timeAgo(p.paymentDate)})</small></td>
-                      <td style="padding: 10px 14px; text-transform: uppercase;">${escapeHTML(p.paymentMethod || 'UPI')}</td>
-                      <td style="padding: 10px 14px; font-weight: 700; color: #10b981;" class="tx-amount tx-amount-green">₹${Number(p.finalAmount || 0).toLocaleString('en-IN')}</td>
+                      <td style="padding: 10px 14px;">${new Date(a.paymentDate).toLocaleDateString("en-IN")} <small class="text-muted">(${we.timeAgo(a.paymentDate)})</small></td>
+                      <td style="padding: 10px 14px; text-transform: uppercase;">${o(a.paymentMethod||"UPI")}</td>
+                      <td style="padding: 10px 14px; font-weight: 700; color: #10b981;" class="tx-amount tx-amount-green">\u20B9${Number(a.finalAmount||0).toLocaleString("en-IN")}</td>
                       <td style="padding: 10px 14px;">
-                        <span class="tx-badge-pill tx-badge-paid">✓ Paid</span>
+                        <span class="tx-badge-pill tx-badge-paid">\u2713 Paid</span>
                       </td>
                       <td style="padding: 10px 14px; text-align: right;">
                         <div class="tx-action-capsule" style="margin: 0; display: inline-flex;">
-                          <button type="button" class="btn-tx-action action-copy btn-copy-text" data-copy="${escapeHTML(p.receiptNumber || '')}" title="Copy Receipt Number">
+                          <button type="button" class="btn-tx-action action-copy btn-copy-text" data-copy="${o(a.receiptNumber||"")}" title="Copy Receipt Number">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                           </button>
-                          <button type="button" class="btn-tx-action action-edit btn-view-receipt" data-receipt='${JSON.stringify(p)}' title="Download / View Receipt">
+                          <button type="button" class="btn-tx-action action-edit btn-view-receipt" data-receipt='${JSON.stringify(a)}' title="Download / View Receipt">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                           </button>
-                          <button type="button" class="btn-tx-action action-share btn-portal-wa-share" data-receipt="${escapeHTML(p.receiptNumber || '')}" data-amount="${p.finalAmount || 0}" title="Share via WhatsApp">
+                          <button type="button" class="btn-tx-action action-share btn-portal-wa-share" data-receipt="${o(a.receiptNumber||"")}" data-amount="${a.finalAmount||0}" title="Share via WhatsApp">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
                           </button>
                         </div>
                       </td>
                     </tr>
-                  `).join('') : `
+                  `).join(""):`
                     <tr><td colspan="6" class="p-4 text-center text-muted">No past payments recorded yet.</td></tr>
                   `}
                 </tbody>
@@ -724,339 +517,70 @@ function renderPortalUI(container, data, analytics = null) {
         </div>
       </div>
     </div>
-  `;
-
-  // -----------------------------------------------------------------
-  // Segmented Tab Switcher Logic
-  // -----------------------------------------------------------------
-  const portalTabPills = container.querySelectorAll('.portal-tab-pill');
-  const portalTabPanes = {
-    overview: container.querySelector('#pane-portal-overview'),
-    campus: container.querySelector('#pane-portal-campus'),
-    receipts: container.querySelector('#pane-portal-receipts')
-  };
-
-  const switchPortalTab = (tabKey) => {
-    portalTabPills.forEach(pill => {
-      const isActive = pill.getAttribute('data-portal-tab') === tabKey;
-      pill.classList.toggle('active', isActive);
-      pill.style.background = isActive ? 'var(--color-surface)' : 'transparent';
-      pill.style.color = isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)';
-      pill.style.boxShadow = isActive ? '0 2px 8px rgba(0, 0, 0, 0.12)' : 'none';
-    });
-    Object.keys(portalTabPanes).forEach(k => {
-      if (portalTabPanes[k]) {
-        portalTabPanes[k].style.display = (k === tabKey) ? 'block' : 'none';
-      }
-    });
-    if (tabKey === 'campus' && typeof activateCampusTab === 'function') {
-      activateCampusTab('notices');
-    }
-  };
-
-  portalTabPills.forEach(pill => {
-    pill.addEventListener('click', () => {
-      switchPortalTab(pill.getAttribute('data-portal-tab'));
-    });
-  });
-
-  // App Launcher Tiles Wiring
-  container.querySelector('#tile-portal-idcard')?.addEventListener('click', () => {
-    container.querySelector('#btn-portal-idcard')?.click();
-  });
-  container.querySelector('#tile-portal-renew')?.addEventListener('click', () => {
-    container.querySelector('#btn-portal-renew')?.click();
-  });
-  container.querySelector('#tile-portal-receipts')?.addEventListener('click', () => {
-    switchPortalTab('receipts');
-  });
-  container.querySelector('#tile-portal-notices')?.addEventListener('click', () => {
-    switchPortalTab('campus');
-    if (typeof activateCampusTab === 'function') activateCampusTab('notices');
-  });
-  container.querySelector('#tile-portal-holidays')?.addEventListener('click', () => {
-    switchPortalTab('campus');
-    if (typeof activateCampusTab === 'function') activateCampusTab('holidays');
-  });
-  container.querySelector('#tile-portal-lostfound')?.addEventListener('click', () => {
-    switchPortalTab('campus');
-    if (typeof activateCampusTab === 'function') activateCampusTab('lostfound');
-  });
-  container.querySelector('#tile-portal-feedback')?.addEventListener('click', () => {
-    switchPortalTab('campus');
-    if (typeof activateCampusTab === 'function') activateCampusTab('feedback');
-  });
-
-  // Admin Switch Student Handler
-  container.querySelector('#admin-switch-student')?.addEventListener('change', async (e) => {
-    const selectedStudentId = e.target.value;
-    container.innerHTML = `
+  `;const Se=n.querySelectorAll(".portal-tab-pill"),fe={overview:n.querySelector("#pane-portal-overview"),campus:n.querySelector("#pane-portal-campus"),receipts:n.querySelector("#pane-portal-receipts")},J=a=>{Se.forEach(r=>{const i=r.getAttribute("data-portal-tab")===a;r.classList.toggle("active",i),r.style.background=i?"var(--color-surface)":"transparent",r.style.color=i?"var(--color-primary)":"var(--color-text-secondary)",r.style.boxShadow=i?"0 2px 8px rgba(0, 0, 0, 0.12)":"none"}),Object.keys(fe).forEach(r=>{fe[r]&&(fe[r].style.display=r===a?"block":"none")}),a==="campus"&&typeof R=="function"&&R("notices")};Se.forEach(a=>{a.addEventListener("click",()=>{J(a.getAttribute("data-portal-tab"))})}),n.querySelector("#tile-portal-idcard")?.addEventListener("click",()=>{n.querySelector("#btn-portal-idcard")?.click()}),n.querySelector("#tile-portal-renew")?.addEventListener("click",()=>{n.querySelector("#btn-portal-renew")?.click()}),n.querySelector("#tile-portal-receipts")?.addEventListener("click",()=>{J("receipts")}),n.querySelector("#tile-portal-notices")?.addEventListener("click",()=>{J("campus"),typeof R=="function"&&R("notices")}),n.querySelector("#tile-portal-holidays")?.addEventListener("click",()=>{J("campus"),typeof R=="function"&&R("holidays")}),n.querySelector("#tile-portal-lostfound")?.addEventListener("click",()=>{J("campus"),typeof R=="function"&&R("lostfound")}),n.querySelector("#tile-portal-feedback")?.addEventListener("click",()=>{J("campus"),typeof R=="function"&&R("feedback")}),n.querySelector("#admin-switch-student")?.addEventListener("change",async a=>{const r=a.target.value;n.innerHTML=`
       <div class="card p-5 text-center" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
         <div class="loading-spinner mb-3" style="margin: 0 auto;"></div>
         <p style="color: var(--color-text-secondary); margin: 0;">Switching student inspection view...</p>
       </div>
-    `;
-    try {
-      const res = await api.get(`/api/student-portal/dashboard?studentId=${selectedStudentId}`);
-      if (!res.success || !res.data) throw new Error(res.message);
-      let analytics = null;
-      try {
-        const aRes = await api.get(`/api/attendance/analytics/${res.data.student._id}`);
-        if (aRes.success) analytics = aRes.data;
-      } catch (err) {}
-      renderPortalUI(container, res.data, analytics);
-    } catch (err) {
-      Toast.error(err.message || 'Failed to switch student');
-      render().then(newEl => container.replaceWith(newEl));
-    }
-  });
-
-  // Attach Self Punch Handler
-  container.querySelector('#btn-self-punch')?.addEventListener('click', async () => {
-    const btn = container.querySelector('#btn-self-punch');
-    Loading.button(btn, true);
-    try {
-      const res = await api.post('/api/student-portal/punch', {});
-      if (res.success) {
-        Toast.success(res.message);
-        setTimeout(() => render().then(newEl => container.replaceWith(newEl)), 500);
-      } else {
-        Toast.error(res.message);
-      }
-    } catch (err) {
-      Toast.error(err.message || 'Punch error');
-    } finally {
-      Loading.button(btn, false);
-    }
-  });
-
-  // Initialize Push Notification Toggle & Badge in Student Portal
-  const pushTogglePortal = container.querySelector('#portal-push-toggle');
-  const pushBadgePortal = container.querySelector('#portal-push-badge');
-
-  function syncPortalPushUI() {
-    if (!pushTogglePortal || !pushBadgePortal) return;
-
-    if (!PushNotifications.isSupported()) {
-      pushTogglePortal.disabled = true;
-      pushTogglePortal.checked = false;
-      pushBadgePortal.textContent = 'Not Supported';
-      pushBadgePortal.className = 'badge badge-secondary';
-      pushBadgePortal.style.background = 'var(--color-bg-secondary)';
-      pushBadgePortal.style.color = 'var(--color-text-secondary)';
-      return;
-    }
-
-    const status = PushNotifications.getPermissionStatus();
-    if (status === 'granted') {
-      pushBadgePortal.textContent = 'Permission Granted';
-      pushBadgePortal.className = 'badge badge-success';
-      pushBadgePortal.style.background = 'rgba(0, 184, 148, 0.15)';
-      pushBadgePortal.style.color = 'var(--color-success)';
-      pushTogglePortal.checked = PushNotifications.isEnabled();
-    } else if (status === 'denied') {
-      pushBadgePortal.textContent = 'Blocked in Browser';
-      pushBadgePortal.className = 'badge badge-danger';
-      pushBadgePortal.style.background = 'rgba(235, 77, 75, 0.15)';
-      pushBadgePortal.style.color = 'var(--color-danger)';
-      pushTogglePortal.checked = false;
-    } else {
-      pushBadgePortal.textContent = 'Permission Required';
-      pushBadgePortal.className = 'badge badge-warning';
-      pushBadgePortal.style.background = 'rgba(253, 203, 110, 0.2)';
-      pushBadgePortal.style.color = 'var(--color-warning)';
-      pushTogglePortal.checked = false;
-    }
-  }
-
-  syncPortalPushUI();
-
-  pushTogglePortal?.addEventListener('change', async (e) => {
-    if (e.target.checked) {
-      try {
-        const perm = await PushNotifications.requestPermission();
-        if (perm === 'granted') {
-          await PushNotifications.subscribe();
-          Toast.success('🔔 Native Mobile Push Notifications enabled!');
-        } else if (perm === 'denied') {
-          Toast.error('Push notification permission blocked by browser settings.');
-        }
-      } catch (err) {
-        Toast.error(err.message || 'Failed to enable push notifications');
-      }
-    } else {
-      await PushNotifications.unsubscribe();
-      Toast.info('Push notifications disabled.');
-    }
-    syncPortalPushUI();
-  });
-
-  // Attach PDF Admission Form Download Handler
-  container.querySelector('#btn-portal-download-pdf')?.addEventListener('click', () => {
-    previewAdmissionFormPDF(student, { business });
-  });
-
-  container.addEventListener('click', (e) => {
-    const copyBtn = e.target.closest('.btn-copy-text');
-    if (copyBtn) {
-      e.stopPropagation();
-      const textToCopy = copyBtn.getAttribute('data-copy');
-      if (textToCopy) copyToClipboard(textToCopy, copyBtn);
-    }
-  });
-
-  // Attach ID Card Handler
-  container.querySelector('#btn-portal-idcard')?.addEventListener('click', () => {
-    if (student.profileCompletion < 100 || !student.isProfileComplete) {
-      Toast.warning('🔒 Digital ID Card is locked! Please upload your Profile Photo Selfie & Aadhaar KYC first.');
-      container.querySelector('#btn-portal-profile')?.click();
-      return;
-    }
-
-    const expiryDate = expiryDateStr;
-    const seatNumber = seatTitle;
-    const admissionDate = student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
-    const emergencyName = student.emergencyContact?.name || 'Parent / Guardian';
-    const emergencyPhone = student.emergencyContact?.phone || '-';
-    const emergencyRelation = student.emergencyContact?.relation || 'Parent';
-    const address = [student.address, student.city, student.state, student.pincode].filter(Boolean).join(', ') || 'Campus Residential';
-    const bloodGroup = student.bloodGroup || '';
-    const shiftName = student.shift?.name || student.shift?.timing || student.shift || student.plan?.shift || 'Full Day';
-    const phone = student.phone || student.mobile || '';
-    const stampImgUrl = business.stampImage || business.stampImageUrl || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.stampImage || '';
-    const logoImgUrl = business.logo || business.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || JSON.parse(localStorage.getItem('sl_public_profile_cache') || '{}')?.logo || '';
-
-    const qrPayload = encodeURIComponent(student.studentId || student.enrollmentNo || student.phone || student._id || 'STUDENT');
-    const qrCodeURL = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrPayload}&margin=2&bgcolor=ffffff`;
-
-    let currentOrientation = 'horizontal';
-    let currentSide = 'dual';
-    let currentColor = '#4f46e5';
-    let currentTheme = 'gradient';
-    let showQr = true;
-    let showEmergency = true;
-    let showStamp = true;
-    let showBlood = Boolean(bloodGroup);
-
-    const modalContent = document.createElement('div');
-    modalContent.className = 'id-card-studio-wrapper';
-    modalContent.style.cssText = 'font-family: "Outfit", sans-serif; user-select: none;';
-
-    let idModal = null;
-
-    const renderPortalStudioUI = () => {
-      const isHoriz = currentOrientation === 'horizontal';
-
-      const getThemeStyles = (color, theme) => {
-        if (theme === 'dark') {
-          return {
-            cardBg: 'linear-gradient(145deg, #1e2230 0%, #111420 100%)',
-            textColor: '#f8fafc',
-            subText: '#94a3b8',
-            border: `2.5px solid ${color}`,
-            outline: `1.5px dashed #475569`,
-            headerBg: `linear-gradient(135deg, ${color}, #0f172a)`,
-            footerBg: '#0f172a',
-            badgeBg: 'rgba(255,255,255,0.1)',
-            badgeColor: '#fff',
-            cardShadow: '0 10px 28px rgba(0,0,0,0.5)'
-          };
-        }
-        if (theme === 'minimal') {
-          return {
-            cardBg: '#ffffff',
-            textColor: '#0f172a',
-            subText: '#475569',
-            border: `2.5px solid #0f172a`,
-            outline: `1.5px dashed #64748b`,
-            headerBg: color,
-            footerBg: '#f8fafc',
-            badgeBg: `${color}18`,
-            badgeColor: color,
-            cardShadow: '0 8px 24px rgba(0,0,0,0.14)'
-          };
-        }
-        return {
-          cardBg: 'linear-gradient(145deg, #ffffff 60%, #f8faff 100%)',
-          textColor: '#0f172a',
-          subText: '#475569',
-          border: `2.5px solid #0f172a`,
-          outline: `1.5px dashed #64748b`,
-          headerBg: `linear-gradient(135deg, ${color}, ${color}ee)`,
-          footerBg: '#f8fafc',
-          badgeBg: `${color}18`,
-          badgeColor: color,
-          cardShadow: `0 8px 24px rgba(15, 23, 42, 0.16)`
-        };
-      };
-
-      const renderFrontCard = (isV) => {
-        const st = getThemeStyles(currentColor, currentTheme);
-        const cardPhotoSrc = student.photo || student.avatar || user?.photo || user?.avatar || window.store?.user?.photo || window.store?.user?.avatar || (document.querySelector('#sp-avatar-img')?.src) || '';
-        if (isV) {
-          // Vertical Front (CR80 Portrait: 254px x 400px)
-          return `
+    `;try{const i=await P.get(`/api/student-portal/dashboard?studentId=${r}`);if(!i.success||!i.data)throw new Error(i.message);let s=null;try{const u=await P.get(`/api/attendance/analytics/${i.data.student._id}`);u.success&&(s=u.data)}catch{}je(n,i.data,s)}catch(i){S.error(i.message||"Failed to switch student"),Ne().then(s=>n.replaceWith(s))}}),n.querySelector("#btn-self-punch")?.addEventListener("click",async()=>{const a=n.querySelector("#btn-self-punch");he.button(a,!0);try{const r=await P.post("/api/student-portal/punch",{});r.success?(S.success(r.message),setTimeout(()=>Ne().then(i=>n.replaceWith(i)),500)):S.error(r.message)}catch(r){S.error(r.message||"Punch error")}finally{he.button(a,!1)}});const w=n.querySelector("#portal-push-toggle"),b=n.querySelector("#portal-push-badge");function _(){if(!w||!b)return;if(!ke.isSupported()){w.disabled=!0,w.checked=!1,b.textContent="Not Supported",b.className="badge badge-secondary",b.style.background="var(--color-bg-secondary)",b.style.color="var(--color-text-secondary)";return}const a=ke.getPermissionStatus();a==="granted"?(b.textContent="Permission Granted",b.className="badge badge-success",b.style.background="rgba(0, 184, 148, 0.15)",b.style.color="var(--color-success)",w.checked=ke.isEnabled()):a==="denied"?(b.textContent="Blocked in Browser",b.className="badge badge-danger",b.style.background="rgba(235, 77, 75, 0.15)",b.style.color="var(--color-danger)",w.checked=!1):(b.textContent="Permission Required",b.className="badge badge-warning",b.style.background="rgba(253, 203, 110, 0.2)",b.style.color="var(--color-warning)",w.checked=!1)}_(),w?.addEventListener("change",async a=>{if(a.target.checked)try{const r=await ke.requestPermission();r==="granted"?(await ke.subscribe(),S.success("\u{1F514} Native Mobile Push Notifications enabled!")):r==="denied"&&S.error("Push notification permission blocked by browser settings.")}catch(r){S.error(r.message||"Failed to enable push notifications")}else await ke.unsubscribe(),S.info("Push notifications disabled.");_()}),n.querySelector("#btn-portal-download-pdf")?.addEventListener("click",()=>{qe(t,{business:p})}),n.addEventListener("click",a=>{const r=a.target.closest(".btn-copy-text");if(r){a.stopPropagation();const i=r.getAttribute("data-copy");i&&Be(i,r)}}),n.querySelector("#btn-portal-idcard")?.addEventListener("click",()=>{if(t.profileCompletion<100||!t.isProfileComplete){S.warning("\u{1F512} Digital ID Card is locked! Please upload your Profile Photo Selfie & Aadhaar KYC first."),n.querySelector("#btn-portal-profile")?.click();return}const a=be,r=te,i=t.admissionDate?new Date(t.admissionDate).toLocaleDateString("en-IN"):new Date().toLocaleDateString("en-IN"),s=t.emergencyContact?.name||"Parent / Guardian",u=t.emergencyContact?.phone||"-",f=t.emergencyContact?.relation||"Parent",h=[t.address,t.city,t.state,t.pincode].filter(Boolean).join(", ")||"Campus Residential",D=t.bloodGroup||"",$=t.shift?.name||t.shift?.timing||t.shift||t.plan?.shift||"Full Day",m=t.phone||t.mobile||"",d=p.stampImage||p.stampImageUrl||window.store?.profile?.stampImage||window.store?.settings?.businessProfile?.stampImage||JSON.parse(localStorage.getItem("sl_public_profile_cache")||"{}")?.stampImage||"",B=p.logo||p.logoUrl||window.store?.profile?.logo||window.store?.settings?.businessProfile?.logo||JSON.parse(localStorage.getItem("sl_public_profile_cache")||"{}")?.logo||"",j=`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(t.studentId||t.enrollmentNo||t.phone||t._id||"STUDENT")}&margin=2&bgcolor=ffffff`;let G="horizontal",H="dual",q="#4f46e5",x="gradient",F=!0,z=!0,Y=!0,W=!!D;const A=document.createElement("div");A.className="id-card-studio-wrapper",A.style.cssText='font-family: "Outfit", sans-serif; user-select: none;';let k=null;const C=()=>{const U=G==="horizontal",X=(V,l)=>l==="dark"?{cardBg:"linear-gradient(145deg, #1e2230 0%, #111420 100%)",textColor:"#f8fafc",subText:"#94a3b8",border:`2.5px solid ${V}`,outline:"1.5px dashed #475569",headerBg:`linear-gradient(135deg, ${V}, #0f172a)`,footerBg:"#0f172a",badgeBg:"rgba(255,255,255,0.1)",badgeColor:"#fff",cardShadow:"0 10px 28px rgba(0,0,0,0.5)"}:l==="minimal"?{cardBg:"#ffffff",textColor:"#0f172a",subText:"#475569",border:"2.5px solid #0f172a",outline:"1.5px dashed #64748b",headerBg:V,footerBg:"#f8fafc",badgeBg:`${V}18`,badgeColor:V,cardShadow:"0 8px 24px rgba(0,0,0,0.14)"}:{cardBg:"linear-gradient(145deg, #ffffff 60%, #f8faff 100%)",textColor:"#0f172a",subText:"#475569",border:"2.5px solid #0f172a",outline:"1.5px dashed #64748b",headerBg:`linear-gradient(135deg, ${V}, ${V}ee)`,footerBg:"#f8fafc",badgeBg:`${V}18`,badgeColor:V,cardShadow:"0 8px 24px rgba(15, 23, 42, 0.16)"},oe=V=>{const l=X(q,x),ee=t.photo||t.avatar||ge?.photo||ge?.avatar||window.store?.user?.photo||window.store?.user?.avatar||document.querySelector("#sp-avatar-img")?.src||"";return V?`
             <div class="id-card-entity id-card-v id-card-front" style="
-              width: 254px; min-height: 400px; height: 400px; background: ${st.cardBg}; color: ${st.textColor};
-              border-radius: 12px; ${st.border}; outline: ${st.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${st.cardShadow};
+              width: 254px; min-height: 400px; height: 400px; background: ${l.cardBg}; color: ${l.textColor};
+              border-radius: 12px; ${l.border}; outline: ${l.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${l.cardShadow};
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Curved Banner -->
-              <div style="background: ${st.headerBg}; color: #fff; padding: 8px 10px; text-align: center; position: relative;">
+              <div style="background: ${l.headerBg}; color: #fff; padding: 8px 10px; text-align: center; position: relative;">
                 <div style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 2px;">
-                  ${logoImgUrl ? `<img src="${logoImgUrl}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: contain; background: #fff;">` : ''}
-                  <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.businessName || 'Study Library')}</div>
+                  ${B?`<img src="${B}" style="width: 22px; height: 22px; border-radius: 4px; object-fit: contain; background: #fff;">`:""}
+                  <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${o(p.businessName||"Study Library")}</div>
                 </div>
-                <div style="font-size: 0.62rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.tagline || 'Student Membership Pass')}</div>
+                <div style="font-size: 0.62rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${o(p.tagline||"Student Membership Pass")}</div>
               </div>
 
               <!-- Center Avatar & Name -->
               <div style="display: flex; flex-direction: column; align-items: center; padding: 8px 10px 4px 10px; text-align: center;">
-                <div style="width: 68px; height: 68px; border-radius: 12px; background: #eef2ff; border: 2.5px solid ${currentColor}; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: ${currentColor}; margin-bottom: 4px; box-shadow: 0 3px 10px rgba(0,0,0,0.1);">
-                  ${cardPhotoSrc ? `<img src="${cardPhotoSrc}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
+                <div style="width: 68px; height: 68px; border-radius: 12px; background: #eef2ff; border: 2.5px solid ${q}; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: ${q}; margin-bottom: 4px; box-shadow: 0 3px 10px rgba(0,0,0,0.1);">
+                  ${ee?`<img src="${ee}" style="width: 100%; height: 100%; object-fit: cover;">`:ae}
                 </div>
-                <div style="font-weight: 800; font-size: 0.88rem; line-height: 1.2; margin-bottom: 3px; color: ${st.textColor}; max-height: 2.4em; overflow: hidden; word-break: break-word;">${escapeHTML(student.name)}</div>
+                <div style="font-weight: 800; font-size: 0.88rem; line-height: 1.2; margin-bottom: 3px; color: ${l.textColor}; max-height: 2.4em; overflow: hidden; word-break: break-word;">${o(t.name)}</div>
                 <div style="display: flex; gap: 4px; align-items: center; justify-content: center; flex-wrap: wrap;">
-                  <span style="background: ${st.badgeBg}; color: ${st.badgeColor}; padding: 1px 7px; border-radius: 4px; font-weight: 800; font-size: 0.68rem; font-family: monospace; letter-spacing: 0.5px;">${escapeHTML(student.studentId || 'STU-MEMBER')}</span>
-                  ${showBlood && bloodGroup ? `<span style="background: rgba(220,38,38,0.12); color: #dc2626; font-size: 0.65rem; font-weight: 800; padding: 1px 5px; border-radius: 4px;">🩸 ${escapeHTML(bloodGroup)}</span>` : ''}
+                  <span style="background: ${l.badgeBg}; color: ${l.badgeColor}; padding: 1px 7px; border-radius: 4px; font-weight: 800; font-size: 0.68rem; font-family: monospace; letter-spacing: 0.5px;">${o(t.studentId||"STU-MEMBER")}</span>
+                  ${W&&D?`<span style="background: rgba(220,38,38,0.12); color: #dc2626; font-size: 0.65rem; font-weight: 800; padding: 1px 5px; border-radius: 4px;">\u{1FA78} ${o(D)}</span>`:""}
                 </div>
               </div>
 
               <!-- Standardized Details Body -->
               <div style="padding: 6px 12px; font-size: 0.72rem; flex: 1; display: flex; flex-direction: column; gap: 3.5px; line-height: 1.35;">
-                <div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Desk / Seat:</span> <strong style="color: ${currentColor};">${escapeHTML(seatNumber)}</strong></div>
-                <div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Shift Timing:</span> <span style="font-weight: 600;">${escapeHTML(shiftName)}</span></div>
-                <div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Membership:</span> <span>${escapeHTML(planName)}</span></div>
-                <div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Contact Phone:</span> <span>${escapeHTML(phone || '-')}</span></div>
-                <div style="display: flex; justify-content: space-between;"><span style="color: ${st.subText}; font-weight: 600;">Valid Until:</span> <strong style="color: #dc2626; font-weight: 800;">${escapeHTML(expiryDate)}</strong></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: ${l.subText}; font-weight: 600;">Desk / Seat:</span> <strong style="color: ${q};">${o(r)}</strong></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: ${l.subText}; font-weight: 600;">Shift Timing:</span> <span style="font-weight: 600;">${o($)}</span></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: ${l.subText}; font-weight: 600;">Membership:</span> <span>${o(ie)}</span></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: ${l.subText}; font-weight: 600;">Contact Phone:</span> <span>${o(m||"-")}</span></div>
+                <div style="display: flex; justify-content: space-between;"><span style="color: ${l.subText}; font-weight: 600;">Valid Until:</span> <strong style="color: #dc2626; font-weight: 800;">${o(a)}</strong></div>
               </div>
 
               <!-- Bottom QR / Footer -->
-              <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 5px 10px; display: flex; justify-content: space-between; align-items: center;">
-                ${showQr ? `<img src="${qrCodeURL}" style="width: 44px; height: 44px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: #fff;">` : '<div></div>'}
-                <div style="text-align: right; font-size: 0.6rem; color: ${st.subText}; line-height: 1.3;">
-                  <div style="font-weight: 800; color: ${currentColor}; letter-spacing: 0.5px;">STUDENT PASS</div>
-                  <div style="font-weight: 600;">Issued: ${escapeHTML(admissionDate)}</div>
-                  <div>${escapeHTML(business.phone || '')}</div>
+              <div style="background: ${l.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 5px 10px; display: flex; justify-content: space-between; align-items: center;">
+                ${F?`<img src="${j}" style="width: 44px; height: 44px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: #fff;">`:"<div></div>"}
+                <div style="text-align: right; font-size: 0.6rem; color: ${l.subText}; line-height: 1.3;">
+                  <div style="font-weight: 800; color: ${q}; letter-spacing: 0.5px;">STUDENT PASS</div>
+                  <div style="font-weight: 600;">Issued: ${o(i)}</div>
+                  <div>${o(p.phone||"")}</div>
                 </div>
               </div>
             </div>
-          `;
-        } else {
-          // Horizontal Front (CR80 Landscape: 380px x 240px)
-          return `
+          `:`
             <div class="id-card-entity id-card-h id-card-front" style="
-              width: 380px; min-height: 240px; height: 240px; background: ${st.cardBg}; color: ${st.textColor};
-              border-radius: 12px; ${st.border}; outline: ${st.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${st.cardShadow};
+              width: 380px; min-height: 240px; height: 240px; background: ${l.cardBg}; color: ${l.textColor};
+              border-radius: 12px; ${l.border}; outline: ${l.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${l.cardShadow};
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Banner -->
-              <div style="background: ${st.headerBg}; color: #fff; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <div style="background: ${l.headerBg}; color: #fff; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                  ${logoImgUrl ? `<img src="${logoImgUrl}" style="width: 24px; height: 24px; border-radius: 4px; object-fit: contain; background: #fff; flex-shrink: 0;">` : ''}
+                  ${B?`<img src="${B}" style="width: 24px; height: 24px; border-radius: 4px; object-fit: contain; background: #fff; flex-shrink: 0;">`:""}
                   <div style="min-width: 0;">
-                    <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.businessName || 'Study Library')}</div>
-                    <div style="font-size: 0.6rem; opacity: 0.88; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.tagline || 'Student Membership Card')}</div>
+                    <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${o(p.businessName||"Study Library")}</div>
+                    <div style="font-size: 0.6rem; opacity: 0.88; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${o(p.tagline||"Student Membership Card")}</div>
                   </div>
                 </div>
                 <span style="font-size: 0.62rem; font-weight: 800; background: rgba(255,255,255,0.22); padding: 2px 6px; border-radius: 3px; letter-spacing: 0.5px; white-space: nowrap;">STUDENT ID PASS</span>
@@ -1065,77 +589,69 @@ function renderPortalUI(container, data, analytics = null) {
               <!-- Body: Photo + Info Grid -->
               <div style="padding: 10px 12px; display: flex; gap: 12px; align-items: center; flex: 1;">
                 <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0;">
-                  <div style="width: 64px; height: 64px; border-radius: 10px; background: #eef2ff; border: 2px solid ${currentColor}; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; color: ${currentColor}; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    ${cardPhotoSrc ? `<img src="${cardPhotoSrc}" style="width: 100%; height: 100%; object-fit: cover;">` : initials}
+                  <div style="width: 64px; height: 64px; border-radius: 10px; background: #eef2ff; border: 2px solid ${q}; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; color: ${q}; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    ${ee?`<img src="${ee}" style="width: 100%; height: 100%; object-fit: cover;">`:ae}
                   </div>
-                  ${showQr ? `<img src="${qrCodeURL}" style="width: 44px; height: 44px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: #fff;">` : ''}
+                  ${F?`<img src="${j}" style="width: 44px; height: 44px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: #fff;">`:""}
                 </div>
 
                 <div style="flex: 1; min-width: 0;">
                   <!-- Full Student Name (Auto wrapped, never truncated with ...) -->
-                  <div style="font-weight: 800; font-size: 0.92rem; line-height: 1.2; margin-bottom: 2px; color: ${st.textColor}; word-break: break-word; max-height: 2.4em; overflow: hidden;">${escapeHTML(student.name)}</div>
+                  <div style="font-weight: 800; font-size: 0.92rem; line-height: 1.2; margin-bottom: 2px; color: ${l.textColor}; word-break: break-word; max-height: 2.4em; overflow: hidden;">${o(t.name)}</div>
                   
                   <div style="display: flex; gap: 4px; align-items: center; margin-bottom: 4px; flex-wrap: wrap;">
-                    <span style="background: ${st.badgeBg}; color: ${st.badgeColor}; padding: 1px 6px; border-radius: 3px; font-weight: 800; font-size: 0.65rem; font-family: monospace;">${escapeHTML(student.studentId || 'STU-MEMBER')}</span>
-                    ${showBlood && bloodGroup ? `<span style="background: rgba(220,38,38,0.12); color: #dc2626; font-size: 0.62rem; font-weight: 800; padding: 1px 5px; border-radius: 3px;">🩸 ${escapeHTML(bloodGroup)}</span>` : ''}
+                    <span style="background: ${l.badgeBg}; color: ${l.badgeColor}; padding: 1px 6px; border-radius: 3px; font-weight: 800; font-size: 0.65rem; font-family: monospace;">${o(t.studentId||"STU-MEMBER")}</span>
+                    ${W&&D?`<span style="background: rgba(220,38,38,0.12); color: #dc2626; font-size: 0.62rem; font-weight: 800; padding: 1px 5px; border-radius: 3px;">\u{1FA78} ${o(D)}</span>`:""}
                   </div>
 
                   <!-- Standardized Details Grid matching Vertical card exactly -->
                   <div style="font-size: 0.70rem; display: grid; grid-template-columns: auto 1fr; row-gap: 2.5px; column-gap: 8px; line-height: 1.3;">
-                    <span style="color: ${st.subText}; font-weight: 600;">Desk / Seat:</span><strong style="color: ${currentColor};">${escapeHTML(seatNumber)}</strong>
-                    <span style="color: ${st.subText}; font-weight: 600;">Shift Timing:</span><span style="font-weight: 600;">${escapeHTML(shiftName)}</span>
-                    <span style="color: ${st.subText}; font-weight: 600;">Membership:</span><span>${escapeHTML(planName)}</span>
-                    <span style="color: ${st.subText}; font-weight: 600;">Contact Phone:</span><span>${escapeHTML(phone || '-')}</span>
-                    <span style="color: ${st.subText}; font-weight: 600;">Valid Until:</span><strong style="color: #dc2626; font-weight: 800;">${escapeHTML(expiryDate)}</strong>
+                    <span style="color: ${l.subText}; font-weight: 600;">Desk / Seat:</span><strong style="color: ${q};">${o(r)}</strong>
+                    <span style="color: ${l.subText}; font-weight: 600;">Shift Timing:</span><span style="font-weight: 600;">${o($)}</span>
+                    <span style="color: ${l.subText}; font-weight: 600;">Membership:</span><span>${o(ie)}</span>
+                    <span style="color: ${l.subText}; font-weight: 600;">Contact Phone:</span><span>${o(m||"-")}</span>
+                    <span style="color: ${l.subText}; font-weight: 600;">Valid Until:</span><strong style="color: #dc2626; font-weight: 800;">${o(a)}</strong>
                   </div>
                 </div>
               </div>
 
               <!-- Footer -->
-              <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 4px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.62rem; color: ${st.subText};">
-                <span>Issued: ${escapeHTML(admissionDate)}</span>
+              <div style="background: ${l.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 4px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.62rem; color: ${l.subText};">
+                <span>Issued: ${o(i)}</span>
                 <span style="font-weight: 700; letter-spacing: 0.5px;">NON-TRANSFERABLE</span>
-                <span>${escapeHTML(business.phone || '')}</span>
+                <span>${o(p.phone||"")}</span>
               </div>
             </div>
-          `;
-        }
-      };
-
-      const renderBackCard = (isV) => {
-        const st = getThemeStyles(currentColor, currentTheme);
-        if (isV) {
-          // Vertical Back (CR80 Portrait: 254px x 400px)
-          return `
+          `},ce=V=>{const l=X(q,x);return V?`
             <div class="id-card-entity id-card-v id-card-back" style="
-              width: 254px; min-height: 400px; height: 400px; background: ${st.cardBg}; color: ${st.textColor};
-              border-radius: 12px; ${st.border}; outline: ${st.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${st.cardShadow};
+              width: 254px; min-height: 400px; height: 400px; background: ${l.cardBg}; color: ${l.textColor};
+              border-radius: 12px; ${l.border}; outline: ${l.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${l.cardShadow};
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Banner -->
-              <div style="background: ${st.headerBg}; color: #fff; padding: 10px 8px; text-align: center;">
+              <div style="background: ${l.headerBg}; color: #fff; padding: 10px 8px; text-align: center;">
                 <div style="font-weight: 800; font-size: 0.85rem; letter-spacing: 0.4px;">RULES &amp; EMERGENCY CONTACT</div>
-                <div style="font-size: 0.62rem; opacity: 0.88; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(business.businessName || 'Study Library')}</div>
+                <div style="font-size: 0.62rem; opacity: 0.88; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${o(p.businessName||"Study Library")}</div>
               </div>
 
               <!-- Emergency & Address Box -->
               <div style="padding: 8px 12px; font-size: 0.72rem; flex: 1; display: flex; flex-direction: column; gap: 5px;">
-                ${showEmergency ? `
-                  <div style="background: ${st.badgeBg}; padding: 6px 8px; border-radius: 6px; border-left: 3px solid ${currentColor};">
-                    <div style="font-weight: 800; color: ${currentColor}; font-size: 0.68rem; margin-bottom: 2px;">🚨 EMERGENCY CONTACT</div>
-                    <div style="font-weight: 600; font-size: 0.68rem;">${escapeHTML(emergencyName)} (${escapeHTML(emergencyRelation)})</div>
-                    <div style="font-family: monospace; font-weight: 700; font-size: 0.68rem;">📞 ${escapeHTML(emergencyPhone)}</div>
+                ${z?`
+                  <div style="background: ${l.badgeBg}; padding: 6px 8px; border-radius: 6px; border-left: 3px solid ${q};">
+                    <div style="font-weight: 800; color: ${q}; font-size: 0.68rem; margin-bottom: 2px;">\u{1F6A8} EMERGENCY CONTACT</div>
+                    <div style="font-weight: 600; font-size: 0.68rem;">${o(s)} (${o(f)})</div>
+                    <div style="font-family: monospace; font-weight: 700; font-size: 0.68rem;">\u{1F4DE} ${o(u)}</div>
                   </div>
-                ` : ''}
+                `:""}
 
-                <div style="font-size: 0.68rem; color: ${st.subText}; line-height: 1.35;">
-                  <strong style="color: ${st.textColor};">📍 Resident Address:</strong> ${escapeHTML(address)}
+                <div style="font-size: 0.68rem; color: ${l.subText}; line-height: 1.35;">
+                  <strong style="color: ${l.textColor};">\u{1F4CD} Resident Address:</strong> ${o(h)}
                 </div>
 
                 <!-- Rules List -->
                 <div style="border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 5px;">
-                  <div style="font-weight: 700; font-size: 0.68rem; color: ${st.textColor}; margin-bottom: 2px;">📖 Campus Regulations:</div>
-                  <ul style="margin: 0; padding-left: 14px; font-size: 0.63rem; color: ${st.subText}; line-height: 1.35;">
+                  <div style="font-weight: 700; font-size: 0.68rem; color: ${l.textColor}; margin-bottom: 2px;">\u{1F4D6} Campus Regulations:</div>
+                  <ul style="margin: 0; padding-left: 14px; font-size: 0.63rem; color: ${l.subText}; line-height: 1.35;">
                     <li>Card must be presented upon entry.</li>
                     <li>Strict pin-drop silence in reading hall.</li>
                     <li>Access restricted to allotted shift timing.</li>
@@ -1144,62 +660,59 @@ function renderPortalUI(container, data, analytics = null) {
                 </div>
 
                 <!-- Stamp / Signatory -->
-                ${showStamp ? `
+                ${Y?`
                   <div style="margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; padding-top: 4px;">
                     <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
-                      ${stampImgUrl ? `
-                        <img src="${stampImgUrl}" alt="Official Seal" style="max-height: 48px; max-width: 58px; object-fit: contain; margin-bottom: 2px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12));">
-                      ` : `
+                      ${d?`
+                        <img src="${d}" alt="Official Seal" style="max-height: 48px; max-width: 58px; object-fit: contain; margin-bottom: 2px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12));">
+                      `:`
                         <div style="border: 1.5px solid #059669; color: #059669; font-weight: 800; font-size: 0.58rem; padding: 2px 6px; border-radius: 4px; transform: rotate(-4deg); text-align: center;">
                           OFFICIAL SEAL<br>PAID &amp; VERIFIED
                         </div>
                       `}
                     </div>
                     <div style="text-align: center;">
-                      <div style="width: 70px; border-bottom: 1px solid ${st.subText}; margin-bottom: 2px;"></div>
-                      <div style="font-size: 0.58rem; color: ${st.subText}; font-weight: 600;">Auth. Signatory</div>
+                      <div style="width: 70px; border-bottom: 1px solid ${l.subText}; margin-bottom: 2px;"></div>
+                      <div style="font-size: 0.58rem; color: ${l.subText}; font-weight: 600;">Auth. Signatory</div>
                     </div>
                   </div>
-                ` : ''}
+                `:""}
               </div>
 
               <!-- Footer -->
-              <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 5px 10px; text-align: center; font-size: 0.60rem; color: ${st.subText}; line-height: 1.3;">
-                ${escapeHTML(business.phone ? `Helpline: ${business.phone}` : '')}${business.phone && business.address ? ' • ' : ''}${escapeHTML(business.address || '')}
+              <div style="background: ${l.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 5px 10px; text-align: center; font-size: 0.60rem; color: ${l.subText}; line-height: 1.3;">
+                ${o(p.phone?`Helpline: ${p.phone}`:"")}${p.phone&&p.address?" \u2022 ":""}${o(p.address||"")}
               </div>
             </div>
-          `;
-        } else {
-          // Horizontal Back (CR80 Landscape: 380px x 240px)
-          return `
+          `:`
             <div class="id-card-entity id-card-h id-card-back" style="
-              width: 380px; min-height: 240px; height: 240px; background: ${st.cardBg}; color: ${st.textColor};
-              border-radius: 12px; ${st.border}; outline: ${st.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${st.cardShadow};
+              width: 380px; min-height: 240px; height: 240px; background: ${l.cardBg}; color: ${l.textColor};
+              border-radius: 12px; ${l.border}; outline: ${l.outline}; outline-offset: 4px; overflow: hidden; box-shadow: ${l.cardShadow};
               position: relative; display: flex; flex-direction: column; box-sizing: border-box; font-family: var(--font-family, system-ui, sans-serif);
             ">
               <!-- Top Banner -->
-              <div style="background: ${st.headerBg}; color: #fff; padding: 7px 12px; display: flex; justify-content: space-between; align-items: center;">
+              <div style="background: ${l.headerBg}; color: #fff; padding: 7px 12px; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-weight: 800; font-size: 0.82rem; letter-spacing: 0.3px;">RULES &amp; EMERGENCY CONTACT</span>
-                <span style="font-size: 0.65rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">${escapeHTML(business.businessName || 'Study Library')}</span>
+                <span style="font-size: 0.65rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">${o(p.businessName||"Study Library")}</span>
               </div>
 
               <!-- Body: Emergency + Rules Grid -->
               <div style="padding: 8px 12px; font-size: 0.70rem; display: flex; gap: 10px; flex: 1;">
                 <div style="flex: 1.3; display: flex; flex-direction: column; gap: 4px;">
-                  ${showEmergency ? `
-                    <div style="background: ${st.badgeBg}; padding: 4px 6px; border-radius: 4px; border-left: 3px solid ${currentColor}; font-size: 0.65rem;">
-                      <div style="font-weight: 800; color: ${currentColor};">🚨 EMERGENCY CONTACT</div>
-                      <div style="font-weight: 600;">${escapeHTML(emergencyName)} (${escapeHTML(emergencyRelation)}) • 📞 ${escapeHTML(emergencyPhone)}</div>
+                  ${z?`
+                    <div style="background: ${l.badgeBg}; padding: 4px 6px; border-radius: 4px; border-left: 3px solid ${q}; font-size: 0.65rem;">
+                      <div style="font-weight: 800; color: ${q};">\u{1F6A8} EMERGENCY CONTACT</div>
+                      <div style="font-weight: 600;">${o(s)} (${o(f)}) \u2022 \u{1F4DE} ${o(u)}</div>
                     </div>
-                  ` : ''}
+                  `:""}
                   
-                  <div style="font-size: 0.64rem; color: ${st.subText}; line-height: 1.3;">
-                    <strong style="color: ${st.textColor};">📍 Resident Address:</strong> ${escapeHTML(address)}
+                  <div style="font-size: 0.64rem; color: ${l.subText}; line-height: 1.3;">
+                    <strong style="color: ${l.textColor};">\u{1F4CD} Resident Address:</strong> ${o(h)}
                   </div>
                   
                   <div style="border-top: 1px dashed rgba(0,0,0,0.08); padding-top: 3px;">
-                    <div style="font-weight: 700; font-size: 0.64rem; color: ${st.textColor}; margin-bottom: 2px;">📖 Campus Regulations:</div>
-                    <ul style="margin: 0; padding-left: 12px; font-size: 0.60rem; color: ${st.subText}; line-height: 1.3;">
+                    <div style="font-weight: 700; font-size: 0.64rem; color: ${l.textColor}; margin-bottom: 2px;">\u{1F4D6} Campus Regulations:</div>
+                    <ul style="margin: 0; padding-left: 12px; font-size: 0.60rem; color: ${l.subText}; line-height: 1.3;">
                       <li>Card must be presented upon entry.</li>
                       <li>Strict pin-drop silence in reading hall.</li>
                       <li>Access restricted to allotted shift timing.</li>
@@ -1209,52 +722,38 @@ function renderPortalUI(container, data, analytics = null) {
                 </div>
 
                 <div style="flex: 0.7; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; border-left: 1px dashed rgba(0,0,0,0.1); padding-left: 8px;">
-                  ${showStamp ? `
+                  ${Y?`
                     <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
-                      ${stampImgUrl ? `
-                        <img src="${stampImgUrl}" alt="Official Seal" style="max-height: 52px; max-width: 65px; object-fit: contain; margin-top: 2px; margin-bottom: 2px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12));">
-                      ` : `
+                      ${d?`
+                        <img src="${d}" alt="Official Seal" style="max-height: 52px; max-width: 65px; object-fit: contain; margin-top: 2px; margin-bottom: 2px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12));">
+                      `:`
                         <div style="border: 1.5px solid #059669; color: #059669; font-weight: 800; font-size: 0.58rem; padding: 3px 6px; border-radius: 4px; transform: rotate(-4deg); margin-top: 6px;">
                           OFFICIAL SEAL<br>PAID &amp; VERIFIED
                         </div>
                       `}
                     </div>
                     <div style="margin-top: auto; padding-bottom: 2px;">
-                      <div style="width: 65px; border-bottom: 1px solid ${st.subText}; margin-bottom: 2px; margin-left: auto; margin-right: auto;"></div>
-                      <div style="font-size: 0.55rem; color: ${st.subText}; font-weight: 600;">Auth. Signatory</div>
+                      <div style="width: 65px; border-bottom: 1px solid ${l.subText}; margin-bottom: 2px; margin-left: auto; margin-right: auto;"></div>
+                      <div style="font-size: 0.55rem; color: ${l.subText}; font-weight: 600;">Auth. Signatory</div>
                     </div>
-                  ` : ''}
+                  `:""}
                 </div>
               </div>
 
               <!-- Footer -->
-              <div style="background: ${st.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 4px 12px; text-align: center; font-size: 0.60rem; color: ${st.subText};">
-                ${escapeHTML(business.phone ? `Helpline: ${business.phone}` : '')}${business.phone && business.address ? ' • ' : ''}${escapeHTML(business.address || '')}
+              <div style="background: ${l.footerBg}; border-top: 1px dashed rgba(0,0,0,0.08); padding: 4px 12px; text-align: center; font-size: 0.60rem; color: ${l.subText};">
+                ${o(p.phone?`Helpline: ${p.phone}`:"")}${p.phone&&p.address?" \u2022 ":""}${o(p.address||"")}
               </div>
             </div>
-          `;
-        }
-      };
-
-      let previewHtml = '';
-      const isVertical = currentOrientation === 'vertical';
-      const cardHeight = isVertical ? '400px' : '240px';
-
-      if (currentSide === 'front') {
-        previewHtml = `
+          `};let xe="";const le=G==="vertical",pe=le?"400px":"240px";H==="front"?xe=`
           <div style="display: flex; justify-content: center; align-items: center; padding: 6px 0;">
-            ${renderFrontCard(isVertical)}
+            ${oe(le)}
           </div>
-        `;
-      } else if (currentSide === 'back') {
-        previewHtml = `
+        `:H==="back"?xe=`
           <div style="display: flex; justify-content: center; align-items: center; padding: 6px 0;">
-            ${renderBackCard(isVertical)}
+            ${ce(le)}
           </div>
-        `;
-      } else {
-        // Dual side side-by-side
-        previewHtml = `
+        `:xe=`
           <div id="dual-print-container" style="
             display: flex;
             align-items: center;
@@ -1267,8 +766,8 @@ function renderPortalUI(container, data, analytics = null) {
           ">
             <!-- Front Column -->
             <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;">
-              <div style="font-size: 0.75rem; font-weight: 800; text-align: center; margin-bottom: 6px; color: var(--color-primary); letter-spacing: 0.5px;">🪪 FRONT SIDE</div>
-              ${renderFrontCard(isVertical)}
+              <div style="font-size: 0.75rem; font-weight: 800; text-align: center; margin-bottom: 6px; color: var(--color-primary); letter-spacing: 0.5px;">\u{1FAAA} FRONT SIDE</div>
+              ${oe(le)}
             </div>
 
             <!-- Perfectly Centered Vertical Fold / Cut Line -->
@@ -1278,7 +777,7 @@ function renderPortalUI(container, data, analytics = null) {
               align-items: center;
               justify-content: center;
               position: relative;
-              height: ${cardHeight};
+              height: ${pe};
               width: 36px;
               flex-shrink: 0;
             ">
@@ -1294,36 +793,33 @@ function renderPortalUI(container, data, analytics = null) {
                 color: var(--color-text-secondary, #94a3b8);
                 box-shadow: 0 2px 8px rgba(0,0,0,0.25);
                 z-index: 2;
-              " title="Fold / Cut Line">✂️</span>
+              " title="Fold / Cut Line">\u2702\uFE0F</span>
             </div>
 
             <!-- Back Column -->
             <div style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;">
-              <div style="font-size: 0.75rem; font-weight: 800; text-align: center; margin-bottom: 6px; color: var(--color-primary); letter-spacing: 0.5px;">📄 BACK SIDE</div>
-              ${renderBackCard(isVertical)}
+              <div style="font-size: 0.75rem; font-weight: 800; text-align: center; margin-bottom: 6px; color: var(--color-primary); letter-spacing: 0.5px;">\u{1F4C4} BACK SIDE</div>
+              ${ce(le)}
             </div>
           </div>
-        `;
-      }
-
-      modalContent.innerHTML = `
+        `,A.innerHTML=`
         <div style="display: flex; flex-direction: column; gap: 14px;">
           <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
               <div style="display: flex; align-items: center; gap: 6px;">
-                <label style="font-size: 0.8rem; font-weight: 700; margin: 0;">📐 Orientation:</label>
+                <label style="font-size: 0.8rem; font-weight: 700; margin: 0;">\u{1F4D0} Orientation:</label>
                 <div class="btn-group btn-group-sm">
-                  <button type="button" class="btn ${currentOrientation === 'horizontal' ? 'btn-primary' : 'btn-outline-secondary'} btn-opt-horiz" style="font-size: 0.76rem; font-weight: 700;">🔄 Horizontal</button>
-                  <button type="button" class="btn ${currentOrientation === 'vertical' ? 'btn-primary' : 'btn-outline-secondary'} btn-opt-vert" style="font-size: 0.76rem; font-weight: 700;">📱 Vertical</button>
+                  <button type="button" class="btn ${G==="horizontal"?"btn-primary":"btn-outline-secondary"} btn-opt-horiz" style="font-size: 0.76rem; font-weight: 700;">\u{1F504} Horizontal</button>
+                  <button type="button" class="btn ${G==="vertical"?"btn-primary":"btn-outline-secondary"} btn-opt-vert" style="font-size: 0.76rem; font-weight: 700;">\u{1F4F1} Vertical</button>
                 </div>
               </div>
 
               <div style="display: flex; align-items: center; gap: 6px;">
-                <label style="font-size: 0.8rem; font-weight: 700; margin: 0;">📑 Card Side:</label>
+                <label style="font-size: 0.8rem; font-weight: 700; margin: 0;">\u{1F4D1} Card Side:</label>
                 <div class="btn-group btn-group-sm">
-                  <button type="button" class="btn ${currentSide === 'front' ? 'btn-primary' : 'btn-outline-secondary'} btn-side-front" style="font-size: 0.76rem; font-weight: 700;">🪪 Front</button>
-                  <button type="button" class="btn ${currentSide === 'back' ? 'btn-primary' : 'btn-outline-secondary'} btn-side-back" style="font-size: 0.76rem; font-weight: 700;">📄 Back</button>
-                  <button type="button" class="btn ${currentSide === 'dual' ? 'btn-primary' : 'btn-outline-secondary'} btn-side-dual" style="font-size: 0.76rem; font-weight: 700;">📑 Both Sides</button>
+                  <button type="button" class="btn ${H==="front"?"btn-primary":"btn-outline-secondary"} btn-side-front" style="font-size: 0.76rem; font-weight: 700;">\u{1FAAA} Front</button>
+                  <button type="button" class="btn ${H==="back"?"btn-primary":"btn-outline-secondary"} btn-side-back" style="font-size: 0.76rem; font-weight: 700;">\u{1F4C4} Back</button>
+                  <button type="button" class="btn ${H==="dual"?"btn-primary":"btn-outline-secondary"} btn-side-dual" style="font-size: 0.76rem; font-weight: 700;">\u{1F4D1} Both Sides</button>
                 </div>
               </div>
             </div>
@@ -1333,11 +829,11 @@ function renderPortalUI(container, data, analytics = null) {
                 <div>
                   <label style="font-size: 0.75rem; font-weight: 700; display: block; margin-bottom: 2px;">Color Theme</label>
                   <div style="display: flex; align-items: center; gap: 6px;">
-                    <input type="color" id="id-studio-color" value="${currentColor}" style="width: 32px; height: 28px; border: none; padding: 0; cursor: pointer; border-radius: 4px;">
+                    <input type="color" id="id-studio-color" value="${q}" style="width: 32px; height: 28px; border: none; padding: 0; cursor: pointer; border-radius: 4px;">
                     <select id="id-studio-theme-select" class="form-select form-select-sm" style="font-size: 0.78rem; min-width: 120px;">
-                      <option value="gradient" ${currentTheme === 'gradient' ? 'selected' : ''}>🟣 Purple Indigo</option>
-                      <option value="dark" ${currentTheme === 'dark' ? 'selected' : ''}>⚫ Dark Slate Pro</option>
-                      <option value="minimal" ${currentTheme === 'minimal' ? 'selected' : ''}>⚪ Minimal Classic</option>
+                      <option value="gradient" ${x==="gradient"?"selected":""}>\u{1F7E3} Purple Indigo</option>
+                      <option value="dark" ${x==="dark"?"selected":""}>\u26AB Dark Slate Pro</option>
+                      <option value="minimal" ${x==="minimal"?"selected":""}>\u26AA Minimal Classic</option>
                     </select>
                   </div>
                 </div>
@@ -1346,25 +842,25 @@ function renderPortalUI(container, data, analytics = null) {
           </div>
 
           <div id="id-card-render-stage" style="padding: 14px 10px; display: flex; justify-content: center; align-items: center; background: radial-gradient(circle, rgba(108,92,231,0.06) 0%, transparent 70%); border-radius: var(--radius-md); overflow-x: auto; width: 100%; box-sizing: border-box;">
-            ${previewHtml}
+            ${xe}
           </div>
 
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-top: 1px solid var(--color-border); padding-top: 12px;">
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <button type="button" class="btn btn-primary btn-sm" id="btn-download-front-png" style="font-weight: 700;">
-                📥 Download Front
+                \u{1F4E5} Download Front
               </button>
               <button type="button" class="btn btn-outline-primary btn-sm" id="btn-download-back-png" style="font-weight: 700;">
-                📥 Download Back
+                \u{1F4E5} Download Back
               </button>
               <button type="button" class="btn btn-outline-info btn-sm" id="btn-download-1080p-pass" style="font-weight: 700;">
-                📱 1080p Wallpaper Pass
+                \u{1F4F1} 1080p Wallpaper Pass
               </button>
             </div>
 
             <div style="display: flex; gap: 8px; align-items: center;">
               <button type="button" class="btn btn-success btn-sm" id="btn-print-portal-id-card" style="font-weight: 800; padding: 6px 18px;">
-                🖨️ Print ID Card (Front + Back)
+                \u{1F5A8}\uFE0F Print ID Card (Front + Back)
               </button>
               <button type="button" class="btn btn-secondary btn-sm" id="btn-close-portal-id-studio">Close</button>
             </div>
@@ -1414,416 +910,115 @@ function renderPortalUI(container, data, analytics = null) {
             }
           }
         </style>
-      `;
-
-      modalContent.querySelector('.btn-opt-horiz')?.addEventListener('click', () => {
-        currentOrientation = 'horizontal';
-        renderPortalStudioUI();
-      });
-      modalContent.querySelector('.btn-opt-vert')?.addEventListener('click', () => {
-        currentOrientation = 'vertical';
-        renderPortalStudioUI();
-      });
-      modalContent.querySelector('.btn-side-front')?.addEventListener('click', () => {
-        currentSide = 'front';
-        renderPortalStudioUI();
-      });
-      modalContent.querySelector('.btn-side-back')?.addEventListener('click', () => {
-        currentSide = 'back';
-        renderPortalStudioUI();
-      });
-      modalContent.querySelector('.btn-side-dual')?.addEventListener('click', () => {
-        currentSide = 'dual';
-        renderPortalStudioUI();
-      });
-
-      modalContent.querySelector('#id-studio-color')?.addEventListener('input', (e) => {
-        currentColor = e.target.value;
-        renderPortalStudioUI();
-      });
-      modalContent.querySelector('#id-studio-theme-select')?.addEventListener('change', (e) => {
-        currentTheme = e.target.value;
-        renderPortalStudioUI();
-      });
-
-      modalContent.querySelector('#btn-close-portal-id-studio')?.addEventListener('click', () => {
-        if (idModal) idModal.close();
-      });
-
-      modalContent.querySelector('#btn-print-portal-id-card')?.addEventListener('click', () => {
-        if (currentSide !== 'dual') {
-          currentSide = 'dual';
-          renderPortalStudioUI();
-        }
-        setTimeout(() => {
-          window.print();
-        }, 300);
-      });
-
-      const downloadElementAsPng = async (targetSelector, filename) => {
-        try {
-          if (!window.html2canvas) {
-            await new Promise((res, rej) => {
-              const s = document.createElement('script');
-              s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-              s.onload = res; s.onerror = rej;
-              document.head.appendChild(s);
-            });
-          }
-          const el = modalContent.querySelector(targetSelector);
-          if (!el) {
-            Toast.warning('Please switch to the selected side first.');
-            return;
-          }
-          const canvas = await window.html2canvas(el, { scale: 3, useCORS: true, backgroundColor: null });
-          const link = document.createElement('a');
-          link.download = filename;
-          link.href = canvas.toDataURL('image/png');
-          link.click();
-          Toast.success('ID Card downloaded successfully!');
-        } catch (err) {
-          Toast.error('PNG download error: ' + err.message);
-        }
-      };
-
-      modalContent.querySelector('#btn-download-front-png')?.addEventListener('click', () => {
-        downloadElementAsPng('.id-card-front', `ID_Front_${(student.studentId||student.name).replace(/\s+/g,'_')}.png`);
-      });
-      modalContent.querySelector('#btn-download-back-png')?.addEventListener('click', () => {
-        downloadElementAsPng('.id-card-back', `ID_Back_${(student.studentId||student.name).replace(/\s+/g,'_')}.png`);
-      });
-      modalContent.querySelector('#btn-download-1080p-pass')?.addEventListener('click', () => {
-        download1080pMobileIDPass(student, business, initials, seatTitle, planName, expiryDateStr, { shiftName, phone, bloodGroup, showBlood });
-      });
-    };
-
-    renderPortalStudioUI();
-
-    idModal = new Modal({ title: `🪪 Student ID Pass Studio: ${escapeHTML(student.name)}`, content: modalContent, size: 'xl' });
-    idModal.show();
-  });
-
-
-
-  container.querySelector('#btn-portal-complete-kyc')?.addEventListener('click', () => {
-    container.querySelector('#btn-portal-profile')?.click();
-  });
-
-  // Attach Student Portal Sign Out Handler
-  container.querySelector('#btn-portal-logout')?.addEventListener('click', async () => {
-    const ok = await Confirm.show('Are you sure you want to sign out of the Student Portal?', 'Sign Out');
-    if (ok) {
-      localStorage.removeItem('sl_token');
-      localStorage.removeItem('student_token');
-      localStorage.removeItem('sl_student_user');
-      localStorage.removeItem('sl_user_role');
-      if (window.store) window.store.user = null;
-      window.location.href = '/student-login';
-    }
-  });
-
-  // Attach Student Profile View Modal
-  container.querySelector('#btn-portal-profile')?.addEventListener('click', async () => {
-    const modalContent = document.createElement('div');
-    modalContent.innerHTML = `
+      `,A.querySelector(".btn-opt-horiz")?.addEventListener("click",()=>{G="horizontal",C()}),A.querySelector(".btn-opt-vert")?.addEventListener("click",()=>{G="vertical",C()}),A.querySelector(".btn-side-front")?.addEventListener("click",()=>{H="front",C()}),A.querySelector(".btn-side-back")?.addEventListener("click",()=>{H="back",C()}),A.querySelector(".btn-side-dual")?.addEventListener("click",()=>{H="dual",C()}),A.querySelector("#id-studio-color")?.addEventListener("input",V=>{q=V.target.value,C()}),A.querySelector("#id-studio-theme-select")?.addEventListener("change",V=>{x=V.target.value,C()}),A.querySelector("#btn-close-portal-id-studio")?.addEventListener("click",()=>{k&&k.close()}),A.querySelector("#btn-print-portal-id-card")?.addEventListener("click",()=>{H!=="dual"&&(H="dual",C()),setTimeout(()=>{window.print()},300)});const se=async(V,l)=>{try{window.html2canvas||await new Promise((Pe,Le)=>{const me=document.createElement("script");me.src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js",me.onload=Pe,me.onerror=Le,document.head.appendChild(me)});const ee=A.querySelector(V);if(!ee){S.warning("Please switch to the selected side first.");return}const Ae=await window.html2canvas(ee,{scale:3,useCORS:!0,backgroundColor:null}),ue=document.createElement("a");ue.download=l,ue.href=Ae.toDataURL("image/png"),ue.click(),S.success("ID Card downloaded successfully!")}catch(ee){S.error("PNG download error: "+ee.message)}};A.querySelector("#btn-download-front-png")?.addEventListener("click",()=>{se(".id-card-front",`ID_Front_${(t.studentId||t.name).replace(/\s+/g,"_")}.png`)}),A.querySelector("#btn-download-back-png")?.addEventListener("click",()=>{se(".id-card-back",`ID_Back_${(t.studentId||t.name).replace(/\s+/g,"_")}.png`)}),A.querySelector("#btn-download-1080p-pass")?.addEventListener("click",()=>{Ve(t,p,ae,te,ie,be,{shiftName:$,phone:m,bloodGroup:D,showBlood:W})})};C(),k=new re({title:`\u{1FAAA} Student ID Pass Studio: ${o(t.name)}`,content:A,size:"xl"}),k.show()}),n.querySelector("#btn-portal-complete-kyc")?.addEventListener("click",()=>{n.querySelector("#btn-portal-profile")?.click()}),n.querySelector("#btn-portal-logout")?.addEventListener("click",async()=>{await Ze.show("Are you sure you want to sign out of the Student Portal?","Sign Out")&&(localStorage.removeItem("sl_token"),localStorage.removeItem("student_token"),localStorage.removeItem("sl_student_user"),localStorage.removeItem("sl_user_role"),window.store&&(window.store.user=null),window.location.href="/student-login")}),n.querySelector("#btn-portal-profile")?.addEventListener("click",async()=>{const a=document.createElement("div");a.innerHTML=`
       <div class="text-center p-4 text-muted">
         <div class="loading-spinner mb-2" style="margin: 0 auto;"></div>
         Loading complete admission profile...
       </div>
-    `;
-
-    const profileModal = new Modal({
-      title: '👤 My Admission Profile & Submitted Details',
-      content: modalContent,
-      size: 'lg'
-    });
-    profileModal.show();
-
-    try {
-      const [fieldsRes, tplRes, cfgRes] = await Promise.all([
-        api.get('/api/custom-fields/all').catch(() => api.get('/api/custom-fields')).catch(() => ({ data: [] })),
-        api.get('/api/custom-fields/templates/active').catch(() => ({ data: null })),
-        api.get('/api/system/public-config').catch(() => ({ data: null }))
-      ]);
-
-      const customFieldsList = Array.isArray(fieldsRes.data) ? fieldsRes.data : [];
-      const cfMap = (student.customFields && typeof student.customFields === 'object') ? student.customFields : {};
-
-      // Smart value resolver across direct schema fields and custom fields map
-      const getVal = (...keys) => {
-        for (const k of keys) {
-          if (student[k] !== undefined && student[k] !== null && student[k] !== '') return student[k];
-          if (cfMap[k] !== undefined && cfMap[k] !== null && cfMap[k] !== '') return cfMap[k];
-          const lowerK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-          for (const [ck, cv] of Object.entries(cfMap)) {
-            if (ck.toLowerCase().replace(/[^a-z0-9]/g, '') === lowerK && cv !== undefined && cv !== null && cv !== '') {
-              return cv;
-            }
-          }
-        }
-        return '';
-      };
-
-      const dobVal = getVal('dob', 'dateOfBirth', 'birthDate');
-      const formattedDob = dobVal ? (new Date(dobVal).toString() !== 'Invalid Date' ? new Date(dobVal).toLocaleDateString('en-IN') : dobVal) : 'N/A';
-      const bloodVal = getVal('bloodGroup', 'blood_group');
-      const addressVal = getVal('address', 'residentialAddress') || [student.address, student.city, student.state, student.pincode].filter(Boolean).join(', ') || 'N/A';
-      const pincodeVal = getVal('pincode', 'pinCode', 'postalCode') || 'N/A';
-      const cityVal = getVal('city', 'town') || '';
-      const stateVal = getVal('state', 'province') || '';
-      const emNameVal = getVal('emergencyContactName', 'emergencyName') || student.emergencyContact?.name || 'N/A';
-      const emPhoneVal = getVal('emergencyContactPhone', 'emergencyPhone') || student.emergencyContact?.phone || 'N/A';
-      const emRelVal = getVal('emergencyContactRelation', 'emergencyRelation') || student.emergencyContact?.relation || 'Parent / Guardian';
-
-      // KYC
-      const idTypeVal = getVal('idProofType', 'idType') || student.idProof?.type || 'Aadhaar Card';
-      const idNumVal = getVal('idProofNumber', 'idNumber') || student.idProof?.number || '';
-      const idImgVal = getVal('idProofImage', 'idProof', 'idProofPhoto') || student.idProof?.image || '';
-
-      // Academic
-      const rawExams = getVal('targetExams', 'targetExam') || student.targetExams || [];
-      const examsList = Array.isArray(rawExams) ? rawExams : (String(rawExams).split(',').map(s => s.trim()).filter(Boolean));
-      const collegeVal = getVal('college', 'collegeName', 'institute', 'university') || '';
-      const qualVal = getVal('qualification', 'highestQualification', 'degree') || '';
-      const remarksVal = getVal('remarks', 'notes', 'specialRemarks') || '';
-
-      // Truly extra custom fields
-      const standardKeys = new Set([
-        'name', 'fullname', 'phone', 'mobile', 'whatsapp', 'email', 'gender', 'sex',
-        'dob', 'dateofbirth', 'birthdate', 'bloodgroup', 'blood_group',
-        'address', 'residentialaddress', 'pincode', 'postalcode', 'city', 'state',
-        'emergencyname', 'emergencycontactname', 'emergencyphone', 'emergencycontactphone', 'emergencyrelation', 'emergencycontactrelation',
-        'idtype', 'idprooftype', 'idnumber', 'idproofnumber', 'idproof', 'idproofimage', 'idproofphoto',
-        'targetexam', 'targetexams', 'college', 'collegename', 'institute', 'university', 'qualification', 'highestqualification',
-        'branch', 'plan', 'shift', 'seat', 'password', 'photo', 'signature', 'status', 'remarks', 'specialremarks', 'notes'
-      ]);
-
-      function formatHumanLabel(rawKey) {
-        if (!rawKey) return '';
-        let str = String(rawKey).trim();
-        if (str.includes('___')) str = str.replace(/___/g, ' / ');
-        str = str.replace(/_/g, ' ');
-        str = str.replace(/([a-z])([A-Z])/g, '$1 $2');
-        return str
-          .split(' ')
-          .filter(Boolean)
-          .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-          .join(' ')
-          .replace(/\s*\/\s*/g, ' / ');
-      }
-
-      const templateSections = (tplRes?.data?.sections && Array.isArray(tplRes.data.sections)) ? tplRes.data.sections : [];
-
-      const extraCustomFields = [];
-      Object.entries(cfMap).forEach(([k, v]) => {
-        const normKey = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (!standardKeys.has(normKey) && v !== undefined && v !== null && v !== '') {
-          const def = customFieldsList.find(f => {
-            const fn = f.fieldName?.toLowerCase().replace(/[^a-z0-9]/g, '');
-            const fl = f.label?.toLowerCase().replace(/[^a-z0-9]/g, '');
-            return fn === normKey || fl === normKey;
-          });
-          extraCustomFields.push({
-            key: k,
-            label: def?.label || def?.fieldLabel || formatHumanLabel(k),
-            value: v,
-            section: def?.section || 'additional',
-            order: def?.order !== undefined ? def.order : 999,
-            type: def?.type || 'text'
-          });
-        }
-      });
-
-      function formatVal(f, val) {
-        if (val === undefined || val === null || val === '') return '<span class="text-muted small">Not provided</span>';
-        if (f.type === 'star_rating') {
-          const num = parseInt(val, 10) || 5;
-          return `<span style="color: #f59e0b; font-size: 1.1rem;">${'★'.repeat(num)}${'☆'.repeat(Math.max(0, 5 - num))}</span> <strong class="ms-1">(${num}/5)</strong>`;
-        }
-        if (f.type === 'checkbox' || f.type === 'terms_checkbox' || f.type === 'consent_checkbox') {
-          const isTrue = val === true || val === 'true' || val === 'on' || val === 1;
-          return isTrue ? `<span class="badge badge-success">✅ Yes / Agreed</span>` : `<span class="badge badge-secondary">❌ No</span>`;
-        }
-        if (f.type === 'photo_upload' || f.type === 'file' || f.fieldName?.toLowerCase().includes('image')) {
-          const imgUrl = String(val).startsWith('data:image') || String(val).startsWith('/') ? String(val) : `/${val}`;
-          return `
-            <a href="${imgUrl}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--color-primary); font-weight: 600; font-size: 0.85rem;">
-              <img src="${imgUrl}" style="width: 44px; height: 44px; border-radius: 6px; object-fit: cover; border: 1px solid var(--color-border);" onerror="this.style.display='none'">
-              <span>🔍 View Document</span>
+    `;const r=new re({title:"\u{1F464} My Admission Profile & Submitted Details",content:a,size:"lg"});r.show();try{let i=function(y){if(!y)return"";let c=String(y).trim();return c.includes("___")&&(c=c.replace(/___/g," / ")),c=c.replace(/_/g," "),c=c.replace(/([a-z])([A-Z])/g,"$1 $2"),c.split(" ").filter(Boolean).map(v=>v.charAt(0).toUpperCase()+v.slice(1).toLowerCase()).join(" ").replace(/\s*\/\s*/g," / ")},s=function(y,c){if(c==null||c==="")return'<span class="text-muted small">Not provided</span>';if(y.type==="star_rating"){const v=parseInt(c,10)||5;return`<span style="color: #f59e0b; font-size: 1.1rem;">${"\u2605".repeat(v)}${"\u2606".repeat(Math.max(0,5-v))}</span> <strong class="ms-1">(${v}/5)</strong>`}if(y.type==="checkbox"||y.type==="terms_checkbox"||y.type==="consent_checkbox")return c===!0||c==="true"||c==="on"||c===1?'<span class="badge badge-success">\u2705 Yes / Agreed</span>':'<span class="badge badge-secondary">\u274C No</span>';if(y.type==="photo_upload"||y.type==="file"||y.fieldName?.toLowerCase().includes("image")){const v=String(c).startsWith("data:image")||String(c).startsWith("/")?String(c):`/${c}`;return`
+            <a href="${v}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--color-primary); font-weight: 600; font-size: 0.85rem;">
+              <img src="${v}" style="width: 44px; height: 44px; border-radius: 6px; object-fit: cover; border: 1px solid var(--color-border);" onerror="this.style.display='none'">
+              <span>\u{1F50D} View Document</span>
             </a>
-          `;
-        }
-        if (f.type === 'blood_group') {
-          return `<span class="badge" style="background: rgba(239, 68, 68, 0.12); color: var(--color-danger); font-weight: 700;">🩸 ${escapeHTML(val)}</span>`;
-        }
-        if (f.type === 'exam_badge') {
-          const arr = Array.isArray(val) ? val : String(val).split(',').filter(Boolean);
-          return arr.map(e => `<span class="badge badge-primary me-1">${escapeHTML(e)}</span>`).join(' ');
-        }
-        return `<strong>${escapeHTML(val)}</strong>`;
-      }
-
-      // Build Clean, Beautiful Section Cards
-      let sectionsHtml = '';
-
-      // 1. Personal & Contact Details Card
-      sectionsHtml += `
+          `}return y.type==="blood_group"?`<span class="badge" style="background: rgba(239, 68, 68, 0.12); color: var(--color-danger); font-weight: 700;">\u{1FA78} ${o(c)}</span>`:y.type==="exam_badge"?(Array.isArray(c)?c:String(c).split(",").filter(Boolean)).map(v=>`<span class="badge badge-primary me-1">${o(v)}</span>`).join(" "):`<strong>${o(c)}</strong>`};const[u,f,h]=await Promise.all([P.get("/api/custom-fields/all").catch(()=>P.get("/api/custom-fields")).catch(()=>({data:[]})),P.get("/api/custom-fields/templates/active").catch(()=>({data:null})),P.get("/api/system/public-config").catch(()=>({data:null}))]),D=Array.isArray(u.data)?u.data:[],$=t.customFields&&typeof t.customFields=="object"?t.customFields:{},m=(...y)=>{for(const c of y){if(t[c]!==void 0&&t[c]!==null&&t[c]!=="")return t[c];if($[c]!==void 0&&$[c]!==null&&$[c]!=="")return $[c];const v=c.toLowerCase().replace(/[^a-z0-9]/g,"");for(const[N,K]of Object.entries($))if(N.toLowerCase().replace(/[^a-z0-9]/g,"")===v&&K!==void 0&&K!==null&&K!=="")return K}return""},d=m("dob","dateOfBirth","birthDate"),B=d?new Date(d).toString()!=="Invalid Date"?new Date(d).toLocaleDateString("en-IN"):d:"N/A",j=m("bloodGroup","blood_group"),G=m("address","residentialAddress")||[t.address,t.city,t.state,t.pincode].filter(Boolean).join(", ")||"N/A",H=m("pincode","pinCode","postalCode")||"N/A",q=m("city","town")||"",x=m("state","province")||"",F=m("emergencyContactName","emergencyName")||t.emergencyContact?.name||"N/A",z=m("emergencyContactPhone","emergencyPhone")||t.emergencyContact?.phone||"N/A",Y=m("emergencyContactRelation","emergencyRelation")||t.emergencyContact?.relation||"Parent / Guardian",W=m("idProofType","idType")||t.idProof?.type||"Aadhaar Card",A=m("idProofNumber","idNumber")||t.idProof?.number||"",k=m("idProofImage","idProof","idProofPhoto")||t.idProof?.image||"",C=m("targetExams","targetExam")||t.targetExams||[],U=Array.isArray(C)?C:String(C).split(",").map(y=>y.trim()).filter(Boolean),X=m("college","collegeName","institute","university")||"",oe=m("qualification","highestQualification","degree")||"",ce=m("remarks","notes","specialRemarks")||"",xe=new Set(["name","fullname","phone","mobile","whatsapp","email","gender","sex","dob","dateofbirth","birthdate","bloodgroup","blood_group","address","residentialaddress","pincode","postalcode","city","state","emergencyname","emergencycontactname","emergencyphone","emergencycontactphone","emergencyrelation","emergencycontactrelation","idtype","idprooftype","idnumber","idproofnumber","idproof","idproofimage","idproofphoto","targetexam","targetexams","college","collegename","institute","university","qualification","highestqualification","branch","plan","shift","seat","password","photo","signature","status","remarks","specialremarks","notes"]),le=f?.data?.sections&&Array.isArray(f.data.sections)?f.data.sections:[],pe=[];Object.entries($).forEach(([y,c])=>{const v=y.toLowerCase().replace(/[^a-z0-9]/g,"");if(!xe.has(v)&&c!==void 0&&c!==null&&c!==""){const N=D.find(K=>{const Re=K.fieldName?.toLowerCase().replace(/[^a-z0-9]/g,""),Ke=K.label?.toLowerCase().replace(/[^a-z0-9]/g,"");return Re===v||Ke===v});pe.push({key:y,label:N?.label||N?.fieldLabel||i(y),value:c,section:N?.section||"additional",order:N?.order!==void 0?N.order:999,type:N?.type||"text"})}});let se="";se+=`
         <div class="mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
           <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
-            <span>👤</span> Personal &amp; Emergency Contact Details
+            <span>\u{1F464}</span> Personal &amp; Emergency Contact Details
           </div>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 14px; font-size: 0.88rem;">
-            <div><span class="text-muted d-block small">Full Name</span><strong>${escapeHTML(student.name)}</strong></div>
-            <div><span class="text-muted d-block small">Mobile Phone (WhatsApp)</span><strong>${escapeHTML(SmartFormatters.phone(student.phone))}</strong> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(student.phone || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">📋</button></div>
-            <div><span class="text-muted d-block small">Email Address</span><strong>${escapeHTML(student.email || 'N/A')}</strong></div>
-            <div><span class="text-muted d-block small">Gender</span><strong style="text-transform: capitalize;">${escapeHTML(student.gender || 'N/A')}</strong></div>
-            <div><span class="text-muted d-block small">Date of Birth</span><strong>${escapeHTML(formattedDob)}</strong></div>
-            <div><span class="text-muted d-block small">Blood Group</span>${bloodVal ? `<span class="badge" style="background: rgba(239, 68, 68, 0.12); color: var(--color-danger); font-weight: 700;">🩸 ${escapeHTML(bloodVal)}</span>` : '<span class="text-muted small">Not specified</span>'}</div>
-            <div style="grid-column: 1 / -1;"><span class="text-muted d-block small">Residential / Hostel Address</span><strong>${escapeHTML(addressVal)}</strong></div>
-            <div><span class="text-muted d-block small">City &amp; State</span><strong>${escapeHTML(cityVal || student.city || '')}${stateVal || student.state ? ', ' + escapeHTML(stateVal || student.state) : ''}</strong></div>
-            <div><span class="text-muted d-block small">Pincode</span><strong>${escapeHTML(pincodeVal)}</strong></div>
-            <div><span class="text-muted d-block small">Emergency Contact</span><strong>${escapeHTML(emNameVal)} (${escapeHTML(emRelVal)})</strong></div>
-            <div><span class="text-muted d-block small">Emergency Phone</span><strong>${escapeHTML(SmartFormatters.phone(emPhoneVal))}</strong> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(emPhoneVal || '')}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Emergency Phone">📋</button></div>
+            <div><span class="text-muted d-block small">Full Name</span><strong>${o(t.name)}</strong></div>
+            <div><span class="text-muted d-block small">Mobile Phone (WhatsApp)</span><strong>${o(we.phone(t.phone))}</strong> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${o(t.phone||"")}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Phone">\u{1F4CB}</button></div>
+            <div><span class="text-muted d-block small">Email Address</span><strong>${o(t.email||"N/A")}</strong></div>
+            <div><span class="text-muted d-block small">Gender</span><strong style="text-transform: capitalize;">${o(t.gender||"N/A")}</strong></div>
+            <div><span class="text-muted d-block small">Date of Birth</span><strong>${o(B)}</strong></div>
+            <div><span class="text-muted d-block small">Blood Group</span>${j?`<span class="badge" style="background: rgba(239, 68, 68, 0.12); color: var(--color-danger); font-weight: 700;">\u{1FA78} ${o(j)}</span>`:'<span class="text-muted small">Not specified</span>'}</div>
+            <div style="grid-column: 1 / -1;"><span class="text-muted d-block small">Residential / Hostel Address</span><strong>${o(G)}</strong></div>
+            <div><span class="text-muted d-block small">City &amp; State</span><strong>${o(q||t.city||"")}${x||t.state?", "+o(x||t.state):""}</strong></div>
+            <div><span class="text-muted d-block small">Pincode</span><strong>${o(H)}</strong></div>
+            <div><span class="text-muted d-block small">Emergency Contact</span><strong>${o(F)} (${o(Y)})</strong></div>
+            <div><span class="text-muted d-block small">Emergency Phone</span><strong>${o(we.phone(z))}</strong> <button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${o(z||"")}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy Emergency Phone">\u{1F4CB}</button></div>
           </div>
         </div>
-      `;
-
-      // 2. Government ID & KYC Verification Card
-      sectionsHtml += `
+      `,se+=`
         <div class="mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
           <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
-            <span>🪪</span> Government ID &amp; KYC Verification
+            <span>\u{1FAAA}</span> Government ID &amp; KYC Verification
           </div>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 14px; font-size: 0.88rem;">
             <div>
               <span class="text-muted d-block small">ID Proof Type</span>
-              <strong>${escapeHTML(idTypeVal)}</strong>
+              <strong>${o(W)}</strong>
             </div>
             <div>
               <span class="text-muted d-block small">ID Proof Document Number</span>
-              <strong style="font-family: monospace; letter-spacing: 0.5px;">${escapeHTML((idTypeVal === 'Aadhaar Card' || idTypeVal === 'Aadhaar' || !idTypeVal) ? SmartFormatters.aadhaar(idNumVal) : (idNumVal || 'Verified'))}</strong>
-              ${idNumVal ? `<button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${escapeHTML(idNumVal)}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy ID Proof Number">📋</button>` : ''}
+              <strong style="font-family: monospace; letter-spacing: 0.5px;">${o(W==="Aadhaar Card"||W==="Aadhaar"||!W?we.aadhaar(A):A||"Verified")}</strong>
+              ${A?`<button type="button" class="btn btn-xs btn-outline-secondary btn-copy-text" data-copy="${o(A)}" style="padding: 1px 4px; font-size: 0.7rem;" title="Copy ID Proof Number">\u{1F4CB}</button>`:""}
             </div>
-            ${idImgVal ? `
+            ${k?`
               <div>
                 <span class="text-muted d-block small">ID Proof Document Upload</span>
-                <a href="${idImgVal.startsWith('/') ? idImgVal : '/' + idImgVal}" target="_blank" class="btn btn-xs btn-outline-primary mt-1" style="font-weight: 600;">
-                  🔍 View Document Scan
+                <a href="${k.startsWith("/")?k:"/"+k}" target="_blank" class="btn btn-xs btn-outline-primary mt-1" style="font-weight: 600;">
+                  \u{1F50D} View Document Scan
                 </a>
               </div>
-            ` : ''}
+            `:""}
           </div>
         </div>
-      `;
-
-      // 3. Academic Goals & Education Card
-      sectionsHtml += `
+      `,se+=`
         <div class="mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
           <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
-            <span>🎯</span> Academic Goals &amp; Education
+            <span>\u{1F3AF}</span> Academic Goals &amp; Education
           </div>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 14px; font-size: 0.88rem;">
             <div>
               <span class="text-muted d-block small">Target Competitive Exams</span>
-              <div>${examsList.length > 0 ? examsList.map(e => `<span class="badge badge-primary me-1 mb-1" style="font-weight: 700;">${escapeHTML(e)}</span>`).join('') : '<span class="text-muted small">None specified</span>'}</div>
+              <div>${U.length>0?U.map(y=>`<span class="badge badge-primary me-1 mb-1" style="font-weight: 700;">${o(y)}</span>`).join(""):'<span class="text-muted small">None specified</span>'}</div>
             </div>
-            ${collegeVal ? `
+            ${X?`
               <div>
                 <span class="text-muted d-block small">College / Institute / Company</span>
-                <strong>${escapeHTML(collegeVal)}</strong>
+                <strong>${o(X)}</strong>
               </div>
-            ` : ''}
-            ${qualVal ? `
+            `:""}
+            ${oe?`
               <div>
                 <span class="text-muted d-block small">Highest Qualification</span>
-                <strong>${escapeHTML(qualVal)}</strong>
+                <strong>${o(oe)}</strong>
               </div>
-            ` : ''}
+            `:""}
           </div>
         </div>
-      `;
-
-      // 4. Custom Sections & Additional Information Cards (as configured by Admin in Form Builder)
-      const secIconMap = {
-        personal: '👤', academic: '🎯', plan: '⏰', payment: '💳', seat: '🪑',
-        contact: '📍', kyc: '🪪', parent: '👨‍👩‍👧', vehicle: '🚗', transport: '🚲',
-        custom: '📋', additional: '📝', other: '📝'
-      };
-
-      const customSectionGroups = [];
-      if (templateSections.length > 0) {
-        templateSections.forEach(sec => {
-          const mFields = extraCustomFields.filter(f => f.section === sec.name).sort((a, b) => a.order - b.order);
-          if (mFields.length > 0) {
-            customSectionGroups.push({
-              name: sec.name,
-              label: sec.label || formatHumanLabel(sec.name),
-              icon: sec.icon && sec.icon.length <= 4 ? sec.icon : (secIconMap[sec.name] || '📋'),
-              fields: mFields
-            });
-          }
-        });
-        const handledK = new Set(customSectionGroups.flatMap(g => g.fields.map(f => f.key)));
-        const unhandledF = extraCustomFields.filter(f => !handledK.has(f.key));
-        if (unhandledF.length > 0 || remarksVal) {
-          customSectionGroups.push({
-            name: 'additional',
-            label: 'Additional Information & Preferences',
-            icon: '📝',
-            fields: unhandledF.sort((a, b) => a.order - b.order),
-            remarks: remarksVal
-          });
-        }
-      } else if (extraCustomFields.length > 0 || remarksVal) {
-        customSectionGroups.push({
-          name: 'additional',
-          label: 'Additional Information & Preferences',
-          icon: '📝',
-          fields: extraCustomFields.sort((a, b) => a.order - b.order),
-          remarks: remarksVal
-        });
-      }
-
-      customSectionGroups.forEach(grp => {
-        sectionsHtml += `
+      `;const V={personal:"\u{1F464}",academic:"\u{1F3AF}",plan:"\u23F0",payment:"\u{1F4B3}",seat:"\u{1FA91}",contact:"\u{1F4CD}",kyc:"\u{1FAAA}",parent:"\u{1F468}\u200D\u{1F469}\u200D\u{1F467}",vehicle:"\u{1F697}",transport:"\u{1F6B2}",custom:"\u{1F4CB}",additional:"\u{1F4DD}",other:"\u{1F4DD}"},l=[];if(le.length>0){le.forEach(v=>{const N=pe.filter(K=>K.section===v.name).sort((K,Re)=>K.order-Re.order);N.length>0&&l.push({name:v.name,label:v.label||i(v.name),icon:v.icon&&v.icon.length<=4?v.icon:V[v.name]||"\u{1F4CB}",fields:N})});const y=new Set(l.flatMap(v=>v.fields.map(N=>N.key))),c=pe.filter(v=>!y.has(v.key));(c.length>0||ce)&&l.push({name:"additional",label:"Additional Information & Preferences",icon:"\u{1F4DD}",fields:c.sort((v,N)=>v.order-N.order),remarks:ce})}else(pe.length>0||ce)&&l.push({name:"additional",label:"Additional Information & Preferences",icon:"\u{1F4DD}",fields:pe.sort((y,c)=>y.order-c.order),remarks:ce});l.forEach(y=>{se+=`
           <div class="mb-4" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
             <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
-              <span>${grp.icon}</span> ${escapeHTML(grp.label)}
+              <span>${y.icon}</span> ${o(y.label)}
             </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px; font-size: 0.88rem;">
-              ${grp.remarks ? `
+              ${y.remarks?`
                 <div style="grid-column: 1 / -1;">
                   <span class="text-muted d-block small">Special Remarks / Notes</span>
-                  <strong>${escapeHTML(grp.remarks)}</strong>
+                  <strong>${o(y.remarks)}</strong>
                 </div>
-              ` : ''}
-              ${grp.fields.map(f => `
+              `:""}
+              ${y.fields.map(c=>`
                 <div>
-                  <span class="text-muted d-block small">${escapeHTML(f.label)}</span>
-                  <div>${formatVal(f, f.value)}</div>
+                  <span class="text-muted d-block small">${o(c.label)}</span>
+                  <div>${s(c,c.value)}</div>
                 </div>
-              `).join('')}
+              `).join("")}
             </div>
           </div>
-        `;
-      });
-
-      // Digital Signature Section if available
-      if (student.signature) {
-        sectionsHtml += `
+        `}),t.signature&&(se+=`
           <div class="mb-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 1.25rem;">
             <div style="font-weight: 700; font-size: 1rem; color: var(--color-primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-              <span>✍️</span> Official Digital Signature
+              <span>\u270D\uFE0F</span> Official Digital Signature
             </div>
             <div style="background: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid var(--color-border); display: inline-block;">
-              <img src="${student.signature}" style="max-height: 90px; max-width: 280px; object-fit: contain; display: block;">
+              <img src="${t.signature}" style="max-height: 90px; max-width: 280px; object-fit: contain; display: block;">
             </div>
             <div class="text-muted small mt-2">Digitally acknowledged upon admission enrollment.</div>
           </div>
-        `;
-      }
-
-      modalContent.innerHTML = `
+        `),a.innerHTML=`
         <div style="font-family: var(--font-family);">
           <!-- Student Card Header with Photo Avatar Upload -->
           <div class="card p-3 mb-4" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.1), rgba(0, 184, 148, 0.06)); border: 1.5px solid var(--color-primary); border-radius: 12px;">
@@ -1832,43 +1027,43 @@ function renderPortalUI(container, data, analytics = null) {
               <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
                 <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
                   <div id="sp-avatar-container" style="width: 76px; height: 76px; border-radius: 50%; background: var(--color-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; font-weight: 800; border: 3px solid var(--color-surface); box-shadow: var(--shadow-sm); overflow: hidden; position: relative;">
-                    <img id="sp-avatar-img" src="${student.photo ? (student.photo.startsWith('/') ? student.photo : '/' + student.photo) : ''}" style="width: 100%; height: 100%; object-fit: cover; display: ${student.photo ? 'block' : 'none'};" onerror="this.style.display='none'; document.getElementById('sp-avatar-initials').style.display='block';">
-                    <span id="sp-avatar-initials" style="display: ${student.photo ? 'none' : 'block'};">${escapeHTML(initials)}</span>
+                    <img id="sp-avatar-img" src="${t.photo?t.photo.startsWith("/")?t.photo:"/"+t.photo:""}" style="width: 100%; height: 100%; object-fit: cover; display: ${t.photo?"block":"none"};" onerror="this.style.display='none'; document.getElementById('sp-avatar-initials').style.display='block';">
+                    <span id="sp-avatar-initials" style="display: ${t.photo?"none":"block"};">${o(ae)}</span>
                   </div>
                   <div style="display: flex; gap: 4px;">
-                    <button type="button" id="btn-sp-upload-photo" class="btn btn-xs btn-outline-primary" style="font-size: 0.7rem; padding: 2px 6px; font-weight: 600;" title="Upload Passport Photo">📁 Upload</button>
-                    <button type="button" id="btn-sp-selfie" class="btn btn-xs btn-primary" style="font-size: 0.7rem; padding: 2px 6px; font-weight: 600;" title="Take Live Selfie">📸 Selfie</button>
+                    <button type="button" id="btn-sp-upload-photo" class="btn btn-xs btn-outline-primary" style="font-size: 0.7rem; padding: 2px 6px; font-weight: 600;" title="Upload Passport Photo">\u{1F4C1} Upload</button>
+                    <button type="button" id="btn-sp-selfie" class="btn btn-xs btn-primary" style="font-size: 0.7rem; padding: 2px 6px; font-weight: 600;" title="Take Live Selfie">\u{1F4F8} Selfie</button>
                     <input type="file" id="input-sp-photo" accept="image/*" style="display: none;">
                   </div>
                 </div>
 
                 <div>
                   <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <h3 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--color-text-primary);">${escapeHTML(student.name)}</h3>
-                    <span class="badge ${student.status === 'active' ? 'badge-success' : 'badge-warning'}" style="text-transform: uppercase;">
-                      ${escapeHTML(student.status || 'Active')}
+                    <h3 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--color-text-primary);">${o(t.name)}</h3>
+                    <span class="badge ${t.status==="active"?"badge-success":"badge-warning"}" style="text-transform: uppercase;">
+                      ${o(t.status||"Active")}
                     </span>
                   </div>
                   <div style="display: flex; gap: 14px; font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 4px; flex-wrap: wrap;">
-                    <span>Student ID: <strong style="font-family: monospace; color: var(--color-primary); font-size: 0.95rem;">${escapeHTML(student.studentId || 'N/A')}</strong></span>
-                    <span>Desk: <strong>${seatTitle}</strong></span>
-                    <span>Branch: <strong>${escapeHTML(student.branch?.name || business.businessName || 'Main Campus')}</strong></span>
+                    <span>Student ID: <strong style="font-family: monospace; color: var(--color-primary); font-size: 0.95rem;">${o(t.studentId||"N/A")}</strong></span>
+                    <span>Desk: <strong>${te}</strong></span>
+                    <span>Branch: <strong>${o(t.branch?.name||p.businessName||"Main Campus")}</strong></span>
                   </div>
                 </div>
               </div>
 
               <!-- Profile Lock Status Badge -->
               <div style="text-align: right;">
-                ${(student.profileCompletion >= 100 || student.isProfileComplete) ? `
+                ${t.profileCompletion>=100||t.isProfileComplete?`
                   <span class="badge" style="background: rgba(0, 184, 148, 0.15); color: var(--color-success); font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border: 1px solid rgba(0, 184, 148, 0.3);">
-                    🔒 100% Profile Verified & Locked
+                    \u{1F512} 100% Profile Verified & Locked
                   </span>
                   <div style="font-size: 0.72rem; color: var(--color-text-secondary); margin-top: 4px;">
                     Contact Admin to modify details
                   </div>
-                ` : `
+                `:`
                   <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border: 1px solid rgba(245, 158, 11, 0.3);">
-                    🟡 ${student.profileCompletion || 60}% KYC Pending
+                    \u{1F7E1} ${t.profileCompletion||60}% KYC Pending
                   </span>
                   <div style="font-size: 0.72rem; color: #f59e0b; margin-top: 4px; font-weight: 600;">
                     Complete profile below
@@ -1880,128 +1075,128 @@ function renderPortalUI(container, data, analytics = null) {
           </div>
 
           <!-- If Profile Incomplete: Show Interactive KYC Completion Form -->
-          ${(student.profileCompletion < 100 || !student.isProfileComplete) ? `
+          ${t.profileCompletion<100||!t.isProfileComplete?`
             <form id="form-student-kyc-complete" class="mb-4">
               <div class="alert alert-warning mb-3 p-3" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px;">
-                <div style="font-weight: 700; color: #d97706; margin-bottom: 2px;">⚠️ Complete Admission Profile & KYC Upload</div>
+                <div style="font-weight: 700; color: #d97706; margin-bottom: 2px;">\u26A0\uFE0F Complete Admission Profile & KYC Upload</div>
                 <div style="font-size: 0.82rem; color: var(--color-text-secondary);">
                   Admin pre-filled your admission info! Please complete your DOB, Address, Parent Contact, and Aadhaar KYC scan to unlock your Digital Offline ID Card Pass.
                 </div>
               </div>
 
-              <!-- Section 1: 👤 Personal & Identification Details -->
+              <!-- Section 1: \u{1F464} Personal & Identification Details -->
               <div class="card p-3 mb-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
                 <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-primary); margin-bottom: 10px;">
-                  <span>👤</span> Personal & Identification Details
+                  <span>\u{1F464}</span> Personal & Identification Details
                 </div>
                 <div class="row g-2">
                   <div class="col-md-6">
                     <label class="form-label small font-weight-bold">Full Name (Admin Pre-filled)</label>
-                    <input type="text" class="form-control form-control-sm" value="${escapeHTML(student.name)}" disabled style="background: rgba(255,255,255,0.05); font-weight: 600;">
+                    <input type="text" class="form-control form-control-sm" value="${o(t.name)}" disabled style="background: rgba(255,255,255,0.05); font-weight: 600;">
                   </div>
                   <div class="col-md-6">
                     <label class="form-label small font-weight-bold">Mobile Phone (WhatsApp) (Admin Pre-filled)</label>
-                    <input type="text" class="form-control form-control-sm" value="${escapeHTML(student.phone)}" disabled style="background: rgba(255,255,255,0.05); font-weight: 600;">
+                    <input type="text" class="form-control form-control-sm" value="${o(t.phone)}" disabled style="background: rgba(255,255,255,0.05); font-weight: 600;">
                   </div>
                   <div class="col-md-6">
                     <label class="form-label small font-weight-bold">Email Address</label>
-                    <input type="email" id="kyc-email" name="email" class="form-control form-control-sm" value="${escapeHTML(student.email || '')}" placeholder="student@example.com">
+                    <input type="email" id="kyc-email" name="email" class="form-control form-control-sm" value="${o(t.email||"")}" placeholder="student@example.com">
                   </div>
                   <div class="col-md-3">
                     <label class="form-label small font-weight-bold">Gender</label>
                     <select id="kyc-gender" name="gender" class="form-select form-select-sm">
-                      <option value="male" ${student.gender === 'male' ? 'selected' : ''}>Male</option>
-                      <option value="female" ${student.gender === 'female' ? 'selected' : ''}>Female</option>
-                      <option value="other" ${student.gender === 'other' ? 'selected' : ''}>Other</option>
+                      <option value="male" ${t.gender==="male"?"selected":""}>Male</option>
+                      <option value="female" ${t.gender==="female"?"selected":""}>Female</option>
+                      <option value="other" ${t.gender==="other"?"selected":""}>Other</option>
                     </select>
                   </div>
                   <div class="col-md-3">
                     <label class="form-label small font-weight-bold">Date of Birth *</label>
-                    <input type="date" id="kyc-dob" name="dob" class="form-control form-control-sm" value="${student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : (student.dob ? new Date(student.dob).toISOString().split('T')[0] : '')}" required>
+                    <input type="date" id="kyc-dob" name="dob" class="form-control form-control-sm" value="${t.dateOfBirth?new Date(t.dateOfBirth).toISOString().split("T")[0]:t.dob?new Date(t.dob).toISOString().split("T")[0]:""}" required>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label small font-weight-bold">Blood Group</label>
                     <select id="kyc-bloodGroup" name="bloodGroup" class="form-select form-select-sm">
                       <option value="">-- Select Blood Group --</option>
-                      ${['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => `<option value="${bg}" ${student.bloodGroup === bg ? 'selected' : ''}>${bg}</option>`).join('')}
+                      ${["A+","A-","B+","B-","O+","O-","AB+","AB-"].map(y=>`<option value="${y}" ${t.bloodGroup===y?"selected":""}>${y}</option>`).join("")}
                     </select>
                   </div>
                 </div>
               </div>
 
-              <!-- Section 2: 🎯 Academic Goals & Preparation -->
+              <!-- Section 2: \u{1F3AF} Academic Goals & Preparation -->
               <div class="card p-3 mb-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
                 <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-primary); margin-bottom: 10px;">
-                  <span>🎯</span> Academic Goals & Preparation
+                  <span>\u{1F3AF}</span> Academic Goals & Preparation
                 </div>
                 <div class="row g-2">
                   <div class="col-md-6">
                     <label class="form-label small font-weight-bold">Target Competitive Exams</label>
-                    <input type="text" id="kyc-targetExams" name="targetExams" class="form-control form-control-sm" value="${escapeHTML(Array.isArray(student.targetExams) ? student.targetExams.join(', ') : (student.targetExams || ''))}" placeholder="e.g. UPSC, MPSC, SSC, Banking, NEET">
+                    <input type="text" id="kyc-targetExams" name="targetExams" class="form-control form-control-sm" value="${o(Array.isArray(t.targetExams)?t.targetExams.join(", "):t.targetExams||"")}" placeholder="e.g. UPSC, MPSC, SSC, Banking, NEET">
                   </div>
                   <div class="col-md-6">
                     <label class="form-label small font-weight-bold">College / Coaching Institute / Company</label>
-                    <input type="text" id="kyc-collegeOrCompany" name="collegeOrCompany" class="form-control form-control-sm" value="${escapeHTML(student.collegeOrCompany || '')}" placeholder="e.g. Fergusson College / Self Study">
+                    <input type="text" id="kyc-collegeOrCompany" name="collegeOrCompany" class="form-control form-control-sm" value="${o(t.collegeOrCompany||"")}" placeholder="e.g. Fergusson College / Self Study">
                   </div>
                 </div>
               </div>
 
-              <!-- Section 3: 📍 Address & Emergency Contacts -->
+              <!-- Section 3: \u{1F4CD} Address & Emergency Contacts -->
               <div class="card p-3 mb-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
                 <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-primary); margin-bottom: 10px;">
-                  <span>📍</span> Address & Emergency Contacts
+                  <span>\u{1F4CD}</span> Address & Emergency Contacts
                 </div>
                 <div class="row g-2">
                   <div class="col-12">
                     <label class="form-label small font-weight-bold">Residential Address / Hostel Room No. *</label>
-                    <input type="text" id="kyc-address" name="address" class="form-control form-control-sm" value="${escapeHTML(student.address || '')}" placeholder="Full residential address" required>
+                    <input type="text" id="kyc-address" name="address" class="form-control form-control-sm" value="${o(t.address||"")}" placeholder="Full residential address" required>
                   </div>
                   <div class="col-md-4">
-                    <label class="form-label small font-weight-bold">Pincode ⚡</label>
-                    <input type="text" id="kyc-pincode" name="pincode" class="form-control form-control-sm" value="${escapeHTML(student.pincode || '')}" placeholder="6-digit pincode" maxlength="6">
+                    <label class="form-label small font-weight-bold">Pincode \u26A1</label>
+                    <input type="text" id="kyc-pincode" name="pincode" class="form-control form-control-sm" value="${o(t.pincode||"")}" placeholder="6-digit pincode" maxlength="6">
                   </div>
                   <div class="col-md-4">
                     <label class="form-label small font-weight-bold">City</label>
-                    <input type="text" id="kyc-city" name="city" class="form-control form-control-sm" value="${escapeHTML(student.city || '')}">
+                    <input type="text" id="kyc-city" name="city" class="form-control form-control-sm" value="${o(t.city||"")}">
                   </div>
                   <div class="col-md-4">
                     <label class="form-label small font-weight-bold">State</label>
-                    <input type="text" id="kyc-state" name="state" class="form-control form-control-sm" value="${escapeHTML(student.state || '')}">
+                    <input type="text" id="kyc-state" name="state" class="form-control form-control-sm" value="${o(t.state||"")}">
                   </div>
                   <div class="col-md-5">
                     <label class="form-label small font-weight-bold">Parent / Guardian Name *</label>
-                    <input type="text" id="kyc-emergencyContactName" name="emergencyContactName" class="form-control form-control-sm" value="${escapeHTML(student.emergencyContact?.name || '')}" placeholder="e.g. Ramesh Sharma" required>
+                    <input type="text" id="kyc-emergencyContactName" name="emergencyContactName" class="form-control form-control-sm" value="${o(t.emergencyContact?.name||"")}" placeholder="e.g. Ramesh Sharma" required>
                   </div>
                   <div class="col-md-4">
                     <label class="form-label small font-weight-bold">Parent / Guardian Phone *</label>
-                    <input type="tel" id="kyc-emergencyContactPhone" name="emergencyContactPhone" class="form-control form-control-sm" value="${escapeHTML(student.emergencyContact?.phone || '')}" placeholder="10-digit mobile" required>
+                    <input type="tel" id="kyc-emergencyContactPhone" name="emergencyContactPhone" class="form-control form-control-sm" value="${o(t.emergencyContact?.phone||"")}" placeholder="10-digit mobile" required>
                   </div>
                   <div class="col-md-3">
                     <label class="form-label small font-weight-bold">Relation</label>
-                    <input type="text" id="kyc-emergencyContactRelation" name="emergencyContactRelation" class="form-control form-control-sm" value="${escapeHTML(student.emergencyContact?.relation || 'Parent')}" placeholder="Father / Mother">
+                    <input type="text" id="kyc-emergencyContactRelation" name="emergencyContactRelation" class="form-control form-control-sm" value="${o(t.emergencyContact?.relation||"Parent")}" placeholder="Father / Mother">
                   </div>
                 </div>
               </div>
 
-              <!-- Section 4: 🪪 KYC & Identity Verification -->
+              <!-- Section 4: \u{1FAAA} KYC & Identity Verification -->
               <div class="card p-3 mb-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
                 <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-primary); margin-bottom: 10px;">
-                  <span>🪪</span> KYC & Identity Verification
+                  <span>\u{1FAAA}</span> KYC & Identity Verification
                 </div>
                 <div class="row g-2">
                   <div class="col-md-6">
                     <label class="form-label small font-weight-bold">Government ID Proof Type *</label>
                     <select id="kyc-idProofType" name="idProofType" class="form-select form-select-sm">
-                      <option value="Aadhaar Card" ${student.idProof?.type === 'Aadhaar Card' ? 'selected' : ''}>Aadhaar Card</option>
-                      <option value="PAN Card" ${student.idProof?.type === 'PAN Card' ? 'selected' : ''}>PAN Card</option>
-                      <option value="Driving License" ${student.idProof?.type === 'Driving License' ? 'selected' : ''}>Driving License</option>
-                      <option value="Passport" ${student.idProof?.type === 'Passport' ? 'selected' : ''}>Passport</option>
-                      <option value="Voter ID" ${student.idProof?.type === 'Voter ID' ? 'selected' : ''}>Voter ID</option>
+                      <option value="Aadhaar Card" ${t.idProof?.type==="Aadhaar Card"?"selected":""}>Aadhaar Card</option>
+                      <option value="PAN Card" ${t.idProof?.type==="PAN Card"?"selected":""}>PAN Card</option>
+                      <option value="Driving License" ${t.idProof?.type==="Driving License"?"selected":""}>Driving License</option>
+                      <option value="Passport" ${t.idProof?.type==="Passport"?"selected":""}>Passport</option>
+                      <option value="Voter ID" ${t.idProof?.type==="Voter ID"?"selected":""}>Voter ID</option>
                     </select>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label small font-weight-bold">ID Proof Document Number *</label>
-                    <input type="text" id="kyc-idProofNumber" name="idProofNumber" class="form-control form-control-sm" value="${escapeHTML(student.idProof?.number || '')}" placeholder="12-digit Aadhaar / ID number" required>
+                    <input type="text" id="kyc-idProofNumber" name="idProofNumber" class="form-control form-control-sm" value="${o(t.idProof?.number||"")}" placeholder="12-digit Aadhaar / ID number" required>
                   </div>
                   <div class="col-12 mt-2">
                     <label class="form-label small font-weight-bold">Upload Government ID Proof Scan / Photo</label>
@@ -2011,23 +1206,23 @@ function renderPortalUI(container, data, analytics = null) {
               </div>
 
               <div class="d-flex justify-content-end gap-2">
-                <button type="submit" class="btn btn-success btn-sm" id="btn-save-kyc-profile-submit" style="font-weight: 700; padding: 8px 18px;">💾 Save & Complete Profile</button>
+                <button type="submit" class="btn btn-success btn-sm" id="btn-save-kyc-profile-submit" style="font-weight: 700; padding: 8px 18px;">\u{1F4BE} Save & Complete Profile</button>
               </div>
             </form>
-          ` : ''}
+          `:""}
 
           <!-- Verified Section Tabs / Content -->
-          ${sectionsHtml}
+          ${se}
 
           <div class="d-flex justify-content-between align-items-center mt-4 pt-3 flex-wrap gap-2" style="border-top: 1px solid var(--color-border);">
             <div>
-              ${(student.profileCompletion >= 100 || student.isProfileComplete) ? `
+              ${t.profileCompletion>=100||t.isProfileComplete?`
                 <button type="button" class="btn btn-outline-primary" id="btn-sp-download-pdf" style="font-weight: 700; font-size: 0.85rem;">
-                  📄 Download Official Admission Form (PDF)
+                  \u{1F4C4} Download Official Admission Form (PDF)
                 </button>
-              ` : `
+              `:`
                 <button type="button" class="btn btn-outline-secondary" disabled style="font-size: 0.8rem; font-weight: 600; opacity: 0.7;" title="Complete photo selfie & Aadhaar KYC above to unlock PDF download">
-                  🔒 Complete Profile to Unlock Admission Form (PDF)
+                  \u{1F512} Complete Profile to Unlock Admission Form (PDF)
                 </button>
               `}
             </div>
@@ -2036,177 +1231,16 @@ function renderPortalUI(container, data, analytics = null) {
             </div>
           </div>
         </div>
-      `;
-
-      const btnSpUpload = modalContent.querySelector('#btn-sp-upload-photo');
-      const btnSpSelfie = modalContent.querySelector('#btn-sp-selfie');
-      const inputSpPhoto = modalContent.querySelector('#input-sp-photo');
-      const spImg = modalContent.querySelector('#sp-avatar-img');
-      const spInitials = modalContent.querySelector('#sp-avatar-initials');
-
-      // Mount ID Proof Document Scan Picker if KYC incomplete
-      const portalKycMount = modalContent.querySelector('#mount-portal-idproof');
-      if (portalKycMount) {
-        portalKycMount.appendChild(MediaFieldPicker.create({
-          label: 'ID Proof Document Scan / Photo',
-          preset: 'document',
-          name: 'idProofImage',
-          value: student.idProof?.image || ''
-        }));
-      }
-
-      const saveStudentPhoto = async (dataUrl, btn) => {
-        try {
-          if (btn) Loading.button(btn, true);
-          const uploadRes = await api.post('/api/upload', { image: dataUrl });
-          if (uploadRes.success && uploadRes.url) {
-            const photoUrl = uploadRes.url;
-            await api.put('/api/student-portal/profile', { photo: photoUrl });
-            spImg.src = photoUrl;
-            spImg.style.display = 'block';
-            spInitials.style.display = 'none';
-            
-            // Sync with active auth session & update global header
-            const u = auth.getUser();
-            if (u) {
-              u.avatar = photoUrl;
-              auth.setUser(u);
-            }
-            window.dispatchEvent(new CustomEvent('user-updated'));
-            
-            if (typeof window.updateProfileAvatar === 'function') {
-              window.updateProfileAvatar(photoUrl);
-            }
-            Toast.success('Passport photo updated & compressed successfully!');
-          } else {
-            Toast.error(uploadRes.message || 'Upload failed');
-          }
-        } catch (err) {
-          Toast.error(err.message || 'Failed to update photo');
-        } finally {
-          if (btn) Loading.button(btn, false);
-        }
-      };
-
-      btnSpUpload?.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        inputSpPhoto.click();
-      });
-      inputSpPhoto?.addEventListener('change', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const file = e.target.files[0];
-        if (!file) return;
-        try {
-          const compressed = await ImageCompressor.compress(file, { maxWidth: 300, maxHeight: 300, quality: 0.82 });
-          await saveStudentPhoto(compressed, btnSpUpload);
-        } catch (err) {
-          Toast.error(err.message || 'Image processing failed');
-        } finally {
-          inputSpPhoto.value = '';
-        }
-      });
-
-      btnSpSelfie?.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        try {
-          const selfie = await ImageCompressor.captureWebcam({ maxWidth: 300, maxHeight: 300, quality: 0.82 });
-          await saveStudentPhoto(selfie, btnSpSelfie);
-        } catch (err) {
-          if (err.message !== 'Camera capture cancelled') {
-            Toast.error(err.message || 'Selfie capture failed');
-          }
-        }
-      });
-
-      // Pincode Auto-Fill for KYC Form
-      modalContent.querySelector('#kyc-pincode')?.addEventListener('input', async (e) => {
-        const val = e.target.value.trim();
-        if (val.length === 6) {
-          const res = await SmartIntelligence.lookupPincode(val);
-          if (res && res.city) {
-            const cityEl = modalContent.querySelector('#kyc-city');
-            const stateEl = modalContent.querySelector('#kyc-state');
-            if (cityEl) cityEl.value = res.city;
-            if (stateEl) stateEl.value = res.state;
-          }
-        }
-      });
-
-      // Bind Dynamic ID Proof Validation & Document Auto-Fetch
-      SmartIntelligence.bindDynamicIDProofValidation(modalContent);
-
-      // Submit Profile KYC Completion Form
-      modalContent.querySelector('#form-student-kyc-complete')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btnSave = modalContent.querySelector('#btn-save-kyc-profile-submit');
-        UI.buttonLoading(btnSave, true, 'Saving...');
-        try {
-          const payload = {
-            email: modalContent.querySelector('#kyc-email')?.value?.trim(),
-            gender: modalContent.querySelector('#kyc-gender')?.value,
-            dob: modalContent.querySelector('#kyc-dob')?.value,
-            bloodGroup: modalContent.querySelector('#kyc-bloodGroup')?.value,
-            targetExams: modalContent.querySelector('#kyc-targetExams')?.value?.trim(),
-            collegeOrCompany: modalContent.querySelector('#kyc-collegeOrCompany')?.value?.trim(),
-            address: modalContent.querySelector('#kyc-address')?.value?.trim(),
-            pincode: modalContent.querySelector('#kyc-pincode')?.value?.trim(),
-            city: modalContent.querySelector('#kyc-city')?.value?.trim(),
-            state: modalContent.querySelector('#kyc-state')?.value?.trim(),
-            emergencyContactName: modalContent.querySelector('#kyc-emergencyContactName')?.value?.trim(),
-            emergencyContactPhone: modalContent.querySelector('#kyc-emergencyContactPhone')?.value?.trim(),
-            emergencyContactRelation: modalContent.querySelector('#kyc-emergencyContactRelation')?.value?.trim(),
-            idProofType: modalContent.querySelector('#kyc-idProofType')?.value,
-            idProofNumber: modalContent.querySelector('#kyc-idProofNumber')?.value?.trim(),
-            idProofImage: modalContent.querySelector('#mount-portal-idproof .mfp-hidden-value')?.value || ''
-          };
-
-          const res = await api.put('/api/student-portal/profile', payload);
-          if (res.success) {
-            Toast.success('Profile & KYC details updated successfully! Profile is now 100% verified.');
-            profileModal.close();
-            // Reload Portal Dashboard to reflect 100% completion & unlock Digital ID Card Pass
-            renderPortalPage();
-          } else {
-            Toast.error(res.message || 'Failed to update profile');
-          }
-        } catch (err) {
-          Toast.error(err.message || 'Failed to update profile');
-        } finally {
-          UI.buttonLoading(btnSave, false);
-        }
-      });
-
-      modalContent.querySelector('#btn-close-profile-modal')?.addEventListener('click', () => profileModal.close());
-      modalContent.querySelector('#btn-sp-download-pdf')?.addEventListener('click', () => {
-        profileModal.close();
-        previewAdmissionFormPDF(student, { business });
-      });
-      modalContent.querySelector('#btn-modal-print-pdf')?.addEventListener('click', () => {
-        profileModal.close();
-        previewAdmissionFormPDF(student, { business });
-      });
-
-    } catch (err) {
-      modalContent.innerHTML = `<div class="text-danger p-3 text-center">Failed to load profile details: ${escapeHTML(err.message)}</div>`;
-    }
-  });
-
-  // Attach Leave Request Modal
-  const openLeaveModal = async () => {
-    const modalContent = document.createElement('div');
-    modalContent.innerHTML = `
+      `;const ee=a.querySelector("#btn-sp-upload-photo"),Ae=a.querySelector("#btn-sp-selfie"),ue=a.querySelector("#input-sp-photo"),Pe=a.querySelector("#sp-avatar-img"),Le=a.querySelector("#sp-avatar-initials"),me=a.querySelector("#mount-portal-idproof");me&&me.appendChild(et.create({label:"ID Proof Document Scan / Photo",preset:"document",name:"idProofImage",value:t.idProof?.image||""}));const _e=async(y,c)=>{try{c&&he.button(c,!0);const v=await P.post("/api/upload",{image:y});if(v.success&&v.url){const N=v.url;await P.put("/api/student-portal/profile",{photo:N}),Pe.src=N,Pe.style.display="block",Le.style.display="none";const K=auth.getUser();K&&(K.avatar=N,auth.setUser(K)),window.dispatchEvent(new CustomEvent("user-updated")),typeof window.updateProfileAvatar=="function"&&window.updateProfileAvatar(N),S.success("Passport photo updated & compressed successfully!")}else S.error(v.message||"Upload failed")}catch(v){S.error(v.message||"Failed to update photo")}finally{c&&he.button(c,!1)}};ee?.addEventListener("click",y=>{y.preventDefault(),y.stopPropagation(),ue.click()}),ue?.addEventListener("change",async y=>{y.preventDefault(),y.stopPropagation();const c=y.target.files[0];if(c)try{const v=await ImageCompressor.compress(c,{maxWidth:300,maxHeight:300,quality:.82});await _e(v,ee)}catch(v){S.error(v.message||"Image processing failed")}finally{ue.value=""}}),Ae?.addEventListener("click",async y=>{y.preventDefault(),y.stopPropagation();try{const c=await ImageCompressor.captureWebcam({maxWidth:300,maxHeight:300,quality:.82});await _e(c,Ae)}catch(c){c.message!=="Camera capture cancelled"&&S.error(c.message||"Selfie capture failed")}}),a.querySelector("#kyc-pincode")?.addEventListener("input",async y=>{const c=y.target.value.trim();if(c.length===6){const v=await Oe.lookupPincode(c);if(v&&v.city){const N=a.querySelector("#kyc-city"),K=a.querySelector("#kyc-state");N&&(N.value=v.city),K&&(K.value=v.state)}}}),Oe.bindDynamicIDProofValidation(a),a.querySelector("#form-student-kyc-complete")?.addEventListener("submit",async y=>{y.preventDefault();const c=a.querySelector("#btn-save-kyc-profile-submit");UI.buttonLoading(c,!0,"Saving...");try{const v={email:a.querySelector("#kyc-email")?.value?.trim(),gender:a.querySelector("#kyc-gender")?.value,dob:a.querySelector("#kyc-dob")?.value,bloodGroup:a.querySelector("#kyc-bloodGroup")?.value,targetExams:a.querySelector("#kyc-targetExams")?.value?.trim(),collegeOrCompany:a.querySelector("#kyc-collegeOrCompany")?.value?.trim(),address:a.querySelector("#kyc-address")?.value?.trim(),pincode:a.querySelector("#kyc-pincode")?.value?.trim(),city:a.querySelector("#kyc-city")?.value?.trim(),state:a.querySelector("#kyc-state")?.value?.trim(),emergencyContactName:a.querySelector("#kyc-emergencyContactName")?.value?.trim(),emergencyContactPhone:a.querySelector("#kyc-emergencyContactPhone")?.value?.trim(),emergencyContactRelation:a.querySelector("#kyc-emergencyContactRelation")?.value?.trim(),idProofType:a.querySelector("#kyc-idProofType")?.value,idProofNumber:a.querySelector("#kyc-idProofNumber")?.value?.trim(),idProofImage:a.querySelector("#mount-portal-idproof .mfp-hidden-value")?.value||""},N=await P.put("/api/student-portal/profile",v);N.success?(S.success("Profile & KYC details updated successfully! Profile is now 100% verified."),r.close(),renderPortalPage()):S.error(N.message||"Failed to update profile")}catch(v){S.error(v.message||"Failed to update profile")}finally{UI.buttonLoading(c,!1)}}),a.querySelector("#btn-close-profile-modal")?.addEventListener("click",()=>r.close()),a.querySelector("#btn-sp-download-pdf")?.addEventListener("click",()=>{r.close(),qe(t,{business:p})}),a.querySelector("#btn-modal-print-pdf")?.addEventListener("click",()=>{r.close(),qe(t,{business:p})})}catch(i){a.innerHTML=`<div class="text-danger p-3 text-center">Failed to load profile details: ${o(i.message)}</div>`}});const Z=async()=>{const a=document.createElement("div");a.innerHTML=`
       <form id="portal-leave-form" class="p-1 mb-4">
         <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 0.75rem;">
           <div>
             <label class="form-label" style="font-weight: 600;">Start Date *</label>
-            <input type="date" id="leave-start" class="form-control" value="${new Date().toISOString().split('T')[0]}" required>
+            <input type="date" id="leave-start" class="form-control" value="${new Date().toISOString().split("T")[0]}" required>
           </div>
           <div>
             <label class="form-label" style="font-weight: 600;">End Date *</label>
-            <input type="date" id="leave-end" class="form-control" value="${new Date(Date.now() + 86400000).toISOString().split('T')[0]}" required>
+            <input type="date" id="leave-end" class="form-control" value="${new Date(Date.now()+864e5).toISOString().split("T")[0]}" required>
           </div>
         </div>
         <div class="form-group mb-3">
@@ -2218,65 +1252,21 @@ function renderPortalUI(container, data, analytics = null) {
         </div>
       </form>
 
-      <h5 style="font-size: 0.95rem; font-weight: 700; border-top: 1px solid var(--color-border); padding-top: 12px; margin-bottom: 8px;">📋 My Past Leave Requests</h5>
+      <h5 style="font-size: 0.95rem; font-weight: 700; border-top: 1px solid var(--color-border); padding-top: 12px; margin-bottom: 8px;">\u{1F4CB} My Past Leave Requests</h5>
       <div id="portal-leave-history" style="max-height: 220px; overflow-y: auto;">
         <div class="text-center p-3 text-muted">Loading leave history...</div>
       </div>
-    `;
-
-    const leaveModal = new Modal({ title: '🌴 Leave & Absence Application', content: modalContent, size: 'md' });
-    leaveModal.show();
-
-    // Load History
-    const loadLeaveHistory = async () => {
-      try {
-        const res = await api.get('/api/student-portal/leave');
-        const historyContainer = modalContent.querySelector('#portal-leave-history');
-        if (res.success && res.data.length > 0) {
-          historyContainer.innerHTML = res.data.map(l => `
+    `,new re({title:"\u{1F334} Leave & Absence Application",content:a,size:"md"}).show();const r=async()=>{try{const i=await P.get("/api/student-portal/leave"),s=a.querySelector("#portal-leave-history");i.success&&i.data.length>0?s.innerHTML=i.data.map(u=>`
             <div class="p-2 mb-2" style="background: var(--color-bg-secondary); border-radius: 6px; border: 1px solid var(--color-border); font-size: 0.85rem;">
               <div class="d-flex justify-content-between align-items-center mb-1">
-                <strong>${new Date(l.startDate).toLocaleDateString()} - ${new Date(l.endDate).toLocaleDateString()}</strong>
-                <span class="badge ${l.status === 'approved' ? 'badge-success' : (l.status === 'rejected' ? 'badge-danger' : 'badge-warning')}">
-                  ${l.status.toUpperCase()}
+                <strong>${new Date(u.startDate).toLocaleDateString()} - ${new Date(u.endDate).toLocaleDateString()}</strong>
+                <span class="badge ${u.status==="approved"?"badge-success":u.status==="rejected"?"badge-danger":"badge-warning"}">
+                  ${u.status.toUpperCase()}
                 </span>
               </div>
-              <div class="text-muted">${escapeHTML(l.reason)}</div>
+              <div class="text-muted">${o(u.reason)}</div>
             </div>
-          `).join('');
-        } else {
-          historyContainer.innerHTML = '<div class="text-center p-3 text-muted">No past leave applications.</div>';
-        }
-      } catch (err) {
-        modalContent.querySelector('#portal-leave-history').innerHTML = '<div class="text-danger p-2">Failed to load history</div>';
-      }
-    };
-
-    // Form Submit
-    modalContent.querySelector('#portal-leave-form').onsubmit = async (e) => {
-      e.preventDefault();
-      const startDate = modalContent.querySelector('#leave-start').value;
-      const endDate = modalContent.querySelector('#leave-end').value;
-      const reason = modalContent.querySelector('#leave-reason').value;
-
-      try {
-        await api.post('/api/student-portal/leave', { startDate, endDate, reason });
-        Toast.success('Leave application submitted!');
-        modalContent.querySelector('#leave-reason').value = '';
-        loadLeaveHistory();
-      } catch (err) {
-        Toast.error(err.message || 'Failed to submit leave');
-      }
-    };
-
-    loadLeaveHistory();
-  };
-  container.querySelectorAll('#btn-portal-leave, #tile-portal-leave').forEach(el => el.addEventListener('click', openLeaveModal));
-
-  // Attach Seat Change Modal
-  const openSeatChangeModal = async () => {
-    const modalContent = document.createElement('div');
-    modalContent.innerHTML = `
+          `).join(""):s.innerHTML='<div class="text-center p-3 text-muted">No past leave applications.</div>'}catch{a.querySelector("#portal-leave-history").innerHTML='<div class="text-danger p-2">Failed to load history</div>'}};a.querySelector("#portal-leave-form").onsubmit=async i=>{i.preventDefault();const s=a.querySelector("#leave-start").value,u=a.querySelector("#leave-end").value,f=a.querySelector("#leave-reason").value;try{await P.post("/api/student-portal/leave",{startDate:s,endDate:u,reason:f}),S.success("Leave application submitted!"),a.querySelector("#leave-reason").value="",r()}catch(h){S.error(h.message||"Failed to submit leave")}},r()};n.querySelectorAll("#btn-portal-leave, #tile-portal-leave").forEach(a=>a.addEventListener("click",Z));const M=async()=>{const a=document.createElement("div");a.innerHTML=`
       <form id="portal-sc-form" class="p-1 mb-4">
         
         <!-- Target Library Branch / Centre Dropdown -->
@@ -2291,7 +1281,7 @@ function renderPortalUI(container, data, analytics = null) {
         <div class="form-group mb-3">
           <div class="d-flex justify-content-between align-items-center mb-1">
             <label class="form-label" style="font-weight: 600; margin: 0;">Specific Desk / Seat (Optional Preference)</label>
-            <span id="sc-vacant-badge" class="badge badge-success" style="font-size: 0.72rem; display: none;">🟢 0 Desks Vacant</span>
+            <span id="sc-vacant-badge" class="badge badge-success" style="font-size: 0.72rem; display: none;">\u{1F7E2} 0 Desks Vacant</span>
           </div>
           <select id="sc-target-seat" class="form-select">
             <option value="">-- Select Specific Available Desk (or Any Vacant) --</option>
@@ -2319,182 +1309,58 @@ function renderPortalUI(container, data, analytics = null) {
         </div>
 
         <div class="d-flex justify-content-end gap-2">
-          <button type="submit" class="btn btn-primary" id="btn-submit-sc" style="font-weight: 700; width: 100%;">⚡ Submit Transfer Request</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-sc" style="font-weight: 700; width: 100%;">\u26A1 Submit Transfer Request</button>
         </div>
       </form>
 
-      <h5 style="font-size: 0.95rem; font-weight: 700; border-top: 1px solid var(--color-border); padding-top: 12px; margin-bottom: 8px;">📋 Past Transfer Requests</h5>
+      <h5 style="font-size: 0.95rem; font-weight: 700; border-top: 1px solid var(--color-border); padding-top: 12px; margin-bottom: 8px;">\u{1F4CB} Past Transfer Requests</h5>
       <div id="portal-sc-history" style="max-height: 200px; overflow-y: auto;">
         <div class="text-center p-3 text-muted">Loading requests...</div>
       </div>
-    `;
-
-    const scModal = new Modal({ title: '💺 Request Desk / Seat Transfer', content: modalContent, size: 'md' });
-    scModal.show();
-
-    const branchSelect = modalContent.querySelector('#sc-branch');
-    const seatSelect = modalContent.querySelector('#sc-target-seat');
-    const vacantBadge = modalContent.querySelector('#sc-vacant-badge');
-
-    let allBranches = [];
-    let allSeats = [];
-
-    // Load Branches & Vacant Desks using Student Portal & Public APIs
-    try {
-      const [bRes, sRes] = await Promise.all([
-        api.get('/api/student-portal/branches').catch(() => api.get('/api/branches/public-list')).catch(() => ({ data: [] })),
-        api.get('/api/student-portal/available-seats').catch(() => api.get('/api/seats/public-available')).catch(() => ({ data: [] }))
-      ]);
-
-      allBranches = Array.isArray(bRes.data) ? bRes.data : (bRes.data?.branches || []);
-      allSeats = Array.isArray(sRes.data) ? sRes.data : (sRes.data?.seats || []);
-
-      if (allBranches.length > 0) {
-        branchSelect.innerHTML = allBranches.map((b, idx) => `
-          <option value="${b._id}" ${String(b._id) === String(student.branch?._id || student.branch) || (idx === 0 && !student.branch) ? 'selected' : ''}>
-            ${escapeHTML(b.name)} ${b.city ? '(' + escapeHTML(b.city) + ')' : ''}
+    `,new re({title:"\u{1F4BA} Request Desk / Seat Transfer",content:a,size:"md"}).show();const r=a.querySelector("#sc-branch"),i=a.querySelector("#sc-target-seat"),s=a.querySelector("#sc-vacant-badge");let u=[],f=[];try{const[$,m]=await Promise.all([P.get("/api/student-portal/branches").catch(()=>P.get("/api/branches/public-list")).catch(()=>({data:[]})),P.get("/api/student-portal/available-seats").catch(()=>P.get("/api/seats/public-available")).catch(()=>({data:[]}))]);u=Array.isArray($.data)?$.data:$.data?.branches||[],f=Array.isArray(m.data)?m.data:m.data?.seats||[],u.length>0?r.innerHTML=u.map((d,B)=>`
+          <option value="${d._id}" ${String(d._id)===String(t.branch?._id||t.branch)||B===0&&!t.branch?"selected":""}>
+            ${o(d.name)} ${d.city?"("+o(d.city)+")":""}
           </option>
-        `).join('');
-      } else {
-        branchSelect.innerHTML = `<option value="">${escapeHTML(business.businessName || 'Main Centre')}</option>`;
-      }
-
-      populateVacantSeats();
-    } catch (err) {
-      console.warn('Failed to load branches/seats:', err);
-    }
-
-    function populateVacantSeats() {
-      const selectedBranchId = branchSelect.value;
-      const vacant = allSeats.filter(s => {
-        const isVacant = s.status === 'available' || s.status === 'vacant';
-        if (!isVacant) return false;
-        if (!selectedBranchId) return true;
-        const bId = s.branch?._id || s.branch;
-        return !bId || String(bId) === String(selectedBranchId) || selectedBranchId === 'default_main';
-      });
-
-      if (vacantBadge) {
-        vacantBadge.style.display = 'inline-block';
-        vacantBadge.textContent = `🟢 ${vacant.length} Desks Vacant`;
-      }
-
-      if (vacant.length > 0) {
-        seatSelect.innerHTML = `<option value="">-- Select Specific Available Desk (or Any Vacant) --</option>` +
-          vacant.map(s => `
-            <option value="${s._id}" data-num="${escapeHTML(s.seatNumber)}">
-              Desk ${escapeHTML(s.seatNumber)} — ${escapeHTML(s.zone || 'General Zone')} (🟢 Vacant)
+        `).join(""):r.innerHTML=`<option value="">${o(p.businessName||"Main Centre")}</option>`,h()}catch($){console.warn("Failed to load branches/seats:",$)}function h(){const $=r.value,m=f.filter(d=>{if(!(d.status==="available"||d.status==="vacant"))return!1;if(!$)return!0;const B=d.branch?._id||d.branch;return!B||String(B)===String($)||$==="default_main"});s&&(s.style.display="inline-block",s.textContent=`\u{1F7E2} ${m.length} Desks Vacant`),m.length>0?i.innerHTML='<option value="">-- Select Specific Available Desk (or Any Vacant) --</option>'+m.map(d=>`
+            <option value="${d._id}" data-num="${o(d.seatNumber)}">
+              Desk ${o(d.seatNumber)} \u2014 ${o(d.zone||"General Zone")} (\u{1F7E2} Vacant)
             </option>
-          `).join('');
-      } else {
-        seatSelect.innerHTML = `<option value="">No specific vacant desks listed (Management will allot)</option>`;
-      }
-    }
-
-    branchSelect.addEventListener('change', populateVacantSeats);
-
-    async function loadScHistory() {
-      const histContainer = modalContent.querySelector('#portal-sc-history');
-      try {
-        const res = await api.get('/api/student-portal/seat-changes');
-        const list = res.data || [];
-        if (list.length === 0) {
-          histContainer.innerHTML = `<p class="text-muted small text-center p-2">No transfer requests submitted yet.</p>`;
-          return;
-        }
-        histContainer.innerHTML = list.map(s => `
+          `).join(""):i.innerHTML='<option value="">No specific vacant desks listed (Management will allot)</option>'}r.addEventListener("change",h);async function D(){const $=a.querySelector("#portal-sc-history");try{const m=(await P.get("/api/student-portal/seat-changes")).data||[];if(m.length===0){$.innerHTML='<p class="text-muted small text-center p-2">No transfer requests submitted yet.</p>';return}$.innerHTML=m.map(d=>`
           <div class="p-2 mb-2" style="background: var(--color-bg-primary); border-radius: 6px; border: 1px solid var(--color-border); font-size: 0.85rem;">
             <div class="d-flex justify-content-between align-items-center mb-1">
-              <strong>Requested: ${escapeHTML(s.targetSeatNumber ? 'Desk ' + s.targetSeatNumber : s.preferredZone)} ${s.targetBranchName ? '(' + escapeHTML(s.targetBranchName) + ')' : ''}</strong>
-              <span class="badge ${s.status === 'approved' ? 'badge-success' : s.status === 'rejected' ? 'badge-danger' : 'badge-warning'}" style="text-transform: uppercase; font-size: 0.7rem;">
-                ${s.status}
+              <strong>Requested: ${o(d.targetSeatNumber?"Desk "+d.targetSeatNumber:d.preferredZone)} ${d.targetBranchName?"("+o(d.targetBranchName)+")":""}</strong>
+              <span class="badge ${d.status==="approved"?"badge-success":d.status==="rejected"?"badge-danger":"badge-warning"}" style="text-transform: uppercase; font-size: 0.7rem;">
+                ${d.status}
               </span>
             </div>
-            <div class="text-muted small">${escapeHTML(s.reason)}</div>
-            ${s.adminReply ? `<div style="color: var(--color-primary); font-size: 0.75rem; margin-top: 4px;">Admin: ${escapeHTML(s.adminReply)}</div>` : ''}
+            <div class="text-muted small">${o(d.reason)}</div>
+            ${d.adminReply?`<div style="color: var(--color-primary); font-size: 0.75rem; margin-top: 4px;">Admin: ${o(d.adminReply)}</div>`:""}
           </div>
-        `).join('');
-      } catch (e) {
-        histContainer.innerHTML = `<p class="text-danger small text-center">Failed to load history</p>`;
-      }
-    }
-
-    modalContent.querySelector('#portal-sc-form').onsubmit = async (e) => {
-      e.preventDefault();
-      const targetBranch = branchSelect.value;
-      const selectedBranchObj = allBranches.find(b => String(b._id) === String(targetBranch));
-      const targetBranchName = selectedBranchObj ? selectedBranchObj.name : '';
-
-      const targetSeat = seatSelect.value;
-      const selectedSeatOpt = seatSelect.options[seatSelect.selectedIndex];
-      const targetSeatNumber = selectedSeatOpt ? (selectedSeatOpt.dataset?.num || '') : '';
-
-      const preferredZone = modalContent.querySelector('#sc-zone').value;
-      const reason = modalContent.querySelector('#sc-reason').value.trim();
-
-      try {
-        await api.post('/api/student-portal/seat-change', {
-          targetBranch,
-          targetBranchName,
-          targetSeat,
-          targetSeatNumber,
-          preferredZone,
-          reason
-        });
-        Toast.success('Seat transfer request submitted to branch manager!');
-        modalContent.querySelector('#sc-reason').value = '';
-        loadScHistory();
-      } catch (err) {
-        Toast.error(err.message || 'Failed to submit request');
-      }
-    };
-
-    loadScHistory();
-  };
-  container.querySelectorAll('#btn-portal-seat-change, #tile-portal-seat-change').forEach(el => el.addEventListener('click', openSeatChangeModal));
-
-  // Attach Smart Referral Studio Modal
-  const openReferralModal = async () => {
-    const modalContent = document.createElement('div');
-    modalContent.innerHTML = `
+        `).join("")}catch{$.innerHTML='<p class="text-danger small text-center">Failed to load history</p>'}}a.querySelector("#portal-sc-form").onsubmit=async $=>{$.preventDefault();const m=r.value,d=u.find(F=>String(F._id)===String(m)),B=d?d.name:"",j=i.value,G=i.options[i.selectedIndex],H=G&&G.dataset?.num||"",q=a.querySelector("#sc-zone").value,x=a.querySelector("#sc-reason").value.trim();try{await P.post("/api/student-portal/seat-change",{targetBranch:m,targetBranchName:B,targetSeat:j,targetSeatNumber:H,preferredZone:q,reason:x}),S.success("Seat transfer request submitted to branch manager!"),a.querySelector("#sc-reason").value="",D()}catch(F){S.error(F.message||"Failed to submit request")}},D()};n.querySelectorAll("#btn-portal-seat-change, #tile-portal-seat-change").forEach(a=>a.addEventListener("click",M));const $e=async()=>{const a=document.createElement("div");a.innerHTML=`
       <div style="font-family: 'Outfit', sans-serif;">
         <div class="text-center p-3 text-muted">
           <div class="loading-spinner mb-2" style="margin: 0 auto;"></div>
           Loading your Referral Studio...
         </div>
       </div>
-    `;
-
-    const refModal = new Modal({ title: '🎁 Student Referral Studio & Rewards', content: modalContent, size: 'md' });
-    refModal.show();
-
-    try {
-      const statsRes = await api.get('/api/student-portal/referral-stats');
-      if (!statsRes.success) throw new Error(statsRes.message);
-
-      const { referralCode, referralCredits, totalReferralsCount, config, referrals = [] } = statsRes.data;
-      const origin = window.location.origin;
-      const shareUrl = `${origin}/register?ref=${encodeURIComponent(referralCode)}`;
-      const waText = encodeURIComponent(`Hey! I study at ${business.businessName || 'the study library'}. Use my referral code *${referralCode}* to get ₹${config?.refereeRewardAmount || 100} instant discount on your admission! Register here: ${shareUrl}`);
-
-      modalContent.innerHTML = `
+    `;const r=new re({title:"\u{1F381} Student Referral Studio & Rewards",content:a,size:"md"});r.show();try{const i=await P.get("/api/student-portal/referral-stats");if(!i.success)throw new Error(i.message);const{referralCode:s,referralCredits:u,totalReferralsCount:f,config:h,referrals:D=[]}=i.data,$=`${window.location.origin}/register?ref=${encodeURIComponent(s)}`,m=encodeURIComponent(`Hey! I study at ${p.businessName||"the study library"}. Use my referral code *${s}* to get \u20B9${h?.refereeRewardAmount||100} instant discount on your admission! Register here: ${$}`);a.innerHTML=`
         <div style="font-family: 'Outfit', sans-serif;">
           <!-- Highlight Reward Banner -->
           <div class="card p-3 mb-3" style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(0, 184, 148, 0.08)); border: 1px solid rgba(108, 92, 231, 0.25); border-radius: 10px;">
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
               <div>
                 <strong style="color: var(--color-primary); font-size: 1.05rem; display: block;">
-                  🎁 Give ₹${config?.refereeRewardAmount || 100}, Get ₹${config?.referrerRewardAmount || 100}!
+                  \u{1F381} Give \u20B9${h?.refereeRewardAmount||100}, Get \u20B9${h?.referrerRewardAmount||100}!
                 </strong>
                 <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">
-                  Every friend who joins using your code gives you a <strong>₹${config?.referrerRewardAmount || 100} discount</strong> on your next renewal.
+                  Every friend who joins using your code gives you a <strong>\u20B9${h?.referrerRewardAmount||100} discount</strong> on your next renewal.
                 </p>
               </div>
 
               <!-- Referral Wallet Badge -->
               <div style="text-align: right; background: var(--color-surface); padding: 6px 12px; border-radius: 8px; border: 1px solid var(--color-border);">
                 <div style="font-size: 0.72rem; color: var(--color-text-muted); font-weight: 700; text-transform: uppercase;">Available Renewal Credit</div>
-                <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-success);">₹${referralCredits}</div>
+                <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-success);">\u20B9${u}</div>
               </div>
             </div>
           </div>
@@ -2505,28 +1371,28 @@ function renderPortalUI(container, data, analytics = null) {
             
             <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px;">
               <div id="display-ref-code" style="font-family: monospace; font-size: 1.3rem; font-weight: 800; color: var(--color-primary); background: var(--color-surface); padding: 6px 14px; border-radius: 6px; border: 1px solid var(--color-border); flex-grow: 1; letter-spacing: 1px;">
-                ${escapeHTML(referralCode)}
+                ${o(s)}
               </div>
               <button type="button" class="btn btn-outline-primary btn-sm" id="btn-copy-ref-code" style="font-weight: 700;">
-                📋 Copy Code
+                \u{1F4CB} Copy Code
               </button>
             </div>
 
             <!-- Custom Vanity Code Toggle / Form -->
             <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 12px;">
-              <input type="text" id="custom-code-input" class="form-control form-control-sm" placeholder="Set custom vanity code (e.g. ${escapeHTML(initials)}2026)" style="font-family: monospace; text-transform: uppercase;">
+              <input type="text" id="custom-code-input" class="form-control form-control-sm" placeholder="Set custom vanity code (e.g. ${o(ae)}2026)" style="font-family: monospace; text-transform: uppercase;">
               <button type="button" class="btn btn-secondary btn-sm" id="btn-save-custom-code" style="white-space: nowrap; font-weight: 600;">
-                ✏️ Save Code
+                \u270F\uFE0F Save Code
               </button>
             </div>
 
             <!-- 1-Click WhatsApp Sharing Pill & Link -->
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <a href="https://wa.me/?text=${waText}" target="_blank" class="btn btn-success btn-sm" style="font-weight: 700; flex: 1; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                <span>📲 Share on WhatsApp</span>
+              <a href="https://wa.me/?text=${m}" target="_blank" class="btn btn-success btn-sm" style="font-weight: 700; flex: 1; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                <span>\u{1F4F2} Share on WhatsApp</span>
               </a>
               <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-copy-ref-link" style="font-weight: 600;">
-                🔗 Copy Direct Registration Link
+                \u{1F517} Copy Direct Registration Link
               </button>
             </div>
           </div>
@@ -2534,7 +1400,7 @@ function renderPortalUI(container, data, analytics = null) {
           <!-- Direct Friend Referral Form -->
           <div style="border-top: 1px solid var(--color-divider); padding-top: 12px; margin-bottom: 12px;">
             <h5 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; color: var(--color-text-primary);">
-              📨 Or Submit Friend's Details Directly
+              \u{1F4E8} Or Submit Friend's Details Directly
             </h5>
             <form id="portal-ref-form">
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 8px; margin-bottom: 8px;">
@@ -2556,269 +1422,134 @@ function renderPortalUI(container, data, analytics = null) {
 
           <!-- Referral History / Friends Ledger -->
           <h5 style="font-size: 0.95rem; font-weight: 700; border-top: 1px solid var(--color-divider); padding-top: 12px; margin-bottom: 8px; color: var(--color-text-primary);">
-            🎉 My Referred Friends (${referrals.length})
+            \u{1F389} My Referred Friends (${D.length})
           </h5>
           <div id="portal-ref-history" style="max-height: 180px; overflow-y: auto;">
-            ${referrals.length > 0 ? referrals.map(r => `
+            ${D.length>0?D.map(d=>`
               <div class="p-2 mb-2" style="background: var(--color-surface); border-radius: 6px; border: 1px solid var(--color-border); font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                  <strong>${escapeHTML(r.refereeName)}</strong>
-                  <div class="text-muted small">${escapeHTML(r.refereePhone)} • ${escapeHTML(r.targetExam || 'General')}</div>
+                  <strong>${o(d.refereeName)}</strong>
+                  <div class="text-muted small">${o(d.refereePhone)} \u2022 ${o(d.targetExam||"General")}</div>
                 </div>
                 <div style="text-align: right;">
-                  <span class="badge ${r.status === 'rewarded' ? 'badge-success' : (r.status === 'joined' ? 'badge-primary' : 'badge-warning')}" style="text-transform: uppercase; font-size: 0.7rem;">
-                    ${escapeHTML(r.status)}
+                  <span class="badge ${d.status==="rewarded"?"badge-success":d.status==="joined"?"badge-primary":"badge-warning"}" style="text-transform: uppercase; font-size: 0.7rem;">
+                    ${o(d.status)}
                   </span>
                   <div style="font-size: 0.75rem; color: var(--color-success); font-weight: 700; margin-top: 2px;">
-                    ₹${r.rewardAmount || 100}
+                    \u20B9${d.rewardAmount||100}
                   </div>
                 </div>
               </div>
-            `).join('') : `
+            `).join(""):`
               <p class="text-muted small text-center p-2">No referrals submitted yet. Share your code with friends to start earning renewal discounts!</p>
             `}
           </div>
         </div>
-      `;
-
-      // Copy Code
-      modalContent.querySelector('#btn-copy-ref-code')?.addEventListener('click', (e) => {
-        copyToClipboard(referralCode, e.currentTarget);
-      });
-
-      // Copy Share Link
-      modalContent.querySelector('#btn-copy-ref-link')?.addEventListener('click', (e) => {
-        copyToClipboard(shareUrl, e.currentTarget);
-      });
-
-      // Custom Code Save
-      modalContent.querySelector('#btn-save-custom-code')?.addEventListener('click', async () => {
-        const input = modalContent.querySelector('#custom-code-input');
-        const newCode = input.value.trim().toUpperCase();
-        if (!newCode) {
-          Toast.error('Please enter a custom code');
-          return;
-        }
-        try {
-          const res = await api.put('/api/student-portal/custom-referral-code', { code: newCode });
-          if (res.success) {
-            Toast.success(res.message);
-            modalContent.querySelector('#display-ref-code').textContent = newCode;
-            input.value = '';
-          } else {
-            Toast.error(res.message);
-          }
-        } catch (e) {
-          Toast.error(e.message || 'Failed to update code');
-        }
-      });
-
-      // Submit Direct Friend Referral
-      modalContent.querySelector('#portal-ref-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const refereeName = modalContent.querySelector('#ref-name').value.trim();
-        const refereePhone = modalContent.querySelector('#ref-phone').value.trim();
-        const targetExam = modalContent.querySelector('#ref-notes').value.trim();
-
-        try {
-          const sRes = await api.post('/api/student-portal/referral', { refereeName, refereePhone, targetExam });
-          if (sRes.success) {
-            Toast.success('Friend referral submitted! Thank you!');
-            refModal.close();
-          } else {
-            Toast.error(sRes.message);
-          }
-        } catch (err) {
-          Toast.error(err.message || 'Failed to submit referral');
-        }
-      });
-
-    } catch (err) {
-      modalContent.innerHTML = `<div class="text-danger p-4 text-center">Failed to load referral studio: ${escapeHTML(err.message)}</div>`;
-    }
-  };
-  container.querySelectorAll('#btn-portal-referral, #tile-portal-referral').forEach(el => el.addEventListener('click', openReferralModal));
-
-  // -------------------------------------------------------------------------
-  // 🏛️ Campus Life & Utilities Hub Controller (Notices, Holidays, Lost&Found, Feedback)
-  // -------------------------------------------------------------------------
-  const campusTabs = container.querySelectorAll('.btn-campus-tab');
-  const campusContent = container.querySelector('#campus-tab-content-container');
-
-  async function activateCampusTab(tabKey) {
-    campusTabs.forEach(b => {
-      if (b.dataset.tab === tabKey) {
-        b.className = 'btn btn-primary btn-campus-tab active';
-      } else {
-        b.className = 'btn btn-outline-secondary btn-campus-tab';
-      }
-    });
-
-    if (!campusContent) return;
-    campusContent.innerHTML = `<div class="text-center p-4 text-muted"><div class="loading-spinner mb-2" style="margin: 0 auto;"></div>Loading...</div>`;
-
-    if (tabKey === 'notices') {
-      try {
-        const res = await api.get('/api/student-portal/announcements');
-        const notices = res.data || [];
-        if (notices.length === 0) {
-          campusContent.innerHTML = `<div class="text-center p-4 text-muted">No campus circulars or notice board alerts at this time.</div>`;
-          return;
-        }
-        campusContent.innerHTML = `
+      `,a.querySelector("#btn-copy-ref-code")?.addEventListener("click",d=>{Be(s,d.currentTarget)}),a.querySelector("#btn-copy-ref-link")?.addEventListener("click",d=>{Be($,d.currentTarget)}),a.querySelector("#btn-save-custom-code")?.addEventListener("click",async()=>{const d=a.querySelector("#custom-code-input"),B=d.value.trim().toUpperCase();if(!B){S.error("Please enter a custom code");return}try{const j=await P.put("/api/student-portal/custom-referral-code",{code:B});j.success?(S.success(j.message),a.querySelector("#display-ref-code").textContent=B,d.value=""):S.error(j.message)}catch(j){S.error(j.message||"Failed to update code")}}),a.querySelector("#portal-ref-form")?.addEventListener("submit",async d=>{d.preventDefault();const B=a.querySelector("#ref-name").value.trim(),j=a.querySelector("#ref-phone").value.trim(),G=a.querySelector("#ref-notes").value.trim();try{const H=await P.post("/api/student-portal/referral",{refereeName:B,refereePhone:j,targetExam:G});H.success?(S.success("Friend referral submitted! Thank you!"),r.close()):S.error(H.message)}catch(H){S.error(H.message||"Failed to submit referral")}})}catch(i){a.innerHTML=`<div class="text-danger p-4 text-center">Failed to load referral studio: ${o(i.message)}</div>`}};n.querySelectorAll("#btn-portal-referral, #tile-portal-referral").forEach(a=>a.addEventListener("click",$e));const ne=n.querySelectorAll(".btn-campus-tab"),O=n.querySelector("#campus-tab-content-container");async function R(a){if(ne.forEach(r=>{r.dataset.tab===a?r.className="btn btn-primary btn-campus-tab active":r.className="btn btn-outline-secondary btn-campus-tab"}),!!O){if(O.innerHTML='<div class="text-center p-4 text-muted"><div class="loading-spinner mb-2" style="margin: 0 auto;"></div>Loading...</div>',a==="notices")try{const r=(await P.get("/api/student-portal/announcements")).data||[];if(r.length===0){O.innerHTML='<div class="text-center p-4 text-muted">No campus circulars or notice board alerts at this time.</div>';return}O.innerHTML=`
           <div style="display: flex; flex-direction: column; gap: 12px;">
-            ${notices.map(n => `
-              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid ${n.isPinned ? 'var(--color-primary)' : 'var(--color-border)'}; border-radius: var(--radius-md); box-shadow: ${n.isPinned ? '0 4px 12px rgba(99, 102, 241, 0.12)' : 'none'};">
+            ${r.map(i=>`
+              <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid ${i.isPinned?"var(--color-primary)":"var(--color-border)"}; border-radius: var(--radius-md); box-shadow: ${i.isPinned?"0 4px 12px rgba(99, 102, 241, 0.12)":"none"};">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; flex-wrap: wrap;">
                   <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    ${n.isPinned ? `<span class="badge" style="background: #f59e0b; color: #fff; font-weight: 800; font-size: 0.72rem;">📌 PINNED</span>` : ''}
-                    <h5 style="margin: 0; font-size: 0.98rem; font-weight: 700; color: var(--color-text-primary);">${escapeHTML(n.title)}</h5>
-                    <span class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--color-primary); font-size: 0.72rem; text-transform: uppercase;">${escapeHTML(n.category || 'general')}</span>
+                    ${i.isPinned?'<span class="badge" style="background: #f59e0b; color: #fff; font-weight: 800; font-size: 0.72rem;">\u{1F4CC} PINNED</span>':""}
+                    <h5 style="margin: 0; font-size: 0.98rem; font-weight: 700; color: var(--color-text-primary);">${o(i.title)}</h5>
+                    <span class="badge" style="background: rgba(99, 102, 241, 0.12); color: var(--color-primary); font-size: 0.72rem; text-transform: uppercase;">${o(i.category||"general")}</span>
                   </div>
-                  <span style="font-size: 0.75rem; color: var(--color-text-muted); white-space: nowrap;">${new Date(n.createdAt).toLocaleDateString('en-IN')} (${SmartFormatters.timeAgo(n.createdAt)})</span>
+                  <span style="font-size: 0.75rem; color: var(--color-text-muted); white-space: nowrap;">${new Date(i.createdAt).toLocaleDateString("en-IN")} (${we.timeAgo(i.createdAt)})</span>
                 </div>
-                <div style="font-size: 0.85rem; color: var(--color-text-primary); line-height: 1.5; white-space: pre-wrap;">${escapeHTML(n.message)}</div>
+                <div style="font-size: 0.85rem; color: var(--color-text-primary); line-height: 1.5; white-space: pre-wrap;">${o(i.message)}</div>
               </div>
-            `).join('')}
+            `).join("")}
           </div>
-        `;
-      } catch (err) {
-        campusContent.innerHTML = `<div class="text-danger p-3 text-center">Failed to load notices: ${escapeHTML(err.message)}</div>`;
-      }
-    } else if (tabKey === 'holidays') {
-      try {
-        const res = await api.get('/api/student-portal/holidays');
-        const holidays = res.data || [];
-        if (holidays.length === 0) {
-          campusContent.innerHTML = `<div class="text-center p-4 text-muted">No scheduled holidays or library closures found. Reading rooms open on standard hours!</div>`;
-          return;
-        }
-        campusContent.innerHTML = `
+        `}catch(r){O.innerHTML=`<div class="text-danger p-3 text-center">Failed to load notices: ${o(r.message)}</div>`}else if(a==="holidays")try{const r=(await P.get("/api/student-portal/holidays")).data||[];if(r.length===0){O.innerHTML='<div class="text-center p-4 text-muted">No scheduled holidays or library closures found. Reading rooms open on standard hours!</div>';return}O.innerHTML=`
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
-            ${holidays.map(h => {
-              const hDate = new Date(h.date || h.startDate || Date.now());
-              const diffDays = Math.ceil((hDate - new Date()) / (1000 * 60 * 60 * 24));
-              return `
+            ${r.map(i=>{const s=new Date(i.date||i.startDate||Date.now()),u=Math.ceil((s-new Date)/(1e3*60*60*24));return`
                 <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
                   <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px;">
-                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary);">${escapeHTML(h.title)}</div>
-                    <span class="badge ${h.isLibraryClosed ? 'badge-danger' : 'badge-warning'}" style="font-size: 0.7rem;">
-                      ${h.isLibraryClosed ? '🔴 Closed' : '🟡 Timings Revised'}
+                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary);">${o(i.title)}</div>
+                    <span class="badge ${i.isLibraryClosed?"badge-danger":"badge-warning"}" style="font-size: 0.7rem;">
+                      ${i.isLibraryClosed?"\u{1F534} Closed":"\u{1F7E1} Timings Revised"}
                     </span>
                   </div>
                   <div style="font-size: 0.82rem; color: var(--color-primary); font-weight: 700; margin-bottom: 4px;">
-                    📅 ${hDate.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
-                    ${diffDays > 0 ? `<small class="text-muted">(${diffDays} days away)</small>` : (diffDays === 0 ? `<small class="text-danger">(Today)</small>` : '')}
+                    \u{1F4C5} ${s.toLocaleDateString("en-IN",{weekday:"short",day:"2-digit",month:"short",year:"numeric"})}
+                    ${u>0?`<small class="text-muted">(${u} days away)</small>`:u===0?'<small class="text-danger">(Today)</small>':""}
                   </div>
-                  ${h.timingOverride ? `<div style="font-size: 0.78rem; color: var(--color-text-secondary);">⏰ Shift Timing: <strong>${escapeHTML(h.timingOverride)}</strong></div>` : ''}
-                  ${h.description ? `<div style="font-size: 0.78rem; color: var(--color-text-muted); margin-top: 4px;">${escapeHTML(h.description)}</div>` : ''}
+                  ${i.timingOverride?`<div style="font-size: 0.78rem; color: var(--color-text-secondary);">\u23F0 Shift Timing: <strong>${o(i.timingOverride)}</strong></div>`:""}
+                  ${i.description?`<div style="font-size: 0.78rem; color: var(--color-text-muted); margin-top: 4px;">${o(i.description)}</div>`:""}
                 </div>
-              `;
-            }).join('')}
+              `}).join("")}
           </div>
-        `;
-      } catch (err) {
-        campusContent.innerHTML = `<div class="text-danger p-3 text-center">Failed to load holiday calendar: ${escapeHTML(err.message)}</div>`;
-      }
-    } else if (tabKey === 'lostfound') {
-      try {
-        const res = await api.get('/api/student-portal/lost-found');
-        const items = res.data || [];
-        campusContent.innerHTML = `
+        `}catch(r){O.innerHTML=`<div class="text-danger p-3 text-center">Failed to load holiday calendar: ${o(r.message)}</div>`}else if(a==="lostfound")try{const r=(await P.get("/api/student-portal/lost-found")).data||[];O.innerHTML=`
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
             <div style="font-size: 0.85rem; color: var(--color-text-secondary);">
               Items found inside study rooms, silent cabins &amp; washrooms. Check with manager desk to claim.
             </div>
             <button type="button" class="btn btn-sm btn-primary" id="btn-report-lost-item" style="font-weight: 700;">
-              ➕ Report Lost/Found Item
+              \u2795 Report Lost/Found Item
             </button>
           </div>
-          ${items.length === 0 ? `
+          ${r.length===0?`
             <div class="text-center p-4 text-muted">No lost or unclaimed items recorded currently.</div>
-          ` : `
+          `:`
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
-              ${items.map(item => `
+              ${r.map(i=>`
                 <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
                   <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px;">
-                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary);">${escapeHTML(item.itemName)}</div>
-                    <span class="badge ${item.status === 'claimed' ? 'badge-success' : 'badge-warning'}" style="font-size: 0.7rem; text-transform: uppercase;">
-                      ${item.status === 'claimed' ? '✅ Claimed' : '🟢 Found / Available'}
+                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-text-primary);">${o(i.itemName)}</div>
+                    <span class="badge ${i.status==="claimed"?"badge-success":"badge-warning"}" style="font-size: 0.7rem; text-transform: uppercase;">
+                      ${i.status==="claimed"?"\u2705 Claimed":"\u{1F7E2} Found / Available"}
                     </span>
                   </div>
                   <div style="font-size: 0.78rem; color: var(--color-text-secondary); margin-bottom: 4px;">
-                    📍 Found Location: <strong>${escapeHTML(item.foundLocation || 'Library')}</strong>
+                    \u{1F4CD} Found Location: <strong>${o(i.foundLocation||"Library")}</strong>
                   </div>
-                  ${item.description ? `<div style="font-size: 0.78rem; color: var(--color-text-muted);">${escapeHTML(item.description)}</div>` : ''}
+                  ${i.description?`<div style="font-size: 0.78rem; color: var(--color-text-muted);">${o(i.description)}</div>`:""}
                   <div style="font-size: 0.72rem; color: var(--color-text-muted); margin-top: 6px;">
-                    Reported on: ${new Date(item.foundDate || item.createdAt).toLocaleDateString('en-IN')}
+                    Reported on: ${new Date(i.foundDate||i.createdAt).toLocaleDateString("en-IN")}
                   </div>
                 </div>
-              `).join('')}
+              `).join("")}
             </div>
           `}
-        `;
-
-        campusContent.querySelector('#btn-report-lost-item')?.addEventListener('click', () => {
-          showReportLostModal();
-        });
-      } catch (err) {
-        campusContent.innerHTML = `<div class="text-danger p-3 text-center">Failed to load lost & found items: ${escapeHTML(err.message)}</div>`;
-      }
-    } else if (tabKey === 'feedback') {
-      try {
-        const res = await api.get('/api/student-portal/feedback');
-        const feedbacks = res.data || [];
-        campusContent.innerHTML = `
+        `,O.querySelector("#btn-report-lost-item")?.addEventListener("click",()=>{de()})}catch(r){O.innerHTML=`<div class="text-danger p-3 text-center">Failed to load lost & found items: ${o(r.message)}</div>`}else if(a==="feedback")try{const r=(await P.get("/api/student-portal/feedback")).data||[];O.innerHTML=`
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
             <div style="font-size: 0.85rem; color: var(--color-text-secondary);">
               Your suggestions &amp; queries help us maintain 5-star study conditions.
             </div>
             <button type="button" class="btn btn-sm btn-primary" id="btn-submit-new-feedback" style="font-weight: 700;">
-              ✍️ Submit Feedback / Query
+              \u270D\uFE0F Submit Feedback / Query
             </button>
           </div>
-          ${feedbacks.length === 0 ? `
+          ${r.length===0?`
             <div class="text-center p-4 text-muted">You haven't submitted any feedback yet. Have a request or issue? Click the button above to contact management!</div>
-          ` : `
+          `:`
             <div style="display: flex; flex-direction: column; gap: 10px;">
-              ${feedbacks.map(f => `
+              ${r.map(i=>`
                 <div class="card p-3" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
                   <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                      <span style="font-weight: 700; font-size: 0.9rem; text-transform: uppercase; color: var(--color-primary);">${escapeHTML(f.category || 'General')}</span>
-                      <span>${'⭐'.repeat(Math.max(1, Math.min(5, f.rating || 5)))}</span>
+                      <span style="font-weight: 700; font-size: 0.9rem; text-transform: uppercase; color: var(--color-primary);">${o(i.category||"General")}</span>
+                      <span>${"\u2B50".repeat(Math.max(1,Math.min(5,i.rating||5)))}</span>
                     </div>
-                    <span class="badge ${f.status === 'resolved' ? 'badge-success' : 'badge-warning'}" style="font-size: 0.7rem; text-transform: uppercase;">
-                      ${escapeHTML(f.status || 'Pending')}
+                    <span class="badge ${i.status==="resolved"?"badge-success":"badge-warning"}" style="font-size: 0.7rem; text-transform: uppercase;">
+                      ${o(i.status||"Pending")}
                     </span>
                   </div>
-                  <div style="font-size: 0.85rem; color: var(--color-text-primary); line-height: 1.4; margin: 4px 0;">${escapeHTML(f.message)}</div>
-                  ${f.adminReply ? `
+                  <div style="font-size: 0.85rem; color: var(--color-text-primary); line-height: 1.4; margin: 4px 0;">${o(i.message)}</div>
+                  ${i.adminReply?`
                     <div style="background: rgba(108, 92, 231, 0.08); border-left: 3px solid var(--color-primary); padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; margin-top: 6px;">
-                      <strong style="color: var(--color-primary);">Management Reply:</strong> ${escapeHTML(f.adminReply)}
+                      <strong style="color: var(--color-primary);">Management Reply:</strong> ${o(i.adminReply)}
                     </div>
-                  ` : ''}
+                  `:""}
                   <div style="font-size: 0.72rem; color: var(--color-text-muted); margin-top: 6px;">
-                    Submitted: ${new Date(f.createdAt).toLocaleDateString('en-IN')} (${SmartFormatters.timeAgo(f.createdAt)})
+                    Submitted: ${new Date(i.createdAt).toLocaleDateString("en-IN")} (${we.timeAgo(i.createdAt)})
                   </div>
                 </div>
-              `).join('')}
+              `).join("")}
             </div>
           `}
-        `;
-
-        campusContent.querySelector('#btn-submit-new-feedback')?.addEventListener('click', () => {
-          showSubmitFeedbackModal();
-        });
-      } catch (err) {
-        campusContent.innerHTML = `<div class="text-danger p-3 text-center">Failed to load feedback: ${escapeHTML(err.message)}</div>`;
-      }
-    }
-  }
-
-  function showReportLostModal() {
-    const modalContent = document.createElement('div');
-    modalContent.innerHTML = `
+        `,O.querySelector("#btn-submit-new-feedback")?.addEventListener("click",()=>{ye()})}catch(r){O.innerHTML=`<div class="text-danger p-3 text-center">Failed to load feedback: ${o(r.message)}</div>`}}}function de(){const a=document.createElement("div");a.innerHTML=`
       <form id="form-report-lost" style="font-family: 'Outfit', sans-serif;">
         <div class="mb-3">
           <label class="form-label" style="font-weight: 700;">Item Name *</label>
@@ -2828,11 +1559,11 @@ function renderPortalUI(container, data, analytics = null) {
           <div class="col-md-6">
             <label class="form-label" style="font-weight: 600;">Category</label>
             <select id="lost-category" class="form-select">
-              <option value="electronics">📱 Electronics / Charger</option>
-              <option value="books">📚 Books / Notes</option>
-              <option value="stationery">✏️ Stationery / Calculator</option>
-              <option value="clothing">👕 Clothing / Bag / Bottle</option>
-              <option value="other">📦 Other</option>
+              <option value="electronics">\u{1F4F1} Electronics / Charger</option>
+              <option value="books">\u{1F4DA} Books / Notes</option>
+              <option value="stationery">\u270F\uFE0F Stationery / Calculator</option>
+              <option value="clothing">\u{1F455} Clothing / Bag / Bottle</option>
+              <option value="other">\u{1F4E6} Other</option>
             </select>
           </div>
           <div class="col-md-6">
@@ -2849,56 +1580,28 @@ function renderPortalUI(container, data, analytics = null) {
           <button type="submit" class="btn btn-primary btn-sm" style="font-weight: 700;">Submit Report</button>
         </div>
       </form>
-    `;
-    const m = new Modal({ title: '🔍 Report Lost / Found Item', content: modalContent, size: 'md' });
-    m.show();
-
-    modalContent.querySelector('#form-report-lost').onsubmit = async (e) => {
-      e.preventDefault();
-      const itemName = modalContent.querySelector('#lost-itemName').value.trim();
-      const category = modalContent.querySelector('#lost-category').value;
-      const foundLocation = modalContent.querySelector('#lost-location').value.trim();
-      const description = modalContent.querySelector('#lost-desc').value.trim();
-
-      try {
-        const res = await api.post('/api/student-portal/lost-found', { itemName, category, foundLocation, description });
-        if (res.success) {
-          Toast.success('Lost & Found item reported!');
-          m.close();
-          activateCampusTab('lostfound');
-        } else {
-          Toast.error(res.message);
-        }
-      } catch (err) {
-        Toast.error(err.message || 'Failed to submit report');
-      }
-    };
-  }
-
-  function showSubmitFeedbackModal() {
-    const modalContent = document.createElement('div');
-    modalContent.innerHTML = `
+    `;const r=new re({title:"\u{1F50D} Report Lost / Found Item",content:a,size:"md"});r.show(),a.querySelector("#form-report-lost").onsubmit=async i=>{i.preventDefault();const s=a.querySelector("#lost-itemName").value.trim(),u=a.querySelector("#lost-category").value,f=a.querySelector("#lost-location").value.trim(),h=a.querySelector("#lost-desc").value.trim();try{const D=await P.post("/api/student-portal/lost-found",{itemName:s,category:u,foundLocation:f,description:h});D.success?(S.success("Lost & Found item reported!"),r.close(),R("lostfound")):S.error(D.message)}catch(D){S.error(D.message||"Failed to submit report")}}}function ye(){const a=document.createElement("div");a.innerHTML=`
       <form id="form-submit-feedback" style="font-family: 'Outfit', sans-serif;">
         <div class="row g-2 mb-3">
           <div class="col-md-6">
             <label class="form-label" style="font-weight: 700;">Category *</label>
             <select id="fb-category" class="form-select">
-              <option value="cleanliness">🧹 Cleanliness & Washrooms</option>
-              <option value="ac_wifi">❄️ AC & High-Speed Wi-Fi</option>
-              <option value="noise">🤫 Noise / Silence Maintenance</option>
-              <option value="seats">💺 Desk / Ergonomic Seating</option>
-              <option value="management">👥 Management & Staff Support</option>
-              <option value="other">💬 General Suggestion</option>
+              <option value="cleanliness">\u{1F9F9} Cleanliness & Washrooms</option>
+              <option value="ac_wifi">\u2744\uFE0F AC & High-Speed Wi-Fi</option>
+              <option value="noise">\u{1F92B} Noise / Silence Maintenance</option>
+              <option value="seats">\u{1F4BA} Desk / Ergonomic Seating</option>
+              <option value="management">\u{1F465} Management & Staff Support</option>
+              <option value="other">\u{1F4AC} General Suggestion</option>
             </select>
           </div>
           <div class="col-md-6">
             <label class="form-label" style="font-weight: 700;">Overall Satisfaction Rating</label>
             <select id="fb-rating" class="form-select">
-              <option value="5">⭐⭐⭐⭐⭐ Excellent (5/5)</option>
-              <option value="4">⭐⭐⭐⭐ Good (4/5)</option>
-              <option value="3">⭐⭐⭐ Average (3/5)</option>
-              <option value="2">⭐⭐ Needs Improvement (2/5)</option>
-              <option value="1">⭐ Poor (1/5)</option>
+              <option value="5">\u2B50\u2B50\u2B50\u2B50\u2B50 Excellent (5/5)</option>
+              <option value="4">\u2B50\u2B50\u2B50\u2B50 Good (4/5)</option>
+              <option value="3">\u2B50\u2B50\u2B50 Average (3/5)</option>
+              <option value="2">\u2B50\u2B50 Needs Improvement (2/5)</option>
+              <option value="1">\u2B50 Poor (1/5)</option>
             </select>
           </div>
         </div>
@@ -2911,143 +1614,26 @@ function renderPortalUI(container, data, analytics = null) {
           <button type="submit" class="btn btn-primary btn-sm" style="font-weight: 700;">Send to Management</button>
         </div>
       </form>
-    `;
-    const m = new Modal({ title: '💬 Student Feedback & Helpdesk', content: modalContent, size: 'md' });
-    m.show();
-
-    modalContent.querySelector('#form-submit-feedback').onsubmit = async (e) => {
-      e.preventDefault();
-      const category = modalContent.querySelector('#fb-category').value;
-      const rating = modalContent.querySelector('#fb-rating').value;
-      const message = modalContent.querySelector('#fb-message').value.trim();
-
-      try {
-        const res = await api.post('/api/student-portal/feedback', { category, rating, message });
-        if (res.success) {
-          Toast.success('Feedback submitted! Thank you!');
-          m.close();
-          activateCampusTab('feedback');
-        } else {
-          Toast.error(res.message);
-        }
-      } catch (err) {
-        Toast.error(err.message || 'Failed to submit feedback');
-      }
-    };
-  }
-
-  // Attach Tab Switchers
-  campusTabs.forEach(b => {
-    b.addEventListener('click', () => {
-      activateCampusTab(b.dataset.tab);
-    });
-  });
-
-  // Top Action Button Jump Listeners
-  function jumpToCampusTab(tabKey) {
-    const card = document.getElementById('student-campus-hub-card');
-    if (card) {
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      card.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.4)';
-      setTimeout(() => { card.style.boxShadow = ''; }, 1500);
-      activateCampusTab(tabKey);
-    }
-  }
-
-  container.querySelector('#btn-portal-notices')?.addEventListener('click', () => jumpToCampusTab('notices'));
-  container.querySelector('#btn-portal-holidays')?.addEventListener('click', () => jumpToCampusTab('holidays'));
-  container.querySelector('#btn-portal-lostfound')?.addEventListener('click', () => jumpToCampusTab('lostfound'));
-  container.querySelector('#btn-portal-feedback')?.addEventListener('click', () => jumpToCampusTab('feedback'));
-
-  // Initialize Default Tab
-  activateCampusTab('notices');
-
-  // Jump to receipts
-  container.querySelector('#btn-portal-receipts-jump')?.addEventListener('click', () => {
-    const el = document.getElementById('student-receipts-card');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.4)';
-      setTimeout(() => { el.style.boxShadow = ''; }, 1500);
-    }
-  });
-
-  // Attach Payment Receipt Click Handlers (Strictly uses Admin's active receipt template & visibility rules)
-  container.querySelectorAll('.btn-view-receipt').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      try {
-        const p = JSON.parse(btn.dataset.receipt);
-        const receiptNo = p.receiptNumber || 'REC';
-        
-        let rc = window.store?.settings?.receipt;
-        if (!rc || !rc.activeTemplate) {
-          try {
-            const cfgRes = await api.get('/api/settings/receipt-config').catch(() => null);
-            if (cfgRes?.success && cfgRes?.data) rc = cfgRes.data;
-          } catch (e) {}
-        }
-
-        const receiptContentHtml = buildReceiptHTML(p, {
-          receiptConfig: rc,
-          businessProfile: business,
-          isStudent: true
-        });
-
-        const receiptModalHtml = `
+    `;const r=new re({title:"\u{1F4AC} Student Feedback & Helpdesk",content:a,size:"md"});r.show(),a.querySelector("#form-submit-feedback").onsubmit=async i=>{i.preventDefault();const s=a.querySelector("#fb-category").value,u=a.querySelector("#fb-rating").value,f=a.querySelector("#fb-message").value.trim();try{const h=await P.post("/api/student-portal/feedback",{category:s,rating:u,message:f});h.success?(S.success("Feedback submitted! Thank you!"),r.close(),R("feedback")):S.error(h.message)}catch(h){S.error(h.message||"Failed to submit feedback")}}}ne.forEach(a=>{a.addEventListener("click",()=>{R(a.dataset.tab)})});function ve(a){const r=document.getElementById("student-campus-hub-card");r&&(r.scrollIntoView({behavior:"smooth",block:"center"}),r.style.boxShadow="0 0 0 3px rgba(99, 102, 241, 0.4)",setTimeout(()=>{r.style.boxShadow=""},1500),R(a))}n.querySelector("#btn-portal-notices")?.addEventListener("click",()=>ve("notices")),n.querySelector("#btn-portal-holidays")?.addEventListener("click",()=>ve("holidays")),n.querySelector("#btn-portal-lostfound")?.addEventListener("click",()=>ve("lostfound")),n.querySelector("#btn-portal-feedback")?.addEventListener("click",()=>ve("feedback")),R("notices"),n.querySelector("#btn-portal-receipts-jump")?.addEventListener("click",()=>{const a=document.getElementById("student-receipts-card");a&&(a.scrollIntoView({behavior:"smooth",block:"center"}),a.style.boxShadow="0 0 0 3px rgba(99, 102, 241, 0.4)",setTimeout(()=>{a.style.boxShadow=""},1500))}),n.querySelectorAll(".btn-view-receipt").forEach(a=>{a.addEventListener("click",async()=>{try{const r=JSON.parse(a.dataset.receipt),i=r.receiptNumber||"REC";let s=window.store?.settings?.receipt;if(!s||!s.activeTemplate)try{const f=await P.get("/api/settings/receipt-config").catch(()=>null);f?.success&&f?.data&&(s=f.data)}catch{}const u=`
           <div style="padding: 6px; font-family: inherit;">
             <div id="student-receipt-rendered-container">
-              ${receiptContentHtml}
+              ${Qe(r,{receiptConfig:s,businessProfile:p,isStudent:!0})}
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; border-top: 1px solid var(--color-border, #e2e8f0); padding-top: 12px;">
               <button class="btn btn-secondary btn-sm" onclick="Modal.closeAll()">Close</button>
               <button class="btn btn-primary btn-sm" id="btn-print-student-receipt-modal" style="font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
-                <span>📥</span> Download PDF / Print Receipt
+                <span>\u{1F4E5}</span> Download PDF / Print Receipt
               </button>
             </div>
           </div>
-        `;
-
-        Modal.show({
-          title: `Payment Receipt — ${receiptNo}`,
-          content: receiptModalHtml,
-          size: 'md'
-        });
-
-        setTimeout(() => {
-          document.getElementById('btn-print-student-receipt-modal')?.addEventListener('click', () => {
-            printReceiptDocument(p, {
-              receiptConfig: rc,
-              businessProfile: business
-            });
-          });
-        }, 50);
-
-      } catch (e) {
-        console.error('Receipt click error:', e);
-        Toast.error('Could not load receipt');
-      }
-    });
-  });
-
-  // Renew Membership Plan with Dynamic UPI QR Code & Plan/Shift Selection
-  container.querySelector('#btn-portal-renew')?.addEventListener('click', async () => {
-    try {
-      const quoteRes = await api.get('/api/student-portal/renewal-quote?applyWallet=false');
-      if (!quoteRes.success) throw new Error(quoteRes.message);
-      let q = quoteRes.data;
-      let selectedPortalPayMode = 'upi';
-
-      const modalContent = document.createElement('div');
-
-      function updateModalBody() {
-        modalContent.innerHTML = `
+        `;re.show({title:`Payment Receipt \u2014 ${i}`,content:u,size:"md"}),setTimeout(()=>{document.getElementById("btn-print-student-receipt-modal")?.addEventListener("click",()=>{Je(r,{receiptConfig:s,businessProfile:p})})},50)}catch(r){console.error("Receipt click error:",r),S.error("Could not load receipt")}})}),n.querySelector("#btn-portal-renew")?.addEventListener("click",async()=>{try{let a=function(){f.innerHTML=`
           <div style="font-family: 'Outfit', sans-serif;">
             
             <!-- Dynamic Admin Selected Verification Engine Header -->
             <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 10px; padding: 8px 12px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
               <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="badge" style="background: ${q.gatewayProvider === 'manual_upi' || !q.gatewayProvider ? 'rgba(0, 184, 148, 0.15)' : 'rgba(108, 92, 231, 0.15)'}; color: ${q.gatewayProvider === 'manual_upi' || !q.gatewayProvider ? 'var(--color-success)' : 'var(--color-primary)'}; font-weight: 800; font-size: 0.82rem; padding: 4px 10px;">
-                  ${q.gatewayProvider === 'manual_upi' || !q.gatewayProvider ? '🟢 Option A: Free Standard UPI QR & UTR Check' : '⚡ Option B: ' + (q.gatewayProvider || 'gateway').toUpperCase() + ' 0-Sec Auto-Verify'}
+                <span class="badge" style="background: ${s.gatewayProvider==="manual_upi"||!s.gatewayProvider?"rgba(0, 184, 148, 0.15)":"rgba(108, 92, 231, 0.15)"}; color: ${s.gatewayProvider==="manual_upi"||!s.gatewayProvider?"var(--color-success)":"var(--color-primary)"}; font-weight: 800; font-size: 0.82rem; padding: 4px 10px;">
+                  ${s.gatewayProvider==="manual_upi"||!s.gatewayProvider?"\u{1F7E2} Option A: Free Standard UPI QR & UTR Check":"\u26A1 Option B: "+(s.gatewayProvider||"gateway").toUpperCase()+" 0-Sec Auto-Verify"}
                 </span>
               </div>
               <span style="font-size: 0.78rem; color: var(--color-text-secondary); font-weight: 600;">
@@ -3060,15 +1646,10 @@ function renderPortalUI(container, data, analytics = null) {
               <div class="col-md-6">
                 <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Select Membership Plan *</label>
                 <select id="renewal-plan-select" class="form-select" style="font-weight: 600;">
-                  ${(q.allPlans || []).map(p => {
-                    const dt = p.durationType || 'days';
-                    const d = p.duration || 30;
-                    const durLabel = dt === 'months' ? `${d} Month${d > 1 ? 's' : ''}` : dt === 'years' ? `${d} Year${d > 1 ? 's' : ''}` : `${d} Day${d !== 1 ? 's' : ''}`;
-                    return `
-                    <option value="${p._id}" ${String(p._id) === String(q.selectedPlanId) ? 'selected' : ''}>
-                      ${escapeHTML(p.name)} — ₹${Number(p.price || 0).toLocaleString('en-IN')} (${durLabel})
-                    </option>`;
-                  }).join('')}
+                  ${(s.allPlans||[]).map(h=>{const D=h.durationType||"days",$=h.duration||30,m=D==="months"?`${$} Month${$>1?"s":""}`:D==="years"?`${$} Year${$>1?"s":""}`:`${$} Day${$!==1?"s":""}`;return`
+                    <option value="${h._id}" ${String(h._id)===String(s.selectedPlanId)?"selected":""}>
+                      ${o(h.name)} \u2014 \u20B9${Number(h.price||0).toLocaleString("en-IN")} (${m})
+                    </option>`}).join("")}
 
                 </select>
               </div>
@@ -3076,11 +1657,11 @@ function renderPortalUI(container, data, analytics = null) {
               <div class="col-md-6">
                 <label class="form-label" style="font-weight: 700; font-size: 0.85rem;">Select Preferred Study Shift *</label>
                 <select id="renewal-shift-select" class="form-select" style="font-weight: 600;">
-                  ${(q.allShifts || []).map(s => `
-                    <option value="${s._id}" ${String(s._id) === String(q.selectedShiftId) ? 'selected' : ''}>
-                      ${escapeHTML(s.name)} (${escapeHTML(s.startTime || '')} - ${escapeHTML(s.endTime || '')})
+                  ${(s.allShifts||[]).map(h=>`
+                    <option value="${h._id}" ${String(h._id)===String(s.selectedShiftId)?"selected":""}>
+                      ${o(h.name)} (${o(h.startTime||"")} - ${o(h.endTime||"")})
                     </option>
-                  `).join('')}
+                  `).join("")}
                 </select>
               </div>
             </div>
@@ -3088,42 +1669,42 @@ function renderPortalUI(container, data, analytics = null) {
             <!-- Dynamic Renewal Summary Card -->
             <div style="text-align: center; margin-bottom: 1rem; background: rgba(108, 92, 231, 0.06); padding: 10px; border-radius: 10px; border: 1px solid rgba(108, 92, 231, 0.2);">
               <span class="badge" style="background: rgba(108, 92, 231, 0.2); color: var(--color-primary); font-weight: 700; font-size: 0.8rem; padding: 4px 10px;">
-                ⚡ Instant Self-Renewal
+                \u26A1 Instant Self-Renewal
               </span>
               <h4 style="margin: 6px 0 2px 0; font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary);">
-                ${escapeHTML(q.planName)}
+                ${o(s.planName)}
               </h4>
-              <p class="text-muted small" style="margin: 0; font-size: 0.8rem;">Extends membership by ${q.durationDays >= 365 ? Math.round(q.durationDays / 365) + ' Year(s)' : q.durationDays >= 28 ? Math.round(q.durationDays / 30) + ' Month(s)' : q.durationDays + ' Day(s)'} from expiry.</p>
+              <p class="text-muted small" style="margin: 0; font-size: 0.8rem;">Extends membership by ${s.durationDays>=365?Math.round(s.durationDays/365)+" Year(s)":s.durationDays>=28?Math.round(s.durationDays/30)+" Month(s)":s.durationDays+" Day(s)"} from expiry.</p>
             </div>
 
             <!-- Fee Calculation Table -->
             <div style="background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 1rem;">
               <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px;">
                 <span class="text-muted">Plan Base Fee:</span>
-                <span style="font-weight: 600;">₹${q.basePrice.toLocaleString('en-IN')}</span>
+                <span style="font-weight: 600;">\u20B9${s.basePrice.toLocaleString("en-IN")}</span>
               </div>
-              ${q.discount > 0 ? `
+              ${s.discount>0?`
                 <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; color: var(--color-success);">
                   <span>Special Discount:</span>
-                  <span style="font-weight: 600;">- ₹${q.discount.toLocaleString('en-IN')}</span>
+                  <span style="font-weight: 600;">- \u20B9${s.discount.toLocaleString("en-IN")}</span>
                 </div>
-              ` : ''}
-              ${q.pendingFine > 0 ? `
+              `:""}
+              ${s.pendingFine>0?`
                 <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; color: var(--color-danger);">
                   <span>Late Fee / Grace Due:</span>
-                  <span style="font-weight: 600;">+ ₹${q.pendingFine.toLocaleString('en-IN')}</span>
+                  <span style="font-weight: 600;">+ \u20B9${s.pendingFine.toLocaleString("en-IN")}</span>
                 </div>
-              ` : ''}
+              `:""}
               <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 800; border-top: 1px dashed var(--color-border); padding-top: 8px; margin-top: 4px; color: var(--color-primary);">
                 <span>Total Amount Payable:</span>
-                <span>₹${q.totalPayable.toLocaleString('en-IN')}</span>
+                <span>\u20B9${s.totalPayable.toLocaleString("en-IN")}</span>
               </div>
             </div>
 
-            ${q.allMethodsDisabled || (q.paymentMethods || []).length === 0 ? `
+            ${s.allMethodsDisabled||(s.paymentMethods||[]).length===0?`
               <!-- Disabled Payment Banner when Admin turns off all online payment methods -->
               <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 1.25rem; text-align: center; margin-bottom: 1rem;">
-                <div style="font-size: 2.2rem; margin-bottom: 6px;">🚫</div>
+                <div style="font-size: 2.2rem; margin-bottom: 6px;">\u{1F6AB}</div>
                 <h4 style="margin: 0 0 6px 0; font-size: 1.05rem; font-weight: 800; color: var(--color-danger);">
                   Online Self-Renewal Currently Disabled
                 </h4>
@@ -3134,42 +1715,35 @@ function renderPortalUI(container, data, analytics = null) {
                   <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Close Window</button>
                 </div>
               </div>
-            ` : `
+            `:`
               <!-- Payment Method Selection Tabs -->
               <div class="mb-3">
                 <label class="form-label" style="font-weight: 700;">Choose Payment Method *</label>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
-                  <button type="button" class="btn btn-sm ${selectedPortalPayMode === 'upi' ? 'btn-primary' : 'btn-outline-secondary'} btn-portal-pm" data-mode="upi" style="font-weight: 700; padding: 7px 10px;">
-                    ⚡ Instant UPI / QR
+                  <button type="button" class="btn btn-sm ${u==="upi"?"btn-primary":"btn-outline-secondary"} btn-portal-pm" data-mode="upi" style="font-weight: 700; padding: 7px 10px;">
+                    \u26A1 Instant UPI / QR
                   </button>
-                  <button type="button" class="btn btn-sm ${selectedPortalPayMode === 'bank_transfer' ? 'btn-primary' : 'btn-outline-secondary'} btn-portal-pm" data-mode="bank_transfer" style="font-weight: 700; padding: 7px 10px;">
-                    🏛️ Bank Transfer
+                  <button type="button" class="btn btn-sm ${u==="bank_transfer"?"btn-primary":"btn-outline-secondary"} btn-portal-pm" data-mode="bank_transfer" style="font-weight: 700; padding: 7px 10px;">
+                    \u{1F3DB}\uFE0F Bank Transfer
                   </button>
-                  <button type="button" class="btn btn-sm ${selectedPortalPayMode === 'desk' ? 'btn-primary' : 'btn-outline-secondary'} btn-portal-pm" data-mode="desk" style="font-weight: 700; padding: 7px 10px;">
-                    💵 Pay at Desk
+                  <button type="button" class="btn btn-sm ${u==="desk"?"btn-primary":"btn-outline-secondary"} btn-portal-pm" data-mode="desk" style="font-weight: 700; padding: 7px 10px;">
+                    \u{1F4B5} Pay at Desk
                   </button>
                 </div>
               </div>
 
               <!-- Dynamic Subpanes Container -->
               <div id="portal-payment-subpane" class="mb-3">
-                ${selectedPortalPayMode === 'upi' ? `
-                  ${PaymentStudio.renderUPIWidget({
-                    amount: q.totalPayable,
-                    upiId: q.upiId,
-                    note: `Renewal_${student.studentId || ''}`,
-                    showUtrInput: true,
-                    utrInputId: 'renewal-utr-input',
-                    mountId: 'renewal-upi-qr-mount'
-                  })}
-                ` : selectedPortalPayMode === 'bank_transfer' ? `
-                  ${PaymentStudio.renderBankDetailsWidget()}
+                ${u==="upi"?`
+                  ${De.renderUPIWidget({amount:s.totalPayable,upiId:s.upiId,note:`Renewal_${t.studentId||""}`,showUtrInput:!0,utrInputId:"renewal-utr-input",mountId:"renewal-upi-qr-mount"})}
+                `:u==="bank_transfer"?`
+                  ${De.renderBankDetailsWidget()}
 
-                  <!-- 📸 1-Tap Slip Upload Trigger -->
+                  <!-- \u{1F4F8} 1-Tap Slip Upload Trigger -->
                   <div style="background: var(--color-bg-secondary); border: 1.5px dashed var(--color-primary); border-radius: 10px; padding: 10px; text-align: center; margin-bottom: 10px;">
                     <input type="file" id="renewal-slip-file-input" accept="image/*,application/pdf" style="display: none;">
                     <button type="button" id="btn-renewal-slip-trigger" class="btn btn-sm btn-outline-primary" style="font-weight: 700; font-size: 0.80rem; border-radius: 6px; padding: 5px 14px;">
-                      📸 Attach Payment Screenshot / Slip
+                      \u{1F4F8} Attach Payment Screenshot / Slip
                     </button>
                     <div id="renewal-slip-preview" style="display: none; margin-top: 6px; font-size: 0.76rem; color: var(--color-success); font-weight: 700;"></div>
                   </div>
@@ -3178,19 +1752,19 @@ function renderPortalUI(container, data, analytics = null) {
                   <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                       <label class="form-label mb-0" style="font-weight: 700; font-size: 0.85rem; color: var(--color-text-primary);">
-                        🏛️ Bank NEFT / IMPS Reference / UTR *
+                        \u{1F3DB}\uFE0F Bank NEFT / IMPS Reference / UTR *
                       </label>
                       <span class="badge" style="background: rgba(108, 92, 231, 0.12); color: var(--color-primary); font-size: 0.7rem; font-weight: 700;">Required</span>
                     </div>
                     <div style="display: flex; gap: 6px;">
                       <input type="text" id="renewal-utr-input" class="form-control" placeholder="e.g. 423819203912 or Bank Ref # (12 digits)" maxlength="35" style="font-family: monospace; font-size: 0.92rem; font-weight: 600;">
-                      <button type="button" class="btn btn-outline-primary btn-ps-paste-utr" data-target="renewal-utr-input" style="font-size: 0.8rem; padding: 6px 12px; white-space: nowrap; border-radius: 8px; font-weight: 700;">📋 Paste</button>
+                      <button type="button" class="btn btn-outline-primary btn-ps-paste-utr" data-target="renewal-utr-input" style="font-size: 0.8rem; padding: 6px 12px; white-space: nowrap; border-radius: 8px; font-weight: 700;">\u{1F4CB} Paste</button>
                     </div>
                   </div>
-                ` : `
+                `:`
                   <!-- Pay at Desk Notice -->
                   <div style="background: rgba(0, 184, 148, 0.1); border: 1px solid var(--color-success, #00b894); border-radius: 12px; padding: 14px; font-size: 0.85rem; color: var(--color-text-primary);">
-                    <div style="font-weight: 800; color: var(--color-success); margin-bottom: 4px;">💵 Pay Cash at Reception Desk</div>
+                    <div style="font-weight: 800; color: var(--color-success); margin-bottom: 4px;">\u{1F4B5} Pay Cash at Reception Desk</div>
                     <p style="margin: 0; line-height: 1.45;">Your renewal application will be recorded as <strong>Pending Cash Payment</strong>. Please visit the front reception desk to complete payment and receive your printed receipt.</p>
                   </div>
                 `}
@@ -3201,289 +1775,41 @@ function renderPortalUI(container, data, analytics = null) {
                 <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 1rem;">
                   <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
                   <button type="submit" class="btn btn-primary" id="btn-submit-renewal-utr" style="font-weight: 700; min-height: 40px;">
-                    ${selectedPortalPayMode === 'desk' ? '📝 Submit Desk Renewal Request' : '✅ Confirm & Extend Membership'}
+                    ${u==="desk"?"\u{1F4DD} Submit Desk Renewal Request":"\u2705 Confirm & Extend Membership"}
                   </button>
                 </div>
               </form>
             `}
           </div>
-        `;
-
-        bindEvents();
-      }
-
-      function bindEvents() {
-        // Attach Universal PaymentStudio listeners (Copy UPI, Copy Bank, Paste UTR, App Intents)
-        PaymentStudio.attachEventListeners(modalContent);
-        // Payment mode toggle buttons
-        modalContent.querySelectorAll('.btn-portal-pm').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const mode = btn.dataset.mode;
-            if (mode && mode !== selectedPortalPayMode) {
-              selectedPortalPayMode = mode;
-              updateModalBody();
-            }
-          });
-        });
-
-        const planSelect = modalContent.querySelector('#renewal-plan-select');
-        const shiftSelect = modalContent.querySelector('#renewal-shift-select');
-
-        async function onSelectionChange() {
-          const selectedPlanId = planSelect ? planSelect.value : '';
-          const selectedShiftId = shiftSelect ? shiftSelect.value : '';
-          try {
-            const freshQuote = await api.get(`/api/student-portal/renewal-quote?planId=${selectedPlanId}&shiftId=${selectedShiftId}&applyWallet=false`);
-            if (freshQuote.success && freshQuote.data) {
-              q = freshQuote.data;
-              updateModalBody();
-            }
-          } catch (e) {
-            console.warn('Failed to calculate renewal quote:', e);
-          }
-        }
-
-        if (planSelect) planSelect.addEventListener('change', onSelectionChange);
-        if (shiftSelect) shiftSelect.addEventListener('change', onSelectionChange);
-
-        // 1-Tap UPI Intent Apps Binding
-        let renewalTxnRef = null;
-        modalContent.querySelectorAll('.btn-renewal-intent').forEach(btn => {
-          btn.onclick = (e) => {
-            e.preventDefault();
-            const app = btn.dataset.app;
-            const upiId = q.upiId || '7276969070@upi';
-            const bizName = q.businessName || 'Study Library';
-            const studentPhone = student.phone || 'STU';
-            renewalTxnRef = `UPI_REN_${studentPhone.slice(-4)}_${Date.now().toString().slice(-6)}`;
-
-            const utrInp = modalContent.querySelector('#renewal-utr-input');
-            if (utrInp) utrInp.value = renewalTxnRef;
-
-            const statusBanner = modalContent.querySelector('#renewal-auto-status');
-            if (statusBanner) {
-              statusBanner.style.display = 'block';
-              statusBanner.innerHTML = `
+        `,r()},r=function(){De.attachEventListeners(f),f.querySelectorAll(".btn-portal-pm").forEach(x=>{x.addEventListener("click",()=>{const F=x.dataset.mode;F&&F!==u&&(u=F,a())})});const h=f.querySelector("#renewal-plan-select"),D=f.querySelector("#renewal-shift-select");async function $(){const x=h?h.value:"",F=D?D.value:"";try{const z=await P.get(`/api/student-portal/renewal-quote?planId=${x}&shiftId=${F}&applyWallet=false`);z.success&&z.data&&(s=z.data,a())}catch(z){console.warn("Failed to calculate renewal quote:",z)}}h&&h.addEventListener("change",$),D&&D.addEventListener("change",$);let m=null;f.querySelectorAll(".btn-renewal-intent").forEach(x=>{x.onclick=F=>{F.preventDefault();const z=x.dataset.app,Y=s.upiId||"7276969070@upi",W=s.businessName||"Study Library";m=`UPI_REN_${(t.phone||"STU").slice(-4)}_${Date.now().toString().slice(-6)}`;const A=f.querySelector("#renewal-utr-input");A&&(A.value=m);const k=f.querySelector("#renewal-auto-status");k&&(k.style.display="block",k.innerHTML=`
                 <div style="font-weight: 700; color: var(--color-primary); display: flex; align-items: center; justify-content: center; gap: 8px;">
                   <span class="spinner-border spinner-border-sm" role="status" style="width: 14px; height: 14px; border-width: 2px;"></span>
-                  <span>Opening ${app === 'gpay' ? 'Google Pay' : app === 'phonepe' ? 'PhonePe' : app === 'paytm' ? 'Paytm' : 'UPI App'}...</span>
+                  <span>Opening ${z==="gpay"?"Google Pay":z==="phonepe"?"PhonePe":z==="paytm"?"Paytm":"UPI App"}...</span>
                 </div>
-                <small class="text-muted" style="display: block; margin-top: 3px;">Ref <code>${renewalTxnRef}</code> attached. Return here to auto-renew.</small>
-              `;
-            }
-
-            const baseParams = `pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(bizName)}&am=${q.totalPayable}&cu=INR&tn=${encodeURIComponent('Library Membership Renewal')}&tr=${encodeURIComponent(renewalTxnRef)}`;
-            let schemeUrl = `upi://pay?${baseParams}`;
-            if (app === 'gpay') schemeUrl = `gpay://upi/pay?${baseParams}`;
-            else if (app === 'phonepe') schemeUrl = `phonepe://pay?${baseParams}`;
-            else if (app === 'paytm') schemeUrl = `paytmmp://pay?${baseParams}`;
-
-            window.location.href = schemeUrl;
-          };
-        });
-
-        // 1-Tap Copy buttons in Renewal Modal
-        modalContent.querySelectorAll('.btn-portal-copy-bank').forEach(btn => {
-          btn.onclick = (e) => {
-            e.preventDefault();
-            const text = btn.dataset.copy;
-            if (text) {
-              navigator.clipboard.writeText(text).then(() => {
-                const old = btn.textContent;
-                btn.textContent = '✅';
-                setTimeout(() => { btn.textContent = old; }, 1500);
-              }).catch(() => {});
-            }
-          };
-        });
-
-        const copyAllRenewalBtn = modalContent.querySelector('#btn-portal-copy-all-bank');
-        if (copyAllRenewalBtn) {
-          copyAllRenewalBtn.onclick = (e) => {
-            e.preventDefault();
-            const info = `Bank: ${q.bankDetails?.bankName || 'HDFC Bank'}\nA/C No: ${q.bankDetails?.accountNumber || '50200012345678'}\nIFSC: ${q.bankDetails?.ifscCode || 'HDFC0000123'}\nBeneficiary: ${q.bankDetails?.accountHolderName || q.businessName || 'Study Library'}`;
-            navigator.clipboard.writeText(info).then(() => {
-              copyAllRenewalBtn.textContent = '✅ Copied All!';
-              setTimeout(() => { copyAllRenewalBtn.textContent = '📋 Copy All'; }, 1500);
-            }).catch(() => {});
-          };
-        }
-
-        // Bank Apps Intent in Renewal Modal
-        modalContent.querySelectorAll('.btn-renewal-bank-intent').forEach(btn => {
-          btn.onclick = (e) => {
-            e.preventDefault();
-            const bank = btn.dataset.bank;
-            const studentPhone = student.phone || 'STU';
-            renewalTxnRef = `BNK_REN_${studentPhone.slice(-4)}_${Date.now().toString().slice(-6)}`;
-
-            const info = `${q.bankDetails?.accountNumber || '50200012345678'}`;
-            navigator.clipboard.writeText(info).catch(() => {});
-
-            const utrInp = modalContent.querySelector('#renewal-utr-input');
-            if (utrInp) utrInp.value = renewalTxnRef;
-
-            const statusBanner = modalContent.querySelector('#renewal-nb-auto-status');
-            if (statusBanner) {
-              statusBanner.style.display = 'block';
-              statusBanner.innerHTML = `
+                <small class="text-muted" style="display: block; margin-top: 3px;">Ref <code>${m}</code> attached. Return here to auto-renew.</small>
+              `);const C=`pa=${encodeURIComponent(Y)}&pn=${encodeURIComponent(W)}&am=${s.totalPayable}&cu=INR&tn=${encodeURIComponent("Library Membership Renewal")}&tr=${encodeURIComponent(m)}`;let U=`upi://pay?${C}`;z==="gpay"?U=`gpay://upi/pay?${C}`:z==="phonepe"?U=`phonepe://pay?${C}`:z==="paytm"&&(U=`paytmmp://pay?${C}`),window.location.href=U}}),f.querySelectorAll(".btn-portal-copy-bank").forEach(x=>{x.onclick=F=>{F.preventDefault();const z=x.dataset.copy;z&&navigator.clipboard.writeText(z).then(()=>{const Y=x.textContent;x.textContent="\u2705",setTimeout(()=>{x.textContent=Y},1500)}).catch(()=>{})}});const d=f.querySelector("#btn-portal-copy-all-bank");d&&(d.onclick=x=>{x.preventDefault();const F=`Bank: ${s.bankDetails?.bankName||"HDFC Bank"}
+A/C No: ${s.bankDetails?.accountNumber||"50200012345678"}
+IFSC: ${s.bankDetails?.ifscCode||"HDFC0000123"}
+Beneficiary: ${s.bankDetails?.accountHolderName||s.businessName||"Study Library"}`;navigator.clipboard.writeText(F).then(()=>{d.textContent="\u2705 Copied All!",setTimeout(()=>{d.textContent="\u{1F4CB} Copy All"},1500)}).catch(()=>{})}),f.querySelectorAll(".btn-renewal-bank-intent").forEach(x=>{x.onclick=F=>{F.preventDefault();const z=x.dataset.bank;m=`BNK_REN_${(t.phone||"STU").slice(-4)}_${Date.now().toString().slice(-6)}`;const Y=`${s.bankDetails?.accountNumber||"50200012345678"}`;navigator.clipboard.writeText(Y).catch(()=>{});const W=f.querySelector("#renewal-utr-input");W&&(W.value=m);const A=f.querySelector("#renewal-nb-auto-status");A&&(A.style.display="block",A.innerHTML=`
                 <div style="font-weight: 700; color: var(--color-primary); display: flex; align-items: center; justify-content: center; gap: 6px;">
-                  <span>⏳</span> <span>Opening ${bank.toUpperCase()} (A/C No Copied)...</span>
+                  <span>\u23F3</span> <span>Opening ${z.toUpperCase()} (A/C No Copied)...</span>
                 </div>
-                <small class="text-muted" style="display: block; margin-top: 2px;">Ref <code>${renewalTxnRef}</code> auto-assigned. Complete transfer and return here.</small>
-              `;
-            }
-
-            const bankUrls = {
-              sbi: 'https://www.onlinesbi.sbi/',
-              hdfc: 'https://netbanking.hdfcbank.com/netbanking/',
-              icici: 'https://infinity.icicibank.com/',
-              other: 'https://www.google.com/search?q=net+banking+login'
-            };
-            window.open(bankUrls[bank] || bankUrls.other, '_blank');
-          };
-        });
-
-        // 📸 1-Tap Slip Upload Trigger in Renewal Modal
-        const slipTrigger = modalContent.querySelector('#btn-renewal-slip-trigger');
-        const slipFileInp = modalContent.querySelector('#renewal-slip-file-input');
-        const slipPrev = modalContent.querySelector('#renewal-slip-preview');
-
-        if (slipTrigger && slipFileInp) {
-          slipTrigger.onclick = (e) => {
-            e.preventDefault();
-            slipFileInp.click();
-          };
-
-          slipFileInp.onchange = () => {
-            const file = slipFileInp.files?.[0];
-            if (file) {
-              const studentPhone = student.phone || 'STU';
-              renewalTxnRef = `SLIP_REN_${studentPhone.slice(-4)}_${Date.now().toString().slice(-6)}`;
-              const utrInp = modalContent.querySelector('#renewal-utr-input');
-              if (utrInp) utrInp.value = renewalTxnRef;
-
-              if (slipPrev) {
-                slipPrev.style.display = 'block';
-                slipPrev.innerHTML = `✅ Slip Attached: <strong>${escapeHTML(file.name)}</strong> (Ref: <code>${renewalTxnRef}</code>)`;
-              }
-            }
-          };
-        }
-
-        // Listen for return from UPI or Bank app in Renewal Modal
-        const onRenewalReturn = () => {
-          if (renewalTxnRef) {
-            const upiBanner = modalContent.querySelector('#renewal-auto-status');
-            if (upiBanner && selectedPortalPayMode === 'upi') {
-              upiBanner.style.display = 'block';
-              upiBanner.style.borderColor = 'var(--color-success)';
-              upiBanner.style.background = 'rgba(0, 184, 148, 0.08)';
-              upiBanner.innerHTML = `
+                <small class="text-muted" style="display: block; margin-top: 2px;">Ref <code>${m}</code> auto-assigned. Complete transfer and return here.</small>
+              `);const k={sbi:"https://www.onlinesbi.sbi/",hdfc:"https://netbanking.hdfcbank.com/netbanking/",icici:"https://infinity.icicibank.com/",other:"https://www.google.com/search?q=net+banking+login"};window.open(k[z]||k.other,"_blank")}});const B=f.querySelector("#btn-renewal-slip-trigger"),j=f.querySelector("#renewal-slip-file-input"),G=f.querySelector("#renewal-slip-preview");B&&j&&(B.onclick=x=>{x.preventDefault(),j.click()},j.onchange=()=>{const x=j.files?.[0];if(x){m=`SLIP_REN_${(t.phone||"STU").slice(-4)}_${Date.now().toString().slice(-6)}`;const F=f.querySelector("#renewal-utr-input");F&&(F.value=m),G&&(G.style.display="block",G.innerHTML=`\u2705 Slip Attached: <strong>${o(x.name)}</strong> (Ref: <code>${m}</code>)`)}});const H=()=>{if(m){const x=f.querySelector("#renewal-auto-status");x&&u==="upi"&&(x.style.display="block",x.style.borderColor="var(--color-success)",x.style.background="rgba(0, 184, 148, 0.08)",x.innerHTML=`
                 <div style="font-weight: 800; color: var(--color-success); display: flex; align-items: center; justify-content: center; gap: 6px;">
-                  <span>✅</span> <span>UPI App Payment Captured!</span>
+                  <span>\u2705</span> <span>UPI App Payment Captured!</span>
                 </div>
                 <small style="display: block; margin-top: 3px; color: var(--color-text-secondary);">
-                  Ref <code>${renewalTxnRef}</code> verified. Tap <strong>Confirm & Extend Membership</strong> below.
+                  Ref <code>${m}</code> verified. Tap <strong>Confirm & Extend Membership</strong> below.
                 </small>
-              `;
-            }
-
-            const nbBanner = modalContent.querySelector('#renewal-nb-auto-status');
-            if (nbBanner && selectedPortalPayMode === 'bank_transfer') {
-              nbBanner.style.display = 'block';
-              nbBanner.style.borderColor = 'var(--color-success)';
-              nbBanner.style.background = 'rgba(0, 184, 148, 0.08)';
-              nbBanner.innerHTML = `
+              `);const F=f.querySelector("#renewal-nb-auto-status");F&&u==="bank_transfer"&&(F.style.display="block",F.style.borderColor="var(--color-success)",F.style.background="rgba(0, 184, 148, 0.08)",F.innerHTML=`
                 <div style="font-weight: 800; color: var(--color-success); display: flex; align-items: center; justify-content: center; gap: 6px;">
-                  <span>✅</span> <span>Bank Transfer Handshake Recorded!</span>
+                  <span>\u2705</span> <span>Bank Transfer Handshake Recorded!</span>
                 </div>
                 <small style="display: block; margin-top: 3px; color: var(--color-text-secondary);">
-                  Ref <code>${renewalTxnRef}</code> auto-attached. Tap <strong>Confirm & Extend Membership</strong> below.
+                  Ref <code>${m}</code> auto-attached. Tap <strong>Confirm & Extend Membership</strong> below.
                 </small>
-              `;
-            }
-          }
-        };
-
-        window.addEventListener('focus', onRenewalReturn);
-
-        const renewalSubmitForm = modalContent.querySelector('#portal-renewal-submit-form');
-        if (renewalSubmitForm) {
-          renewalSubmitForm.onsubmit = async (e) => {
-            e.preventDefault();
-            const utrInput = modalContent.querySelector('#renewal-utr-input');
-            if (selectedPortalPayMode !== 'desk') {
-              const cleanUtr = utrInput?.value?.trim() || '';
-              if (!cleanUtr || cleanUtr.length < 6) {
-                Toast.error('Please enter your 12-digit Bank UTR / Transaction Reference number from Google Pay / PhonePe / Paytm.');
-                utrInput?.focus();
-                return;
-              }
-            }
-
-            const utrNumber = selectedPortalPayMode === 'desk' ? 'DESK_CASH' : utrInput?.value?.trim();
-            const selectedPlanId = planSelect ? planSelect.value : q.selectedPlanId;
-            const selectedShiftId = shiftSelect ? shiftSelect.value : q.selectedShiftId;
-            const applyWallet = false;
-
-            const btn = modalContent.querySelector('#btn-submit-renewal-utr');
-            Loading.button(btn, true);
-
-            try {
-              const renewRes = await api.post('/api/student-portal/renewal-request', {
-                utrNumber,
-                planId: selectedPlanId,
-                shiftId: selectedShiftId,
-                amountPaid: q.totalPayable,
-                applyWallet,
-                paymentMode: selectedPortalPayMode === 'desk' ? 'cash' : selectedPortalPayMode
-              });
-
-              if (!renewRes.success) throw new Error(renewRes.message);
-
-              Toast.success('🎉 Membership renewal submitted successfully!');
-              Modal.closeAll();
-              // Reload portal with fresh dashboard and analytics
-              const freshDash = await api.get('/api/student-portal/dashboard');
-              if (freshDash.success && freshDash.data) {
-                let freshAnalytics = null;
-                try {
-                  const aRes = await api.get(`/api/attendance/analytics/${freshDash.data.student._id}`);
-                  if (aRes.success) freshAnalytics = aRes.data;
-                } catch (e) {}
-                renderPortalUI(container, freshDash.data, freshAnalytics);
-              }
-            } catch (err) {
-              Toast.error(err.message || 'Renewal failed. Please check UTR.');
-            } finally {
-              Loading.button(btn, false);
-            }
-          };
-        }
-      }
-
-      updateModalBody();
-
-      if (q.allMethodsDisabled || (q.paymentMethods || []).length === 0) {
-        Toast.info('Online payment is currently disabled by library management. Please contact reception to renew.');
-      }
-
-      const renewModal = new Modal({ title: '💳 Membership Self-Renewal', content: modalContent, size: 'md' });
-      renewModal.show();
-
-    } catch (err) {
-      Toast.error(err.message || 'Could not load renewal quote');
-    }
-  });
-}
-
-/**
- * Render SVG Circular Gauge for Consistency Score
- */
-export function renderGaugeScoreSvg(score) {
-  const safeScore = Math.max(0, Math.min(100, Math.round(score || 0)));
-  return `
+              `)}};window.addEventListener("focus",H);const q=f.querySelector("#portal-renewal-submit-form");q&&(q.onsubmit=async x=>{x.preventDefault();const F=f.querySelector("#renewal-utr-input");if(u!=="desk"){const C=F?.value?.trim()||"";if(!C||C.length<6){S.error("Please enter your 12-digit Bank UTR / Transaction Reference number from Google Pay / PhonePe / Paytm."),F?.focus();return}}const z=u==="desk"?"DESK_CASH":F?.value?.trim(),Y=h?h.value:s.selectedPlanId,W=D?D.value:s.selectedShiftId,A=!1,k=f.querySelector("#btn-submit-renewal-utr");he.button(k,!0);try{const C=await P.post("/api/student-portal/renewal-request",{utrNumber:z,planId:Y,shiftId:W,amountPaid:s.totalPayable,applyWallet:A,paymentMode:u==="desk"?"cash":u});if(!C.success)throw new Error(C.message);S.success("\u{1F389} Membership renewal submitted successfully!"),re.closeAll();const U=await P.get("/api/student-portal/dashboard");if(U.success&&U.data){let X=null;try{const oe=await P.get(`/api/attendance/analytics/${U.data.student._id}`);oe.success&&(X=oe.data)}catch{}je(n,U.data,X)}}catch(C){S.error(C.message||"Renewal failed. Please check UTR.")}finally{he.button(k,!1)}})};const i=await P.get("/api/student-portal/renewal-quote?applyWallet=false");if(!i.success)throw new Error(i.message);let s=i.data,u="upi";const f=document.createElement("div");a(),(s.allMethodsDisabled||(s.paymentMethods||[]).length===0)&&S.info("Online payment is currently disabled by library management. Please contact reception to renew."),new re({title:"\u{1F4B3} Membership Self-Renewal",content:f,size:"md"}).show()}catch(a){S.error(a.message||"Could not load renewal quote")}})}function Ge(n){const g=Math.max(0,Math.min(100,Math.round(n||0)));return`
     <div style="position: relative; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
       <svg viewBox="0 0 36 36" style="width: 100px; height: 100px; transform: rotate(-90deg);">
         <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
@@ -3494,7 +1820,7 @@ export function renderGaugeScoreSvg(score) {
               fill="none"
               stroke="url(#portalScoreGaugeGrad)"
               stroke-width="3.2"
-              stroke-dasharray="${safeScore}, 100"
+              stroke-dasharray="${g}, 100"
               stroke-linecap="round" />
         <defs>
           <linearGradient id="portalScoreGaugeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -3504,64 +1830,22 @@ export function renderGaugeScoreSvg(score) {
         </defs>
       </svg>
       <div style="position: absolute; text-align: center;">
-        <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-text-primary); line-height: 1;">${safeScore}%</div>
+        <div style="font-size: 1.25rem; font-weight: 800; color: var(--color-text-primary); line-height: 1;">${g}%</div>
         <div style="font-size: 0.6rem; color: var(--color-text-secondary); text-transform: uppercase; font-weight: 700; margin-top: 2px;">Consistency</div>
       </div>
     </div>
-  `;
-}
-
-/**
- * Render 30-Day GitHub-style Attendance Heatmap Grid
- */
-export function renderHeatmapGridHtml(heatmapData) {
-  if (!heatmapData || heatmapData.length === 0) {
-    return `<div class="text-muted small text-center p-3">No attendance records found for the past 30 days.</div>`;
-  }
-
-  const squaresHtml = heatmapData.map(d => {
-    const mins = d.minutes || 0;
-    const hrs = (mins / 60).toFixed(1);
-    const dateObj = new Date(d.date);
-    const dateFormatted = isNaN(dateObj.getTime()) ? d.date : dateObj.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', weekday: 'short' });
-
-    let bg = 'rgba(148, 163, 184, 0.15)';
-    let border = 'rgba(148, 163, 184, 0.25)';
-    let statusText = 'Absent';
-
-    if (d.status === 'absent' || mins === 0) {
-      bg = 'rgba(148, 163, 184, 0.15)';
-      border = 'rgba(148, 163, 184, 0.25)';
-      statusText = 'Absent';
-    } else if (mins < 120) {
-      bg = '#0e4429';
-      border = '#006d32';
-      statusText = `${mins} mins (${d.status})`;
-    } else if (mins < 240) {
-      bg = '#006d32';
-      border = '#26a641';
-      statusText = `${hrs} hrs (${d.status})`;
-    } else if (mins < 360) {
-      bg = '#26a641';
-      border = '#39d353';
-      statusText = `${hrs} hrs (${d.status})`;
-    } else {
-      bg = '#39d353';
-      border = '#2ea043';
-      statusText = `${hrs} hrs (${d.status})`;
-    }
-
-    const title = `${dateFormatted}: ${statusText}${d.checkIn ? ` [${d.checkIn} - ${d.checkOut || 'Active'}]` : ''}`;
-
-    return `
+  `}function We(n){return!n||n.length===0?'<div class="text-muted small text-center p-3">No attendance records found for the past 30 days.</div>':`
+    <div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-start; padding: 4px 0;">
+        ${n.map(g=>{const I=g.minutes||0,t=(I/60).toFixed(1),p=new Date(g.date),E=isNaN(p.getTime())?g.date:p.toLocaleDateString("en-IN",{month:"short",day:"numeric",weekday:"short"});let T="rgba(148, 163, 184, 0.15)",L="rgba(148, 163, 184, 0.25)",e="Absent";return g.status==="absent"||I===0?(T="rgba(148, 163, 184, 0.15)",L="rgba(148, 163, 184, 0.25)",e="Absent"):I<120?(T="#0e4429",L="#006d32",e=`${I} mins (${g.status})`):I<240?(T="#006d32",L="#26a641",e=`${t} hrs (${g.status})`):I<360?(T="#26a641",L="#39d353",e=`${t} hrs (${g.status})`):(T="#39d353",L="#2ea043",e=`${t} hrs (${g.status})`),`
       <div
-        title="${title}"
+        title="${`${E}: ${e}${g.checkIn?` [${g.checkIn} - ${g.checkOut||"Active"}]`:""}`}"
         style="
           width: 22px;
           height: 22px;
           border-radius: 4px;
-          background: ${bg};
-          border: 1px solid ${border};
+          background: ${T};
+          border: 1px solid ${L};
           cursor: pointer;
           transition: transform 0.15s ease, box-shadow 0.15s ease;
           flex-shrink: 0;
@@ -3569,13 +1853,7 @@ export function renderHeatmapGridHtml(heatmapData) {
         onmouseover="this.style.transform='scale(1.35)'; this.style.zIndex='5'; this.style.boxShadow='0 0 8px rgba(57,211,83,0.6)';"
         onmouseout="this.style.transform='scale(1)'; this.style.zIndex='1'; this.style.boxShadow='none';"
       ></div>
-    `;
-  }).join('');
-
-  return `
-    <div>
-      <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-start; padding: 4px 0;">
-        ${squaresHtml}
+    `}).join("")}
       </div>
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 0.72rem; color: var(--color-text-muted);">
         <span>30 Days Ago</span>
@@ -3591,528 +1869,4 @@ export function renderHeatmapGridHtml(heatmapData) {
         <span>Today</span>
       </div>
     </div>
-  `;
-}
-
-/**
- * Helper to safely load image with CORS for canvas with DOM element caching and retry fallback
- */
-function loadCanvasImage(src) {
-  return new Promise((resolve) => {
-    if (!src || typeof src !== 'string') return resolve(null);
-
-    const trimmed = src.trim();
-    if (!trimmed) return resolve(null);
-
-    // 1. If an <img> in the current DOM already loaded this src, use it directly!
-    const existingImg = Array.from(document.querySelectorAll('img')).find(
-      el => el.complete && el.naturalWidth > 0 && (el.src === trimmed || el.getAttribute('src') === trimmed || el.src.endsWith(trimmed))
-    );
-    if (existingImg) {
-      return resolve(existingImg);
-    }
-
-    // 2. Normalize relative path if needed
-    let cleanSrc = trimmed;
-    if (!cleanSrc.startsWith('http') && !cleanSrc.startsWith('data:') && !cleanSrc.startsWith('blob:') && !cleanSrc.startsWith('/')) {
-      cleanSrc = '/' + cleanSrc;
-    }
-
-    const img = new Image();
-    // Only set crossOrigin for external http(s) URLs, not for data or blob URIs
-    if (!cleanSrc.startsWith('data:') && !cleanSrc.startsWith('blob:')) {
-      img.crossOrigin = 'anonymous';
-    }
-
-    img.onload = () => resolve(img);
-    img.onerror = () => {
-      // Retry without crossOrigin for same-origin relative paths
-      if (img.crossOrigin) {
-        const retryImg = new Image();
-        retryImg.onload = () => resolve(retryImg);
-        retryImg.onerror = () => resolve(null);
-        retryImg.src = cleanSrc;
-      } else {
-        resolve(null);
-      }
-    };
-    img.src = cleanSrc;
-  });
-}
-
-/**
- * Generate 1080x1920px Executive Offline Mobile ID Pass Canvas Image & Trigger Download
- */
-export async function download1080pMobileIDPass(student, business = {}, initials = 'S', seatTitle = '02', planName = 'Study Plan', expiryDateStr = 'Not Set', extra = {}) {
-  Toast.info('🎨 Generating 1080p Ultra-HD Mobile Pass Wallpaper...');
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 1080;
-  canvas.height = 1920;
-  const ctx = canvas.getContext('2d');
-
-  // Pre-load all assets asynchronously with deep fallback resolution
-  const photoUrl = student.photo || student.avatar || student.profilePhoto || student.selfie || (window.store?.user?.photo) || (window.store?.user?.avatar) || (document.querySelector('#sp-avatar-img')?.src) || (document.querySelector('.portal-profile-avatar img')?.src) || '';
-  const logoUrl = business.logo || business.logoUrl || window.store?.profile?.logo || window.store?.settings?.businessProfile?.logo || (document.querySelector('.brand-logo img')?.src) || '';
-  const stampUrl = business.stampImage || business.stampImageUrl || window.store?.profile?.stampImage || window.store?.settings?.businessProfile?.stampImage || '';
-  
-  // Format Shift Name nicely
-  let rawShift = extra.shiftName || student.shift?.name || student.shift?.timing || student.shift || student.plan?.shift || 'Full Day';
-  if (typeof rawShift === 'string') {
-    if (rawShift.toLowerCase() === 'fullday') rawShift = 'Full Day';
-    else rawShift = rawShift.replace(/\b\w/g, l => l.toUpperCase());
-  }
-  const shiftName = rawShift;
-
-  // Format Plan Name in Title Case
-  let rawPlan = planName || student.plan?.name || 'Study Plan';
-  if (typeof rawPlan === 'string') {
-    rawPlan = rawPlan.replace(/\b\w/g, l => l.toUpperCase());
-  }
-  const formattedPlanName = rawPlan;
-
-  const phone = extra.phone || student.phone || student.mobile || '-';
-  const bloodGroup = extra.bloodGroup || student.bloodGroup || '';
-  const studentId = student.studentId || student.enrollmentNo || 'STU-MEMBER';
-  const admissionDate = student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
-
-  const qrPayload = encodeURIComponent(student.studentId || student.phone || student._id || 'STUDENT');
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${qrPayload}&margin=2&bgcolor=ffffff`;
-
-  const [photoImg, logoImg, stampImg, qrImg] = await Promise.all([
-    loadCanvasImage(photoUrl),
-    loadCanvasImage(logoUrl),
-    loadCanvasImage(stampUrl),
-    loadCanvasImage(qrUrl)
-  ]);
-
-  // 1. Wallpaper Background (Deep midnight dark slate with violet/indigo aura)
-  const bgGrad = ctx.createLinearGradient(0, 0, 1080, 1920);
-  bgGrad.addColorStop(0, '#0a0d18');
-  bgGrad.addColorStop(0.3, '#13182e');
-  bgGrad.addColorStop(0.7, '#181534');
-  bgGrad.addColorStop(1, '#090b14');
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, 1080, 1920);
-
-  // Decorative ambient glow orbs
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(180, 240, 450, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(79, 70, 229, 0.12)';
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(900, 1680, 400, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(16, 185, 129, 0.08)';
-  ctx.fill();
-  ctx.restore();
-
-  // Top Wallpaper Header
-  ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-  ctx.font = '600 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText(`📱 OFFLINE DIGITAL PASS • ${(business.businessName || 'STUDY LIBRARY').toUpperCase()}`, 540, 75);
-
-  // 2. White Card Container with Prominent Perimeter Border & Scissor Outline
-  const cardX = 80, cardY = 120, cardW = 920, cardH = 1660, cardR = 36;
-  ctx.save();
-  ctx.beginPath();
-  if (typeof ctx.roundRect === 'function') {
-    ctx.roundRect(cardX, cardY, cardW, cardH, cardR);
-  } else {
-    ctx.moveTo(cardX + cardR, cardY);
-    ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardH, cardR);
-    ctx.arcTo(cardX + cardW, cardY + cardH, cardX, cardY + cardH, cardR);
-    ctx.arcTo(cardX, cardY + cardH, cardX, cardY, cardR);
-    ctx.arcTo(cardX, cardY, cardX + cardW, cardY, cardR);
-  }
-  ctx.closePath();
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur = 50;
-  ctx.shadowOffsetY = 24;
-  ctx.fill();
-
-  // Solid dark high-contrast perimeter border
-  ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 4;
-  ctx.stroke();
-  ctx.restore();
-
-  // Outer dashed scissor cutting / alignment guide
-  ctx.save();
-  ctx.setLineDash([16, 10]);
-  ctx.beginPath();
-  if (typeof ctx.roundRect === 'function') {
-    ctx.roundRect(cardX - 14, cardY - 14, cardW + 28, cardH + 28, cardR + 10);
-  }
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-  ctx.restore();
-
-  // 3. Card Header Banner (Gradient matching primary brand)
-  ctx.save();
-  ctx.beginPath();
-  if (typeof ctx.roundRect === 'function') {
-    ctx.roundRect(cardX, cardY, cardW, 240, [cardR, cardR, 0, 0]);
-  } else {
-    ctx.moveTo(cardX, cardY + cardR);
-    ctx.arcTo(cardX, cardY, cardX + cardR, cardY, cardR);
-    ctx.lineTo(cardX + cardW - cardR, cardY);
-    ctx.arcTo(cardX + cardW, cardY, cardX + cardW, cardY + cardR, cardR);
-    ctx.lineTo(cardX + cardW, cardY + 240);
-    ctx.lineTo(cardX, cardY + 240);
-  }
-  ctx.closePath();
-  ctx.clip();
-
-  const headerGrad = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY + 240);
-  headerGrad.addColorStop(0, '#4f46e5');
-  headerGrad.addColorStop(1, '#6366f1');
-  ctx.fillStyle = headerGrad;
-  ctx.fillRect(cardX, cardY, cardW, 240);
-
-  // Draw Logo in Header
-  if (logoImg) {
-    const logoSize = 64;
-    const logoX = cardX + 36;
-    const logoY = cardY + 36;
-    ctx.save();
-    ctx.beginPath();
-    if (typeof ctx.roundRect === 'function') {
-      ctx.roundRect(logoX, logoY, logoSize, logoSize, 12);
-    } else {
-      ctx.rect(logoX, logoY, logoSize, logoSize);
-    }
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.clip();
-    ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
-    ctx.restore();
-
-    // Business Name & Tagline beside Logo
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(business.businessName || 'Study Library', cardX + 115, cardY + 68);
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
-    ctx.font = '500 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(business.tagline || 'Silence, Focus and Success', cardX + 115, cardY + 102);
-  } else {
-    // Centered Business Name & Tagline
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 38px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(business.businessName || 'STUDY LIBRARY', 540, cardY + 70);
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
-    ctx.font = '500 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(business.tagline || 'Silence, Focus and Success', 540, cardY + 106);
-  }
-  ctx.restore();
-
-  // 4. Avatar Outer Ring & Photo / Initials (with perfect aspect-ratio cover crop)
-  const avatarX = 540, avatarY = cardY + 240, avatarR = 100;
-  ctx.save();
-  // White Drop-Shadow Outer Base
-  ctx.beginPath();
-  ctx.arc(avatarX, avatarY, avatarR + 10, 0, Math.PI * 2);
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
-  ctx.shadowBlur = 20;
-  ctx.shadowOffsetY = 6;
-  ctx.fill();
-
-  // Indigo Accent Ring
-  ctx.beginPath();
-  ctx.arc(avatarX, avatarY, avatarR + 4, 0, Math.PI * 2);
-  ctx.fillStyle = '#4f46e5';
-  ctx.fill();
-
-  // Avatar Image / Content Circle
-  ctx.beginPath();
-  ctx.arc(avatarX, avatarY, avatarR, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.clip();
-
-  if (photoImg) {
-    const nw = photoImg.naturalWidth || photoImg.width || 200;
-    const nh = photoImg.naturalHeight || photoImg.height || 200;
-    const minDim = Math.min(nw, nh);
-    const sx = (nw - minDim) / 2;
-    const sy = (nh - minDim) / 2;
-    ctx.drawImage(photoImg, sx, sy, minDim, minDim, avatarX - avatarR, avatarY - avatarR, avatarR * 2, avatarR * 2);
-  } else {
-    ctx.fillStyle = '#eef2ff';
-    ctx.fillRect(avatarX - avatarR, avatarY - avatarR, avatarR * 2, avatarR * 2);
-
-    ctx.fillStyle = '#4f46e5';
-    ctx.font = '800 76px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(initials, avatarX, avatarY);
-  }
-  ctx.restore();
-
-  // Reset baseline
-  ctx.textBaseline = 'alphabetic';
-
-  // 5. Student Name with Smart Auto-Wrapping / Font Scaling
-  const nameStr = (student.name || 'Student Member').trim();
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#0f172a';
-
-  let nameFontSize = 44;
-  ctx.font = `800 ${nameFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  let nameWidth = ctx.measureText(nameStr).width;
-
-  let nameLines = [];
-  if (nameWidth > 760) {
-    // Try splitting words into 2 lines
-    const words = nameStr.split(' ');
-    if (words.length >= 2) {
-      const mid = Math.ceil(words.length / 2);
-      const line1 = words.slice(0, mid).join(' ');
-      const line2 = words.slice(mid).join(' ');
-      nameLines = [line1, line2];
-      nameFontSize = 38;
-    } else {
-      nameLines = [nameStr];
-      nameFontSize = 34;
-    }
-  } else {
-    nameLines = [nameStr];
-  }
-
-  ctx.font = `800 ${nameFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-  let startNameY = cardY + 390;
-  if (nameLines.length > 1) {
-    nameLines.forEach((l, idx) => {
-      ctx.fillText(l, 540, startNameY + idx * 46);
-    });
-    startNameY += (nameLines.length - 1) * 46;
-  } else {
-    ctx.fillText(nameLines[0], 540, startNameY);
-  }
-
-  // 6. Badges: Student ID + Blood Group side-by-side
-  const badgeY = startNameY + 22;
-  const idText = studentId;
-  ctx.font = '800 26px monospace';
-  const idTextWidth = ctx.measureText(idText).width;
-  const idBadgeW = idTextWidth + 36;
-  const idBadgeH = 46;
-
-  let bloodBadgeW = 0;
-  const hasBlood = Boolean(bloodGroup);
-  const bloodText = `🩸 ${bloodGroup}`;
-  if (hasBlood) {
-    ctx.font = '800 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    bloodBadgeW = ctx.measureText(bloodText).width + 28;
-  }
-
-  const totalBadgesWidth = idBadgeW + (hasBlood ? (12 + bloodBadgeW) : 0);
-  let curBadgeX = 540 - totalBadgesWidth / 2;
-
-  // Draw Student ID Badge
-  ctx.save();
-  ctx.beginPath();
-  if (typeof ctx.roundRect === 'function') {
-    ctx.roundRect(curBadgeX, badgeY, idBadgeW, idBadgeH, 10);
-  } else {
-    ctx.rect(curBadgeX, badgeY, idBadgeW, idBadgeH);
-  }
-  ctx.fillStyle = '#eef2ff';
-  ctx.fill();
-  ctx.strokeStyle = '#c7d2fe';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  ctx.fillStyle = '#4338ca';
-  ctx.font = '800 26px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(idText, curBadgeX + idBadgeW / 2, badgeY + 32);
-  ctx.restore();
-
-  // Draw Blood Group Badge (if present)
-  if (hasBlood) {
-    const bloodX = curBadgeX + idBadgeW + 12;
-    ctx.save();
-    ctx.beginPath();
-    if (typeof ctx.roundRect === 'function') {
-      ctx.roundRect(bloodX, badgeY, bloodBadgeW, idBadgeH, 10);
-    } else {
-      ctx.rect(bloodX, badgeY, bloodBadgeW, idBadgeH);
-    }
-    ctx.fillStyle = 'rgba(220, 38, 38, 0.1)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(220, 38, 38, 0.25)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.fillStyle = '#dc2626';
-    ctx.font = '800 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(bloodText, bloodX + bloodBadgeW / 2, badgeY + 32);
-    ctx.restore();
-  }
-
-  // 7. Details Data Box
-  const boxX = cardX + 44, boxY = badgeY + 68, boxW = cardW - 88, boxH = 490, boxR = 20;
-  ctx.save();
-  ctx.beginPath();
-  if (typeof ctx.roundRect === 'function') {
-    ctx.roundRect(boxX, boxY, boxW, boxH, boxR);
-  } else {
-    ctx.rect(boxX, boxY, boxW, boxH);
-  }
-  ctx.fillStyle = '#f8fafc';
-  ctx.fill();
-  ctx.strokeStyle = '#e2e8f0';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.restore();
-
-  const labels = [
-    { label: 'Assigned Desk / Seat:', val: seatTitle, color: '#4f46e5', bold: true },
-    { label: 'Shift Timing:', val: shiftName, color: '#0f172a', bold: true },
-    { label: 'Study Plan:', val: planName, color: '#334155', bold: false },
-    { label: 'Contact Phone:', val: phone, color: '#334155', bold: false },
-    { label: 'Valid Until:', val: expiryDateStr, color: '#dc2626', bold: true }
-  ];
-
-  labels.forEach((item, idx) => {
-    const rowY = boxY + 64 + idx * 92;
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#64748b';
-    ctx.font = '600 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText(item.label, boxX + 32, rowY);
-
-    ctx.textAlign = 'right';
-    ctx.fillStyle = item.color;
-    ctx.font = `${item.bold ? '800' : '600'} 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    ctx.fillText(item.val, boxX + boxW - 32, rowY);
-
-    if (idx < labels.length - 1) {
-      ctx.beginPath();
-      ctx.moveTo(boxX + 24, rowY + 30);
-      ctx.lineTo(boxX + boxW - 24, rowY + 30);
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    }
-  });
-
-  // 8. Verification Footer Area (QR Code on Left + Stamp on Right)
-  const qrBoxY = boxY + boxH + 36;
-  const qrSize = 240;
-  const qrX = cardX + 70;
-
-  if (qrImg) {
-    ctx.save();
-    ctx.beginPath();
-    if (typeof ctx.roundRect === 'function') {
-      ctx.roundRect(qrX - 8, qrBoxY - 8, qrSize + 16, qrSize + 16, 12);
-    }
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.drawImage(qrImg, qrX, qrBoxY, qrSize, qrSize);
-    ctx.restore();
-
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#4f46e5';
-    ctx.font = '800 20px monospace';
-    ctx.fillText('SCAN TO VERIFY PASS', qrX + qrSize / 2, qrBoxY + qrSize + 30);
-  }
-
-  // Right Side Stamp & Signatory
-  const stampBoxX = cardX + cardW - 340;
-  const stampBoxY = qrBoxY + 10;
-  if (stampImg) {
-    ctx.save();
-    ctx.drawImage(stampImg, stampBoxX + 40, stampBoxY, 180, 180);
-    ctx.restore();
-  } else {
-    // Vector Official Seal Stamp
-    ctx.save();
-    ctx.translate(stampBoxX + 130, stampBoxY + 80);
-    ctx.rotate(-0.06);
-    ctx.beginPath();
-    if (typeof ctx.roundRect === 'function') {
-      ctx.roundRect(-100, -45, 200, 90, 8);
-    } else {
-      ctx.rect(-100, -45, 200, 90);
-    }
-    ctx.strokeStyle = '#059669';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.fillStyle = '#059669';
-    ctx.textAlign = 'center';
-    ctx.font = '800 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('OFFICIAL SEAL', 0, -10);
-    ctx.font = '700 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('PAID & VERIFIED', 0, 20);
-    ctx.restore();
-  }
-
-  // Auth Signatory Line
-  ctx.beginPath();
-  ctx.moveTo(stampBoxX + 10, stampBoxY + 210);
-  ctx.lineTo(stampBoxX + 250, stampBoxY + 210);
-  ctx.strokeStyle = '#94a3b8';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#64748b';
-  ctx.font = '600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText('Authorized Signatory', stampBoxX + 130, stampBoxY + 238);
-
-  // 9. Card Base Bottom Ribbon
-  const ribbonY = cardY + cardH - 68;
-  ctx.save();
-  ctx.beginPath();
-  if (typeof ctx.roundRect === 'function') {
-    ctx.roundRect(cardX, ribbonY, cardW, 68, [0, 0, cardR, cardR]);
-  } else {
-    ctx.moveTo(cardX, ribbonY);
-    ctx.lineTo(cardX + cardW, ribbonY);
-    ctx.lineTo(cardX + cardW, cardY + cardH - cardR);
-    ctx.arcTo(cardX + cardW, cardY + cardH, cardX + cardW - cardR, cardY + cardH, cardR);
-    ctx.lineTo(cardX + cardR, cardY + cardH);
-    ctx.arcTo(cardX, cardY + cardH, cardX, cardY + cardH - cardR, cardR);
-    ctx.lineTo(cardX, ribbonY);
-  }
-  ctx.closePath();
-  ctx.fillStyle = '#f8fafc';
-  ctx.fill();
-  ctx.strokeStyle = '#e2e8f0';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.restore();
-
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#64748b';
-  ctx.font = '600 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText(`Issued: ${admissionDate} • Helpline: ${business.phone || '+91 98765 43210'} • Non-Transferable`, 540, ribbonY + 42);
-
-  // 10. Outer Wallpaper Footer Note
-  ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-  ctx.font = '500 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText('Carry on phone lockscreen for instant entry • Anti-Tamper Digital Token', 540, 1870);
-
-  // Trigger Download
-  const link = document.createElement('a');
-  link.download = `${nameStr.replace(/\s+/g, '_')}_Mobile_ID_Pass_1080x1920.png`;
-  link.href = canvas.toDataURL('image/png');
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  Toast.success('📱 1080x1920px Mobile ID Pass Wallpaper downloaded successfully!');
-}
-
+  `}function ze(n){return new Promise(g=>{if(!n||typeof n!="string")return g(null);const I=n.trim();if(!I)return g(null);const t=Array.from(document.querySelectorAll("img")).find(T=>T.complete&&T.naturalWidth>0&&(T.src===I||T.getAttribute("src")===I||T.src.endsWith(I)));if(t)return g(t);let p=I;!p.startsWith("http")&&!p.startsWith("data:")&&!p.startsWith("blob:")&&!p.startsWith("/")&&(p="/"+p);const E=new Image;!p.startsWith("data:")&&!p.startsWith("blob:")&&(E.crossOrigin="anonymous"),E.onload=()=>g(E),E.onerror=()=>{if(E.crossOrigin){const T=new Image;T.onload=()=>g(T),T.onerror=()=>g(null),T.src=p}else g(null)},E.src=p})}async function Ve(n,g={},I="S",t="02",p="Study Plan",E="Not Set",T={}){S.info("\u{1F3A8} Generating 1080p Ultra-HD Mobile Pass Wallpaper...");const L=document.createElement("canvas");L.width=1080,L.height=1920;const e=L.getContext("2d"),ge=n.photo||n.avatar||n.profilePhoto||n.selfie||window.store?.user?.photo||window.store?.user?.avatar||document.querySelector("#sp-avatar-img")?.src||document.querySelector(".portal-profile-avatar img")?.src||"",ae=g.logo||g.logoUrl||window.store?.profile?.logo||window.store?.settings?.businessProfile?.logo||document.querySelector(".brand-logo img")?.src||"",Ce=g.stampImage||g.stampImageUrl||window.store?.profile?.stampImage||window.store?.settings?.businessProfile?.stampImage||"";let te=T.shiftName||n.shift?.name||n.shift?.timing||n.shift||n.plan?.shift||"Full Day";typeof te=="string"&&(te.toLowerCase()==="fullday"?te="Full Day":te=te.replace(/\b\w/g,k=>k.toUpperCase()));const Ue=te;let ie=p||n.plan?.name||"Study Plan";typeof ie=="string"&&(ie=ie.replace(/\b\w/g,k=>k.toUpperCase()));const Ye=ie,Ie=T.phone||n.phone||n.mobile||"-",be=T.bloodGroup||n.bloodGroup||"",He=n.studentId||n.enrollmentNo||"STU-MEMBER",Fe=n.admissionDate?new Date(n.admissionDate).toLocaleDateString("en-IN"):new Date().toLocaleDateString("en-IN"),Ee=`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(n.studentId||n.phone||n._id||"STUDENT")}&margin=2&bgcolor=ffffff`,[Q,Te,Se,fe]=await Promise.all([ze(ge),ze(ae),ze(Ce),ze(Ee)]),J=e.createLinearGradient(0,0,1080,1920);J.addColorStop(0,"#0a0d18"),J.addColorStop(.3,"#13182e"),J.addColorStop(.7,"#181534"),J.addColorStop(1,"#090b14"),e.fillStyle=J,e.fillRect(0,0,1080,1920),e.save(),e.beginPath(),e.arc(180,240,450,0,Math.PI*2),e.fillStyle="rgba(79, 70, 229, 0.12)",e.fill(),e.beginPath(),e.arc(900,1680,400,0,Math.PI*2),e.fillStyle="rgba(16, 185, 129, 0.08)",e.fill(),e.restore(),e.textAlign="center",e.fillStyle="rgba(255, 255, 255, 0.7)",e.font='600 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.fillText(`\u{1F4F1} OFFLINE DIGITAL PASS \u2022 ${(g.businessName||"STUDY LIBRARY").toUpperCase()}`,540,75);const w=80,b=120,_=920,Z=1660,M=36;e.save(),e.beginPath(),typeof e.roundRect=="function"?e.roundRect(w,b,_,Z,M):(e.moveTo(w+M,b),e.arcTo(w+_,b,w+_,b+Z,M),e.arcTo(w+_,b+Z,w,b+Z,M),e.arcTo(w,b+Z,w,b,M),e.arcTo(w,b,w+_,b,M)),e.closePath(),e.fillStyle="#ffffff",e.shadowColor="rgba(0, 0, 0, 0.45)",e.shadowBlur=50,e.shadowOffsetY=24,e.fill(),e.strokeStyle="#0f172a",e.lineWidth=4,e.stroke(),e.restore(),e.save(),e.setLineDash([16,10]),e.beginPath(),typeof e.roundRect=="function"&&e.roundRect(w-14,b-14,_+28,Z+28,M+10),e.strokeStyle="rgba(255, 255, 255, 0.45)",e.lineWidth=2.5,e.stroke(),e.restore(),e.save(),e.beginPath(),typeof e.roundRect=="function"?e.roundRect(w,b,_,240,[M,M,0,0]):(e.moveTo(w,b+M),e.arcTo(w,b,w+M,b,M),e.lineTo(w+_-M,b),e.arcTo(w+_,b,w+_,b+M,M),e.lineTo(w+_,b+240),e.lineTo(w,b+240)),e.closePath(),e.clip();const $e=e.createLinearGradient(w,b,w+_,b+240);if($e.addColorStop(0,"#4f46e5"),$e.addColorStop(1,"#6366f1"),e.fillStyle=$e,e.fillRect(w,b,_,240),Te){const k=w+36,C=b+36;e.save(),e.beginPath(),typeof e.roundRect=="function"?e.roundRect(k,C,64,64,12):e.rect(k,C,64,64),e.fillStyle="#ffffff",e.fill(),e.clip(),e.drawImage(Te,k,C,64,64),e.restore(),e.textAlign="left",e.fillStyle="#ffffff",e.font='800 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.fillText(g.businessName||"Study Library",w+115,b+68),e.fillStyle="rgba(255, 255, 255, 0.88)",e.font='500 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.fillText(g.tagline||"Silence, Focus and Success",w+115,b+102)}else e.textAlign="center",e.fillStyle="#ffffff",e.font='800 38px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.fillText(g.businessName||"STUDY LIBRARY",540,b+70),e.fillStyle="rgba(255, 255, 255, 0.88)",e.font='500 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.fillText(g.tagline||"Silence, Focus and Success",540,b+106);e.restore();const ne=540,O=b+240,R=100;if(e.save(),e.beginPath(),e.arc(ne,O,R+10,0,Math.PI*2),e.fillStyle="#ffffff",e.shadowColor="rgba(0, 0, 0, 0.15)",e.shadowBlur=20,e.shadowOffsetY=6,e.fill(),e.beginPath(),e.arc(ne,O,R+4,0,Math.PI*2),e.fillStyle="#4f46e5",e.fill(),e.beginPath(),e.arc(ne,O,R,0,Math.PI*2),e.closePath(),e.clip(),Q){const k=Q.naturalWidth||Q.width||200,C=Q.naturalHeight||Q.height||200,U=Math.min(k,C),X=(k-U)/2,oe=(C-U)/2;e.drawImage(Q,X,oe,U,U,ne-R,O-R,R*2,R*2)}else e.fillStyle="#eef2ff",e.fillRect(ne-R,O-R,R*2,R*2),e.fillStyle="#4f46e5",e.font='800 76px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.textAlign="center",e.textBaseline="middle",e.fillText(I,ne,O);e.restore(),e.textBaseline="alphabetic";const de=(n.name||"Student Member").trim();e.textAlign="center",e.fillStyle="#0f172a";let ye=44;e.font=`800 ${ye}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;let ve=e.measureText(de).width,a=[];if(ve>760){const k=de.split(" ");if(k.length>=2){const C=Math.ceil(k.length/2),U=k.slice(0,C).join(" "),X=k.slice(C).join(" ");a=[U,X],ye=38}else a=[de],ye=34}else a=[de];e.font=`800 ${ye}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;let r=b+390;a.length>1?(a.forEach((k,C)=>{e.fillText(k,540,r+C*46)}),r+=(a.length-1)*46):e.fillText(a[0],540,r);const i=r+22,s=He;e.font="800 26px monospace";const u=e.measureText(s).width+36,f=46;let h=0;const D=!!be,$=`\u{1FA78} ${be}`;D&&(e.font='800 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',h=e.measureText($).width+28);let m=540-(u+(D?12+h:0))/2;if(e.save(),e.beginPath(),typeof e.roundRect=="function"?e.roundRect(m,i,u,f,10):e.rect(m,i,u,f),e.fillStyle="#eef2ff",e.fill(),e.strokeStyle="#c7d2fe",e.lineWidth=1.5,e.stroke(),e.fillStyle="#4338ca",e.font="800 26px monospace",e.textAlign="center",e.fillText(s,m+u/2,i+32),e.restore(),D){const k=m+u+12;e.save(),e.beginPath(),typeof e.roundRect=="function"?e.roundRect(k,i,h,f,10):e.rect(k,i,h,f),e.fillStyle="rgba(220, 38, 38, 0.1)",e.fill(),e.strokeStyle="rgba(220, 38, 38, 0.25)",e.lineWidth=1.5,e.stroke(),e.fillStyle="#dc2626",e.font='800 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.textAlign="center",e.fillText($,k+h/2,i+32),e.restore()}const d=w+44,B=i+68,j=_-88,G=490;e.save(),e.beginPath(),typeof e.roundRect=="function"?e.roundRect(d,B,j,G,20):e.rect(d,B,j,G),e.fillStyle="#f8fafc",e.fill(),e.strokeStyle="#e2e8f0",e.lineWidth=2,e.stroke(),e.restore();const H=[{label:"Assigned Desk / Seat:",val:t,color:"#4f46e5",bold:!0},{label:"Shift Timing:",val:Ue,color:"#0f172a",bold:!0},{label:"Study Plan:",val:p,color:"#334155",bold:!1},{label:"Contact Phone:",val:Ie,color:"#334155",bold:!1},{label:"Valid Until:",val:E,color:"#dc2626",bold:!0}];H.forEach((k,C)=>{const U=B+64+C*92;e.textAlign="left",e.fillStyle="#64748b",e.font='600 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.fillText(k.label,d+32,U),e.textAlign="right",e.fillStyle=k.color,e.font=`${k.bold?"800":"600"} 30px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`,e.fillText(k.val,d+j-32,U),C<H.length-1&&(e.beginPath(),e.moveTo(d+24,U+30),e.lineTo(d+j-24,U+30),e.strokeStyle="#e2e8f0",e.lineWidth=1.5,e.stroke())});const q=B+G+36,x=240,F=w+70;fe&&(e.save(),e.beginPath(),typeof e.roundRect=="function"&&e.roundRect(F-8,q-8,x+16,x+16,12),e.fillStyle="#ffffff",e.fill(),e.strokeStyle="#cbd5e1",e.lineWidth=2,e.stroke(),e.drawImage(fe,F,q,x,x),e.restore(),e.textAlign="center",e.fillStyle="#4f46e5",e.font="800 20px monospace",e.fillText("SCAN TO VERIFY PASS",F+x/2,q+x+30));const z=w+_-340,Y=q+10;Se?(e.save(),e.drawImage(Se,z+40,Y,180,180),e.restore()):(e.save(),e.translate(z+130,Y+80),e.rotate(-.06),e.beginPath(),typeof e.roundRect=="function"?e.roundRect(-100,-45,200,90,8):e.rect(-100,-45,200,90),e.strokeStyle="#059669",e.lineWidth=3,e.stroke(),e.fillStyle="#059669",e.textAlign="center",e.font='800 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.fillText("OFFICIAL SEAL",0,-10),e.font='700 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.fillText("PAID & VERIFIED",0,20),e.restore()),e.beginPath(),e.moveTo(z+10,Y+210),e.lineTo(z+250,Y+210),e.strokeStyle="#94a3b8",e.lineWidth=2,e.stroke(),e.textAlign="center",e.fillStyle="#64748b",e.font='600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.fillText("Authorized Signatory",z+130,Y+238);const W=b+Z-68;e.save(),e.beginPath(),typeof e.roundRect=="function"?e.roundRect(w,W,_,68,[0,0,M,M]):(e.moveTo(w,W),e.lineTo(w+_,W),e.lineTo(w+_,b+Z-M),e.arcTo(w+_,b+Z,w+_-M,b+Z,M),e.lineTo(w+M,b+Z),e.arcTo(w,b+Z,w,b+Z-M,M),e.lineTo(w,W)),e.closePath(),e.fillStyle="#f8fafc",e.fill(),e.strokeStyle="#e2e8f0",e.lineWidth=1,e.stroke(),e.restore(),e.textAlign="center",e.fillStyle="#64748b",e.font='600 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.fillText(`Issued: ${Fe} \u2022 Helpline: ${g.phone||"+91 98765 43210"} \u2022 Non-Transferable`,540,W+42),e.textAlign="center",e.fillStyle="rgba(255, 255, 255, 0.45)",e.font='500 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',e.fillText("Carry on phone lockscreen for instant entry \u2022 Anti-Tamper Digital Token",540,1870);const A=document.createElement("a");A.download=`${de.replace(/\s+/g,"_")}_Mobile_ID_Pass_1080x1920.png`,A.href=L.toDataURL("image/png"),document.body.appendChild(A),A.click(),A.remove(),S.success("\u{1F4F1} 1080x1920px Mobile ID Pass Wallpaper downloaded successfully!")}export{Ve as download1080pMobileIDPass,Ne as render,Ge as renderGaugeScoreSvg,We as renderHeatmapGridHtml};

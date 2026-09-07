@@ -1,140 +1,16 @@
-/**
- * High-performance IndexedDB Storage Engine Wrapper for Study Library System
- * Database Name: sl_db_v1
- * Stores: students, seats, payments, settings
- */
-
-const DB_NAME = 'sl_db_v1';
-const DB_VERSION = 1;
-const STORES = ['students', 'seats', 'payments', 'settings'];
-
-class IDBStorageWrapper {
-  constructor() {
-    this.dbPromise = null;
-  }
-
-  _getDB() {
-    if (this.dbPromise) return this.dbPromise;
-
-    this.dbPromise = new Promise((resolve, reject) => {
-      if (typeof indexedDB === 'undefined') {
-        return reject(new Error('IndexedDB is not supported in this environment'));
-      }
-
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        STORES.forEach((storeName) => {
-          if (!db.objectStoreNames.contains(storeName)) {
-            db.createObjectStore(storeName);
-          }
-        });
-      };
-
-      request.onsuccess = (event) => {
-        resolve(event.target.result);
-      };
-
-      request.onerror = (event) => {
-        this.dbPromise = null;
-        reject(event.target.error || new Error('Failed to open IndexedDB database'));
-      };
-    });
-
-    return this.dbPromise;
-  }
-
-  /**
-   * Store a value in specified store by key
-   * @param {string} store - Object store name (students, seats, payments, settings)
-   * @param {string} key - Cache key identifier
-   * @param {*} val - Value to store
-   */
-  async set(store, key, val) {
-    try {
-      const db = await this._getDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(store, 'readwrite');
-        const objectStore = tx.objectStore(store);
-        const req = objectStore.put(val, key);
-
-        req.onsuccess = () => resolve(true);
-        req.onerror = () => reject(req.error);
-      });
-    } catch (err) {
-      console.warn(`[IDBStorage] set error for store '${store}', key '${key}':`, err);
-      return false;
-    }
-  }
-
-  /**
-   * Retrieve a value from specified store by key
-   * @param {string} store - Object store name
-   * @param {string} key - Cache key identifier
-   */
-  async get(store, key) {
-    try {
-      const db = await this._getDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(store, 'readonly');
-        const objectStore = tx.objectStore(store);
-        const req = objectStore.get(key);
-
-        req.onsuccess = () => resolve(req.result !== undefined ? req.result : null);
-        req.onerror = () => reject(req.error);
-      });
-    } catch (err) {
-      console.warn(`[IDBStorage] get error for store '${store}', key '${key}':`, err);
-      return null;
-    }
-  }
-
-  /**
-   * Retrieve all records from specified store
-   * @param {string} store - Object store name
-   */
-  async getAll(store) {
-    try {
-      const db = await this._getDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(store, 'readonly');
-        const objectStore = tx.objectStore(store);
-        const req = objectStore.getAll();
-
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => reject(req.error);
-      });
-    } catch (err) {
-      console.warn(`[IDBStorage] getAll error for store '${store}':`, err);
-      return [];
-    }
-  }
-
-  /**
-   * Clear all records from specified store
-   * @param {string} store - Object store name
-   */
-  async clear(store) {
-    try {
-      const db = await this._getDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(store, 'readwrite');
-        const objectStore = tx.objectStore(store);
-        const req = objectStore.clear();
-
-        req.onsuccess = () => resolve(true);
-        req.onerror = () => reject(req.error);
-      });
-    } catch (err) {
-      console.warn(`[IDBStorage] clear error for store '${store}':`, err);
-      return false;
-    }
-  }
-}
-
-export const IDBStorage = new IDBStorageWrapper();
-if (typeof window !== 'undefined') {
-  window.IDBStorage = IDBStorage;
-}
-export default IDBStorage;
+const u="sl_db_v2",p=2,f=["students","seats","payments","settings","offline_queue"];class g{constructor(){this.dbPromise=null,this.isFlushing=!1,this.setupNetworkListeners()}_getDB(){return this.dbPromise?this.dbPromise:(this.dbPromise=new Promise((t,e)=>{if(typeof indexedDB>"u")return e(new Error("IndexedDB is not supported in this environment"));const r=indexedDB.open(u,2);r.onupgradeneeded=s=>{const i=s.target.result;f.forEach(n=>{i.objectStoreNames.contains(n)||(n==="offline_queue"?i.createObjectStore(n,{keyPath:"id",autoIncrement:!0}):i.createObjectStore(n))})},r.onsuccess=s=>{t(s.target.result)},r.onerror=s=>{this.dbPromise=null,e(s.target.error||new Error("Failed to open IndexedDB database"))}}),this.dbPromise)}async set(t,e,r){try{const s=await this._getDB();return new Promise((i,n)=>{const a=s.transaction(t,"readwrite").objectStore(t).put(r,e);a.onsuccess=()=>i(!0),a.onerror=()=>n(a.error)})}catch(s){return console.warn(`[IDBStorage] set error for store '${t}', key '${e}':`,s),!1}}async get(t,e){try{const r=await this._getDB();return new Promise((s,i)=>{const c=r.transaction(t,"readonly").objectStore(t).get(e);c.onsuccess=()=>s(c.result!==void 0?c.result:null),c.onerror=()=>i(c.error)})}catch(r){return console.warn(`[IDBStorage] get error for store '${t}', key '${e}':`,r),null}}async getAll(t){try{const e=await this._getDB();return new Promise((r,s)=>{const o=e.transaction(t,"readonly").objectStore(t).getAll();o.onsuccess=()=>r(o.result||[]),o.onerror=()=>s(o.error)})}catch(e){return console.warn(`[IDBStorage] getAll error for store '${t}':`,e),[]}}async clear(t){try{const e=await this._getDB();return new Promise((r,s)=>{const o=e.transaction(t,"readwrite").objectStore(t).clear();o.onsuccess=()=>r(!0),o.onerror=()=>s(o.error)})}catch(e){return console.warn(`[IDBStorage] clear error for store '${t}':`,e),!1}}async queueAction(t,e,r,s=""){try{const i=await this._getDB(),n={endpoint:t,method:e.toUpperCase(),payload:r,description:s,timestamp:new Date().toISOString()};return new Promise((o,c)=>{const l=i.transaction("offline_queue","readwrite").objectStore("offline_queue").add(n);l.onsuccess=()=>{this.updateOfflineBadge(),o(l.result)},l.onerror=()=>c(l.error)})}catch(i){return console.error("[IDBStorage] Failed to queue offline action:",i),null}}async getQueuedActions(){return this.getAll("offline_queue")}async removeAction(t){try{const e=await this._getDB();return new Promise((r,s)=>{const o=e.transaction("offline_queue","readwrite").objectStore("offline_queue").delete(t);o.onsuccess=()=>{this.updateOfflineBadge(),r(!0)},o.onerror=()=>s(o.error)})}catch{return!1}}async flushQueue(){if(!(this.isFlushing||!navigator.onLine)){this.isFlushing=!0;try{const t=await this.getQueuedActions();if(!t||t.length===0){this.isFlushing=!1;return}console.log(`[IDBStorage] Online detected. Flushing ${t.length} offline action(s)...`);let e=0;const r=t.filter(n=>n.endpoint.includes("/api/attendance/check-in")||n.endpoint.includes("/api/attendance/check-out"));if(r.length>0)try{const n=localStorage.getItem("token")||localStorage.getItem("jwt"),o={records:r.map(a=>({type:a.endpoint.includes("check-in")?"check-in":"check-out",payload:a.payload,queuedAt:a.timestamp}))};if((await fetch("/api/attendance/batch-sync",{method:"POST",headers:{"Content-Type":"application/json",...n?{Authorization:`Bearer ${n}`}:{}},body:JSON.stringify(o)})).ok)for(const a of r)await this.removeAction(a.id),e++}catch(n){console.warn("[IDBStorage] Batch sync attempt failed, will retry standard flush:",n.message)}const s=await this.getQueuedActions(),i=localStorage.getItem("token")||localStorage.getItem("jwt");for(const n of s)try{const o=await fetch(n.endpoint,{method:n.method,headers:{"Content-Type":"application/json",...i?{Authorization:`Bearer ${i}`}:{}},body:JSON.stringify(n.payload)});(o.ok||o.status===400)&&(await this.removeAction(n.id),o.ok&&e++)}catch(o){console.warn(`[IDBStorage] Action #${n.id} flush delayed:`,o.message);break}e>0&&window.Toast&&window.Toast.show(`\u26A1 Auto-Synced ${e} offline record(s) to server`,"success")}catch(t){console.error("[IDBStorage] Queue flush error:",t)}finally{this.isFlushing=!1,this.updateOfflineBadge()}}}setupNetworkListeners(){typeof window>"u"||(window.addEventListener("online",()=>{console.log("[Network] Device is back ONLINE"),window.Toast&&window.Toast.show("\u{1F4F6} Internet connection restored. Syncing data...","info"),setTimeout(()=>this.flushQueue(),1200)}),window.addEventListener("offline",()=>{console.log("[Network] Device went OFFLINE"),window.Toast&&window.Toast.show("\u{1F4E1} Offline mode active. Check-ins & actions will be saved locally.","warning",6e3),this.updateOfflineBadge()}))}async updateOfflineBadge(){if(!(typeof document>"u"))try{const t=await this.getQueuedActions();let e=document.getElementById("sl-offline-badge");e||(e=document.createElement("div"),e.id="sl-offline-badge",e.className="sl-offline-badge",e.style.cssText=`
+          position: fixed;
+          top: 14px;
+          right: 18px;
+          z-index: 9999;
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          display: none;
+          align-items: center;
+          gap: 6px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          cursor: pointer;
+          transition: all 0.3s ease;
+        `,document.body.appendChild(e)),!navigator.onLine||t.length>0?(e.style.display="inline-flex",navigator.onLine?(e.style.background="#f59e0b",e.style.color="#ffffff",e.innerHTML=`\u26A1 ${t.length} queued action(s) \u2022 Tap to sync`,e.onclick=()=>this.flushQueue()):(e.style.background="#ef4444",e.style.color="#ffffff",e.innerHTML=`\u{1F4E1} Offline ${t.length>0?`(${t.length} queued)`:""}`)):e.style.display="none"}catch{}}}const d=new g;typeof window<"u"&&(window.IDBStorage=d);var y=d;export{d as IDBStorage,y as default};

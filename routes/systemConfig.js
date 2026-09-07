@@ -615,6 +615,20 @@ router.put('/system-settings', protect, roleCheck('owner'), async (req, res) => 
       'notification.enableAutoExpiryBot': { key: 'notification.enableAutoExpiryBot', category: 'notification', type: 'boolean', label: 'Enable Automated Expiry WhatsApp Bot' },
       'enableAutoDuesBot': { key: 'notification.enableAutoDuesBot', category: 'notification', type: 'boolean', label: 'Enable Automated Balance Due WhatsApp Bot' },
       'notification.enableAutoDuesBot': { key: 'notification.enableAutoDuesBot', category: 'notification', type: 'boolean', label: 'Enable Automated Balance Due WhatsApp Bot' },
+      'whatsappProvider': { key: 'notification.whatsappProvider', category: 'notification', type: 'string', label: 'WhatsApp Gateway Provider' },
+      'notification.whatsappProvider': { key: 'notification.whatsappProvider', category: 'notification', type: 'string', label: 'WhatsApp Gateway Provider' },
+      'ultramsgInstanceId': { key: 'notification.ultramsgInstanceId', category: 'notification', type: 'string', label: 'UltraMsg Instance ID' },
+      'notification.ultramsgInstanceId': { key: 'notification.ultramsgInstanceId', category: 'notification', type: 'string', label: 'UltraMsg Instance ID' },
+      'ultramsgToken': { key: 'notification.ultramsgToken', category: 'notification', type: 'string', label: 'UltraMsg Token' },
+      'notification.ultramsgToken': { key: 'notification.ultramsgToken', category: 'notification', type: 'string', label: 'UltraMsg Token' },
+      'fast2smsApiKey': { key: 'notification.fast2smsApiKey', category: 'notification', type: 'string', label: 'Fast2SMS API Key' },
+      'notification.fast2smsApiKey': { key: 'notification.fast2smsApiKey', category: 'notification', type: 'string', label: 'Fast2SMS API Key' },
+      'metaPhoneNumberId': { key: 'notification.metaPhoneNumberId', category: 'notification', type: 'string', label: 'Meta WhatsApp Phone Number ID' },
+      'notification.metaPhoneNumberId': { key: 'notification.metaPhoneNumberId', category: 'notification', type: 'string', label: 'Meta WhatsApp Phone Number ID' },
+      'metaAccessToken': { key: 'notification.metaAccessToken', category: 'notification', type: 'string', label: 'Meta WhatsApp Access Token' },
+      'notification.metaAccessToken': { key: 'notification.metaAccessToken', category: 'notification', type: 'string', label: 'Meta WhatsApp Access Token' },
+      'webhookUrl': { key: 'notification.webhookUrl', category: 'notification', type: 'string', label: 'Custom WhatsApp Webhook URL' },
+      'notification.webhookUrl': { key: 'notification.webhookUrl', category: 'notification', type: 'string', label: 'Custom WhatsApp Webhook URL' },
 
       // General Settings
       'currency': { key: 'general.currency', category: 'general', type: 'string', label: 'Currency' },
@@ -628,13 +642,56 @@ router.put('/system-settings', protect, roleCheck('owner'), async (req, res) => 
       'autoBackup': { key: 'general.autoBackup', category: 'general', type: 'boolean', label: 'Auto Backup' },
       'general.autoBackup': { key: 'general.autoBackup', category: 'general', type: 'boolean', label: 'Auto Backup' },
       'inactivityTimeout': { key: 'general.inactivityTimeout', category: 'general', type: 'number', label: 'Inactivity Timeout' },
-      'general.inactivityTimeout': { key: 'general.inactivityTimeout', category: 'general', type: 'number', label: 'Inactivity Timeout' }
+      'general.inactivityTimeout': { key: 'general.inactivityTimeout', category: 'general', type: 'number', label: 'Inactivity Timeout' },
+
+      // Locker Add-on Settings
+      'locker.enableAddon': { key: 'locker.enableAddon', category: 'locker', type: 'boolean', label: 'Enable Locker Add-on in Registration' },
+      'enableLockerAddon': { key: 'locker.enableAddon', category: 'locker', type: 'boolean', label: 'Enable Locker Add-on in Registration' },
+      'locker.monthlyFee': { key: 'locker.monthlyFee', category: 'locker', type: 'number', label: 'Locker Monthly Add-on Fee (₹)' },
+      'lockerMonthlyFee': { key: 'locker.monthlyFee', category: 'locker', type: 'number', label: 'Locker Monthly Add-on Fee (₹)' },
+      'locker.deposit': { key: 'locker.deposit', category: 'locker', type: 'number', label: 'Locker Security Deposit (₹)' },
+      'lockerDeposit': { key: 'locker.deposit', category: 'locker', type: 'number', label: 'Locker Security Deposit (₹)' },
+      'locker.title': { key: 'locker.title', category: 'locker', type: 'string', label: 'Locker Add-on Title' },
+      'lockerTitle': { key: 'locker.title', category: 'locker', type: 'string', label: 'Locker Add-on Title' },
+      'locker.description': { key: 'locker.description', category: 'locker', type: 'string', label: 'Locker Add-on Description' },
+      'lockerDescription': { key: 'locker.description', category: 'locker', type: 'string', label: 'Locker Add-on Description' },
+
+      // Billing & Invoicing
+      'billing.receiptPrefix': { key: 'billing.receiptPrefix', category: 'billing', type: 'string', label: 'Invoice / Receipt Prefix' },
+      'billing.nextReceiptNumber': { key: 'billing.nextReceiptNumber', category: 'billing', type: 'number', label: 'Starting Invoice Number' },
+      'billing.defaultTemplate': { key: 'billing.defaultTemplate', category: 'billing', type: 'string', label: 'Default Receipt Template' },
+      'billing.enableGst': { key: 'billing.enableGst', category: 'billing', type: 'boolean', label: 'Enable GST' },
+      'billing.gstRate': { key: 'billing.gstRate', category: 'billing', type: 'number', label: 'GST Percentage (%)' },
+      'billing.hsnSacCode': { key: 'billing.hsnSacCode', category: 'billing', type: 'string', label: 'HSN / SAC Code' },
+      'billing.allowPartialPayment': { key: 'billing.allowPartialPayment', category: 'billing', type: 'boolean', label: 'Allow Partial Payments' },
+      'billing.minPartialPercent': { key: 'billing.minPartialPercent', category: 'billing', type: 'number', label: 'Minimum Partial Payment (%)' },
+      'billing.refundPolicyDays': { key: 'billing.refundPolicyDays', category: 'billing', type: 'number', label: 'Refund Policy Window (Days)' },
+
+      // Automations
+      'automations.autoSeatExpiry': { key: 'automations.autoSeatExpiry', category: 'automations', type: 'boolean', label: 'Auto Release Expired Seats' },
+      'automations.autoDueReminders': { key: 'automations.autoDueReminders', category: 'automations', type: 'boolean', label: 'Auto Dispatch Due Reminders' },
+      'automations.autoReceiptGeneration': { key: 'automations.autoReceiptGeneration', category: 'automations', type: 'boolean', label: 'Auto Generate PDF Receipts' },
+      'automations.autoDailyBackup': { key: 'automations.autoDailyBackup', category: 'automations', type: 'boolean', label: 'Daily Automated Database Backup' },
+
+      // Student Portal Settings
+      'portal.enableOnlineRenewal': { key: 'portal.enableOnlineRenewal', category: 'portal', type: 'boolean', label: 'Online Fee Renewal' },
+      'portal.enableSeatTransfer': { key: 'portal.enableSeatTransfer', category: 'portal', type: 'boolean', label: 'Seat Transfer Requests' },
+      'portal.enableShiftSwitch': { key: 'portal.enableShiftSwitch', category: 'portal', type: 'boolean', label: 'Shift Switch Requests' },
+      'portal.enableIdPassDownload': { key: 'portal.enableIdPassDownload', category: 'portal', type: 'boolean', label: 'Digital Mobile ID Pass Download' },
+      'portal.enableReceiptDownload': { key: 'portal.enableReceiptDownload', category: 'portal', type: 'boolean', label: 'Fee Receipt PDF Download' },
+      'portal.enableProfileEdit': { key: 'portal.enableProfileEdit', category: 'portal', type: 'boolean', label: 'Student Profile Self-Edit' },
+      'portal.enableWebAuthn': { key: 'portal.enableWebAuthn', category: 'portal', type: 'boolean', label: 'Biometric Login' },
+      'portal.enableGamifiedBadges': { key: 'portal.enableGamifiedBadges', category: 'portal', type: 'boolean', label: 'Gamified Badges' },
+      'portal.enableReferralProgram': { key: 'portal.enableReferralProgram', category: 'portal', type: 'boolean', label: 'Student Referral Program' },
+      'portal.enableAttendanceLogs': { key: 'portal.enableAttendanceLogs', category: 'portal', type: 'boolean', label: 'Study Heatmap' },
+      'portal.enableAnnouncements': { key: 'portal.enableAnnouncements', category: 'portal', type: 'boolean', label: 'Announcements' },
+      'portal.enableLockerRequests': { key: 'portal.enableLockerRequests', category: 'portal', type: 'boolean', label: 'Locker Requests' }
     };
 
     // Flatten categorized nested objects
     const flatUpdates = {};
     for (const [k, v] of Object.entries(updates)) {
-      if (typeof v === 'object' && v !== null && !Array.isArray(v) && ['general', 'payment', 'operations', 'kiosk', 'admission', 'notification'].includes(k)) {
+      if (typeof v === 'object' && v !== null && !Array.isArray(v) && ['general', 'payment', 'operations', 'kiosk', 'admission', 'notification', 'locker', 'billing', 'automations', 'portal'].includes(k)) {
         for (const [subK, subV] of Object.entries(v)) {
           flatUpdates[`${k}.${subK}`] = subV;
         }

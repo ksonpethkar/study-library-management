@@ -461,6 +461,14 @@ _Automated Daily Audit by StudyLib OS_`;
         link: link || '#/students'
       });
 
+      let gatewayResult = null;
+      try {
+        const { sendGatewayMessage } = require('../services/notificationService');
+        gatewayResult = await sendGatewayMessage({ phone: student.phone, message, type: 'whatsapp' });
+      } catch (gwErr) {
+        console.warn('Gateway dispatch warning:', gwErr.message);
+      }
+
       return {
         success: true,
         studentId: student._id,
@@ -469,7 +477,8 @@ _Automated Daily Audit by StudyLib OS_`;
         formattedPhone,
         whatsappUrl: clickToChatUrl,
         message,
-        notificationId: notif._id
+        notificationId: notif._id,
+        gateway: gatewayResult
       };
     } catch (err) {
       console.error('dispatchReminder error:', err.message);

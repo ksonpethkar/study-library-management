@@ -321,6 +321,7 @@ async function calculateAndAwardBadges(studentId, forceRefresh = false) {
       studentDoc.badges = [];
     }
 
+    const initialBadgeCount = studentDoc.badges.length;
     const existingBadgeIds = new Set(studentDoc.badges.map(b => b.badgeId));
 
     for (const def of badgeDefs) {
@@ -336,14 +337,15 @@ async function calculateAndAwardBadges(studentId, forceRefresh = false) {
       }
     }
 
-    await studentDoc.save({ validateBeforeSave: false });
+    const hadChanges = studentDoc.studyStreakDays !== currentStreak || studentDoc.badges.length > initialBadgeCount;
+    if (hadChanges) {
+      studentDoc.studyStreakDays = currentStreak;
+      await studentDoc.save({ validateBeforeSave: false }).catch(err => console.warn('Badge save warning:', err.message));
+    }
 
-    // Re-populate seat & plan for dashboard view consistency
-    const populatedStudent = await Student.findById(studentId)
-      .populate('plan')
-      .populate('seat')
-      .populate('branch')
-      .lean();
+    const populatedStudent = hadChanges 
+      ? await Student.findById(studentId).populate('plan').populate('seat').populate('branch').lean().catch(() => null)
+      : null;
 
     const result = {
       student: populatedStudent || studentDoc.toObject(),
@@ -380,12 +382,17 @@ router.get('/dashboard', async (req, res) => {
       return res.status(404).json({ success: false, message: 'No student record associated with this account' });
     }
 
-    const badgeResult = await calculateAndAwardBadges(student._id);
-    if (badgeResult && badgeResult.student) {
-      student = badgeResult.student;
+    let badgeResult = null;
+    try {
+      badgeResult = await calculateAndAwardBadges(student._id);
+      if (badgeResult && badgeResult.student) {
+        student = badgeResult.student;
+      }
+    } catch (bErr) {
+      console.warn('Badge calculation non-blocking warning:', bErr.message);
     }
 
-    const isAdmin = ['owner', 'branch_manager'].includes(req.user.role);
+    const isAdmin = req.user && ['owner', 'branch_manager'].includes(req.user.role);
     let allStudents = [];
     if (isAdmin) {
       allStudents = await Student.find({}, '_id name studentId phone status').sort({ name: 1 }).lean();
@@ -394,15 +401,15 @@ router.get('/dashboard', async (req, res) => {
     const business = await BusinessProfile.getProfile();
 
     const [payments, attendanceRecords, todayAttendance] = await Promise.all([
-      Payment.find({ student: student._id }).sort({ paymentDate: -1 }).limit(10).lean(),
-      Attendance.find({ student: student._id }).sort({ date: -1 }).limit(30).lean(),
+      Payment.find({ student: student._id }).sort({ paymentDate: -1 }).limit(10).lean().maxTimeMS(4000).catch(() => []),
+      Attendance.find({ student: student._id }).sort({ date: -1 }).limit(30).lean().maxTimeMS(4000).catch(() => []),
       Attendance.findOne({
         student: student._id,
         date: {
           $gte: new Date(new Date().setHours(0, 0, 0, 0)),
           $lte: new Date(new Date().setHours(23, 59, 59, 999))
         }
-      })
+      }).lean().maxTimeMS(4000).catch(() => null)
     ]);
 
     // Calculate remaining days

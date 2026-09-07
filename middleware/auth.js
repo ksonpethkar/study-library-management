@@ -55,8 +55,19 @@ const protect = async (req, res, next) => {
     // Try cache first — avoids DB hit on every request
     let user = getCachedUser(userId);
     if (!user) {
-      user = await User.findById(userId).lean();
-      if (user) setCachedUser(userId, user);
+      try {
+        user = await User.findById(userId).lean().maxTimeMS(4000);
+        if (user) setCachedUser(userId, user);
+      } catch (dbErr) {
+        if (decoded.id && decoded.role) {
+          user = {
+            _id: decoded.id,
+            role: decoded.role,
+            name: decoded.name || 'User',
+            isActive: true
+          };
+        }
+      }
     }
 
     if (!user) {
@@ -71,9 +82,18 @@ const protect = async (req, res, next) => {
 
     // If token was signed with role: 'student' (from student login), enforce student role in session
     if (decoded.role === 'student') {
-      req.user = { ...user, role: 'student', id: String(user._id) };
+      req.user = {
+        ...user,
+        role: 'student',
+        id: String(user._id),
+        studentId: decoded.studentId || user.studentId,
+        phone: decoded.phone || user.phone
+      };
     } else {
-      req.user = user;
+      req.user = {
+        ...user,
+        studentId: decoded.studentId || user.studentId
+      };
     }
     next();
   } catch (err) {
@@ -95,12 +115,28 @@ const optionalAuth = async (req, res, next) => {
       const userId = String(decoded.id);
       let user = getCachedUser(userId);
       if (!user) {
-        user = await User.findById(userId).lean();
-        if (user) setCachedUser(userId, user);
+        try {
+          user = await User.findById(userId).lean().maxTimeMS(4000);
+          if (user) setCachedUser(userId, user);
+        } catch (dbErr) {
+          if (decoded.id && decoded.role) {
+            user = {
+              _id: decoded.id,
+              role: decoded.role,
+              name: decoded.name || 'User',
+              isActive: true
+            };
+          }
+        }
       }
       if (user && user.isActive) {
         user.id = String(user._id);
-        req.user = user;
+        req.user = {
+          ...user,
+          role: decoded.role || user.role,
+          studentId: decoded.studentId || user.studentId,
+          phone: decoded.phone || user.phone
+        };
       }
     }
   } catch (err) {

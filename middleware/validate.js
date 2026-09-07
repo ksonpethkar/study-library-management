@@ -71,12 +71,17 @@ const validatePasswordChange = validate([
 // ── Students ─────────────────────────────────────────────────────────────────
 const validateStudentCreate = validate([
   body('name').trim().notEmpty().withMessage('Student name is required').isLength({ min: 2, max: 100 }).withMessage('Student name must be 2-100 characters'),
-  body('phone').trim().notEmpty().withMessage('Phone number is required').custom(val => {
-    const clean = String(val).replace(/[^0-9]/g, '');
-    const num = clean.length === 12 && clean.startsWith('91') ? clean.slice(2) : clean;
-    if (!/^[6-9]\d{9}$/.test(num)) {
+  body('phone').trim().notEmpty().withMessage('Phone number is required').custom((val, { req }) => {
+    let clean = String(val).replace(/[^0-9]/g, '');
+    if (clean.length === 11 && clean.startsWith('0')) {
+      clean = clean.slice(1);
+    } else if (clean.length === 12 && clean.startsWith('91')) {
+      clean = clean.slice(2);
+    }
+    if (!/^[6-9]\d{9}$/.test(clean)) {
       throw new Error('Please enter a valid 10-digit Indian mobile number (starting with 6, 7, 8, or 9)');
     }
+    req.body.phone = clean;
     return true;
   }),
   body('email').optional({ checkFalsy: true }).isEmail().withMessage('Please enter a valid email address').normalizeEmail(),
@@ -93,11 +98,18 @@ const validateStudentCreate = validate([
     return true;
   }),
   body('bloodGroup').optional({ checkFalsy: true }).isIn(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', '']).withMessage('Invalid blood group'),
-  body('emergencyContact.phone').optional({ checkFalsy: true }).custom(val => {
-    const clean = String(val).replace(/[^0-9]/g, '');
-    const num = clean.length === 12 && clean.startsWith('91') ? clean.slice(2) : clean;
-    if (!/^[6-9]\d{9}$/.test(num)) {
+  body('emergencyContact.phone').optional({ checkFalsy: true }).custom((val, { req }) => {
+    let clean = String(val).replace(/[^0-9]/g, '');
+    if (clean.length === 11 && clean.startsWith('0')) {
+      clean = clean.slice(1);
+    } else if (clean.length === 12 && clean.startsWith('91')) {
+      clean = clean.slice(2);
+    }
+    if (!/^[6-9]\d{9}$/.test(clean)) {
       throw new Error('Emergency contact must be a valid 10-digit mobile number');
+    }
+    if (req.body.emergencyContact) {
+      req.body.emergencyContact.phone = clean;
     }
     return true;
   })
@@ -105,13 +117,18 @@ const validateStudentCreate = validate([
 
 const validateStudentUpdate = validate([
   body('name').optional().trim().notEmpty().withMessage('Student name cannot be empty').isLength({ min: 2, max: 100 }),
-  body('phone').optional().trim().custom(val => {
+  body('phone').optional().trim().custom((val, { req }) => {
     if (!val) return true;
-    const clean = String(val).replace(/[^0-9]/g, '');
-    const num = clean.length === 12 && clean.startsWith('91') ? clean.slice(2) : clean;
-    if (!/^[6-9]\d{9}$/.test(num)) {
+    let clean = String(val).replace(/[^0-9]/g, '');
+    if (clean.length === 11 && clean.startsWith('0')) {
+      clean = clean.slice(1);
+    } else if (clean.length === 12 && clean.startsWith('91')) {
+      clean = clean.slice(2);
+    }
+    if (!/^[6-9]\d{9}$/.test(clean)) {
       throw new Error('Please enter a valid 10-digit Indian mobile number');
     }
+    req.body.phone = clean;
     return true;
   }),
   body('email').optional({ checkFalsy: true }).isEmail().withMessage('Please enter a valid email address').normalizeEmail(),

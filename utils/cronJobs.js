@@ -421,33 +421,11 @@ async function generateEODSummary() {
 
 async function performDatabaseBackup() {
   try {
-    const backupDir = path.join(__dirname, '../backups');
-    if (!fs.existsSync(backupDir)) {
-      fs.mkdirSync(backupDir, { recursive: true });
-    }
-
-    const files = fs.readdirSync(backupDir);
-    const now = Date.now();
-    files.forEach(file => {
-      const filePath = path.join(backupDir, file);
-      const stats = fs.statSync(filePath);
-      if (now - stats.mtime.getTime() > 7 * 24 * 60 * 60 * 1000) {
-        fs.unlinkSync(filePath);
-      }
-    });
-
+    const backupService = require('../services/backupService');
+    const result = await backupService.createBackup('cron');
+    const backupFile = result.path;
     const dbName = mongoose.connection.name || 'library';
-    const dateStr = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupFile = path.join(backupDir, `backup-${dbName}-${dateStr}.json`);
-
-    const collections = mongoose.connection.collections;
-    const backupData = {};
-    for (const [name, collection] of Object.entries(collections)) {
-      backupData[name] = await collection.find({}).toArray();
-    }
-    
-    fs.writeFileSync(backupFile, JSON.stringify(backupData, null, 2));
-    console.log(`✅ Backup created successfully: ${backupFile}`);
+    console.log(`✅ [BackupService] Daily backup snapshot complete: ${result.filename} (${result.sizeMB} MB)`);
 
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
       const transporter = nodemailer.createTransport({
@@ -482,6 +460,16 @@ async function performDatabaseBackup() {
  */
 async function reconcileDailyAttendance() {
   try {
+    const autoCheckoutEnabled = (await SystemSetting.getSetting('operations.autoCheckout')) !== false;
+    if (!autoCheckoutEnabled) {
+      console.log('ℹ️ Auto attendance checkout is disabled in settings. Skipping reconciliation.');
+      return 0;
+    }
+
+    const autoCheckoutHours = Number(await SystemSetting.getSetting('operations.autoCheckoutHours')) || 16;
+    const maxSessionMs = autoCheckoutHours * 60 * 60 * 1000;
+    const now = new Date();
+
     const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
     const todayEnd = new Date(new Date().setHours(23, 59, 59, 999));
 
@@ -493,13 +481,17 @@ async function reconcileDailyAttendance() {
     }).populate('student');
 
     let reconciledCount = 0;
-    const autoCloseTime = new Date();
 
     for (const record of openRecords) {
+      const checkInTime = new Date(record.checkIn);
+      const diffMs = now.getTime() - checkInTime.getTime();
+      const autoCloseTime = diffMs > maxSessionMs ? new Date(checkInTime.getTime() + maxSessionMs) : now;
+      const sessionDurationMins = Math.max(0, Math.round((autoCloseTime.getTime() - checkInTime.getTime()) / (1000 * 60)));
+
       record.checkOut = autoCloseTime;
-      const diffMs = autoCloseTime.getTime() - new Date(record.checkIn).getTime();
-      record.duration = Math.max(0, Math.round(diffMs / (1000 * 60)));
-      record.notes = (record.notes ? `${record.notes} | ` : '') + 'Auto-closed by end-of-day reconciliation';
+      record.duration = sessionDurationMins;
+      record.totalStudyMinutes = sessionDurationMins;
+      record.notes = (record.notes ? `${record.notes} | ` : '') + `Auto-closed by scheduled reconciliation (limit: ${autoCheckoutHours}h)`;
       await record.save();
       reconciledCount++;
     }
@@ -616,11 +608,14 @@ async function generateAtRiskDigest() {
 }
 
 function initCronJobs() {
-  // Dynamic Automated WhatsApp Dispatch Engine (Checks configured notification.whatsappScheduleTime every minute)
+  // Dynamic Automated Engines (Checks configured WhatsApp and Auto-Checkout times every minute)
   let lastDispatchedMinuteKey = '';
+  let lastAutoCheckoutMinuteKey = '';
   cron.schedule('* * * * *', async () => {
     try {
       const scheduleTime = (await SystemSetting.getSetting('notification.whatsappScheduleTime')) || '09:30';
+      const autoCheckoutEnabled = (await SystemSetting.getSetting('operations.autoCheckout')) !== false;
+      const autoCheckoutTime = (await SystemSetting.getSetting('operations.autoCheckoutTime')) || '23:00';
       const timezone = (await SystemSetting.getSetting('general.timezone')) || 'Asia/Kolkata';
 
       const now = new Date();
@@ -640,8 +635,14 @@ function initCronJobs() {
         console.log(`⏰ [${currentTimeStr} ${timezone}] Triggering Daily Scheduled Automated WhatsApp Dispatch Engine...`);
         await checkStudentExpiries();
       }
+
+      if (autoCheckoutEnabled && currentTimeStr === autoCheckoutTime && lastAutoCheckoutMinuteKey !== minuteKey) {
+        lastAutoCheckoutMinuteKey = minuteKey;
+        console.log(`⏱️ [${currentTimeStr} ${timezone}] Triggering Scheduled Auto Attendance Reconciliation (${autoCheckoutTime})...`);
+        await reconcileDailyAttendance();
+      }
     } catch (scheduleErr) {
-      console.error('Error during WhatsApp minute schedule check:', scheduleErr.message);
+      console.error('Error during minute schedule check:', scheduleErr.message);
     }
   });
 

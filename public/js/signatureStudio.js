@@ -1,51 +1,15 @@
-import { escapeHTML, Toast } from './ui.js';
-
-/**
- * Smart Signature Studio Component
- * Supports:
- * 1. Interactive Drawing Pad (Touch / Stylus / Mouse with Bezier curve smoothing)
- * 2. Upload Photo of Handwritten Signature with Smart Auto-Crop & Paper Background Removal
- * 3. Type to Sign with authentic script handwriting fonts
- * 4. High-Res Transparent PNG Export
- */
-export class SignatureStudio {
-  constructor(container, options = {}) {
-    this.container = typeof container === 'string' ? document.querySelector(container) : container;
-    this.options = {
-      value: options.value || '',
-      onChange: options.onChange || null,
-      width: options.width || 440,
-      height: options.height || 160,
-      penColor: options.penColor || '#1e40af', // Royal Blue default
-      penWidth: options.penWidth || 2.5,
-      ...options
-    };
-
-    this.activeTab = 'draw'; // 'draw' | 'upload' | 'type'
-    this.history = [];
-    this.historyIndex = -1;
-    this.rotation = 0;
-    this.threshold = 210; // Default paper removal threshold (0-255)
-    this.originalUploadedImage = null;
-
-    this.render();
-  }
-
-  render() {
-    if (!this.container) return;
-
-    this.container.innerHTML = `
+import{Toast as x}from"./ui.js";class f{constructor(e,s={}){this.container=typeof e=="string"?document.querySelector(e):e,this.options={value:s.value||"",onChange:s.onChange||null,width:s.width||440,height:s.height||160,penColor:s.penColor||"#1e40af",penWidth:s.penWidth||2.5,...s},this.activeTab="draw",this.history=[],this.historyIndex=-1,this.rotation=0,this.threshold=210,this.originalUploadedImage=null,this.render()}render(){this.container&&(this.container.innerHTML=`
       <div class="signature-studio-wrapper" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg, 12px); background: var(--color-surface); overflow: hidden; box-shadow: var(--shadow-sm);">
         <!-- Mode Tabs -->
         <div class="sig-tabs" style="display: flex; border-bottom: 1px solid var(--color-divider); background: var(--color-bg-secondary);">
           <button type="button" class="sig-tab-btn active" data-tab="draw" style="flex: 1; padding: 10px 14px; border: none; background: transparent; font-weight: 600; font-size: 0.85rem; cursor: pointer; color: var(--color-text-primary); border-bottom: 2px solid var(--color-primary); transition: all 0.2s;">
-            ✍️ Draw Signature
+            \u270D\uFE0F Draw Signature
           </button>
           <button type="button" class="sig-tab-btn" data-tab="upload" style="flex: 1; padding: 10px 14px; border: none; background: transparent; font-weight: 600; font-size: 0.85rem; cursor: pointer; color: var(--color-text-muted); border-bottom: 2px solid transparent; transition: all 0.2s;">
-            📷 Upload & Auto-Enhance
+            \u{1F4F7} Upload & Auto-Enhance
           </button>
           <button type="button" class="sig-tab-btn" data-tab="type" style="flex: 1; padding: 10px 14px; border: none; background: transparent; font-weight: 600; font-size: 0.85rem; cursor: pointer; color: var(--color-text-muted); border-bottom: 2px solid transparent; transition: all 0.2s;">
-            ⌨️ Type to Sign
+            \u2328\uFE0F Type to Sign
           </button>
         </div>
 
@@ -71,8 +35,8 @@ export class SignatureStudio {
 
             <!-- History Actions -->
             <div class="d-flex align-items-center gap-1">
-              <button type="button" class="btn btn-sm btn-ghost sig-undo-btn" title="Undo" style="padding: 2px 6px; font-size: 0.8rem;">↩️ Undo</button>
-              <button type="button" class="btn btn-sm btn-ghost sig-clear-btn text-danger" title="Clear Pad" style="padding: 2px 6px; font-size: 0.8rem;">🧹 Clear</button>
+              <button type="button" class="btn btn-sm btn-ghost sig-undo-btn" title="Undo" style="padding: 2px 6px; font-size: 0.8rem;">\u21A9\uFE0F Undo</button>
+              <button type="button" class="btn btn-sm btn-ghost sig-clear-btn text-danger" title="Clear Pad" style="padding: 2px 6px; font-size: 0.8rem;">\u{1F9F9} Clear</button>
             </div>
           </div>
 
@@ -89,7 +53,7 @@ export class SignatureStudio {
         <div class="sig-panel sig-panel-upload p-3" style="display: none;">
           <!-- Drop Zone -->
           <div class="sig-dropzone p-4 text-center" style="border: 2px dashed #6366f1; border-radius: 8px; background: rgba(99, 102, 241, 0.04); cursor: pointer; transition: all 0.2s;">
-            <div style="font-size: 32px; margin-bottom: 4px;">📸</div>
+            <div style="font-size: 32px; margin-bottom: 4px;">\u{1F4F8}</div>
             <div style="font-weight: 600; font-size: 0.9rem; color: var(--color-primary);">Select or Drop Signature Photo</div>
             <p class="text-xs text-muted mb-2">Take a photo of signature on white paper (Phone / Camera / Scan)</p>
             <input type="file" class="sig-file-input" accept="image/*" style="display: none;">
@@ -109,10 +73,10 @@ export class SignatureStudio {
               </div>
               <div class="d-flex align-items-end gap-1">
                 <button type="button" class="btn btn-sm btn-outline-secondary sig-autotrim-btn flex-1" style="font-size: 0.75rem;">
-                  ✂️ Smart Auto-Crop
+                  \u2702\uFE0F Smart Auto-Crop
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary sig-rotate-btn" title="Rotate 90°" style="font-size: 0.75rem;">
-                  🔄 Rotate
+                <button type="button" class="btn btn-sm btn-outline-secondary sig-rotate-btn" title="Rotate 90\xB0" style="font-size: 0.75rem;">
+                  \u{1F504} Rotate
                 </button>
               </div>
             </div>
@@ -128,7 +92,7 @@ export class SignatureStudio {
         <div class="sig-panel sig-panel-type p-3" style="display: none;">
           <div class="mb-3">
             <label class="form-label text-xs text-muted">Enter Full Name:</label>
-            <input type="text" class="form-control sig-type-input" placeholder="e.g. Rahul Sharma" value="${this.options.studentName || ''}">
+            <input type="text" class="form-control sig-type-input" placeholder="e.g. Rahul Sharma" value="${this.options.studentName||""}">
           </div>
 
           <div class="sig-type-preview-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -154,437 +118,12 @@ export class SignatureStudio {
         <!-- Footer Output Status -->
         <div class="sig-footer p-2 px-3 d-flex justify-content-between align-items-center" style="background: var(--color-bg-secondary); border-top: 1px solid var(--color-divider); font-size: 0.75rem;">
           <div class="d-flex align-items-center gap-1">
-            <span class="badge badge-success" style="font-size: 0.65rem;">✓ Transparent PNG</span>
+            <span class="badge badge-success" style="font-size: 0.65rem;">\u2713 Transparent PNG</span>
             <span class="text-muted sig-status-text">Signature captured cleanly</span>
           </div>
           <button type="button" class="btn btn-sm btn-ghost sig-preview-modal-btn text-primary" style="padding: 2px 8px; font-size: 0.75rem;">
-            🔍 Live Preview
+            \u{1F50D} Live Preview
           </button>
         </div>
       </div>
-    `;
-
-    this.initEvents();
-    if (this.options.value) {
-      this.loadExistingValue(this.options.value);
-    }
-  }
-
-  initEvents() {
-    const wrap = this.container;
-
-    // 1. Tab Switching
-    wrap.querySelectorAll('.sig-tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        wrap.querySelectorAll('.sig-tab-btn').forEach(b => {
-          b.classList.remove('active');
-          b.style.color = 'var(--color-text-muted)';
-          b.style.borderBottomColor = 'transparent';
-        });
-        btn.classList.add('active');
-        btn.style.color = 'var(--color-text-primary)';
-        btn.style.borderBottomColor = 'var(--color-primary)';
-
-        const tab = btn.dataset.tab;
-        this.activeTab = tab;
-        wrap.querySelectorAll('.sig-panel').forEach(p => p.style.display = 'none');
-        wrap.querySelector(`.sig-panel-${tab}`).style.display = 'block';
-
-        if (tab === 'type') {
-          this.updateTypeCanvas();
-        }
-      });
-    });
-
-    // 2. Setup Drawing Canvas
-    this.canvas = wrap.querySelector('.sig-draw-canvas');
-    this.ctx = this.canvas.getContext('2d');
-    this.ctx.lineCap = 'round';
-    this.ctx.lineJoin = 'round';
-    this.ctx.strokeStyle = this.options.penColor;
-    this.ctx.lineWidth = this.options.penWidth;
-
-    let isDrawing = false;
-    let points = [];
-
-    const getCanvasPos = (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const scaleX = this.canvas.width / rect.width;
-      const scaleY = this.canvas.height / rect.height;
-      return {
-        x: (clientX - rect.left) * scaleX,
-        y: (clientY - rect.top) * scaleY
-      };
-    };
-
-    const startDraw = (e) => {
-      e.preventDefault();
-      isDrawing = true;
-      const pos = getCanvasPos(e);
-      points = [pos];
-      this.ctx.beginPath();
-      this.ctx.moveTo(pos.x, pos.y);
-    };
-
-    const draw = (e) => {
-      if (!isDrawing) return;
-      e.preventDefault();
-      const pos = getCanvasPos(e);
-      points.push(pos);
-
-      // Bezier curve smoothing for natural pen strokes
-      if (points.length > 2) {
-        const lastTwo = points.slice(-2);
-        const xc = (lastTwo[0].x + lastTwo[1].x) / 2;
-        const yc = (lastTwo[0].y + lastTwo[1].y) / 2;
-        this.ctx.quadraticCurveTo(lastTwo[0].x, lastTwo[0].y, xc, yc);
-        this.ctx.stroke();
-      } else {
-        this.ctx.lineTo(pos.x, pos.y);
-        this.ctx.stroke();
-      }
-    };
-
-    const stopDraw = () => {
-      if (isDrawing) {
-        isDrawing = false;
-        this.saveHistory();
-        this.emitChange();
-      }
-    };
-
-    this.canvas.addEventListener('mousedown', startDraw);
-    this.canvas.addEventListener('mousemove', draw);
-    window.addEventListener('mouseup', stopDraw);
-
-    this.canvas.addEventListener('touchstart', startDraw, { passive: false });
-    this.canvas.addEventListener('touchmove', draw, { passive: false });
-    window.addEventListener('touchend', stopDraw);
-    window.addEventListener('touchcancel', stopDraw);
-
-    // Ink Color buttons
-    wrap.querySelectorAll('.sig-color-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        wrap.querySelectorAll('.sig-color-btn').forEach(b => {
-          b.style.boxShadow = 'none';
-          b.style.borderColor = 'transparent';
-        });
-        btn.style.boxShadow = `0 0 0 2px ${btn.dataset.color}`;
-        btn.style.borderColor = '#fff';
-        this.options.penColor = btn.dataset.color;
-        this.ctx.strokeStyle = this.options.penColor;
-      });
-    });
-
-    // Pen Width buttons
-    wrap.querySelectorAll('.sig-width-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        wrap.querySelectorAll('.sig-width-btn').forEach(b => {
-          b.classList.remove('btn-primary');
-          b.classList.add('btn-ghost');
-        });
-        btn.classList.add('btn-primary');
-        btn.classList.remove('btn-ghost');
-        this.options.penWidth = parseFloat(btn.dataset.width);
-        this.ctx.lineWidth = this.options.penWidth;
-      });
-    });
-
-    // Undo & Clear
-    wrap.querySelector('.sig-undo-btn')?.addEventListener('click', () => this.undo());
-    wrap.querySelector('.sig-clear-btn')?.addEventListener('click', () => this.clear());
-
-    // 3. Upload & Enhance Events
-    const dropzone = wrap.querySelector('.sig-dropzone');
-    const fileInput = wrap.querySelector('.sig-file-input');
-    const browseBtn = wrap.querySelector('.sig-browse-btn');
-
-    browseBtn?.addEventListener('click', () => fileInput.click());
-    dropzone?.addEventListener('click', (e) => {
-      if (e.target !== browseBtn) fileInput.click();
-    });
-
-    fileInput?.addEventListener('change', (e) => {
-      if (e.target.files && e.target.files[0]) {
-        this.handleFileUpload(e.target.files[0]);
-      }
-    });
-
-    // Drag & Drop
-    dropzone?.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropzone.style.borderColor = '#22c55e';
-      dropzone.style.background = 'rgba(34, 197, 94, 0.08)';
-    });
-    dropzone?.addEventListener('dragleave', () => {
-      dropzone.style.borderColor = '#6366f1';
-      dropzone.style.background = 'rgba(99, 102, 241, 0.04)';
-    });
-    dropzone?.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropzone.style.borderColor = '#6366f1';
-      dropzone.style.background = 'rgba(99, 102, 241, 0.04)';
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        this.handleFileUpload(e.dataTransfer.files[0]);
-      }
-    });
-
-    // Threshold Slider
-    const thresholdSlider = wrap.querySelector('.sig-threshold-slider');
-    thresholdSlider?.addEventListener('input', (e) => {
-      this.threshold = parseInt(e.target.value, 10);
-      wrap.querySelector('.sig-threshold-val').textContent = this.threshold;
-      this.processUploadedImage();
-    });
-
-    // Rotate Button
-    wrap.querySelector('.sig-rotate-btn')?.addEventListener('click', () => {
-      this.rotation = (this.rotation + 90) % 360;
-      this.processUploadedImage();
-    });
-
-    // Auto-Trim Button
-    wrap.querySelector('.sig-autotrim-btn')?.addEventListener('click', () => {
-      this.autoCropEnhanceCanvas();
-      Toast.success('Signature auto-cropped tightly');
-    });
-
-    // 4. Type to Sign Events
-    const typeInput = wrap.querySelector('.sig-type-input');
-    typeInput?.addEventListener('input', () => {
-      const name = typeInput.value.trim() || 'Your Name';
-      wrap.querySelectorAll('.sig-font-text').forEach(el => el.textContent = name);
-      this.updateTypeCanvas();
-    });
-
-    wrap.querySelectorAll('.sig-font-card').forEach(card => {
-      card.addEventListener('click', () => {
-        wrap.querySelectorAll('.sig-font-card').forEach(c => {
-          c.classList.remove('selected');
-          c.style.borderColor = 'var(--color-border)';
-        });
-        card.classList.add('selected');
-        card.style.borderColor = 'var(--color-primary)';
-        this.selectedFont = card.dataset.font;
-        this.updateTypeCanvas();
-      });
-    });
-
-    // Save initial state
-    this.saveHistory();
-  }
-
-  saveHistory() {
-    if (!this.canvas) return;
-    this.history = this.history.slice(0, this.historyIndex + 1);
-    this.history.push(this.canvas.toDataURL());
-    this.historyIndex++;
-  }
-
-  undo() {
-    if (this.historyIndex > 0) {
-      this.historyIndex--;
-      const img = new Image();
-      img.onload = () => {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.drawImage(img, 0, 0);
-        this.emitChange();
-      };
-      img.src = this.history[this.historyIndex];
-    } else if (this.historyIndex === 0) {
-      this.clear();
-    }
-  }
-
-  clear() {
-    if (this.canvas) {
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      this.history = [];
-      this.historyIndex = -1;
-      this.saveHistory();
-      this.emitChange();
-    }
-  }
-
-  handleFileUpload(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        this.originalUploadedImage = img;
-        this.container.querySelector('.sig-upload-controls').style.display = 'block';
-        this.processUploadedImage();
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  }
-
-  /**
-   * Smart Paper Background Removal & Binarization Algorithm
-   */
-  processUploadedImage() {
-    if (!this.originalUploadedImage) return;
-
-    const enhanceCanvas = this.container.querySelector('.sig-enhance-canvas');
-    if (!enhanceCanvas) return;
-    const ctx = enhanceCanvas.getContext('2d');
-
-    const w = enhanceCanvas.width;
-    const h = enhanceCanvas.height;
-
-    ctx.clearRect(0, 0, w, h);
-    ctx.save();
-    ctx.translate(w / 2, h / 2);
-    ctx.rotate((this.rotation * Math.PI) / 180);
-
-    // Scale to fit canvas
-    const img = this.originalUploadedImage;
-    const isRotated = this.rotation === 90 || this.rotation === 270;
-    const srcW = isRotated ? img.height : img.width;
-    const srcH = isRotated ? img.width : img.height;
-    const scale = Math.min((w * 0.9) / srcW, (h * 0.9) / srcH);
-
-    ctx.drawImage(img, (-img.width * scale) / 2, (-img.height * scale) / 2, img.width * scale, img.height * scale);
-    ctx.restore();
-
-    // Pixel manipulation for paper removal & ink darkening
-    const imgData = ctx.getImageData(0, 0, w, h);
-    const data = imgData.data;
-
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const brightness = 0.299 * r + 0.587 * g + 0.114 * b; // Grayscale luminance
-
-      if (brightness > this.threshold) {
-        // Paper background -> Make 100% transparent
-        data[i + 3] = 0;
-      } else {
-        // Signature Ink -> Convert to crisp Royal Blue or Deep Black
-        const intensity = 1 - brightness / this.threshold;
-        data[i] = 30;     // R
-        data[i + 1] = 64;  // G
-        data[i + 2] = 175; // B (Royal Blue)
-        data[i + 3] = Math.min(255, Math.floor(intensity * 255 * 1.5)); // Alpha
-      }
-    }
-
-    ctx.putImageData(imgData, 0, 0);
-    this.emitChange();
-  }
-
-  /**
-   * Auto-Crop: Detects bounding box of non-transparent signature pixels and crops tightly
-   */
-  autoCropEnhanceCanvas() {
-    const canvas = this.activeTab === 'upload' ? this.container.querySelector('.sig-enhance-canvas') : this.canvas;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width;
-    const h = canvas.height;
-
-    const imgData = ctx.getImageData(0, 0, w, h);
-    const data = imgData.data;
-
-    let minX = w, minY = h, maxX = 0, maxY = 0;
-    let found = false;
-
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const alpha = data[(y * w + x) * 4 + 3];
-        if (alpha > 20) { // Non-transparent pixel
-          found = true;
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
-        }
-      }
-    }
-
-    if (!found) return;
-
-    // Add 10px margin
-    const pad = 10;
-    minX = Math.max(0, minX - pad);
-    minY = Math.max(0, minY - pad);
-    maxX = Math.min(w, maxX + pad);
-    maxY = Math.min(h, maxY + pad);
-
-    const cropW = maxX - minX;
-    const cropH = maxY - minY;
-
-    const croppedData = ctx.getImageData(minX, minY, cropW, cropH);
-
-    ctx.clearRect(0, 0, w, h);
-    // Center cropped signature onto canvas
-    const targetX = (w - cropW) / 2;
-    const targetY = (h - cropH) / 2;
-    ctx.putImageData(croppedData, targetX, targetY);
-
-    this.emitChange();
-  }
-
-  updateTypeCanvas() {
-    const typeInput = this.container.querySelector('.sig-type-input');
-    const name = typeInput?.value.trim() || 'Rahul Sharma';
-    const font = this.selectedFont || 'Great Vibes';
-
-    // Create offscreen canvas for type
-    const off = document.createElement('canvas');
-    off.width = this.options.width;
-    off.height = this.options.height;
-    const ctx = off.getContext('2d');
-
-    ctx.font = `36px "${font}", cursive`;
-    ctx.fillStyle = '#1e40af';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(name, off.width / 2, off.height / 2);
-
-    this.typedDataUrl = off.toDataURL();
-    this.emitChange();
-  }
-
-  getValue() {
-    if (this.activeTab === 'upload') {
-      const enhanceCanvas = this.container.querySelector('.sig-enhance-canvas');
-      return enhanceCanvas ? enhanceCanvas.toDataURL() : '';
-    } else if (this.activeTab === 'type') {
-      return this.typedDataUrl || '';
-    } else {
-      if (!this.canvas || this.isCanvasBlank(this.canvas)) return '';
-      return this.canvas.toDataURL();
-    }
-  }
-
-  loadExistingValue(dataUrl) {
-    if (!dataUrl || !this.canvas) return;
-    const img = new Image();
-    img.onload = () => {
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      this.ctx.drawImage(img, 0, 0);
-      this.saveHistory();
-    };
-    img.src = dataUrl;
-  }
-
-  isCanvasBlank(canvas) {
-    const ctx = canvas.getContext('2d');
-    const pixelBuffer = new Uint32Array(
-      ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer
-    );
-    return !pixelBuffer.some(color => color !== 0);
-  }
-
-  emitChange() {
-    const val = this.getValue();
-    if (typeof this.options.onChange === 'function') {
-      this.options.onChange(val);
-    }
-  }
-}
+    `,this.initEvents(),this.options.value&&this.loadExistingValue(this.options.value))}initEvents(){const e=this.container;e.querySelectorAll(".sig-tab-btn").forEach(t=>{t.addEventListener("click",()=>{e.querySelectorAll(".sig-tab-btn").forEach(n=>{n.classList.remove("active"),n.style.color="var(--color-text-muted)",n.style.borderBottomColor="transparent"}),t.classList.add("active"),t.style.color="var(--color-text-primary)",t.style.borderBottomColor="var(--color-primary)";const a=t.dataset.tab;this.activeTab=a,e.querySelectorAll(".sig-panel").forEach(n=>n.style.display="none"),e.querySelector(`.sig-panel-${a}`).style.display="block",a==="type"&&this.updateTypeCanvas()})}),this.canvas=e.querySelector(".sig-draw-canvas"),this.ctx=this.canvas.getContext("2d"),this.ctx.lineCap="round",this.ctx.lineJoin="round",this.ctx.strokeStyle=this.options.penColor,this.ctx.lineWidth=this.options.penWidth;let s=!1,i=[];const o=t=>{const a=this.canvas.getBoundingClientRect(),n=t.touches?t.touches[0].clientX:t.clientX,b=t.touches?t.touches[0].clientY:t.clientY,v=this.canvas.width/a.width,u=this.canvas.height/a.height;return{x:(n-a.left)*v,y:(b-a.top)*u}},d=t=>{t.preventDefault(),s=!0;const a=o(t);i=[a],this.ctx.beginPath(),this.ctx.moveTo(a.x,a.y)},h=t=>{if(!s)return;t.preventDefault();const a=o(t);if(i.push(a),i.length>2){const n=i.slice(-2),b=(n[0].x+n[1].x)/2,v=(n[0].y+n[1].y)/2;this.ctx.quadraticCurveTo(n[0].x,n[0].y,b,v),this.ctx.stroke()}else this.ctx.lineTo(a.x,a.y),this.ctx.stroke()},p=()=>{s&&(s=!1,this.saveHistory(),this.emitChange())};this.canvas.addEventListener("mousedown",d),this.canvas.addEventListener("mousemove",h),window.addEventListener("mouseup",p),this.canvas.addEventListener("touchstart",d,{passive:!1}),this.canvas.addEventListener("touchmove",h,{passive:!1}),window.addEventListener("touchend",p),window.addEventListener("touchcancel",p),e.querySelectorAll(".sig-color-btn").forEach(t=>{t.addEventListener("click",()=>{e.querySelectorAll(".sig-color-btn").forEach(a=>{a.style.boxShadow="none",a.style.borderColor="transparent"}),t.style.boxShadow=`0 0 0 2px ${t.dataset.color}`,t.style.borderColor="#fff",this.options.penColor=t.dataset.color,this.ctx.strokeStyle=this.options.penColor})}),e.querySelectorAll(".sig-width-btn").forEach(t=>{t.addEventListener("click",()=>{e.querySelectorAll(".sig-width-btn").forEach(a=>{a.classList.remove("btn-primary"),a.classList.add("btn-ghost")}),t.classList.add("btn-primary"),t.classList.remove("btn-ghost"),this.options.penWidth=parseFloat(t.dataset.width),this.ctx.lineWidth=this.options.penWidth})}),e.querySelector(".sig-undo-btn")?.addEventListener("click",()=>this.undo()),e.querySelector(".sig-clear-btn")?.addEventListener("click",()=>this.clear());const r=e.querySelector(".sig-dropzone"),c=e.querySelector(".sig-file-input"),g=e.querySelector(".sig-browse-btn");g?.addEventListener("click",()=>c.click()),r?.addEventListener("click",t=>{t.target!==g&&c.click()}),c?.addEventListener("change",t=>{t.target.files&&t.target.files[0]&&this.handleFileUpload(t.target.files[0])}),r?.addEventListener("dragover",t=>{t.preventDefault(),r.style.borderColor="#22c55e",r.style.background="rgba(34, 197, 94, 0.08)"}),r?.addEventListener("dragleave",()=>{r.style.borderColor="#6366f1",r.style.background="rgba(99, 102, 241, 0.04)"}),r?.addEventListener("drop",t=>{t.preventDefault(),r.style.borderColor="#6366f1",r.style.background="rgba(99, 102, 241, 0.04)",t.dataTransfer.files&&t.dataTransfer.files[0]&&this.handleFileUpload(t.dataTransfer.files[0])}),e.querySelector(".sig-threshold-slider")?.addEventListener("input",t=>{this.threshold=parseInt(t.target.value,10),e.querySelector(".sig-threshold-val").textContent=this.threshold,this.processUploadedImage()}),e.querySelector(".sig-rotate-btn")?.addEventListener("click",()=>{this.rotation=(this.rotation+90)%360,this.processUploadedImage()}),e.querySelector(".sig-autotrim-btn")?.addEventListener("click",()=>{this.autoCropEnhanceCanvas(),x.success("Signature auto-cropped tightly")});const l=e.querySelector(".sig-type-input");l?.addEventListener("input",()=>{const t=l.value.trim()||"Your Name";e.querySelectorAll(".sig-font-text").forEach(a=>a.textContent=t),this.updateTypeCanvas()}),e.querySelectorAll(".sig-font-card").forEach(t=>{t.addEventListener("click",()=>{e.querySelectorAll(".sig-font-card").forEach(a=>{a.classList.remove("selected"),a.style.borderColor="var(--color-border)"}),t.classList.add("selected"),t.style.borderColor="var(--color-primary)",this.selectedFont=t.dataset.font,this.updateTypeCanvas()})}),this.saveHistory()}saveHistory(){this.canvas&&(this.history=this.history.slice(0,this.historyIndex+1),this.history.push(this.canvas.toDataURL()),this.historyIndex++)}undo(){if(this.historyIndex>0){this.historyIndex--;const e=new Image;e.onload=()=>{this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height),this.ctx.drawImage(e,0,0),this.emitChange()},e.src=this.history[this.historyIndex]}else this.historyIndex===0&&this.clear()}clear(){this.canvas&&(this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height),this.history=[],this.historyIndex=-1,this.saveHistory(),this.emitChange())}handleFileUpload(e){const s=new FileReader;s.onload=i=>{const o=new Image;o.onload=()=>{this.originalUploadedImage=o,this.container.querySelector(".sig-upload-controls").style.display="block",this.processUploadedImage()},o.src=i.target.result},s.readAsDataURL(e)}processUploadedImage(){if(!this.originalUploadedImage)return;const e=this.container.querySelector(".sig-enhance-canvas");if(!e)return;const s=e.getContext("2d"),i=e.width,o=e.height;s.clearRect(0,0,i,o),s.save(),s.translate(i/2,o/2),s.rotate(this.rotation*Math.PI/180);const d=this.originalUploadedImage,h=this.rotation===90||this.rotation===270,p=h?d.height:d.width,r=h?d.width:d.height,c=Math.min(i*.9/p,o*.9/r);s.drawImage(d,-d.width*c/2,-d.height*c/2,d.width*c,d.height*c),s.restore();const g=s.getImageData(0,0,i,o),l=g.data;for(let t=0;t<l.length;t+=4){const a=l[t],n=l[t+1],b=l[t+2],v=.299*a+.587*n+.114*b;if(v>this.threshold)l[t+3]=0;else{const u=1-v/this.threshold;l[t]=30,l[t+1]=64,l[t+2]=175,l[t+3]=Math.min(255,Math.floor(u*255*1.5))}}s.putImageData(g,0,0),this.emitChange()}autoCropEnhanceCanvas(){const e=this.activeTab==="upload"?this.container.querySelector(".sig-enhance-canvas"):this.canvas;if(!e)return;const s=e.getContext("2d"),i=e.width,o=e.height,d=s.getImageData(0,0,i,o).data;let h=i,p=o,r=0,c=0,g=!1;for(let u=0;u<o;u++)for(let y=0;y<i;y++)d[(u*i+y)*4+3]>20&&(g=!0,y<h&&(h=y),y>r&&(r=y),u<p&&(p=u),u>c&&(c=u));if(!g)return;const l=10;h=Math.max(0,h-l),p=Math.max(0,p-l),r=Math.min(i,r+l),c=Math.min(o,c+l);const t=r-h,a=c-p,n=s.getImageData(h,p,t,a);s.clearRect(0,0,i,o);const b=(i-t)/2,v=(o-a)/2;s.putImageData(n,b,v),this.emitChange()}updateTypeCanvas(){const e=this.container.querySelector(".sig-type-input")?.value.trim()||"Rahul Sharma",s=this.selectedFont||"Great Vibes",i=document.createElement("canvas");i.width=this.options.width,i.height=this.options.height;const o=i.getContext("2d");o.font=`36px "${s}", cursive`,o.fillStyle="#1e40af",o.textAlign="center",o.textBaseline="middle",o.fillText(e,i.width/2,i.height/2),this.typedDataUrl=i.toDataURL(),this.emitChange()}getValue(){if(this.activeTab==="upload"){const e=this.container.querySelector(".sig-enhance-canvas");return e?e.toDataURL():""}else return this.activeTab==="type"?this.typedDataUrl||"":!this.canvas||this.isCanvasBlank(this.canvas)?"":this.canvas.toDataURL()}loadExistingValue(e){if(!e||!this.canvas)return;const s=new Image;s.onload=()=>{this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height),this.ctx.drawImage(s,0,0),this.saveHistory()},s.src=e}isCanvasBlank(e){const s=e.getContext("2d");return!new Uint32Array(s.getImageData(0,0,e.width,e.height).data.buffer).some(i=>i!==0)}emitChange(){const e=this.getValue();typeof this.options.onChange=="function"&&this.options.onChange(e)}}export{f as SignatureStudio};

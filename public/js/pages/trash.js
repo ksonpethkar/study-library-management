@@ -1,43 +1,4 @@
-/**
- * 🗑️ Universal Recycle Bin & Trash Management Module
- * Allows viewing, restoring, or permanently destroying soft-deleted records
- * across all system modules with explicit safety confirmation dialogs.
- */
-
-import api from '../api.js';
-import { Toast, Modal, escapeHTML } from '../ui.js';
-
-let currentTab = 'all';
-let currentSearch = '';
-let currentPage = 1;
-let selectedItemIds = new Set();
-
-const TYPE_CONFIG = {
-  all: { label: 'All Items', icon: '📋', color: '#6c5ce7' },
-  student: { label: 'Students', icon: '🎓', color: '#3b82f6' },
-  payment: { label: 'Payments & Receipts', icon: '💳', color: '#10b981' },
-  expense: { label: 'Expenses', icon: '💸', color: '#ef4444' },
-  seat: { label: 'Desks / Seats', icon: '💺', color: '#8b5cf6' },
-  plan: { label: 'Membership Plans', icon: '💎', color: '#f59e0b' },
-  shift: { label: 'Study Shifts', icon: '⏰', color: '#06b6d4' },
-  branch: { label: 'Branches', icon: '🏢', color: '#ec4899' },
-  locker: { label: 'Lockers', icon: '🔒', color: 'var(--color-text-muted)' },
-  custom_field: { label: 'Custom Questions', icon: '📝', color: '#14b8a6' },
-  coupon: { label: 'Coupons / Promos', icon: '🎟️', color: '#f97316' },
-  waiting_list: { label: 'Waitlist', icon: '⏳', color: '#a855f7' },
-  announcement: { label: 'Notices', icon: '📢', color: '#eab308' },
-  holiday: { label: 'Holidays', icon: '🏖️', color: '#06b6d4' },
-  visitor: { label: 'Visitors', icon: '👥', color: 'var(--color-text-muted)' },
-  lost_found: { label: 'Lost & Found', icon: '🔍', color: '#f43f5e' },
-  feedback: { label: 'Feedback', icon: '💬', color: '#8b5cf6' }
-};
-
-export async function render(container) {
-  if (!container) return;
-  selectedItemIds.clear();
-  currentPage = 1;
-
-  container.innerHTML = `
+import g from"../api.js";import{Toast as i,Modal as F,escapeHTML as b}from"../ui.js";let d="all",v="",f=1,c=new Set;const $={all:{label:"All Items",icon:"\u{1F4CB}",color:"#6c5ce7"},student:{label:"Students",icon:"\u{1F393}",color:"#3b82f6"},payment:{label:"Payments & Receipts",icon:"\u{1F4B3}",color:"#10b981"},expense:{label:"Expenses",icon:"\u{1F4B8}",color:"#ef4444"},seat:{label:"Desks / Seats",icon:"\u{1F4BA}",color:"#8b5cf6"},plan:{label:"Membership Plans",icon:"\u{1F48E}",color:"#f59e0b"},shift:{label:"Study Shifts",icon:"\u23F0",color:"#06b6d4"},branch:{label:"Branches",icon:"\u{1F3E2}",color:"#ec4899"},locker:{label:"Lockers",icon:"\u{1F512}",color:"var(--color-text-muted)"},custom_field:{label:"Custom Questions",icon:"\u{1F4DD}",color:"#14b8a6"},coupon:{label:"Coupons / Promos",icon:"\u{1F39F}\uFE0F",color:"#f97316"},waiting_list:{label:"Waitlist",icon:"\u23F3",color:"#a855f7"},announcement:{label:"Notices",icon:"\u{1F4E2}",color:"#eab308"},holiday:{label:"Holidays",icon:"\u{1F3D6}\uFE0F",color:"#06b6d4"},visitor:{label:"Visitors",icon:"\u{1F465}",color:"var(--color-text-muted)"},lost_found:{label:"Lost & Found",icon:"\u{1F50D}",color:"#f43f5e"},feedback:{label:"Feedback",icon:"\u{1F4AC}",color:"#8b5cf6"}};async function E(e){e&&(c.clear(),f=1,e.innerHTML=`
     <div class="trash-studio-container" style="width: 100%; max-width: 100%; box-sizing: border-box;">
       <!-- Header Banner -->
       <div class="card mb-4" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(108, 92, 231, 0.08)); border-left: 4px solid var(--color-danger, #ef4444); width: 100%; box-sizing: border-box;">
@@ -45,7 +6,7 @@ export async function render(container) {
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
               <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--color-text-primary); margin: 0 0 4px 0;">
-                🗑️ Recycle Bin & Trash Management
+                \u{1F5D1}\uFE0F Recycle Bin & Trash Management
               </h2>
               <p class="text-muted" style="margin: 0; font-size: 0.88rem;">
                 Safely inspect, restore, or permanently remove deleted student records, desks, receipts, plans, and settings.
@@ -53,13 +14,13 @@ export async function render(container) {
             </div>
             <div class="d-flex gap-2 flex-wrap">
               <button class="btn btn-outline-primary btn-sm" id="trash-bulk-restore-btn" style="display: none;">
-                ♻️ Restore Selected (<span id="trash-selected-count">0</span>)
+                \u267B\uFE0F Restore Selected (<span id="trash-selected-count">0</span>)
               </button>
               <button class="btn btn-outline-danger btn-sm" id="trash-bulk-delete-btn" style="display: none;">
-                💥 Delete Selected (<span id="trash-selected-delete-count">0</span>)
+                \u{1F4A5} Delete Selected (<span id="trash-selected-delete-count">0</span>)
               </button>
               <button class="btn btn-danger btn-sm" id="trash-empty-btn" style="font-weight: 700;">
-                🧹 Empty Recycle Bin
+                \u{1F9F9} Empty Recycle Bin
               </button>
             </div>
           </div>
@@ -70,38 +31,38 @@ export async function render(container) {
       <div class="card mb-4" style="width: 100%; box-sizing: border-box;">
         <div class="card-body" style="padding: 0.85rem 1rem;">
           <div class="d-flex gap-2 flex-wrap" id="trash-category-tabs" style="width: 100%;">
-            <button class="btn btn-sm ${currentTab === 'all' ? 'btn-primary' : 'btn-ghost'}" data-tab="all">
-              📋 All Items <span class="badge badge-secondary" id="count-all">...</span>
+            <button class="btn btn-sm ${d==="all"?"btn-primary":"btn-ghost"}" data-tab="all">
+              \u{1F4CB} All Items <span class="badge badge-secondary" id="count-all">...</span>
             </button>
-            <button class="btn btn-sm ${currentTab === 'student' ? 'btn-primary' : 'btn-ghost'}" data-tab="student">
-              🎓 Students <span class="badge badge-secondary" id="count-student">0</span>
+            <button class="btn btn-sm ${d==="student"?"btn-primary":"btn-ghost"}" data-tab="student">
+              \u{1F393} Students <span class="badge badge-secondary" id="count-student">0</span>
             </button>
-            <button class="btn btn-sm ${currentTab === 'payment' ? 'btn-primary' : 'btn-ghost'}" data-tab="payment">
-              💳 Payments <span class="badge badge-secondary" id="count-payment">0</span>
+            <button class="btn btn-sm ${d==="payment"?"btn-primary":"btn-ghost"}" data-tab="payment">
+              \u{1F4B3} Payments <span class="badge badge-secondary" id="count-payment">0</span>
             </button>
-            <button class="btn btn-sm ${currentTab === 'expense' ? 'btn-primary' : 'btn-ghost'}" data-tab="expense">
-              💸 Expenses <span class="badge badge-secondary" id="count-expense">0</span>
+            <button class="btn btn-sm ${d==="expense"?"btn-primary":"btn-ghost"}" data-tab="expense">
+              \u{1F4B8} Expenses <span class="badge badge-secondary" id="count-expense">0</span>
             </button>
-            <button class="btn btn-sm ${currentTab === 'seat' ? 'btn-primary' : 'btn-ghost'}" data-tab="seat">
-              💺 Desks <span class="badge badge-secondary" id="count-seat">0</span>
+            <button class="btn btn-sm ${d==="seat"?"btn-primary":"btn-ghost"}" data-tab="seat">
+              \u{1F4BA} Desks <span class="badge badge-secondary" id="count-seat">0</span>
             </button>
-            <button class="btn btn-sm ${currentTab === 'plan' ? 'btn-primary' : 'btn-ghost'}" data-tab="plan">
-              💎 Plans <span class="badge badge-secondary" id="count-plan">0</span>
+            <button class="btn btn-sm ${d==="plan"?"btn-primary":"btn-ghost"}" data-tab="plan">
+              \u{1F48E} Plans <span class="badge badge-secondary" id="count-plan">0</span>
             </button>
-            <button class="btn btn-sm ${currentTab === 'shift' ? 'btn-primary' : 'btn-ghost'}" data-tab="shift">
-              ⏰ Shifts <span class="badge badge-secondary" id="count-shift">0</span>
+            <button class="btn btn-sm ${d==="shift"?"btn-primary":"btn-ghost"}" data-tab="shift">
+              \u23F0 Shifts <span class="badge badge-secondary" id="count-shift">0</span>
             </button>
-            <button class="btn btn-sm ${currentTab === 'branch' ? 'btn-primary' : 'btn-ghost'}" data-tab="branch">
-              🏢 Branches <span class="badge badge-secondary" id="count-branch">0</span>
+            <button class="btn btn-sm ${d==="branch"?"btn-primary":"btn-ghost"}" data-tab="branch">
+              \u{1F3E2} Branches <span class="badge badge-secondary" id="count-branch">0</span>
             </button>
-            <button class="btn btn-sm ${currentTab === 'locker' ? 'btn-primary' : 'btn-ghost'}" data-tab="locker">
-              🔒 Lockers <span class="badge badge-secondary" id="count-locker">0</span>
+            <button class="btn btn-sm ${d==="locker"?"btn-primary":"btn-ghost"}" data-tab="locker">
+              \u{1F512} Lockers <span class="badge badge-secondary" id="count-locker">0</span>
             </button>
-            <button class="btn btn-sm ${currentTab === 'custom_field' ? 'btn-primary' : 'btn-ghost'}" data-tab="custom_field">
-              📝 Custom Fields <span class="badge badge-secondary" id="count-custom_field">0</span>
+            <button class="btn btn-sm ${d==="custom_field"?"btn-primary":"btn-ghost"}" data-tab="custom_field">
+              \u{1F4DD} Custom Fields <span class="badge badge-secondary" id="count-custom_field">0</span>
             </button>
-            <button class="btn btn-sm ${currentTab === 'coupon' ? 'btn-primary' : 'btn-ghost'}" data-tab="coupon">
-              🎟️ Coupons <span class="badge badge-secondary" id="count-coupon">0</span>
+            <button class="btn btn-sm ${d==="coupon"?"btn-primary":"btn-ghost"}" data-tab="coupon">
+              \u{1F39F}\uFE0F Coupons <span class="badge badge-secondary" id="count-coupon">0</span>
             </button>
           </div>
         </div>
@@ -113,8 +74,8 @@ export async function render(container) {
           <!-- Toolbar -->
           <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2" style="width: 100%;">
             <div style="flex: 1 1 300px; min-width: 240px; position: relative;">
-              <input type="text" id="trash-search-input" class="form-control form-control-sm w-100" placeholder="🔍 Search deleted records by title, phone, user..." value="${escapeHTML(currentSearch)}" style="padding-left: 2rem;">
-              <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5;">🔍</span>
+              <input type="text" id="trash-search-input" class="form-control form-control-sm w-100" placeholder="\u{1F50D} Search deleted records by title, phone, user..." value="${b(v)}" style="padding-left: 2rem;">
+              <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5;">\u{1F50D}</span>
             </div>
             <div class="text-muted" style="font-size: 0.85rem;" id="trash-meta-info">
               Loading records...
@@ -134,350 +95,126 @@ export async function render(container) {
         </div>
       </div>
     </div>
-  `;
-
-  _attachEvents(container);
-  _loadCounts();
-  _loadTrashList();
-}
-
-function _attachEvents(container) {
-  // Category tabs
-  const tabButtons = container.querySelectorAll('#trash-category-tabs button');
-  tabButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tabButtons.forEach(b => {
-        b.classList.remove('btn-primary');
-        b.classList.add('btn-ghost');
-      });
-      btn.classList.add('btn-primary');
-      btn.classList.remove('btn-ghost');
-
-      currentTab = btn.getAttribute('data-tab') || 'all';
-      currentPage = 1;
-      selectedItemIds.clear();
-      _updateBulkButton();
-      _loadTrashList();
-    });
-  });
-
-  // Search input with debounce
-  const searchInput = container.querySelector('#trash-search-input');
-  if (searchInput) {
-    let debounceTimer;
-    searchInput.addEventListener('input', () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        currentSearch = searchInput.value.trim();
-        currentPage = 1;
-        _loadTrashList();
-      }, 250);
-    });
-  }
-
-  // Bulk Restore button
-  const bulkBtn = container.querySelector('#trash-bulk-restore-btn');
-  if (bulkBtn) {
-    bulkBtn.addEventListener('click', _handleBulkRestore);
-  }
-
-  // Bulk Delete button
-  const bulkDelBtn = container.querySelector('#trash-bulk-delete-btn');
-  if (bulkDelBtn) {
-    bulkDelBtn.addEventListener('click', _handleBulkDelete);
-  }
-
-  // Empty Trash button
-  const emptyBtn = container.querySelector('#trash-empty-btn');
-  if (emptyBtn) {
-    emptyBtn.addEventListener('click', _handleEmptyTrash);
-  }
-}
-
-async function _loadCounts() {
-  try {
-    const res = await api.get('/api/trash/counts');
-    if (res.success && res.data) {
-      Object.keys(res.data).forEach(k => {
-        const el = document.getElementById(`count-${k}`);
-        if (el) el.textContent = res.data[k] || 0;
-      });
-      const allEl = document.getElementById('count-all');
-      if (allEl) allEl.textContent = res.data.all || 0;
-    }
-  } catch (e) {}
-}
-
-async function _loadTrashList() {
-  const mount = document.getElementById('trash-table-container');
-  const metaEl = document.getElementById('trash-meta-info');
-  const pagMount = document.getElementById('trash-pagination-container');
-  if (!mount) return;
-
-  try {
-    const query = new URLSearchParams({
-      type: currentTab,
-      search: currentSearch,
-      page: currentPage,
-      limit: 20
-    });
-
-    const res = await api.get(`/api/trash?${query.toString()}`);
-    if (!res.success || !res.data) {
-      throw new Error(res.message || 'Failed to fetch items');
-    }
-
-    const { items, total, totalPages } = res.data;
-
-    if (metaEl) {
-      metaEl.textContent = total === 1 ? '1 deleted item' : `${total} deleted items`;
-    }
-
-    if (items.length === 0) {
-      mount.innerHTML = `
+  `,A(e),h(),p())}function A(e){const a=e.querySelectorAll("#trash-category-tabs button");a.forEach(o=>{o.addEventListener("click",()=>{a.forEach(u=>{u.classList.remove("btn-primary"),u.classList.add("btn-ghost")}),o.classList.add("btn-primary"),o.classList.remove("btn-ghost"),d=o.getAttribute("data-tab")||"all",f=1,c.clear(),y(),p()})});const t=e.querySelector("#trash-search-input");if(t){let o;t.addEventListener("input",()=>{clearTimeout(o),o=setTimeout(()=>{v=t.value.trim(),f=1,p()},250)})}const n=e.querySelector("#trash-bulk-restore-btn");n&&n.addEventListener("click",C);const s=e.querySelector("#trash-bulk-delete-btn");s&&s.addEventListener("click",S);const l=e.querySelector("#trash-empty-btn");l&&l.addEventListener("click",L)}async function h(){try{const e=await g.get("/api/trash/counts");if(e.success&&e.data){Object.keys(e.data).forEach(t=>{const n=document.getElementById(`count-${t}`);n&&(n.textContent=e.data[t]||0)});const a=document.getElementById("count-all");a&&(a.textContent=e.data.all||0)}}catch{}}async function p(){const e=document.getElementById("trash-table-container"),a=document.getElementById("trash-meta-info"),t=document.getElementById("trash-pagination-container");if(e)try{const n=new URLSearchParams({type:d,search:v,page:f,limit:20}),s=await g.get(`/api/trash?${n.toString()}`);if(!s.success||!s.data)throw new Error(s.message||"Failed to fetch items");const{items:l,total:o,totalPages:u}=s.data;if(a&&(a.textContent=o===1?"1 deleted item":`${o} deleted items`),l.length===0){e.innerHTML=`
         <div style="padding: 4rem 1rem; text-align: center; color: var(--color-text-secondary);">
-          <div style="font-size: 3rem; margin-bottom: 0.75rem;">✨</div>
+          <div style="font-size: 3rem; margin-bottom: 0.75rem;">\u2728</div>
           <h4 style="font-weight: 600; color: var(--color-text-primary); margin-bottom: 4px;">Recycle Bin is Clean</h4>
           <p style="font-size: 0.88rem; max-width: 450px; margin: 0 auto;">
-            ${currentSearch ? 'No deleted records match your search criteria.' : 'There are no deleted items in this category. Any deleted items will appear here for safe recovery.'}
+            ${v?"No deleted records match your search criteria.":"There are no deleted items in this category. Any deleted items will appear here for safe recovery."}
           </p>
         </div>
-      `;
-      if (pagMount) pagMount.style.display = 'none';
-      return;
-    }
-
-    // Render Table
-    mount.innerHTML = `
-      <div class="table-responsive">
-        <table class="table data-table" style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr style="border-bottom: 2px solid var(--color-border, #e2e8f0); text-align: left; font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase;">
-              <th style="width: 40px; text-align: center;">
-                <input type="checkbox" id="trash-select-all" title="Select All">
-              </th>
-              <th>Item / Record</th>
-              <th>Category</th>
-              <th>Deleted By</th>
-              <th>Deleted Timestamp</th>
-              <th style="text-align: right; min-width: 160px;">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(item => {
-              const cfg = TYPE_CONFIG[item.itemType] || { label: item.itemType, icon: '📦', color: 'var(--color-text-muted)' };
-              const timeStr = _formatRelativeDate(item.deletedAt);
-              const isSelected = selectedItemIds.has(item._id);
-
-              return `
-                <tr data-id="${item._id}" style="border-bottom: 1px solid var(--color-border, #f1f5f9); vertical-align: middle;">
-                  <td style="text-align: center;">
-                    <input type="checkbox" class="trash-item-checkbox" data-id="${item._id}" ${isSelected ? 'checked' : ''}>
-                  </td>
-                  <td style="padding: 10px 8px;">
-                    <div class="d-flex align-items-center gap-2">
-                      <span style="font-size: 1.25rem;">${cfg.icon}</span>
-                      <div>
-                        <div style="font-weight: 600; color: var(--color-text-primary); font-size: 0.92rem;">
-                          ${escapeHTML(item.itemTitle || 'Untitled Record')}
+      `,t&&(t.style.display="none");return}e.innerHTML=`
+      <div class="desktop-table-view">
+        <div class="table-responsive">
+          <table class="table data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 2px solid var(--color-border, #e2e8f0); text-align: left; font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase;">
+                <th style="width: 40px; text-align: center;">
+                  <input type="checkbox" id="trash-select-all" title="Select All">
+                </th>
+                <th>Item / Record</th>
+                <th>Category</th>
+                <th>Deleted By</th>
+                <th>Deleted Timestamp</th>
+                <th style="text-align: right; min-width: 160px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${l.map(r=>{const m=$[r.itemType]||{label:r.itemType,icon:"\u{1F4E6}",color:"var(--color-text-muted)"},x=w(r.deletedAt),k=c.has(r._id);return`
+                  <tr data-id="${r._id}" style="border-bottom: 1px solid var(--color-border, #f1f5f9); vertical-align: middle;">
+                    <td style="text-align: center;">
+                      <input type="checkbox" class="trash-item-checkbox" data-id="${r._id}" ${k?"checked":""}>
+                    </td>
+                    <td style="padding: 10px 8px;">
+                      <div class="d-flex align-items-center gap-2">
+                        <span style="font-size: 1.25rem;">${m.icon}</span>
+                        <div>
+                          <div style="font-weight: 600; color: var(--color-text-primary); font-size: 0.92rem;">
+                            ${b(r.itemTitle||"Untitled Record")}
+                          </div>
+                          ${r.itemSubtitle?`<div style="font-size: 0.78rem; color: var(--color-text-secondary);">${b(r.itemSubtitle)}</div>`:""}
                         </div>
-                        ${item.itemSubtitle ? `<div style="font-size: 0.78rem; color: var(--color-text-secondary);">${escapeHTML(item.itemSubtitle)}</div>` : ''}
                       </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span class="badge" style="background: ${cfg.color}15; color: ${cfg.color}; font-weight: 600; font-size: 0.75rem;">
-                      ${cfg.icon} ${cfg.label}
-                    </span>
-                  </td>
-                  <td style="font-size: 0.85rem; color: var(--color-text-primary);">
-                    👤 ${escapeHTML(item.deletedByName || 'Admin')}
-                  </td>
-                  <td style="font-size: 0.82rem; color: var(--color-text-secondary);" title="${new Date(item.deletedAt).toLocaleString()}">
-                    🕒 ${timeStr}
-                  </td>
-                  <td style="text-align: right; padding-right: 8px;">
-                    <div class="d-flex gap-2 justify-content-end">
-                      <button class="btn btn-sm btn-outline-success restore-item-btn" data-id="${item._id}" data-title="${escapeHTML(item.itemTitle)}" title="Restore Record">
-                        ♻️ Restore
-                      </button>
-                      <button class="btn btn-sm btn-outline-danger hard-delete-btn" data-id="${item._id}" data-title="${escapeHTML(item.itemTitle)}" title="Permanently Destroy Record">
-                        💥 Hard Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
+                    </td>
+                    <td>
+                      <span class="badge" style="background: ${m.color}15; color: ${m.color}; font-weight: 600; font-size: 0.75rem;">
+                        ${m.icon} ${m.label}
+                      </span>
+                    </td>
+                    <td style="font-size: 0.85rem; color: var(--color-text-primary);">
+                      \u{1F464} ${b(r.deletedByName||"Admin")}
+                    </td>
+                    <td style="font-size: 0.82rem; color: var(--color-text-secondary);" title="${new Date(r.deletedAt).toLocaleString()}">
+                      \u{1F552} ${x}
+                    </td>
+                    <td style="text-align: right; padding-right: 8px;">
+                      <div class="d-flex gap-2 justify-content-end">
+                        <button class="btn btn-sm btn-outline-success restore-item-btn" data-id="${r._id}" data-title="${b(r.itemTitle)}" title="Restore Record">
+                          \u267B\uFE0F Restore
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger hard-delete-btn" data-id="${r._id}" data-title="${b(r.itemTitle)}" title="Permanently Destroy Record">
+                          \u{1F4A5} Hard Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                `}).join("")}
+            </tbody>
+          </table>
+        </div>
       </div>
-    `;
 
-    // Attach Row Level Listeners
-    _attachTableListeners(mount, items, totalPages);
-
-  } catch (err) {
-    mount.innerHTML = `
+      <!-- Mobile Card List View -->
+      <div class="mobile-card-list">
+        ${l.map(r=>{const m=$[r.itemType]||{label:r.itemType,icon:"\u{1F4E6}",color:"var(--color-text-muted)"},x=w(r.deletedAt);return`
+            <div class="mobile-data-card" data-id="${r._id}">
+              <div class="mobile-card-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 1.3rem;">${m.icon}</span>
+                  <div>
+                    <div class="mobile-card-title">${b(r.itemTitle||"Untitled Record")}</div>
+                    ${r.itemSubtitle?`<div class="mobile-card-subtitle">${b(r.itemSubtitle)}</div>`:""}
+                  </div>
+                </div>
+                <span class="badge" style="background: ${m.color}15; color: ${m.color}; font-weight: 700; font-size: 0.72rem;">
+                  ${m.label}
+                </span>
+              </div>
+              <div class="mobile-card-details">
+                <div class="mobile-card-detail">
+                  <div class="mobile-card-detail-label">Deleted By</div>
+                  <div class="mobile-card-detail-value">\u{1F464} ${b(r.deletedByName||"Admin")}</div>
+                </div>
+                <div class="mobile-card-detail">
+                  <div class="mobile-card-detail-label">Deleted Time</div>
+                  <div class="mobile-card-detail-value">\u{1F552} ${x}</div>
+                </div>
+              </div>
+              <div class="mobile-card-actions">
+                <button class="btn btn-sm btn-outline-success restore-item-btn" data-id="${r._id}" data-title="${b(r.itemTitle)}" style="min-height: 42px; flex: 1; font-weight: 700;">
+                  \u267B\uFE0F Restore
+                </button>
+                <button class="btn btn-sm btn-outline-danger hard-delete-btn" data-id="${r._id}" data-title="${b(r.itemTitle)}" style="min-height: 42px; flex: 1; font-weight: 700;">
+                  \u{1F4A5} Destroy
+                </button>
+              </div>
+            </div>
+          `}).join("")}
+      </div>
+    `,B(e,l,u)}catch(n){e.innerHTML=`
       <div style="padding: 2rem; text-align: center; color: var(--color-danger);">
-        ⚠️ Failed to load trash items: ${escapeHTML(err.message)}
+        \u26A0\uFE0F Failed to load trash items: ${b(n.message)}
       </div>
-    `;
-  }
-}
-
-function _attachTableListeners(mount, items, totalPages) {
-  // Select All Checkbox
-  const selectAll = mount.querySelector('#trash-select-all');
-  if (selectAll) {
-    const checkboxes = mount.querySelectorAll('.trash-item-checkbox');
-    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
-    selectAll.checked = allChecked;
-
-    selectAll.addEventListener('change', () => {
-      checkboxes.forEach(cb => {
-        cb.checked = selectAll.checked;
-        const id = cb.getAttribute('data-id');
-        if (selectAll.checked) selectedItemIds.add(id);
-        else selectedItemIds.delete(id);
-      });
-      _updateBulkButton();
-    });
-  }
-
-  // Row Checkboxes
-  mount.querySelectorAll('.trash-item-checkbox').forEach(cb => {
-    cb.addEventListener('change', () => {
-      const id = cb.getAttribute('data-id');
-      if (cb.checked) selectedItemIds.add(id);
-      else selectedItemIds.delete(id);
-
-      const checkboxes = mount.querySelectorAll('.trash-item-checkbox');
-      if (selectAll) {
-        selectAll.checked = checkboxes.length > 0 && Array.from(checkboxes).every(c => c.checked);
-      }
-      _updateBulkButton();
-    });
-  });
-
-  // Restore Single Item
-  mount.querySelectorAll('.restore-item-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      const title = btn.getAttribute('data-title');
-      await _handleRestoreSingle(id, title);
-    });
-  });
-
-  // Permanent Hard Delete Single Item
-  mount.querySelectorAll('.hard-delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-id');
-      const title = btn.getAttribute('data-title');
-      _openHardDeleteConfirmationModal(id, title);
-    });
-  });
-}
-
-function _updateBulkButton() {
-  const bulkRestoreBtn = document.getElementById('trash-bulk-restore-btn');
-  const countSpan = document.getElementById('trash-selected-count');
-  const bulkDelBtn = document.getElementById('trash-bulk-delete-btn');
-  const countDelSpan = document.getElementById('trash-selected-delete-count');
-  
-  const size = selectedItemIds.size;
-  if (countSpan) countSpan.textContent = size;
-  if (countDelSpan) countDelSpan.textContent = size;
-
-  if (bulkRestoreBtn) bulkRestoreBtn.style.display = size > 0 ? 'inline-flex' : 'none';
-  if (bulkDelBtn) bulkDelBtn.style.display = size > 0 ? 'inline-flex' : 'none';
-}
-
-async function _handleRestoreSingle(id, title) {
-  try {
-    const res = await api.post(`/api/trash/restore/${id}`);
-    if (res.success) {
-      Toast.success(res.message || `"${title}" restored successfully!`);
-      selectedItemIds.delete(id);
-      _updateBulkButton();
-      _loadCounts();
-      _loadTrashList();
-    } else {
-      Toast.error(res.message || 'Failed to restore item');
-    }
-  } catch (err) {
-    Toast.error(err.message || 'Restore error');
-  }
-}
-
-async function _handleBulkRestore() {
-  const ids = Array.from(selectedItemIds);
-  if (ids.length === 0) return;
-
-  try {
-    const res = await api.post('/api/trash/restore-bulk', { ids });
-    if (res.success) {
-      Toast.success(res.message || `Restored ${ids.length} items successfully!`);
-      selectedItemIds.clear();
-      _updateBulkButton();
-      _loadCounts();
-      _loadTrashList();
-    } else {
-      Toast.error(res.message || 'Failed to restore selected items');
-    }
-  } catch (err) {
-    Toast.error(err.message || 'Bulk restore error');
-  }
-}
-
-async function _handleBulkDelete() {
-  const ids = Array.from(selectedItemIds);
-  if (ids.length === 0) return;
-
-  Modal.show({
-    title: '⚠️ Permanent Bulk Deletion Warning',
-    content: `
+    `}}function B(e,a,t){const n=e.querySelector("#trash-select-all");if(n){const s=e.querySelectorAll(".trash-item-checkbox"),l=s.length>0&&Array.from(s).every(o=>o.checked);n.checked=l,n.addEventListener("change",()=>{s.forEach(o=>{o.checked=n.checked;const u=o.getAttribute("data-id");n.checked?c.add(u):c.delete(u)}),y()})}e.querySelectorAll(".trash-item-checkbox").forEach(s=>{s.addEventListener("change",()=>{const l=s.getAttribute("data-id");s.checked?c.add(l):c.delete(l);const o=e.querySelectorAll(".trash-item-checkbox");n&&(n.checked=o.length>0&&Array.from(o).every(u=>u.checked)),y()})}),e.querySelectorAll(".restore-item-btn").forEach(s=>{s.addEventListener("click",async()=>{const l=s.getAttribute("data-id"),o=s.getAttribute("data-title");await T(l,o)})}),e.querySelectorAll(".hard-delete-btn").forEach(s=>{s.addEventListener("click",()=>{const l=s.getAttribute("data-id"),o=s.getAttribute("data-title");D(l,o)})})}function y(){const e=document.getElementById("trash-bulk-restore-btn"),a=document.getElementById("trash-selected-count"),t=document.getElementById("trash-bulk-delete-btn"),n=document.getElementById("trash-selected-delete-count"),s=c.size;a&&(a.textContent=s),n&&(n.textContent=s),e&&(e.style.display=s>0?"inline-flex":"none"),t&&(t.style.display=s>0?"inline-flex":"none")}async function T(e,a){try{const t=await g.post(`/api/trash/restore/${e}`);t.success?(i.success(t.message||`"${a}" restored successfully!`),c.delete(e),y(),h(),p()):i.error(t.message||"Failed to restore item")}catch(t){i.error(t.message||"Restore error")}}async function C(){const e=Array.from(c);if(e.length!==0)try{const a=await g.post("/api/trash/restore-bulk",{ids:e});a.success?(i.success(a.message||`Restored ${e.length} items successfully!`),c.clear(),y(),h(),p()):i.error(a.message||"Failed to restore selected items")}catch(a){i.error(a.message||"Bulk restore error")}}async function S(){const e=Array.from(c);e.length!==0&&F.show({title:"\u26A0\uFE0F Permanent Bulk Deletion Warning",content:`
       <div style="padding: 0.5rem 0;">
         <div class="alert alert-danger" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--color-danger, #ef4444); color: #b91c1c; border-radius: 8px; padding: 12px 16px; margin-bottom: 1rem; font-size: 0.88rem;">
-          <strong>CAUTION:</strong> You are about to permanently delete <strong>${ids.length} selected items</strong>! These records will be completely removed from the database and cannot be recovered.
+          <strong>CAUTION:</strong> You are about to permanently delete <strong>${e.length} selected items</strong>! These records will be completely removed from the database and cannot be recovered.
         </div>
         <p style="font-size: 0.95rem; color: var(--color-text-primary);">
-          Are you sure you want to permanently delete these ${ids.length} items?
+          Are you sure you want to permanently delete these ${e.length} items?
         </p>
       </div>
-    `,
-    buttons: [
-      { text: 'Cancel', className: 'btn-ghost', onClick: (m) => m.close() },
-      {
-        text: `💥 Yes, Permanently Delete (${ids.length})`,
-        className: 'btn-danger',
-        onClick: async (m) => {
-          try {
-            const res = await api.post('/api/trash/delete-bulk', { ids });
-            m.close();
-            if (res.success) {
-              Toast.success(res.message || `Permanently removed ${ids.length} items.`);
-              selectedItemIds.clear();
-              _updateBulkButton();
-              _loadCounts();
-              _loadTrashList();
-            } else {
-              Toast.error(res.message || 'Failed to delete selected items');
-            }
-          } catch (e) {
-            m.close();
-            Toast.error(e.message || 'Bulk delete error');
-          }
-        }
-      }
-    ]
-  });
-}
-
-function _openHardDeleteConfirmationModal(id, title) {
-  Modal.show({
-    title: '⚠️ Permanent Deletion Warning',
-    content: `
+    `,buttons:[{text:"Cancel",className:"btn-ghost",onClick:a=>a.close()},{text:`\u{1F4A5} Yes, Permanently Delete (${e.length})`,className:"btn-danger",onClick:async a=>{try{const t=await g.post("/api/trash/delete-bulk",{ids:e});a.close(),t.success?(i.success(t.message||`Permanently removed ${e.length} items.`),c.clear(),y(),h(),p()):i.error(t.message||"Failed to delete selected items")}catch(t){a.close(),i.error(t.message||"Bulk delete error")}}}]})}function D(e,a){F.show({title:"\u26A0\uFE0F Permanent Deletion Warning",content:`
       <div style="padding: 0.5rem 0;">
         <div class="alert alert-danger" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--color-danger, #ef4444); color: #b91c1c; border-radius: 8px; padding: 12px 16px; margin-bottom: 1rem; font-size: 0.88rem;">
           <strong>CAUTION:</strong> This action CANNOT be undone! The record will be permanently purged from MongoDB and cannot be recovered.
@@ -486,92 +223,16 @@ function _openHardDeleteConfirmationModal(id, title) {
           Are you sure you want to permanently erase:
         </p>
         <div style="background: var(--color-bg-secondary, #f8fafc); padding: 10px 14px; border-radius: 6px; font-weight: 700; color: var(--color-danger); margin-bottom: 1rem;">
-          🗑️ ${escapeHTML(title)}
+          \u{1F5D1}\uFE0F ${b(a)}
         </div>
       </div>
-    `,
-    buttons: [
-      { text: 'Cancel', className: 'btn-ghost', onClick: (m) => m.close() },
-      {
-        text: '💥 Yes, Permanently Delete',
-        className: 'btn-danger',
-        onClick: async (m) => {
-          try {
-            const res = await api.delete(`/api/trash/permanent/${id}`);
-            m.close();
-            if (res.success) {
-              Toast.info(`"${title}" permanently deleted.`);
-              selectedItemIds.delete(id);
-              _updateBulkButton();
-              _loadCounts();
-              _loadTrashList();
-            } else {
-              Toast.error(res.message || 'Failed to permanently delete');
-            }
-          } catch (e) {
-            m.close();
-            Toast.error(e.message || 'Deletion failed');
-          }
-        }
-      }
-    ]
-  });
-}
-
-function _handleEmptyTrash() {
-  const tabName = TYPE_CONFIG[currentTab]?.label || 'All Items';
-  Modal.show({
-    title: '🧹 Empty Recycle Bin Confirmation',
-    content: `
+    `,buttons:[{text:"Cancel",className:"btn-ghost",onClick:t=>t.close()},{text:"\u{1F4A5} Yes, Permanently Delete",className:"btn-danger",onClick:async t=>{try{const n=await g.delete(`/api/trash/permanent/${e}`);t.close(),n.success?(i.info(`"${a}" permanently deleted.`),c.delete(e),y(),h(),p()):i.error(n.message||"Failed to permanently delete")}catch(n){t.close(),i.error(n.message||"Deletion failed")}}}]})}function L(){const e=$[d]?.label||"All Items";F.show({title:"\u{1F9F9} Empty Recycle Bin Confirmation",content:`
       <div style="padding: 0.5rem 0;">
         <div class="alert alert-danger" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--color-danger, #ef4444); color: #b91c1c; border-radius: 8px; padding: 12px 16px; margin-bottom: 1rem; font-size: 0.88rem;">
-          <strong>CRITICAL WARNING:</strong> You are about to permanently destroy all items in <strong>${escapeHTML(tabName)}</strong>! Once emptied, these records are permanently gone forever.
+          <strong>CRITICAL WARNING:</strong> You are about to permanently destroy all items in <strong>${b(e)}</strong>! Once emptied, these records are permanently gone forever.
         </div>
         <p style="font-size: 0.95rem; color: var(--color-text-primary);">
           Are you completely certain you want to proceed?
         </p>
       </div>
-    `,
-    buttons: [
-      { text: 'Cancel', className: 'btn-ghost', onClick: (m) => m.close() },
-      {
-        text: '💥 Yes, Empty Trash',
-        className: 'btn-danger',
-        onClick: async (m) => {
-          try {
-            const res = await api.delete(`/api/trash/empty?type=${currentTab}`);
-            m.close();
-            if (res.success) {
-              Toast.success(res.message || 'Recycle Bin emptied successfully');
-              selectedItemIds.clear();
-              _updateBulkButton();
-              _loadCounts();
-              _loadTrashList();
-            } else {
-              Toast.error(res.message || 'Failed to empty recycle bin');
-            }
-          } catch (e) {
-            m.close();
-            Toast.error(e.message || 'Empty trash failed');
-          }
-        }
-      }
-    ]
-  });
-}
-
-function _formatRelativeDate(dateStr) {
-  if (!dateStr) return 'Recently';
-  const d = new Date(dateStr);
-  const diffMs = Date.now() - d.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHour / 24);
-
-  if (diffSec < 60) return 'Just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHour < 24) return `${diffHour}h ago`;
-  if (diffDay < 30) return `${diffDay}d ago`;
-  return d.toLocaleDateString();
-}
+    `,buttons:[{text:"Cancel",className:"btn-ghost",onClick:a=>a.close()},{text:"\u{1F4A5} Yes, Empty Trash",className:"btn-danger",onClick:async a=>{try{const t=await g.delete(`/api/trash/empty?type=${d}`);a.close(),t.success?(i.success(t.message||"Recycle Bin emptied successfully"),c.clear(),y(),h(),p()):i.error(t.message||"Failed to empty recycle bin")}catch(t){a.close(),i.error(t.message||"Empty trash failed")}}}]})}function w(e){if(!e)return"Recently";const a=new Date(e),t=Date.now()-a.getTime(),n=Math.floor(t/1e3),s=Math.floor(n/60),l=Math.floor(s/60),o=Math.floor(l/24);return n<60?"Just now":s<60?`${s}m ago`:l<24?`${l}h ago`:o<30?`${o}d ago`:a.toLocaleDateString()}export{E as render};

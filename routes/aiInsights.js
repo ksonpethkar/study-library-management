@@ -67,15 +67,66 @@ router.get('/insights', async (req, res) => {
     }
 
     // Retention Risk Detection
-    const atRiskStudents = expiringSoonStudents.slice(0, 8).map(s => ({
-      id: s._id,
-      name: s.name,
-      phone: s.phone,
-      expiryDate: s.expiryDate,
-      daysLeft: Math.ceil((new Date(s.expiryDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)),
-      urgency: Math.ceil((new Date(s.expiryDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) <= 2 ? 'high' : 'medium',
-      suggestedAction: 'Send 1-Tap UPI Renewal Link with Early Renewal Bonus.'
-    }));
+    // Multi-factor AI Churn & Retention Risk Scoring
+    const fourteenDaysAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const recentAttendance = await Attendance.find({
+      date: { $gte: fourteenDaysAgo }
+    }).select('student date duration').lean().catch(() => []);
+
+    // Group attendance counts and hours by student
+    const studentAttendanceMap = new Map();
+    recentAttendance.forEach(a => {
+      const sid = String(a.student);
+      if (!studentAttendanceMap.has(sid)) {
+        studentAttendanceMap.set(sid, { count: 0, totalMinutes: 0, lastDate: a.date });
+      }
+      const entry = studentAttendanceMap.get(sid);
+      entry.count++;
+      entry.totalMinutes += (a.duration || 0);
+      if (new Date(a.date) > new Date(entry.lastDate)) {
+        entry.lastDate = a.date;
+      }
+    });
+
+    const atRiskStudents = expiringSoonStudents.map(s => {
+      const sid = String(s._id);
+      const att = studentAttendanceMap.get(sid) || { count: 0, totalMinutes: 0, lastDate: s.createdAt };
+      const daysLeft = Math.max(0, Math.ceil((new Date(s.expiryDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+      
+      // Churn Score formula: 0 (loyal) to 100 (imminent churn)
+      let churnScore = 30; // base score for expiring soon
+      if (daysLeft <= 1) churnScore += 30;
+      else if (daysLeft <= 3) churnScore += 20;
+
+      if (att.count === 0) churnScore += 40; // completely absent last 14 days
+      else if (att.count < 4) churnScore += 25; // rarely attended
+      else if (att.count >= 10) churnScore -= 20; // high engagement
+
+      churnScore = Math.min(100, Math.max(5, churnScore));
+
+      let urgency = 'medium';
+      let suggestedAction = 'Send 1-Tap UPI Renewal Link with Early Renewal Bonus.';
+      if (churnScore >= 80) {
+        urgency = 'critical';
+        suggestedAction = 'Call student directly or offer shift flexibility to retain membership.';
+      } else if (churnScore >= 60) {
+        urgency = 'high';
+        suggestedAction = 'Send personalized WhatsApp check-in and 10% discount renewal code.';
+      }
+
+      return {
+        id: s._id,
+        name: s.name,
+        phone: s.phone,
+        expiryDate: s.expiryDate,
+        daysLeft,
+        attendanceDays14d: att.count,
+        totalStudyHours14d: Number((att.totalMinutes / 60).toFixed(1)),
+        churnScore,
+        urgency,
+        suggestedAction
+      };
+    }).sort((a, b) => b.churnScore - a.churnScore).slice(0, 10);
 
     // AI Smart Collection Recommendations
     const collectionInsights = [
@@ -88,6 +139,11 @@ router.get('/insights', async (req, res) => {
         title: 'Expiring Memberships in next 5 Days',
         description: `${expiringSoonStudents.length} students have plans expiring within 5 days. Dispatching proactive UPI reminders can retain 78% of them.`,
         impact: 'Critical'
+      },
+      {
+        title: 'Retention Risk Alert',
+        description: `${atRiskStudents.filter(s => s.churnScore >= 70).length} students flagged as high churn risk due to drop in attendance frequency.`,
+        impact: 'Action Required'
       }
     ];
 

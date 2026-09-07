@@ -255,4 +255,38 @@ router.post('/test-gateway', async (req, res) => {
   }
 });
 
+// @route   GET /api/notifications/marketing/renewal-candidates
+// @desc    List all students approaching expiry with dynamic 1-tap UPI payment links
+router.get('/marketing/renewal-candidates', async (req, res) => {
+  try {
+    const marketingService = require('../services/marketingService');
+    const candidates = await marketingService.getRenewalCandidates();
+    res.json({
+      success: true,
+      data: candidates
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   POST /api/notifications/marketing/send-renewals
+// @desc    Batch dispatch renewal alerts with dynamic UPI deep links
+router.post('/marketing/send-renewals', async (req, res) => {
+  try {
+    const { dryRun = false } = req.body;
+    const marketingService = require('../services/marketingService');
+    const result = await marketingService.sendRenewalReminders(Boolean(dryRun));
+    res.json({
+      success: true,
+      data: result,
+      message: dryRun
+        ? `Found ${result.count} student(s) pending renewal`
+        : `Dispatched ${result.sent} renewal reminder(s)`
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

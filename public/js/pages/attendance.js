@@ -1,29 +1,18 @@
-import { App } from '../app.js';
-import { t } from '../i18n.js';
-import { Toast, Modal, Loading, Confirm, escapeHTML, debounce } from '../ui.js';
-import api from '../api.js';
-
-let refreshInterval;
-
-export function render() {
-  const container = document.createElement('div');
-  container.className = 'page-container attendance-page';
-  
-  container.innerHTML = `
+import"../app.js";import"../i18n.js";import{Toast as l,Modal as A,Loading as g,Confirm as L,escapeHTML as m,debounce as $}from"../ui.js";import v from"../api.js";let y;function E(){const s=document.createElement("div");return s.className="page-container attendance-page",s.innerHTML=`
     <div class="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
       <div>
-        <h2 style="margin: 0; font-size: 1.5rem; font-weight: 700;">📋 Attendance Tracking</h2>
+        <h2 style="margin: 0; font-size: 1.5rem; font-weight: 700;">\u{1F4CB} Attendance Tracking</h2>
         <p class="text-muted small mb-0" style="margin-top: 4px;">Daily check-in / check-out logs and occupancy tracking.</p>
       </div>
       <div class="actions d-flex align-items-center gap-2 flex-wrap">
         <a href="/kiosk.html" target="_blank" class="btn btn-outline-info btn-sm d-inline-flex align-items-center gap-1" style="font-weight: 600;">
-          🖥️ Launch Kiosk Gate
+          \u{1F5A5}\uFE0F Launch Kiosk Gate
         </a>
         <button id="btn-biometric-simulator" class="btn btn-outline-primary btn-sm" style="font-weight: 600;">
-          🏷️ Biometric / RFID Turnstile
+          \u{1F3F7}\uFE0F Biometric / RFID Turnstile
         </button>
         <label for="attendance-date" class="text-muted small" style="margin: 0;">Date:</label>
-        <input type="date" id="attendance-date" class="form-control" style="width: auto;" value="${new Date().toISOString().split('T')[0]}">
+        <input type="date" id="attendance-date" class="form-control" style="width: auto;" value="${new Date().toISOString().split("T")[0]}">
       </div>
     </div>
 
@@ -46,7 +35,7 @@ export function render() {
     <!-- Quick Check-in -->
     <div class="card mb-4">
       <div class="card-header">
-        <h5 style="margin: 0; font-size: 1.1rem; font-weight: 600;">⚡ Quick Student Check-In</h5>
+        <h5 style="margin: 0; font-size: 1.1rem; font-weight: 600;">\u26A1 Quick Student Check-In</h5>
       </div>
       <div class="card-body">
         <div class="search-container" style="position: relative;">
@@ -59,15 +48,15 @@ export function render() {
     <!-- Today's Log -->
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <h5 style="margin: 0; font-size: 1.1rem; font-weight: 600;">📋 Attendance Log</h5>
+        <h5 style="margin: 0; font-size: 1.1rem; font-weight: 600;">\u{1F4CB} Attendance Log</h5>
         <div class="d-flex gap-2 flex-wrap">
-          <button id="btn-export-attendance-csv" class="btn btn-sm btn-outline-success" style="font-weight: 600;">📥 Export CSV</button>
-          <button id="btn-checkout-all" class="btn btn-sm btn-outline-danger" style="font-weight: 600;">🚪 Check Out All</button>
+          <button id="btn-export-attendance-csv" class="btn btn-sm btn-outline-success" style="font-weight: 600;">\u{1F4E5} Export CSV</button>
+          <button id="btn-checkout-all" class="btn btn-sm btn-outline-danger" style="font-weight: 600;">\u{1F6AA} Check Out All</button>
           <button id="refreshAttendanceBtn" class="btn btn-sm btn-outline-secondary">Refresh</button>
         </div>
       </div>
       <div class="card-body p-0">
-        <div class="table-responsive">
+        <div class="table-responsive desktop-table-view">
           <table class="table data-table mb-0">
             <thead>
               <tr>
@@ -85,155 +74,18 @@ export function render() {
             </tbody>
           </table>
         </div>
+
+        <!-- Mobile Touch-Friendly Attendance Cards -->
+        <div class="mobile-card-list p-2" id="attendance-mobile-cards">
+          <div class="text-center p-4 text-muted">Loading attendance...</div>
+        </div>
       </div>
     </div>
-  `;
-
-  setTimeout(() => init(container), 0);
-
-  // Mount context-aware FAB for Attendance page
-  if (typeof window !== 'undefined' && window.FAB) {
-    window.FAB.mount({
-      icon: '⏱️',
-      label: 'Attendance Actions',
-      color: '#0984e3',
-      actions: [
-        {
-          icon: '✅',
-          label: 'Mark Present',
-          onClick: () => {
-            const input = container.querySelector('#student-search') || document.querySelector('#student-search');
-            if (input) {
-              input.focus();
-              input.scrollIntoView({ behavior: 'smooth' });
-            }
-          }
-        },
-        {
-          icon: '🖥️',
-          label: 'Open Kiosk',
-          onClick: () => {
-            window.open('/kiosk.html', '_blank');
-          }
-        },
-        {
-          icon: '📥',
-          label: 'Export Logs',
-          onClick: () => {
-            const btn = container.querySelector('#btn-export-attendance-csv') || document.querySelector('#btn-export-attendance-csv');
-            if (btn) btn.click();
-          }
-        }
-      ]
-    });
-  }
-
-  return container;
-}
-
-async function init(container) {
-  const dateInput = container.querySelector('#attendance-date');
-  const searchInput = container.querySelector('#student-search');
-  const searchResults = container.querySelector('#search-results');
-  const refreshBtn = container.querySelector('#refreshAttendanceBtn');
-  
-  if (dateInput) {
-    dateInput.addEventListener('change', () => loadData(dateInput.value));
-  }
-  if (refreshBtn) {
-    refreshBtn.addEventListener('click', () => loadData(dateInput.value));
-  }
-
-  // Export Attendance CSV
-  container.querySelector('#btn-export-attendance-csv')?.addEventListener('click', async () => {
-    try {
-      const selectedDate = dateInput?.value || new Date().toISOString().split('T')[0];
-      Loading.show('Exporting attendance CSV...');
-      const res = await api.get(`/api/attendance?date=${selectedDate}&limit=1000`);
-      Loading.hide();
-
-      const records = res.data?.records || [];
-      if (records.length === 0) {
-        Toast.error('No attendance records found for ' + selectedDate);
-        return;
-      }
-
-      let csv = 'Student ID,Name,Phone,Check In,Check Out,Duration (Mins),Status,Date\n';
-      records.forEach(r => {
-        const sId = r.student?.studentId || 'N/A';
-        const name = (r.student?.name || 'Student').replace(/,/g, '');
-        const phone = r.student?.phone || '';
-        const cIn = r.checkIn ? new Date(r.checkIn).toLocaleTimeString('en-IN') : '-';
-        const cOut = r.checkOut ? new Date(r.checkOut).toLocaleTimeString('en-IN') : '-';
-        const duration = r.checkIn && r.checkOut ? Math.round((new Date(r.checkOut) - new Date(r.checkIn)) / 60000) : '-';
-        const status = r.status || (r.checkOut ? 'checked_out' : 'in_hall');
-        csv += `"${sId}","${name}","${phone}","${cIn}","${cOut}","${duration}","${status}","${selectedDate}"\n`;
-      });
-
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const urlBlob = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = urlBlob;
-      link.setAttribute('download', `Attendance_Log_${selectedDate}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      Toast.success('Attendance CSV exported successfully!');
-    } catch (err) {
-      Loading.hide();
-      Toast.error(err.message || 'Export failed');
-    }
-  });
-
-  // Bulk Check Out All In Hall
-  container.querySelector('#btn-checkout-all')?.addEventListener('click', async () => {
-    const ok = await Confirm.show({
-      title: 'Check Out All Active Members?',
-      message: 'Are you sure you want to check out all students currently inside the reading hall?',
-      danger: true
-    });
-    if (ok) {
-      try {
-        Loading.show('Checking out active members...');
-        const res = await api.post('/api/attendance/check-out-all');
-        Loading.hide();
-        Toast.success(res.message || 'All members checked out successfully!');
-        loadData(dateInput?.value);
-      } catch (err) {
-        Loading.hide();
-        Toast.error(err.message || 'Check-out failed');
-      }
-    }
-  });
-  
-  if (searchInput) {
-    searchInput.addEventListener('input', debounce((e) => {
-      const query = e.target.value.trim();
-      if (query.length < 2) {
-        searchResults.style.display = 'none';
-        return;
-      }
-      searchStudents(query, searchResults);
-    }, 250));
-  }
-
-  // Hide search results when clicking outside (cleaned up across page re-renders)
-  if (window._attSearchClickCleanup) {
-    document.removeEventListener('click', window._attSearchClickCleanup);
-  }
-  window._attSearchClickCleanup = (e) => {
-    if (searchInput && searchResults && !searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-      searchResults.style.display = 'none';
-    }
-  };
-  document.addEventListener('click', window._attSearchClickCleanup);
-
-  // Hardware Biometric / RFID Scanner Modal
-  container.querySelector('#btn-biometric-simulator')?.addEventListener('click', () => {
-    const modalDiv = document.createElement('div');
-    modalDiv.innerHTML = `
+  `,setTimeout(()=>F(s),0),typeof window<"u"&&window.FAB&&window.FAB.mount({icon:"\u23F1\uFE0F",label:"Attendance Actions",color:"#0984e3",actions:[{icon:"\u2705",label:"Mark Present",onClick:()=>{const a=s.querySelector("#student-search")||document.querySelector("#student-search");a&&(a.focus(),a.scrollIntoView({behavior:"smooth"}))}},{icon:"\u{1F5A5}\uFE0F",label:"Open Kiosk",onClick:()=>{window.open("/kiosk.html","_blank")}},{icon:"\u{1F4E5}",label:"Export Logs",onClick:()=>{const a=s.querySelector("#btn-export-attendance-csv")||document.querySelector("#btn-export-attendance-csv");a&&a.click()}}]}),s}async function F(s){const a=s.querySelector("#attendance-date"),r=s.querySelector("#student-search"),n=s.querySelector("#search-results"),e=s.querySelector("#refreshAttendanceBtn");a&&a.addEventListener("change",()=>b(a.value)),e&&e.addEventListener("click",()=>b(a.value)),s.querySelector("#btn-export-attendance-csv")?.addEventListener("click",async()=>{try{const t=a?.value||new Date().toISOString().split("T")[0];g.show("Exporting attendance CSV...");const c=await v.get(`/api/attendance?date=${t}&limit=1000`);g.hide();const p=c.data?.records||[];if(p.length===0){l.error("No attendance records found for "+t);return}let o=`Student ID,Name,Phone,Check In,Check Out,Duration (Mins),Status,Date
+`;p.forEach(d=>{const f=d.student?.studentId||"N/A",k=(d.student?.name||"Student").replace(/,/g,""),x=d.student?.phone||"",w=d.checkIn?new Date(d.checkIn).toLocaleTimeString("en-IN"):"-",S=d.checkOut?new Date(d.checkOut).toLocaleTimeString("en-IN"):"-",C=d.checkIn&&d.checkOut?Math.round((new Date(d.checkOut)-new Date(d.checkIn))/6e4):"-",I=d.status||(d.checkOut?"checked_out":"in_hall");o+=`"${f}","${k}","${x}","${w}","${S}","${C}","${I}","${t}"
+`});const u=new Blob([o],{type:"text/csv;charset=utf-8;"}),h=URL.createObjectURL(u),i=document.createElement("a");i.href=h,i.setAttribute("download",`Attendance_Log_${t}.csv`),document.body.appendChild(i),i.click(),document.body.removeChild(i),l.success("Attendance CSV exported successfully!")}catch(t){g.hide(),l.error(t.message||"Export failed")}}),s.querySelector("#btn-checkout-all")?.addEventListener("click",async()=>{if(await L.show({title:"Check Out All Active Members?",message:"Are you sure you want to check out all students currently inside the reading hall?",danger:!0}))try{g.show("Checking out active members...");const t=await v.post("/api/attendance/check-out-all");g.hide(),l.success(t.message||"All members checked out successfully!"),b(a?.value)}catch(t){g.hide(),l.error(t.message||"Check-out failed")}}),r&&r.addEventListener("input",$(t=>{const c=t.target.value.trim();if(c.length<2){n.style.display="none";return}q(c,n)},250)),window._attSearchClickCleanup&&document.removeEventListener("click",window._attSearchClickCleanup),window._attSearchClickCleanup=t=>{r&&n&&!r.contains(t.target)&&!n.contains(t.target)&&(n.style.display="none")},document.addEventListener("click",window._attSearchClickCleanup),s.querySelector("#btn-biometric-simulator")?.addEventListener("click",()=>{const t=document.createElement("div");t.innerHTML=`
       <div class="p-2 text-center">
-        <div style="font-size: 2.8rem; margin-bottom: 8px;">🚪</div>
+        <div style="font-size: 2.8rem; margin-bottom: 8px;">\u{1F6AA}</div>
         <h4 style="margin: 0 0 4px 0; font-weight: 700;">Smart Turnstile & Biometric Scanner</h4>
         <p class="text-muted small" style="margin-bottom: 1.25rem;">
           Swipe an RFID Smart Card, scan fingerprint ID, or enter Student ID.
@@ -246,237 +98,77 @@ async function init(container) {
               style="font-size: 1.1rem; font-family: monospace; letter-spacing: 1px;" autofocus required>
           </div>
           <button type="submit" class="btn btn-primary w-full" style="font-weight: 700; padding: 0.65rem;">
-            ⚡ Trigger Gate Relay / Attendance Punch
+            \u26A1 Trigger Gate Relay / Attendance Punch
           </button>
         </form>
 
         <div id="gateRelayStatus" class="mt-3 p-3 text-center" style="display: none; border-radius: 8px;"></div>
       </div>
-    `;
-
-    const bioModal = new Modal({
-      title: '🏷️ Turnstile & Biometric Sync',
-      content: modalDiv,
-      size: 'sm'
-    });
-    bioModal.show();
-
-    setTimeout(() => modalDiv.querySelector('#bioCardInput')?.focus(), 200);
-
-    const bForm = modalDiv.querySelector('#biometricSyncForm');
-    const bInput = modalDiv.querySelector('#bioCardInput');
-    const statusDiv = modalDiv.querySelector('#gateRelayStatus');
-
-    bForm?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const val = bInput.value.trim();
-      if (!val) return;
-
-      statusDiv.style.display = 'block';
-      statusDiv.className = 'mt-3 p-3 text-center';
-      statusDiv.style.background = 'var(--color-surface-hover)';
-      statusDiv.innerHTML = '<div class="loading-spinner mb-1"></div> Communicating with Gate Controller...';
-
-      try {
-        const res = await api.post('/api/attendance/biometric', {
-          studentId: val,
-          rfidCardNumber: val,
-          biometricId: val
-        });
-
-        if (res.success && res.accessGranted) {
-          statusDiv.style.background = 'rgba(0, 184, 148, 0.15)';
-          statusDiv.style.border = '1px solid var(--color-success)';
-          statusDiv.innerHTML = `
-            <div style="font-size: 1.6rem; color: var(--color-success); margin-bottom: 4px;">🟢 ACCESS GRANTED</div>
-            <strong style="font-size: 1rem; color: var(--color-text-primary);">${escapeHTML(res.studentName)}</strong>
+    `,new A({title:"\u{1F3F7}\uFE0F Turnstile & Biometric Sync",content:t,size:"sm"}).show(),setTimeout(()=>t.querySelector("#bioCardInput")?.focus(),200);const c=t.querySelector("#biometricSyncForm"),p=t.querySelector("#bioCardInput"),o=t.querySelector("#gateRelayStatus");c?.addEventListener("submit",async u=>{u.preventDefault();const h=p.value.trim();if(h){o.style.display="block",o.className="mt-3 p-3 text-center",o.style.background="var(--color-surface-hover)",o.innerHTML='<div class="loading-spinner mb-1"></div> Communicating with Gate Controller...';try{const i=await v.post("/api/attendance/biometric",{studentId:h,rfidCardNumber:h,biometricId:h});i.success&&i.accessGranted?(o.style.background="rgba(0, 184, 148, 0.15)",o.style.border="1px solid var(--color-success)",o.innerHTML=`
+            <div style="font-size: 1.6rem; color: var(--color-success); margin-bottom: 4px;">\u{1F7E2} ACCESS GRANTED</div>
+            <strong style="font-size: 1rem; color: var(--color-text-primary);">${m(i.studentName)}</strong>
             <div style="font-size: 0.85rem; color: var(--color-text-secondary); margin-top: 2px;">
-              Desk: <strong>${escapeHTML(res.seatNumber)}</strong> • Action: <strong>${res.action === 'check_in' ? 'Check-In' : 'Check-Out'}</strong> at ${res.time}
+              Desk: <strong>${m(i.seatNumber)}</strong> \u2022 Action: <strong>${i.action==="check_in"?"Check-In":"Check-Out"}</strong> at ${i.time}
             </div>
-            <div style="font-size: 0.75rem; color: var(--color-success); margin-top: 4px;">⚡ Turnstile Relay: UNLOCKED (3s)</div>
-          `;
-          bInput.value = '';
-          bInput.focus();
-          if (dateInput) loadData(dateInput.value, false);
-        } else {
-          statusDiv.style.background = 'rgba(214, 48, 49, 0.15)';
-          statusDiv.style.border = '1px solid var(--color-danger)';
-          statusDiv.innerHTML = `
-            <div style="font-size: 1.6rem; color: var(--color-danger); margin-bottom: 4px;">🔴 ACCESS DENIED</div>
-            <div style="font-size: 0.85rem; color: var(--color-danger);">${escapeHTML(res.message || 'Card invalid or expired')}</div>
-          `;
-        }
-      } catch (err) {
-        statusDiv.style.background = 'rgba(214, 48, 49, 0.15)';
-        statusDiv.style.border = '1px solid var(--color-danger)';
-        statusDiv.innerHTML = `<div style="color: var(--color-danger); font-size: 0.85rem;">🔴 ${escapeHTML(err.message || 'Hardware sync error')}</div>`;
-      }
-    });
-  });
+            <div style="font-size: 0.75rem; color: var(--color-success); margin-top: 4px;">\u26A1 Turnstile Relay: UNLOCKED (3s)</div>
+          `,p.value="",p.focus(),a&&b(a.value,!1)):(o.style.background="rgba(214, 48, 49, 0.15)",o.style.border="1px solid var(--color-danger)",o.innerHTML=`
+            <div style="font-size: 1.6rem; color: var(--color-danger); margin-bottom: 4px;">\u{1F534} ACCESS DENIED</div>
+            <div style="font-size: 0.85rem; color: var(--color-danger);">${m(i.message||"Card invalid or expired")}</div>
+          `)}catch(i){o.style.background="rgba(214, 48, 49, 0.15)",o.style.border="1px solid var(--color-danger)",o.innerHTML=`<div style="color: var(--color-danger); font-size: 0.85rem;">\u{1F534} ${m(i.message||"Hardware sync error")}</div>`}}})}),a&&await b(a.value),y&&clearInterval(y),y=setInterval(()=>{const t=document.querySelector("#attendance-date");t?b(t.value,!1):clearInterval(y)},6e4)}async function b(s,a=!0){const r=document.querySelector("#attendance-list");a&&r&&g.skeleton(r,"table");try{const n=s===new Date().toISOString().split("T")[0];let e;if(n?e=await v.get("/api/attendance/today"):e=await v.get(`/api/attendance?date=${s}`),!e.success)throw new Error(e.message);const t=e.data.records||[],c=n?e.data.stats:null;T(c,t.length),D(t,n)}catch(n){l.error("Failed to load attendance: "+(n.message||"Error")),r&&(r.innerHTML='<tr><td colspan="7" class="text-center empty-state p-4 text-muted">Error loading attendance data</td></tr>')}}function T(s,a){const r=document.querySelector("#stat-present"),n=document.querySelector("#stat-current"),e=document.querySelector("#stat-total");r&&(r.textContent=s?s.totalPresent||0:"-"),n&&(n.textContent=s?s.currentlyCheckedIn||0:"-"),e&&(e.textContent=a)}function D(s,a){const r=document.querySelector("#attendance-list"),n=document.querySelector("#attendance-mobile-cards");if(!(!r&&!n)){if(!s||s.length===0){r&&(r.innerHTML='<tr><td colspan="7" class="text-center empty-state p-4 text-muted">No attendance records found for this date.</td></tr>'),n&&(n.innerHTML='<div class="text-center empty-state p-4 text-muted">No attendance records found for this date.</div>');return}r&&(r.innerHTML=s.map(e=>{const t=e.student||{},c=e.checkIn?new Date(e.checkIn).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"-",p=e.checkOut?new Date(e.checkOut).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"-";let o="";e.status==="present"?o='<span class="badge" style="background: rgba(0, 184, 148, 0.2); color: var(--color-success, #00b894); padding: 4px 8px; border-radius: 4px; font-weight: 600;">Present</span>':e.status==="absent"?o='<span class="badge" style="background: rgba(214, 48, 49, 0.2); color: var(--color-danger, #d63031); padding: 4px 8px; border-radius: 4px; font-weight: 600;">Absent</span>':e.status==="late"?o='<span class="badge" style="background: rgba(253, 203, 110, 0.2); color: var(--color-warning, #fdcb6e); padding: 4px 8px; border-radius: 4px; font-weight: 600;">Late</span>':e.status==="half_day"&&(o='<span class="badge" style="background: rgba(9, 132, 227, 0.2); color: var(--color-info, #0984e3); padding: 4px 8px; border-radius: 4px; font-weight: 600;">Half Day</span>');let u="-";return a&&e.checkIn&&!e.checkOut&&(u=`<button type="button" class="btn-icon-action action-verify btn-checkout" data-id="${t._id||""}" data-tooltip="Check Out Student" aria-label="Check Out">\u{1F6AA}</button>`),`
+        <tr>
+          <td><span style="font-family: monospace; font-weight: 600;">${m(t.studentId||"-")}</span></td>
+          <td><strong>${m(t.name||"Unknown")}</strong></td>
+          <td>${c}</td>
+          <td>${p}</td>
+          <td>${e.duration!==void 0&&e.duration!==null?e.duration+" min":"-"}</td>
+          <td>${o}</td>
+          <td>${u}</td>
+        </tr>
+      `}).join("")),n&&(n.innerHTML=s.map(e=>{const t=e.student||{},c=e.checkIn?new Date(e.checkIn).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"-",p=e.checkOut?new Date(e.checkOut).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"-";let o="badge-active",u="Present";e.status==="absent"?(o="badge-expired",u="Absent"):e.status==="late"?(o="badge-pending",u="Late"):e.status==="half_day"&&(o="badge-pending",u="Half Day");const h=a&&e.checkIn&&!e.checkOut;return`
+        <div class="mobile-data-card" data-id="${t._id||""}">
+          <div class="mobile-card-header">
+            <div style="min-width: 0; flex: 1;">
+              <div class="mobile-card-title">${m(t.name||"Student")}</div>
+              <div class="mobile-card-subtitle" style="font-family: monospace; font-weight: 700; color: var(--color-primary); margin-top: 2px;">
+                ${m(t.studentId||"-")}
+              </div>
+            </div>
+            <span class="mobile-card-badge ${o}">${u}</span>
+          </div>
 
-  if (dateInput) {
-    await loadData(dateInput.value);
-  }
-  
-  // Auto-refresh every 60 seconds
-  if (refreshInterval) clearInterval(refreshInterval);
-  refreshInterval = setInterval(() => {
-    const curDateInput = document.querySelector('#attendance-date');
-    if (curDateInput) {
-      loadData(curDateInput.value, false);
-    } else {
-      clearInterval(refreshInterval);
-    }
-  }, 60000);
-}
+          <div class="mobile-card-details">
+            <div class="mobile-card-detail">
+              <div class="mobile-card-detail-label">Check In</div>
+              <div class="mobile-card-detail-value" style="color: var(--color-success); font-weight: 700;">${c}</div>
+            </div>
+            <div class="mobile-card-detail">
+              <div class="mobile-card-detail-label">Check Out</div>
+              <div class="mobile-card-detail-value">${p}</div>
+            </div>
+            <div class="mobile-card-detail">
+              <div class="mobile-card-detail-label">Duration</div>
+              <div class="mobile-card-detail-value">${e.duration!==void 0&&e.duration!==null?e.duration+" min":h?"\u23F1\uFE0F Active":"-"}</div>
+            </div>
+            <div class="mobile-card-detail">
+              <div class="mobile-card-detail-label">Session</div>
+              <div class="mobile-card-detail-value">${h?'<span style="color: #10b981; font-weight: 700;">\u{1F7E2} In Library</span>':"\u26AA Completed"}</div>
+            </div>
+          </div>
 
-async function loadData(dateStr, showLoading = true) {
-  const tbody = document.querySelector('#attendance-list');
-  if (showLoading && tbody) Loading.skeleton(tbody, 'table');
-
-  try {
-    const isToday = dateStr === new Date().toISOString().split('T')[0];
-    let res;
-    
-    if (isToday) {
-      res = await api.get('/api/attendance/today');
-    } else {
-      res = await api.get(`/api/attendance?date=${dateStr}`);
-    }
-
-    if (!res.success) throw new Error(res.message);
-
-    const records = res.data.records || [];
-    const stats = isToday ? res.data.stats : null;
-
-    updateStats(stats, records.length);
-    renderTable(records, isToday);
-
-  } catch (err) {
-    Toast.error('Failed to load attendance: ' + (err.message || 'Error'));
-    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center empty-state p-4 text-muted">Error loading attendance data</td></tr>';
-  }
-}
-
-function updateStats(stats, totalRecords) {
-  const statPresent = document.querySelector('#stat-present');
-  const statCurrent = document.querySelector('#stat-current');
-  const statTotal = document.querySelector('#stat-total');
-
-  if (statPresent) statPresent.textContent = stats ? (stats.totalPresent || 0) : '-';
-  if (statCurrent) statCurrent.textContent = stats ? (stats.currentlyCheckedIn || 0) : '-';
-  if (statTotal) statTotal.textContent = totalRecords;
-}
-
-function renderTable(records, isToday) {
-  const tbody = document.querySelector('#attendance-list');
-  if (!tbody) return;
-  
-  if (!records || records.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center empty-state p-4 text-muted">No attendance records found for this date.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = records.map(record => {
-    const student = record.student || {};
-    const checkInTime = record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-';
-    const checkOutTime = record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-';
-    
-    let statusBadge = '';
-    if (record.status === 'present') statusBadge = '<span class="badge" style="background: rgba(0, 184, 148, 0.2); color: var(--color-success, #00b894); padding: 4px 8px; border-radius: 4px; font-weight: 600;">Present</span>';
-    else if (record.status === 'absent') statusBadge = '<span class="badge" style="background: rgba(214, 48, 49, 0.2); color: var(--color-danger, #d63031); padding: 4px 8px; border-radius: 4px; font-weight: 600;">Absent</span>';
-    else if (record.status === 'late') statusBadge = '<span class="badge" style="background: rgba(253, 203, 110, 0.2); color: var(--color-warning, #fdcb6e); padding: 4px 8px; border-radius: 4px; font-weight: 600;">Late</span>';
-    else if (record.status === 'half_day') statusBadge = '<span class="badge" style="background: rgba(9, 132, 227, 0.2); color: var(--color-info, #0984e3); padding: 4px 8px; border-radius: 4px; font-weight: 600;">Half Day</span>';
-
-    let actionBtn = '-';
-    if (isToday && record.checkIn && !record.checkOut) {
-      actionBtn = `<button type="button" class="btn-icon-action action-verify btn-checkout" data-id="${student._id || ''}" data-tooltip="Check Out Student" aria-label="Check Out">🚪</button>`;
-    }
-
-    return `
-      <tr>
-        <td><span style="font-family: monospace; font-weight: 600;">${escapeHTML(student.studentId || '-')}</span></td>
-        <td><strong>${escapeHTML(student.name || 'Unknown')}</strong></td>
-        <td>${checkInTime}</td>
-        <td>${checkOutTime}</td>
-        <td>${record.duration !== undefined && record.duration !== null ? record.duration + ' min' : '-'}</td>
-        <td>${statusBadge}</td>
-        <td>${actionBtn}</td>
-      </tr>
-    `;
-  }).join('');
-
-  tbody.querySelectorAll('.btn-checkout').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-id');
-      if (id) window.checkoutStudent(id);
-    });
-  });
-}
-
-async function searchStudents(query, resultsContainer) {
-  try {
-    const res = await api.get(`/api/students?search=${encodeURIComponent(query)}&limit=8`);
-    if (res.success && res.data.students && res.data.students.length > 0) {
-      resultsContainer.innerHTML = res.data.students.map(s => `
-        <div class="search-result-item" style="padding: 10px 14px; border-bottom: 1px solid var(--color-divider, rgba(255,255,255,0.05)); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" data-id="${s._id}" data-name="${escapeHTML(s.name)}">
+          ${h?`
+          <div class="mobile-card-actions">
+            <button type="button" class="btn btn-sm btn-outline-danger btn-checkout" data-id="${t._id||""}" style="min-height: 42px; flex: 1; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+              \u{1F6AA} Check Out Student
+            </button>
+          </div>
+          `:""}
+        </div>
+      `}).join("")),[r,n].filter(Boolean).forEach(e=>{e.querySelectorAll(".btn-checkout").forEach(t=>{t.addEventListener("click",()=>{const c=t.getAttribute("data-id");c&&window.checkoutStudent&&window.checkoutStudent(c)})})})}}async function q(s,a){try{const r=await v.get(`/api/students?search=${encodeURIComponent(s)}&limit=8`);r.success&&r.data.students&&r.data.students.length>0?(a.innerHTML=r.data.students.map(n=>`
+        <div class="search-result-item" style="padding: 10px 14px; border-bottom: 1px solid var(--color-divider, rgba(255,255,255,0.05)); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" data-id="${n._id}" data-name="${m(n.name)}">
           <div>
-            <strong>${escapeHTML(s.name)}</strong>
-            <span class="text-muted small" style="margin-left: 8px;">(${escapeHTML(s.studentId || s.phone || '')})</span>
+            <strong>${m(n.name)}</strong>
+            <span class="text-muted small" style="margin-left: 8px;">(${m(n.studentId||n.phone||"")})</span>
           </div>
           <span class="badge" style="background: var(--color-primary, #6c5ce7); color: white; padding: 2px 6px; font-size: 0.7rem;">Check In</span>
         </div>
-      `).join('');
-      resultsContainer.style.display = 'block';
-
-      resultsContainer.querySelectorAll('.search-result-item').forEach(item => {
-        item.addEventListener('click', () => {
-          const id = item.getAttribute('data-id');
-          const name = item.getAttribute('data-name');
-          window.checkinStudent(id, name);
-        });
-      });
-    } else {
-      resultsContainer.innerHTML = '<div style="padding: 12px; text-align: center;" class="text-muted">No students found</div>';
-      resultsContainer.style.display = 'block';
-    }
-  } catch (err) {
-    console.error('Search error', err);
-  }
-}
-
-// Global functions for inline event handlers
-window.checkinStudent = async (studentId, name) => {
-  const searchInput = document.querySelector('#student-search');
-  const searchResults = document.querySelector('#search-results');
-  if (searchInput) searchInput.value = '';
-  if (searchResults) searchResults.style.display = 'none';
-  
-  try {
-    const res = await api.post('/api/attendance/check-in', { studentId });
-    if (res.success) {
-      Toast.success(`Checked in ${name || 'student'}`);
-      const dateInput = document.querySelector('#attendance-date');
-      if (dateInput) loadData(dateInput.value, false);
-    } else {
-      Toast.error(res.message);
-    }
-  } catch (err) {
-    Toast.error(err.message || 'Check-in failed');
-  }
-};
-
-window.checkoutStudent = async (studentId) => {
-  try {
-    const res = await api.post('/api/attendance/check-out', { studentId });
-    if (res.success) {
-      Toast.success('Successfully checked out');
-      const dateInput = document.querySelector('#attendance-date');
-      if (dateInput) loadData(dateInput.value, false);
-    } else {
-      Toast.error(res.message);
-    }
-  } catch (err) {
-    Toast.error(err.message || 'Check-out failed');
-  }
-};
+      `).join(""),a.style.display="block",a.querySelectorAll(".search-result-item").forEach(n=>{n.addEventListener("click",()=>{const e=n.getAttribute("data-id"),t=n.getAttribute("data-name");window.checkinStudent(e,t)})})):(a.innerHTML='<div style="padding: 12px; text-align: center;" class="text-muted">No students found</div>',a.style.display="block")}catch(r){console.error("Search error",r)}}window.checkinStudent=async(s,a)=>{const r=document.querySelector("#student-search"),n=document.querySelector("#search-results");r&&(r.value=""),n&&(n.style.display="none");try{const e=await v.post("/api/attendance/check-in",{studentId:s});if(e.success){l.success(`Checked in ${a||"student"}`);const t=document.querySelector("#attendance-date");t&&b(t.value,!1)}else l.error(e.message)}catch(e){l.error(e.message||"Check-in failed")}},window.checkoutStudent=async s=>{try{const a=await v.post("/api/attendance/check-out",{studentId:s});if(a.success){l.success("Successfully checked out");const r=document.querySelector("#attendance-date");r&&b(r.value,!1)}else l.error(a.message)}catch(a){l.error(a.message||"Check-out failed")}};export{E as render};

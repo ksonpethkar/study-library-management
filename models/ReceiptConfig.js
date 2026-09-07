@@ -78,11 +78,41 @@ const receiptConfigSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Singleton pattern
-receiptConfigSchema.statics.getConfig = async function() {
-  let config = await this.findOne();
-  if (!config) config = await this.create({});
-  return config;
+let _cachedReceiptConfig = null;
+let _cachedReceiptConfigTime = 0;
+
+// Singleton pattern with caching and fallback
+receiptConfigSchema.statics.getConfig = async function(forceRefresh = false) {
+  if (!forceRefresh && _cachedReceiptConfig && (Date.now() - _cachedReceiptConfigTime < 60000)) {
+    return _cachedReceiptConfig;
+  }
+  try {
+    const fetchPromise = this.findOne().lean();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('ReceiptConfig query timed out')), 2500)
+    );
+    let config = await Promise.race([fetchPromise, timeoutPromise]);
+    if (!config) {
+      const doc = await this.create({});
+      config = doc.toObject ? doc.toObject() : doc;
+    }
+    _cachedReceiptConfig = config;
+    _cachedReceiptConfigTime = Date.now();
+    return config;
+  } catch (err) {
+    if (_cachedReceiptConfig) return _cachedReceiptConfig;
+    return {
+      activeTemplate: 'thermal80',
+      header: { showBusinessName: true },
+      body: { showStudentId: true, showPlanDetails: true },
+      footer: { showSignature: true }
+    };
+  }
+};
+
+receiptConfigSchema.statics.invalidateCache = function() {
+  _cachedReceiptConfig = null;
+  _cachedReceiptConfigTime = 0;
 };
 
 module.exports = mongoose.model('ReceiptConfig', receiptConfigSchema);
