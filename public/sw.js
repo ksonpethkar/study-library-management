@@ -2,7 +2,7 @@
  * Study Library Management System — Service Worker (PWA) v4
  * Phase 4: Updated cache, offline fallback page, stale-while-revalidate
  */
-const CACHE_NAME = 'studylib-pwa-v64';
+const CACHE_NAME = 'studylib-pwa-v65';
 
 // All static assets to pre-cache on install
 const STATIC_ASSETS = [
@@ -27,6 +27,9 @@ const STATIC_ASSETS = [
   '/css/components.css',
   '/css/mobile-nav.css',
   '/css/mobile-cards.css',
+  '/css/mobile-settings.css',
+  '/css/mobile-overrides.css',
+  '/css/mobile-portal.css',
   '/css/mobile-delight.css',
   '/css/print.css',
   // Core JS
@@ -41,18 +44,43 @@ const STATIC_ASSETS = [
   '/js/themeManager.js',
   '/js/pwaManager.js',
   '/js/dragDrop.js',
+  '/js/sidebarCustomizer.js',
+  '/js/charts.js',
+  '/js/tableBuilder.js',
+  '/js/commandPalette.js',
+  '/js/formBuilder.js',
   '/js/utils/mobileGestures.js',
   '/js/utils/attendanceHeatmap.js',
   '/js/utils/imageCompressor.js',
   '/js/utils/audioFeedback.js',
   '/js/utils/pushNotifications.js',
+  '/js/utils/smartIntelligence.js',
+  '/js/utils/smartFormatters.js',
+  '/js/utils/idbStorage.js',
   '/js/pdfGenerator.js',
   '/js/signatureStudio.js',
   '/js/mediaStudio.js',
   '/js/paymentStudio.js',
   '/js/errorBoundary.js',
   '/js/smartLoading.js',
-  '/js/performanceMonitor.js'
+  '/js/performanceMonitor.js',
+  // Dynamic Route Pages (pre-cache for instant offline & zero-lag tab transitions)
+  '/js/pages/dashboard.js',
+  '/js/pages/students.js',
+  '/js/pages/seats.js',
+  '/js/pages/plans.js',
+  '/js/pages/lockers.js',
+  '/js/pages/payments.js',
+  '/js/pages/attendance.js',
+  '/js/pages/shifts.js',
+  '/js/pages/branches.js',
+  '/js/pages/reports.js',
+  '/js/pages/expenses.js',
+  '/js/pages/operations.js',
+  '/js/pages/trash.js',
+  '/js/pages/settings.js',
+  '/js/pages/profile.js',
+  '/js/pages/portal.js'
 ];
 
 // ── Install — pre-cache all static assets ─────────────────────────────────
@@ -84,12 +112,12 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// ── Fetch — Network-First for code (JS/CSS/HTML) + Stale-While-Revalidate for images ──
+// ── Fetch — Stale-While-Revalidate for JS/CSS & Media, Network-First for HTML ──
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Bypass: non-GET, API endpoints, chrome-extension, external domains
+  // Bypass: non-GET, API endpoints, uploaded files, external domains
   if (
     req.method !== 'GET' ||
     url.pathname.startsWith('/api/') ||
@@ -99,18 +127,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-First for JS, CSS, and HTML files so deployments apply instantly
-  if (
-    url.pathname.endsWith('.js') ||
-    url.pathname.endsWith('.css') ||
-    url.pathname.endsWith('.html') ||
+  // 1. Network-First ONLY for HTML documents so new server releases/auth checks apply immediately
+  const isHtmlDoc = req.headers.get('accept')?.includes('text/html') ||
     url.pathname === '/' ||
+    url.pathname.endsWith('.html') ||
     url.pathname === '/register' ||
     url.pathname === '/landing' ||
     url.pathname === '/student-login' ||
     url.pathname === '/portal-login' ||
-    url.pathname === '/kiosk'
-  ) {
+    url.pathname === '/kiosk';
+
+  if (isHtmlDoc) {
     event.respondWith(
       fetch(req)
         .then((networkResponse) => {
@@ -123,31 +150,27 @@ self.addEventListener('fetch', (event) => {
         .catch(async () => {
           const cached = await caches.match(req);
           if (cached) return cached;
-          if (req.headers.get('accept')?.includes('text/html')) {
-            return (await caches.match('/index.html')) || (await caches.match('/offline.html'));
-          }
-          return new Response('', { status: 503 });
+          return (await caches.match('/index.html')) || (await caches.match('/offline.html')) || new Response('', { status: 503 });
         })
     );
     return;
   }
 
-  // Stale-While-Revalidate for other static assets (icons, fonts, images)
+  // 2. Ultra-Fast Stale-While-Revalidate for JS, CSS, fonts, icons, images
+  // Serves instantaneous sub-10ms response from cache, while silently updating cache in the background
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
       const cachedResponse = await cache.match(req);
-      const fetchPromise = fetch(req)
+      const networkFetch = fetch(req)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && networkResponse.type !== 'opaque') {
             cache.put(req, networkResponse.clone());
           }
           return networkResponse;
         })
-        .catch(async () => {
-          return cachedResponse || new Response('', { status: 503 });
-        });
+        .catch(() => cachedResponse);
 
-      return cachedResponse || fetchPromise;
+      return cachedResponse || networkFetch;
     })
   );
 });

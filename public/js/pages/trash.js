@@ -95,7 +95,7 @@ import g from"../api.js";import{Toast as i,Modal as F,escapeHTML as b}from"../ui
         </div>
       </div>
     </div>
-  `,A(e),h(),p())}function A(e){const a=e.querySelectorAll("#trash-category-tabs button");a.forEach(o=>{o.addEventListener("click",()=>{a.forEach(u=>{u.classList.remove("btn-primary"),u.classList.add("btn-ghost")}),o.classList.add("btn-primary"),o.classList.remove("btn-ghost"),d=o.getAttribute("data-tab")||"all",f=1,c.clear(),y(),p()})});const t=e.querySelector("#trash-search-input");if(t){let o;t.addEventListener("input",()=>{clearTimeout(o),o=setTimeout(()=>{v=t.value.trim(),f=1,p()},250)})}const n=e.querySelector("#trash-bulk-restore-btn");n&&n.addEventListener("click",C);const s=e.querySelector("#trash-bulk-delete-btn");s&&s.addEventListener("click",S);const l=e.querySelector("#trash-empty-btn");l&&l.addEventListener("click",L)}async function h(){try{const e=await g.get("/api/trash/counts");if(e.success&&e.data){Object.keys(e.data).forEach(t=>{const n=document.getElementById(`count-${t}`);n&&(n.textContent=e.data[t]||0)});const a=document.getElementById("count-all");a&&(a.textContent=e.data.all||0)}}catch{}}async function p(){const e=document.getElementById("trash-table-container"),a=document.getElementById("trash-meta-info"),t=document.getElementById("trash-pagination-container");if(e)try{const n=new URLSearchParams({type:d,search:v,page:f,limit:20}),s=await g.get(`/api/trash?${n.toString()}`);if(!s.success||!s.data)throw new Error(s.message||"Failed to fetch items");const{items:l,total:o,totalPages:u}=s.data;if(a&&(a.textContent=o===1?"1 deleted item":`${o} deleted items`),l.length===0){e.innerHTML=`
+  `,A(e),h(),p())}function A(e){const a=e.querySelectorAll("#trash-category-tabs button");a.forEach(r=>{r.addEventListener("click",()=>{a.forEach(u=>{u.classList.remove("btn-primary"),u.classList.add("btn-ghost")}),r.classList.add("btn-primary"),r.classList.remove("btn-ghost"),d=r.getAttribute("data-tab")||"all",f=1,c.clear(),y(),p()})});const t=e.querySelector("#trash-search-input");if(t){let r;t.addEventListener("input",()=>{clearTimeout(r),r=setTimeout(()=>{v=t.value.trim(),f=1,p()},250)})}const n=e.querySelector("#trash-bulk-restore-btn");n&&n.addEventListener("click",C);const s=e.querySelector("#trash-bulk-delete-btn");s&&s.addEventListener("click",S);const l=e.querySelector("#trash-empty-btn");l&&l.addEventListener("click",L)}async function h(){try{const e=await g.get("/api/trash/counts");if(e.success&&e.data){Object.keys(e.data).forEach(t=>{const n=document.getElementById(`count-${t}`);n&&(n.textContent=e.data[t]||0)});const a=document.getElementById("count-all");a&&(a.textContent=e.data.all||0)}}catch{}}async function p(){const e=document.getElementById("trash-table-container"),a=document.getElementById("trash-meta-info"),t=document.getElementById("trash-pagination-container");if(e)try{const n=new URLSearchParams({type:d,search:v,page:f,limit:20}),s=await g.get(`/api/trash?${n.toString()}`);if(!s.success||!s.data)throw new Error(s.message||"Failed to fetch items");const{items:l,total:r,totalPages:u}=s.data;if(a&&(a.textContent=r===1?"1 deleted item":`${r} deleted items`),l.length===0){e.innerHTML=`
         <div style="padding: 4rem 1rem; text-align: center; color: var(--color-text-secondary);">
           <div style="font-size: 3rem; margin-bottom: 0.75rem;">\u2728</div>
           <h4 style="font-weight: 600; color: var(--color-text-primary); margin-bottom: 4px;">Recycle Bin is Clean</h4>
@@ -120,19 +120,19 @@ import g from"../api.js";import{Toast as i,Modal as F,escapeHTML as b}from"../ui
               </tr>
             </thead>
             <tbody>
-              ${l.map(r=>{const m=$[r.itemType]||{label:r.itemType,icon:"\u{1F4E6}",color:"var(--color-text-muted)"},x=w(r.deletedAt),k=c.has(r._id);return`
-                  <tr data-id="${r._id}" style="border-bottom: 1px solid var(--color-border, #f1f5f9); vertical-align: middle;">
+              ${l.map(o=>{const m=$[o.itemType]||{label:o.itemType,icon:"\u{1F4E6}",color:"var(--color-text-muted)"},x=w(o.deletedAt),k=c.has(o._id);return`
+                  <tr data-id="${o._id}" style="border-bottom: 1px solid var(--color-border, #f1f5f9); vertical-align: middle;">
                     <td style="text-align: center;">
-                      <input type="checkbox" class="trash-item-checkbox" data-id="${r._id}" ${k?"checked":""}>
+                      <input type="checkbox" class="trash-item-checkbox" data-id="${o._id}" ${k?"checked":""}>
                     </td>
                     <td style="padding: 10px 8px;">
                       <div class="d-flex align-items-center gap-2">
                         <span style="font-size: 1.25rem;">${m.icon}</span>
                         <div>
                           <div style="font-weight: 600; color: var(--color-text-primary); font-size: 0.92rem;">
-                            ${b(r.itemTitle||"Untitled Record")}
+                            ${b(o.itemTitle||"Untitled Record")}
                           </div>
-                          ${r.itemSubtitle?`<div style="font-size: 0.78rem; color: var(--color-text-secondary);">${b(r.itemSubtitle)}</div>`:""}
+                          ${o.itemSubtitle?`<div style="font-size: 0.78rem; color: var(--color-text-secondary);">${b(o.itemSubtitle)}</div>`:""}
                         </div>
                       </div>
                     </td>
@@ -142,17 +142,17 @@ import g from"../api.js";import{Toast as i,Modal as F,escapeHTML as b}from"../ui
                       </span>
                     </td>
                     <td style="font-size: 0.85rem; color: var(--color-text-primary);">
-                      \u{1F464} ${b(r.deletedByName||"Admin")}
+                      \u{1F464} ${b(o.deletedByName||"Admin")}
                     </td>
-                    <td style="font-size: 0.82rem; color: var(--color-text-secondary);" title="${new Date(r.deletedAt).toLocaleString()}">
+                    <td style="font-size: 0.82rem; color: var(--color-text-secondary);" title="${new Date(o.deletedAt).toLocaleString()}">
                       \u{1F552} ${x}
                     </td>
                     <td style="text-align: right; padding-right: 8px;">
                       <div class="d-flex gap-2 justify-content-end">
-                        <button class="btn btn-sm btn-outline-success restore-item-btn" data-id="${r._id}" data-title="${b(r.itemTitle)}" title="Restore Record">
+                        <button class="btn btn-sm btn-outline-success restore-item-btn" data-id="${o._id}" data-title="${b(o.itemTitle)}" title="Restore Record">
                           \u267B\uFE0F Restore
                         </button>
-                        <button class="btn btn-sm btn-outline-danger hard-delete-btn" data-id="${r._id}" data-title="${b(r.itemTitle)}" title="Permanently Destroy Record">
+                        <button class="btn btn-sm btn-outline-danger hard-delete-btn" data-id="${o._id}" data-title="${b(o.itemTitle)}" title="Permanently Destroy Record">
                           \u{1F4A5} Hard Delete
                         </button>
                       </div>
@@ -166,14 +166,14 @@ import g from"../api.js";import{Toast as i,Modal as F,escapeHTML as b}from"../ui
 
       <!-- Mobile Card List View -->
       <div class="mobile-card-list">
-        ${l.map(r=>{const m=$[r.itemType]||{label:r.itemType,icon:"\u{1F4E6}",color:"var(--color-text-muted)"},x=w(r.deletedAt);return`
-            <div class="mobile-data-card" data-id="${r._id}">
+        ${l.map(o=>{const m=$[o.itemType]||{label:o.itemType,icon:"\u{1F4E6}",color:"var(--color-text-muted)"},x=w(o.deletedAt);return`
+            <div class="mobile-data-card" data-id="${o._id}">
               <div class="mobile-card-header">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span style="font-size: 1.3rem;">${m.icon}</span>
                   <div>
-                    <div class="mobile-card-title">${b(r.itemTitle||"Untitled Record")}</div>
-                    ${r.itemSubtitle?`<div class="mobile-card-subtitle">${b(r.itemSubtitle)}</div>`:""}
+                    <div class="mobile-card-title">${b(o.itemTitle||"Untitled Record")}</div>
+                    ${o.itemSubtitle?`<div class="mobile-card-subtitle">${b(o.itemSubtitle)}</div>`:""}
                   </div>
                 </div>
                 <span class="badge" style="background: ${m.color}15; color: ${m.color}; font-weight: 700; font-size: 0.72rem;">
@@ -183,7 +183,7 @@ import g from"../api.js";import{Toast as i,Modal as F,escapeHTML as b}from"../ui
               <div class="mobile-card-details">
                 <div class="mobile-card-detail">
                   <div class="mobile-card-detail-label">Deleted By</div>
-                  <div class="mobile-card-detail-value">\u{1F464} ${b(r.deletedByName||"Admin")}</div>
+                  <div class="mobile-card-detail-value">\u{1F464} ${b(o.deletedByName||"Admin")}</div>
                 </div>
                 <div class="mobile-card-detail">
                   <div class="mobile-card-detail-label">Deleted Time</div>
@@ -191,10 +191,10 @@ import g from"../api.js";import{Toast as i,Modal as F,escapeHTML as b}from"../ui
                 </div>
               </div>
               <div class="mobile-card-actions">
-                <button class="btn btn-sm btn-outline-success restore-item-btn" data-id="${r._id}" data-title="${b(r.itemTitle)}" style="min-height: 42px; flex: 1; font-weight: 700;">
+                <button class="btn btn-sm btn-outline-success restore-item-btn" data-id="${o._id}" data-title="${b(o.itemTitle)}" style="min-height: 42px; flex: 1; font-weight: 700;">
                   \u267B\uFE0F Restore
                 </button>
-                <button class="btn btn-sm btn-outline-danger hard-delete-btn" data-id="${r._id}" data-title="${b(r.itemTitle)}" style="min-height: 42px; flex: 1; font-weight: 700;">
+                <button class="btn btn-sm btn-outline-danger hard-delete-btn" data-id="${o._id}" data-title="${b(o.itemTitle)}" style="min-height: 42px; flex: 1; font-weight: 700;">
                   \u{1F4A5} Destroy
                 </button>
               </div>
@@ -205,7 +205,7 @@ import g from"../api.js";import{Toast as i,Modal as F,escapeHTML as b}from"../ui
       <div style="padding: 2rem; text-align: center; color: var(--color-danger);">
         \u26A0\uFE0F Failed to load trash items: ${b(n.message)}
       </div>
-    `}}function B(e,a,t){const n=e.querySelector("#trash-select-all");if(n){const s=e.querySelectorAll(".trash-item-checkbox"),l=s.length>0&&Array.from(s).every(o=>o.checked);n.checked=l,n.addEventListener("change",()=>{s.forEach(o=>{o.checked=n.checked;const u=o.getAttribute("data-id");n.checked?c.add(u):c.delete(u)}),y()})}e.querySelectorAll(".trash-item-checkbox").forEach(s=>{s.addEventListener("change",()=>{const l=s.getAttribute("data-id");s.checked?c.add(l):c.delete(l);const o=e.querySelectorAll(".trash-item-checkbox");n&&(n.checked=o.length>0&&Array.from(o).every(u=>u.checked)),y()})}),e.querySelectorAll(".restore-item-btn").forEach(s=>{s.addEventListener("click",async()=>{const l=s.getAttribute("data-id"),o=s.getAttribute("data-title");await T(l,o)})}),e.querySelectorAll(".hard-delete-btn").forEach(s=>{s.addEventListener("click",()=>{const l=s.getAttribute("data-id"),o=s.getAttribute("data-title");D(l,o)})})}function y(){const e=document.getElementById("trash-bulk-restore-btn"),a=document.getElementById("trash-selected-count"),t=document.getElementById("trash-bulk-delete-btn"),n=document.getElementById("trash-selected-delete-count"),s=c.size;a&&(a.textContent=s),n&&(n.textContent=s),e&&(e.style.display=s>0?"inline-flex":"none"),t&&(t.style.display=s>0?"inline-flex":"none")}async function T(e,a){try{const t=await g.post(`/api/trash/restore/${e}`);t.success?(i.success(t.message||`"${a}" restored successfully!`),c.delete(e),y(),h(),p()):i.error(t.message||"Failed to restore item")}catch(t){i.error(t.message||"Restore error")}}async function C(){const e=Array.from(c);if(e.length!==0)try{const a=await g.post("/api/trash/restore-bulk",{ids:e});a.success?(i.success(a.message||`Restored ${e.length} items successfully!`),c.clear(),y(),h(),p()):i.error(a.message||"Failed to restore selected items")}catch(a){i.error(a.message||"Bulk restore error")}}async function S(){const e=Array.from(c);e.length!==0&&F.show({title:"\u26A0\uFE0F Permanent Bulk Deletion Warning",content:`
+    `}}function B(e,a,t){const n=e.querySelector("#trash-select-all");if(n){const s=e.querySelectorAll(".trash-item-checkbox"),l=s.length>0&&Array.from(s).every(r=>r.checked);n.checked=l,n.addEventListener("change",()=>{s.forEach(r=>{r.checked=n.checked;const u=r.getAttribute("data-id");n.checked?c.add(u):c.delete(u)}),y()})}e.querySelectorAll(".trash-item-checkbox").forEach(s=>{s.addEventListener("change",()=>{const l=s.getAttribute("data-id");s.checked?c.add(l):c.delete(l);const r=e.querySelectorAll(".trash-item-checkbox");n&&(n.checked=r.length>0&&Array.from(r).every(u=>u.checked)),y()})}),e.querySelectorAll(".restore-item-btn").forEach(s=>{s.addEventListener("click",async()=>{const l=s.getAttribute("data-id"),r=s.getAttribute("data-title");await T(l,r)})}),e.querySelectorAll(".hard-delete-btn").forEach(s=>{s.addEventListener("click",()=>{const l=s.getAttribute("data-id"),r=s.getAttribute("data-title");D(l,r)})})}function y(){const e=document.getElementById("trash-bulk-restore-btn"),a=document.getElementById("trash-selected-count"),t=document.getElementById("trash-bulk-delete-btn"),n=document.getElementById("trash-selected-delete-count"),s=c.size;a&&(a.textContent=s),n&&(n.textContent=s),e&&(e.style.display=s>0?"inline-flex":"none"),t&&(t.style.display=s>0?"inline-flex":"none")}async function T(e,a){try{const t=await g.post(`/api/trash/restore/${e}`);t.success?(i.success(t.message||`"${a}" restored successfully!`),c.delete(e),y(),h(),p()):i.error(t.message||"Failed to restore item")}catch(t){i.error(t.message||"Restore error")}}async function C(){const e=Array.from(c);if(e.length!==0)try{const a=await g.post("/api/trash/restore-bulk",{ids:e});a.success?(i.success(a.message||`Restored ${e.length} items successfully!`),c.clear(),y(),h(),p()):i.error(a.message||"Failed to restore selected items")}catch(a){i.error(a.message||"Bulk restore error")}}async function S(){const e=Array.from(c);e.length!==0&&F.show({title:"\u26A0\uFE0F Permanent Bulk Deletion Warning",content:`
       <div style="padding: 0.5rem 0;">
         <div class="alert alert-danger" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--color-danger, #ef4444); color: #b91c1c; border-radius: 8px; padding: 12px 16px; margin-bottom: 1rem; font-size: 0.88rem;">
           <strong>CAUTION:</strong> You are about to permanently delete <strong>${e.length} selected items</strong>! These records will be completely removed from the database and cannot be recovered.
@@ -235,4 +235,4 @@ import g from"../api.js";import{Toast as i,Modal as F,escapeHTML as b}from"../ui
           Are you completely certain you want to proceed?
         </p>
       </div>
-    `,buttons:[{text:"Cancel",className:"btn-ghost",onClick:a=>a.close()},{text:"\u{1F4A5} Yes, Empty Trash",className:"btn-danger",onClick:async a=>{try{const t=await g.delete(`/api/trash/empty?type=${d}`);a.close(),t.success?(i.success(t.message||"Recycle Bin emptied successfully"),c.clear(),y(),h(),p()):i.error(t.message||"Failed to empty recycle bin")}catch(t){a.close(),i.error(t.message||"Empty trash failed")}}}]})}function w(e){if(!e)return"Recently";const a=new Date(e),t=Date.now()-a.getTime(),n=Math.floor(t/1e3),s=Math.floor(n/60),l=Math.floor(s/60),o=Math.floor(l/24);return n<60?"Just now":s<60?`${s}m ago`:l<24?`${l}h ago`:o<30?`${o}d ago`:a.toLocaleDateString()}export{E as render};
+    `,buttons:[{text:"Cancel",className:"btn-ghost",onClick:a=>a.close()},{text:"\u{1F4A5} Yes, Empty Trash",className:"btn-danger",onClick:async a=>{try{const t=await g.delete(`/api/trash/empty?type=${d}`);a.close(),t.success?(i.success(t.message||"Recycle Bin emptied successfully"),c.clear(),y(),h(),p()):i.error(t.message||"Failed to empty recycle bin")}catch(t){a.close(),i.error(t.message||"Empty trash failed")}}}]})}function w(e){if(!e)return"Recently";const a=new Date(e),t=Date.now()-a.getTime(),n=Math.floor(t/1e3),s=Math.floor(n/60),l=Math.floor(s/60),r=Math.floor(l/24);return n<60?"Just now":s<60?`${s}m ago`:l<24?`${l}h ago`:r<30?`${r}d ago`:a.toLocaleDateString()}export{E as render};

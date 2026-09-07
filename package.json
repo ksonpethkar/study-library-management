@@ -16,6 +16,8 @@
     "app:admin:sync": "node scripts/build_mobile_apps.js admin sync",
     "app:admin:open": "node scripts/build_mobile_apps.js admin open",
     "app:build:all": "node scripts/build_mobile_apps.js all sync",
+    "build": "node scripts/minify.js",
+    "vercel-build": "node scripts/minify.js",
     "minify": "node scripts/minify.js",
     "minify:dry": "node scripts/minify.js --dry"
   },

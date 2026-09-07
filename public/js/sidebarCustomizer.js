@@ -1,134 +1,4 @@
-import api from './api.js';
-import { Toast, Modal, BottomSheet } from './ui.js';
-
-const DEFAULT_MODULES = [
-  { key: 'dashboard', href: '#/dashboard', label: 'Dashboard', icon: '📊', isEnabled: true },
-  { key: 'students', href: '#/students', label: 'Students', icon: '🎓', isEnabled: true },
-  { key: 'seats', href: '#/seats', label: 'Seats', icon: '🪑', isEnabled: true },
-  { key: 'plans', href: '#/plans', label: 'Plans', icon: '📦', isEnabled: true },
-  { key: 'lockers', href: '#/lockers', label: 'Lockers', icon: '🔐', isEnabled: true },
-  { key: 'payments', href: '#/payments', label: 'Payments', icon: '💳', isEnabled: true },
-  { key: 'attendance', href: '#/attendance', label: 'Attendance', icon: '📅', isEnabled: true },
-  { key: 'shifts', href: '#/shifts', label: 'Shifts', icon: '⏰', isEnabled: true },
-  { key: 'branches', href: '#/branches', label: 'Branches', icon: '🏢', isEnabled: false },
-  { key: 'reports', href: '#/reports', label: 'Reports', icon: '📈', isEnabled: true },
-  { key: 'expenses', href: '#/expenses', label: 'Expenses (P&L)', icon: '💸', isEnabled: true },
-  { key: 'operations', href: '#/operations', label: 'Operations', icon: '⚙️', isEnabled: true },
-  { key: 'trash', href: '#/trash', label: 'Recycle Bin', icon: '🗑️', isEnabled: true },
-  { key: 'settings', href: '#/settings', label: 'Settings', icon: '🛠️', isEnabled: true },
-  { key: 'profile', href: '#/profile', label: 'My Profile', icon: '👤', isEnabled: true }
-];
-
-const PRESETS = {
-  default: {
-    name: 'Standard Default',
-    keys: ['dashboard', 'students', 'seats', 'plans', 'lockers', 'payments', 'attendance', 'shifts', 'reports', 'expenses', 'operations', 'trash', 'settings', 'profile']
-  },
-  frontdesk: {
-    name: 'Front Desk Essential',
-    keys: ['dashboard', 'students', 'seats', 'payments', 'attendance', 'settings', 'profile']
-  },
-  all: {
-    name: 'All Modules Active',
-    keys: ['dashboard', 'students', 'seats', 'plans', 'lockers', 'payments', 'attendance', 'shifts', 'branches', 'reports', 'expenses', 'operations', 'trash', 'settings', 'profile']
-  }
-};
-
-const POPULAR_ICONS = ['📊', '🎓', '🪑', '📦', '🔐', '💳', '📅', '⏰', '🏢', '📈', '💸', '⚙️', '🗑️', '🛠️', '👤', '📚', '⚡', '💼', '📌', '🔔', '🏷️', '🎯'];
-
-class SidebarCustomizer {
-  constructor() {
-    this.items = [];
-    this.modalInstance = null;
-    this.userRole = 'staff';
-    this.saveScope = 'global'; // 'global' or 'personal'
-  }
-
-  async open() {
-    try {
-      const userRaw = localStorage.getItem('sl_user');
-      if (userRaw) {
-        const u = JSON.parse(userRaw);
-        this.userRole = u.role || 'staff';
-      }
-    } catch (e) {}
-
-    // Dynamic lazy-load Sortable if not already present
-    if (typeof window !== 'undefined' && !window.Sortable) {
-      try {
-        const { loadSortable } = await import('./dragDrop.js');
-        if (typeof loadSortable === 'function') await loadSortable();
-      } catch (e) {}
-    }
-
-    await this.loadConfig();
-    this.render();
-  }
-
-  async loadConfig() {
-    try {
-      // Try fetching all modules (including disabled) from backend
-      const res = await api.get('/api/settings/sidebar/all');
-      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-        this.items = res.data.map((item, idx) => ({
-          key: item.key,
-          label: item.label || item.key,
-          href: item.href || `#/${item.key}`,
-          icon: this.formatIcon(item.icon, item.key),
-          isEnabled: item.isEnabled !== false,
-          order: item.order !== undefined ? item.order : idx + 1
-        }));
-      } else {
-        // Fallback to active items
-        const activeRes = await api.get('/api/settings/sidebar');
-        if (activeRes && activeRes.success && Array.isArray(activeRes.data) && activeRes.data.length > 0) {
-          const activeKeys = new Set(activeRes.data.map(i => i.key));
-          const orderMap = new Map(activeRes.data.map((i, idx) => [i.key, idx + 1]));
-          this.items = DEFAULT_MODULES.map(def => ({
-            ...def,
-            isEnabled: activeKeys.has(def.key),
-            order: orderMap.get(def.key) || 99
-          })).sort((a, b) => a.order - b.order);
-        } else {
-          this.items = JSON.parse(JSON.stringify(DEFAULT_MODULES));
-        }
-      }
-    } catch (err) {
-      console.warn('Could not fetch server sidebar, using defaults:', err.message);
-      this.items = JSON.parse(JSON.stringify(DEFAULT_MODULES));
-    }
-
-    // Apply personal local overrides if present
-    try {
-      const personalOrder = localStorage.getItem('sl_sidebar_order_personal') || localStorage.getItem('sl_sidebar_order');
-      if (personalOrder) {
-        const orderArr = JSON.parse(personalOrder);
-        if (Array.isArray(orderArr) && orderArr.length > 0) {
-          const orderMap = new Map(orderArr.map((href, idx) => [href.replace('#/', ''), idx + 1]));
-          this.items.forEach(item => {
-            if (orderMap.has(item.key)) item.order = orderMap.get(item.key);
-          });
-          this.items.sort((a, b) => a.order - b.order);
-        }
-      }
-    } catch (e) {}
-  }
-
-  formatIcon(icon, key) {
-    if (!icon || icon.startsWith('<svg')) {
-      const def = DEFAULT_MODULES.find(d => d.key === key);
-      return def ? def.icon : '📌';
-    }
-    return icon.trim();
-  }
-
-  render() {
-    const isOwnerOrManager = ['owner', 'branch_manager', 'admin'].includes(this.userRole);
-    const content = document.createElement('div');
-    content.className = 'sidebar-customizer-wrap';
-    content.style.cssText = 'display: flex; flex-direction: column; gap: 14px; max-height: 75vh; overflow-y: auto; padding-right: 4px;';
-
-    content.innerHTML = `
+import p from"./api.js";import{Toast as f,Modal as i,BottomSheet as l}from"./ui.js";const c=[{key:"dashboard",href:"#/dashboard",label:"Dashboard",icon:"\u{1F4CA}",isEnabled:!0},{key:"students",href:"#/students",label:"Students",icon:"\u{1F393}",isEnabled:!0},{key:"seats",href:"#/seats",label:"Seats",icon:"\u{1FA91}",isEnabled:!0},{key:"plans",href:"#/plans",label:"Plans",icon:"\u{1F4E6}",isEnabled:!0},{key:"lockers",href:"#/lockers",label:"Lockers",icon:"\u{1F510}",isEnabled:!0},{key:"payments",href:"#/payments",label:"Payments",icon:"\u{1F4B3}",isEnabled:!0},{key:"attendance",href:"#/attendance",label:"Attendance",icon:"\u{1F4C5}",isEnabled:!0},{key:"shifts",href:"#/shifts",label:"Shifts",icon:"\u23F0",isEnabled:!0},{key:"branches",href:"#/branches",label:"Branches",icon:"\u{1F3E2}",isEnabled:!1},{key:"reports",href:"#/reports",label:"Reports",icon:"\u{1F4C8}",isEnabled:!0},{key:"expenses",href:"#/expenses",label:"Expenses (P&L)",icon:"\u{1F4B8}",isEnabled:!0},{key:"operations",href:"#/operations",label:"Operations",icon:"\u2699\uFE0F",isEnabled:!0},{key:"trash",href:"#/trash",label:"Recycle Bin",icon:"\u{1F5D1}\uFE0F",isEnabled:!0},{key:"settings",href:"#/settings",label:"Settings",icon:"\u{1F6E0}\uFE0F",isEnabled:!0},{key:"profile",href:"#/profile",label:"My Profile",icon:"\u{1F464}",isEnabled:!0}],m={default:{name:"Standard Default",keys:["dashboard","students","seats","plans","lockers","payments","attendance","shifts","reports","expenses","operations","trash","settings","profile"]},frontdesk:{name:"Front Desk Essential",keys:["dashboard","students","seats","payments","attendance","settings","profile"]},all:{name:"All Modules Active",keys:["dashboard","students","seats","plans","lockers","payments","attendance","shifts","branches","reports","expenses","operations","trash","settings","profile"]}},g=["\u{1F4CA}","\u{1F393}","\u{1FA91}","\u{1F4E6}","\u{1F510}","\u{1F4B3}","\u{1F4C5}","\u23F0","\u{1F3E2}","\u{1F4C8}","\u{1F4B8}","\u2699\uFE0F","\u{1F5D1}\uFE0F","\u{1F6E0}\uFE0F","\u{1F464}","\u{1F4DA}","\u26A1","\u{1F4BC}","\u{1F4CC}","\u{1F514}","\u{1F3F7}\uFE0F","\u{1F3AF}"];class v{constructor(){this.items=[],this.modalInstance=null,this.userRole="staff",this.saveScope="global"}async open(){try{const t=localStorage.getItem("sl_user");if(t){const e=JSON.parse(t);this.userRole=e.role||"staff"}}catch{}if(typeof window<"u"&&!window.Sortable)try{const{loadSortable:t}=await import("./dragDrop.js");typeof t=="function"&&await t()}catch{}await this.loadConfig(),this.render()}async loadConfig(){try{const t=await p.get("/api/settings/sidebar/all");if(t&&t.success&&Array.isArray(t.data)&&t.data.length>0)this.items=t.data.map((e,s)=>({key:e.key,label:e.label||e.key,href:e.href||`#/${e.key}`,icon:this.formatIcon(e.icon,e.key),isEnabled:e.isEnabled!==!1,order:e.order!==void 0?e.order:s+1}));else{const e=await p.get("/api/settings/sidebar");if(e&&e.success&&Array.isArray(e.data)&&e.data.length>0){const s=new Set(e.data.map(o=>o.key)),r=new Map(e.data.map((o,a)=>[o.key,a+1]));this.items=c.map(o=>({...o,isEnabled:s.has(o.key),order:r.get(o.key)||99})).sort((o,a)=>o.order-a.order)}else this.items=JSON.parse(JSON.stringify(c))}}catch(t){console.warn("Could not fetch server sidebar, using defaults:",t.message),this.items=JSON.parse(JSON.stringify(c))}try{const t=localStorage.getItem("sl_sidebar_order_personal")||localStorage.getItem("sl_sidebar_order");if(t){const e=JSON.parse(t);if(Array.isArray(e)&&e.length>0){const s=new Map(e.map((r,o)=>[r.replace("#/",""),o+1]));this.items.forEach(r=>{s.has(r.key)&&(r.order=s.get(r.key))}),this.items.sort((r,o)=>r.order-o.order)}}}catch{}}formatIcon(t,e){if(!t||t.startsWith("<svg")){const s=c.find(r=>r.key===e);return s?s.icon:"\u{1F4CC}"}return t.trim()}render(){const t=["owner","branch_manager","admin"].includes(this.userRole),e=document.createElement("div");e.className="sidebar-customizer-wrap",e.style.cssText="display: flex; flex-direction: column; gap: 14px; max-height: 75vh; overflow-y: auto; padding-right: 4px;",e.innerHTML=`
       <style>
         .sc-module-row {
           display: flex;
@@ -237,33 +107,33 @@ class SidebarCustomizer {
       <!-- Description Header & Presets -->
       <div style="background: rgba(108, 92, 231, 0.06); border: 1px solid rgba(108, 92, 231, 0.18); border-radius: var(--radius-md, 8px); padding: 10px 14px;">
         <div style="font-size: 0.84rem; color: var(--color-text-primary, #1e293b); font-weight: 600; margin-bottom: 6px;">
-          ⚡ <strong>Customize Your Navigation</strong>: Toggle modules on/off, rename titles, change icons, and reorder with buttons or drag handles.
+          \u26A1 <strong>Customize Your Navigation</strong>: Toggle modules on/off, rename titles, change icons, and reorder with buttons or drag handles.
         </div>
         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
           <span style="font-size: 0.75rem; font-weight: 700; color: var(--color-text-muted, #64748b);">Quick Presets:</span>
-          <button type="button" class="sc-preset-chip" data-preset="default">🏛️ Standard Default</button>
-          <button type="button" class="sc-preset-chip" data-preset="frontdesk">🛎️ Front Desk Essential</button>
-          <button type="button" class="sc-preset-chip" data-preset="all">✨ Enable All</button>
+          <button type="button" class="sc-preset-chip" data-preset="default">\u{1F3DB}\uFE0F Standard Default</button>
+          <button type="button" class="sc-preset-chip" data-preset="frontdesk">\u{1F6CE}\uFE0F Front Desk Essential</button>
+          <button type="button" class="sc-preset-chip" data-preset="all">\u2728 Enable All</button>
         </div>
       </div>
 
       <!-- Scope Selector for Owners / Managers -->
-      ${isOwnerOrManager ? `
+      ${t?`
       <div style="display: flex; align-items: center; justify-content: space-between; background: var(--color-bg-secondary); border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 12px;">
         <div>
           <strong style="font-size: 0.85rem; color: var(--color-text-primary);">Save Scope</strong>
           <div class="text-muted small" style="font-size: 0.72rem;">Choose who sees this custom navigation layout</div>
         </div>
         <div class="btn-group" role="group" style="display: inline-flex;">
-          <button type="button" class="btn btn-xs ${this.saveScope === 'global' ? 'btn-primary' : 'btn-outline-secondary'} sc-scope-btn" data-scope="global" style="font-weight: 700; font-size: 0.75rem; padding: 4px 10px;">
-            🌐 Everyone (Global)
+          <button type="button" class="btn btn-xs ${this.saveScope==="global"?"btn-primary":"btn-outline-secondary"} sc-scope-btn" data-scope="global" style="font-weight: 700; font-size: 0.75rem; padding: 4px 10px;">
+            \u{1F310} Everyone (Global)
           </button>
-          <button type="button" class="btn btn-xs ${this.saveScope === 'personal' ? 'btn-primary' : 'btn-outline-secondary'} sc-scope-btn" data-scope="personal" style="font-weight: 700; font-size: 0.75rem; padding: 4px 10px;">
-            👤 Personal (Only Me)
+          <button type="button" class="btn btn-xs ${this.saveScope==="personal"?"btn-primary":"btn-outline-secondary"} sc-scope-btn" data-scope="personal" style="font-weight: 700; font-size: 0.75rem; padding: 4px 10px;">
+            \u{1F464} Personal (Only Me)
           </button>
         </div>
       </div>
-      ` : ''}
+      `:""}
 
       <!-- Interactive Module List -->
       <div id="sc-items-container" style="display: flex; flex-direction: column; gap: 8px;">
@@ -273,213 +143,42 @@ class SidebarCustomizer {
       <!-- Footer Buttons -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border-top: 1px solid var(--color-border); padding-top: 12px; flex-wrap: wrap; gap: 8px;">
         <button type="button" id="sc-btn-reset" class="btn btn-sm btn-outline-danger" style="font-weight: 700; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 4px;">
-          ↺ Reset Defaults
+          \u21BA Reset Defaults
         </button>
         <div style="display: flex; gap: 8px; align-items: center;">
           <button type="button" id="sc-btn-cancel" class="btn btn-sm btn-secondary" style="font-weight: 700; font-size: 0.82rem;">
             Cancel
           </button>
           <button type="button" id="sc-btn-save" class="btn btn-sm btn-primary" style="font-weight: 800; font-size: 0.85rem; padding: 6px 18px; display: inline-flex; align-items: center; gap: 6px;">
-            💾 Save & Apply
+            \u{1F4BE} Save & Apply
           </button>
         </div>
       </div>
-    `;
-
-    this.bindEvents(content);
-
-    // Open in BottomSheet if mobile (<= 768px), otherwise in Modal
-    if (window.innerWidth <= 768 && typeof BottomSheet !== 'undefined' && BottomSheet.show) {
-      this.modalInstance = BottomSheet.show({
-        title: '🎨 Customize Sidebar Navigation',
-        content: content,
-        height: '85vh'
-      });
-    } else if (typeof Modal !== 'undefined' && Modal.show) {
-      this.modalInstance = Modal.show({
-        title: '🎨 Customize Sidebar Navigation',
-        content: content,
-        size: 'lg'
-      });
-    }
-  }
-
-  renderItemsHtml() {
-    return this.items.map((item, index) => {
-      const isFirst = index === 0;
-      const isLast = index === this.items.length - 1;
-      return `
-        <div class="sc-module-row ${item.isEnabled ? '' : 'sc-disabled'}" data-key="${item.key}" data-index="${index}">
+    `,this.bindEvents(e),window.innerWidth<=768&&typeof l<"u"&&l.show?this.modalInstance=l.show({title:"\u{1F3A8} Customize Sidebar Navigation",content:e,height:"85vh"}):typeof i<"u"&&i.show&&(this.modalInstance=i.show({title:"\u{1F3A8} Customize Sidebar Navigation",content:e,size:"lg"}))}renderItemsHtml(){return this.items.map((t,e)=>{const s=e===0,r=e===this.items.length-1;return`
+        <div class="sc-module-row ${t.isEnabled?"":"sc-disabled"}" data-key="${t.key}" data-index="${e}">
           <!-- Drag Handle -->
-          <span class="sc-drag-handle" title="Drag to reorder">☰</span>
+          <span class="sc-drag-handle" title="Drag to reorder">\u2630</span>
 
           <!-- Up/Down Buttons for Mobile -->
           <div style="display: flex; flex-direction: column; gap: 2px;">
-            <button type="button" class="sc-reorder-btn sc-btn-up" data-index="${index}" ${isFirst ? 'disabled' : ''} title="Move Up">▲</button>
-            <button type="button" class="sc-reorder-btn sc-btn-down" data-index="${index}" ${isLast ? 'disabled' : ''} title="Move Down">▼</button>
+            <button type="button" class="sc-reorder-btn sc-btn-up" data-index="${e}" ${s?"disabled":""} title="Move Up">\u25B2</button>
+            <button type="button" class="sc-reorder-btn sc-btn-down" data-index="${e}" ${r?"disabled":""} title="Move Down">\u25BC</button>
           </div>
 
           <!-- Icon / Emoji -->
-          <button type="button" class="sc-icon-btn" data-key="${item.key}" title="Tap to change icon">
-            ${item.icon || '📌'}
+          <button type="button" class="sc-icon-btn" data-key="${t.key}" title="Tap to change icon">
+            ${t.icon||"\u{1F4CC}"}
           </button>
 
           <!-- Label Rename Input -->
-          <input type="text" class="sc-rename-input" data-key="${item.key}" value="${item.label || item.key}" placeholder="${item.key}">
+          <input type="text" class="sc-rename-input" data-key="${t.key}" value="${t.label||t.key}" placeholder="${t.key}">
 
           <!-- Visibility Toggle -->
           <div class="form-check form-switch mb-0" style="font-size: 1.15rem; margin-left: auto;">
-            <input class="form-check-input sc-toggle-switch" type="checkbox" data-key="${item.key}" ${item.isEnabled ? 'checked' : ''} title="Turn on/off in navigation">
+            <input class="form-check-input sc-toggle-switch" type="checkbox" data-key="${t.key}" ${t.isEnabled?"checked":""} title="Turn on/off in navigation">
           </div>
         </div>
-      `;
-    }).join('');
-  }
-
-  refreshList(container) {
-    container.innerHTML = this.renderItemsHtml();
-    this.bindRowEvents(container);
-  }
-
-  bindEvents(content) {
-    const listContainer = content.querySelector('#sc-items-container');
-
-    // Preset Buttons
-    content.querySelectorAll('.sc-preset-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        const presetKey = chip.dataset.preset;
-        this.applyPreset(presetKey);
-        this.refreshList(listContainer);
-      });
-    });
-
-    // Scope Switch
-    content.querySelectorAll('.sc-scope-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.saveScope = btn.dataset.scope;
-        content.querySelectorAll('.sc-scope-btn').forEach(b => {
-          b.className = `btn btn-xs ${b.dataset.scope === this.saveScope ? 'btn-primary' : 'btn-outline-secondary'} sc-scope-btn`;
-        });
-      });
-    });
-
-    // Reset Button
-    content.querySelector('#sc-btn-reset')?.addEventListener('click', async () => {
-      if (confirm('Reset navigation layout to default factory order?')) {
-        this.items = JSON.parse(JSON.stringify(DEFAULT_MODULES));
-        this.refreshList(listContainer);
-      }
-    });
-
-    // Cancel Button
-    content.querySelector('#sc-btn-cancel')?.addEventListener('click', () => {
-      this.closeModal();
-    });
-
-    // Save Button
-    content.querySelector('#sc-btn-save')?.addEventListener('click', async () => {
-      const saveBtn = content.querySelector('#sc-btn-save');
-      if (saveBtn) saveBtn.disabled = true;
-      try {
-        await this.saveChanges();
-        this.closeModal();
-      } catch (err) {
-        Toast.error(err.message || 'Failed to save navigation changes.');
-      } finally {
-        if (saveBtn) saveBtn.disabled = false;
-      }
-    });
-
-    this.bindRowEvents(listContainer);
-  }
-
-  bindRowEvents(listContainer) {
-    if (typeof window !== 'undefined' && window.Sortable && listContainer) {
-      try {
-        if (this._sortableInst) this._sortableInst.destroy();
-        this._sortableInst = window.Sortable.create(listContainer, {
-          handle: '.sc-drag-handle',
-          animation: 180,
-          ghostClass: 'sortable-ghost',
-          chosenClass: 'sortable-chosen',
-          onEnd: () => {
-            const rows = Array.from(listContainer.querySelectorAll('.sc-module-row'));
-            const newOrderMap = new Map(rows.map((r, idx) => [r.dataset.key, idx]));
-            this.items.sort((a, b) => {
-              const ordA = newOrderMap.has(a.key) ? newOrderMap.get(a.key) : 999;
-              const ordB = newOrderMap.has(b.key) ? newOrderMap.get(b.key) : 999;
-              return ordA - ordB;
-            });
-            this.refreshList(listContainer);
-          }
-        });
-      } catch (e) {}
-    }
-
-    // Up buttons
-    listContainer.querySelectorAll('.sc-btn-up').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.dataset.index, 10);
-        if (idx > 0) {
-          const temp = this.items[idx];
-          this.items[idx] = this.items[idx - 1];
-          this.items[idx - 1] = temp;
-          this.refreshList(listContainer);
-        }
-      });
-    });
-
-    // Down buttons
-    listContainer.querySelectorAll('.sc-btn-down').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.dataset.index, 10);
-        if (idx < this.items.length - 1) {
-          const temp = this.items[idx];
-          this.items[idx] = this.items[idx + 1];
-          this.items[idx + 1] = temp;
-          this.refreshList(listContainer);
-        }
-      });
-    });
-
-    // Rename Inputs
-    listContainer.querySelectorAll('.sc-rename-input').forEach(inp => {
-      inp.addEventListener('input', () => {
-        const key = inp.dataset.key;
-        const item = this.items.find(i => i.key === key);
-        if (item) item.label = inp.value.trim();
-      });
-    });
-
-    // Toggle Switches
-    listContainer.querySelectorAll('.sc-toggle-switch').forEach(sw => {
-      sw.addEventListener('change', () => {
-        const key = sw.dataset.key;
-        const item = this.items.find(i => i.key === key);
-        if (item) {
-          item.isEnabled = sw.checked;
-          const row = sw.closest('.sc-module-row');
-          if (row) row.classList.toggle('sc-disabled', !sw.checked);
-        }
-      });
-    });
-
-    // Icon Selector Popups
-    listContainer.querySelectorAll('.sc-icon-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.openEmojiPicker(btn);
-      });
-    });
-  }
-
-  openEmojiPicker(targetBtn) {
-    const existing = document.getElementById('sc-emoji-picker-dropdown');
-    if (existing) existing.remove();
-
-    const picker = document.createElement('div');
-    picker.id = 'sc-emoji-picker-dropdown';
-    picker.style.cssText = `
+      `}).join("")}refreshList(t){t.innerHTML=this.renderItemsHtml(),this.bindRowEvents(t)}bindEvents(t){const e=t.querySelector("#sc-items-container");t.querySelectorAll(".sc-preset-chip").forEach(s=>{s.addEventListener("click",()=>{const r=s.dataset.preset;this.applyPreset(r),this.refreshList(e)})}),t.querySelectorAll(".sc-scope-btn").forEach(s=>{s.addEventListener("click",()=>{this.saveScope=s.dataset.scope,t.querySelectorAll(".sc-scope-btn").forEach(r=>{r.className=`btn btn-xs ${r.dataset.scope===this.saveScope?"btn-primary":"btn-outline-secondary"} sc-scope-btn`})})}),t.querySelector("#sc-btn-reset")?.addEventListener("click",async()=>{confirm("Reset navigation layout to default factory order?")&&(this.items=JSON.parse(JSON.stringify(c)),this.refreshList(e))}),t.querySelector("#sc-btn-cancel")?.addEventListener("click",()=>{this.closeModal()}),t.querySelector("#sc-btn-save")?.addEventListener("click",async()=>{const s=t.querySelector("#sc-btn-save");s&&(s.disabled=!0);try{await this.saveChanges(),this.closeModal()}catch(r){f.error(r.message||"Failed to save navigation changes.")}finally{s&&(s.disabled=!1)}}),this.bindRowEvents(e)}bindRowEvents(t){if(typeof window<"u"&&window.Sortable&&t)try{this._sortableInst&&this._sortableInst.destroy(),this._sortableInst=window.Sortable.create(t,{handle:".sc-drag-handle",animation:180,ghostClass:"sortable-ghost",chosenClass:"sortable-chosen",onEnd:()=>{const e=Array.from(t.querySelectorAll(".sc-module-row")),s=new Map(e.map((r,o)=>[r.dataset.key,o]));this.items.sort((r,o)=>{const a=s.has(r.key)?s.get(r.key):999,n=s.has(o.key)?s.get(o.key):999;return a-n}),this.refreshList(t)}})}catch{}t.querySelectorAll(".sc-btn-up").forEach(e=>{e.addEventListener("click",()=>{const s=parseInt(e.dataset.index,10);if(s>0){const r=this.items[s];this.items[s]=this.items[s-1],this.items[s-1]=r,this.refreshList(t)}})}),t.querySelectorAll(".sc-btn-down").forEach(e=>{e.addEventListener("click",()=>{const s=parseInt(e.dataset.index,10);if(s<this.items.length-1){const r=this.items[s];this.items[s]=this.items[s+1],this.items[s+1]=r,this.refreshList(t)}})}),t.querySelectorAll(".sc-rename-input").forEach(e=>{e.addEventListener("input",()=>{const s=e.dataset.key,r=this.items.find(o=>o.key===s);r&&(r.label=e.value.trim())})}),t.querySelectorAll(".sc-toggle-switch").forEach(e=>{e.addEventListener("change",()=>{const s=e.dataset.key,r=this.items.find(o=>o.key===s);if(r){r.isEnabled=e.checked;const o=e.closest(".sc-module-row");o&&o.classList.toggle("sc-disabled",!e.checked)}})}),t.querySelectorAll(".sc-icon-btn").forEach(e=>{e.addEventListener("click",s=>{s.stopPropagation(),this.openEmojiPicker(e)})})}openEmojiPicker(t){const e=document.getElementById("sc-emoji-picker-dropdown");e&&e.remove();const s=document.createElement("div");s.id="sc-emoji-picker-dropdown",s.style.cssText=`
       position: fixed;
       z-index: 9999999;
       background: var(--color-surface, #fff);
@@ -491,116 +190,4 @@ class SidebarCustomizer {
       grid-template-columns: repeat(6, 1fr);
       gap: 6px;
       max-width: 250px;
-    `;
-
-    POPULAR_ICONS.forEach(emoji => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = emoji;
-      b.style.cssText = 'font-size: 1.25rem; border: none; background: transparent; cursor: pointer; border-radius: 6px; padding: 4px; transition: background 0.1s;';
-      b.onmouseenter = () => { b.style.background = 'rgba(108, 92, 231, 0.15)'; };
-      b.onmouseleave = () => { b.style.background = 'transparent'; };
-      b.onclick = (ev) => {
-        ev.stopPropagation();
-        targetBtn.textContent = emoji;
-        const key = targetBtn.dataset.key;
-        const item = this.items.find(i => i.key === key);
-        if (item) item.icon = emoji;
-        picker.remove();
-      };
-      picker.appendChild(b);
-    });
-
-    document.body.appendChild(picker);
-
-    const rect = targetBtn.getBoundingClientRect();
-    picker.style.left = `${Math.min(window.innerWidth - 260, Math.max(10, rect.left))}px`;
-    picker.style.top = `${rect.bottom + 6}px`;
-
-    const closeHandler = (ev) => {
-      if (!picker.contains(ev.target) && ev.target !== targetBtn) {
-        picker.remove();
-        document.removeEventListener('click', closeHandler);
-      }
-    };
-    setTimeout(() => document.addEventListener('click', closeHandler), 10);
-  }
-
-  applyPreset(presetKey) {
-    const preset = PRESETS[presetKey];
-    if (!preset) return;
-
-    if (presetKey === 'all') {
-      this.items.forEach(item => { item.isEnabled = true; });
-    } else {
-      const activeSet = new Set(preset.keys);
-      this.items.forEach(item => {
-        item.isEnabled = activeSet.has(item.key);
-      });
-      // Re-order according to preset
-      const orderMap = new Map(preset.keys.map((k, idx) => [k, idx]));
-      this.items.sort((a, b) => {
-        const orderA = orderMap.has(a.key) ? orderMap.get(a.key) : 999;
-        const orderB = orderMap.has(b.key) ? orderMap.get(b.key) : 999;
-        return orderA - orderB;
-      });
-    }
-  }
-
-  async saveChanges() {
-    const payload = this.items.map((item, idx) => ({
-      key: item.key,
-      label: item.label,
-      href: item.href,
-      icon: item.icon,
-      isEnabled: item.isEnabled,
-      order: idx + 1
-    }));
-
-    // Personal Save: Always save to LocalStorage for instant recall
-    try {
-      const activeHrefs = payload.filter(i => i.isEnabled).map(i => i.href);
-      localStorage.setItem('sl_sidebar_order', JSON.stringify(activeHrefs));
-      localStorage.setItem('sl_sidebar_order_personal', JSON.stringify(activeHrefs));
-      localStorage.setItem('sl_sidebar_custom_items', JSON.stringify(payload));
-    } catch (e) {}
-
-    // Global Save: If owner/manager and global scope selected, save to backend
-    if (this.saveScope === 'global' && ['owner', 'branch_manager', 'admin'].includes(this.userRole)) {
-      try {
-        const res = await api.put('/api/settings/sidebar', { items: payload });
-        if (!res || !res.success) {
-          throw new Error(res?.message || 'Failed to update global sidebar');
-        }
-      } catch (err) {
-        console.warn('Could not save globally, saved locally:', err.message);
-      }
-    }
-
-    Toast.success('Navigation layout updated successfully!');
-
-    // Trigger sidebar re-render in app
-    if (typeof window.reloadSidebar === 'function') {
-      window.reloadSidebar();
-    } else if (window.App && typeof window.App.updateSidebarForRole === 'function') {
-      window.App.updateSidebarForRole();
-    }
-  }
-
-  closeModal() {
-    if (this.modalInstance) {
-      if (typeof this.modalInstance.close === 'function') {
-        this.modalInstance.close();
-      } else if (typeof BottomSheet !== 'undefined' && BottomSheet.close) {
-        BottomSheet.close();
-      } else if (typeof Modal !== 'undefined' && Modal.closeAll) {
-        Modal.closeAll();
-      }
-      this.modalInstance = null;
-    }
-  }
-}
-
-const instance = new SidebarCustomizer();
-window.SidebarCustomizer = instance;
-export default instance;
+    `,g.forEach(a=>{const n=document.createElement("button");n.type="button",n.textContent=a,n.style.cssText="font-size: 1.25rem; border: none; background: transparent; cursor: pointer; border-radius: 6px; padding: 4px; transition: background 0.1s;",n.onmouseenter=()=>{n.style.background="rgba(108, 92, 231, 0.15)"},n.onmouseleave=()=>{n.style.background="transparent"},n.onclick=d=>{d.stopPropagation(),t.textContent=a;const h=t.dataset.key,b=this.items.find(y=>y.key===h);b&&(b.icon=a),s.remove()},s.appendChild(n)}),document.body.appendChild(s);const r=t.getBoundingClientRect();s.style.left=`${Math.min(window.innerWidth-260,Math.max(10,r.left))}px`,s.style.top=`${r.bottom+6}px`;const o=a=>{!s.contains(a.target)&&a.target!==t&&(s.remove(),document.removeEventListener("click",o))};setTimeout(()=>document.addEventListener("click",o),10)}applyPreset(t){const e=m[t];if(e)if(t==="all")this.items.forEach(s=>{s.isEnabled=!0});else{const s=new Set(e.keys);this.items.forEach(o=>{o.isEnabled=s.has(o.key)});const r=new Map(e.keys.map((o,a)=>[o,a]));this.items.sort((o,a)=>{const n=r.has(o.key)?r.get(o.key):999,d=r.has(a.key)?r.get(a.key):999;return n-d})}}async saveChanges(){const t=this.items.map((e,s)=>({key:e.key,label:e.label,href:e.href,icon:e.icon,isEnabled:e.isEnabled,order:s+1}));try{const e=t.filter(s=>s.isEnabled).map(s=>s.href);localStorage.setItem("sl_sidebar_order",JSON.stringify(e)),localStorage.setItem("sl_sidebar_order_personal",JSON.stringify(e)),localStorage.setItem("sl_sidebar_custom_items",JSON.stringify(t))}catch{}if(this.saveScope==="global"&&["owner","branch_manager","admin"].includes(this.userRole))try{const e=await p.put("/api/settings/sidebar",{items:t});if(!e||!e.success)throw new Error(e?.message||"Failed to update global sidebar")}catch(e){console.warn("Could not save globally, saved locally:",e.message)}f.success("Navigation layout updated successfully!"),typeof window.reloadSidebar=="function"?window.reloadSidebar():window.App&&typeof window.App.updateSidebarForRole=="function"&&window.App.updateSidebarForRole()}closeModal(){this.modalInstance&&(typeof this.modalInstance.close=="function"?this.modalInstance.close():typeof l<"u"&&l.close?l.close():typeof i<"u"&&i.closeAll&&i.closeAll(),this.modalInstance=null)}}const u=new v;window.SidebarCustomizer=u;var E=u;export{E as default};

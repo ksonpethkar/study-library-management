@@ -17,15 +17,15 @@ class n{constructor(t,e){typeof t=="string"?(this.container=document.getElementB
           </tbody>
         </table>
       </div>
-    `,this.container&&(this.container.innerHTML="",this.container.appendChild(t)),t}renderBody(){if(this.filteredData.length===0)return`<tr><td colspan="${(this.config.columns.length||1)+(this.config.selectable?1:0)+(this.config.actions&&this.config.actions.length?1:0)}" style="padding: 24px; text-align: center; color: var(--color-text-muted, #888);">${this.config.emptyMessage}</td></tr>`;const t=(this.currentPage-1)*this.config.pageSize;return this.filteredData.slice(t,t+this.config.pageSize).map(e=>{const s=e._id||e.id||Math.random().toString();return`
+    `,this.container&&(this.container.innerHTML="",this.container.appendChild(t)),t}renderBody(){if(this.filteredData.length===0)return`<tr><td colspan="${(this.config.columns.length||1)+(this.config.selectable?1:0)+(this.config.actions&&this.config.actions.length?1:0)}" style="padding: 24px; text-align: center; color: var(--color-text-muted, #888);">${this.config.emptyMessage}</td></tr>`;const t=(this.currentPage-1)*this.config.pageSize;return this.filteredData.slice(t,t+this.config.pageSize).map(e=>{const i=e._id||e.id||Math.random().toString();return`
         <tr>
-          ${this.config.selectable?`<td style="padding: 12px 16px;"><input type="checkbox" class="dt-select" value="${s}" ${this.selectedIds.has(s)?"checked":""}></td>`:""}
-          ${this.config.columns.map(i=>`
-            <td style="padding: 12px 16px;">${i.render?i.render(e[i.key],e):this.escapeHTML(e[i.key]!==void 0?e[i.key]:"")}</td>
+          ${this.config.selectable?`<td style="padding: 12px 16px;"><input type="checkbox" class="dt-select" value="${i}" ${this.selectedIds.has(i)?"checked":""}></td>`:""}
+          ${this.config.columns.map(s=>`
+            <td style="padding: 12px 16px;">${s.render?s.render(e[s.key],e):this.escapeHTML(e[s.key]!==void 0?e[s.key]:"")}</td>
           `).join("")}
           ${this.config.actions&&this.config.actions.length?`
             <td style="padding: 12px 16px;">
-              ${this.config.actions.map(i=>`<button class="btn btn-sm ${i.className||"btn-outline-primary"}" data-action="${i.name}" data-id="${s}" style="margin-right: 4px;">${this.escapeHTML(i.label)}</button>`).join("")}
+              ${this.config.actions.map(s=>`<button class="btn btn-sm ${s.className||"btn-outline-primary"}" data-action="${s.name}" data-id="${i}" style="margin-right: 4px;">${this.escapeHTML(s.label)}</button>`).join("")}
             </td>
           `:""}
         </tr>

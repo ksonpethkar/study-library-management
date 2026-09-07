@@ -1,4 +1,4 @@
-import w from"../api.js";import{t as l}from"../i18n.js";import{Modal as H,Confirm as M,Toast as u,ActionMenu as D,escapeHTML as v}from"../ui.js";let m=[],F={total:0,active:0,inactive:0,fullDay:0,totalEnrolled:0,studentEnrollment:{},shiftStats:[]},x="all",k="";const L=[{key:"mon",label:"Mon",full:"Monday"},{key:"tue",label:"Tue",full:"Tuesday"},{key:"wed",label:"Wed",full:"Wednesday"},{key:"thu",label:"Thu",full:"Thursday"},{key:"fri",label:"Fri",full:"Friday"},{key:"sat",label:"Sat",full:"Saturday"},{key:"sun",label:"Sun",full:"Sunday"}];function B(t){if(!t)return"";const r=t.split(":"),a=parseInt(r[0],10),e=parseInt(r[1]||"0",10);if(isNaN(a))return t;const o=a>=12?"PM":"AM";return`${(a%12||12).toString().padStart(2,"0")}:${e.toString().padStart(2,"0")} ${o}`}function U(t,r){if(!t||!r)return"";const[a,e]=t.split(":").map(Number),[o,i]=r.split(":").map(Number);let d=a*60+e,f=o*60+i;f<=d&&(f+=1440);const y=f-d,s=Math.floor(y/60),n=y%60;return n===0?`${s} hrs`:`${s}h ${n}m`}async function R(){const t=document.createElement("div");return t.className="page-container",t.innerHTML=`
+import w from"../api.js";import{t as l}from"../i18n.js";import{Modal as H,Confirm as M,Toast as u,ActionMenu as D,escapeHTML as y}from"../ui.js";let m=[],F={total:0,active:0,inactive:0,fullDay:0,totalEnrolled:0,studentEnrollment:{},shiftStats:[]},x="all",k="";const L=[{key:"mon",label:"Mon",full:"Monday"},{key:"tue",label:"Tue",full:"Tuesday"},{key:"wed",label:"Wed",full:"Wednesday"},{key:"thu",label:"Thu",full:"Thursday"},{key:"fri",label:"Fri",full:"Friday"},{key:"sat",label:"Sat",full:"Saturday"},{key:"sun",label:"Sun",full:"Sunday"}];function B(t){if(!t)return"";const r=t.split(":"),a=parseInt(r[0],10),e=parseInt(r[1]||"0",10);if(isNaN(a))return t;const o=a>=12?"PM":"AM";return`${(a%12||12).toString().padStart(2,"0")}:${e.toString().padStart(2,"0")} ${o}`}function U(t,r){if(!t||!r)return"";const[a,e]=t.split(":").map(Number),[o,i]=r.split(":").map(Number);let d=a*60+e,f=o*60+i;f<=d&&(f+=1440);const v=f-d,s=Math.floor(v/60),n=v%60;return n===0?`${s} hrs`:`${s}h ${n}m`}async function R(){const t=document.createElement("div");return t.className="page-container",t.innerHTML=`
     <!-- Header -->
     <div class="page-header d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
       <div>
@@ -108,7 +108,7 @@ import w from"../api.js";import{t as l}from"../i18n.js";import{Modal as H,Confir
     <div id="shifts-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 1.5rem;">
       <!-- Shift cards rendered dynamically -->
     </div>
-  `,setTimeout(()=>{O(t)},0),typeof window<"u"&&window.FAB&&window.FAB.mount({icon:"\u{1F552}",label:"Shift Actions",color:"var(--color-primary, #6c5ce7)",actions:[{icon:"\u2795",label:"Add Shift",onClick:()=>{C()}},{icon:"\u{1FA91}",label:"Seating Hub",onClick:()=>{window.location.hash="#/seats"}}]}),t}async function O(t){const r=t.querySelector("#btn-add-shift");r&&r.addEventListener("click",()=>C());const a=t.querySelector("#shifts-search-input");a&&a.addEventListener("input",i=>{k=i.target.value.toLowerCase().trim(),S()});const e=t.querySelectorAll(".btn-filter");e.forEach(i=>{i.addEventListener("click",()=>{e.forEach(d=>{d.classList.remove("btn-primary"),d.classList.add("btn-outline")}),i.classList.add("btn-primary"),i.classList.remove("btn-outline"),x=i.dataset.filter,S()})});const o=t.querySelector("#shifts-grid");o&&(o.addEventListener("click",i=>{const d=i.target.closest(".action-menu-item");if(d){i.preventDefault(),i.stopPropagation();const n=d.dataset.action,c=d.dataset.id,p=m.find(h=>String(h._id||h.id)===String(c));n==="edit"?p&&C(p):n==="clone"?p&&q(p):n==="delete"?N(c):n==="delete-permanent"?W(c):n==="toggle-active"?p&&j(c,!p.isActive):n==="seats"&&(window.location.hash="#/seats");return}const f=i.target.closest(".btn-clone-shift");if(f){i.preventDefault(),i.stopPropagation();const n=f.dataset.id,c=m.find(p=>String(p._id||p.id)===String(n));c&&q(c);return}const y=i.target.closest(".btn-edit-shift");if(y){i.preventDefault(),i.stopPropagation();const n=y.dataset.id,c=m.find(p=>String(p._id||p.id)===String(n));c&&C(c);return}const s=i.target.closest(".btn-delete-shift");if(s){i.preventDefault(),i.stopPropagation();const n=s.dataset.id;N(n);return}}),o.addEventListener("change",i=>{if(i.target.classList.contains("shift-active-toggle")){const d=i.target.dataset.id,f=i.target.checked;j(d,f)}})),await A()}async function A(){const t=document.getElementById("shifts-grid");t&&(!m||m.length===0)&&(t.innerHTML=`
+  `,setTimeout(()=>{O(t)},0),typeof window<"u"&&window.FAB&&window.FAB.mount({icon:"\u{1F552}",label:"Shift Actions",color:"var(--color-primary, #6c5ce7)",actions:[{icon:"\u2795",label:"Add Shift",onClick:()=>{C()}},{icon:"\u{1FA91}",label:"Seating Hub",onClick:()=>{window.location.hash="#/seats"}}]}),t}async function O(t){const r=t.querySelector("#btn-add-shift");r&&r.addEventListener("click",()=>C());const a=t.querySelector("#shifts-search-input");a&&a.addEventListener("input",i=>{k=i.target.value.toLowerCase().trim(),S()});const e=t.querySelectorAll(".btn-filter");e.forEach(i=>{i.addEventListener("click",()=>{e.forEach(d=>{d.classList.remove("btn-primary"),d.classList.add("btn-outline")}),i.classList.add("btn-primary"),i.classList.remove("btn-outline"),x=i.dataset.filter,S()})});const o=t.querySelector("#shifts-grid");o&&(o.addEventListener("click",i=>{const d=i.target.closest(".action-menu-item");if(d){i.preventDefault(),i.stopPropagation();const n=d.dataset.action,c=d.dataset.id,p=m.find(h=>String(h._id||h.id)===String(c));n==="edit"?p&&C(p):n==="clone"?p&&q(p):n==="delete"?N(c):n==="delete-permanent"?W(c):n==="toggle-active"?p&&j(c,!p.isActive):n==="seats"&&(window.location.hash="#/seats");return}const f=i.target.closest(".btn-clone-shift");if(f){i.preventDefault(),i.stopPropagation();const n=f.dataset.id,c=m.find(p=>String(p._id||p.id)===String(n));c&&q(c);return}const v=i.target.closest(".btn-edit-shift");if(v){i.preventDefault(),i.stopPropagation();const n=v.dataset.id,c=m.find(p=>String(p._id||p.id)===String(n));c&&C(c);return}const s=i.target.closest(".btn-delete-shift");if(s){i.preventDefault(),i.stopPropagation();const n=s.dataset.id;N(n);return}}),o.addEventListener("change",i=>{if(i.target.classList.contains("shift-active-toggle")){const d=i.target.dataset.id,f=i.target.checked;j(d,f)}})),await A()}async function A(){const t=document.getElementById("shifts-grid");t&&(!m||m.length===0)&&(t.innerHTML=`
       <div style="grid-column: 1 / -1; padding: 3rem; text-align: center; color: var(--color-text-secondary);">
         <div class="loading-spinner" style="margin: 0 auto 1rem auto;"></div>
         <div>Loading shifts &amp; schedules...</div>
@@ -131,11 +131,11 @@ import w from"../api.js";import{t as l}from"../i18n.js";import{Modal as H,Confir
           </button>
         `:""}
       </div>
-    `;return}let a="";r.forEach(e=>{const o=B(e.startTime),i=B(e.endTime),d=U(e.startTime,e.endTime),f=F.studentEnrollment?.[e.code]||0,y=e.maxCapacity||0;let s="";if(y>0){const g=Math.min(100,Math.round(f/y*100));let $="var(--color-success)";g>=90?$="var(--color-danger)":g>=70&&($="var(--color-warning-dark)"),s=`
+    `;return}let a="";r.forEach(e=>{const o=B(e.startTime),i=B(e.endTime),d=U(e.startTime,e.endTime),f=F.studentEnrollment?.[e.code]||0,v=e.maxCapacity||0;let s="";if(v>0){const g=Math.min(100,Math.round(f/v*100));let $="var(--color-success)";g>=90?$="var(--color-danger)":g>=70&&($="var(--color-warning-dark)"),s=`
         <div style="margin-top: 12px; background: var(--color-bg-primary); padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border-light);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 0.82rem;">
             <span style="color: var(--color-text-secondary); font-weight: 500;">Capacity Occupancy</span>
-            <span style="font-weight: 600; color: var(--color-text-primary);">${f} / ${y} seats (${g}%)</span>
+            <span style="font-weight: 600; color: var(--color-text-primary);">${f} / ${v} seats (${g}%)</span>
           </div>
           <div style="width: 100%; height: 6px; background: var(--color-border); border-radius: 3px; overflow: hidden;">
             <div style="width: ${g}%; height: 100%; background: ${$}; border-radius: 3px; transition: width 0.4s ease;"></div>
@@ -153,10 +153,10 @@ import w from"../api.js";import{t as l}from"../i18n.js";import{Modal as H,Confir
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.85rem; gap: 8px;">
             <div>
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary);">${v(e.name)}</h3>
-                <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); font-weight: 700; font-size: 0.75rem; letter-spacing: 0.5px;">${v(e.code)}</span>
+                <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary);">${y(e.name)}</h3>
+                <span class="badge" style="background: var(--color-primary-bg); color: var(--color-primary); font-weight: 700; font-size: 0.75rem; letter-spacing: 0.5px;">${y(e.code)}</span>
               </div>
-              ${e.description?`<p style="margin: 4px 0 0 0; font-size: 0.83rem; color: var(--color-text-secondary); line-height: 1.35;">${v(e.description)}</p>`:""}
+              ${e.description?`<p style="margin: 4px 0 0 0; font-size: 0.83rem; color: var(--color-text-secondary); line-height: 1.35;">${y(e.description)}</p>`:""}
             </div>
             ${h}
           </div>
@@ -175,7 +175,7 @@ import w from"../api.js";import{t as l}from"../i18n.js";import{Modal as H,Confir
                   ${o} &mdash; ${i}
                 </div>
                 <div style="font-size: 0.76rem; color: var(--color-text-secondary); margin-top: 1px;">
-                  24h: ${v(e.startTime)} to ${v(e.endTime)}
+                  24h: ${y(e.startTime)} to ${y(e.endTime)}
                 </div>
               </div>
             </div>
@@ -229,7 +229,7 @@ import w from"../api.js";import{t as l}from"../i18n.js";import{Modal as H,Confir
       </label>
     `}),o+="</div>";const i=document.createElement("div");i.innerHTML=`
     <form id="shift-form" style="display: flex; flex-direction: column; gap: 1rem;">
-      <input type="hidden" id="shift-modal-id" value="${r?v(t._id):""}">
+      <input type="hidden" id="shift-modal-id" value="${r?y(t._id):""}">
       
       <!-- Name & Code -->
       <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
@@ -237,13 +237,13 @@ import w from"../api.js";import{t as l}from"../i18n.js";import{Modal as H,Confir
           <label for="shift-modal-name" class="form-label" style="font-weight: 600; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 4px;">
             ${l("Shift Name")} <span style="color: var(--color-danger);">*</span>
           </label>
-          <input type="text" id="shift-modal-name" class="form-control" required placeholder="e.g. Morning Shift, Full Day" value="${r?v(t.name):""}">
+          <input type="text" id="shift-modal-name" class="form-control" required placeholder="e.g. Morning Shift, Full Day" value="${r?y(t.name):""}">
         </div>
         <div>
           <label for="shift-modal-code" class="form-label" style="font-weight: 600; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 4px;">
             ${l("Code")} <span style="color: var(--color-danger);">*</span>
           </label>
-          <input type="text" id="shift-modal-code" class="form-control" required maxlength="10" placeholder="e.g. MORN" value="${r?v(t.code):""}" style="text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
+          <input type="text" id="shift-modal-code" class="form-control" required maxlength="10" placeholder="e.g. MORN" value="${r?y(t.code):""}" style="text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">
         </div>
       </div>
 
@@ -253,13 +253,13 @@ import w from"../api.js";import{t as l}from"../i18n.js";import{Modal as H,Confir
           <label for="shift-modal-start" class="form-label" style="font-weight: 600; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 4px;">
             ${l("Start Time")} <span style="color: var(--color-danger);">*</span>
           </label>
-          <input type="time" id="shift-modal-start" class="form-control" required value="${r?v(t.startTime):"06:00"}">
+          <input type="time" id="shift-modal-start" class="form-control" required value="${r?y(t.startTime):"06:00"}">
         </div>
         <div>
           <label for="shift-modal-end" class="form-label" style="font-weight: 600; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 4px;">
             ${l("End Time")} <span style="color: var(--color-danger);">*</span>
           </label>
-          <input type="time" id="shift-modal-end" class="form-control" required value="${r?v(t.endTime):"14:00"}">
+          <input type="time" id="shift-modal-end" class="form-control" required value="${r?y(t.endTime):"14:00"}">
         </div>
       </div>
 
@@ -300,7 +300,7 @@ import w from"../api.js";import{t as l}from"../i18n.js";import{Modal as H,Confir
         <label for="shift-modal-description" class="form-label" style="font-weight: 600; font-size: 0.88rem; color: var(--color-text-primary); margin-bottom: 4px;">
           ${l("Description")}
         </label>
-        <textarea id="shift-modal-description" class="form-control" rows="2" placeholder="Brief notes or timing highlights...">${r?v(t.description||""):""}</textarea>
+        <textarea id="shift-modal-description" class="form-control" rows="2" placeholder="Brief notes or timing highlights...">${r?y(t.description||""):""}</textarea>
       </div>
 
       <!-- Active Checkbox -->
@@ -311,4 +311,4 @@ import w from"../api.js";import{t as l}from"../i18n.js";import{Modal as H,Confir
         </label>
       </div>
     </form>
-  `;const d=i.querySelector("#btn-select-all-days");d&&(d.onclick=()=>{i.querySelectorAll('input[name="daysActive"]').forEach(s=>s.checked=!0)});const f=i.querySelector("#btn-select-weekdays");f&&(f.onclick=()=>{i.querySelectorAll('input[name="daysActive"]').forEach(s=>{s.checked=["mon","tue","wed","thu","fri"].includes(s.value)})});const y=i.querySelector("#shift-modal-code");y&&y.addEventListener("input",s=>{s.target.value=s.target.value.toUpperCase()}),H.show({title:a,content:i,size:"md",buttons:[{text:l("Cancel"),className:"btn-secondary",onClick:s=>s.close()},{text:r?l("Update Shift"):l("Create Shift"),className:"btn-primary",onClick:async s=>{const n=i.querySelector("#shift-form");if(!n.checkValidity()){n.reportValidity();return}const c=i.querySelector("#shift-modal-name").value.trim(),p=i.querySelector("#shift-modal-code").value.trim().toUpperCase(),h=i.querySelector("#shift-modal-start").value.trim(),E=i.querySelector("#shift-modal-end").value.trim(),g=parseInt(i.querySelector("#shift-modal-capacity").value,10)||0,$=parseFloat(i.querySelector("#shift-modal-multiplier").value)||1,_=i.querySelector("#shift-modal-description").value.trim(),P=i.querySelector("#shift-modal-active").checked,z=Array.from(i.querySelectorAll('input[name="daysActive"]:checked')).map(b=>b.value),I=z.length>0?z:["mon","tue","wed","thu","fri","sat","sun"];if(!c||!p||!h||!E){u.error("Please fill in all required fields (Name, Code, Start Time, End Time)");return}const T={name:c,code:p,startTime:h,endTime:E,maxCapacity:g,priceMultiplier:$,daysActive:I,description:_,isActive:P};try{let b;r?b=await w.put(`/api/shifts/${t._id}`,T):b=await w.post("/api/shifts",T),b.success?(u.success(b.message||(r?"Shift updated successfully":"Shift created successfully")),s.close(),await A()):u.error(b.message||"Failed to save shift")}catch(b){u.error(b.message||"Failed to save shift")}}}]})}async function j(t,r){try{const a=await w.put(`/api/shifts/${t}`,{isActive:r});if(a.success){u.success(r?"Shift activated":"Shift deactivated");const e=m.find(o=>o._id===t);e&&(e.isActive=r),await A()}else u.error(a.message||"Failed to update shift status"),S()}catch(a){u.error(a.message||"Failed to update shift status"),S()}}async function N(t){const r=m.find(e=>String(e._id||e.id)===String(t)),a=r?r.name:"this shift";M.show({title:l("Delete Shift"),message:`Are you sure you want to delete "${v(a)}"? It will be moved to the Recycle Bin (Trash) and removed from shift selection.`,confirmText:"Delete Shift",cancelText:"Cancel",danger:!0,onConfirm:async()=>{try{const e=await w.delete(`/api/shifts/${t}`);e&&e.success!==!1?(u.success(e.message||`Shift "${a}" deleted successfully`),m=m.filter(o=>String(o._id||o.id)!==String(t)),S(),await A()):u.error(e?.message||"Failed to delete shift")}catch(e){u.error(e.message||"Failed to delete shift")}}})}async function W(t){const r=m.find(e=>String(e._id||e.id)===String(t)),a=r?r.name:"this shift";M.show({title:l("Permanently Erase Shift"),message:`\u26A0\uFE0F Warning: This will PERMANENTLY DESTROY "${v(a)}" from the database. This action CANNOT be undone! Are you sure?`,confirmText:"Permanently Erase",cancelText:"Cancel",danger:!0,onConfirm:async()=>{try{const e=await w.delete(`/api/shifts/${t}?permanent=true`);e&&e.success!==!1?(u.success(e.message||`Shift "${a}" permanently erased`),m=m.filter(o=>String(o._id||o.id)!==String(t)),S(),await A()):u.error(e?.message||"Failed to permanently delete shift")}catch(e){u.error(e.message||"Failed to permanently delete shift")}}})}export{R as render};
+  `;const d=i.querySelector("#btn-select-all-days");d&&(d.onclick=()=>{i.querySelectorAll('input[name="daysActive"]').forEach(s=>s.checked=!0)});const f=i.querySelector("#btn-select-weekdays");f&&(f.onclick=()=>{i.querySelectorAll('input[name="daysActive"]').forEach(s=>{s.checked=["mon","tue","wed","thu","fri"].includes(s.value)})});const v=i.querySelector("#shift-modal-code");v&&v.addEventListener("input",s=>{s.target.value=s.target.value.toUpperCase()}),H.show({title:a,content:i,size:"md",buttons:[{text:l("Cancel"),className:"btn-secondary",onClick:s=>s.close()},{text:r?l("Update Shift"):l("Create Shift"),className:"btn-primary",onClick:async s=>{const n=i.querySelector("#shift-form");if(!n.checkValidity()){n.reportValidity();return}const c=i.querySelector("#shift-modal-name").value.trim(),p=i.querySelector("#shift-modal-code").value.trim().toUpperCase(),h=i.querySelector("#shift-modal-start").value.trim(),E=i.querySelector("#shift-modal-end").value.trim(),g=parseInt(i.querySelector("#shift-modal-capacity").value,10)||0,$=parseFloat(i.querySelector("#shift-modal-multiplier").value)||1,_=i.querySelector("#shift-modal-description").value.trim(),P=i.querySelector("#shift-modal-active").checked,z=Array.from(i.querySelectorAll('input[name="daysActive"]:checked')).map(b=>b.value),I=z.length>0?z:["mon","tue","wed","thu","fri","sat","sun"];if(!c||!p||!h||!E){u.error("Please fill in all required fields (Name, Code, Start Time, End Time)");return}const T={name:c,code:p,startTime:h,endTime:E,maxCapacity:g,priceMultiplier:$,daysActive:I,description:_,isActive:P};try{let b;r?b=await w.put(`/api/shifts/${t._id}`,T):b=await w.post("/api/shifts",T),b.success?(u.success(b.message||(r?"Shift updated successfully":"Shift created successfully")),s.close(),await A()):u.error(b.message||"Failed to save shift")}catch(b){u.error(b.message||"Failed to save shift")}}}]})}async function j(t,r){try{const a=await w.put(`/api/shifts/${t}`,{isActive:r});if(a.success){u.success(r?"Shift activated":"Shift deactivated");const e=m.find(o=>o._id===t);e&&(e.isActive=r),await A()}else u.error(a.message||"Failed to update shift status"),S()}catch(a){u.error(a.message||"Failed to update shift status"),S()}}async function N(t){const r=m.find(e=>String(e._id||e.id)===String(t)),a=r?r.name:"this shift";M.show({title:l("Delete Shift"),message:`Are you sure you want to delete "${y(a)}"? It will be moved to the Recycle Bin (Trash) and removed from shift selection.`,confirmText:"Delete Shift",cancelText:"Cancel",danger:!0,onConfirm:async()=>{try{const e=await w.delete(`/api/shifts/${t}`);e&&e.success!==!1?(u.success(e.message||`Shift "${a}" deleted successfully`),m=m.filter(o=>String(o._id||o.id)!==String(t)),S(),await A()):u.error(e?.message||"Failed to delete shift")}catch(e){u.error(e.message||"Failed to delete shift")}}})}async function W(t){const r=m.find(e=>String(e._id||e.id)===String(t)),a=r?r.name:"this shift";M.show({title:l("Permanently Erase Shift"),message:`\u26A0\uFE0F Warning: This will PERMANENTLY DESTROY "${y(a)}" from the database. This action CANNOT be undone! Are you sure?`,confirmText:"Permanently Erase",cancelText:"Cancel",danger:!0,onConfirm:async()=>{try{const e=await w.delete(`/api/shifts/${t}?permanent=true`);e&&e.success!==!1?(u.success(e.message||`Shift "${a}" permanently erased`),m=m.filter(o=>String(o._id||o.id)!==String(t)),S(),await A()):u.error(e?.message||"Failed to permanently delete shift")}catch(e){u.error(e.message||"Failed to permanently delete shift")}}})}export{R as render};
