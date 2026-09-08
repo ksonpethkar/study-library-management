@@ -1,4 +1,4 @@
-import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,Confirm as C,escapeHTML as r,debounce as P,UI as O}from"../ui.js";import y from"../api.js";import{IDBStorage as D}from"../utils/idbStorage.js";import{OptimisticUI as G}from"../utils/optimisticUI.js";let L="seats",w="all",q="",B="",N="",S=[],F=[],U=[],k=new Set;const V=[{id:"AC",label:"AC",icon:"\u2744\uFE0F"},{id:"WiFi",label:"High Speed WiFi",icon:"\u{1F4F6}"},{id:"CCTV",label:"CCTV Surveillance",icon:"\u{1F4F9}"},{id:"Power Backup",label:"Power Backup",icon:"\u26A1"},{id:"RO Water",label:"RO Drinking Water",icon:"\u{1F4A7}"},{id:"Locker",label:"Personal Lockers",icon:"\u{1F512}"},{id:"Cafeteria",label:"Cafeteria / Pantry",icon:"\u2615"},{id:"Discussion Room",label:"Discussion Room",icon:"\u{1F5E3}\uFE0F"},{id:"Parking",label:"Two Wheeler Parking",icon:"\u{1F697}"},{id:"Biometric Access",label:"Biometric Access",icon:"\u{1F446}"}];async function J(){const e=document.createElement("div");e.className="centers-seats-hub-page page-container";const t=window.location.hash;if(t.includes("?")){const o=new URLSearchParams(t.split("?")[1]);o.get("tab")&&(L=o.get("tab")),o.get("branch")&&(w=o.get("branch"))}return e.innerHTML=`
+import"../app.js";import"../i18n.js";import{Toast as p,Modal as z,Loading as x,Confirm as L,escapeHTML as r,debounce as O,UI as G}from"../ui.js";import y from"../api.js";import{IDBStorage as D}from"../utils/idbStorage.js";import{OptimisticUI as B}from"../utils/optimisticUI.js";let q="seats",S="all",T="",N="",_="",w=[],F=[],U=[],k=new Set;const V=[{id:"AC",label:"AC",icon:"\u2744\uFE0F"},{id:"WiFi",label:"High Speed WiFi",icon:"\u{1F4F6}"},{id:"CCTV",label:"CCTV Surveillance",icon:"\u{1F4F9}"},{id:"Power Backup",label:"Power Backup",icon:"\u{1F50B}"},{id:"RO Water",label:"RO Drinking Water",icon:"\u{1F4A7}"},{id:"Locker",label:"Personal Lockers",icon:"\u{1F512}"},{id:"Cafeteria",label:"Cafeteria / Pantry",icon:"\u2615"},{id:"Discussion Room",label:"Discussion Room",icon:"\u{1F5E3}\uFE0F"},{id:"Parking",label:"Two Wheeler Parking",icon:"\u{1F697}"},{id:"Biometric Access",label:"Biometric Access",icon:"\u{1F446}"}];async function J(){const e=document.createElement("div");e.className="centers-seats-hub-page page-container";const t=window.location.hash;if(t.includes("?")){const o=new URLSearchParams(t.split("?")[1]);o.get("tab")&&(q=o.get("tab")),o.get("branch")&&(S=o.get("branch"))}return e.innerHTML=`
     <!-- Standard Module Header -->
     <div class="module-header">
       <div class="module-title-area">
@@ -21,7 +21,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
           + Add Single Seat
         </button>
         <button id="btn-hub-bulk-seats" class="btn btn-primary" style="font-weight: 600;">
-          \u26A1 Bulk Add Seats
+          \u{1F680} Bulk Add Seats
         </button>
         <button id="btn-hub-add-branch" class="btn btn-success" style="font-weight: 600;">
           \u{1F3E2} + New Branch
@@ -38,13 +38,13 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
     <!-- Hub View Switcher Tabs -->
     <div class="card p-2 mb-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
       <div class="d-flex gap-2 flex-wrap">
-        <button type="button" class="btn btn-sm ${L==="seats"?"btn-primary":"btn-ghost text-muted"} hub-tab-btn" data-tab="seats" style="font-weight: 700; font-size: 0.9rem; padding: 6px 16px;">
+        <button type="button" class="btn btn-sm ${q==="seats"?"btn-primary":"btn-ghost text-muted"} hub-tab-btn" data-tab="seats" style="font-weight: 700; font-size: 0.9rem; padding: 6px 16px;">
           \u{1F4BA} Seats Matrix & Floor Plan
         </button>
-        <button type="button" class="btn btn-sm ${L==="centers"?"btn-primary":"btn-ghost text-muted"} hub-tab-btn" data-tab="centers" style="font-weight: 700; font-size: 0.9rem; padding: 6px 16px;">
+        <button type="button" class="btn btn-sm ${q==="centers"?"btn-primary":"btn-ghost text-muted"} hub-tab-btn" data-tab="centers" style="font-weight: 700; font-size: 0.9rem; padding: 6px 16px;">
           \u{1F3E2} Study Centers & Branches (<span id="tab-branches-count">0</span>)
         </button>
-        <button type="button" class="btn btn-sm ${L==="analytics"?"btn-primary":"btn-ghost text-muted"} hub-tab-btn" data-tab="analytics" style="font-weight: 700; font-size: 0.9rem; padding: 6px 16px;">
+        <button type="button" class="btn btn-sm ${q==="analytics"?"btn-primary":"btn-ghost text-muted"} hub-tab-btn" data-tab="analytics" style="font-weight: 700; font-size: 0.9rem; padding: 6px 16px;">
           \u{1F4CA} Multi-Branch Occupancy & Comparison
         </button>
       </div>
@@ -53,7 +53,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
     <!-- ========================================================= -->
     <!-- VIEW 1: SEATS MATRIX & FLOOR PLAN -->
     <!-- ========================================================= -->
-    <div class="hub-view" id="view-seats" style="${L==="seats"?"":"display: none;"}">
+    <div class="hub-view" id="view-seats" style="${q==="seats"?"":"display: none;"}">
       
       <!-- Standardized KPI Stats Grid -->
       <div class="kpi-grid" id="seatsStatsContainer">
@@ -163,7 +163,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
     <!-- ========================================================= -->
     <!-- VIEW 2: STUDY CENTERS & BRANCHES OVERVIEW -->
     <!-- ========================================================= -->
-    <div class="hub-view" id="view-centers" style="${L==="centers"?"":"display: none;"}">
+    <div class="hub-view" id="view-centers" style="${q==="centers"?"":"display: none;"}">
       <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">\u{1F3E2} Study Library Branches & Centers</h3>
         <button class="btn btn-success btn-sm btn-trigger-add-branch">+ Add New Branch Center</button>
@@ -178,7 +178,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
     <!-- ========================================================= -->
     <!-- VIEW 3: MULTI-BRANCH ANALYTICS & COMPARISON -->
     <!-- ========================================================= -->
-    <div class="hub-view" id="view-analytics" style="${L==="analytics"?"":"display: none;"}">
+    <div class="hub-view" id="view-analytics" style="${q==="analytics"?"":"display: none;"}">
       <div class="card p-4" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg);">
         <h3 style="margin: 0 0 1rem 0; font-size: 1.2rem; font-weight: 700;">\u{1F4CA} Cross-Branch Performance & Occupancy Matrix</h3>
         
@@ -203,19 +203,19 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         </div>
       </div>
     </div>
-  `,ee(e),setTimeout(async()=>{await H(e)},0),typeof window<"u"&&window.FAB&&window.FAB.mount({icon:"\u{1FA91}",label:"Seat Actions",color:"#fd79a8",actions:[{icon:"\u2795",label:"Add Seats",onClick:()=>{Z(e)}},{icon:"\u{1F5FA}\uFE0F",label:"Seat Map Grid",onClick:()=>{switchHubTab(e,"seats")}},{icon:"\u{1F4CA}",label:"Occupancy Report",onClick:()=>{window.location.hash="#/reports"}}]}),e}function ee(e){e.querySelectorAll(".hub-tab-btn").forEach(t=>{t.addEventListener("click",()=>{const o=t.dataset.tab;L=o,e.querySelectorAll(".hub-tab-btn").forEach(n=>{n.classList.remove("btn-primary"),n.classList.add("btn-ghost","text-muted")}),t.classList.add("btn-primary"),t.classList.remove("btn-ghost","text-muted"),e.querySelectorAll(".hub-view").forEach(n=>n.style.display="none"),e.querySelector(`#view-${o}`).style.display="block",o==="centers"&&Y(e),o==="analytics"&&Q(e),o==="seats"&&h(e)})}),e.querySelector("#btn-hub-add-seat")?.addEventListener("click",()=>se(e)),e.querySelector("#btn-hub-bulk-seats")?.addEventListener("click",()=>Z(e)),e.querySelector("#btn-hub-add-branch")?.addEventListener("click",()=>_(null,e)),e.querySelector(".btn-trigger-add-branch")?.addEventListener("click",()=>_(null,e)),e.querySelector("#waitingListBtn")?.addEventListener("click",ie),e.querySelector("#btn-cross-transfer")?.addEventListener("click",()=>te(e)),e.querySelector("#btn-zone-customizer")?.addEventListener("click",()=>I(e)),e.querySelector("#seat-branch-selector")?.addEventListener("change",t=>{w=t.target.value,k.clear(),T(e),$(e),E(e),h(e)}),e.querySelector("#seat-status-filter")?.addEventListener("change",t=>{B=t.target.value,h(e)}),e.querySelectorAll(".shift-pill-btn").forEach(t=>{t.addEventListener("click",()=>{e.querySelectorAll(".shift-pill-btn").forEach(o=>{o.classList.remove("btn-primary","active"),o.classList.add("btn-outline-secondary")}),t.classList.add("btn-primary","active"),t.classList.remove("btn-outline-secondary"),h(e)})}),e.querySelector("#seat-search-input")?.addEventListener("input",P(t=>{N=t.target.value.trim(),h(e)},250)),e.querySelector("#btn-toggle-select-all")?.addEventListener("click",()=>{k.size===S.length?k.clear():S.forEach(t=>k.add(t._id)),T(e),M(S,e)}),e.querySelector("#btn-bulk-cancel")?.addEventListener("click",()=>{k.clear(),T(e),M(S,e)}),e.querySelector("#btn-bulk-delete")?.addEventListener("click",()=>ne(e)),e.querySelector("#btn-bulk-rezone")?.addEventListener("click",()=>oe(e)),e.querySelector("#btn-bulk-rebranch")?.addEventListener("click",()=>re(e)),e.querySelector("#btn-bulk-status")?.addEventListener("click",()=>le(e))}async function H(e){try{const[t,o]=await Promise.all([y.get("/api/branches"),y.get("/api/branches/managers").catch(()=>({data:[]}))]);if(t.success&&t.data){F=t.data,e.querySelector("#tab-branches-count").textContent=F.length;const n=e.querySelector("#seat-branch-selector");if(n){let d=`<option value="all" ${w==="all"?"selected":""}>\u{1F310} All Branches</option>`;F.forEach(a=>{d+=`<option value="${a._id}" ${w===a._id?"selected":""}>\u{1F3E2} ${r(a.name)} (${r(a.code||"")})</option>`}),d+=`<option value="unassigned" ${w==="unassigned"?"selected":""}>Unassigned Branch</option>`,n.innerHTML=d}}o.success&&o.data&&(U=o.data),await Promise.all([$(e),E(e),h(e)]),Y(e),Q(e)}catch(t){console.error("Failed initial hub data load:",t)}}async function $(e){const t=e||document.querySelector(".centers-seats-hub-page")||document,o=w!=="all"?`?branch=${w}`:"";try{const[n,d]=await Promise.all([y.get(`/api/seats/stats${o}`),y.get("/api/waiting-list").catch(()=>({data:{}}))]);if(n.success&&n.data){const a=n.data;t.querySelector("#stat-total")&&(t.querySelector("#stat-total").textContent=a.total??0),t.querySelector("#stat-available")&&(t.querySelector("#stat-available").textContent=a.available??0),t.querySelector("#stat-occupied")&&(t.querySelector("#stat-occupied").textContent=a.occupied??0),t.querySelector("#stat-reserved")&&(t.querySelector("#stat-reserved").textContent=a.reserved??0),t.querySelector("#stat-maintenance")&&(t.querySelector("#stat-maintenance").textContent=a.maintenance??0)}if(d?.success&&d?.data?.counts){const a=t.querySelector("#waiting-badge");if(a){const i=d.data.counts.waiting||0;a.textContent=i,a.style.display=i>0?"inline-block":"none"}}}catch(n){console.error("Error loading stats:",n)}}async function E(e){const t=e||document.querySelector(".centers-seats-hub-page")||document,o=t.querySelector("#zone-pills-container");if(!o)return;const n=w!=="all"?`?branch=${w}`:"",d=a=>{let i=a.reduce((l,s)=>l+(s.count||0),0),c=`
-      <button type="button" class="btn btn-sm ${q===""?"btn-primary":"btn-outline-secondary"} zone-pill-btn" data-zone="" style="border-radius: 20px; font-weight: 600; white-space: nowrap; flex-shrink: 0; padding: 6px 14px;">
+  `,ee(e),setTimeout(async()=>{await j(e)},0),typeof window<"u"&&window.FAB&&window.FAB.mount({icon:"\u{1FA91}",label:"Seat Actions",color:"#fd79a8",actions:[{icon:"\u2795",label:"Add Seats",onClick:()=>{I(e)}},{icon:"\u{1F5FA}\uFE0F",label:"Seat Map Grid",onClick:()=>{switchHubTab(e,"seats")}},{icon:"\u{1F4CA}",label:"Occupancy Report",onClick:()=>{window.location.hash="#/reports"}}]}),e}function ee(e){e.querySelectorAll(".hub-tab-btn").forEach(t=>{t.addEventListener("click",()=>{const o=t.dataset.tab;q=o,e.querySelectorAll(".hub-tab-btn").forEach(n=>{n.classList.remove("btn-primary"),n.classList.add("btn-ghost","text-muted")}),t.classList.add("btn-primary"),t.classList.remove("btn-ghost","text-muted"),e.querySelectorAll(".hub-view").forEach(n=>n.style.display="none"),e.querySelector(`#view-${o}`).style.display="block",o==="centers"&&Y(e),o==="analytics"&&Q(e),o==="seats"&&h(e)})}),e.querySelector("#btn-hub-add-seat")?.addEventListener("click",()=>se(e)),e.querySelector("#btn-hub-bulk-seats")?.addEventListener("click",()=>I(e)),e.querySelector("#btn-hub-add-branch")?.addEventListener("click",()=>R(null,e)),e.querySelector(".btn-trigger-add-branch")?.addEventListener("click",()=>R(null,e)),e.querySelector("#waitingListBtn")?.addEventListener("click",ie),e.querySelector("#btn-cross-transfer")?.addEventListener("click",()=>te(e)),e.querySelector("#btn-zone-customizer")?.addEventListener("click",()=>P(e)),e.querySelector("#seat-branch-selector")?.addEventListener("change",t=>{S=t.target.value,k.clear(),M(e),$(e),E(e),h(e)}),e.querySelector("#seat-status-filter")?.addEventListener("change",t=>{N=t.target.value,h(e)}),e.querySelectorAll(".shift-pill-btn").forEach(t=>{t.addEventListener("click",()=>{e.querySelectorAll(".shift-pill-btn").forEach(o=>{o.classList.remove("btn-primary","active"),o.classList.add("btn-outline-secondary")}),t.classList.add("btn-primary","active"),t.classList.remove("btn-outline-secondary"),h(e)})}),e.querySelector("#seat-search-input")?.addEventListener("input",O(t=>{_=t.target.value.trim(),h(e)},250)),e.querySelector("#btn-toggle-select-all")?.addEventListener("click",()=>{k.size===w.length?k.clear():w.forEach(t=>k.add(t._id)),M(e),C(w,e)}),e.querySelector("#btn-bulk-cancel")?.addEventListener("click",()=>{k.clear(),M(e),C(w,e)}),e.querySelector("#btn-bulk-delete")?.addEventListener("click",()=>ne(e)),e.querySelector("#btn-bulk-rezone")?.addEventListener("click",()=>oe(e)),e.querySelector("#btn-bulk-rebranch")?.addEventListener("click",()=>re(e)),e.querySelector("#btn-bulk-status")?.addEventListener("click",()=>le(e))}async function j(e){try{const[t,o]=await Promise.all([y.get("/api/branches"),y.get("/api/branches/managers").catch(()=>({data:[]}))]);if(t.success&&t.data){F=t.data,e.querySelector("#tab-branches-count").textContent=F.length;const n=e.querySelector("#seat-branch-selector");if(n){let d=`<option value="all" ${S==="all"?"selected":""}>\u{1F310} All Branches</option>`;F.forEach(s=>{d+=`<option value="${s._id}" ${S===s._id?"selected":""}>\u{1F3E2} ${r(s.name)} (${r(s.code||"")})</option>`}),d+=`<option value="unassigned" ${S==="unassigned"?"selected":""}>Unassigned Branch</option>`,n.innerHTML=d}}o.success&&o.data&&(U=o.data),await Promise.all([$(e),E(e),h(e)]),Y(e),Q(e)}catch(t){console.error("Failed initial hub data load:",t)}}async function $(e){const t=e||document.querySelector(".centers-seats-hub-page")||document,o=S!=="all"?`?branch=${S}`:"";try{const[n,d]=await Promise.all([y.get(`/api/seats/stats${o}`),y.get("/api/waiting-list").catch(()=>({data:{}}))]);if(n.success&&n.data){const s=n.data;t.querySelector("#stat-total")&&(t.querySelector("#stat-total").textContent=s.total??0),t.querySelector("#stat-available")&&(t.querySelector("#stat-available").textContent=s.available??0),t.querySelector("#stat-occupied")&&(t.querySelector("#stat-occupied").textContent=s.occupied??0),t.querySelector("#stat-reserved")&&(t.querySelector("#stat-reserved").textContent=s.reserved??0),t.querySelector("#stat-maintenance")&&(t.querySelector("#stat-maintenance").textContent=s.maintenance??0)}if(d?.success&&d?.data?.counts){const s=t.querySelector("#waiting-badge");if(s){const i=d.data.counts.waiting||0;s.textContent=i,s.style.display=i>0?"inline-block":"none"}}}catch(n){console.error("Error loading stats:",n)}}async function E(e){const t=e||document.querySelector(".centers-seats-hub-page")||document,o=t.querySelector("#zone-pills-container");if(!o)return;const n=S!=="all"?`?branch=${S}`:"",d=s=>{let i=s.reduce((l,a)=>l+(a.count||0),0),c=`
+      <button type="button" class="btn btn-sm ${T===""?"btn-primary":"btn-outline-secondary"} zone-pill-btn" data-zone="" style="border-radius: 20px; font-weight: 600; white-space: nowrap; flex-shrink: 0; padding: 6px 14px;">
         \u{1F31F} All Zones (${i})
       </button>
-    `;a.forEach(l=>{const s=q===l._id;c+=`
-        <button type="button" class="btn btn-sm ${s?"btn-primary":"btn-outline-secondary"} zone-pill-btn" data-zone="${r(l._id)}" style="border-radius: 20px; font-weight: 600; white-space: nowrap; flex-shrink: 0; padding: 6px 14px;">
-          \u{1F4CD} ${r(l._id)} <span class="badge ${s?"bg-light text-dark":"badge-primary"}" style="font-size: 0.7rem; margin-left: 4px;">${l.count}</span>
+    `;s.forEach(l=>{const a=T===l._id;c+=`
+        <button type="button" class="btn btn-sm ${a?"btn-primary":"btn-outline-secondary"} zone-pill-btn" data-zone="${r(l._id)}" style="border-radius: 20px; font-weight: 600; white-space: nowrap; flex-shrink: 0; padding: 6px 14px;">
+          \u{1F4CD} ${r(l._id)} <span class="badge ${a?"bg-light text-dark":"badge-primary"}" style="font-size: 0.7rem; margin-left: 4px;">${l.count}</span>
         </button>
       `}),c+=`
       <button type="button" class="btn btn-sm btn-ghost text-primary" id="btn-quick-manage-zones" title="Edit, Modify, Rename or Delete Study Zones" style="font-weight: 700; border-radius: 20px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--color-primary); white-space: nowrap; flex-shrink: 0; padding: 6px 14px;">
         \u2699\uFE0F Manage Zones
       </button>
-    `,o.innerHTML=c,o.querySelector("#btn-quick-manage-zones")?.addEventListener("click",()=>{I(t)}),o.querySelectorAll(".zone-pill-btn").forEach(l=>{l.addEventListener("click",()=>{q=l.getAttribute("data-zone")||"",o.querySelectorAll(".zone-pill-btn").forEach(s=>{s.classList.remove("btn-primary"),s.classList.add("btn-outline-secondary")}),l.classList.add("btn-primary"),l.classList.remove("btn-outline-secondary"),h(t)})})};try{const a=await y.get(`/api/seats/zones${n}`);if(a.success&&a.data){const i=a.data;d(i)}}catch(a){console.error("Error loading zones:",a)}}async function h(e){const t=e||document.querySelector(".centers-seats-hub-page")||document,o=t.querySelector("#seatsGrid");if(!o)return;const n=new URLSearchParams;w&&w!=="all"&&n.append("branch",w),q&&n.append("zone",q),B&&n.append("status",B),N&&n.append("search",N),x.skeleton(o,"cards");try{const d=`/api/seats?${n.toString()}`,a=await y.get(d);a.success?(S=a.data||[],M(S,t)):(p.error(a.message),o.innerHTML='<div class="empty-state">Error loading seats</div>')}catch(d){console.error("Error loading seats:",d),p.error("Failed to load seats"),o.innerHTML='<div class="empty-state">Failed to load seats</div>'}}function j(e){switch(e){case"available":return"#22c55e";case"occupied":return"#ef4444";case"reserved":return"#f59e0b";case"maintenance":return"#64748b";default:return"#94a3b8"}}function W(e,t){const o=j(e.status),n=e.currentStudent,d=e.branch?typeof e.branch=="object"?e.branch.name:e.branch:"Main Branch",a=document.createElement("div");a.innerHTML=`
+    `,o.innerHTML=c,o.querySelector("#btn-quick-manage-zones")?.addEventListener("click",()=>{P(t)}),o.querySelectorAll(".zone-pill-btn").forEach(l=>{l.addEventListener("click",()=>{T=l.getAttribute("data-zone")||"",o.querySelectorAll(".zone-pill-btn").forEach(a=>{a.classList.remove("btn-primary"),a.classList.add("btn-outline-secondary")}),l.classList.add("btn-primary"),l.classList.remove("btn-outline-secondary"),h(t)})})};try{const s=await y.get(`/api/seats/zones${n}`);if(s.success&&s.data){const i=s.data;d(i)}}catch(s){console.error("Error loading zones:",s)}}async function h(e){const t=e||document.querySelector(".centers-seats-hub-page")||document,o=t.querySelector("#seatsGrid");if(!o)return;const n=new URLSearchParams;S&&S!=="all"&&n.append("branch",S),T&&n.append("zone",T),N&&n.append("status",N),_&&n.append("search",_),x.skeleton(o,"cards");try{const d=`/api/seats?${n.toString()}`,s=await y.get(d);s.success?(w=s.data||[],C(w,t)):(p.error(s.message),o.innerHTML='<div class="empty-state">Error loading seats</div>')}catch(d){console.error("Error loading seats:",d),p.error("Failed to load seats"),o.innerHTML='<div class="empty-state">Failed to load seats</div>'}}function Z(e){switch(e){case"available":return"#22c55e";case"occupied":return"#ef4444";case"reserved":return"#f59e0b";case"maintenance":return"#64748b";default:return"#94a3b8"}}function W(e,t){const o=Z(e.status),n=e.currentStudent,d=e.branch?typeof e.branch=="object"?e.branch.name:e.branch:"Main Branch",s=document.createElement("div");s.innerHTML=`
     <div style="font-family: 'Outfit', sans-serif;">
       <!-- Header Banner -->
       <div style="background: linear-gradient(135deg, rgba(108, 92, 231, 0.12), rgba(0, 184, 148, 0.08)); border: 1.5px solid var(--color-primary); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
@@ -295,15 +295,15 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         </div>
       </div>
     </div>
-  `;const i=new A({title:`Desk ${e.seatNumber} Details & Actions`,content:a,size:"md"});i.show(),a.querySelector(".btn-wa-direct")?.addEventListener("click",c=>{const l=c.currentTarget.dataset.phone;if(l){const s=l.replace(/\D/g,""),u=`https://wa.me/${s.length===10?"91"+s:s}?text=${encodeURIComponent(`Hello! Library Admin checking in regarding Desk ${e.seatNumber}.`)}`;window.open(u,"_blank")}}),a.querySelector(".btn-action-vacate")?.addEventListener("click",async()=>{if(await C.show({title:`Release Desk ${e.seatNumber}?`,message:"Are you sure you want to unassign this desk from the current student occupant?",danger:!0})){const prevStatus=e.status,prevStudent=e.currentStudent;i.close(),G.execute({applyState:()=>{e.status="available",e.currentStudent=null,M(S,t)},rollbackState:()=>{e.status=prevStatus,e.currentStudent=prevStudent,M(S,t)},apiCall:()=>y.put(`/api/seats/${e._id}`,{status:"available",currentStudent:null}),onSuccess:async()=>{p.success(`Desk ${e.seatNumber} has been released and is now available!`),await D.clear("seats"),h(t),$(t)},onError:c=>p.error(c.message||"Failed to release desk")})}}),a.querySelector(".btn-action-assign")?.addEventListener("click",async()=>{i.close(),X(e,t)}),a.querySelector(".btn-action-clone")?.addEventListener("click",async()=>{const c=parseInt(e.seatNumber.replace(/\D/g,""))||1,l=`${e.seatNumber.replace(/[0-9]/g,"")||"D-"}${c+1}`;try{const s={seatNumber:l,type:e.type||"Regular",zone:e.zone||"General",zoneColor:e.zoneColor||"#6c5ce7",floor:e.floor||"Ground Floor",monthlyRate:e.monthlyRate||1e3,branch:e.branch?._id||e.branch||null,status:"available"},u=await y.post("/api/seats",s);u.success?(p.success(`Desk ${l} cloned and created successfully!`),i.close(),await D.clear("seats"),h(t),$(t)):p.error(u.message||"Failed to clone desk")}catch(s){p.error(s.message||"Error cloning desk")}}),a.querySelector(".btn-action-maint")?.addEventListener("click",async()=>{const c=e.status==="maintenance"?"available":"maintenance",prevStatus=e.status;i.close(),G.execute({applyState:()=>{e.status=c,M(S,t)},rollbackState:()=>{e.status=prevStatus,M(S,t)},apiCall:()=>y.put(`/api/seats/${e._id}`,{status:c}),onSuccess:async()=>{p.success(`Desk ${e.seatNumber} status updated to ${c}!`),await D.clear("seats"),h(t),$(t)},onError:l=>p.error(l.message||"Failed to update status")})}),a.querySelector(".btn-action-edit")?.addEventListener("click",()=>{i.close(),showSingleSeatModal(e,t)}),a.querySelector(".btn-action-delete")?.addEventListener("click",async()=>{if(await C.show({title:`Delete Desk ${e.seatNumber}?`,message:"Are you sure you want to permanently remove this desk?",danger:!0}))try{await y.delete(`/api/seats/${e._id}`),p.success(`Desk ${e.seatNumber} deleted!`),i.close(),await D.clear("seats"),h(t),$(t)}catch(c){p.error(c.message||"Delete failed")}})}function M(e,t){const o=t||document.querySelector(".centers-seats-hub-page")||document,n=o.querySelector("#seatsGrid");if(!n)return;if(e.length===0){O.emptyState(n,{icon:"\u{1F4BA}",title:"No Seats Match Current Filter",description:"No seats found in this branch/zone combination. Click below to bulk add seats.",actionText:"\u26A1 Bulk Add Seats",onAction:()=>Z(o)});return}let d="";e.forEach(a=>{const i=j(a.status),c=a.currentStudent?a.currentStudent.name:"",l=k.has(a._id),s=a.branch?typeof a.branch=="object"?a.branch.name:a.branch:"";d+=`
+  `;const i=new z({title:`Desk ${e.seatNumber} Details & Actions`,content:s,size:"md"});i.show(),s.querySelector(".btn-wa-direct")?.addEventListener("click",c=>{const l=c.currentTarget.dataset.phone;if(l){const a=l.replace(/\D/g,""),u=`https://wa.me/${a.length===10?"91"+a:a}?text=${encodeURIComponent(`Hello! Library Admin checking in regarding Desk ${e.seatNumber}.`)}`;window.open(u,"_blank")}}),s.querySelector(".btn-action-vacate")?.addEventListener("click",async()=>{if(await L.show({title:`Release Desk ${e.seatNumber}?`,message:"Are you sure you want to unassign this desk from the current student occupant?",danger:!0})){const c=e.status,l=e.currentStudent;i.close(),B.execute({applyState:()=>{e.status="available",e.currentStudent=null,C(w,t)},rollbackState:()=>{e.status=c,e.currentStudent=l,C(w,t)},apiCall:()=>y.put(`/api/seats/${e._id}`,{status:"available",currentStudent:null}),onSuccess:async()=>{p.success(`Desk ${e.seatNumber} has been released and is now available!`),await D.clear("seats"),h(t),$(t)},onError:a=>p.error(a.message||"Failed to release desk")})}}),s.querySelector(".btn-action-assign")?.addEventListener("click",async()=>{i.close(),X(e,t)}),s.querySelector(".btn-action-clone")?.addEventListener("click",async()=>{const c=parseInt(e.seatNumber.replace(/\D/g,""))||1,l=`${e.seatNumber.replace(/[0-9]/g,"")||"D-"}${c+1}`;try{const a={seatNumber:l,type:e.type||"Regular",zone:e.zone||"General",zoneColor:e.zoneColor||"#6c5ce7",floor:e.floor||"Ground Floor",monthlyRate:e.monthlyRate||1e3,branch:e.branch?._id||e.branch||null,status:"available"},u=await y.post("/api/seats",a);u.success?(p.success(`Desk ${l} cloned and created successfully!`),i.close(),await D.clear("seats"),h(t),$(t)):p.error(u.message||"Failed to clone desk")}catch(a){p.error(a.message||"Error cloning desk")}}),s.querySelector(".btn-action-maint")?.addEventListener("click",async()=>{const c=e.status==="maintenance"?"available":"maintenance",l=e.status;i.close(),B.execute({applyState:()=>{e.status=c,C(w,t)},rollbackState:()=>{e.status=l,C(w,t)},apiCall:()=>y.put(`/api/seats/${e._id}`,{status:c}),onSuccess:async()=>{p.success(`Desk ${e.seatNumber} status updated to ${c}!`),await D.clear("seats"),h(t),$(t)},onError:a=>p.error(a.message||"Failed to update status")})}),s.querySelector(".btn-action-edit")?.addEventListener("click",()=>{i.close(),showSingleSeatModal(e,t)}),s.querySelector(".btn-action-delete")?.addEventListener("click",async()=>{if(await L.show({title:`Delete Desk ${e.seatNumber}?`,message:"Are you sure you want to permanently remove this desk?",danger:!0}))try{await y.delete(`/api/seats/${e._id}`),p.success(`Desk ${e.seatNumber} deleted!`),i.close(),await D.clear("seats"),h(t),$(t)}catch(c){p.error(c.message||"Delete failed")}})}function C(e,t){const o=t||document.querySelector(".centers-seats-hub-page")||document,n=o.querySelector("#seatsGrid");if(!n)return;if(e.length===0){G.emptyState(n,{icon:"\u{1F4BA}",title:"No Seats Match Current Filter",description:"No seats found in this branch/zone combination. Click below to bulk add seats.",actionText:"\u{1F680} Bulk Add Seats",onAction:()=>I(o)});return}let d="";e.forEach(s=>{const i=Z(s.status),c=s.currentStudent?s.currentStudent.name:"",l=k.has(s._id),a=s.branch?typeof s.branch=="object"?s.branch.name:s.branch:"";d+=`
       <div class="seat-card-wrapper" style="position: relative;">
-        <div class="card seat-card p-2 text-center" data-id="${a._id}" style="border-top: 4px solid ${i}; border-radius: 8px; background: var(--color-surface); border-left: 1px solid var(--color-border); border-right: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); transition: all 0.2s ease; cursor: pointer; position: relative; min-height: 142px; height: 142px; display: flex; flex-direction: column; justify-content: space-between; padding: 10px 8px; ${l?"box-shadow: 0 0 0 2.5px var(--color-primary); background: var(--color-primary-bg);":""}">
+        <div class="card seat-card p-2 text-center" data-id="${s._id}" style="border-top: 4px solid ${i}; border-radius: 8px; background: var(--color-surface); border-left: 1px solid var(--color-border); border-right: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); transition: all 0.2s ease; cursor: pointer; position: relative; min-height: 142px; height: 142px; display: flex; flex-direction: column; justify-content: space-between; padding: 10px 8px; ${l?"box-shadow: 0 0 0 2.5px var(--color-primary); background: var(--color-primary-bg);":""}">
           
           <!-- Select Checkbox (Top Left) -->
           <div style="position: absolute; top: 6px; left: 6px; z-index: 2;" onclick="event.stopPropagation();">
             <label style="position: relative; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; width: 22px; height: 22px; margin: 0;" title="Select Seat">
-              <input type="checkbox" class="seat-select-cb" data-id="${a._id}" ${l?"checked":""} style="position: absolute; opacity: 0; width: 0; height: 0; margin: 0; pointer-events: none;">
-              <span class="custom-select-circle" style="width: 20px; height: 20px; border-radius: 50%; border: 2px solid ${a.zoneColor||"var(--color-primary, #6c5ce7)"}; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease; background-color: ${l?a.zoneColor||"var(--color-primary, #6c5ce7)":"transparent"}; color: #fff;">
+              <input type="checkbox" class="seat-select-cb" data-id="${s._id}" ${l?"checked":""} style="position: absolute; opacity: 0; width: 0; height: 0; margin: 0; pointer-events: none;">
+              <span class="custom-select-circle" style="width: 20px; height: 20px; border-radius: 50%; border: 2px solid ${s.zoneColor||"var(--color-primary, #6c5ce7)"}; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease; background-color: ${l?s.zoneColor||"var(--color-primary, #6c5ce7)":"transparent"}; color: #fff;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="${l?"display: block;":"display: none;"}"><polyline points="20 6 9 17 4 12"></polyline></svg>
               </span>
             </label>
@@ -311,7 +311,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
 
           <!-- Quick Action Dot Menu (Top Right) -->
           <div style="position: absolute; top: 4px; right: 6px; z-index: 2;" onclick="event.stopPropagation();">
-            <button type="button" class="btn btn-ghost btn-sm btn-seat-quick-edit" data-id="${a._id}" title="Desk Details & Actions" style="padding: 2px 4px; font-size: 0.75rem; opacity: 0.7;">
+            <button type="button" class="btn btn-ghost btn-sm btn-seat-quick-edit" data-id="${s._id}" title="Desk Details & Actions" style="padding: 2px 4px; font-size: 0.75rem; opacity: 0.7;">
               \u{1F441}\uFE0F
             </button>
           </div>
@@ -319,24 +319,24 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
           <!-- Seat Number & Type -->
           <div class="mt-1">
             <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--color-text-primary); letter-spacing: 0.5px;">
-              ${r(a.seatNumber)}
+              ${r(s.seatNumber)}
             </h3>
             <div style="font-size: 0.7rem; color: var(--color-text-secondary); text-transform: uppercase; font-weight: 600; margin-top: 1px;">
-              ${r(a.type||"Regular")} ${a.floor?"\u2022 "+r(a.floor):""}
+              ${r(s.type||"Regular")} ${s.floor?"\u2022 "+r(s.floor):""}
             </div>
           </div>
 
           <!-- Status Badge -->
           <div class="my-1">
             <span class="badge" style="background-color: ${i}; color: #fff; font-size: 0.65rem; padding: 2px 6px; text-transform: uppercase; font-weight: 700; border-radius: 4px;">
-              ${r(a.status)}
+              ${r(s.status)}
             </span>
           </div>
 
           <!-- Branch Tag if viewing all branches -->
-          ${w==="all"&&s?`
-            <div class="text-truncate-single" style="font-size: 0.65rem; color: var(--color-primary); font-weight: 600; margin-top: 1px;" title="${r(s)}">
-              \u{1F3E2} ${r(s)}
+          ${S==="all"&&a?`
+            <div class="text-truncate-single" style="font-size: 0.65rem; color: var(--color-primary); font-weight: 600; margin-top: 1px;" title="${r(a)}">
+              \u{1F3E2} ${r(a)}
             </div>
           `:""}
 
@@ -352,7 +352,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
           `}
         </div>
       </div>
-    `}),n.innerHTML=d,n.querySelectorAll(".seat-card").forEach(a=>{a.addEventListener("mouseenter",()=>{a.style.transform="translateY(-3px)",k.has(a.getAttribute("data-id"))||(a.style.boxShadow="var(--shadow-md)")}),a.addEventListener("mouseleave",()=>{a.style.transform="translateY(0)",k.has(a.getAttribute("data-id"))||(a.style.boxShadow="")}),a.querySelector(".btn-seat-quick-edit")?.addEventListener("click",i=>{i.stopPropagation();const c=a.getAttribute("data-id"),l=S.find(s=>s._id===c);l&&W(l,t)}),a.addEventListener("click",i=>{if(i.target.closest(".seat-select-cb")||i.target.closest(".btn-seat-quick-edit")||i.target.closest("label")||i.target.closest(".custom-select-circle"))return;const c=a.getAttribute("data-id"),l=S.find(s=>s._id===c);l&&W(l,t)})}),n.querySelectorAll(".seat-select-cb").forEach(a=>{a.addEventListener("change",i=>{const c=i.target.dataset.id,l=i.target.closest(".seat-card"),s=i.target.closest("label")?.querySelector(".custom-select-circle"),u=s?.querySelector("svg"),b=S.find(m=>m._id===c)?.zoneColor||"var(--color-primary, #6c5ce7)";i.target.checked?(k.add(c),l&&(l.style.boxShadow="0 0 0 2.5px var(--color-primary)",l.style.background="var(--color-primary-bg)"),s&&(s.style.backgroundColor=b,s.style.borderColor=b),u&&(u.style.display="block")):(k.delete(c),l&&(l.style.boxShadow="",l.style.background="var(--color-surface)"),s&&(s.style.backgroundColor="transparent",s.style.borderColor=b),u&&(u.style.display="none")),T(t)})}),n.querySelectorAll(".btn-seat-quick-edit").forEach(a=>{a.addEventListener("click",i=>{i.stopPropagation();const c=a.dataset.id,l=S.find(s=>s._id===c);l&&K(l,t)})})}function T(e){const t=e.querySelector("#bulk-action-bar"),o=e.querySelector("#bulk-selected-count");!t||!o||(k.size>0?(t.style.display="flex",o.textContent=`${k.size} Selected`):t.style.display="none")}function Y(e){const t=e.querySelector("#branches-cards-grid");if(!t)return;if(F.length===0){O.emptyState(t,{icon:"\u{1F3E2}",title:"No Study Branches Configured",description:"Add your first study room or branch location to begin seating allocation.",actionText:"+ Add New Branch",onAction:()=>_(null,e)});return}let o="";F.forEach(n=>{const d=n.isMainBranch,a=n.totalSeats||n.effectiveCapacity||50,i=n.occupiedSeats||n.activeStudents||0,c=a>0?Math.min(100,Math.round(i/a*100)):0;let l="var(--color-success)";c>=90?l="var(--color-danger)":c>=70&&(l="var(--color-warning)");const s=n.manager?.name||"Unassigned";let u="";n.amenities&&n.amenities.length>0?u=n.amenities.map(b=>{const m=V.find(g=>g.id.toLowerCase()===b.toLowerCase()||g.label.toLowerCase()===b.toLowerCase()),v=m?m.icon:"\u2728",f=m?m.label:b;return`
+    `}),n.innerHTML=d,n.querySelectorAll(".seat-card").forEach(s=>{s.addEventListener("mouseenter",()=>{s.style.transform="translateY(-3px)",k.has(s.getAttribute("data-id"))||(s.style.boxShadow="var(--shadow-md)")}),s.addEventListener("mouseleave",()=>{s.style.transform="translateY(0)",k.has(s.getAttribute("data-id"))||(s.style.boxShadow="")}),s.querySelector(".btn-seat-quick-edit")?.addEventListener("click",i=>{i.stopPropagation();const c=s.getAttribute("data-id"),l=w.find(a=>a._id===c);l&&W(l,t)}),s.addEventListener("click",i=>{if(i.target.closest(".seat-select-cb")||i.target.closest(".btn-seat-quick-edit")||i.target.closest("label")||i.target.closest(".custom-select-circle"))return;const c=s.getAttribute("data-id"),l=w.find(a=>a._id===c);l&&W(l,t)})}),n.querySelectorAll(".seat-select-cb").forEach(s=>{s.addEventListener("change",i=>{const c=i.target.dataset.id,l=i.target.closest(".seat-card"),a=i.target.closest("label")?.querySelector(".custom-select-circle"),u=a?.querySelector("svg"),b=w.find(m=>m._id===c)?.zoneColor||"var(--color-primary, #6c5ce7)";i.target.checked?(k.add(c),l&&(l.style.boxShadow="0 0 0 2.5px var(--color-primary)",l.style.background="var(--color-primary-bg)"),a&&(a.style.backgroundColor=b,a.style.borderColor=b),u&&(u.style.display="block")):(k.delete(c),l&&(l.style.boxShadow="",l.style.background="var(--color-surface)"),a&&(a.style.backgroundColor="transparent",a.style.borderColor=b),u&&(u.style.display="none")),M(t)})}),n.querySelectorAll(".btn-seat-quick-edit").forEach(s=>{s.addEventListener("click",i=>{i.stopPropagation();const c=s.dataset.id,l=w.find(a=>a._id===c);l&&K(l,t)})})}function M(e){const t=e.querySelector("#bulk-action-bar"),o=e.querySelector("#bulk-selected-count");!t||!o||(k.size>0?(t.style.display="flex",o.textContent=`${k.size} Selected`):t.style.display="none")}function Y(e){const t=e.querySelector("#branches-cards-grid");if(!t)return;if(F.length===0){G.emptyState(t,{icon:"\u{1F3E2}",title:"No Study Branches Configured",description:"Add your first study room or branch location to begin seating allocation.",actionText:"+ Add New Branch",onAction:()=>R(null,e)});return}let o="";F.forEach(n=>{const d=n.isMainBranch,s=n.totalSeats||n.effectiveCapacity||50,i=n.occupiedSeats||n.activeStudents||0,c=s>0?Math.min(100,Math.round(i/s*100)):0;let l="var(--color-success)";c>=90?l="var(--color-danger)":c>=70&&(l="var(--color-warning)");const a=n.manager?.name||"Unassigned";let u="";n.amenities&&n.amenities.length>0?u=n.amenities.map(b=>{const m=V.find(g=>g.id.toLowerCase()===b.toLowerCase()||g.label.toLowerCase()===b.toLowerCase()),v=m?m.icon:"\u2728",f=m?m.label:b;return`
           <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; background: var(--color-bg-secondary); color: var(--color-text-secondary); border: 1px solid var(--color-border);">
             <span>${v}</span> ${r(f)}
           </span>
@@ -391,7 +391,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
           <div>
             <div class="d-flex justify-content-between text-xs mb-1">
               <span style="font-weight: 600;">Seating Occupancy</span>
-              <span style="font-weight: 700; color: ${l};">${c}% (${i}/${a} seats)</span>
+              <span style="font-weight: 700; color: ${l};">${c}% (${i}/${s} seats)</span>
             </div>
             <div style="width: 100%; height: 8px; background: var(--color-bg-secondary); border-radius: 4px; overflow: hidden;">
               <div style="width: ${c}%; height: 100%; background: ${l}; transition: width 0.3s ease;"></div>
@@ -400,7 +400,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
 
           <!-- Contact & Manager -->
           <div class="text-xs text-muted" style="line-height: 1.6;">
-            <div>\u{1F464} Manager: <strong>${r(s)}</strong></div>
+            <div>\u{1F464} Manager: <strong>${r(a)}</strong></div>
             <div>\u{1F4DE} Support: <strong>${r(n.phone||"-")}</strong></div>
             <div>\u2709\uFE0F Email: <strong>${r(n.email||"-")}</strong></div>
           </div>
@@ -431,7 +431,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         </div>
 
       </div>
-    `}),t.innerHTML=o,t.querySelectorAll(".btn-branch-view-seats").forEach(n=>{n.addEventListener("click",()=>{const d=n.dataset.id;w=d,e.querySelector('.hub-tab-btn[data-tab="seats"]').click();const a=e.querySelector("#seat-branch-selector");a&&(a.value=d),$(e),E(e),h(e)})}),t.querySelectorAll(".btn-branch-edit").forEach(n=>{n.addEventListener("click",()=>{const d=n.dataset.id,a=F.find(i=>i._id===d);a&&_(a,e)})}),t.querySelectorAll(".btn-branch-delete").forEach(n=>{n.addEventListener("click",()=>{const d=n.dataset.id,a=F.find(i=>i._id===d);a&&ae(a,e)})})}function Q(e){const t=e.querySelector("#analytics-table-body");if(t){if(F.length===0){t.innerHTML='<tr><td colspan="8" class="text-center p-4 text-muted">No branch data available</td></tr>';return}t.innerHTML=F.map((o,n)=>{const d=o.configuredSeats>0?o.configuredSeats:o.totalSeats||o.effectiveCapacity||59,a=o.occupiedSeats||o.activeStudents||0,i=Math.max(0,d-a),c=d>0?Math.round(a/d*100):0,l=a*1200;return`
+    `}),t.innerHTML=o,t.querySelectorAll(".btn-branch-view-seats").forEach(n=>{n.addEventListener("click",()=>{const d=n.dataset.id;S=d,e.querySelector('.hub-tab-btn[data-tab="seats"]').click();const s=e.querySelector("#seat-branch-selector");s&&(s.value=d),$(e),E(e),h(e)})}),t.querySelectorAll(".btn-branch-edit").forEach(n=>{n.addEventListener("click",()=>{const d=n.dataset.id,s=F.find(i=>i._id===d);s&&R(s,e)})}),t.querySelectorAll(".btn-branch-delete").forEach(n=>{n.addEventListener("click",()=>{const d=n.dataset.id,s=F.find(i=>i._id===d);s&&ae(s,e)})})}function Q(e){const t=e.querySelector("#analytics-table-body");if(t){if(F.length===0){t.innerHTML='<tr><td colspan="8" class="text-center p-4 text-muted">No branch data available</td></tr>';return}t.innerHTML=F.map((o,n)=>{const d=o.configuredSeats>0?o.configuredSeats:o.totalSeats||o.effectiveCapacity||59,s=o.occupiedSeats||o.activeStudents||0,i=Math.max(0,d-s),c=d>0?Math.round(s/d*100):0,l=s*1200;return`
       <tr>
         <td>
           <div style="font-weight: 700; color: var(--color-text-primary);">${r(o.name)}</div>
@@ -440,7 +440,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         <td><span class="badge badge-primary font-monospace">${r(o.code||"")}</span></td>
         <td>${r(o.manager?.name||"Unassigned")}</td>
         <td><strong>${d}</strong></td>
-        <td><span class="text-danger font-weight-bold">${a}</span></td>
+        <td><span class="text-danger font-weight-bold">${s}</span></td>
         <td><span class="text-success font-weight-bold">${i}</span></td>
         <td>
           <div class="d-flex align-items-center gap-2">
@@ -495,7 +495,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         </button>
       </div>
     </div>
-  `;const n=new A({title:"\u{1F504} Cross-Branch Student Transfer",content:t,size:"md"});n.show();const d=t.querySelector("#transfer-student-search"),a=t.querySelector("#transfer-student-results"),i=t.querySelector("#selected-transfer-student-id"),c=t.querySelector("#selected-transfer-student-info"),l=t.querySelector("#transfer-target-branch"),s=t.querySelector("#transfer-target-seat"),u=t.querySelector("#btn-execute-transfer");let b;d.addEventListener("input",()=>{clearTimeout(b),b=setTimeout(async()=>{const v=d.value.trim();if(!v){a.style.display="none";return}try{const f=(await y.get(`/api/students?search=${encodeURIComponent(v)}&limit=8`)).data?.students||[];if(f.length===0){a.innerHTML='<div class="p-2 text-muted small">No students found</div>',a.style.display="block";return}a.innerHTML=f.map(g=>`
+  `;const n=new z({title:"\u{1F504} Cross-Branch Student Transfer",content:t,size:"md"});n.show();const d=t.querySelector("#transfer-student-search"),s=t.querySelector("#transfer-student-results"),i=t.querySelector("#selected-transfer-student-id"),c=t.querySelector("#selected-transfer-student-info"),l=t.querySelector("#transfer-target-branch"),a=t.querySelector("#transfer-target-seat"),u=t.querySelector("#btn-execute-transfer");let b;d.addEventListener("input",()=>{clearTimeout(b),b=setTimeout(async()=>{const v=d.value.trim();if(!v){s.style.display="none";return}try{const f=(await y.get(`/api/students?search=${encodeURIComponent(v)}&limit=8`)).data?.students||[];if(f.length===0){s.innerHTML='<div class="p-2 text-muted small">No students found</div>',s.style.display="block";return}s.innerHTML=f.map(g=>`
           <div class="p-2 border-bottom d-flex justify-content-between align-items-center btn-pick-transfer-student" data-id="${g._id}" data-name="${r(g.name)}" data-idnum="${r(g.studentId||"")}" data-seat="${r(g.seat?.seatNumber||"No Seat")}" style="cursor: pointer;">
             <div>
               <strong>${r(g.name)}</strong> (${r(g.studentId||"")})
@@ -503,9 +503,9 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
             </div>
             <button type="button" class="btn btn-xs btn-primary">Select</button>
           </div>
-        `).join(""),a.style.display="block",a.querySelectorAll(".btn-pick-transfer-student").forEach(g=>{g.addEventListener("click",()=>{i.value=g.dataset.id,c.innerHTML=`\u{1F464} Selected: <strong>${g.dataset.name}</strong> (ID: ${g.dataset.idnum}) \u2022 Current Seat: <strong>${g.dataset.seat}</strong>`,c.style.display="block",a.style.display="none",m()})})}catch{}},250)}),l.addEventListener("change",async()=>{const v=l.value;if(!v){s.innerHTML='<option value="">Select branch first</option>',s.disabled=!0,m();return}s.innerHTML='<option value="">Loading available seats...</option>',s.disabled=!0;try{const f=(await y.get(`/api/seats?branch=${v}&status=available`)).data||[];f.length===0?(s.innerHTML='<option value="">No vacant seats at this branch</option>',s.disabled=!0):(s.innerHTML=`<option value="">-- Choose Vacant Seat (${f.length} available) --</option>`+f.map(g=>`<option value="${g._id}">Seat ${r(g.seatNumber)} (${r(g.zone)})</option>`).join(""),s.disabled=!1)}catch{s.innerHTML='<option value="">Failed to load seats</option>'}m()}),s.addEventListener("change",m);function m(){u.disabled=!(i.value&&s.value)}u.addEventListener("click",async()=>{x.button(u,!0);try{const v=i.value,f=s.value,g=await y.post(`/api/seats/${f}/assign`,{studentId:v});g.success?(p.success("Student transferred to target branch & seat successfully!"),n.close(),$(e),h(e)):p.error(g.message)}catch(v){p.error(v.message||"Transfer failed")}finally{x.button(u,!1)}})}function _(e=null,t){const o=!!(e&&e._id),n=new Set(e?.amenities||["AC","WiFi","CCTV","Power Backup","RO Water","Locker"]),d=document.createElement("div");let a='<option value="">-- Select Manager (Optional) --</option>';U.forEach(l=>{const s=e?.manager?._id===l._id||e?.manager===l._id?"selected":"";a+=`<option value="${l._id}" ${s}>${r(l.name)} - ${r(l.phone||l.email)}</option>`});let i=V.map(l=>{const s=n.has(l.id)||n.has(l.label)?"checked":"";return`
+        `).join(""),s.style.display="block",s.querySelectorAll(".btn-pick-transfer-student").forEach(g=>{g.addEventListener("click",()=>{i.value=g.dataset.id,c.innerHTML=`\u{1F464} Selected: <strong>${g.dataset.name}</strong> (ID: ${g.dataset.idnum}) \u2022 Current Seat: <strong>${g.dataset.seat}</strong>`,c.style.display="block",s.style.display="none",m()})})}catch{}},250)}),l.addEventListener("change",async()=>{const v=l.value;if(!v){a.innerHTML='<option value="">Select branch first</option>',a.disabled=!0,m();return}a.innerHTML='<option value="">Loading available seats...</option>',a.disabled=!0;try{const f=(await y.get(`/api/seats?branch=${v}&status=available`)).data||[];f.length===0?(a.innerHTML='<option value="">No vacant seats at this branch</option>',a.disabled=!0):(a.innerHTML=`<option value="">-- Choose Vacant Seat (${f.length} available) --</option>`+f.map(g=>`<option value="${g._id}">Seat ${r(g.seatNumber)} (${r(g.zone)})</option>`).join(""),a.disabled=!1)}catch{a.innerHTML='<option value="">Failed to load seats</option>'}m()}),a.addEventListener("change",m);function m(){u.disabled=!(i.value&&a.value)}u.addEventListener("click",async()=>{x.button(u,!0);try{const v=i.value,f=a.value,g=await y.post(`/api/seats/${f}/assign`,{studentId:v});g.success?(p.success("Student transferred to target branch & seat successfully!"),n.close(),$(e),h(e)):p.error(g.message)}catch(v){p.error(v.message||"Transfer failed")}finally{x.button(u,!1)}})}function R(e=null,t){const o=!!(e&&e._id),n=new Set(e?.amenities||["AC","WiFi","CCTV","Power Backup","RO Water","Locker"]),d=document.createElement("div");let s='<option value="">-- Select Manager (Optional) --</option>';U.forEach(l=>{const a=e?.manager?._id===l._id||e?.manager===l._id?"selected":"";s+=`<option value="${l._id}" ${a}>${r(l.name)} - ${r(l.phone||l.email)}</option>`});let i=V.map(l=>{const a=n.has(l.id)||n.has(l.label)?"checked":"";return`
       <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; background: var(--color-bg-primary); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--color-border); cursor: pointer;">
-        <input type="checkbox" name="amenities" value="${l.id}" ${s}>
+        <input type="checkbox" name="amenities" value="${l.id}" ${a}>
         <span>${l.icon}</span>
         <span>${r(l.label)}</span>
       </label>
@@ -525,7 +525,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
       <div class="form-group mb-3">
         <label class="form-label" style="font-weight: 600;">Assigned Center Manager</label>
         <select class="form-select form-control" name="manager">
-          ${a}
+          ${s}
         </select>
       </div>
 
@@ -577,7 +577,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         </button>
       </div>
     </form>
-  `;const c=new A({title:o?`\u270F\uFE0F Edit Branch: ${e.name}`:"\u{1F3E2} Create New Study Center Branch",content:d,size:"md"});c.show(),d.querySelector("#branchModalForm").addEventListener("submit",async l=>{l.preventDefault();const s=d.querySelector("#btn-submit-branch-form");x.button(s,!0);const u=new FormData(l.target),b=Object.fromEntries(u.entries());b.amenities=Array.from(d.querySelectorAll('input[name="amenities"]:checked')).map(m=>m.value),b.isMainBranch=!!d.querySelector('input[name="isMainBranch"]:checked');try{let m;o?m=await y.put(`/api/branches/${e._id}`,b):m=await y.post("/api/branches",b),m.success?(p.success(m.message),c.close(),await H(t)):p.error(m.message)}catch(m){p.error(m.message||"Failed to save branch")}finally{x.button(s,!1)}})}async function ae(e,t){const o=e.isMainBranch;if(await C.show({title:`Delete Branch: ${e.name}`,message:o?`Are you sure you want to delete "${e.name}" (${e.code})? Since this is currently the primary main campus, another active branch will automatically become the primary campus.`:`Are you sure you want to delete branch "${e.name}" (${e.code})? Existing seat configurations will be archived.`,danger:!0}))try{const n=await y.delete(`/api/branches/${e._id}`);n.success?(p.success(n.message||"Branch deleted successfully"),await H(t)):p.error(n.message||"Failed to delete branch")}catch(n){p.error(n.message||"Failed to delete branch")}}function ge(e,t){const o=document.createElement("div"),n=j(e.status),d=e.currentStudent,a=e.branch?typeof e.branch=="object"?e.branch.name:"Branch ID: "+e.branch:"Unassigned";o.innerHTML=`
+  `;const c=new z({title:o?`\u270F\uFE0F Edit Branch: ${e.name}`:"\u{1F3E2} Create New Study Center Branch",content:d,size:"md"});c.show(),d.querySelector("#branchModalForm").addEventListener("submit",async l=>{l.preventDefault();const a=d.querySelector("#btn-submit-branch-form");x.button(a,!0);const u=new FormData(l.target),b=Object.fromEntries(u.entries());b.amenities=Array.from(d.querySelectorAll('input[name="amenities"]:checked')).map(m=>m.value),b.isMainBranch=!!d.querySelector('input[name="isMainBranch"]:checked');try{let m;o?m=await y.put(`/api/branches/${e._id}`,b):m=await y.post("/api/branches",b),m.success?(p.success(m.message),c.close(),await j(t)):p.error(m.message)}catch(m){p.error(m.message||"Failed to save branch")}finally{x.button(a,!1)}})}async function ae(e,t){const o=e.isMainBranch;if(await L.show({title:`Delete Branch: ${e.name}`,message:o?`Are you sure you want to delete "${e.name}" (${e.code})? Since this is currently the primary main campus, another active branch will automatically become the primary campus.`:`Are you sure you want to delete branch "${e.name}" (${e.code})? Existing seat configurations will be archived.`,danger:!0}))try{const n=await y.delete(`/api/branches/${e._id}`);n.success?(p.success(n.message||"Branch deleted successfully"),await j(t)):p.error(n.message||"Failed to delete branch")}catch(n){p.error(n.message||"Failed to delete branch")}}function ge(e,t){const o=document.createElement("div"),n=Z(e.status),d=e.currentStudent,s=e.branch?typeof e.branch=="object"?e.branch.name:"Branch ID: "+e.branch:"Unassigned";o.innerHTML=`
     <div style="font-family: 'Outfit', sans-serif;">
       
       <!-- Top Card Header -->
@@ -595,7 +595,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         </div>
         <div class="text-end">
           <div class="text-xs text-muted">Branch:</div>
-          <span class="badge badge-primary">${r(a)}</span>
+          <span class="badge badge-primary">${r(s)}</span>
         </div>
       </div>
 
@@ -662,9 +662,9 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         </div>
       </div>
     </div>
-  `;const i=new A({title:`Seat Overview: ${e.seatNumber}`,content:o,size:"md"});i.show(),o.querySelector(".btn-detail-release")?.addEventListener("click",async()=>{i.close(),C.show({title:"Release Seat",message:`Unassign student from Seat ${e.seatNumber} and mark seat as available?`,danger:!1,onConfirm:async()=>{try{const c=await y.post(`/api/seats/${e._id}/release`);c.success&&(p.success(c.message),$(t),h(t))}catch(c){p.error(c.message)}}})}),o.querySelector(".btn-detail-assign")?.addEventListener("click",()=>{i.close(),X(e,t)}),o.querySelector(".btn-detail-edit")?.addEventListener("click",()=>{i.close(),K(e,t)}),o.querySelector(".btn-detail-delete")?.addEventListener("click",()=>{i.close(),C.show({title:"Delete Seat",message:`Are you sure you want to permanently delete Seat ${e.seatNumber}?`,danger:!0,onConfirm:async()=>{try{const c=await y.delete(`/api/seats/${e._id}`);c.success&&(p.success(c.message),$(t),E(t),h(t))}catch(c){p.error(c.message)}}})})}function K(e,t){const o=document.createElement("div"),n=F.map(a=>`
-    <option value="${a._id}" ${e.branch&&(e.branch===a._id||e.branch._id===a._id)?"selected":""}>
-      ${r(a.name)} (${r(a.code||"")})
+  `;const i=new z({title:`Seat Overview: ${e.seatNumber}`,content:o,size:"md"});i.show(),o.querySelector(".btn-detail-release")?.addEventListener("click",async()=>{i.close(),L.show({title:"Release Seat",message:`Unassign student from Seat ${e.seatNumber} and mark seat as available?`,danger:!1,onConfirm:async()=>{try{const c=await y.post(`/api/seats/${e._id}/release`);c.success&&(p.success(c.message),$(t),h(t))}catch(c){p.error(c.message)}}})}),o.querySelector(".btn-detail-assign")?.addEventListener("click",()=>{i.close(),X(e,t)}),o.querySelector(".btn-detail-edit")?.addEventListener("click",()=>{i.close(),K(e,t)}),o.querySelector(".btn-detail-delete")?.addEventListener("click",()=>{i.close(),L.show({title:"Delete Seat",message:`Are you sure you want to permanently delete Seat ${e.seatNumber}?`,danger:!0,onConfirm:async()=>{try{const c=await y.delete(`/api/seats/${e._id}`);c.success&&(p.success(c.message),$(t),E(t),h(t))}catch(c){p.error(c.message)}}})})}function K(e,t){const o=document.createElement("div"),n=F.map(s=>`
+    <option value="${s._id}" ${e.branch&&(e.branch===s._id||e.branch._id===s._id)?"selected":""}>
+      ${r(s.name)} (${r(s.code||"")})
     </option>
   `).join("");o.innerHTML=`
     <form id="editSeatForm" class="p-1">
@@ -731,9 +731,9 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         </button>
       </div>
     </form>
-  `;const d=new A({title:`\u270F\uFE0F Edit Seat: ${e.seatNumber}`,content:o,size:"md"});d.show(),o.querySelector("#editSeatForm").addEventListener("submit",async a=>{a.preventDefault();const i=o.querySelector("#btn-submit-seat-edit");x.button(i,!0);const c=new FormData(a.target),l=Object.fromEntries(c.entries()),s=e.status,u=l.status||s;try{await G.execute({applyState:()=>{e.status=u;const b=S.find(m=>m._id===e._id);b&&(b.status=u),M(S,t)},rollbackState:()=>{e.status=s;const b=S.find(m=>m._id===e._id);b&&(b.status=s),M(S,t)},apiCall:()=>y.put(`/api/seats/${e._id}`,l),onSuccess:b=>{p.success(b.message||"Seat updated successfully"),d.close(),$(t),E(t),h(t)}})}catch{}finally{x.button(i,!1)}})}function se(e){const t=e||document.querySelector(".centers-seats-hub-page")||document,o=document.createElement("div"),n=F.map(a=>`
-    <option value="${a._id}" ${w===a._id?"selected":""}>
-      ${r(a.name)} (${r(a.code||"")})
+  `;const d=new z({title:`\u270F\uFE0F Edit Seat: ${e.seatNumber}`,content:o,size:"md"});d.show(),o.querySelector("#editSeatForm").addEventListener("submit",async s=>{s.preventDefault();const i=o.querySelector("#btn-submit-seat-edit");x.button(i,!0);const c=new FormData(s.target),l=Object.fromEntries(c.entries()),a=e.status,u=l.status||a;try{await B.execute({applyState:()=>{e.status=u;const b=w.find(m=>m._id===e._id);b&&(b.status=u),C(w,t)},rollbackState:()=>{e.status=a;const b=w.find(m=>m._id===e._id);b&&(b.status=a),C(w,t)},apiCall:()=>y.put(`/api/seats/${e._id}`,l),onSuccess:b=>{p.success(b.message||"Seat updated successfully"),d.close(),$(t),E(t),h(t)}})}catch{}finally{x.button(i,!1)}})}function se(e){const t=e||document.querySelector(".centers-seats-hub-page")||document,o=document.createElement("div"),n=F.map(s=>`
+    <option value="${s._id}" ${S===s._id?"selected":""}>
+      ${r(s.name)} (${r(s.code||"")})
     </option>
   `).join("");o.innerHTML=`
     <form id="addSingleSeatForm" class="p-1">
@@ -754,7 +754,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
       <div class="row g-2 mb-3" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px;">
         <div>
           <label class="form-label" style="font-weight: 600;">Study Zone *</label>
-          <input type="text" class="form-control" name="zone" value="${r(q||"Zone A")}" required placeholder="e.g. Zone A (AC)">
+          <input type="text" class="form-control" name="zone" value="${r(T||"Zone A")}" required placeholder="e.g. Zone A (AC)">
         </div>
         <div>
           <label class="form-label" style="font-weight: 600;">Floor / Section</label>
@@ -789,9 +789,9 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         </button>
       </div>
     </form>
-  `;const d=new A({title:"\u2795 Add Single Custom Seat",content:o,size:"md"});d.show(),o.querySelector("#addSingleSeatForm").addEventListener("submit",async a=>{a.preventDefault();const i=o.querySelector("#btn-create-single-seat");x.button(i,!0);const c=new FormData(a.target),l=Object.fromEntries(c.entries());try{const s=await y.post("/api/seats",l);s.success?(p.success(s.message),d.close(),$(t),E(t),h(t)):p.error(s.message)}catch(s){p.error(s.message||"Failed to create seat")}finally{x.button(i,!1)}})}function Z(e){const t=e||document.querySelector(".centers-seats-hub-page")||document,o=document.createElement("div"),n=F.map(a=>`
-    <option value="${a._id}" ${w===a._id?"selected":""}>
-      ${r(a.name)} (${r(a.code||"")})
+  `;const d=new z({title:"\u2795 Add Single Custom Seat",content:o,size:"md"});d.show(),o.querySelector("#addSingleSeatForm").addEventListener("submit",async s=>{s.preventDefault();const i=o.querySelector("#btn-create-single-seat");x.button(i,!0);const c=new FormData(s.target),l=Object.fromEntries(c.entries());try{const a=await y.post("/api/seats",l);a.success?(p.success(a.message),d.close(),$(t),E(t),h(t)):p.error(a.message)}catch(a){p.error(a.message||"Failed to create seat")}finally{x.button(i,!1)}})}function I(e){const t=e||document.querySelector(".centers-seats-hub-page")||document,o=document.createElement("div"),n=F.map(s=>`
+    <option value="${s._id}" ${S===s._id?"selected":""}>
+      ${r(s.name)} (${r(s.code||"")})
     </option>
   `).join("");o.innerHTML=`
     <form id="bulkAddSeatsForm" class="p-1">
@@ -805,7 +805,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         </div>
         <div>
           <label class="form-label" style="font-weight: 600;">Study Zone *</label>
-          <input type="text" name="zone" class="form-control" required placeholder="e.g. Zone A (AC), Boys Section" value="${r(q||"")}">
+          <input type="text" name="zone" class="form-control" required placeholder="e.g. Zone A (AC), Boys Section" value="${r(T||"")}">
         </div>
       </div>
 
@@ -853,11 +853,11 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
       <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
         <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
         <button type="submit" class="btn btn-primary" id="btn-submit-bulk-seats" style="font-weight: 600;">
-          \u26A1 Generate & Save Seats
+          \u{1F680} Generate & Save Seats
         </button>
       </div>
     </form>
-  `;const d=new A({title:"\u26A1 Bulk Add Seats Generation",content:o,size:"md"});d.show(),o.querySelector("#bulkAddSeatsForm").addEventListener("submit",async a=>{a.preventDefault();const i=o.querySelector("#btn-submit-bulk-seats");x.button(i,!0);const c=new FormData(a.target),l=Object.fromEntries(c.entries());l.startNumber=parseInt(l.startNumber,10),l.count=parseInt(l.count,10);try{const s=await y.post("/api/seats/bulk",l);if(s.success){if(p.success(s.message),d.close(),l.branch&&l.branch!=="none"){w=l.branch;const u=t.querySelector("#seat-branch-selector");u&&(u.value=w)}q="",N="",B="",await D.clear("seats").catch(()=>{}),await Promise.all([$(t),E(t),h(t)])}else p.error(s.message)}catch(s){p.error(s.message||"Failed to create seats")}finally{x.button(i,!1)}})}async function X(e,t){const o=document.createElement("div");o.innerHTML=`
+  `;const d=new z({title:"\u{1F680} Bulk Add Seats Generation",content:o,size:"md"});d.show(),o.querySelector("#bulkAddSeatsForm").addEventListener("submit",async s=>{s.preventDefault();const i=o.querySelector("#btn-submit-bulk-seats");x.button(i,!0);const c=new FormData(s.target),l=Object.fromEntries(c.entries());l.startNumber=parseInt(l.startNumber,10),l.count=parseInt(l.count,10);try{const a=await y.post("/api/seats/bulk",l);if(a.success){if(p.success(a.message),d.close(),l.branch&&l.branch!=="none"){S=l.branch;const u=t.querySelector("#seat-branch-selector");u&&(u.value=S)}T="",_="",N="",await D.clear("seats").catch(()=>{}),await Promise.all([$(t),E(t),h(t)])}else p.error(a.message)}catch(a){p.error(a.message||"Failed to create seats")}finally{x.button(i,!1)}})}async function X(e,t){const o=document.createElement("div");o.innerHTML=`
     <div style="font-family: 'Outfit', sans-serif;">
       <div class="mb-3">
         <label class="form-label" style="font-weight: 600;">Search Active Student</label>
@@ -872,7 +872,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         <button type="button" class="btn btn-secondary" onclick="Modal.closeAll()">Cancel</button>
       </div>
     </div>
-  `;const n=new A({title:`\u{1F464} Assign Student to Seat ${e.seatNumber}`,content:o,size:"md"});n.show();const d=o.querySelector("#assign-student-search"),a=o.querySelector("#assign-student-results");d?.addEventListener("input",P(async()=>{const i=d.value.trim();if(!i){a.innerHTML='<div class="text-center p-3 text-muted small">Type student name or mobile number above...</div>';return}x.skeleton(a,"table");try{const c=(await y.get(`/api/students?search=${encodeURIComponent(i)}&limit=10`)).data?.students||[];if(c.length===0){a.innerHTML=`<div class="text-center p-3 text-muted small">No active students found matching "${r(i)}"</div>`;return}a.innerHTML=c.map(l=>`
+  `;const n=new z({title:`\u{1F464} Assign Student to Seat ${e.seatNumber}`,content:o,size:"md"});n.show();const d=o.querySelector("#assign-student-search"),s=o.querySelector("#assign-student-results");d?.addEventListener("input",O(async()=>{const i=d.value.trim();if(!i){s.innerHTML='<div class="text-center p-3 text-muted small">Type student name or mobile number above...</div>';return}x.skeleton(s,"table");try{const c=(await y.get(`/api/students?search=${encodeURIComponent(i)}&limit=10`)).data?.students||[];if(c.length===0){s.innerHTML=`<div class="text-center p-3 text-muted small">No active students found matching "${r(i)}"</div>`;return}s.innerHTML=c.map(l=>`
           <div class="p-2 d-flex justify-content-between align-items-center mb-1 border-bottom" style="border-radius: 4px;">
             <div>
               <div style="font-weight: 700; color: var(--color-text-primary); font-size: 0.95rem;">${r(l.name)}</div>
@@ -882,8 +882,8 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
               Assign
             </button>
           </div>
-        `).join(""),a.querySelectorAll(".btn-select-student").forEach(l=>{l.addEventListener("click",async()=>{const s=l.dataset.id;try{const u=await y.post(`/api/seats/${e._id}/assign`,{studentId:s});u.success?(p.success(u.message),n.close(),$(t),h(t)):p.error(u.message)}catch(u){p.error(u.message||"Failed to assign student")}})})}catch{a.innerHTML='<div class="text-danger p-2">Search failed</div>'}},250))}async function ne(e){const t=Array.from(k);C.show({title:"Bulk Delete Seats",message:`Are you sure you want to permanently delete ${t.length} selected seat(s)? Occupied seats cannot be deleted.`,danger:!0,onConfirm:async()=>{try{const o=await y.post("/api/seats/bulk-delete",{seatIds:t});o.success?(p.success(o.message),k.clear(),T(e),$(e),E(e),h(e)):p.error(o.message)}catch(o){p.error(o.message||"Bulk delete failed")}}})}function oe(e){const t=Array.from(k),o=prompt(`Enter new Zone name for ${t.length} selected seats:`);!o||!o.trim()||y.post("/api/seats/bulk-update",{seatIds:t,updates:{zone:o.trim()}}).then(n=>{p.success(n.message||"Zones updated"),k.clear(),T(e),E(e),h(e)}).catch(n=>p.error(n.message))}function re(e){const t=Array.from(k),o=document.createElement("div"),n=F.map(a=>`
-    <option value="${a._id}">${r(a.name)} (${r(a.code||"")})</option>
+        `).join(""),s.querySelectorAll(".btn-select-student").forEach(l=>{l.addEventListener("click",async()=>{const a=l.dataset.id;try{const u=await y.post(`/api/seats/${e._id}/assign`,{studentId:a});u.success?(p.success(u.message),n.close(),$(t),h(t)):p.error(u.message)}catch(u){p.error(u.message||"Failed to assign student")}})})}catch{s.innerHTML='<div class="text-danger p-2">Search failed</div>'}},250))}async function ne(e){const t=Array.from(k);L.show({title:"Bulk Delete Seats",message:`Are you sure you want to permanently delete ${t.length} selected seat(s)? Occupied seats cannot be deleted.`,danger:!0,onConfirm:async()=>{try{const o=await y.post("/api/seats/bulk-delete",{seatIds:t});o.success?(p.success(o.message),k.clear(),M(e),$(e),E(e),h(e)):p.error(o.message)}catch(o){p.error(o.message||"Bulk delete failed")}}})}function oe(e){const t=Array.from(k),o=prompt(`Enter new Zone name for ${t.length} selected seats:`);!o||!o.trim()||y.post("/api/seats/bulk-update",{seatIds:t,updates:{zone:o.trim()}}).then(n=>{p.success(n.message||"Zones updated"),k.clear(),M(e),E(e),h(e)}).catch(n=>p.error(n.message))}function re(e){const t=Array.from(k),o=document.createElement("div"),n=F.map(s=>`
+    <option value="${s._id}">${r(s.name)} (${r(s.code||"")})</option>
   `).join("");o.innerHTML=`
     <div class="p-2">
       <p class="small text-muted mb-3">Select target branch center for the <strong>${t.length}</strong> selected seats:</p>
@@ -898,7 +898,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         <button type="button" class="btn btn-primary" id="btn-apply-bulk-branch">Move Seats</button>
       </div>
     </div>
-  `;const d=new A({title:"\u{1F3E2} Move Selected Seats to Branch",content:o,size:"sm"});d.show(),o.querySelector("#btn-apply-bulk-branch")?.addEventListener("click",async()=>{const a=o.querySelector("#bulk-target-branch").value;try{const i=await y.post("/api/seats/bulk-update",{seatIds:t,updates:{branch:a||null}});p.success(i.message||"Seats moved successfully"),d.close(),k.clear(),T(e),$(e),h(e)}catch(i){p.error(i.message)}})}function le(e){const t=Array.from(k),o=document.createElement("div");o.innerHTML=`
+  `;const d=new z({title:"\u{1F3E2} Move Selected Seats to Branch",content:o,size:"sm"});d.show(),o.querySelector("#btn-apply-bulk-branch")?.addEventListener("click",async()=>{const s=o.querySelector("#bulk-target-branch").value;try{const i=await y.post("/api/seats/bulk-update",{seatIds:t,updates:{branch:s||null}});p.success(i.message||"Seats moved successfully"),d.close(),k.clear(),M(e),$(e),h(e)}catch(i){p.error(i.message)}})}function le(e){const t=Array.from(k),o=document.createElement("div");o.innerHTML=`
     <div class="p-2">
       <p class="small text-muted mb-3">Set status for <strong>${t.length}</strong> selected seats:</p>
       <div class="form-group mb-3">
@@ -913,7 +913,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
         <button type="button" class="btn btn-primary" id="btn-apply-bulk-status">Update Status</button>
       </div>
     </div>
-  `;const n=new A({title:"\u{1F504} Change Status for Selected Seats",content:o,size:"sm"});n.show(),o.querySelector("#btn-apply-bulk-status")?.addEventListener("click",async()=>{const d=o.querySelector("#bulk-target-status").value,a=new Map;t.forEach(i=>{const c=S.find(l=>l._id===i);c&&a.set(i,c.status)});try{await G.execute({applyState:()=>{t.forEach(i=>{const c=S.find(l=>l._id===i);c&&(c.status=d)}),M(S,e)},rollbackState:()=>{t.forEach(i=>{const c=S.find(l=>l._id===i);c&&a.has(i)&&(c.status=a.get(i))}),M(S,e)},apiCall:()=>y.post("/api/seats/bulk-update",{seatIds:t,updates:{status:d}}),onSuccess:i=>{p.success(i.message||"Status updated"),n.close(),k.clear(),T(e),$(e),h(e)}})}catch{}})}async function ie(){const e=document.createElement("div");e.innerHTML='<div class="text-center p-4 text-muted">Loading waiting list entries...</div>';const t=new A({title:"\u23F3 Active Seat Waiting List",content:e,size:"lg"});t.show();try{const o=(await y.get("/api/waiting-list")).data?.entries||[];if(o.length===0){e.innerHTML=`
+  `;const n=new z({title:"\u{1F504} Change Status for Selected Seats",content:o,size:"sm"});n.show(),o.querySelector("#btn-apply-bulk-status")?.addEventListener("click",async()=>{const d=o.querySelector("#bulk-target-status").value,s=new Map;t.forEach(i=>{const c=w.find(l=>l._id===i);c&&s.set(i,c.status)});try{await B.execute({applyState:()=>{t.forEach(i=>{const c=w.find(l=>l._id===i);c&&(c.status=d)}),C(w,e)},rollbackState:()=>{t.forEach(i=>{const c=w.find(l=>l._id===i);c&&s.has(i)&&(c.status=s.get(i))}),C(w,e)},apiCall:()=>y.post("/api/seats/bulk-update",{seatIds:t,updates:{status:d}}),onSuccess:i=>{p.success(i.message||"Status updated"),n.close(),k.clear(),M(e),$(e),h(e)}})}catch{}})}async function ie(){const e=document.createElement("div");e.innerHTML='<div class="text-center p-4 text-muted">Loading waiting list entries...</div>';const t=new z({title:"\u23F3 Active Seat Waiting List",content:e,size:"lg"});t.show();try{const o=(await y.get("/api/waiting-list")).data?.entries||[];if(o.length===0){e.innerHTML=`
         <div class="text-center p-5 text-muted">
           <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">\u{1F389}</div>
           <h4 style="font-weight: 700; margin: 0;">Waiting List is Clear!</h4>
@@ -950,7 +950,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
           </tbody>
         </table>
       </div>
-    `,e.querySelectorAll(".btn-wl-allocate").forEach(n=>{n.addEventListener("click",()=>{t.close(),p.info("Select a vacant seat card in the matrix to assign this student")})})}catch{e.innerHTML='<div class="text-danger p-3">Failed to load waiting list</div>'}}function I(e){const t=document.createElement("div");t.className="zone-studio-container p-2";const o=new Map;S.forEach(s=>{const u=s.zone||"General";o.has(u)||o.set(u,{name:u,total:0,available:0,occupied:0,reserved:0,color:s.zoneColor||"#6c5ce7",seatType:s.seatType||"standard",floor:s.floor||"Ground Floor",seatIds:[]});const b=o.get(u);b.total+=1,b.seatIds.push(s._id),s.status==="available"?b.available+=1:s.status==="occupied"?b.occupied+=1:s.status==="reserved"&&(b.reserved+=1),s.zoneColor&&(b.color=s.zoneColor),s.floor&&(b.floor=s.floor),s.seatType&&(b.seatType=s.seatType)});const n=Array.from(o.values()),d=Array.from(e.querySelectorAll(".seat-checkbox:checked")).map(s=>s.value),a=[{name:"Indigo",hex:"#6c5ce7"},{name:"Emerald",hex:"#00b894"},{name:"Rose",hex:"#e84393"},{name:"Amber",hex:"#f59e0b"},{name:"Cyan",hex:"#0984e3"},{name:"Violet",hex:"#8e44ad"},{name:"Teal",hex:"#00cec9"},{name:"Slate",hex:"#64748b"}],i=()=>{t.innerHTML=`
+    `,e.querySelectorAll(".btn-wl-allocate").forEach(n=>{n.addEventListener("click",()=>{t.close(),p.info("Select a vacant seat card in the matrix to assign this student")})})}catch{e.innerHTML='<div class="text-danger p-3">Failed to load waiting list</div>'}}function P(e){const t=document.createElement("div");t.className="zone-studio-container p-2";const o=new Map;w.forEach(a=>{const u=a.zone||"General";o.has(u)||o.set(u,{name:u,total:0,available:0,occupied:0,reserved:0,color:a.zoneColor||"#6c5ce7",seatType:a.seatType||"standard",floor:a.floor||"Ground Floor",seatIds:[]});const b=o.get(u);b.total+=1,b.seatIds.push(a._id),a.status==="available"?b.available+=1:a.status==="occupied"?b.occupied+=1:a.status==="reserved"&&(b.reserved+=1),a.zoneColor&&(b.color=a.zoneColor),a.floor&&(b.floor=a.floor),a.seatType&&(b.seatType=a.seatType)});const n=Array.from(o.values()),d=Array.from(e.querySelectorAll(".seat-checkbox:checked")).map(a=>a.value),s=[{name:"Indigo",hex:"#6c5ce7"},{name:"Emerald",hex:"#00b894"},{name:"Rose",hex:"#e84393"},{name:"Amber",hex:"#f59e0b"},{name:"Cyan",hex:"#0984e3"},{name:"Violet",hex:"#8e44ad"},{name:"Teal",hex:"#00cec9"},{name:"Slate",hex:"#64748b"}],i=()=>{t.innerHTML=`
       <div style="font-family: 'Outfit', sans-serif;">
         <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
           <div>
@@ -973,76 +973,76 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
           </div>
 
           <div class="zone-cards-list d-flex flex-column gap-2" id="zone-items-mount">
-            ${n.map(s=>`
-              <div class="zone-row-card card p-3" data-zone="${r(s.name)}" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); transition: all 0.2s ease;">
+            ${n.map(a=>`
+              <div class="zone-row-card card p-3" data-zone="${r(a.name)}" style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); transition: all 0.2s ease;">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <div class="d-flex align-items-center gap-3">
-                    <div style="width: 14px; height: 14px; border-radius: 50%; background: ${s.color}; box-shadow: 0 0 8px ${s.color}88; flex-shrink: 0;"></div>
+                    <div style="width: 14px; height: 14px; border-radius: 50%; background: ${a.color}; box-shadow: 0 0 8px ${a.color}88; flex-shrink: 0;"></div>
                     <div>
                       <div class="d-flex align-items-center gap-2">
-                        <strong style="font-size: 1rem; color: var(--color-text-primary);">${r(s.name)}</strong>
-                        <span class="badge" style="background: ${s.color}22; color: ${s.color}; border: 1px solid ${s.color}44; font-size: 0.72rem; padding: 2px 8px; border-radius: 6px;">
-                          ${r(s.floor||"All Floors")}
+                        <strong style="font-size: 1rem; color: var(--color-text-primary);">${r(a.name)}</strong>
+                        <span class="badge" style="background: ${a.color}22; color: ${a.color}; border: 1px solid ${a.color}44; font-size: 0.72rem; padding: 2px 8px; border-radius: 6px;">
+                          ${r(a.floor||"All Floors")}
                         </span>
                       </div>
                       <div class="d-flex align-items-center gap-3 mt-1 text-muted" style="font-size: 0.8rem;">
-                        <span>\u{1FA91} <strong>${s.total}</strong> Desks</span>
-                        <span style="color: var(--color-success);">\u{1F7E2} ${s.available} Vacant</span>
-                        <span style="color: var(--color-danger);">\u{1F534} ${s.occupied} Occupied</span>
-                        ${s.reserved>0?`<span style="color: var(--color-warning);">\u{1F7E1} ${s.reserved} Hold</span>`:""}
+                        <span>\u{1FA91} <strong>${a.total}</strong> Desks</span>
+                        <span style="color: var(--color-success);">\u{1F7E2} ${a.available} Vacant</span>
+                        <span style="color: var(--color-danger);">\u{1F534} ${a.occupied} Occupied</span>
+                        ${a.reserved>0?`<span style="color: var(--color-warning);">\u{1F7E1} ${a.reserved} Hold</span>`:""}
                       </div>
                     </div>
                   </div>
 
                   <!-- Zone Action Buttons -->
                   <div class="d-flex align-items-center gap-1">
-                    <button type="button" class="btn btn-sm btn-outline-primary btn-edit-zone" data-zone="${r(s.name)}" title="Edit & Rename Zone" style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                    <button type="button" class="btn btn-sm btn-outline-primary btn-edit-zone" data-zone="${r(a.name)}" title="Edit & Rename Zone" style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
                       \u270F\uFE0F Edit / Rename
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary btn-reassign-zone" data-zone="${r(s.name)}" title="Reassign Desks to Another Zone" style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-reassign-zone" data-zone="${r(a.name)}" title="Reassign Desks to Another Zone" style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
                       \u{1F504} Reassign
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-danger btn-delete-zone" data-zone="${r(s.name)}" title="Delete Zone" style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-delete-zone" data-zone="${r(a.name)}" title="Delete Zone" style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
                       \u{1F5D1}\uFE0F Delete
                     </button>
                   </div>
                 </div>
 
                 <!-- Inline Edit Form (Hidden by default) -->
-                <div class="zone-inline-edit-form mt-3 pt-3 border-top" id="inline-edit-${r(s.name).replace(/[^a-zA-Z0-9]/g,"_")}" style="display: none;">
+                <div class="zone-inline-edit-form mt-3 pt-3 border-top" id="inline-edit-${r(a.name).replace(/[^a-zA-Z0-9]/g,"_")}" style="display: none;">
                   <h6 style="font-size: 0.88rem; font-weight: 700; margin-bottom: 10px; color: var(--color-primary);">
-                    \u270F\uFE0F Modify Zone Settings: "${r(s.name)}"
+                    \u270F\uFE0F Modify Zone Settings: "${r(a.name)}"
                   </h6>
                   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px;">
                     <div>
                       <label class="form-label small" style="font-weight: 600;">Zone Name *</label>
-                      <input type="text" class="form-control form-control-sm edit-zone-name" value="${r(s.name)}">
+                      <input type="text" class="form-control form-control-sm edit-zone-name" value="${r(a.name)}">
                     </div>
                     <div>
                       <label class="form-label small" style="font-weight: 600;">Floor / Category</label>
-                      <input type="text" class="form-control form-control-sm edit-zone-floor" value="${r(s.floor||"")}" placeholder="e.g. Ground Floor">
+                      <input type="text" class="form-control form-control-sm edit-zone-floor" value="${r(a.floor||"")}" placeholder="e.g. Ground Floor">
                     </div>
                     <div>
                       <label class="form-label small" style="font-weight: 600;">Default Desk Type</label>
                       <select class="form-select form-select-sm edit-zone-seattype">
-                        <option value="standard" ${s.seatType==="standard"?"selected":""}>Standard Desk</option>
-                        <option value="glass_cabin" ${s.seatType==="glass_cabin"?"selected":""}>Glass Cabin Desk</option>
-                        <option value="corner_desk" ${s.seatType==="corner_desk"?"selected":""}>Corner Focus Desk</option>
-                        <option value="girls_only" ${s.seatType==="girls_only"?"selected":""}>Girls Only Dedicated</option>
-                        <option value="premium" ${s.seatType==="premium"?"selected":""}>Premium Recliner</option>
+                        <option value="standard" ${a.seatType==="standard"?"selected":""}>Standard Desk</option>
+                        <option value="glass_cabin" ${a.seatType==="glass_cabin"?"selected":""}>Glass Cabin Desk</option>
+                        <option value="corner_desk" ${a.seatType==="corner_desk"?"selected":""}>Corner Focus Desk</option>
+                        <option value="girls_only" ${a.seatType==="girls_only"?"selected":""}>Girls Only Dedicated</option>
+                        <option value="premium" ${a.seatType==="premium"?"selected":""}>Premium Recliner</option>
                       </select>
                     </div>
                     <div>
                       <label class="form-label small" style="font-weight: 600;">Zone Theme Color</label>
                       <div class="d-flex align-items-center gap-2">
-                        <input type="color" class="form-control form-control-sm edit-zone-color p-0" value="${s.color||"#6c5ce7"}" style="width: 38px; height: 32px; cursor: pointer; border-radius: 6px;">
-                        <span class="small text-muted">${s.color||"#6c5ce7"}</span>
+                        <input type="color" class="form-control form-control-sm edit-zone-color p-0" value="${a.color||"#6c5ce7"}" style="width: 38px; height: 32px; cursor: pointer; border-radius: 6px;">
+                        <span class="small text-muted">${a.color||"#6c5ce7"}</span>
                       </div>
                     </div>
                   </div>
                   <div class="d-flex justify-content-end gap-2">
-                    <button type="button" class="btn btn-sm btn-ghost btn-cancel-inline-edit" data-zone="${r(s.name)}">Cancel</button>
-                    <button type="button" class="btn btn-sm btn-primary btn-save-inline-edit" data-zone="${r(s.name)}">\u{1F4BE} Save Changes</button>
+                    <button type="button" class="btn btn-sm btn-ghost btn-cancel-inline-edit" data-zone="${r(a.name)}">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-primary btn-save-inline-edit" data-zone="${r(a.name)}">\u{1F4BE} Save Changes</button>
                   </div>
                 </div>
               </div>
@@ -1089,8 +1089,8 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
               <div class="d-flex align-items-center gap-2">
                 <input type="color" id="new-zone-color" class="form-control form-control-sm p-0" value="#6c5ce7" style="width: 42px; height: 32px; cursor: pointer; border-radius: 6px;">
                 <div class="d-flex gap-1 flex-wrap">
-                  ${a.slice(0,5).map(s=>`
-                    <div class="preset-color-swatch" data-hex="${s.hex}" title="${s.name}" style="width: 20px; height: 20px; border-radius: 4px; background: ${s.hex}; cursor: pointer; border: 1px solid rgba(0,0,0,0.1);"></div>
+                  ${s.slice(0,5).map(a=>`
+                    <div class="preset-color-swatch" data-hex="${a.hex}" title="${a.name}" style="width: 20px; height: 20px; border-radius: 4px; background: ${a.hex}; cursor: pointer; border: 1px solid rgba(0,0,0,0.1);"></div>
                   `).join("")}
                 </div>
               </div>
@@ -1118,7 +1118,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
           <button type="button" class="btn btn-secondary" id="btn-close-zone-studio">Done / Close</button>
         </div>
       </div>
-    `,l()},c=new A({title:"\u{1F3A8} Library Study Zone Studio",content:t,size:"lg"});c.show();const l=()=>{t.querySelectorAll(".preset-color-swatch").forEach(s=>{s.addEventListener("click",()=>{const u=s.dataset.hex,b=t.querySelector("#new-zone-color");b&&(b.value=u)})}),t.querySelectorAll(".btn-edit-zone").forEach(s=>{s.addEventListener("click",()=>{const u=s.dataset.zone.replace(/[^a-zA-Z0-9]/g,"_"),b=t.querySelector(`#inline-edit-${u}`);if(b){const m=b.style.display!=="none";t.querySelectorAll(".zone-inline-edit-form").forEach(v=>v.style.display="none"),b.style.display=m?"none":"block"}})}),t.querySelectorAll(".btn-cancel-inline-edit").forEach(s=>{s.addEventListener("click",()=>{const u=s.dataset.zone.replace(/[^a-zA-Z0-9]/g,"_"),b=t.querySelector(`#inline-edit-${u}`);b&&(b.style.display="none")})}),t.querySelectorAll(".btn-save-inline-edit").forEach(s=>{s.addEventListener("click",async()=>{const u=s.dataset.zone,b=u.replace(/[^a-zA-Z0-9]/g,"_"),m=t.querySelector(`#inline-edit-${b}`);if(!m)return;const v=m.querySelector(".edit-zone-name")?.value?.trim(),f=m.querySelector(".edit-zone-floor")?.value?.trim(),g=m.querySelector(".edit-zone-seattype")?.value,R=m.querySelector(".edit-zone-color")?.value;if(!v){p.warning("Zone name cannot be empty");return}try{x.show();const z=await y.put("/api/seats/zones/rename",{oldZone:u,newZone:v,floor:f,seatType:g,zoneColor:R,branch:w});x.hide(),z.success?(p.success(z.message||`Zone "${v}" updated successfully!`),c.close(),await h(e),await E(e)):p.error(z.message||"Failed to update zone")}catch(z){x.hide(),p.error(z.message||"Failed to update zone")}})}),t.querySelectorAll(".btn-reassign-zone").forEach(s=>{s.addEventListener("click",async()=>{const u=s.dataset.zone,b=n.map(f=>f.name).filter(f=>f!==u),m=(b.length>0?b:["General","Zone A","Zone B"]).map(f=>`<option value="${r(f)}">${r(f)}</option>`).join(""),v=await C.prompt({title:`\u{1F504} Reassign Desks in "${u}"`,message:`Select the target zone to move all desks currently in "${u}":`,inputHtml:`
+    `,l()},c=new z({title:"\u{1F3A8} Library Study Zone Studio",content:t,size:"lg"});c.show();const l=()=>{t.querySelectorAll(".preset-color-swatch").forEach(a=>{a.addEventListener("click",()=>{const u=a.dataset.hex,b=t.querySelector("#new-zone-color");b&&(b.value=u)})}),t.querySelectorAll(".btn-edit-zone").forEach(a=>{a.addEventListener("click",()=>{const u=a.dataset.zone.replace(/[^a-zA-Z0-9]/g,"_"),b=t.querySelector(`#inline-edit-${u}`);if(b){const m=b.style.display!=="none";t.querySelectorAll(".zone-inline-edit-form").forEach(v=>v.style.display="none"),b.style.display=m?"none":"block"}})}),t.querySelectorAll(".btn-cancel-inline-edit").forEach(a=>{a.addEventListener("click",()=>{const u=a.dataset.zone.replace(/[^a-zA-Z0-9]/g,"_"),b=t.querySelector(`#inline-edit-${u}`);b&&(b.style.display="none")})}),t.querySelectorAll(".btn-save-inline-edit").forEach(a=>{a.addEventListener("click",async()=>{const u=a.dataset.zone,b=u.replace(/[^a-zA-Z0-9]/g,"_"),m=t.querySelector(`#inline-edit-${b}`);if(!m)return;const v=m.querySelector(".edit-zone-name")?.value?.trim(),f=m.querySelector(".edit-zone-floor")?.value?.trim(),g=m.querySelector(".edit-zone-seattype")?.value,H=m.querySelector(".edit-zone-color")?.value;if(!v){p.warning("Zone name cannot be empty");return}try{x.show();const A=await y.put("/api/seats/zones/rename",{oldZone:u,newZone:v,floor:f,seatType:g,zoneColor:H,branch:S});x.hide(),A.success?(p.success(A.message||`Zone "${v}" updated successfully!`),c.close(),await h(e),await E(e)):p.error(A.message||"Failed to update zone")}catch(A){x.hide(),p.error(A.message||"Failed to update zone")}})}),t.querySelectorAll(".btn-reassign-zone").forEach(a=>{a.addEventListener("click",async()=>{const u=a.dataset.zone,b=n.map(f=>f.name).filter(f=>f!==u),m=(b.length>0?b:["General","Zone A","Zone B"]).map(f=>`<option value="${r(f)}">${r(f)}</option>`).join(""),v=await L.prompt({title:`\u{1F504} Reassign Desks in "${u}"`,message:`Select the target zone to move all desks currently in "${u}":`,inputHtml:`
             <div class="form-group mb-3">
               <label class="form-label" style="font-weight: 600;">Target Study Zone *</label>
               <select id="swal-target-zone" class="form-select">
@@ -1130,7 +1130,7 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
               <label class="form-label" style="font-weight: 600;">Custom Zone Name</label>
               <input type="text" id="swal-custom-target-zone" class="form-control" placeholder="e.g. Quiet Hall 2">
             </div>
-          `,confirmText:"Reassign Desks",cancelText:"Cancel"});if(v){let f=v;v==="__custom__"&&(f=document.getElementById("swal-custom-target-zone")?.value?.trim()||"General");try{x.show();const g=await y.post("/api/seats/zones/delete",{zone:u,action:"reassign",targetZone:f,branch:w});x.hide(),g.success?(p.success(g.message||`Desks reassigned to "${f}"!`),c.close(),await h(e),await E(e)):p.error(g.message||"Failed to reassign zone desks")}catch(g){x.hide(),p.error(g.message||"Failed to reassign zone desks")}}})}),t.querySelectorAll(".btn-delete-zone").forEach(s=>{s.addEventListener("click",async()=>{const u=s.dataset.zone,b=o.get(u),m=b?b.total:0,v=n.map(g=>g.name).filter(g=>g!==u),f=(v.length>0?v:["General"]).map(g=>`<option value="${r(g)}">${r(g)}</option>`).join("");if(await C.show({title:`\u{1F5D1}\uFE0F Delete Zone: "${u}"?`,message:`This zone contains ${m} desk(s). What would you like to do with the desks in this zone?`,customHtml:`
+          `,confirmText:"Reassign Desks",cancelText:"Cancel"});if(v){let f=v;v==="__custom__"&&(f=document.getElementById("swal-custom-target-zone")?.value?.trim()||"General");try{x.show();const g=await y.post("/api/seats/zones/delete",{zone:u,action:"reassign",targetZone:f,branch:S});x.hide(),g.success?(p.success(g.message||`Desks reassigned to "${f}"!`),c.close(),await h(e),await E(e)):p.error(g.message||"Failed to reassign zone desks")}catch(g){x.hide(),p.error(g.message||"Failed to reassign zone desks")}}})}),t.querySelectorAll(".btn-delete-zone").forEach(a=>{a.addEventListener("click",async()=>{const u=a.dataset.zone,b=o.get(u),m=b?b.total:0,v=n.map(g=>g.name).filter(g=>g!==u),f=(v.length>0?v:["General"]).map(g=>`<option value="${r(g)}">${r(g)}</option>`).join("");if(await L.show({title:`\u{1F5D1}\uFE0F Delete Zone: "${u}"?`,message:`This zone contains ${m} desk(s). What would you like to do with the desks in this zone?`,customHtml:`
             <div class="text-left mt-3">
               <div class="form-check mb-2">
                 <input class="form-check-input" type="radio" name="zoneDeleteAction" id="actReassign" value="reassign" checked>
@@ -1148,4 +1148,4 @@ import"../app.js";import"../i18n.js";import{Toast as p,Modal as A,Loading as x,C
                 </label>
               </div>
             </div>
-          `,confirmText:"Delete Zone",cancelText:"Cancel",danger:!0})){const g=document.getElementById("actTrash")?.checked,R=document.getElementById("delete-fallback-zone")?.value||"General";try{x.show();const z=await y.post("/api/seats/zones/delete",{zone:u,action:g?"trash":"reassign",targetZone:R,branch:w});x.hide(),z.success?(p.success(z.message||`Zone "${u}" deleted successfully!`),c.close(),await h(e),await E(e)):p.error(z.message||"Failed to delete zone")}catch(z){x.hide(),p.error(z.message||"Failed to delete zone")}}})}),t.querySelector("#btn-create-zone")?.addEventListener("click",async()=>{const s=t.querySelector("#new-zone-name")?.value?.trim(),u=t.querySelector("#new-zone-floor")?.value?.trim()||"Ground Floor",b=t.querySelector("#new-zone-seattype")?.value||"standard",m=t.querySelector("#new-zone-color")?.value||"#6c5ce7",v=t.querySelector("#chk-assign-selected-seats")?.checked;if(!s){p.warning("Please enter a name for the new zone");return}try{if(x.show(),v&&d.length>0){const f=await y.post("/api/seats/bulk-update",{seatIds:d,updates:{zone:s,floor:u,seatType:b,zoneColor:m}});x.hide(),f.success?(p.success(`Zone "${s}" created and assigned to ${d.length} desks!`),c.close(),await h(e),await E(e)):p.error(f.message||"Failed to assign seats to zone")}else x.hide(),p.success(`Zone "${s}" created! You can now select desks in the Seating Matrix and apply this zone.`),c.close(),await E(e)}catch(f){x.hide(),p.error(f.message||"Failed to create zone")}}),t.querySelector("#btn-close-zone-studio")?.addEventListener("click",()=>{c.close()})};i()}export{J as render,I as showZoneCustomizerModal};
+          `,confirmText:"Delete Zone",cancelText:"Cancel",danger:!0})){const g=document.getElementById("actTrash")?.checked,H=document.getElementById("delete-fallback-zone")?.value||"General";try{x.show();const A=await y.post("/api/seats/zones/delete",{zone:u,action:g?"trash":"reassign",targetZone:H,branch:S});x.hide(),A.success?(p.success(A.message||`Zone "${u}" deleted successfully!`),c.close(),await h(e),await E(e)):p.error(A.message||"Failed to delete zone")}catch(A){x.hide(),p.error(A.message||"Failed to delete zone")}}})}),t.querySelector("#btn-create-zone")?.addEventListener("click",async()=>{const a=t.querySelector("#new-zone-name")?.value?.trim(),u=t.querySelector("#new-zone-floor")?.value?.trim()||"Ground Floor",b=t.querySelector("#new-zone-seattype")?.value||"standard",m=t.querySelector("#new-zone-color")?.value||"#6c5ce7",v=t.querySelector("#chk-assign-selected-seats")?.checked;if(!a){p.warning("Please enter a name for the new zone");return}try{if(x.show(),v&&d.length>0){const f=await y.post("/api/seats/bulk-update",{seatIds:d,updates:{zone:a,floor:u,seatType:b,zoneColor:m}});x.hide(),f.success?(p.success(`Zone "${a}" created and assigned to ${d.length} desks!`),c.close(),await h(e),await E(e)):p.error(f.message||"Failed to assign seats to zone")}else x.hide(),p.success(`Zone "${a}" created! You can now select desks in the Seating Matrix and apply this zone.`),c.close(),await E(e)}catch(f){x.hide(),p.error(f.message||"Failed to create zone")}}),t.querySelector("#btn-close-zone-studio")?.addEventListener("click",()=>{c.close()})};i()}export{J as render,P as showZoneCustomizerModal};

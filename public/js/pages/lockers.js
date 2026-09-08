@@ -140,7 +140,7 @@ import u from"../api.js";import{Toast as s,Modal as c,escapeHTML as n}from"../ui
           <button type="submit" class="btn btn-primary">Create Locker</button>
         </div>
       </form>
-    `}).show(),document.getElementById("add-locker-form")?.addEventListener("submit",async t=>{t.preventDefault();try{const l={lockerNumber:document.getElementById("add-locker-number").value.trim(),size:document.getElementById("add-locker-size").value,keyNumber:document.getElementById("add-locker-key").value.trim(),depositAmount:parseFloat(document.getElementById("add-locker-deposit").value)||0},e=await u.post("/api/lockers",l);e&&e.success?(s.success("Locker created successfully"),c.closeAll(),d()):s.error(e?.message||"Error creating locker")}catch(l){s.error(l.message||"Error creating locker")}})}function $(){new c({title:"\u26A1 Bulk Generate Lockers",content:`
+    `}).show(),document.getElementById("add-locker-form")?.addEventListener("submit",async t=>{t.preventDefault();try{const l={lockerNumber:document.getElementById("add-locker-number").value.trim(),size:document.getElementById("add-locker-size").value,keyNumber:document.getElementById("add-locker-key").value.trim(),depositAmount:parseFloat(document.getElementById("add-locker-deposit").value)||0},e=await u.post("/api/lockers",l);e&&e.success?(s.success("Locker created successfully"),c.closeAll(),d()):s.error(e?.message||"Error creating locker")}catch(l){s.error(l.message||"Error creating locker")}})}function $(){new c({title:"\u{1F680} Bulk Generate Lockers",content:`
       <form id="bulk-locker-form">
         <p class="text-sm text-muted mb-3">Quickly generate a sequence of locker boxes in one click.</p>
         <div class="d-grid grid-2 gap-3 mb-3">
