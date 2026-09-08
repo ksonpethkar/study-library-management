@@ -5,6 +5,7 @@ const Student = require('../models/Student');
 const BusinessProfile = require('../models/BusinessProfile');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
+const { validateMessageTemplateCreate, validateMessageTemplateUpdate, validateSendReminder } = require('../middleware/validate');
 
 // GET /api/messages/templates - List templates
 router.get('/templates', protect, async (req, res) => {
@@ -18,7 +19,7 @@ router.get('/templates', protect, async (req, res) => {
 });
 
 // POST /api/messages/templates - Create template
-router.post('/templates', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.post('/templates', protect, roleCheck('owner', 'branch_manager'), validateMessageTemplateCreate, async (req, res) => {
   try {
     const { title, triggerType, channel, templateText, availableVariables } = req.body;
     const t = new MessageTemplate({
@@ -36,7 +37,7 @@ router.post('/templates', protect, roleCheck('owner', 'branch_manager'), async (
 });
 
 // PUT /api/messages/templates/:id - Update template
-router.put('/templates/:id', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.put('/templates/:id', protect, roleCheck('owner', 'branch_manager'), validateMessageTemplateUpdate, async (req, res) => {
   try {
     const t = await MessageTemplate.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!t) return res.status(404).json({ success: false, message: 'Template not found' });
@@ -141,7 +142,7 @@ router.post('/prepare-broadcast', protect, roleCheck('owner', 'branch_manager'),
 });
 
 // POST /api/messages/send-reminder - 1-Click WhatsApp Reminder Dispatcher
-router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.post('/send-reminder', protect, roleCheck('owner', 'branch_manager'), validateSendReminder, async (req, res) => {
   try {
     const { studentId, reminderType = 'renewal_reminder', customAmount, customMessage, message, paymentId } = req.body;
     if (!studentId) {

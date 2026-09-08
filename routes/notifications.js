@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
+const { validateReceiptWhatsappLink, validateTestGateway, validateSendRenewals } = require('../middleware/validate');
 const Notification = require('../models/Notification');
 
 router.use(protect);
@@ -203,7 +204,7 @@ router.delete('/clear-read', async (req, res) => {
 
 // @route   POST /api/notifications/receipt-whatsapp-link
 // @desc    Generate pre-filled WhatsApp web link for a payment receipt
-router.post('/receipt-whatsapp-link', async (req, res) => {
+router.post('/receipt-whatsapp-link', validateReceiptWhatsappLink, async (req, res) => {
   try {
     const { paymentId } = req.body;
     const Payment = require('../models/Payment');
@@ -235,7 +236,7 @@ router.post('/receipt-whatsapp-link', async (req, res) => {
 
 // @route   POST /api/notifications/test-gateway
 // @desc    Test WhatsApp or SMS gateway dispatch
-router.post('/test-gateway', async (req, res) => {
+router.post('/test-gateway', validateTestGateway, async (req, res) => {
   try {
     const { phone, type, message } = req.body;
     const { sendGatewayMessage } = require('../services/notificationService');
@@ -272,7 +273,7 @@ router.get('/marketing/renewal-candidates', async (req, res) => {
 
 // @route   POST /api/notifications/marketing/send-renewals
 // @desc    Batch dispatch renewal alerts with dynamic UPI deep links
-router.post('/marketing/send-renewals', async (req, res) => {
+router.post('/marketing/send-renewals', validateSendRenewals, async (req, res) => {
   try {
     const { dryRun = false } = req.body;
     const marketingService = require('../services/marketingService');

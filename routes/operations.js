@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
+const { validateVisitorCreate, validateAnnouncementCreate, validateHolidayCreate, validateLostFoundCreate, validateFeedbackCreate } = require('../middleware/validate');
 const { Visitor, Announcement, Holiday, LostFound, Feedback, LeaveRequest, SeatChangeRequest, Referral } = require('../models/Operations');
 const ReferralConfig = require('../models/ReferralConfig');
 const Student = require('../models/Student');
@@ -20,7 +21,7 @@ router.get('/visitors', roleCheck('owner', 'branch_manager'), async (req, res) =
   }
 });
 
-router.post('/visitors', roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.post('/visitors', roleCheck('owner', 'branch_manager'), validateVisitorCreate, async (req, res) => {
   try {
     const visitor = await Visitor.create(req.body);
     res.json({ success: true, data: visitor, message: 'Visitor inquiry logged successfully' });
@@ -72,7 +73,7 @@ router.get('/announcements', async (req, res) => {
   }
 });
 
-router.post('/announcements', roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.post('/announcements', roleCheck('owner', 'branch_manager'), validateAnnouncementCreate, async (req, res) => {
   try {
     const announcement = await Announcement.create(req.body);
     res.json({ success: true, data: announcement, message: 'Notice posted successfully' });
@@ -115,7 +116,7 @@ router.get('/holidays', async (req, res) => {
   }
 });
 
-router.post('/holidays', roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.post('/holidays', roleCheck('owner', 'branch_manager'), validateHolidayCreate, async (req, res) => {
   try {
     const holiday = await Holiday.create(req.body);
     res.json({ success: true, data: holiday, message: 'Holiday scheduled' });
@@ -158,7 +159,7 @@ router.get('/lostfound', async (req, res) => {
   }
 });
 
-router.post('/lostfound', roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.post('/lostfound', roleCheck('owner', 'branch_manager'), validateLostFoundCreate, async (req, res) => {
   try {
     const item = await LostFound.create(req.body);
     res.json({ success: true, data: item, message: 'Lost item recorded' });

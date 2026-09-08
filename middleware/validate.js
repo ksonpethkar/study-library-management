@@ -290,6 +290,69 @@ const validateBusinessProfile = validate([
   })
 ]);
 
+// ── Operations ───────────────────────────────────────────────────────────────
+const validateVisitorCreate = validate([
+  body('name').trim().notEmpty().withMessage('Visitor name is required').isLength({ max: 100 }),
+  body('phone').optional().trim().isLength({ max: 15 }),
+  body('purpose').optional().trim().isLength({ max: 200 }),
+]);
+
+const validateAnnouncementCreate = validate([
+  body('title').trim().notEmpty().withMessage('Announcement title is required').isLength({ max: 200 }),
+  body('content').optional().trim().isLength({ max: 2000 }),
+  body('targetAudience').optional().isIn(['all', 'students', 'staff']),
+]);
+
+const validateHolidayCreate = validate([
+  body('title').trim().notEmpty().withMessage('Holiday title is required').isLength({ max: 200 }),
+  body('startDate').notEmpty().withMessage('Start date is required'),
+]);
+
+const validateLostFoundCreate = validate([
+  body('itemName').trim().notEmpty().withMessage('Item name is required').isLength({ max: 200 }),
+  body('status').optional().isIn(['lost', 'found', 'claimed']),
+]);
+
+const validateFeedbackCreate = validate([
+  body('message').trim().notEmpty().withMessage('Feedback message is required').isLength({ max: 2000 }),
+  body('rating').optional().isInt({ min: 1, max: 5 }),
+]);
+
+// ── Notifications ────────────────────────────────────────────────────────────
+const validateReceiptWhatsappLink = validate([
+  body('paymentId').notEmpty().withMessage('Payment ID is required').isMongoId().withMessage('Invalid Payment ID format')
+]);
+
+const validateTestGateway = validate([
+  body('phone').optional().trim(),
+  body('type').optional().isIn(['whatsapp', 'sms']).withMessage('Type must be whatsapp or sms'),
+  body('message').optional().trim().isLength({ max: 1000 })
+]);
+
+const validateSendRenewals = validate([
+  body('dryRun').optional().isBoolean().withMessage('dryRun must be a boolean')
+]);
+
+// ── Messages ─────────────────────────────────────────────────────────────────
+const validateMessageTemplateCreate = validate([
+  body('title').trim().notEmpty().withMessage('Template title is required').isLength({ max: 150 }),
+  body('templateText').trim().notEmpty().withMessage('Template text is required').isLength({ max: 4000 }),
+  body('channel').optional().isIn(['whatsapp', 'sms', 'email', 'push']),
+  body('triggerType').optional().trim()
+]);
+
+const validateMessageTemplateUpdate = validate([
+  body('title').optional().trim().notEmpty().withMessage('Template title cannot be empty').isLength({ max: 150 }),
+  body('templateText').optional().trim().notEmpty().withMessage('Template text cannot be empty').isLength({ max: 4000 })
+]);
+
+const validateSendReminder = validate([
+  body('studentId').notEmpty().withMessage('Student ID is required').isMongoId().withMessage('Invalid Student ID format'),
+  body('reminderType').optional().trim(),
+  body('customAmount').optional().isNumeric().withMessage('Custom amount must be numeric'),
+  body('customMessage').optional().trim().isLength({ max: 2000 })
+]);
+
 module.exports = {
   validate,
   handleValidationErrors,
@@ -321,5 +384,16 @@ module.exports = {
   validateBranchCreate,
   validateBranchUpdate,
   validateCustomField,
-  validateBusinessProfile
+  validateBusinessProfile,
+  validateVisitorCreate,
+  validateAnnouncementCreate,
+  validateHolidayCreate,
+  validateLostFoundCreate,
+  validateFeedbackCreate,
+  validateReceiptWhatsappLink,
+  validateTestGateway,
+  validateSendRenewals,
+  validateMessageTemplateCreate,
+  validateMessageTemplateUpdate,
+  validateSendReminder
 };

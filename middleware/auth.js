@@ -29,10 +29,7 @@ function invalidateUserCache(userId) { _userCache.delete(String(userId)); }
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('FATAL: JWT_SECRET environment variable is not set in production.');
-    }
-    return 'library_mgmt_dev_secret_2026';
+    throw new Error('FATAL: JWT_SECRET environment variable is not set. Please add it to your .env file.');
   }
   return secret;
 }

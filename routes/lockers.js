@@ -4,6 +4,7 @@ const Locker = require('../models/Locker');
 const Student = require('../models/Student');
 const { protect } = require('../middleware/auth');
 const { roleCheck } = require('../middleware/roleCheck');
+const { validateLockerCreate } = require('../middleware/validate');
 
 // GET /api/lockers/blocks - Get aggregated statistics per block
 router.get('/blocks', protect, async (req, res) => {
@@ -85,7 +86,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // POST /api/lockers - Create single or bulk lockers
-router.post('/', protect, roleCheck('owner', 'branch_manager'), async (req, res) => {
+router.post('/', protect, roleCheck('owner', 'branch_manager'), validateLockerCreate, async (req, res) => {
   try {
     const { isBulk, prefix = 'L-', startNumber, count, size = 'medium', depositAmount = 0, branch, lockerNumber } = req.body;
 
