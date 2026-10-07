@@ -359,19 +359,63 @@ class SeatRepository {
     String studentId,
   ) async {
     try {
-      await _firestore
+      final batch = _firestore.batch();
+
+      // 1. Release any previously occupied seat for this student across all sections
+      final sectionsSnap = await _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.sections)
+          .get();
+
+      for (final sec in sectionsSnap.docs) {
+        final occupiedSeats = await sec.reference
+            .collection(FirestorePaths.seats)
+            .where('studentId', isEqualTo: studentId)
+            .get();
+
+        for (final oldSeat in occupiedSeats.docs) {
+          if (oldSeat.id != seatId) {
+            batch.update(oldSeat.reference, {
+              'status': SeatStatus.available.name,
+              'studentId': null,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      }
+
+      // 2. Mark target seat as occupied
+      final targetSeatRef = _firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
           .collection(FirestorePaths.sections)
           .doc(sectionId)
           .collection(FirestorePaths.seats)
-          .doc(seatId)
-          .update({
-            'status': SeatStatus.occupied.name,
-            'studentId': studentId,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+          .doc(seatId);
+
+      batch.update(targetSeatRef, {
+        'status': SeatStatus.occupied.name,
+        'studentId': studentId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // 3. Update student document with current seat and section
+      final studentRef = _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.students)
+          .doc(studentId);
+
+      batch.update(studentRef, {
+        'seatId': seatId,
+        'sectionId': sectionId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
     } catch (e) {
+      debugPrint('Failed to assign student to seat: $e');
       throw Exception('Failed to assign student to seat.');
     }
   }

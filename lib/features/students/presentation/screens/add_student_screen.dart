@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/models/student_model.dart';
@@ -212,6 +213,19 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
 
       final repo = ref.read(studentRepositoryProvider);
       final studentId = await repo.createStudent(libraryId, newStudent);
+
+      // If a seat was assigned during student registration, mark it occupied
+      if (_selectedSeatId != null &&
+          _selectedSectionId != null &&
+          _selectedSeatId!.isNotEmpty &&
+          _selectedSectionId!.isNotEmpty) {
+        await ref.read(seatRepositoryProvider).assignStudent(
+              libraryId,
+              _selectedSectionId!,
+              _selectedSeatId!,
+              studentId,
+            );
+      }
 
       // Invalidate stream so UI refreshes immediately
       ref.invalidate(studentsStreamProvider);

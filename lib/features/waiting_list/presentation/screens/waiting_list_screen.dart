@@ -570,6 +570,30 @@ class _WaitingListSeatAssignSheetState
         });
       }
 
+      // Release any previously occupied seat for this student across all sections
+      final sectionsSnap = await firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.sections)
+          .get();
+
+      for (final sec in sectionsSnap.docs) {
+        final occupiedSeats = await sec.reference
+            .collection(FirestorePaths.seats)
+            .where('studentId', isEqualTo: studentId)
+            .get();
+
+        for (final oldSeat in occupiedSeats.docs) {
+          if (oldSeat.id != seat.id) {
+            batch.update(oldSeat.reference, {
+              'status': SeatStatus.available.name,
+              'studentId': null,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      }
+
       // Mark seat occupied
       final seatRef = firestore
           .collection(FirestorePaths.libraries)

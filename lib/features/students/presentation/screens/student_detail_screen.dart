@@ -923,35 +923,20 @@ class _SectionItem extends ConsumerWidget {
                     final libraryId = ref.read(currentLibraryIdProvider);
                     if (libraryId == null) return;
 
-                    // Update Student
-                    await FirebaseFirestore.instance
-                        .collection('libraries')
-                        .doc(libraryId)
-                        .collection('students')
-                        .doc(studentId)
-                        .update({
-                      'seatId': seat.id,
-                      'sectionId': section.id,
-                    });
-
-                    // Update Seat
-                    await FirebaseFirestore.instance
-                        .collection('libraries')
-                        .doc(libraryId)
-                        .collection('sections')
-                        .doc(section.id)
-                        .collection('seats')
-                        .doc(seat.id)
-                        .update({
-                      'status': SeatStatus.occupied.name,
-                      'studentId': studentId,
-                    });
+                    // Assign student through SeatRepository which atomically releases
+                    // any old/duplicate seat the student previously occupied!
+                    await ref.read(seatRepositoryProvider).assignStudent(
+                          libraryId,
+                          section.id,
+                          seat.id,
+                          studentId,
+                        );
 
                     AuditLogger().log(
                       action: AuditAction.updated,
                       entityType: AuditEntity.student,
                       entityId: studentId,
-                      details: {'seatAssigned': true, 'seatId': seat.id},
+                      details: {'seatAssigned': true, 'seatId': seat.id, 'sectionId': section.id},
                     ).ignore();
 
                     onSeatAssigned();

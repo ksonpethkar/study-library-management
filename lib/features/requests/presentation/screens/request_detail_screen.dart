@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/security/audit_logger.dart';
+import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
@@ -151,13 +152,14 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         final newId = await repo.createStudent(libraryId, newStudent);
         _newCreatedStudentId = newId;
 
-        // If seat was assigned, mark seat occupied
+        // If seat was assigned, mark seat occupied and release any previously occupied seat
         if (newStudent.seatId != null && newStudent.sectionId != null) {
-          await FirebaseFirestore.instance
-              .collection('libraries').doc(libraryId)
-              .collection('sections').doc(newStudent.sectionId)
-              .collection('seats').doc(newStudent.seatId)
-              .update({'status': 'occupied', 'studentId': newId});
+          await ref.read(seatRepositoryProvider).assignStudent(
+                libraryId,
+                newStudent.sectionId!,
+                newStudent.seatId!,
+                newId,
+              );
         }
 
         // Link student's Firebase Auth account to role: 'student' and this libraryId
