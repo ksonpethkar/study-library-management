@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "670017745754",
+    "project_id": "study-lib-mgmt-2026",
+    "storage_bucket": "study-lib-mgmt-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:670017745754:android:a9e44e1d53b3c1e7d03963",
+        "android_client_info": {
+          "package_name": "com.studylibrary.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "670017745754-2c7kbpbf8irj49a74au2nukolhl04sit.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.studylibrary.app",
+            "certificate_hash": "3e747d76e0027d4f69784f23ce7f091e4038ee22"
+          }
+        },
+        {
+          "client_id": "670017745754-ukikcs1776qjghp8ucbvno23ogqp4pof.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.studylibrary.app",
+            "certificate_hash": "7a21f24184f8a753216fa4a2350e8e68da6d2b10"
+          }
+        },
+        {
+          "client_id": "670017745754-k4gjhigg2oabuon0a86vp3vaurhqefmg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBt3U_lnXLEF0V0_VkjhIiNYymyrNsEiuk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "670017745754-k4gjhigg2oabuon0a86vp3vaurhqefmg.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "670017745754-8106h43qnkm866c7b4isi8rr6m892gmf.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.studylibrary.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

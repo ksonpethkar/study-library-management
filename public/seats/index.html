@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Live Seat Map — Cozy Corner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-hover: #4338CA;
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+      --border: #E2E8F0;
+      --text: #0F172A;
+      --text-muted: #64748B;
+      
+      --color-available: #10B981;
+      --color-available-bg: #ECFDF5;
+      --color-available-border: #A7F3D0;
+      
+      --color-occupied: #EF4444;
+      --color-occupied-bg: #FEF2F2;
+      --color-occupied-border: #FECACA;
+      
+      --color-reserved: #F59E0B;
+      --color-reserved-bg: #FFFBEB;
+      --color-reserved-border: #FDE68A;
+      
+      --color-disabled: #64748B;
+      --color-disabled-bg: #F1F5F9;
+      --color-disabled-border: #CBD5E1;
+      
+      --radius: 16px;
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary: #6366F1;
+        --primary-hover: #4F46E5;
+        --bg: #0F172A;
+        --surface: #1E293B;
+        --border: #334155;
+        --text: #F8FAFC;
+        --text-muted: #94A3B8;
+
+        --color-available-bg: rgba(16, 185, 129, 0.15);
+        --color-available-border: rgba(16, 185, 129, 0.35);
+
+        --color-occupied-bg: rgba(239, 68, 68, 0.15);
+        --color-occupied-border: rgba(239, 68, 68, 0.35);
+
+        --color-reserved-bg: rgba(245, 158, 11, 0.15);
+        --color-reserved-border: rgba(245, 158, 11, 0.35);
+
+        --color-disabled-bg: rgba(100, 116, 139, 0.15);
+        --color-disabled-border: rgba(100, 116, 139, 0.35);
+
+        --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Header */
+    .header-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .lib-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .lib-info {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .lib-logo {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.4rem;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+    }
+
+    .lib-name {
+      font-size: 1.2rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .lib-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--color-available);
+      background: var(--color-available-bg);
+      padding: 0.3rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid var(--color-available-border);
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--color-available);
+      box-shadow: 0 0 8px var(--color-available);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+
+    /* Stats Banner */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      background: var(--bg);
+      padding: 0.75rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .stat-box h4 {
+      font-size: 1.25rem;
+      font-weight: 800;
+    }
+
+    .stat-box p {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* Legend */
+    .legend-bar {
+      display: flex;
+      justify-content: space-around;
+      gap: 0.5rem;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 0.65rem 0.5rem;
+      border: 1px solid var(--border);
+      font-size: 0.75rem;
+      font-weight: 600;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .legend-pill {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+    }
+
+    /* Section Tabs */
+    .section-tabs {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 0.25rem;
+      scrollbar-width: none;
+    }
+    .section-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .section-tab {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.55rem 1rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .section-tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    /* Seat Grid Canvas */
+    .seat-map-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      min-height: 280px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .grid-container {
+      display: grid;
+      gap: 8px;
+      width: 100%;
+      justify-content: center;
+      padding: 0.5rem;
+      overflow-x: auto;
+    }
+
+    .seat-cell {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+      border-width: 1.5px;
+      border-style: solid;
+      user-select: none;
+    }
+
+    .seat-cell:hover {
+      transform: translateY(-2px);
+    }
+
+    .seat-cell.available {
+      background: var(--color-available-bg);
+      border-color: var(--color-available-border);
+      color: var(--color-available);
+    }
+
+    .seat-cell.occupied {
+      background: var(--color-occupied-bg);
+      border-color: var(--color-occupied-border);
+      color: var(--color-occupied);
+      cursor: not-allowed;
+    }
+
+    .seat-cell.reserved {
+      background: var(--color-reserved-bg);
+      border-color: var(--color-reserved-border);
+      color: var(--color-reserved);
+    }
+
+    .seat-cell.disabled {
+      background: var(--color-disabled-bg);
+      border-color: var(--color-disabled-border);
+      color: var(--color-disabled);
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .gender-badge {
+      font-size: 0.58rem;
+      position: absolute;
+      top: 2px;
+      right: 3px;
+    }
+
+    /* Modal / Bottom Sheet */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 999;
+      padding: 0;
+    }
+
+    .modal-content {
+      background: var(--surface);
+      width: 100%;
+      max-width: 500px;
+      border-radius: 24px 24px 0 0;
+      padding: 1.75rem 1.5rem;
+      border: 1px solid var(--border);
+      box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      background: var(--primary);
+      color: white;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 0.95rem 1.25rem;
+      border-radius: 14px;
+      transition: background 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .modal-btn:hover {
+      background: var(--primary-hover);
+    }
+
+    .modal-btn-secondary {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .loader {
+      border: 3px solid var(--border);
+      border-top: 3px solid var(--primary);
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header-card">
+      <div class="lib-title-row">
+        <div class="lib-info">
+          <div class="lib-logo" id="libLogo">📚</div>
+          <div>
+            <h1 class="lib-name" id="libName">Cozy Corner</h1>
+            <p class="lib-subtitle" id="libAddress">Smart Study Library</p>
+          </div>
+        </div>
+        <div class="live-badge">
+          <span class="live-dot"></span>
+          <span>LIVE</span>
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="stats-row">
+        <div class="stat-box">
+          <h4 id="statTotal" style="color: var(--primary)">--</h4>
+          <p>Total Seats</p>
+        </div>
+        <div class="stat-box">
+          <h4 id="statAvailable" style="color: var(--color-available)">--</h4>
+          <p>Available</p>
+        </div>
+        <div class="stat-box">
+          <h4 id="statOccupied" style="color: var(--color-occupied)">--</h4>
+          <p>Occupied</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend-bar">
+      <div class="legend-item">
+        <div class="legend-pill" style="background: var(--color-available)"></div>
+        <span>Available</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-pill" style="background: var(--color-occupied)"></div>
+        <span>Occupied</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-pill" style="background: var(--color-reserved)"></div>
+        <span>Reserved</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-pill" style="background: var(--color-disabled)"></div>
+        <span>Maintenance</span>
+      </div>
+    </div>
+
+    <!-- Section Tabs -->
+    <div class="section-tabs" id="sectionTabs"></div>
+
+    <!-- Seat Map Grid -->
+    <div class="seat-map-card">
+      <div id="loadingIndicator">
+        <div class="loader"></div>
+      </div>
+      <div class="grid-container" id="gridContainer" style="display: none;"></div>
+      <div id="emptyMessage" style="display: none; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+        No seats found in this section.
+      </div>
+    </div>
+
+    <footer style="text-align: center; color: var(--text-muted); font-size: 0.75rem; margin-top: 1rem;">
+      Cozy Corner &bull; Real-Time Live Occupancy &bull; Updated Automatically
+    </footer>
+  </div>
+
+  <!-- Booking / Download Modal -->
+  <div class="modal-overlay" id="seatModal" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 id="modalSeatTitle" style="font-size: 1.25rem; font-weight: 800;">Seat A-1</h3>
+          <p id="modalSeatSubtitle" style="font-size: 0.85rem; color: var(--color-available); font-weight: 600;">🟢 Currently Available</p>
+        </div>
+        <button onclick="hideModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+      </div>
+
+      <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5;">
+        Reserve this seat, choose flexible hourly/monthly plans, and receive automatic reminders directly on your phone!
+      </p>
+
+      <a href="/download" class="modal-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>Download App to Register</span>
+      </a>
+
+      <button class="modal-btn modal-btn-secondary" onclick="hideModal()">
+        Close
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Firebase Web Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyClC8NiUxzJAH8vID1SnSChJv40H_rRCts",
+      authDomain: "study-lib-mgmt-2026.firebaseapp.com",
+      projectId: "study-lib-mgmt-2026",
+      storageBucket: "study-lib-mgmt-2026.firebasestorage.app",
+      messagingSenderId: "670017745754",
+      appId: "1:670017745754:web:65b2714afda4abe9d03963"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Default to the active Cozy Corner library
+    const DEFAULT_LIBRARY_ID = 'aPSMq8xSAjuZQh2fTtuY';
+
+    // Extract libraryId from query string (?lib=...) or path
+    const urlParams = new URLSearchParams(window.location.search);
+    let libraryId = urlParams.get('lib');
+    if (!libraryId) {
+      const match = window.location.pathname.match(/\/library\/([^\/]+)\/seats/);
+      if (match) libraryId = match[1];
+    }
+    if (!libraryId) {
+      libraryId = DEFAULT_LIBRARY_ID;
+    }
+
+    let activeSectionId = null;
+    let sectionsList = [];
+    let seatsUnsubscribe = null;
+
+    async function init() {
+      if (!libraryId) {
+        libraryId = DEFAULT_LIBRARY_ID;
+      }
+
+      // Listen to Library Info
+      db.collection('libraries').doc(libraryId).onSnapshot(doc => {
+        if (doc.exists) {
+          const data = doc.data();
+          if (data.name) document.getElementById('libName').innerText = data.name;
+          if (data.address) document.getElementById('libAddress').innerText = data.address;
+          if (data.name) document.title = data.name + ' — Live Seat Map';
+        }
+      });
+
+      // Listen to Sections
+      db.collection('libraries').doc(libraryId).collection('sections').onSnapshot(snap => {
+        sectionsList = [];
+        snap.forEach(doc => {
+          sectionsList.push({ id: doc.id, ...doc.data() });
+        });
+
+        renderSectionTabs();
+
+        if (sectionsList.length > 0 && !activeSectionId) {
+          selectSection(sectionsList[0].id);
+        } else if (sectionsList.length === 0) {
+          document.getElementById('loadingIndicator').style.display = 'none';
+          document.getElementById('emptyMessage').style.display = 'block';
+        }
+      });
+    }
+
+    function renderSectionTabs() {
+      const tabsContainer = document.getElementById('sectionTabs');
+      tabsContainer.innerHTML = '';
+      sectionsList.forEach(sec => {
+        const btn = document.createElement('button');
+        btn.className = 'section-tab' + (sec.id === activeSectionId ? ' active' : '');
+        btn.innerText = sec.name || 'Hall';
+        btn.onclick = () => selectSection(sec.id);
+        tabsContainer.appendChild(btn);
+      });
+    }
+
+    function selectSection(sectionId) {
+      activeSectionId = sectionId;
+      renderSectionTabs();
+
+      if (seatsUnsubscribe) seatsUnsubscribe();
+
+      document.getElementById('loadingIndicator').style.display = 'block';
+      document.getElementById('gridContainer').style.display = 'none';
+      document.getElementById('emptyMessage').style.display = 'none';
+
+      const sec = sectionsList.find(s => s.id === sectionId);
+      const cols = (sec && sec.cols) ? sec.cols : 4;
+
+      // Real-time listener for seats in active section
+      seatsUnsubscribe = db.collection('libraries').doc(libraryId)
+        .collection('sections').doc(sectionId)
+        .collection('seats').onSnapshot(snap => {
+          const seats = [];
+          snap.forEach(doc => seats.push({ id: doc.id, ...doc.data() }));
+
+          document.getElementById('loadingIndicator').style.display = 'none';
+
+          if (seats.length === 0) {
+            document.getElementById('emptyMessage').style.display = 'block';
+            document.getElementById('gridContainer').style.display = 'none';
+          } else {
+            document.getElementById('emptyMessage').style.display = 'none';
+            document.getElementById('gridContainer').style.display = 'grid';
+            renderSeats(seats, cols);
+          }
+
+          updateStats(seats);
+        }, err => {
+          console.error(err);
+          document.getElementById('loadingIndicator').innerHTML = '<p style="color: red; font-size: 0.85rem;">Error loading seats: ' + err.message + '</p>';
+        });
+    }
+
+    function renderSeats(seats, cols) {
+      const grid = document.getElementById('gridContainer');
+      grid.style.gridTemplateColumns = `repeat(${cols}, minmax(44px, 52px))`;
+      grid.innerHTML = '';
+
+      // Sort by row, then col
+      seats.sort((a, b) => {
+        if (a.row !== b.row) return (a.row || 0) - (b.row || 0);
+        return (a.col || a.column || 0) - (b.col || b.column || 0);
+      });
+
+      seats.forEach(seat => {
+        const div = document.createElement('div');
+        const status = (seat.status || 'available').toLowerCase();
+        div.className = `seat-cell ${status}`;
+        
+        let genderIcon = '';
+        if (seat.genderRestriction === 'male') genderIcon = '<span class="gender-badge">👨</span>';
+        if (seat.genderRestriction === 'female') genderIcon = '<span class="gender-badge">👩</span>';
+
+        div.innerHTML = `${genderIcon}<span>${seat.label || seat.seatNumber || '•'}</span>`;
+
+        div.onclick = () => {
+          if (status === 'available') {
+            showModal(seat.label || seat.seatNumber, '🟢 Currently Available');
+          } else if (status === 'reserved') {
+            showModal(seat.label || seat.seatNumber, '🟡 Temporarily Reserved');
+          } else if (status === 'occupied') {
+            showModal(seat.label || seat.seatNumber, '🔴 Currently Occupied');
+          }
+        };
+
+        grid.appendChild(div);
+      });
+    }
+
+    function updateStats(seats) {
+      let total = seats.length;
+      let available = 0;
+      let occupied = 0;
+
+      seats.forEach(s => {
+        const status = (s.status || 'available').toLowerCase();
+        if (status === 'available') available++;
+        if (status === 'occupied' || status === 'reserved') occupied++;
+      });
+
+      document.getElementById('statTotal').innerText = total;
+      document.getElementById('statAvailable').innerText = available;
+      document.getElementById('statOccupied').innerText = occupied;
+    }
+
+    function showModal(label, statusText) {
+      document.getElementById('modalSeatTitle').innerText = 'Seat ' + label;
+      document.getElementById('modalSeatSubtitle').innerText = statusText;
+      document.getElementById('seatModal').style.display = 'flex';
+    }
+
+    function hideModal() {
+      document.getElementById('seatModal').style.display = 'none';
+    }
+
+    function closeModal(e) {
+      if (e.target.id === 'seatModal') hideModal();
+    }
+
+    init();
+  </script>
+</body>
+</html>

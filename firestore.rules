@@ -1,0 +1,268 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Auth helpers ────────────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function email() {
+      return request.auth.token.email;
+    }
+
+    // Owner = person who created the library (ownerId field on library doc)
+    function isOwner(libraryId) {
+      return isAuth() &&
+        get(/databases/$(database)/documents/libraries/$(libraryId)).data.ownerId == uid();
+    }
+
+    // Staff helper — checks the staff sub-collection for a specific permission
+    function getStaff(libraryId) {
+      return get(/databases/$(database)/documents/libraries/$(libraryId)/staff/$(uid()));
+    }
+
+    function isActiveStaff(libraryId) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/libraries/$(libraryId)/staff/$(uid())) &&
+        getStaff(libraryId).data.get('isActive', true) == true;
+    }
+
+    function staffCan(libraryId, permission) {
+      return isActiveStaff(libraryId) &&
+        getStaff(libraryId).data.get(permission, false) == true;
+    }
+
+    // Owner OR staff with specific permission
+    function ownerOrStaffCan(libraryId, permission) {
+      return isOwner(libraryId) || staffCan(libraryId, permission);
+    }
+
+    // ── Libraries ────────────────────────────────────────────────────────────
+    match /libraries/{libraryId} {
+      // Public read for student web portal / seat map (library name, logo, hours)
+      allow read: if true;
+      allow create: if isAuth();
+      allow update: if isOwner(libraryId) || staffCan(libraryId, 'canManageSettings');
+      allow delete: if isOwner(libraryId);
+
+      // ── Sections & Seats (seat map) ─────────────────────────────────────
+      match /sections/{sectionId} {
+        allow read: if true;
+        allow write: if ownerOrStaffCan(libraryId, 'canManageSeats');
+
+        match /seats/{seatId} {
+          allow read: if true;
+          allow write: if ownerOrStaffCan(libraryId, 'canManageSeats');
+        }
+      }
+
+      // ── Plans ────────────────────────────────────────────────────────────
+      match /plans/{planId} {
+        allow read: if true;
+        allow write: if ownerOrStaffCan(libraryId, 'canManageStudents');
+      }
+
+      // ── Students — PRIVATE ───────────────────────────────────────────────
+      match /students/{studentId} {
+        allow read: if isOwner(libraryId) ||
+                       staffCan(libraryId, 'canManageStudents') ||
+                       (isAuth() && uid() == resource.data.userId);
+
+        allow create: if ownerOrStaffCan(libraryId, 'canManageStudents');
+
+        allow update: if isOwner(libraryId) ||
+                         staffCan(libraryId, 'canManageStudents') ||
+                         (isAuth() && uid() == resource.data.userId &&
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmToken', 'fcmUpdatedAt']));
+
+        allow delete: if isOwner(libraryId) || staffCan(libraryId, 'canDeleteStudents');
+
+        match /{sub}/{subId} {
+          allow read, write: if ownerOrStaffCan(libraryId, 'canManageStudents');
+        }
+      }
+
+      // ── Payments ─────────────────────────────────────────────────────────
+      match /payments/{paymentId} {
+        // Students can read their OWN payment records via studentUserId field
+        allow read: if isOwner(libraryId) ||
+                       staffCan(libraryId, 'canRecordPayments') ||
+                       (isAuth() && uid() == resource.data.get('studentUserId', ''));
+
+        // SERVER-SIDE VALIDATION (ARCH-4):
+        // - amount: positive number, max ₹10,00,000
+        // - studentId: must be a non-empty string (can't write orphan payments)
+        // - paymentMethod: must be a non-empty string
+        allow create: if ownerOrStaffCan(libraryId, 'canRecordPayments') &&
+                         request.resource.data.amount is number &&
+                         request.resource.data.amount > 0 &&
+                         request.resource.data.amount < 1000000 &&
+                         request.resource.data.studentId is string &&
+                         request.resource.data.studentId.size() > 0 &&
+                         request.resource.data.paymentMethod is string &&
+                         request.resource.data.paymentMethod.size() > 0;
+
+        allow update: if ownerOrStaffCan(libraryId, 'canRecordPayments') &&
+                         request.resource.data.amount is number &&
+                         request.resource.data.amount > 0 &&
+                         request.resource.data.amount < 1000000;
+
+        allow delete: if isOwner(libraryId);
+      }
+
+      // ── Receipts ─────────────────────────────────────────────────────────
+      match /receipts/{receiptId} {
+        allow read: if isOwner(libraryId) ||
+                       staffCan(libraryId, 'canRecordPayments') ||
+                       (isAuth() && uid() == resource.data.get('studentUserId', ''));
+
+        // SERVER-SIDE VALIDATION (ARCH-4):
+        // - amount: positive number
+        // - studentId: non-empty string (no orphan receipts)
+        // - receiptNumber: must be a non-empty string
+        // - validTo: must be a timestamp (prevents fake/missing expiry dates)
+        allow create: if ownerOrStaffCan(libraryId, 'canRecordPayments') &&
+                         request.resource.data.amount is number &&
+                         request.resource.data.amount > 0 &&
+                         request.resource.data.studentId is string &&
+                         request.resource.data.studentId.size() > 0 &&
+                         request.resource.data.receiptNumber is string &&
+                         request.resource.data.receiptNumber.size() > 0 &&
+                         request.resource.data.validTo is timestamp;
+
+        allow update: if ownerOrStaffCan(libraryId, 'canRecordPayments') &&
+                         request.resource.data.amount is number &&
+                         request.resource.data.amount > 0;
+
+        allow delete: if isOwner(libraryId);
+      }
+
+      // ── Revenue / Financial reports ───────────────────────────────────────
+      match /revenue/{docId} {
+        allow read: if isOwner(libraryId) || staffCan(libraryId, 'canViewRevenue');
+        allow write: if isOwner(libraryId);
+      }
+
+      // ── Announcements ────────────────────────────────────────────────────
+      match /announcements/{id} {
+        allow read: if isAuth();
+        allow write: if ownerOrStaffCan(libraryId, 'canManageStudents');
+      }
+
+      // ── Holidays (public) ────────────────────────────────────────────────
+      match /holidays/{id} {
+        allow read: if true;
+        allow write: if ownerOrStaffCan(libraryId, 'canManageSettings');
+      }
+
+      // ── Feedback ─────────────────────────────────────────────────────────
+      match /feedback/{id} {
+        allow create: if isAuth();
+        allow read, update, delete: if isOwner(libraryId) ||
+                                       staffCan(libraryId, 'canManageStudents');
+      }
+
+      // ── Requests ─────────────────────────────────────────────────────────
+      // SEC-1 FIX: Each student can only read THEIR OWN requests — not other students'
+      match /requests/{id} {
+        allow read: if isOwner(libraryId) ||
+                       staffCan(libraryId, 'canManageStudents') ||
+                       (isAuth() && resource.data.studentId == uid());
+        allow create: if isAuth() &&
+          request.resource.data.studentId == uid() &&
+          request.resource.data.status == 'pending';
+        allow update, delete: if isOwner(libraryId) ||
+                                 staffCan(libraryId, 'canManageStudents');
+      }
+
+      // ── Audit log — immutable ─────────────────────────────────────────────
+      match /audit_log/{id} {
+        allow read: if isOwner(libraryId) || staffCan(libraryId, 'canViewRevenue');
+        allow create: if isAuth();
+        allow update, delete: if false; // NEVER modifiable
+      }
+
+      // ── Recycle bin — owner only ──────────────────────────────────────────
+      match /recycle_bin/{id} {
+        allow read, write: if isOwner(libraryId);
+      }
+
+      // ── Waiting list ──────────────────────────────────────────────────────
+      match /waiting_list/{id} {
+        allow read, write: if ownerOrStaffCan(libraryId, 'canManageStudents');
+      }
+
+      // ── Staff management — OWNER ONLY ────────────────────────────────────
+      match /staff/{staffId} {
+        allow read: if isOwner(libraryId) || isActiveStaff(libraryId);
+        allow create, update, delete: if isOwner(libraryId);
+      }
+
+      // ── Settings ─────────────────────────────────────────────────────────
+      // SEC-3 FIX: Require authentication to read settings (protects stamp URLs,
+      // watermark images, custom terms, form config — not fully public data)
+      match /settings/{id} {
+        allow read: if isAuth();
+        allow write: if isOwner(libraryId) || staffCan(libraryId, 'canManageSettings');
+      }
+    }
+
+    // ── Users collection (role persistence) ─────────────────────────────────
+    match /users/{userId} {
+      allow read: if isAuth() && uid() == userId;
+      allow create: if isAuth() && uid() == userId;
+      allow update: if isAuth() && uid() == userId;
+      allow delete: if isAuth() && uid() == userId;
+
+      match /login_history/{logId} {
+        allow read, write: if isAuth() && uid() == userId;
+      }
+    }
+
+    // ── Admin whitelist ──────────────────────────────────────────────────────
+    match /admin_whitelist/{emailKey} {
+      allow read: if isAuth();
+      allow write: if isAuth() && (
+        !exists(/databases/$(database)/documents/admin_whitelist/$(email())) ||
+        (exists(/databases/$(database)/documents/admin_whitelist/$(email())) &&
+         get(/databases/$(database)/documents/admin_whitelist/$(email())).data.isActive == true)
+      );
+    }
+
+    // ── App config (public read, no write) ──────────────────────────────────
+    match /app_config/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ── Root recycle bin fallback ───────────────────────────────────────────
+    match /recycle_bin/{docId} {
+      allow read, write: if isAuth();
+    }
+
+    // ── Collection Group queries ─────────────────────────────────────────────
+    // SEC-2 FIX: Staff — only the staff member themselves OR their library owner
+    // Prevents any authenticated user from reading all staff across all libraries
+    match /{path=**}/staff/{staffDoc} {
+      allow read: if isAuth() && (
+        uid() == resource.data.get('userId', '') ||
+        uid() == get(/databases/$(database)/documents/libraries/$(resource.data.get('libraryId', 'NONE'))).data.ownerId
+      );
+    }
+
+    // SEC-2 FIX: Students — only the student themselves OR their library owner/staff
+    // Prevents Student A from using collectionGroup('students') to read Student B's data
+    match /{path=**}/students/{studentDoc} {
+      allow read: if isAuth() && (
+        uid() == resource.data.get('userId', '') ||
+        uid() == get(/databases/$(database)/documents/libraries/$(resource.data.get('libraryId', 'NONE'))).data.ownerId
+      );
+    }
+  }
+}

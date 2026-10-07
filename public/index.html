@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cozy Corner — Study Library Management App</title>
+  <meta name="description" content="Download Cozy Corner Study Library App for Android and iOS. High-speed, reduced 44.9 MB mobile download for students and library owners.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-hover: #4338CA;
+      --primary-light: #EEF2FF;
+      --student: #0D9488;
+      --student-light: #CCFBF1;
+      --surface: #FFFFFF;
+      --bg: #F8FAFC;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+      --success: #10B981;
+      --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary: #6366F1;
+        --primary-hover: #4F46E5;
+        --primary-light: #1E1B4B;
+        --student: #14B8A6;
+        --student-light: #134E4A;
+        --surface: #1E293B;
+        --bg: #0F172A;
+        --text-main: #F8FAFC;
+        --text-muted: #94A3B8;
+        --border: #334155;
+        --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .hero-card {
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 2.25rem 1.75rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--card-shadow);
+      text-align: center;
+    }
+
+    .app-icon {
+      width: 88px;
+      height: 88px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.25rem;
+      box-shadow: 0 12px 24px -4px rgba(79, 70, 229, 0.35);
+      color: white;
+      font-size: 2.25rem;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.35rem;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      margin-bottom: 1.25rem;
+    }
+
+    .badge-container {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1.75rem;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .badge-success {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--success);
+    }
+
+    .badge-size {
+      background: rgba(13, 148, 136, 0.12);
+      color: var(--student);
+      font-weight: 700;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .download-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      background: var(--primary);
+      color: white;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1.05rem;
+      padding: 1.1rem 1.5rem;
+      border-radius: 16px;
+      transition: all 0.2s ease;
+      box-shadow: 0 8px 20px -4px rgba(79, 70, 229, 0.4);
+    }
+
+    .download-btn:hover {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px -4px rgba(79, 70, 229, 0.5);
+    }
+
+    .download-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    .whats-new-card, .features-card, .guide-card {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 1.5rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--card-shadow);
+    }
+
+    .whats-new-card {
+      border-color: rgba(79, 70, 229, 0.25);
+    }
+
+    h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Role switcher tabs */
+    .role-tabs {
+      display: flex;
+      background: var(--bg);
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      margin-bottom: 1.25rem;
+    }
+
+    .role-tab {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-align: center;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .role-tab.active {
+      background: var(--surface);
+      color: var(--text-main);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .role-tab.active.student-active {
+      color: var(--student);
+    }
+
+    .role-tab.active.admin-active {
+      color: var(--primary);
+    }
+
+    .whats-new-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .whats-new-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.8rem;
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .icon-box {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: var(--primary-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 1rem;
+    }
+
+    .student-icon-box {
+      background: var(--student-light);
+    }
+
+    .whats-new-content strong {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-main);
+      margin-bottom: 0.15rem;
+      font-size: 0.92rem;
+    }
+
+    .item-tag {
+      font-size: 0.65rem;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .tag-admin {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .tag-student {
+      background: var(--student-light);
+      color: var(--student);
+    }
+
+    .whats-new-content p {
+      color: var(--text-muted);
+      margin: 0;
+      font-size: 0.85rem;
+    }
+
+    .step-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 0.8rem;
+    }
+
+    footer {
+      margin-top: auto;
+      padding-top: 2rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero-card">
+      <div class="app-icon">📚</div>
+      <h1>Cozy Corner</h1>
+      <p class="subtitle">Smart Study Library Management Platform</p>
+      
+      <div class="badge-container">
+        <span class="badge badge-success">● Production Ready</span>
+        <span class="badge" id="appVersionBadge">v1.5.2 (Build 9)</span>
+        <span class="badge badge-size" id="apkSizeBadge">44.9 MB (Optimized Mobile)</span>
+      </div>
+
+      <div class="btn-group">
+        <!-- Direct High-Speed Download URL -->
+        <a href="https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk" class="download-btn" id="downloadBtn">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Download Android APK (44.9 MB)</span>
+        </a>
+      </div>
+
+      <div class="download-meta">Optimized 64-bit Mobile Package • Fast Direct Download</div>
+    </div>
+
+    <!-- What's New Card with Role Filter -->
+    <div class="whats-new-card">
+      <h2 id="whatsNewHeading">🔥 What's New in v1.5.0</h2>
+
+      <!-- Switcher: For Students vs For Library Owners -->
+      <div class="role-tabs">
+        <button class="role-tab active student-active" id="tabStudent" onclick="switchRoleTab('student')">
+          🎓 For Students
+        </button>
+        <button class="role-tab" id="tabAdmin" onclick="switchRoleTab('admin')">
+          🏢 For Library Owners
+        </button>
+      </div>
+
+      <!-- Student View -->
+      <ul class="whats-new-list" id="studentList">
+        <li class="whats-new-item">
+          <div class="icon-box student-icon-box">🪪</div>
+          <div class="whats-new-content">
+            <strong>Digital Student ID Card &amp; Pocket Badge <span class="item-tag tag-student">Instant</span></strong>
+            <p>Access your official library ID badge with verified barcode and assigned seat anytime right from your profile, with instant PDF download.</p>
+          </div>
+        </li>
+        <li class="whats-new-item">
+          <div class="icon-box student-icon-box">🪑</div>
+          <div class="whats-new-content">
+            <strong>Live Seat Status &amp; Section Availability <span class="item-tag tag-student">Real-Time</span></strong>
+            <p>Check your assigned seat and view real-time open seats in your reading section directly from your phone.</p>
+          </div>
+        </li>
+        <li class="whats-new-item">
+          <div class="icon-box student-icon-box">🔒</div>
+          <div class="whats-new-content">
+            <strong>Aadhaar Privacy &amp; Masking <span class="item-tag tag-student">AES-256</span></strong>
+            <p>Your government ID numbers are now encrypted with AES-256 and masked (•••• •••• 1234) with a secure 1-tap reveal toggle.</p>
+          </div>
+        </li>
+        <li class="whats-new-item">
+          <div class="icon-box student-icon-box">🧾</div>
+          <div class="whats-new-content">
+            <strong>Digital Fee Receipts with Official Stamp <span class="item-tag tag-student">Verified</span></strong>
+            <p>View and download authentic fee payment receipts featuring your library official stamp and watermark verification.</p>
+          </div>
+        </li>
+        <li class="whats-new-item">
+          <div class="icon-box student-icon-box">📣</div>
+          <div class="whats-new-content">
+            <strong>Library Notices &amp; Upcoming Holidays <span class="item-tag tag-student">Live Alerts</span></strong>
+            <p>Stay informed with instant schedule announcements and upcoming library holiday lists right on your home tab.</p>
+          </div>
+        </li>
+        <li class="whats-new-item">
+          <div class="icon-box student-icon-box">⚡</div>
+          <div class="whats-new-content">
+            <strong>Instant Launch &amp; Offline Caching <span class="item-tag tag-student">44.9 MB</span></strong>
+            <p>Lightning-fast app launch with your library branding and offline access to your membership profile and receipts.</p>
+          </div>
+        </li>
+      </ul>
+
+      <!-- Admin View -->
+      <ul class="whats-new-list" id="adminList" style="display: none;">
+        <li class="whats-new-item">
+          <div class="icon-box">✂️</div>
+          <div class="whats-new-content">
+            <strong>ATM ID Cards &amp; A4 Cutout Printing <span class="item-tag tag-admin">Smart Layout</span></strong>
+            <p>Standard 85.6×54mm CR80 cards with scissor fold guides for single-page printing and high-density 4-card bulk packing to save blank paper.</p>
+          </div>
+        </li>
+        <li class="whats-new-item">
+          <div class="icon-box">🏛️</div>
+          <div class="whats-new-content">
+            <strong>Official Receipt Stamp &amp; Angle Controls <span class="item-tag tag-admin">Full Customizer</span></strong>
+            <p>Upload official library stamp with real-time rotation slider (-45° to +45°) and scale controls (0.5x to 1.8x).</p>
+          </div>
+        </li>
+        <li class="whats-new-item">
+          <div class="icon-box">💧</div>
+          <div class="whats-new-content">
+            <strong>Watermark Opacity Slider <span class="item-tag tag-admin">Fine-Tuning</span></strong>
+            <p>Fine-tune library logo watermark transparency from 5% to 40% on all official receipts and invoices.</p>
+          </div>
+        </li>
+        <li class="whats-new-item">
+          <div class="icon-box">📋</div>
+          <div class="whats-new-content">
+            <strong>Subscription Plans Full CRUD <span class="item-tag tag-admin">Management</span></strong>
+            <p>Direct edit, rename, delete, and active/inactive toggles right from the plan cards.</p>
+          </div>
+        </li>
+        <li class="whats-new-item">
+          <div class="icon-box">🔍</div>
+          <div class="whats-new-content">
+            <strong>Smart OCR Document Auto-Detection <span class="item-tag tag-admin">AI Scanner</span></strong>
+            <p>Auto-classifies Aadhaar, PAN, Driving License, and College IDs while filtering statutory disclaimers.</p>
+          </div>
+        </li>
+        <li class="whats-new-item">
+          <div class="icon-box">🛡️</div>
+          <div class="whats-new-content">
+            <strong>Friendly Error Messages <span class="item-tag tag-admin">Zero Jargon</span></strong>
+            <p>Clear, non-technical guidance replaces cryptic database stack traces across all admin and student workflows.</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Android Install Guide -->
+    <div class="guide-card">
+      <h2>📲 Android Installation Guide</h2>
+      <ol class="step-list">
+        <li class="step-item">
+          <div class="step-num">1</div>
+          <div>Tap the <strong>Download Android APK</strong> button above (compact 44.9 MB download).</div>
+        </li>
+        <li class="step-item">
+          <div class="step-num">2</div>
+          <div>If Android warns <em>"File might be harmful"</em>, tap <strong>Download anyway</strong> (standard prompt for direct APK files).</div>
+        </li>
+        <li class="step-item">
+          <div class="step-num">3</div>
+          <div>Open the downloaded file and tap <strong>Install</strong>. If prompted, toggle <strong>Allow from this source</strong>.</div>
+        </li>
+      </ol>
+    </div>
+
+    <footer>
+      Cozy Corner Management System &bull; Production Release v1.5.1
+    </footer>
+  </div>
+
+  <script>
+    function switchRoleTab(role) {
+      var tabStudent = document.getElementById('tabStudent');
+      var tabAdmin = document.getElementById('tabAdmin');
+      var studentList = document.getElementById('studentList');
+      var adminList = document.getElementById('adminList');
+
+      if (role === 'student') {
+        tabStudent.className = 'role-tab active student-active';
+        tabAdmin.className = 'role-tab';
+        studentList.style.display = 'flex';
+        adminList.style.display = 'none';
+      } else {
+        tabAdmin.className = 'role-tab active admin-active';
+        tabStudent.className = 'role-tab';
+        adminList.style.display = 'flex';
+        studentList.style.display = 'none';
+      }
+    }
+
+    // Dynamic fetch from update.json
+    fetch('/update.json?t=' + Date.now())
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.versionName && data.versionCode) {
+          var badge = document.getElementById('appVersionBadge');
+          if (badge) badge.textContent = 'v' + data.versionName + ' (Build ' + data.versionCode + ')';
+
+          var sizeBadge = document.getElementById('apkSizeBadge');
+          if (sizeBadge && data.apkSize) sizeBadge.textContent = data.apkSize;
+
+          var heading = document.getElementById('whatsNewHeading');
+          if (heading) heading.textContent = '🔥 What\'s New in v' + data.versionName;
+
+          if (data.apkUrl) {
+            var downloadBtn = document.getElementById('downloadBtn');
+            if (downloadBtn) downloadBtn.href = data.apkUrl;
+          }
+        }
+      })
+      .catch(function(err) {});
+  </script>
+</body>
+</html>

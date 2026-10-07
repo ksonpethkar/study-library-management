@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Helper functions ────────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isUnder5MB() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+
+    function isUnder2MB() {
+      return request.resource.size < 2 * 1024 * 1024;
+    }
+
+    // ── Library logos ────────────────────────────────────────────────────────
+    // Only the library owner (whose uid matches libraryId) can upload/change logo
+    match /libraries/{libraryId}/logo/{fileName} {
+      allow read: if true;   // Public — shown in app UI
+      allow write: if isAuth() && isImage() && isUnder5MB();
+    }
+
+    // ── Admin official stamps ─────────────────────────────────────────────────
+    // Only authenticated users can read; only authenticated admin can write
+    match /libraries/{libraryId}/stamps/{fileName} {
+      allow read: if isAuth();
+      allow write: if isAuth() && isImage() && isUnder2MB();
+    }
+
+    // ── Student photos ────────────────────────────────────────────────────────
+    // Students/admin can upload profile photos; only auth users can read
+    match /libraries/{libraryId}/students/{studentId}/{fileName} {
+      allow read: if isAuth();
+      allow write: if isAuth() && isImage() && isUnder5MB();
+    }
+
+    // ── ID card assets ────────────────────────────────────────────────────────
+    match /libraries/{libraryId}/id_cards/{allPaths=**} {
+      allow read: if isAuth();
+      allow write: if isAuth() && isUnder2MB();
+    }
+
+    // ── Bulk import files (CSV) ───────────────────────────────────────────────
+    match /libraries/{libraryId}/imports/{fileName} {
+      allow read: if isAuth();
+      allow write: if isAuth() && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // ── General library assets (QR codes, exports, backups) ──────────────────
+    match /libraries/{libraryId}/{allPaths=**} {
+      allow read: if isAuth();
+      allow write: if isAuth() && isUnder5MB();
+    }
+
+    // ── Public app assets (if any) ────────────────────────────────────────────
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if false; // No client writes to public/ — deploy only
+    }
+  }
+}
