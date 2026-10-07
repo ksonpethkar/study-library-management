@@ -1,0 +1,121 @@
+name: study_library
+description: "Smart Study Library Management - Manage seats, students, memberships & more"
+publish_to: 'none'
+version: 1.5.12+19
+
+environment:
+  sdk: ^3.13.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI & Design
+  cupertino_icons: any
+  google_fonts: any
+  flutter_animate: any
+  lottie: any
+  shimmer: any
+  flutter_slidable: any
+  cached_network_image: any
+  flutter_svg: any
+
+  # State Management
+  flutter_riverpod: any
+  riverpod_annotation: any
+
+  # Navigation
+  go_router: any
+
+  # Firebase
+  firebase_core: any
+  firebase_auth: any
+  cloud_firestore: any
+  firebase_storage: any
+  firebase_messaging: any
+  firebase_remote_config: any
+  firebase_crashlytics: any
+  firebase_analytics: any
+  firebase_app_check: ^0.4.0
+
+  # Google Sign-In
+  google_sign_in: any
+
+  # OCR
+  google_mlkit_text_recognition: any
+
+  # Camera & Image
+  image_picker: any
+  flutter_image_compress: any
+  permission_handler: any
+
+  # QR Code
+  qr_flutter: any
+  mobile_scanner: any
+
+  # PDF & Printing
+  pdf: any
+  printing: any
+
+  # Biometric Auth
+  local_auth: any
+
+  # Encryption
+  encrypt: any
+  crypto: any
+
+  # File & Data
+  path_provider: any
+  file_picker: any
+  csv: any
+  share_plus: any
+  url_launcher: ^6.3.2
+
+  # Connectivity
+  connectivity_plus: any
+
+  # Utilities
+  intl: any
+  path: ^1.9.0
+  uuid: any
+  collection: any
+  logger: any
+  package_info_plus: any
+  device_info_plus: any
+  shared_preferences: any
+  riverpod: ^3.4.3
+  fl_chart: ^1.2.0
+  flutter_local_notifications: ^22.3.1
+  quick_actions: ^1.0.7
+  flutter_app_badger: ^1.5.0
+  timezone: ^0.11.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: any
+  riverpod_generator: any
+  build_runner: any
+  riverpod_lint: any
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/app_logo.png"
+  adaptive_icon_background: "#FFF8F0"
+  adaptive_icon_foreground: "assets/images/app_logo.png"
+  min_sdk_android: 21
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/lottie/
+    - assets/icons/
+    - assets/fonts/
+
+
+
+

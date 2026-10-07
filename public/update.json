@@ -1,0 +1,8 @@
+{
+  "latestVersion": "1.5.12",
+  "latestVersionCode": 19,
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
+  "releaseNotes": "v1.5.12 - Revenue aggregate + GitHub Actions expiry check (free Cloud Function replacement)",
+  "forceUpdate": false,
+  "minVersionCode": 10
+}

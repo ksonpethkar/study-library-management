@@ -1,0 +1,30 @@
+name: Daily Membership Expiry Check
+# Runs every day at 8:00 AM IST (2:30 AM UTC)
+# FREE on GitHub Actions — uses ~5 seconds per run, well within 2000 min/month free limit
+
+on:
+  schedule:
+    - cron: '30 2 * * *'   # 2:30 AM UTC = 8:00 AM IST daily
+  workflow_dispatch:         # Allow manual trigger from GitHub Actions tab
+
+jobs:
+  check-expiry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Firebase Admin SDK
+        run: npm install firebase-admin
+
+      - name: Run membership expiry check
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node scripts/check_expiry.js
