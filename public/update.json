@@ -1,8 +1,70 @@
 {
+  "versionName": "1.5.12",
+  "versionCode": 19,
   "latestVersion": "1.5.12",
   "latestVersionCode": 19,
+  "apkSize": "47.4 MB",
+  "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
-  "releaseNotes": "v1.5.12 - Revenue aggregate + GitHub Actions expiry check (free Cloud Function replacement)",
   "forceUpdate": false,
-  "minVersionCode": 10
+  "minVersionCode": 10,
+  "releaseNotes": [
+    "Firebase Play Integrity App Check security protection",
+    "Real-time atomic revenue aggregation without database limits",
+    "Daily membership expiry automation via GitHub Actions",
+    "Digital fee receipts with authentic ₹ currency and library stamp",
+    "Comprehensive audit completed with zero analyzer issues"
+  ],
+  "studentFeatures": [
+    {
+      "icon": "shield",
+      "title": "Play Integrity Security Protection",
+      "description": "App communication is cryptographically verified to safeguard your account, seat, and personal data.",
+      "badge": "Security"
+    },
+    {
+      "icon": "receipt",
+      "title": "Official Fee Receipts & Rupee Currency",
+      "description": "View authentic fee receipts with genuine ₹ symbols and official library verification stamps.",
+      "badge": "Verified"
+    },
+    {
+      "icon": "alarm",
+      "title": "Automated Expiry & Grace Badges",
+      "description": "Daily automated expiry tracking with 7-day grace period status badge and 1-tap seat renewal.",
+      "badge": "Automated"
+    },
+    {
+      "icon": "history",
+      "title": "Verified Student Audit Activity",
+      "description": "View real-time record of all seat allocations, membership updates, and profile actions.",
+      "badge": "Live"
+    }
+  ],
+  "adminFeatures": [
+    {
+      "icon": "analytics",
+      "title": "Real-Time Revenue Aggregation",
+      "description": "Instant financial tracking without dataset limits or pagination caps. Running totals updated on every payment.",
+      "badge": "Real-Time"
+    },
+    {
+      "icon": "lock",
+      "title": "Firebase Play Integrity App Check",
+      "description": "Enforces authentic app attestation, blocking unauthorized API calls and scraped database queries.",
+      "badge": "Hardened"
+    },
+    {
+      "icon": "schedule",
+      "title": "Daily Automated Expiry Checks",
+      "description": "Runs daily at 8:00 AM IST via GitHub Actions to update membership statuses and issue dashboard alerts.",
+      "badge": "Cloud Cron"
+    },
+    {
+      "icon": "verified_user",
+      "title": "Zero-Warning Code Health",
+      "description": "Exhaustive architectural audit passed with zero analyzer issues, hardened security rules, and data isolation.",
+      "badge": "Audit Complete"
+    }
+  ]
 }

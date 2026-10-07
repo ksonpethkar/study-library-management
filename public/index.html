@@ -338,8 +338,8 @@
       
       <div class="badge-container">
         <span class="badge badge-success">● Production Ready</span>
-        <span class="badge" id="appVersionBadge">v1.5.2 (Build 9)</span>
-        <span class="badge badge-size" id="apkSizeBadge">44.9 MB (Optimized Mobile)</span>
+        <span class="badge" id="appVersionBadge">v1.5.12 (Build 19)</span>
+        <span class="badge badge-size" id="apkSizeBadge">47.4 MB</span>
       </div>
 
       <div class="btn-group">
@@ -350,16 +350,16 @@
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          <span>Download Android APK (44.9 MB)</span>
+          <span id="downloadBtnText">Download Android APK (47.4 MB)</span>
         </a>
       </div>
 
-      <div class="download-meta">Optimized 64-bit Mobile Package • Fast Direct Download</div>
+      <div class="download-meta">Verified Signed Release • Direct Fast Download</div>
     </div>
 
     <!-- What's New Card with Role Filter -->
     <div class="whats-new-card">
-      <h2 id="whatsNewHeading">🔥 What's New in v1.5.0</h2>
+      <h2 id="whatsNewHeading">🔥 What's New in v1.5.12</h2>
 
       <!-- Switcher: For Students vs For Library Owners -->
       <div class="role-tabs">
@@ -512,20 +512,30 @@
     fetch('/update.json?t=' + Date.now())
       .then(function(res) { return res.json(); })
       .then(function(data) {
-        if (data.versionName && data.versionCode) {
-          var badge = document.getElementById('appVersionBadge');
-          if (badge) badge.textContent = 'v' + data.versionName + ' (Build ' + data.versionCode + ')';
+        var ver = data.versionName || data.latestVersion;
+        var code = data.versionCode || data.latestVersionCode;
+        var size = data.apkSize || '47.4 MB';
+        var url = data.apkUrl || data.downloadUrl;
 
-          var sizeBadge = document.getElementById('apkSizeBadge');
-          if (sizeBadge && data.apkSize) sizeBadge.textContent = data.apkSize;
+        if (ver) {
+          var badge = document.getElementById('appVersionBadge');
+          if (badge) badge.textContent = 'v' + ver + (code ? ' (Build ' + code + ')' : '');
 
           var heading = document.getElementById('whatsNewHeading');
-          if (heading) heading.textContent = '🔥 What\'s New in v' + data.versionName;
+          if (heading) heading.textContent = '🔥 What\'s New in v' + ver;
+        }
 
-          if (data.apkUrl) {
-            var downloadBtn = document.getElementById('downloadBtn');
-            if (downloadBtn) downloadBtn.href = data.apkUrl;
-          }
+        if (size) {
+          var sizeBadge = document.getElementById('apkSizeBadge');
+          if (sizeBadge) sizeBadge.textContent = size;
+
+          var btnText = document.getElementById('downloadBtnText');
+          if (btnText) btnText.textContent = 'Download Android APK (' + size + ')';
+        }
+
+        if (url) {
+          var downloadBtn = document.getElementById('downloadBtn');
+          if (downloadBtn) downloadBtn.href = url;
         }
       })
       .catch(function(err) {});

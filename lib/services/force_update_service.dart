@@ -54,13 +54,23 @@ class UpdateInfo {
       notes = [];
     }
 
+    final vCode = (data['versionCode'] as num?)?.toInt() ??
+        (data['latestVersionCode'] as num?)?.toInt() ??
+        0;
+    final vName = (data['versionName'] ?? data['latestVersion'] ?? '').toString();
+    final downloadLink = (data['apkUrl'] ??
+            data['downloadUrl'] ??
+            (isIos ? data['iosUrl'] : null) ??
+            '')
+        .toString();
+
     return UpdateInfo(
-      versionCode: (data['versionCode'] as num?)?.toInt() ?? 0,
-      versionName: (data['versionName'] ?? '').toString(),
-      apkUrl: (data['apkUrl'] ?? (isIos ? data['iosUrl'] : data['apkUrl']) ?? '').toString(),
+      versionCode: vCode,
+      versionName: vName,
+      apkUrl: downloadLink,
       storeUrl: (data['storeUrl'] ?? '').toString(),
       isForceUpdate: data['forceUpdate'] == true,
-      message: 'Version ${data['versionName'] ?? '?'} is ready to install.',
+      message: 'Version ${vName.isNotEmpty ? vName : '?'} is ready to install.',
       releaseNotes: notes,
     );
   }

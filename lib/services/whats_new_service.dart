@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ReleaseChange {
@@ -113,7 +114,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.0+6';
+  static const String currentVersionIdentifier = '1.5.12+19';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -122,8 +123,40 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.0)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.12)
   static final List<ReleaseChange> adminChanges = [
+    const ReleaseChange(
+      icon: Icons.shield_rounded,
+      rawIconName: 'shield',
+      badge: 'Play Integrity',
+      title: 'Firebase App Check Verification',
+      description:
+          'Cryptographically protects Firestore and backend services by enforcing verified, genuine Android app attestation.',
+    ),
+    const ReleaseChange(
+      icon: Icons.query_stats_rounded,
+      rawIconName: 'analytics',
+      badge: 'Real-Time',
+      title: 'Atomic Revenue Aggregation',
+      description:
+          'Real-time financial running ledger updated on each payment with atomic counters—no pagination caps or missing totals.',
+    ),
+    const ReleaseChange(
+      icon: Icons.schedule_rounded,
+      rawIconName: 'schedule',
+      badge: 'Automated Cron',
+      title: 'Daily Expiry & Grace Tracking',
+      description:
+          'Scheduled automation scans all student memberships daily at 8:00 AM IST and flags renewals without manual intervention.',
+    ),
+    const ReleaseChange(
+      icon: Icons.security_rounded,
+      rawIconName: 'lock',
+      badge: 'Security Rules',
+      title: 'Strict Data Isolation & Validation',
+      description:
+          'Hardened security rules block cross-student inspection, mandate non-empty student IDs, and enforce positive amount bounds.',
+    ),
     const ReleaseChange(
       icon: Icons.touch_app_rounded,
       rawIconName: 'touch_app',
@@ -230,8 +263,40 @@ class WhatsNewService {
     ),
   ];
 
-  /// Concrete features exclusively relevant for Students (v1.5.0)
+  /// Concrete features exclusively relevant for Students (v1.5.12)
   static final List<ReleaseChange> studentChanges = [
+    const ReleaseChange(
+      icon: Icons.shield_rounded,
+      rawIconName: 'shield',
+      badge: 'Account Security',
+      title: 'Play Integrity App Protection',
+      description:
+          'App communication is verified with Google Play Integrity attestation to safeguard your membership and attendance records.',
+    ),
+    const ReleaseChange(
+      icon: Icons.receipt_long_rounded,
+      rawIconName: 'receipt',
+      badge: 'Fee Receipts',
+      title: 'Digital Receipts with Official Stamp & ₹',
+      description:
+          'Access and download official fee receipts featuring genuine ₹ rupee symbols and verified library watermark seals.',
+    ),
+    const ReleaseChange(
+      icon: Icons.alarm_rounded,
+      rawIconName: 'alarm',
+      badge: 'Grace Period',
+      title: 'Automated Membership Status Badges',
+      description:
+          'Your membership tab now shows clear Active, Grace Period (7 days), or Expired status chips with 1-tap seat renewal.',
+    ),
+    const ReleaseChange(
+      icon: Icons.history_rounded,
+      rawIconName: 'history',
+      badge: 'Activity Log',
+      title: 'Verified Student History Ledger',
+      description:
+          'View real-time database activity logs of your plan activations, renewals, and seat updates.',
+    ),
     const ReleaseChange(
       icon: Icons.badge_rounded,
       rawIconName: 'badge',
@@ -292,12 +357,17 @@ class WhatsNewService {
     if (_isShowingDialog) return;
 
     try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final verName = packageInfo.version.isNotEmpty ? packageInfo.version : '1.5.12';
+      final verCode = int.tryParse(packageInfo.buildNumber) ?? 19;
+      final verIdentifier = '$verName+$verCode';
+
       final prefs = await SharedPreferences.getInstance();
       final key = isStudent ? _keySeenStudent : _keySeenAdmin;
       final lastSeen = prefs.getString(key);
 
       // If already shown for this exact version, do not interrupt
-      if (lastSeen == currentVersionIdentifier) {
+      if (lastSeen == verIdentifier) {
         return;
       }
 
@@ -310,12 +380,12 @@ class WhatsNewService {
         barrierDismissible: false,
         builder: (_) => WhatsNewDialog(
           isStudent: isStudent,
-          versionName: '1.5.0',
-          versionCode: 6,
+          versionName: verName,
+          versionCode: verCode,
           isOnDemand: false,
           onDismiss: () async {
             _isShowingDialog = false;
-            await prefs.setString(key, currentVersionIdentifier);
+            await prefs.setString(key, verIdentifier);
           },
         ),
       );
@@ -326,25 +396,35 @@ class WhatsNewService {
   }
 
   /// Show changelog on-demand (e.g. from Settings or Profile) with ZERO latency
-  static void showChangelog(BuildContext context, {required bool isStudent}) {
+  static Future<void> showChangelog(BuildContext context, {required bool isStudent}) async {
     if (_isShowingDialog) return;
     _isShowingDialog = true;
 
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (_) => WhatsNewDialog(
-        isStudent: isStudent,
-        versionName: '1.5.0',
-        versionCode: 6,
-        isOnDemand: true,
-        onDismiss: () {
-          _isShowingDialog = false;
-        },
-      ),
-    ).then((_) {
-      _isShowingDialog = false;
-    });
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final verName = packageInfo.version.isNotEmpty ? packageInfo.version : '1.5.12';
+      final verCode = int.tryParse(packageInfo.buildNumber) ?? 19;
+
+      if (!context.mounted) {
+        _isShowingDialog = false;
+        return;
+      }
+
+      await showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => WhatsNewDialog(
+          isStudent: isStudent,
+          versionName: verName,
+          versionCode: verCode,
+          isOnDemand: true,
+          onDismiss: () {
+            _isShowingDialog = false;
+          },
+        ),
+      );
+    } catch (_) {}
+    _isShowingDialog = false;
   }
 
   /// Fetch remote features in background (non-blocking)
