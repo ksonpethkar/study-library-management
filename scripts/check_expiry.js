@@ -47,20 +47,28 @@ async function runExpiryCheck() {
       const libraryName = libraryDoc.data().name ?? libraryId;
       const studentsRef = db.collection(`libraries/${libraryId}/students`);
 
-      // ── Find EXPIRED students (validTo < now AND status not already 'expired')
-      const expiredSnap = await studentsRef
-        .where('validTo', '<', now)
-        .where('membershipStatus', '!=', 'expired')
-        .get();
+      // ── Fetch students and check expiry in memory (avoids requiring composite indexes)
+      const studentsSnap = await studentsRef.get();
+      const expiredDocs = [];
+      const graceDocs = [];
 
-      // ── Find GRACE students (validTo within next 7 days AND currently 'active')
-      const graceSnap = await studentsRef
-        .where('validTo', '>', now)
-        .where('validTo', '<', sevenDaysFromNow)
-        .where('membershipStatus', '==', 'active')
-        .get();
+      for (const sDoc of studentsSnap.docs) {
+        const data = sDoc.data();
+        if (!data.validTo) continue;
 
-      if (expiredSnap.size === 0 && graceSnap.size === 0) {
+        const validTo = data.validTo.toDate ? data.validTo.toDate() : new Date(data.validTo);
+        const nowDate = now.toDate();
+        const graceDate = sevenDaysFromNow.toDate();
+        const currentStatus = (data.membershipStatus || 'active').toLowerCase();
+
+        if (validTo < nowDate && currentStatus !== 'expired') {
+          expiredDocs.push(sDoc);
+        } else if (validTo >= nowDate && validTo <= graceDate && currentStatus === 'active') {
+          graceDocs.push(sDoc);
+        }
+      }
+
+      if (expiredDocs.length === 0 && graceDocs.length === 0) {
         console.log(`[${libraryName}] No changes needed.`);
         continue;
       }
@@ -78,7 +86,7 @@ async function runExpiryCheck() {
         }
       };
 
-      for (const doc of expiredSnap.docs) {
+      for (const doc of expiredDocs) {
         batch.update(doc.ref, {
           membershipStatus: 'expired',
           updatedAt: now,
@@ -87,7 +95,7 @@ async function runExpiryCheck() {
         if (opCount >= 490) await flushBatch();
       }
 
-      for (const doc of graceSnap.docs) {
+      for (const doc of graceDocs) {
         batch.update(doc.ref, {
           membershipStatus: 'grace',
           updatedAt: now,
@@ -102,16 +110,16 @@ async function runExpiryCheck() {
       // ── Write admin notification
       await db.collection(`libraries/${libraryId}/notifications`).add({
         type: 'expiry_check',
-        message: `${expiredSnap.size} student(s) expired, ${graceSnap.size} entering grace period.`,
-        expired: expiredSnap.size,
-        grace: graceSnap.size,
+        message: `${expiredDocs.length} student(s) expired, ${graceDocs.length} entering grace period.`,
+        expired: expiredDocs.length,
+        grace: graceDocs.length,
         createdAt: now,
         read: false,
       });
 
-      grandTotalExpired += expiredSnap.size;
-      grandTotalGrace += graceSnap.size;
-      console.log(`[${libraryName}] Marked ${expiredSnap.size} expired, ${graceSnap.size} grace.`);
+      grandTotalExpired += expiredDocs.length;
+      grandTotalGrace += graceDocs.length;
+      console.log(`[${libraryName}] Marked ${expiredDocs.length} expired, ${graceDocs.length} grace.`);
     }
 
     console.log(`\nDone! Total: ${grandTotalExpired} expired, ${grandTotalGrace} grace across ${librariesSnap.size} library/libraries.`);
