@@ -114,7 +114,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.12+19';
+  static const String currentVersionIdentifier = '1.5.13+20';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -358,8 +358,8 @@ class WhatsNewService {
 
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      final verName = packageInfo.version.isNotEmpty ? packageInfo.version : '1.5.12';
-      final verCode = int.tryParse(packageInfo.buildNumber) ?? 19;
+      final verName = packageInfo.version.isNotEmpty ? packageInfo.version : '1.5.13';
+      final verCode = int.tryParse(packageInfo.buildNumber) ?? 20;
       final verIdentifier = '$verName+$verCode';
 
       final prefs = await SharedPreferences.getInstance();
@@ -402,8 +402,8 @@ class WhatsNewService {
 
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      final verName = packageInfo.version.isNotEmpty ? packageInfo.version : '1.5.12';
-      final verCode = int.tryParse(packageInfo.buildNumber) ?? 19;
+      final verName = packageInfo.version.isNotEmpty ? packageInfo.version : '1.5.13';
+      final verCode = int.tryParse(packageInfo.buildNumber) ?? 20;
 
       if (!context.mounted) {
         _isShowingDialog = false;

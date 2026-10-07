@@ -1,19 +1,19 @@
 {
-  "versionName": "1.5.12",
-  "versionCode": 19,
-  "latestVersion": "1.5.12",
-  "latestVersionCode": 19,
+  "versionName": "1.5.13",
+  "versionCode": 20,
+  "latestVersion": "1.5.13",
+  "latestVersionCode": 20,
   "apkSize": "47.4 MB",
   "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "forceUpdate": false,
   "minVersionCode": 10,
   "releaseNotes": [
+    "Single-seat occupancy enforcement: automatically releases previous seats on reassignment",
+    "Live database duplicate seat assignment audit and cleanup completed",
     "Firebase Play Integrity App Check security protection",
     "Real-time atomic revenue aggregation without database limits",
-    "Daily membership expiry automation via GitHub Actions",
-    "Digital fee receipts with authentic ₹ currency and library stamp",
-    "Comprehensive audit completed with zero analyzer issues"
+    "Daily membership expiry automation via GitHub Actions"
   ],
   "studentFeatures": [
     {
@@ -21,6 +21,12 @@
       "title": "Play Integrity Security Protection",
       "description": "App communication is cryptographically verified to safeguard your account, seat, and personal data.",
       "badge": "Security"
+    },
+    {
+      "icon": "seat",
+      "title": "Strict Single-Seat Allocation",
+      "description": "Accurate real-time seat occupancy ensures only your current assigned seat is locked.",
+      "badge": "Fixed"
     },
     {
       "icon": "receipt",
@@ -33,15 +39,15 @@
       "title": "Automated Expiry & Grace Badges",
       "description": "Daily automated expiry tracking with 7-day grace period status badge and 1-tap seat renewal.",
       "badge": "Automated"
-    },
-    {
-      "icon": "history",
-      "title": "Verified Student Audit Activity",
-      "description": "View real-time record of all seat allocations, membership updates, and profile actions.",
-      "badge": "Live"
     }
   ],
   "adminFeatures": [
+    {
+      "icon": "seat",
+      "title": "Single-Seat Occupancy Enforcement",
+      "description": "Reassigning or moving a student automatically frees their prior seat, preventing duplicate occupied seats.",
+      "badge": "Fixed"
+    },
     {
       "icon": "analytics",
       "title": "Real-Time Revenue Aggregation",
@@ -59,12 +65,6 @@
       "title": "Daily Automated Expiry Checks",
       "description": "Runs daily at 8:00 AM IST via GitHub Actions to update membership statuses and issue dashboard alerts.",
       "badge": "Cloud Cron"
-    },
-    {
-      "icon": "verified_user",
-      "title": "Zero-Warning Code Health",
-      "description": "Exhaustive architectural audit passed with zero analyzer issues, hardened security rules, and data isolation.",
-      "badge": "Audit Complete"
     }
   ]
 }
