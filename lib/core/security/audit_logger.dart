@@ -36,35 +36,55 @@ class AuditLogger {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /// Logs an audit event to Firestore.
+  /// Returns the correct scoped audit log collection reference for a library.
+  /// Always writes to libraries/{libraryId}/audit_log so the AuditLogScreen
+  /// can read from the correct path.
+  CollectionReference<Map<String, dynamic>> _auditCollection(String? libraryId) {
+    if (libraryId != null && libraryId.isNotEmpty) {
+      return _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.auditLog);
+    }
+    // Fallback to top-level (should not normally happen)
+    return _firestore.collection(FirestorePaths.auditLog);
+  }
+
+  /// Logs an audit event to the library-scoped Firestore audit log.
+  /// [libraryId] must be provided so logs are scoped correctly per library.
   Future<void> log({
     required AuditAction action,
     required AuditEntity entityType,
+    String? libraryId,
     String? entityId,
+    String? entityName,
     Map<String, dynamic>? details,
     Map<String, dynamic>? previousData,
   }) async {
     try {
       final user = _auth.currentUser;
       final userId = user?.uid ?? 'system';
+      final userEmail = user?.email ?? '';
 
-      await _firestore.collection(FirestorePaths.auditLog).add({
+      await _auditCollection(libraryId).add({
         'action': action.name,
         'entityType': entityType.name,
         'entityId': entityId,
+        'entityName': entityName,
         'userId': userId,
+        'userEmail': userEmail,
         'timestamp': FieldValue.serverTimestamp(),
         'details': details,
         'previousData': previousData,
       });
     } catch (e) {
-      // Print to debug console; in production, consider Crashlytics
       debugPrint('Audit log failed: $e');
     }
   }
 
-  /// Retrieves audit logs with optional pagination and filtering.
+  /// Retrieves audit logs for a specific library with optional filtering.
   Future<List<Map<String, dynamic>>> getAuditLogs({
+    required String libraryId,
     AuditEntity? entityType,
     DateTime? startDate,
     DateTime? endDate,
@@ -72,7 +92,7 @@ class AuditLogger {
     DocumentSnapshot? startAfter,
   }) async {
     try {
-      Query query = _firestore.collection(FirestorePaths.auditLog)
+      Query query = _auditCollection(libraryId)
           .orderBy('timestamp', descending: true)
           .limit(limit);
 
@@ -83,7 +103,7 @@ class AuditLogger {
       if (startDate != null) {
         query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
       }
-      
+
       if (endDate != null) {
         query = query.where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
       }

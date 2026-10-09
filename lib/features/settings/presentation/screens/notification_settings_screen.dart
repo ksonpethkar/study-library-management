@@ -84,13 +84,6 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notification Settings'),
-        actions: [
-          TextButton.icon(
-            onPressed: _isSaving ? null : _saveSettings,
-            icon: _isSaving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save_rounded),
-            label: Text(_isSaving ? 'Saving...' : 'Save'),
-          ),
-        ],
       ),
       body: ListView(
         children: [

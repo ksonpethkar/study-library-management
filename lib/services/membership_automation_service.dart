@@ -63,8 +63,23 @@ class MembershipAutomationService {
         }
       }
 
-      // Default library grace period (defaults to 3 days if not set)
-      final defaultGraceDays = (data['defaultGraceDays'] as num?)?.toInt() ?? 3;
+      // Load grace period from settings/grace_period document (admin-configured).
+      // Falls back to 3 days if not configured yet.
+      // Key is 'defaultDays' (as saved by GracePeriodScreen).
+      int defaultGraceDays = 3;
+      try {
+        final gracePeriodDoc = await libRef
+            .collection('settings')
+            .doc('grace_period')
+            .get();
+        if (gracePeriodDoc.exists) {
+          defaultGraceDays =
+              (gracePeriodDoc.data()?['defaultDays'] as num?)?.toInt() ?? 3;
+        }
+      } catch (_) {
+        // Use default if settings not found
+      }
+
 
       // Query all students who are currently active or in grace
       final studentsSnap = await libRef

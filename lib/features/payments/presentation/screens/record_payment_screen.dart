@@ -201,7 +201,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      initialValue: _paymentMethod,
+                      value: _paymentMethods.contains(_paymentMethod) ? _paymentMethod : (_paymentMethods.isNotEmpty ? _paymentMethods.first : null),
                       decoration: const InputDecoration(
                         labelText: 'Payment Method *',
                         prefixIcon: Icon(Icons.payment_rounded),
@@ -211,9 +211,10 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                         return DropdownMenuItem(value: m, child: Text(m));
                       }).toList(),
                       onChanged: (val) => setState(() => _paymentMethod = val!),
+                      validator: (val) => val == null || val.isEmpty ? 'Select a payment method' : null,
                     ),
                     const SizedBox(height: 16),
-                    if (_paymentMethod == 'UPI' || _paymentMethod == 'Bank Transfer')
+                    if (_paymentMethod.toLowerCase().contains('upi') || _paymentMethod.toLowerCase().contains('bank') || _paymentMethod.toLowerCase().contains('transfer'))
                       ValidatedTextField(
                         label: 'Reference Number',
                         controller: _referenceController,

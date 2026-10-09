@@ -235,6 +235,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                             AuditLogger().log(
                               action: AuditAction.updated,
                               entityType: AuditEntity.student,
+        libraryId: libraryId,
                               entityId: widget.studentId,
                               details: {'planChanged': true, 'planId': plan.id},
                             ).ignore();
@@ -313,7 +314,15 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     final s = student!;
     final libraryId = ref.read(currentLibraryIdProvider) ?? '';
 
-    return Scaffold(
+    return PopScope(
+      canPop: context.canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          // Cannot pop (this screen is the root). Navigate to student list.
+          context.go('/admin/students');
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -424,6 +433,35 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                             const SizedBox(width: 4),
                             Text(s.email, style: Theme.of(context).textTheme.bodySmall),
                           ],
+                        ),
+                      ],
+                      if (s.membershipNumber != null && s.membershipNumber!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onLongPress: () {
+                            Clipboard.setData(ClipboardData(text: s.membershipNumber!));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Membership ID copied'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              const Icon(Icons.badge_outlined, size: 14, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Text(
+                                'ID: ${s.membershipNumber}',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.copy, size: 12, color: Colors.grey),
+                            ],
+                          ),
                         ),
                       ],
                       const SizedBox(height: 8),
@@ -785,8 +823,10 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
           ],
         ),
       ),
-    );
+    ), // close Scaffold
+    ); // close PopScope
   }
+
 
   Widget _buildGovIdRow(BuildContext context, String type, String number) {
     String masked;
@@ -935,6 +975,7 @@ class _SectionItem extends ConsumerWidget {
                     AuditLogger().log(
                       action: AuditAction.updated,
                       entityType: AuditEntity.student,
+        libraryId: libraryId,
                       entityId: studentId,
                       details: {'seatAssigned': true, 'seatId': seat.id, 'sectionId': section.id},
                     ).ignore();

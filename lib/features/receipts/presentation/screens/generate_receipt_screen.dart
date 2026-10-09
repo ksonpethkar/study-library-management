@@ -88,6 +88,7 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
       AuditLogger().log(
         action: AuditAction.created,
         entityType: AuditEntity.receipt,
+        libraryId: libraryId,
         entityId: receiptId,
         details: {'studentId': widget.studentId, 'amount': widget.amount},
       ).ignore();

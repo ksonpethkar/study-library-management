@@ -14,7 +14,9 @@ class DataExportScreen extends ConsumerStatefulWidget {
 }
 
 class _DataExportScreenState extends ConsumerState<DataExportScreen> {
-  bool _isExporting = false;
+  // Separate loading states so each export button shows its own spinner
+  bool _isExportingStudents = false;
+  bool _isExportingPayments = false;
   String _status = '';
 
   Future<void> _exportStudents() async {
@@ -22,7 +24,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
     if (libraryId == null || libraryId.isEmpty) return;
 
     setState(() {
-      _isExporting = true;
+      _isExportingStudents = true;
       _status = 'Fetching students...';
     });
 
@@ -63,9 +65,9 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
       setState(() => _status = '✅ Exported ${snap.docs.length} students');
     } catch (e) {
       setState(() => _status = '❌ Error: $e');
+    } finally {
+      if (mounted) setState(() => _isExportingStudents = false);
     }
-
-    setState(() => _isExporting = false);
   }
 
   Future<void> _exportPayments() async {
@@ -73,7 +75,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
     if (libraryId == null || libraryId.isEmpty) return;
 
     setState(() {
-      _isExporting = true;
+      _isExportingPayments = true;
       _status = 'Fetching payments...';
     });
 
@@ -112,9 +114,9 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
       setState(() => _status = '✅ Exported ${snap.docs.length} payments');
     } catch (e) {
       setState(() => _status = '❌ Error: $e');
+    } finally {
+      if (mounted) setState(() => _isExportingPayments = false);
     }
-
-    setState(() => _isExporting = false);
   }
 
   String _escape(String value) {
@@ -127,6 +129,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isAnyExporting = _isExportingStudents || _isExportingPayments;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Export Data')),
@@ -143,8 +146,10 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                 leading: const Icon(Icons.people, color: Colors.blue),
                 title: const Text('Export Students'),
                 subtitle: const Text('Name, phone, email, status, etc.'),
-                trailing: _isExporting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.download),
-                onTap: _isExporting ? null : _exportStudents,
+                trailing: _isExportingStudents
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.download),
+                onTap: isAnyExporting ? null : _exportStudents,
               ),
             ),
             const SizedBox(height: 8),
@@ -153,15 +158,21 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
                 leading: const Icon(Icons.payment, color: Colors.green),
                 title: const Text('Export Payments'),
                 subtitle: const Text('Amount, method, date, status'),
-                trailing: _isExporting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.download),
-                onTap: _isExporting ? null : _exportPayments,
+                trailing: _isExportingPayments
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.download),
+                onTap: isAnyExporting ? null : _exportPayments,
               ),
             ),
 
             if (_status.isNotEmpty) ...[
               const SizedBox(height: 24),
               Card(
-                color: _status.startsWith('✅') ? Colors.green.shade50 : _status.startsWith('❌') ? Colors.red.shade50 : null,
+                color: _status.startsWith('✅')
+                    ? Colors.green.shade50
+                    : _status.startsWith('❌')
+                        ? Colors.red.shade50
+                        : null,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(

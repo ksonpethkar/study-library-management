@@ -104,17 +104,23 @@ class PdfService {
           return pw.Stack(
             children: [
               // ── Watermark Layer ──────────────────────────────────────────
+              // Uses pw.Stack with Positioned.fill so the watermark truly
+              // overlays as a background across the entire page area.
               if (watermarkEnabled && logoImage != null)
-                pw.Center(
-                  child: pw.Opacity(
-                    opacity: watermarkOpacity,
-                    child: pw.Image(
-                      logoImage,
-                      width: 240,
-                      height: 240,
+                pw.Positioned.fill(
+                  child: pw.Center(
+                    child: pw.Opacity(
+                      opacity: watermarkOpacity,
+                      child: pw.Image(
+                        logoImage,
+                        width: 280,
+                        height: 280,
+                        fit: pw.BoxFit.contain,
+                      ),
                     ),
                   ),
                 ),
+
 
               // ── Main Receipt Content ──────────────────────────────────────
               receiptStyle == 'compact'

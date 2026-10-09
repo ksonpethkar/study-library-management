@@ -1,70 +1,82 @@
 {
-  "versionName": "1.5.13",
-  "versionCode": 20,
-  "latestVersion": "1.5.13",
-  "latestVersionCode": 20,
-  "apkSize": "47.4 MB",
+  "versionName": "1.5.14",
+  "versionCode": 21,
+  "latestVersion": "1.5.14",
+  "latestVersionCode": 21,
   "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "forceUpdate": false,
   "minVersionCode": 10,
   "releaseNotes": [
-    "Single-seat occupancy enforcement: automatically releases previous seats on reassignment",
-    "Live database duplicate seat assignment audit and cleanup completed",
-    "Firebase Play Integrity App Check security protection",
-    "Real-time atomic revenue aggregation without database limits",
-    "Daily membership expiry automation via GitHub Actions"
+    "Audit Logs now visible — fixed Firestore path mismatch",
+    "Backup fully functional — document IDs now preserved",
+    "Grace period respects admin-configured setting",
+    "Notification Settings duplicate save button removed",
+    "Export data: each button has independent loading state",
+    "Payment methods now synced from Settings",
+    "Receipt watermark appears in shared/downloaded PDFs",
+    "Screenshot protection toggle in Security Settings",
+    "Membership ID shown in student profile header",
+    "Drag-to-reorder fields now works in Form Settings",
+    "Back button no longer closes app in Student Profile",
+    "Login screen shows org logo instantly from cache"
   ],
   "studentFeatures": [
     {
-      "icon": "shield",
-      "title": "Play Integrity Security Protection",
-      "description": "App communication is cryptographically verified to safeguard your account, seat, and personal data.",
-      "badge": "Security"
-    },
-    {
-      "icon": "seat",
-      "title": "Strict Single-Seat Allocation",
-      "description": "Accurate real-time seat occupancy ensures only your current assigned seat is locked.",
+      "icon": "receipt",
+      "title": "Official Fee Receipts with Org Watermark",
+      "description": "Shared PDF receipts now include your library's logo watermark exactly as shown in preview.",
       "badge": "Fixed"
     },
     {
-      "icon": "receipt",
-      "title": "Official Fee Receipts & Rupee Currency",
-      "description": "View authentic fee receipts with genuine ₹ symbols and official library verification stamps.",
-      "badge": "Verified"
+      "icon": "alarm",
+      "title": "Accurate Grace Period Tracking",
+      "description": "Membership expiry automation now honours your admin-configured grace period — no more resets.",
+      "badge": "Fixed"
     },
     {
-      "icon": "alarm",
-      "title": "Automated Expiry & Grace Badges",
-      "description": "Daily automated expiry tracking with 7-day grace period status badge and 1-tap seat renewal.",
-      "badge": "Automated"
+      "icon": "shield",
+      "title": "Screenshot Protection Control",
+      "description": "Your library admin can now control screenshot protection across the app for your privacy.",
+      "badge": "New"
     }
   ],
   "adminFeatures": [
     {
-      "icon": "seat",
-      "title": "Single-Seat Occupancy Enforcement",
-      "description": "Reassigning or moving a student automatically frees their prior seat, preventing duplicate occupied seats.",
+      "icon": "history_edu",
+      "title": "Audit Logs — Now Working",
+      "description": "All admin actions are now correctly logged and visible in Admin → Audit Logs.",
       "badge": "Fixed"
     },
     {
-      "icon": "analytics",
-      "title": "Real-Time Revenue Aggregation",
-      "description": "Instant financial tracking without dataset limits or pagination caps. Running totals updated on every payment.",
-      "badge": "Real-Time"
+      "icon": "backup",
+      "title": "Backup & Restore — Fully Fixed",
+      "description": "Backup now stores Firestore document IDs. Restore correctly writes back all data.",
+      "badge": "Fixed"
     },
     {
-      "icon": "lock",
-      "title": "Firebase Play Integrity App Check",
-      "description": "Enforces authentic app attestation, blocking unauthorized API calls and scraped database queries.",
-      "badge": "Hardened"
+      "icon": "timer",
+      "title": "Grace Period Respects Your Settings",
+      "description": "The automation engine reads your configured grace period, not a hardcoded default.",
+      "badge": "Fixed"
     },
     {
-      "icon": "schedule",
-      "title": "Daily Automated Expiry Checks",
-      "description": "Runs daily at 8:00 AM IST via GitHub Actions to update membership statuses and issue dashboard alerts.",
-      "badge": "Cloud Cron"
+      "icon": "screenshot_monitor",
+      "title": "Screenshot Protection Toggle",
+      "description": "New toggle in Security Settings to enable/disable screenshot protection globally.",
+      "badge": "New"
+    },
+    {
+      "icon": "drag_handle",
+      "title": "Field Reordering Fixed",
+      "description": "Drag-to-reorder in Form Fields and Payment Methods settings now works correctly.",
+      "badge": "Fixed"
+    },
+    {
+      "icon": "badge",
+      "title": "Membership ID in Student Profile",
+      "description": "Student membership ID is now shown in the profile header. Long-press to copy.",
+      "badge": "New"
     }
   ]
 }

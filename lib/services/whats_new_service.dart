@@ -114,7 +114,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.13+20';
+  static const String currentVersionIdentifier = '1.5.14+21';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -123,145 +123,106 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.12)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.14)
   static final List<ReleaseChange> adminChanges = [
     const ReleaseChange(
-      icon: Icons.shield_rounded,
-      rawIconName: 'shield',
-      badge: 'Play Integrity',
-      title: 'Firebase App Check Verification',
+      icon: Icons.history_edu_rounded,
+      rawIconName: 'history_edu',
+      badge: 'Fixed',
+      title: 'Audit Logs Now Visible',
       description:
-          'Cryptographically protects Firestore and backend services by enforcing verified, genuine Android app attestation.',
+          'Fixed a critical path mismatch — audit log entries are now correctly written to and read from the library-scoped path. All activity is now visible in Admin → Audit Logs.',
     ),
     const ReleaseChange(
-      icon: Icons.query_stats_rounded,
-      rawIconName: 'analytics',
-      badge: 'Real-Time',
-      title: 'Atomic Revenue Aggregation',
+      icon: Icons.download_rounded,
+      rawIconName: 'download',
+      badge: 'Fixed',
+      title: 'Export Data — Independent Loading',
       description:
-          'Real-time financial running ledger updated on each payment with atomic counters—no pagination caps or missing totals.',
-    ),
-    const ReleaseChange(
-      icon: Icons.schedule_rounded,
-      rawIconName: 'schedule',
-      badge: 'Automated Cron',
-      title: 'Daily Expiry & Grace Tracking',
-      description:
-          'Scheduled automation scans all student memberships daily at 8:00 AM IST and flags renewals without manual intervention.',
-    ),
-    const ReleaseChange(
-      icon: Icons.security_rounded,
-      rawIconName: 'lock',
-      badge: 'Security Rules',
-      title: 'Strict Data Isolation & Validation',
-      description:
-          'Hardened security rules block cross-student inspection, mandate non-empty student IDs, and enforce positive amount bounds.',
-    ),
-    const ReleaseChange(
-      icon: Icons.touch_app_rounded,
-      rawIconName: 'touch_app',
-      badge: 'One UI & iOS 18',
-      title: 'Tactile Spring Scaling & Haptics',
-      description:
-          'Satisfying 0.965x spring scale and micro-haptic taps across dashboard stat cards, seat tiles, and student lists.',
-    ),
-    const ReleaseChange(
-      icon: Icons.lock_clock_rounded,
-      rawIconName: 'lock_clock',
-      badge: 'Front-Desk Security',
-      title: '5-Minute Inactivity Auto-Lock',
-      description:
-          'Automatically secures the front-desk console when left unattended, requiring Biometric or PIN unlock.',
-    ),
-    const ReleaseChange(
-      icon: Icons.verified_user_rounded,
-      rawIconName: 'verified_user',
-      badge: 'KYC Compliance',
-      title: 'Automated Aadhaar Diagonal Watermark',
-      description:
-          'Cryptographically embeds "VERIFIED FOR COZY CORNER USE ONLY" across all student government ID documents.',
+          'Each export button (Students, Payments) now shows its own loading spinner independently. Clicking one no longer freezes the other.',
     ),
     const ReleaseChange(
       icon: Icons.backup_rounded,
       rawIconName: 'backup',
-      badge: 'Automated Pipeline',
-      title: 'Silent 7-Day Rolling Database Backup',
+      badge: 'Fixed',
+      title: 'Backup — Document IDs Preserved',
       description:
-          'Automated background snapshots of all library records with rolling 4-week retention to local private storage.',
+          'Backup now correctly stores each document\'s Firestore ID. Restore was previously skipping all documents due to missing IDs — now fully functional.',
     ),
     const ReleaseChange(
-      icon: Icons.admin_panel_settings_rounded,
-      rawIconName: 'admin_panel_settings',
-      badge: 'Access Control',
-      title: 'Granular Staff RBAC Permissions',
+      icon: Icons.timer_rounded,
+      rawIconName: 'timer',
+      badge: 'Fixed',
+      title: 'Grace Period — Respects Admin Setting',
       description:
-          'Protect library revenue and sensitive database settings from receptionist and desk operator views.',
+          'The automation service now reads your saved grace period (Settings → Grace Period) instead of ignoring it. Admin-configured values are always honoured.',
+    ),
+    const ReleaseChange(
+      icon: Icons.notifications_rounded,
+      rawIconName: 'notifications',
+      badge: 'Fixed',
+      title: 'Notification Settings — Duplicate Button Removed',
+      description:
+          'The duplicate "Save" button in Notification Settings has been removed. Only one save button remains at the bottom of the screen.',
+    ),
+    const ReleaseChange(
+      icon: Icons.payment_rounded,
+      rawIconName: 'payment',
+      badge: 'Fixed',
+      title: 'Payment Methods — Settings Synced',
+      description:
+          'Recording a payment now shows the same methods you configured in Settings → Payment Methods. Hardcoded fallback list replaced.',
+    ),
+    const ReleaseChange(
+      icon: Icons.picture_as_pdf_rounded,
+      rawIconName: 'picture_as_pdf',
+      badge: 'Fixed',
+      title: 'Receipt Watermark in Shared PDF',
+      description:
+          'Organisation logo watermark now correctly appears in shared/downloaded receipt PDFs, not just in the preview.',
+    ),
+    const ReleaseChange(
+      icon: Icons.screenshot_monitor_rounded,
+      rawIconName: 'screenshot_monitor',
+      badge: 'New',
+      title: 'Screenshot Protection Toggle',
+      description:
+          'Admins can now enable or disable screenshot & screen-recording protection globally from Security Settings. Payment, ID Card, and Receipt screens always enforce protection.',
     ),
     const ReleaseChange(
       icon: Icons.badge_rounded,
       rawIconName: 'badge',
-      badge: 'New Printing Mode',
-      title: 'ATM ID Cards & A4 Cutout Printing',
+      badge: 'New',
+      title: 'Membership ID in Student Profile',
       description:
-          'Standard 85.6×54mm CR80 cards with scissor fold guides for single-page printing and high-density 4-card bulk packing to save blank paper.',
+          'Student membership ID is now prominently shown in the student detail header. Long-press to copy it to clipboard.',
     ),
     const ReleaseChange(
-      icon: Icons.approval_rounded,
-      rawIconName: 'approval',
-      badge: 'Full Customizer',
-      title: 'Official Receipt Stamp & Angle Controls',
+      icon: Icons.drag_handle_rounded,
+      rawIconName: 'drag_handle',
+      badge: 'Fixed',
+      title: 'Field Reordering Now Works',
       description:
-          'Upload official library stamp with real-time rotation slider (-45° to +45°) and scale controls (0.5x to 1.8x).',
+          'Drag-to-reorder in Admin Settings → Form Fields (and Payment Methods) was silently broken due to a wrong callback name. Now fully functional.',
     ),
     const ReleaseChange(
-      icon: Icons.opacity_rounded,
-      rawIconName: 'opacity',
-      badge: 'Visual Control',
-      title: 'Watermark Opacity Slider',
+      icon: Icons.arrow_back_rounded,
+      rawIconName: 'arrow_back',
+      badge: 'Fixed',
+      title: 'Back Button — No Longer Closes App',
       description:
-          'Fine-tune library logo watermark transparency from 5% to 40% on all official receipts and invoices.',
+          'Pressing back on a Student Profile no longer exits the app when it\'s the root screen. Now correctly navigates to the student list.',
     ),
     const ReleaseChange(
-      icon: Icons.card_membership_rounded,
-      rawIconName: 'card_membership',
-      badge: 'Management',
-      title: 'Subscription Plans Full CRUD',
+      icon: Icons.image_rounded,
+      rawIconName: 'image',
+      badge: 'Fixed',
+      title: 'Login Logo — Instant Branding',
       description:
-          'Direct edit, rename, delete, and active/inactive toggles right from the plan cards.',
-    ),
-    const ReleaseChange(
-      icon: Icons.document_scanner_rounded,
-      rawIconName: 'document_scanner',
-      badge: 'AI Smart Scan',
-      title: 'Smart OCR Document Auto-Detection',
-      description:
-          'Auto-classifies Aadhaar, PAN, Driving License, and College IDs while filtering statutory disclaimers.',
-    ),
-    const ReleaseChange(
-      icon: Icons.lock_outline_rounded,
-      rawIconName: 'lock',
-      badge: 'Security',
-      title: 'Aadhaar AES-256 Privacy Masking',
-      description:
-          'Real-time masked display (•••• •••• 1234) with 1-tap unmask toggle, ensuring zero ciphertext leaks in staff views.',
-    ),
-    const ReleaseChange(
-      icon: Icons.auto_awesome_rounded,
-      rawIconName: 'auto_awesome',
-      badge: 'Branding',
-      title: 'Dynamic Brand Splash Screen',
-      description:
-          'Instant Frame-1 brand loading of your library logo, name, and accent color with Material 3 spring entrance.',
-    ),
-    const ReleaseChange(
-      icon: Icons.sentiment_satisfied_alt_rounded,
-      rawIconName: 'sentiment_satisfied_alt',
-      badge: 'UX Upgrade',
-      title: 'Friendly Error Messages',
-      description:
-          'Clear, non-technical guidance replaces cryptic database stack traces across all admin and student workflows.',
+          'Organisation logo and name are now cached locally, so they appear instantly on the login screen without waiting for a network request.',
     ),
   ];
+
 
   /// Concrete features exclusively relevant for Students (v1.5.12)
   static final List<ReleaseChange> studentChanges = [

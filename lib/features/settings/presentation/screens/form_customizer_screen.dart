@@ -339,7 +339,7 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
           ? const Center(child: CircularProgressIndicator())
           : ReorderableListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
-              onReorderItem: (oldIndex, newIndex) {
+              onReorder: (oldIndex, newIndex) {
                 setState(() {
                   if (newIndex > oldIndex) newIndex--;
                   final item = _fields.removeAt(oldIndex);

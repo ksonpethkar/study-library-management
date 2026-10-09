@@ -13,78 +13,118 @@ class BackupService {
   BackupService({FirebaseFirestore? firestore}) : _firestore = firestore ?? FirebaseFirestore.instance;
 
   /// Creates a JSON backup file containing all library collections.
+  /// Each document includes its Firestore ID stored under '__docId__' key
+  /// so it can be restored to the exact same document reference.
   Future<File> createBackup(String libraryId) async {
     final data = <String, dynamic>{
-      'version': 1,
+      'version': 2,
       'libraryId': libraryId,
       'timestamp': DateTime.now().toIso8601String(),
     };
 
-    final collections = ['students', 'seats', 'sections', 'plans', 'receipts', 'payments', 'settings'];
+    final collections = [
+      'students', 'seats', 'sections', 'plans',
+      'receipts', 'payments', 'settings',
+    ];
 
     for (final col in collections) {
-      final snapshot = await _firestore.collection('libraries').doc(libraryId).collection(col).get();
-      data[col] = snapshot.docs.map((doc) => doc.data()).toList();
+      try {
+        final snapshot = await _firestore
+            .collection('libraries')
+            .doc(libraryId)
+            .collection(col)
+            .get();
+        // Include doc ID as '__docId__' so restore can use the exact same reference
+        data[col] = snapshot.docs.map((doc) {
+          final d = Map<String, dynamic>.from(doc.data());
+          d['__docId__'] = doc.id;
+          return d;
+        }).toList();
+      } catch (e) {
+        debugPrint('Backup: could not read collection $col — $e');
+        data[col] = []; // Partial backup: empty list for failed collection
+      }
     }
 
     final jsonString = jsonEncode(data);
-    
+
     final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/backup_${libraryId}_${DateTime.now().millisecondsSinceEpoch}.json');
+    final file = File(
+        '${directory.path}/backup_${libraryId}_${DateTime.now().millisecondsSinceEpoch}.json');
     return await file.writeAsString(jsonString);
   }
 
   /// Restores library data from a JSON backup file.
-  Future<void> restoreFromBackup(String libraryId, File backupFile, {void Function(double)? onProgress}) async {
+  Future<void> restoreFromBackup(String libraryId, File backupFile,
+      {void Function(double)? onProgress}) async {
     try {
       if (!await backupFile.exists()) throw Exception('Backup file not found.');
       final jsonString = await backupFile.readAsString();
       final data = jsonDecode(jsonString) as Map<String, dynamic>;
 
-      if (data['version'] != 1) throw Exception('Unsupported backup version.');
-      if (data['libraryId'] != libraryId) throw Exception('Backup file belongs to a different library.');
+      final version = data['version'] as int? ?? 1;
+      if (version > 2) throw Exception('Unsupported backup version $version.');
+      if (data['libraryId'] != libraryId) {
+        throw Exception('Backup file belongs to a different library.');
+      }
 
-      final collections = ['students', 'seats', 'sections', 'plans', 'receipts', 'payments', 'settings'];
-      final batch = _firestore.batch();
+      final collections = [
+        'students', 'seats', 'sections', 'plans',
+        'receipts', 'payments', 'settings',
+      ];
+
+      // Count total operations for progress
       int totalOperations = 0;
-      int completedOperations = 0;
-
-      // Count operations
       for (final col in collections) {
         if (data[col] != null) {
           totalOperations += (data[col] as List).length;
         }
       }
-
       if (totalOperations == 0) return;
 
+      int completedOperations = 0;
+      WriteBatch batch = _firestore.batch();
       int batchCount = 0;
+
       for (final col in collections) {
         if (data[col] == null) continue;
         final list = data[col] as List<dynamic>;
-        
+
         for (final item in list) {
           final docData = item as Map<String, dynamic>;
-          final docId = docData['id'] as String?;
-          if (docId == null) continue;
 
-          final docRef = _firestore.collection('libraries').doc(libraryId).collection(col).doc(docId);
-          batch.set(docRef, docData, SetOptions(merge: true));
+          // v2 backups store the real Firestore ID in '__docId__'
+          // v1 backups (old format) stored it in 'id' field
+          final docId = (docData['__docId__'] as String?) ??
+              (docData['id'] as String?);
+          if (docId == null || docId.isEmpty) continue;
+
+          // Remove the helper key before writing back to Firestore
+          final cleanData = Map<String, dynamic>.from(docData)
+            ..remove('__docId__');
+
+          final docRef = _firestore
+              .collection('libraries')
+              .doc(libraryId)
+              .collection(col)
+              .doc(docId);
+          batch.set(docRef, cleanData, SetOptions(merge: true));
           batchCount++;
           completedOperations++;
 
           // Firestore batches are limited to 500 operations
           if (batchCount >= 490) {
             await batch.commit();
+            batch = _firestore.batch(); // Create fresh batch
             batchCount = 0;
-            if (onProgress != null) onProgress(completedOperations / totalOperations);
+            onProgress?.call(completedOperations / totalOperations);
           }
         }
       }
-      
+
       if (batchCount > 0) {
         await batch.commit();
-        if (onProgress != null) onProgress(1.0);
+        onProgress?.call(1.0);
       }
     } catch (e) {
       throw Exception('Failed to restore backup: $e');

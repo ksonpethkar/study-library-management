@@ -232,6 +232,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
       AuditLogger().log(
         action: AuditAction.updated,
         entityType: AuditEntity.student,
+        libraryId: libraryId,
         entityId: widget.studentId,
         details: {'name': _nameController.text.trim(), 'libraryId': libraryId},
       ).ignore();

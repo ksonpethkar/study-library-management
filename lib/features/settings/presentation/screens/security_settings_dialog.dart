@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:study_library/services/biometric_service.dart';
+import 'package:study_library/core/utils/secure_screen_mixin.dart';
+import 'package:study_library/core/providers/library_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class SecuritySettingsDialog extends StatefulWidget {
+class SecuritySettingsDialog extends ConsumerStatefulWidget {
   const SecuritySettingsDialog({super.key});
 
   static Future<void> show(BuildContext context) {
@@ -12,14 +15,15 @@ class SecuritySettingsDialog extends StatefulWidget {
   }
 
   @override
-  State<SecuritySettingsDialog> createState() => _SecuritySettingsDialogState();
+  ConsumerState<SecuritySettingsDialog> createState() => _SecuritySettingsDialogState();
 }
 
-class _SecuritySettingsDialogState extends State<SecuritySettingsDialog> {
+class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog> {
   bool _biometricAvailable = false;
   bool _biometricEnabled = false;
   bool _hasPin = false;
   int _autoLockMinutes = 2;
+  bool _screenshotProtectionEnabled = true;
   bool _loading = true;
 
   @override
@@ -33,6 +37,7 @@ class _SecuritySettingsDialogState extends State<SecuritySettingsDialog> {
     final enabled = await BiometricService.isBiometricEnabled();
     final hasPin = await BiometricService.hasPin();
     final timeout = await BiometricService.getAutoLockTimeoutMinutes();
+    final screenshotProtection = await isScreenshotProtectionEnabled();
 
     if (mounted) {
       setState(() {
@@ -40,9 +45,19 @@ class _SecuritySettingsDialogState extends State<SecuritySettingsDialog> {
         _biometricEnabled = enabled;
         _hasPin = hasPin;
         _autoLockMinutes = timeout;
+        _screenshotProtectionEnabled = screenshotProtection;
         _loading = false;
       });
     }
+  }
+
+  Future<void> _toggleScreenshotProtection(bool value) async {
+    await setScreenshotProtectionEnabled(value);
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId != null && libraryId.isNotEmpty) {
+      await syncScreenshotProtectionToFirestore(libraryId, value);
+    }
+    if (mounted) setState(() => _screenshotProtectionEnabled = value);
   }
 
   Future<void> _toggleBiometric(bool value) async {
@@ -204,6 +219,22 @@ class _SecuritySettingsDialogState extends State<SecuritySettingsDialog> {
                     style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
                   ),
                   const SizedBox(height: 16),
+
+                  // Screenshot Protection Toggle
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: const Icon(Icons.screenshot_monitor_rounded),
+                    title: const Text('Screenshot Protection', style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: const Text(
+                      'Prevents screenshots & screen recording in the app. '
+                      'Always enforced on: Payment, Receipt, ID Card, and Student financial screens.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    value: _screenshotProtectionEnabled,
+                    onChanged: _toggleScreenshotProtection,
+                  ),
+
+                  const Divider(),
 
                   // Biometric Toggle
                   SwitchListTile(

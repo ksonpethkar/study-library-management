@@ -132,6 +132,7 @@ class StudentRepository {
       AuditLogger().log(
         action: AuditAction.created,
         entityType: AuditEntity.student,
+        libraryId: libraryId,
         entityId: docRef.id,
         details: {'name': student.name, 'libraryId': libraryId},
       ).ignore();
@@ -184,6 +185,7 @@ class StudentRepository {
       AuditLogger().log(
         action: AuditAction.updated,
         entityType: AuditEntity.student,
+        libraryId: libraryId,
         entityId: student.id,
         details: {'name': student.name, 'libraryId': libraryId},
       ).ignore();
@@ -218,6 +220,7 @@ class StudentRepository {
       AuditLogger().log(
         action: AuditAction.deleted,
         entityType: AuditEntity.student,
+        libraryId: libraryId,
         entityId: studentId,
         details: {'libraryId': libraryId},
       ).ignore();
@@ -625,6 +628,7 @@ class StudentRepository {
     AuditLogger().log(
       action: AuditAction.updated,
       entityType: AuditEntity.student,
+        libraryId: libraryId,
       entityId: studentId,
       details: {'blocked': true, 'reason': reason},
     ).ignore();
@@ -643,6 +647,7 @@ class StudentRepository {
     AuditLogger().log(
       action: AuditAction.updated,
       entityType: AuditEntity.student,
+        libraryId: libraryId,
       entityId: studentId,
       details: {'unblocked': true},
     ).ignore();

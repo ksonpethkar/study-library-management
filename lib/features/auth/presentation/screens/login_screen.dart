@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
@@ -26,12 +27,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _libraryLogoUrl;
   String? _libraryTagline;
 
+  static const String _prefLogoUrl = 'last_library_logo_url';
+  static const String _prefLibName = 'last_library_name';
+  static const String _prefTagline = 'last_library_tagline';
+
   @override
   void initState() {
     super.initState();
     // Warm up native Google Sign In in advance so first tap succeeds immediately
     ref.read(authRepositoryProvider).warmUpGoogleSignIn();
-    _loadBranding();
+    _restoreCachedBranding(); // Show cached logo instantly
+    _loadBranding();           // Then refresh from Firestore
+  }
+
+  /// Restore last-known branding from SharedPreferences (instant, no network).
+  Future<void> _restoreCachedBranding() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedLogo = prefs.getString(_prefLogoUrl);
+      final cachedName = prefs.getString(_prefLibName);
+      final cachedTagline = prefs.getString(_prefTagline);
+      if (mounted && (cachedLogo != null || cachedName != null)) {
+        setState(() {
+          if (cachedLogo != null && cachedLogo.isNotEmpty) _libraryLogoUrl = cachedLogo;
+          if (cachedName != null && cachedName.isNotEmpty) _libraryName = cachedName;
+          if (cachedTagline != null) _libraryTagline = cachedTagline;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadBranding() async {
@@ -42,13 +65,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .get();
       if (doc.exists && mounted) {
         final data = doc.data()!;
+        final name = (data['name'] as String?)?.trim().isNotEmpty == true
+            ? data['name'] as String
+            : 'Cozy Corner';
+        final logoUrl = data['logoUrl'] as String?;
+        final tagline = data['tagline'] as String?;
+
         setState(() {
-          _libraryName = (data['name'] as String?)?.trim().isNotEmpty == true
-              ? data['name'] as String
-              : 'Cozy Corner';
-          _libraryLogoUrl = data['logoUrl'] as String?;
-          _libraryTagline = data['tagline'] as String?;
+          _libraryName = name;
+          _libraryLogoUrl = logoUrl;
+          _libraryTagline = tagline;
         });
+
+        // Cache to SharedPreferences so next time it shows instantly
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_prefLibName, name);
+        if (logoUrl != null) await prefs.setString(_prefLogoUrl, logoUrl);
+        if (tagline != null) await prefs.setString(_prefTagline, tagline);
       }
     } catch (_) {}
   }
@@ -232,6 +265,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     AuditLogger().log(
       action: AuditAction.login,
       entityType: AuditEntity.library,
+      libraryId: libId,
       details: {'email': FirebaseAuth.instance.currentUser?.email ?? ''},
     ).ignore();
     // Save FCM token and subscribe to admin topic for push notifications
@@ -278,6 +312,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     AuditLogger().log(
       action: AuditAction.login,
       entityType: AuditEntity.library,
+      libraryId: libId,
       details: {'email': FirebaseAuth.instance.currentUser?.email ?? ''},
     ).ignore();
     // Save FCM token and subscribe to library topic for push notifications

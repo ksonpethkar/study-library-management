@@ -465,6 +465,7 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
         AuditLogger().log(
           action: AuditAction.created,
           entityType: AuditEntity.announcement,
+          libraryId: widget.libraryId,
           entityId: docRef.id,
           details: {'title': _titleController.text.trim(), 'type': _selectedType.name},
         ).ignore();

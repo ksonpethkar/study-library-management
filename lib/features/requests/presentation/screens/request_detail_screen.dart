@@ -200,6 +200,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       AuditLogger().log(
         action: AuditAction.approved,
         entityType: AuditEntity.request,
+        libraryId: libraryId,
         entityId: widget.requestId,
         details: {'libraryId': libraryId},
       ).ignore();
@@ -293,6 +294,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       AuditLogger().log(
         action: AuditAction.rejected,
         entityType: AuditEntity.request,
+        libraryId: libraryId,
         entityId: widget.requestId,
         details: {'libraryId': libraryId},
       ).ignore();
