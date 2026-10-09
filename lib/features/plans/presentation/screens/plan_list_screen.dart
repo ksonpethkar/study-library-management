@@ -41,7 +41,7 @@ class PlanListScreen extends ConsumerWidget {
           }
           return ReorderableListView.builder(
             itemCount: plans.length,
-            onReorderItem: (oldIndex, newIndex) {
+            onReorder: (oldIndex, newIndex) {
               if (newIndex > oldIndex) newIndex -= 1;
               final list = List<PlanModel>.from(plans);
               final item = list.removeAt(oldIndex);

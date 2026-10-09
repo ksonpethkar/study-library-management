@@ -954,7 +954,7 @@ class SeatMapScreen extends ConsumerWidget {
                   child: ReorderableListView.builder(
                     shrinkWrap: true,
                     itemCount: reorderedList.length,
-                    onReorderItem: (oldIndex, newIndex) {
+                    onReorder: (oldIndex, newIndex) {
                       setModalState(() {
                         final item = reorderedList.removeAt(oldIndex);
                         reorderedList.insert(newIndex, item);
