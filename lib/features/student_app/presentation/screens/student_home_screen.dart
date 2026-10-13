@@ -60,7 +60,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
     });
   }
 
-  void _scheduleRemindersIfNeeded(StudentModel student, [String libraryName = 'Cozy Corner']) {
+  void _scheduleRemindersIfNeeded(StudentModel student, {String libraryName = '', int renewalDays = 7}) {
     final planEndDate = student.planEndDate;
     if (planEndDate == null) return;
     if (student.membershipStatus != MembershipStatus.active &&
@@ -72,7 +72,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
       expiryDate: planEndDate,
       studentName: student.name,
       libraryName: libraryName,
-      reminderDays: 3,
+      reminderDays: renewalDays,
     ).ignore();
   }
 
@@ -95,7 +95,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
 
     ref.listen<AsyncValue<StudentModel?>>(currentStudentProvider, (_, next) {
       next.whenData((student) {
-        if (student != null) _scheduleRemindersIfNeeded(student, libraryName);
+        if (student != null) _scheduleRemindersIfNeeded(student, libraryName: libraryName, renewalDays: int.tryParse(library?.renewalReminderDays ?? '7') ?? 7);
       });
     });
 
@@ -504,10 +504,22 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.chat_bubble_rounded, color: Color(0xFF25D366)),
+                            tooltip: 'WhatsApp Admin',
                             onPressed: () async {
-                              final cleanPhone = library.contact.replaceAll(RegExp(r'\D'), '');
-                              final uri = Uri.parse('https://wa.me/$cleanPhone?text=Hello%20Admin,%20I%20am%20a%20student%20at%20${Uri.encodeComponent(libraryName)}');
-                              if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              // Prefer whatsappNumber if set, fallback to contact
+                              final rawPhone = library.whatsappNumber.isNotEmpty
+                                  ? library.whatsappNumber
+                                  : library.contact;
+                              final clean = rawPhone.replaceAll(RegExp(r'\D'), '');
+                              final withCode = clean.startsWith('91') || clean.length > 10
+                                  ? clean
+                                  : '91$clean';
+                              final msg = Uri.encodeComponent(
+                                  'Hello Admin, I need help with my membership at $libraryName.');
+                              final uri = Uri.parse('https://wa.me/$withCode?text=$msg');
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              }
                             },
                           ),
                         ],

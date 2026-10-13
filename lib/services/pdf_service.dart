@@ -82,9 +82,16 @@ class PdfService {
     final customTerms = template?['customTerms'] as String? ?? '';
     
     final footerText = (template?['footerText'] as String?) ?? '';
-    final resolvedFooter = footerText.isNotEmpty 
-        ? MessageTemplateService.substitute(footerText, libraryName: library.name)
-        : MessageTemplateService.substitute(MessageTemplateService.defaultReceiptFooter, libraryName: library.name);
+    // Priority: receipt template footerText > library.receiptFooterText > default
+    final effectiveFooter = footerText.isNotEmpty
+        ? footerText
+        : library.receiptFooterText.isNotEmpty
+            ? library.receiptFooterText
+            : MessageTemplateService.defaultReceiptFooter;
+    final resolvedFooter = MessageTemplateService.substitute(
+      effectiveFooter,
+      libraryName: library.name,
+    );
 
     final receiptStyle = (template?['receiptStyle'] as String?) ?? 'classic';
     final pageSizeStr = (template?['pageSize'] as String?) ?? 'A4';

@@ -1,19 +1,19 @@
 {
-  "versionName": "1.5.17",
-  "versionCode": 24,
-  "latestVersion": "1.5.17",
-  "latestVersionCode": 24,
+  "versionName": "1.5.18",
+  "versionCode": 25,
+  "latestVersion": "1.5.18",
+  "latestVersionCode": 25,
   "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "forceUpdate": false,
   "minVersionCode": 10,
   "releaseNotes": [
-    "WhatsApp button on student profile — Welcome, Renewal Reminder, Seat Assigned messages",
-    "WhatsApp messages fixed — library name included, country code auto-prefixed, emoji tiers",
-    "Rupee symbol (₹) now displays correctly in plan price on student detail",
-    "Receipts deleted now move to Recycle Bin (restorable for 30 days)",
-    "Staff permission providers — revenue dashboard locked for unauthorized staff",
-    "Exam / Target Course field added to registration form",
-    "All 6 staff permission flags now have dedicated Riverpod providers"
+    "Student delete now releases seat instantly (no orphaned seats)",
+    "Plan assignment warns before replacing an active plan",
+    "Receipt PDF footer now uses your custom footer text from library settings",
+    "WhatsApp contact button uses library WhatsApp number (not just phone)",
+    "Renewal reminder days now read from library settings (not hardcoded 3)",
+    "WhatsApp Student action added to payment recorded snackbar",
+    "Library name auto-filled in all notification messages"
   ]
 }

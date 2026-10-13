@@ -295,11 +295,39 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                         return ListTile(
                           title: Text(plan.name),
                           subtitle: Text('Duration: ${plan.duration} ${plan.durationUnit.name}'),
-                          trailing: Text('\u20B9₹${plan.price}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          trailing: Text('₹${plan.price.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           onTap: () async {
                             final libraryId = ref.read(currentLibraryIdProvider);
                             if (libraryId == null) return;
-                            
+
+                            // C2: Warn if student already has an active plan
+                            if (student != null &&
+                                student!.planId != null &&
+                                student!.membershipStatus == MembershipStatus.active) {
+                              final replace = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Replace Active Plan?'),
+                                  content: Text(
+                                    'This student already has an active plan.\n\n'
+                                    'Assigning "${plan.name}" will override the current plan '
+                                    'and reset the validity period.\n\nContinue?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Replace Plan'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (replace != true) return;
+                            }
+
                             final now = DateTime.now();
                             DateTime endDate = now;
                             final durationInt = plan.duration.toInt();
@@ -308,7 +336,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                             } else if (plan.durationUnit == DurationUnit.months) {
                               endDate = DateTime(now.year, now.month + durationInt, now.day);
                             }
-                            
+
                             await FirebaseFirestore.instance
                                 .collection('libraries')
                                 .doc(libraryId)
@@ -320,18 +348,18 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               'planEndDate': Timestamp.fromDate(endDate),
                               'membershipStatus': MembershipStatus.active.name,
                             });
-                            
+
                             AuditLogger().log(
                               action: AuditAction.updated,
                               entityType: AuditEntity.student,
-        libraryId: libraryId,
+                              libraryId: libraryId,
                               entityId: widget.studentId,
-                              details: {'planChanged': true, 'planId': plan.id},
+                              details: {'planChanged': true, 'planId': plan.id, 'planName': plan.name},
                             ).ignore();
 
                             if (context.mounted) {
                               Navigator.pop(context);
-                              _loadStudent(); // Reload student data
+                              _loadStudent();
                             }
                           },
                         );
@@ -369,17 +397,42 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     if (confirm == true && mounted) {
       final libraryId = ref.read(currentLibraryIdProvider);
       if (libraryId != null) {
-        await FirebaseFirestore.instance
-            .collection('libraries')
-            .doc(libraryId)
-            .collection('students')
-            .doc(widget.studentId)
-            .update({
-          'deletedAt': Timestamp.now(),
-          'membershipStatus': MembershipStatus.archived.name,
-        });
-        if (mounted) {
-          context.pop();
+        try {
+          final s = student;
+
+          // C10: Release the student's seat before deleting
+          if (s != null && s.seatId != null && s.sectionId != null) {
+            await ref.read(seatRepositoryProvider).updateSeatStatus(
+              libraryId,
+              s.sectionId!,
+              s.seatId!,
+              SeatStatus.available,
+            );
+            // Also clear studentId/name from seat document
+            await FirebaseFirestore.instance
+                .collection('libraries').doc(libraryId)
+                .collection('sections').doc(s.sectionId!)
+                .collection('seats').doc(s.seatId!)
+                .update({
+              'studentId': null,
+              'studentName': null,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+
+          // Use StudentRepository (moves to recycle_bin properly)
+          await ref.read(studentRepositoryProvider).deleteStudent(
+            libraryId,
+            widget.studentId,
+          );
+
+          if (mounted) context.go('/admin/students');
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to delete: $e')),
+            );
+          }
         }
       }
     }

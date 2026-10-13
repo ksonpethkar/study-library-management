@@ -6,6 +6,7 @@ import 'package:study_library/core/widgets/validated_text_field.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/receipts/presentation/screens/generate_receipt_screen.dart';
 import 'package:study_library/services/notification_webhook_service.dart';
+import 'package:study_library/services/whatsapp_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RecordPaymentScreen extends ConsumerStatefulWidget {
@@ -141,8 +142,25 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
         );
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment recorded!')));
-          // Navigate to receipt generation
+          final library = ref.read(currentLibraryProvider).value;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Payment recorded successfully!'),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'WhatsApp Student',
+                onPressed: () {
+                  ref.read(whatsappServiceProvider).sendPaymentConfirmation(
+                    '',
+                    widget.studentName,
+                    library?.name ?? '',
+                    amount,
+                    payment.id,
+                  );
+                },
+              ),
+            ),
+          );
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => GenerateReceiptScreen(
