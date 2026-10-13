@@ -205,7 +205,7 @@ class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : ReorderableListView(
               padding: const EdgeInsets.all(16),
-              onReorder: (oldIndex, newIndex) {
+              onReorderItem: (oldIndex, newIndex) {
                 setState(() {
                   if (newIndex > oldIndex) newIndex--;
                   final item = _methods.removeAt(oldIndex);

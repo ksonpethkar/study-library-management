@@ -16,7 +16,7 @@
 ///
 /// COLLEGE ID:
 ///   name, rollNumber, college, course, year, branch, phone
-enum GovIdType { aadhaar, pan, drivingLicence, collegeId }
+enum GovIdType { aadhaar, pan, drivingLicence, passport, collegeId }
 
 class OcrResult {
   final String? name;
@@ -114,6 +114,12 @@ class OcrParser {
         text.contains('PERMANENT ACCOUNT NUMBER')) {
       return GovIdType.pan;
     }
+    // Passport check (before DL to avoid false-match on "REPUBLIC OF INDIA")
+    if (text.contains('PASSPORT') ||
+        text.contains('REPUBLIC OF INDIA') && text.contains('NATIONALITY') ||
+        RegExp(r'\b[A-Z][0-9]{7}\b').hasMatch(text)) { // Indian passport number format
+      return GovIdType.passport;
+    }
     // Driving Licence check
     if (text.contains('DRIVING LICENCE') ||
         text.contains('DRIVING LICENSE') ||
@@ -142,9 +148,83 @@ class OcrParser {
         return _parsePAN(rawText);
       case GovIdType.drivingLicence:
         return _parseDrivingLicence(rawText);
+      case GovIdType.passport:
+        return _parsePassport(rawText);
       case GovIdType.collegeId:
         return _parseCollegeId(rawText);
     }
+  }
+
+  // ── Passport ──────────────────────────────────────────────────────────────
+  // Front: Name, Surname, DOB, Nationality, Passport number, Issue/Expiry date
+  // Back:  Address (place of birth, address of applicant)
+  static OcrResult _parsePassport(String rawText) {
+    final text = _clean(rawText);
+    final lines = _lines(rawText);
+    int confidence = 0;
+
+    // Passport number: 1 letter + 7 digits (e.g. A1234567)
+    String? passportNumber;
+    final passMatch = RegExp(r'\b([A-Z][0-9]{7})\b').firstMatch(text);
+    if (passMatch != null) {
+      passportNumber = passMatch.group(1);
+      confidence += 35;
+    }
+
+    // Name — look for "Given Name" / "Surname" labels
+    String? surname = _valueAfterLabel(lines, 'surname');
+    String? givenName = _valueAfterLabel(lines, 'given name') ??
+        _valueAfterLabel(lines, 'given names') ??
+        _valueAfterLabel(lines, 'first name');
+    String? name;
+    if (givenName != null || surname != null) {
+      name = [givenName, surname].where((s) => s != null).join(' ').trim();
+      if (name.isEmpty) name = null;
+      confidence += 20;
+    }
+    // Fallback: scan for valid person name
+    if (name == null) {
+      for (final line in lines) {
+        if (_isValidPersonName(line)) {
+          name = _toTitleCase(line);
+          break;
+        }
+      }
+    }
+
+    // DOB
+    final dob = _extractDob(text);
+    if (dob != null) confidence += 15;
+
+    // Gender
+    final gender = _extractGender(text);
+    if (gender != null) confidence += 10;
+
+
+    // Expiry date (for back of passport — typically after "Date of Expiry")
+    String? expiryDate;
+    final expMatch = RegExp(
+      r'(?:Date of Expiry|Expiry|Valid Until|Expiration)\s*[:\-]?\s*(\d{2}[/\-.]\d{2}[/\-.]\d{4})',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (expMatch != null) expiryDate = expMatch.group(1);
+
+    // Address (from back of passport — "Address of Applicant")
+    final address = _valueAfterLabel(lines, 'address of applicant') ??
+        _valueAfterLabel(lines, 'place of birth');
+    final pinCode = _extractPin(text);
+
+    return OcrResult(
+      name: name != null ? _toTitleCase(name) : null,
+      dob: dob,
+      gender: gender,
+      idNumber: passportNumber,
+      expiryDate: expiryDate,
+      address: address,
+      pinCode: pinCode,
+      confidence: confidence,
+      rawText: rawText,
+    );
   }
 
   // ── Utilities ─────────────────────────────────────────────────────────────
@@ -157,8 +237,56 @@ class OcrParser {
       _clean(text).split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
 
   /// Matches dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy
+  /// Prefers a date that appears on or near a "DOB" / "Date of Birth" label
+  /// to avoid picking up issue dates (e.g. Aadhaar print date).
   static String? _extractDob(String text) {
-    final match = RegExp(r'\b(\d{2})[/\-.](\d{2})[/\-.](\d{4})\b').firstMatch(text);
+    final datePattern = RegExp(r'\b(\d{2})[/\-.](\d{2})[/\-.](\d{4})\b');
+    final dobLabelPattern = RegExp(
+      r'(?:dob|date of birth|birth date|जन्म तिथि|जन्मदिनांक)\s*[:\-]?\s*',
+      caseSensitive: false,
+    );
+
+    // Strategy 1: Find a date on the SAME line as a DOB label
+    for (final line in text.split('\n')) {
+      if (dobLabelPattern.hasMatch(line)) {
+        final match = datePattern.firstMatch(line);
+        if (match != null) {
+          return '${match.group(1)}/${match.group(2)}/${match.group(3)}';
+        }
+      }
+    }
+
+    // Strategy 2: Find a date on the line IMMEDIATELY AFTER a DOB label line
+    final lines = text.split('\n');
+    for (int i = 0; i < lines.length - 1; i++) {
+      if (dobLabelPattern.hasMatch(lines[i])) {
+        final match = datePattern.firstMatch(lines[i + 1]);
+        if (match != null) {
+          return '${match.group(1)}/${match.group(2)}/${match.group(3)}';
+        }
+      }
+    }
+
+    // Strategy 3: Fallback — first date in text but SKIP dates from issue/print lines
+    // Aadhaar issue dates often appear on lines containing "issue", "print", "enrolment"
+    final issueLinePattern = RegExp(
+      r'(?:issue|print|enrol|generated|updated)',
+      caseSensitive: false,
+    );
+    for (final line in text.split('\n')) {
+      if (issueLinePattern.hasMatch(line)) continue; // skip issue date lines
+      final match = datePattern.firstMatch(line);
+      if (match != null) {
+        // Sanity check: year should be a plausible birth year (1920–2015)
+        final year = int.tryParse(match.group(3) ?? '');
+        if (year != null && year >= 1920 && year <= 2015) {
+          return '${match.group(1)}/${match.group(2)}/${match.group(3)}';
+        }
+      }
+    }
+
+    // Final fallback: any date
+    final match = datePattern.firstMatch(text);
     if (match == null) return null;
     return '${match.group(1)}/${match.group(2)}/${match.group(3)}';
   }

@@ -114,7 +114,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.14+21';
+  static const String currentVersionIdentifier = '1.5.15+22';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -123,7 +123,7 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.14)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.15)
   static final List<ReleaseChange> adminChanges = [
     const ReleaseChange(
       icon: Icons.history_edu_rounded,

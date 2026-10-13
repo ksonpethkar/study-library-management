@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/router/app_router.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/theme/app_theme.dart' as custom_theme;
@@ -39,6 +40,8 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.paused) {
       BiometricService.onAppPaused();
+      // Save current route so it can be restored after biometric unlock
+      _saveCurrentRoute();
     } else if (state == AppLifecycleState.resumed) {
       final shouldLock = await BiometricService.shouldLockOnResume();
       if (shouldLock && mounted) {
@@ -46,6 +49,20 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
         router.go(Routes.biometricLock);
       }
     }
+  }
+
+  /// Persists the current GoRouter location to SharedPreferences.
+  Future<void> _saveCurrentRoute() async {
+    try {
+      final router = ref.read(appRouterProvider);
+      final location = router.routerDelegate.currentConfiguration.uri.toString();
+      if (location.isNotEmpty &&
+          location != Routes.biometricLock &&
+          location != Routes.splash) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('last_active_route', location);
+      }
+    } catch (_) {}
   }
 
   @override

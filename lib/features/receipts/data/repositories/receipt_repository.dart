@@ -88,9 +88,10 @@ class ReceiptRepository {
         });
   }
 
-  Future<void> voidReceipt(String libraryId, String receiptId) async {
+  Future<void> voidReceipt(String libraryId, String receiptId, {String? reason}) async {
     await _receiptsRef(libraryId).doc(receiptId).update({
       'status': ReceiptStatus.voided.name,
+      'voidReason': reason,
       'updatedAt': DateTime.now().toIso8601String(),
     });
   }
@@ -98,6 +99,31 @@ class ReceiptRepository {
   Future<void> deleteReceipt(String libraryId, String receiptId) async {
     await _receiptsRef(libraryId).doc(receiptId).update({
       'deletedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// Update receipt notes (admin editable)
+  Future<void> updateReceiptNotes(String libraryId, String receiptId, String notes) async {
+    await _receiptsRef(libraryId).doc(receiptId).update({
+      'customFields.adminNotes': notes,
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// Update payment method (admin editable)
+  Future<void> updatePaymentMethod(String libraryId, String receiptId, String method) async {
+    await _receiptsRef(libraryId).doc(receiptId).update({
+      'paymentMethod': method,
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// Unvoid a receipt (restore to active)
+  Future<void> unvoidReceipt(String libraryId, String receiptId) async {
+    await _receiptsRef(libraryId).doc(receiptId).update({
+      'status': ReceiptStatus.active.name,
+      'voidReason': null,
+      'updatedAt': DateTime.now().toIso8601String(),
     });
   }
 }

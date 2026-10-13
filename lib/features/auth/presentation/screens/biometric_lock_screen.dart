@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/services/biometric_service.dart';
@@ -184,16 +185,31 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
     }
   }
 
-  void _unlockApp() {
+  void _unlockApp() async {
     _countdownTimer?.cancel();
     BiometricService.markUnlocked();
     InactivityLockService.setLocked(false);
-    // Route according to user role
-    final libId = ref.read(currentLibraryIdProvider);
-    if (libId != null && libId.isNotEmpty) {
-      context.go(Routes.adminHome);
+
+    // Restore the route the user was on before the lock was triggered
+    final prefs = await SharedPreferences.getInstance();
+    final lastRoute = prefs.getString('last_active_route');
+
+    if (!mounted) return;
+
+    // Navigate to last known route, or fall back to role home
+    if (lastRoute != null &&
+        lastRoute.isNotEmpty &&
+        lastRoute != Routes.biometricLock &&
+        lastRoute != Routes.splash &&
+        lastRoute != Routes.login) {
+      context.go(lastRoute);
     } else {
-      context.go(Routes.studentHome);
+      final libId = ref.read(currentLibraryIdProvider);
+      if (libId != null && libId.isNotEmpty) {
+        context.go(Routes.adminHome);
+      } else {
+        context.go(Routes.studentHome);
+      }
     }
   }
 

@@ -19,75 +19,115 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
   GovIdType _selectedType = GovIdType.aadhaar;
   bool _isProcessing = false;
   File? _scannedImage;
+  File? _scannedBackImage;
   String _statusMessage = 'Reading your ID document...';
+  bool _frontScanned = false; // true after first (front) scan completes
 
-  Future<void> _captureAndScan(ImageSource source) async {
+  /// IDs that have meaningful back-side content worth scanning
+  bool get _hasTwoSides =>
+      _selectedType == GovIdType.aadhaar ||
+      _selectedType == GovIdType.drivingLicence ||
+      _selectedType == GovIdType.passport;
+
+  Future<void> _captureAndScan(ImageSource source, {bool isBackSide = false}) async {
     final image =
         await ImageService.pickAndCompressImage(source: source, maxWidth: 1600, quality: 85);
     if (image == null || !mounted) return;
 
     setState(() {
-      _scannedImage = image;
+      if (isBackSide) {
+        _scannedBackImage = image;
+      } else {
+        _scannedImage = image;
+      }
       _isProcessing = true;
-      _statusMessage = 'Analyzing ID with Google ML Kit...';
+      _statusMessage = isBackSide
+          ? 'Reading back side for address...'
+          : 'Analyzing ID with Google ML Kit...';
     });
 
     try {
       final ocrService = OcrService();
       final rawText = await ocrService.processImage(image.path);
 
-      // Auto-detect ID document type (PAN, DL, College ID, Aadhaar)
-      final detectedType = OcrParser.detectGovIdType(rawText);
-      final effectiveType = detectedType;
-      setState(() => _selectedType = effectiveType);
+      if (isBackSide) {
+        // For back side: only extract address/PIN — don't overwrite name/DOB
+        final backResult = OcrParser.parseByType(_selectedType, rawText);
 
-      final result = OcrParser.parseByType(effectiveType, rawText);
+        // Watermark the back side image
+        await WatermarkHelper.burnWatermark(
+          sourceFile: image,
+          targetPath: image.path.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '_kyc_back_verified.png'),
+        );
 
-      // Auto-watermark KYC document with diagonal compliance mark
-      final watermarked = await WatermarkHelper.burnWatermark(
-        sourceFile: image,
-        targetPath: image.path.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '_kyc_verified.png'),
-      );
+        // Only update address-related fields from the back scan
+        final updates = <String, dynamic>{};
+        if (backResult.address != null) updates['address'] = backResult.address;
+        if (backResult.pinCode != null) updates['pinCode'] = backResult.pinCode;
+        if (backResult.district != null) updates['district'] = backResult.district;
+        if (backResult.state != null) updates['state'] = backResult.state;
 
-      // ── Push ALL extracted fields into the registration provider ──────────
-      ref.read(registrationNotifierProvider.notifier).updateFields({
-        'govIdType': effectiveType.name,
-        'govIdImagePath': watermarked.path,
-        if (result.name != null) 'name': result.name,
-        if (result.fatherName != null) 'fatherName': result.fatherName,
-        if (result.dob != null) 'dob': result.dob,
-        if (result.gender != null) 'gender': result.gender,
-        if (result.idNumber != null) 'govIdNumber': result.idNumber,
-        if (result.address != null) 'address': result.address,
-        if (result.pinCode != null) 'pinCode': result.pinCode,
-        if (result.phone != null) 'phone': result.phone,
-        if (result.bloodGroup != null) 'bloodGroup': result.bloodGroup,
-        if (result.college != null) 'college': result.college,
-        if (result.course != null) 'course': result.course,
-        if (result.rollNumber != null) 'rollNumber': result.rollNumber,
-      });
+        if (updates.isNotEmpty) {
+          ref.read(registrationNotifierProvider.notifier).updateFields(updates);
+          // Also update OCR result provider
+          final existing = ref.read(ocrResultProvider);
+          ref.read(ocrResultProvider.notifier).setResult({
+            ...existing,
+            ...updates,
+          });
+        }
 
-      // ── Also push to the dedicated OCR result provider ────────────────
-      ref.read(ocrResultProvider.notifier).setResult({
-        'name': result.name,
-        'fatherName': result.fatherName,
-        'idNumber': result.idNumber,
-        'dob': result.dob,
-        'gender': result.gender,
-        'address': result.address,
-        'pinCode': result.pinCode,
-        'phone': result.phone,
-        'bloodGroup': result.bloodGroup,
-        'college': result.college,
-        'course': result.course,
-        'rollNumber': result.rollNumber,
-        'confidence': result.confidence.toString(),
-      });
+        if (mounted) setState(() => _isProcessing = false);
+        if (mounted) _showBackScanResult(backResult);
+      } else {
+        // Front side: full extraction
+        final detectedType = OcrParser.detectGovIdType(rawText);
+        setState(() => _selectedType = detectedType);
 
-      if (mounted) setState(() => _isProcessing = false);
+        final result = OcrParser.parseByType(detectedType, rawText);
 
-      // Show preview of what was auto-filled before advancing
-      if (mounted) _showAutoFillPreview(result);
+        // Auto-watermark KYC document
+        final watermarked = await WatermarkHelper.burnWatermark(
+          sourceFile: image,
+          targetPath: image.path.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '_kyc_verified.png'),
+        );
+
+        ref.read(registrationNotifierProvider.notifier).updateFields({
+          'govIdType': detectedType.name,
+          'govIdImagePath': watermarked.path,
+          if (result.name != null) 'name': result.name,
+          if (result.fatherName != null) 'fatherName': result.fatherName,
+          if (result.dob != null) 'dob': result.dob,
+          if (result.gender != null) 'gender': result.gender,
+          if (result.idNumber != null) 'govIdNumber': result.idNumber,
+          if (result.address != null) 'address': result.address,
+          if (result.pinCode != null) 'pinCode': result.pinCode,
+          if (result.phone != null) 'phone': result.phone,
+          if (result.bloodGroup != null) 'bloodGroup': result.bloodGroup,
+          if (result.college != null) 'college': result.college,
+          if (result.course != null) 'course': result.course,
+          if (result.rollNumber != null) 'rollNumber': result.rollNumber,
+        });
+
+        ref.read(ocrResultProvider.notifier).setResult({
+          'name': result.name,
+          'fatherName': result.fatherName,
+          'idNumber': result.idNumber,
+          'dob': result.dob,
+          'gender': result.gender,
+          'address': result.address,
+          'pinCode': result.pinCode,
+          'phone': result.phone,
+          'bloodGroup': result.bloodGroup,
+          'college': result.college,
+          'course': result.course,
+          'rollNumber': result.rollNumber,
+          'confidence': result.confidence.toString(),
+        });
+
+        if (mounted) setState(() { _isProcessing = false; _frontScanned = true; });
+        if (mounted) _showAutoFillPreview(result);
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
@@ -103,6 +143,28 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
         );
       }
     }
+  }
+
+  /// Shows result of back-side scan
+  void _showBackScanResult(OcrResult result) {
+    final hasAddress = result.address != null || result.pinCode != null;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: hasAddress ? Colors.green.shade700 : Colors.orange.shade700,
+        content: Text(
+          hasAddress
+              ? '✓ Address extracted from back side'
+              : 'Could not read address — please fill manually',
+        ),
+        action: SnackBarAction(
+          label: 'Continue',
+          textColor: Colors.white,
+          onPressed: () => ref.read(registrationStepProvider.notifier).goTo(2),
+        ),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   /// Shows a bottom sheet summarising what was extracted, then advances to step 2.
@@ -271,13 +333,15 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
     // Info text per ID type
     const idInfo = {
       GovIdType.aadhaar:
-          'Scan front + back for Name, Father\'s Name, DOB, Gender, Address & PIN.',
+          'Front: Name, DOB, Gender, Aadhaar number.\nBack: Full address & PIN code.',
       GovIdType.pan:
-          'Scan front for Name, Father\'s Name, DOB & PAN number.',
+          'Front only: Name, Father\'s Name, DOB & PAN number.',
       GovIdType.drivingLicence:
-          'Scan front for Name, DOB, DL Number, Address & Blood Group.',
+          'Front: Name, DOB, DL number, Blood Group.\nBack: Address & PIN code.',
+      GovIdType.passport:
+          'Front: Name, DOB, Passport number, Nationality.\nBack: Address & expiry.',
       GovIdType.collegeId:
-          'Scan for Name, Roll/Enroll No., College, Course & more.',
+          'Front: Name, Roll/Enroll No., College, Course.',
     };
 
     return Scaffold(
@@ -292,95 +356,92 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Quick Auto-Fill with ID Scan',
+                    _frontScanned
+                        ? (_hasTwoSides ? 'Step 2: Scan Back Side' : 'ID Scanned ✓')
+                        : 'Quick Auto-Fill with ID Scan',
                     style: theme.textTheme.headlineSmall
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Choose your ID type and scan it. We will auto-fill all available details.',
+                    _frontScanned && _hasTwoSides
+                        ? 'Flip your ID and scan the back to extract address & PIN code.'
+                        : 'Choose your ID type and scan it. We will auto-fill all available details.',
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 24),
 
-                  DropdownButtonFormField<GovIdType>(
-                    initialValue: _selectedType,
-                    decoration: const InputDecoration(
-                      labelText: 'Select ID Type',
-                      prefixIcon: Icon(Icons.credit_card_rounded),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: GovIdType.aadhaar,
-                        child: Text('Aadhaar Card'),
+                  // ID Type dropdown (only show before front scan)
+                  if (!_frontScanned) ...[
+                    DropdownButtonFormField<GovIdType>(
+                      initialValue: _selectedType,
+                      decoration: const InputDecoration(
+                        labelText: 'Select ID Type',
+                        prefixIcon: Icon(Icons.credit_card_rounded),
+                        border: OutlineInputBorder(),
                       ),
-                      DropdownMenuItem(
-                        value: GovIdType.pan,
-                        child: Text('PAN Card'),
-                      ),
-                      DropdownMenuItem(
-                        value: GovIdType.drivingLicence,
-                        child: Text('Driving Licence'),
-                      ),
-                      DropdownMenuItem(
-                        value: GovIdType.collegeId,
-                        child: Text('College / Student ID'),
-                      ),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedType = val);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Info chip about what this ID type extracts
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.info_outline_rounded,
-                            size: 16, color: theme.colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            idInfo[_selectedType] ?? '',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: GovIdType.aadhaar,
+                          child: Text('Aadhaar Card'),
+                        ),
+                        DropdownMenuItem(
+                          value: GovIdType.pan,
+                          child: Text('PAN Card'),
+                        ),
+                        DropdownMenuItem(
+                          value: GovIdType.drivingLicence,
+                          child: Text('Driving Licence'),
+                        ),
+                        DropdownMenuItem(
+                          value: GovIdType.passport,
+                          child: Text('Passport'),
+                        ),
+                        DropdownMenuItem(
+                          value: GovIdType.collegeId,
+                          child: Text('College / Student ID'),
                         ),
                       ],
+                      onChanged: (val) {
+                        if (val != null) setState(() => _selectedType = val);
+                      },
                     ),
-                  ),
+                    const SizedBox(height: 8),
+
+                    // Info chip about what this ID type extracts
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline_rounded,
+                              size: 16, color: theme.colorScheme.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              idInfo[_selectedType] ?? '',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: theme.colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 32),
 
-                  // Scanned image preview
-                  if (_scannedImage != null && _isProcessing) ...[
-                    WatermarkedKycWidget(
-                      child: Container(
-                        height: 180,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                              color: theme.colorScheme.primary, width: 2),
-                          image: DecorationImage(
-                            image: FileImage(_scannedImage!),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                  // Card frame overlay (scanning guide)
+                  _buildCardFrame(theme),
+
+                  const SizedBox(height: 24),
 
                   if (_isProcessing)
                     Column(
@@ -388,8 +449,7 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                         const CircularProgressIndicator(),
                         const SizedBox(height: 16),
                         Text(_statusMessage,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w600)),
+                            style: const TextStyle(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
                         Text(
                           'Please keep the ID still and well-lit.',
@@ -398,7 +458,37 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                         ),
                       ],
                     )
-                  else ...[
+                  else if (_frontScanned && _hasTwoSides) ...[
+                    // ── BACK SIDE SCAN BUTTONS ──────────────────────────────
+                    FilledButton.icon(
+                      onPressed: () => _captureAndScan(ImageSource.camera, isBackSide: true),
+                      icon: const Icon(Icons.flip_camera_android_rounded),
+                      label: const Text('Scan Back Side (Address & PIN)'),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        textStyle: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () => _captureAndScan(ImageSource.gallery, isBackSide: true),
+                      icon: const Icon(Icons.photo_library_rounded),
+                      label: const Text('Upload Back Side from Gallery'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        foregroundColor: theme.colorScheme.primary,
+                        side: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton.icon(
+                      onPressed: () => ref.read(registrationStepProvider.notifier).goTo(2),
+                      icon: const Icon(Icons.skip_next_rounded, size: 18),
+                      label: const Text('Skip Back Side — Continue to Form'),
+                    ),
+                  ] else ...[
+                    // ── FRONT SIDE SCAN BUTTONS ──────────────────────────────
                     FilledButton.icon(
                       onPressed: () => _captureAndScan(ImageSource.camera),
                       icon: const Icon(Icons.camera_alt_rounded),
@@ -420,54 +510,11 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                         side: BorderSide(color: theme.colorScheme.primary, width: 1.5),
                       ),
                     ),
-                    const SizedBox(height: 12),
-
-                    // Aadhaar tip: scan both sides
-                    if (_selectedType == GovIdType.aadhaar)
-                      Card(
-                        elevation: 0,
-                        color: theme.brightness == Brightness.dark
-                            ? Colors.amber.shade900.withValues(alpha: 0.25)
-                            : Colors.amber.shade50,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: BorderSide(
-                            color: theme.brightness == Brightness.dark
-                                ? Colors.amber.shade700.withValues(alpha: 0.5)
-                                : Colors.amber.shade200,
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              Icon(Icons.lightbulb_outline_rounded,
-                                  color: theme.brightness == Brightness.dark
-                                      ? Colors.amber.shade300
-                                      : Colors.amber.shade800),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Tip: Scan the BACK of the Aadhaar card to also extract your full address.',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: theme.brightness == Brightness.dark
-                                        ? Colors.amber.shade100
-                                        : Colors.brown.shade900,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
                     const SizedBox(height: 24),
                     TextButton(
                       onPressed: () =>
                           ref.read(registrationStepProvider.notifier).goTo(2),
-                      child: const Text('Skip & Enter Details Manually ➔'),
+                      child: const Text('Skip & Enter Details Manually ?'),
                     ),
                   ],
                 ],
@@ -475,6 +522,65 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Card-shaped scanning guide frame
+  Widget _buildCardFrame(ThemeData theme) {
+    final scanned = _frontScanned ? _scannedBackImage ?? _scannedImage : _scannedImage;
+    return Center(
+      child: Container(
+        width: 300,
+        height: 190,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: scanned != null
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withValues(alpha: 0.5),
+            width: scanned != null ? 2.5 : 1.5,
+          ),
+          color: theme.colorScheme.surfaceContainerLow,
+          image: scanned != null
+              ? DecorationImage(
+                  image: FileImage(scanned),
+                  fit: BoxFit.cover,
+                )
+              : null,
+        ),
+        child: scanned == null
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.credit_card_rounded,
+                    size: 48,
+                    color: theme.colorScheme.outline.withValues(alpha: 0.4),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _frontScanned && _hasTwoSides
+                        ? 'Back of ${_selectedType.name.toUpperCase()} Card'
+                        : 'Place ID card here',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // Corner guides
+                  Text(
+                    '┌─────────┐',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              )
+            : null,
       ),
     );
   }
