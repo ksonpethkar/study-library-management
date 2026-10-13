@@ -193,6 +193,14 @@ class AnnouncementListScreen extends ConsumerWidget {
                           .doc(announcement.id)
                           .delete();
 
+                      AuditLogger().log(
+                        action: AuditAction.deleted,
+                        entityType: AuditEntity.announcement,
+                        libraryId: libraryId,
+                        entityId: announcement.id,
+                        details: {'title': announcement.title},
+                      ).ignore();
+
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Announcement deleted')),

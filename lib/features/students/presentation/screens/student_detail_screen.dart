@@ -16,11 +16,13 @@ import 'package:study_library/models/payment_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/section_model.dart';
+import 'package:study_library/models/receipt_model.dart';
 import 'package:flutter/services.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 
 class StudentDetailScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -357,10 +359,33 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               details: {'planChanged': true, 'planId': plan.id, 'planName': plan.name},
                             ).ignore();
 
+                            // C3: Auto-create receipt for direct plan assign
+                            try {
+                              final receiptRepo = ReceiptRepository();
+                              final receiptNumber = await receiptRepo.getNextReceiptNumber(libraryId);
+                              await receiptRepo.generateReceipt(
+                                libraryId,
+                                ReceiptModel(
+                                  id: '',
+                                  libraryId: libraryId,
+                                  receiptNumber: receiptNumber,
+                                  studentId: widget.studentId,
+                                  planId: plan.id,
+                                  amount: plan.price,
+                                  paymentMethod: 'Plan Assigned',
+                                  validFrom: now,
+                                  validTo: endDate,
+                                  customFields: {'note': 'Auto-generated on plan assign'},
+                                  status: ReceiptStatus.active,
+                                ),
+                              );
+                            } catch (_) {}
+
                             if (context.mounted) {
                               Navigator.pop(context);
                               _loadStudent();
                             }
+
                           },
                         );
                       },

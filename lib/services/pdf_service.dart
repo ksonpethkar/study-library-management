@@ -88,10 +88,18 @@ class PdfService {
         : library.receiptFooterText.isNotEmpty
             ? library.receiptFooterText
             : MessageTemplateService.defaultReceiptFooter;
-    final resolvedFooter = MessageTemplateService.substitute(
+    String resolvedFooter = MessageTemplateService.substitute(
       effectiveFooter,
       libraryName: library.name,
     );
+    // Append org contact details when available
+    final contactParts = <String>[];
+    if (library.email.isNotEmpty) contactParts.add(library.email);
+    if (library.helplineNumber.isNotEmpty) contactParts.add('Helpline: ${library.helplineNumber}');
+    if (contactParts.isNotEmpty) {
+      resolvedFooter = '$resolvedFooter  •  ${contactParts.join('  •  ')}';
+    }
+
 
     final receiptStyle = (template?['receiptStyle'] as String?) ?? 'classic';
     final pageSizeStr = (template?['pageSize'] as String?) ?? 'A4';

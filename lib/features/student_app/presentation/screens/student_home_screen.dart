@@ -486,15 +486,28 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                     color: Colors.grey.shade50,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     child: ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: Color(0xFFEEF2FF),
-                        child: Icon(Icons.support_agent_rounded, color: Color(0xFF4F46E5)),
+                      leading: CircleAvatar(
+                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                        child: Icon(Icons.support_agent_rounded, color: Theme.of(context).colorScheme.primary),
                       ),
                       title: const Text('Need Help? Contact Admin', style: TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(library.contact),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(library.contact),
+                          if (library.helplineNumber.isNotEmpty)
+                            Text('Helpline: ${library.helplineNumber}',
+                                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                          if (library.email.isNotEmpty)
+                            Text(library.email,
+                                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+
                           IconButton(
                             icon: const Icon(Icons.phone, color: Colors.green),
                             onPressed: () async {

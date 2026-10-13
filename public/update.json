@@ -1,18 +1,8 @@
 {
-  "versionName": "1.5.21",
-  "versionCode": 28,
-  "latestVersion": "1.5.21",
-  "latestVersionCode": 28,
-  "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
-  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
-  "forceUpdate": false,
-  "minVersionCode": 10,
-  "releaseNotes": [
-    "Update banner: pause and resume download mid-way",
-    "Download saved to permanent storage — no re-download after restart",
-    "Install Now button appears after download — no auto-install surprise",
-    "Skipping install keeps the Install button ready for next time",
-    "Download size shown in real MB during progress",
-    "Retry button on failed downloads"
-  ]
+  "latestVersion": "1.5.22",
+  "latestBuild": 29,
+  "versionName": "1.5.22+29",
+  "releaseNotes": "v1.5.22: Auto-receipt on plan assign, announcement audit log, library email/helpline in PDF footer & student contact card, theme-aware admin shell colors",
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.22/StudyLibrary.apk",
+  "mandatory": false
 }

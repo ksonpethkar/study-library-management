@@ -82,25 +82,25 @@ class _AdminShellState extends ConsumerState<AdminShell> {
             ),
             const SizedBox(height: 8),
             ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFEEF2FF),
-                child: Icon(Icons.person_add_rounded, color: Color(0xFF4F46E5)),
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(ctx).colorScheme.primaryContainer,
+                child: Icon(Icons.person_add_rounded, color: Theme.of(ctx).colorScheme.primary),
               ),
               title: const Text('Add Student'),
               onTap: () { Navigator.pop(ctx); context.push(Routes.adminStudentAdd); },
             ),
             ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFEEF2FF),
-                child: Icon(Icons.receipt_long_rounded, color: Color(0xFF4F46E5)),
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(ctx).colorScheme.primaryContainer,
+                child: Icon(Icons.receipt_long_rounded, color: Theme.of(ctx).colorScheme.primary),
               ),
               title: const Text('View Receipts'),
               onTap: () { Navigator.pop(ctx); context.push(Routes.adminReceipts); },
             ),
             ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFEEF2FF),
-                child: Icon(Icons.event_seat_rounded, color: Color(0xFF4F46E5)),
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(ctx).colorScheme.primaryContainer,
+                child: Icon(Icons.event_seat_rounded, color: Theme.of(ctx).colorScheme.primary),
               ),
               title: const Text('Add Section'),
               onTap: () { Navigator.pop(ctx); context.push(Routes.adminSeatsAddSection); },
