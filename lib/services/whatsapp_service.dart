@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:study_library/services/message_template_service.dart';
 
 /// WhatsAppService provides methods to communicate with students via WhatsApp.
 /// Uses url_launcher to open the WhatsApp app with a pre-filled message.
@@ -41,12 +42,34 @@ class WhatsAppService {
   }
 
   /// Sends a welcome message to a newly registered student.
+  /// If [adminTemplate] is provided (library.whatsappWelcomeTemplate), it is used
+  /// with full variable substitution via MessageTemplateService.
   Future<bool> sendWelcomeMessage(
-      String phone, String studentName, String libraryName) async {
-    final message = '🎉 Welcome $studentName to *$libraryName*!\n\n'
-        'We are glad to have you with us. '
-        'Please carry your membership ID when visiting.\n\n'
-        'For any queries, feel free to contact us. 😊';
+    String phone,
+    String studentName,
+    String libraryName, {
+    String adminTemplate = '',
+    String membershipId = '',
+    String planName = '',
+    String seatLabel = '',
+    String expiryDate = '',
+    String amount = '',
+    String paymentMethod = '',
+  }) async {
+    final template = adminTemplate.isNotEmpty
+        ? adminTemplate
+        : MessageTemplateService.defaultWelcomeTemplate;
+    final message = MessageTemplateService.substitute(
+      template,
+      studentName: studentName,
+      libraryName: libraryName,
+      membershipId: membershipId,
+      planName: planName,
+      seatLabel: seatLabel,
+      expiryDate: expiryDate,
+      amount: amount,
+      paymentMethod: paymentMethod,
+    );
     return await sendMessage(phone, message);
   }
 

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:study_library/core/utils/app_validators.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/core/widgets/validated_text_field.dart';
+import 'package:study_library/core/security/audit_logger.dart';
+import 'package:study_library/core/providers/library_provider.dart';
 
 class AddPlanScreen extends ConsumerStatefulWidget {
   final PlanModel? plan;
@@ -71,12 +74,21 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
       } else {
         await notifier.updatePlan(plan);
       }
-      
+
       final state = ref.read(planActionProvider);
       if (!mounted) return;
       if (state.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.error!)));
       } else {
+        // Audit log
+        final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+        AuditLogger().log(
+          action: widget.plan == null ? AuditAction.created : AuditAction.updated,
+          entityType: AuditEntity.plan,
+          libraryId: libraryId,
+          entityId: plan.id.isNotEmpty ? plan.id : plan.name,
+          details: {'planName': plan.name, 'price': plan.price, 'duration': plan.duration},
+        ).ignore();
         Navigator.of(context).pop();
       }
     }
@@ -130,7 +142,7 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
                       label: 'Price (₹)',
                       controller: _priceController,
                       keyboardType: TextInputType.number,
-                      validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                      validator: AppValidators.price,
                     ),
                     const SizedBox(height: 16),
                     ValidatedTextField(

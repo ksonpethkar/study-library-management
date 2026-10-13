@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:study_library/core/utils/app_validators.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -434,12 +435,7 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                       hintText: '10-digit mobile number',
                     ),
                     keyboardType: TextInputType.phone,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Phone number is required';
-                      final cleaned = v.trim().replaceAll(RegExp(r'\D'), '');
-                      if (cleaned.length != 10) return 'Enter a valid 10-digit mobile number';
-                      return null;
-                    },
+                    validator: AppValidators.phone,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(

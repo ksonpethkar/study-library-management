@@ -1,19 +1,18 @@
 {
-  "versionName": "1.5.18",
-  "versionCode": 25,
-  "latestVersion": "1.5.18",
-  "latestVersionCode": 25,
+  "versionName": "1.5.19",
+  "versionCode": 26,
+  "latestVersion": "1.5.19",
+  "latestVersionCode": 26,
   "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "forceUpdate": false,
   "minVersionCode": 10,
   "releaseNotes": [
-    "Student delete now releases seat instantly (no orphaned seats)",
-    "Plan assignment warns before replacing an active plan",
-    "Receipt PDF footer now uses your custom footer text from library settings",
-    "WhatsApp contact button uses library WhatsApp number (not just phone)",
-    "Renewal reminder days now read from library settings (not hardcoded 3)",
-    "WhatsApp Student action added to payment recorded snackbar",
-    "Library name auto-filled in all notification messages"
+    "Live pending request badge on More tab — updates in real time",
+    "Welcome message now uses your custom WhatsApp template from Library Settings",
+    "Plan create/update now logged in audit trail",
+    "Phone validation: must start with 6, 7, 8 or 9",
+    "Plan price validation: must be greater than zero",
+    "Central AppValidators utility added for consistent form validation"
   ]
 }

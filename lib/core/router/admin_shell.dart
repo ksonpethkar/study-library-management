@@ -1,20 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'app_router.dart';
 
 import 'package:study_library/services/inactivity_lock_service.dart';
+import 'package:study_library/core/providers/library_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+/// Stream provider for pending request count shown in the bottom nav badge.
+final _pendingCountProvider = StreamProvider.autoDispose<int>((ref) {
+  final libraryId = ref.watch(currentLibraryIdProvider);
+  if (libraryId == null || libraryId.isEmpty) return Stream.value(0);
+  return FirebaseFirestore.instance
+      .collection('libraries')
+      .doc(libraryId)
+      .collection('requests')
+      .where('status', isEqualTo: 'pending')
+      .snapshots()
+      .map((snap) => snap.docs.length);
+});
 
 /// Admin shell with PopScope exit-app dialog so back never closes the app silently.
-class AdminShell extends StatefulWidget {
+class AdminShell extends ConsumerStatefulWidget {
   final Widget child;
   const AdminShell({super.key, required this.child});
 
   @override
-  State<AdminShell> createState() => _AdminShellState();
+  ConsumerState<AdminShell> createState() => _AdminShellState();
 }
 
-class _AdminShellState extends State<AdminShell> {
+class _AdminShellState extends ConsumerState<AdminShell> {
   @override
   void initState() {
     super.initState();
@@ -96,12 +112,22 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
+  Widget _badgedIcon(IconData icon, int count, {bool selected = false}) {
+    return Badge(
+      isLabelVisible: count > 0,
+      label: Text(count > 9 ? '9+' : '$count'),
+      child: Icon(selected
+          ? (icon == Icons.more_horiz_outlined ? Icons.more_horiz_rounded : icon)
+          : icon),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentIndex = _getSelectedIndex(context);
+    final pendingCount = ref.watch(_pendingCountProvider).value ?? 0;
 
     return PopScope(
-      // canPop = false means we handle pop ourselves
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
@@ -123,7 +149,6 @@ class _AdminShellState extends State<AdminShell> {
           ),
         );
         if (shouldExit == true && context.mounted) {
-          // Properly exit the Android app
           await SystemNavigator.pop();
         }
       },
@@ -143,25 +168,25 @@ class _AdminShellState extends State<AdminShell> {
         bottomNavigationBar: NavigationBar(
           selectedIndex: currentIndex,
           onDestinationSelected: (index) => _onItemTapped(context, index),
-          destinations: const [
-            NavigationDestination(
+          destinations: [
+            const NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home_rounded),
               label: 'Home',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.event_seat_outlined),
               selectedIcon: Icon(Icons.event_seat_rounded),
               label: 'Seats',
             ),
-            NavigationDestination(
+            const NavigationDestination(
               icon: Icon(Icons.people_outline_rounded),
               selectedIcon: Icon(Icons.people_rounded),
               label: 'Students',
             ),
             NavigationDestination(
-              icon: Icon(Icons.more_horiz_outlined),
-              selectedIcon: Icon(Icons.more_horiz_rounded),
+              icon: _badgedIcon(Icons.more_horiz_outlined, pendingCount),
+              selectedIcon: _badgedIcon(Icons.more_horiz_rounded, pendingCount, selected: true),
               label: 'More',
             ),
           ],
