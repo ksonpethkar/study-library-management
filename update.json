@@ -1,66 +1,16 @@
 {
-  "versionName": "1.5.15",
-  "versionCode": 22,
-  "latestVersion": "1.5.15",
-  "latestVersionCode": 22,
+  "versionName": "1.5.16",
+  "versionCode": 23,
+  "latestVersion": "1.5.16",
+  "latestVersionCode": 23,
   "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "forceUpdate": false,
   "minVersionCode": 10,
   "releaseNotes": [
-    "OCR: Aadhaar DOB no longer picks up issue/print date",
-    "OCR: Scan back of Aadhaar/DL/Passport for address & PIN",
-    "OCR: Passport now supported as ID type",
-    "OCR: Card frame overlay shown during scan guidance",
-    "App resumes to last screen after biometric unlock",
-    "Receipts: Student name + ₹ symbol shown correctly",
-    "Receipts: Admin menu — edit notes, void (with reason), unvoid, delete",
-    "Void receipt now records reason in Firestore"
-  ],
-  "studentFeatures": [
-    {
-      "icon": "document_scanner",
-      "title": "Smarter ID Scanning",
-      "description": "Scan front & back of Aadhaar, Driving Licence, or Passport. Address and PIN auto-fill from back side.",
-      "badge": "Improved"
-    },
-    {
-      "icon": "receipt",
-      "title": "Clearer Receipt View",
-      "description": "Receipts now show your name, ₹ amount, payment method, and validity dates at a glance.",
-      "badge": "Improved"
-    },
-    {
-      "icon": "lock_open",
-      "title": "Resume Where You Left Off",
-      "description": "After biometric unlock, the app returns to exactly where you were — not the home screen.",
-      "badge": "Fixed"
-    }
-  ],
-  "adminFeatures": [
-    {
-      "icon": "document_scanner",
-      "title": "OCR — Passport Support Added",
-      "description": "Passport is now fully supported for student registration OCR — extracts name, DOB, passport number, nationality.",
-      "badge": "New"
-    },
-    {
-      "icon": "flip",
-      "title": "Two-Sided ID Scanning",
-      "description": "After scanning the front, a 'Scan Back Side' button appears for Aadhaar/DL/Passport to capture address & PIN.",
-      "badge": "New"
-    },
-    {
-      "icon": "edit_note",
-      "title": "Receipt Admin Controls",
-      "description": "Tap ⋮ on any receipt to: edit admin notes, void with a reason, unvoid, or delete. Void reason saved to Firestore.",
-      "badge": "New"
-    },
-    {
-      "icon": "route",
-      "title": "App Resumes to Last Screen",
-      "description": "After locking the screen or going to home, the app restores your last active page after biometric unlock.",
-      "badge": "Fixed"
-    }
+    "ID Card: Sequential membership number (CC20260001) shown as badge",
+    "ID Card: Blank fields (no value) no longer appear on card",
+    "ID Card: DOB, blood group, father name, college, course now on card",
+    "Registration: Admin-configured required fields now enforced with validation"
   ]
 }

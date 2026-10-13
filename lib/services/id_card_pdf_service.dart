@@ -562,9 +562,16 @@ class IdCardPdfService {
                                 ),
                         ),
                         pw.SizedBox(height: 2),
+                        // Show sequential membership number if available, else truncate doc ID
                         pw.Text(
-                          'ID: ${student.id.length > 8 ? student.id.substring(0, 8).toUpperCase() : student.id.toUpperCase()}',
-                          style: pw.TextStyle(fontSize: 5, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
+                          student.membershipNumber != null && student.membershipNumber!.isNotEmpty
+                              ? student.membershipNumber!
+                              : 'ID: ${student.id.length > 8 ? student.id.substring(0, 8).toUpperCase() : student.id.toUpperCase()}',
+                          style: pw.TextStyle(
+                            fontSize: 5,
+                            fontWeight: pw.FontWeight.bold,
+                            color: primaryColor,
+                          ),
                         ),
                       ],
                     ),
@@ -575,8 +582,9 @@ class IdCardPdfService {
                   pw.Expanded(
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      mainAxisSize: pw.MainAxisSize.min,
                       children: [
-                        // Full Name with dynamic wrap
+                        // Full Name
                         pw.Text(
                           student.name,
                           maxLines: 2,
@@ -586,23 +594,63 @@ class IdCardPdfService {
                             color: PdfColors.grey900,
                           ),
                         ),
-                        pw.SizedBox(height: 2),
-                        _buildInfoRow('Phone', student.phone),
-                        if (settings.showSeat) _buildInfoRow('Seat', '$seatText$secText'),
+                        // Membership number badge (prominent sequential ID)
+                        if (student.membershipNumber != null && student.membershipNumber!.isNotEmpty)
+                          pw.Container(
+                            margin: const pw.EdgeInsets.only(top: 1.5, bottom: 2),
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: pw.BoxDecoration(
+                              color: primaryColor,
+                              borderRadius: pw.BorderRadius.circular(2),
+                            ),
+                            child: pw.Text(
+                              student.membershipNumber!,
+                              style: pw.TextStyle(
+                                fontSize: 5.5,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                              ),
+                            ),
+                          )
+                        else
+                          pw.SizedBox(height: 2),
+                        // Father's name — only if not empty
+                        if (student.fatherName.isNotEmpty)
+                          _buildInfoRow('Father', student.fatherName),
+                        // Phone — only if not empty
+                        if (student.phone.isNotEmpty)
+                          _buildInfoRow('Phone', student.phone),
+                        // DOB — only if set
+                        if (student.dob != null)
+                          _buildInfoRow('DOB', DateFormat('dd/MM/yyyy').format(student.dob!)),
+                        // Blood Group — only if not empty
+                        if (student.bloodGroup != null && student.bloodGroup!.isNotEmpty)
+                          _buildInfoRow('Blood', student.bloodGroup!),
+                        // College — only if not empty
+                        if (student.college.isNotEmpty)
+                          _buildInfoRow('College', student.college, maxLines: 1),
+                        // Course / Year
+                        if (student.course.isNotEmpty)
+                          _buildInfoRow(
+                            'Course',
+                            student.year.isNotEmpty ? '${student.course} (Yr ${student.year})' : student.course,
+                          ),
+                        // Seat
+                        if (settings.showSeat && seatText.isNotEmpty && seatText != 'Unassigned')
+                          _buildInfoRow('Seat', '$seatText$secText'),
+                        // Plan
                         if (settings.showPlan && planName != null && planName.isNotEmpty)
                           _buildInfoRow('Plan', planName),
-                        if (settings.showValidTill)
+                        // Valid Till
+                        if (settings.showValidTill && validTo != 'N/A')
                           _buildInfoRow('Valid Till', validTo, isHighlight: true),
-                        // Custom fields
-                        if (customFields.isNotEmpty) ...[
-                          for (final field in customFields) ...[
-                            if (((student.customFields[field['id'] as String? ?? ''])?.toString() ?? '').isNotEmpty)
-                              _buildInfoRow(
-                                field['label'] as String? ?? (field['id'] as String? ?? ''),
-                                student.customFields[field['id'] as String? ?? '']!.toString(),
-                              ),
-                          ],
-                        ],
+                        // Custom fields — only if value non-empty
+                        for (final field in customFields)
+                          if (((student.customFields[field['id'] as String? ?? ''])?.toString() ?? '').isNotEmpty)
+                            _buildInfoRow(
+                              field['label'] as String? ?? (field['id'] as String? ?? ''),
+                              student.customFields[field['id'] as String? ?? '']!.toString(),
+                            ),
                       ],
                     ),
                   ),
@@ -748,10 +796,11 @@ class IdCardPdfService {
     );
   }
 
-  static pw.Widget _buildInfoRow(String label, String value, {bool isHighlight = false}) {
+  static pw.Widget _buildInfoRow(String label, String value, {bool isHighlight = false, int maxLines = 1}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.only(bottom: 1.5),
       child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.SizedBox(
             width: 34,
@@ -763,7 +812,7 @@ class IdCardPdfService {
           pw.Expanded(
             child: pw.Text(
               value,
-              maxLines: 1,
+              maxLines: maxLines,
               style: pw.TextStyle(
                 fontSize: 5.5,
                 fontWeight: isHighlight ? pw.FontWeight.bold : pw.FontWeight.normal,

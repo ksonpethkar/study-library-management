@@ -175,6 +175,30 @@ class _RegistrationFormScreenState
     return true;
   }
 
+  /// Returns whether a built-in field is required per admin form_config.
+  /// Falls back to the hardcoded defaults (name & phone = required) if config not loaded.
+  bool _isFieldRequired(String fieldId) {
+    if (_customFieldsConfig.isEmpty) {
+      // Hardcoded defaults before config loads
+      return fieldId == 'name' || fieldId == 'phone';
+    }
+    final match = _customFieldsConfig.where((f) => f['id'] == fieldId).firstOrNull;
+    if (match != null) {
+      return match['required'] as bool? ?? false;
+    }
+    return false;
+  }
+
+  /// Builds a validator that respects the admin `required` flag for a field.
+  String? Function(String?)? _requiredValidator(String fieldId, {String? customMessage}) {
+    if (!_isFieldRequired(fieldId)) return null; // not required → no validator
+    return (v) {
+      if (v == null || v.trim().isEmpty) {
+        return customMessage ?? 'This field is required';
+      }
+      return null;
+    };
+  }
 
   @override
   void dispose() {
@@ -335,10 +359,13 @@ class _RegistrationFormScreenState
                     if (_isFieldVisible('fatherName')) ...[
                       _field(
                         controller: _fatherNameController,
-                        label: "Father's / Guardian's Name",
+                        label: _isFieldRequired('fatherName')
+                            ? "Father's / Guardian's Name *"
+                            : "Father's / Guardian's Name",
                         trackKey: 'fatherName',
                         icon: Icons.family_restroom_rounded,
                         capitalization: TextCapitalization.words,
+                        validator: _requiredValidator('fatherName'),
                       ),
                       const SizedBox(height: 14),
                     ],
@@ -478,20 +505,30 @@ class _RegistrationFormScreenState
                       const SizedBox(height: 14),
                       _field(
                         controller: _emailController,
-                        label: 'Email Address',
+                        label: _isFieldRequired('email') ? 'Email Address *' : 'Email Address',
                         trackKey: 'email',
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
+                        validator: _isFieldRequired('email')
+                            ? (v) {
+                                if (v == null || v.trim().isEmpty) return 'Email is required';
+                                if (!v.contains('@')) return 'Enter a valid email';
+                                return null;
+                              }
+                            : null,
                       ),
                     ],
                     if (_isFieldVisible('emergencyContact')) ...[
                       const SizedBox(height: 14),
                       _field(
                         controller: _emergencyContactController,
-                        label: 'Emergency Contact Number',
+                        label: _isFieldRequired('emergencyContact')
+                            ? 'Emergency Contact Number *'
+                            : 'Emergency Contact Number',
                         trackKey: 'emergencyContact',
                         icon: Icons.emergency_rounded,
                         keyboardType: TextInputType.phone,
+                        validator: _requiredValidator('emergencyContact'),
                       ),
                     ],
                     const SizedBox(height: 24),
@@ -503,7 +540,9 @@ class _RegistrationFormScreenState
 
                       _field(
                         controller: _idNumberController,
-                        label: 'Government ID Number',
+                        label: _isFieldRequired('govId')
+                            ? 'Government ID Number *'
+                            : 'Government ID Number',
                         trackKey: 'govIdNumber',
                         icon: Icons.credit_card_rounded,
                         capitalization: (_selectedGovIdType == 'aadhaar')
@@ -512,6 +551,7 @@ class _RegistrationFormScreenState
                         keyboardType: (_selectedGovIdType == 'aadhaar')
                             ? TextInputType.number
                             : TextInputType.text,
+                        validator: _requiredValidator('govId'),
                       ),
                       const SizedBox(height: 24),
                     ],
@@ -523,19 +563,27 @@ class _RegistrationFormScreenState
 
                       _field(
                         controller: _addressController,
-                        label: 'Address',
+                        label: _isFieldRequired('address') ? 'Address *' : 'Address',
                         trackKey: 'address',
                         icon: Icons.home_outlined,
                         maxLines: 2,
+                        validator: _requiredValidator('address'),
                       ),
                       const SizedBox(height: 14),
 
                       _field(
                         controller: _pinCodeController,
-                        label: 'PIN Code',
+                        label: _isFieldRequired('address') ? 'PIN Code *' : 'PIN Code',
                         trackKey: 'pinCode',
                         icon: Icons.pin_drop_outlined,
                         keyboardType: TextInputType.number,
+                        validator: _isFieldRequired('address')
+                            ? (v) {
+                                if (v == null || v.trim().isEmpty) return 'PIN Code is required';
+                                if (v.trim().length != 6) return 'Must be 6 digits';
+                                return null;
+                              }
+                            : null,
                       ),
                       const SizedBox(height: 24),
                     ],
@@ -551,9 +599,12 @@ class _RegistrationFormScreenState
                             Expanded(
                               child: _field(
                                 controller: _collegeController,
-                                label: 'College / Institute',
+                                label: _isFieldRequired('college')
+                                    ? 'College / Institute *'
+                                    : 'College / Institute',
                                 trackKey: 'college',
                                 icon: Icons.school_outlined,
+                                validator: _requiredValidator('college'),
                               ),
                             ),
                           if (_isFieldVisible('college') && _isFieldVisible('course'))
@@ -562,9 +613,12 @@ class _RegistrationFormScreenState
                             Expanded(
                               child: _field(
                                 controller: _courseController,
-                                label: 'Course / Degree',
+                                label: _isFieldRequired('course')
+                                    ? 'Course / Degree *'
+                                    : 'Course / Degree',
                                 trackKey: 'course',
                                 icon: Icons.menu_book_outlined,
+                                validator: _requiredValidator('course'),
                               ),
                             ),
                         ],
@@ -574,9 +628,12 @@ class _RegistrationFormScreenState
                       const SizedBox(height: 14),
                       _field(
                         controller: _yearController,
-                        label: 'Study Year / Semester',
+                        label: _isFieldRequired('year')
+                            ? 'Study Year / Semester *'
+                            : 'Study Year / Semester',
                         trackKey: 'year',
                         icon: Icons.school_outlined,
+                        validator: _requiredValidator('year'),
                       ),
                     ],
 
