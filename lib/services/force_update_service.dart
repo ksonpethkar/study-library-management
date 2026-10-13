@@ -12,7 +12,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 enum UpdateStatus { upToDate, optionalUpdate, forceUpdate }
 
-enum DownloadState { idle, downloading, completed, failed, permissionRequired }
+// Added: paused state for pause/resume support
+enum DownloadState { idle, downloading, paused, completed, failed, permissionRequired }
 
 class UpdateInfo {
   final int versionCode;
@@ -34,21 +35,15 @@ class UpdateInfo {
   });
 
   factory UpdateInfo.fromJson(Map<String, dynamic> json, {required bool isIos}) {
-    // Support BOTH formats:
-    // 1. Flat format  (our publish script): { "versionCode": 2, "apkUrl": "...", ... }
-    // 2. Nested format: { "android": { "versionCode": 2, ... }, "ios": { ... } }
     final platformKey = isIos ? 'ios' : 'android';
     final nested = json[platformKey] as Map<String, dynamic>?;
-    // Use nested if present, otherwise fall back to flat root
     final data = nested ?? json;
 
-    // releaseNotes can be a String (our flat format) or List<String> (nested format)
     final rawNotes = data['releaseNotes'];
     List<String> notes;
     if (rawNotes is List) {
       notes = rawNotes.map((e) => e.toString()).toList();
     } else if (rawNotes is String && rawNotes.isNotEmpty) {
-      // Split on '. ' or newlines for readability
       notes = rawNotes.split(RegExp(r'\.\s+')).where((s) => s.trim().isNotEmpty).toList();
     } else {
       notes = [];
@@ -84,6 +79,7 @@ class UpdateState {
   final int downloadedBytes;
   final int totalBytes;
   final String? errorMessage;
+  final String? downloadedApkPath; // persists path after download completes
 
   const UpdateState({
     this.status = UpdateStatus.upToDate,
@@ -93,6 +89,7 @@ class UpdateState {
     this.downloadedBytes = 0,
     this.totalBytes = 0,
     this.errorMessage,
+    this.downloadedApkPath,
   });
 
   UpdateState copyWith({
@@ -103,6 +100,8 @@ class UpdateState {
     int? downloadedBytes,
     int? totalBytes,
     String? errorMessage,
+    String? downloadedApkPath,
+    bool clearApkPath = false,
   }) {
     return UpdateState(
       status: status ?? this.status,
@@ -112,6 +111,7 @@ class UpdateState {
       downloadedBytes: downloadedBytes ?? this.downloadedBytes,
       totalBytes: totalBytes ?? this.totalBytes,
       errorMessage: errorMessage,
+      downloadedApkPath: clearApkPath ? null : (downloadedApkPath ?? this.downloadedApkPath),
     );
   }
 }
@@ -124,14 +124,16 @@ class ForceUpdateService extends Notifier<UpdateState> {
 
   final FirebaseRemoteConfig _remoteConfig = FirebaseRemoteConfig.instance;
 
+  // Active download tracking (for pause/resume)
+  bool _isPaused = false;
+  HttpClient? _activeClient;
+
   @override
   UpdateState build() {
-    // Start silent background check after build
     Future.microtask(() => checkForUpdate());
     return const UpdateState();
   }
 
-  /// Initialize Firebase Remote Config defaults
   Future<void> _initRemoteConfig() async {
     try {
       await _remoteConfig.setConfigSettings(RemoteConfigSettings(
@@ -146,13 +148,18 @@ class ForceUpdateService extends Notifier<UpdateState> {
     } catch (_) {}
   }
 
+  /// Returns the persistent APK file path (documents dir, not temp)
+  Future<File> _getApkFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/studylibrary_update.apk');
+  }
+
   /// Check for updates
   Future<void> checkForUpdate({bool manualCheck = false}) async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersionCode = int.tryParse(packageInfo.buildNumber) ?? 1;
 
-      // 1. Fetch Hosting update.json FIRST (direct source of truth)
       final isIos = !kIsWeb && Platform.isIOS;
       final updateInfo = await _fetchUpdateMetadata(isIos: isIos);
 
@@ -163,7 +170,6 @@ class ForceUpdateService extends Notifier<UpdateState> {
         return;
       }
 
-      // 2. Check Remote Config safely without blocking
       bool isRemoteForce = false;
       try {
         await _initRemoteConfig();
@@ -176,14 +182,10 @@ class ForceUpdateService extends Notifier<UpdateState> {
           (updateInfo.isForceUpdate && currentVersionCode < updateInfo.versionCode);
 
       if (isForce) {
-        state = state.copyWith(
-          status: UpdateStatus.forceUpdate,
-          info: updateInfo,
-        );
+        state = state.copyWith(status: UpdateStatus.forceUpdate, info: updateInfo);
         return;
       }
 
-      // Check if newer version is available (supports ABI-split codes & semantic versions)
       final hasNewerVersion = _isNewerVersion(
         updateInfo.versionName,
         updateInfo.versionCode,
@@ -193,13 +195,8 @@ class ForceUpdateService extends Notifier<UpdateState> {
 
       if (hasNewerVersion) {
         if (manualCheck) {
-          // Explicit user check in Settings: always show
-          state = state.copyWith(
-            status: UpdateStatus.optionalUpdate,
-            info: updateInfo,
-          );
+          state = state.copyWith(status: UpdateStatus.optionalUpdate, info: updateInfo);
         } else {
-          // Silent check: observe 24-hr cooldown
           final prefs = await SharedPreferences.getInstance();
           final dismissedVersion = prefs.getInt(_prefDismissedVersionKey) ?? 0;
           final dismissedTimeMs = prefs.getInt(_prefDismissedTimeKey) ?? 0;
@@ -209,10 +206,23 @@ class ForceUpdateService extends Notifier<UpdateState> {
               (now - dismissedTimeMs < const Duration(hours: 24).inMilliseconds);
 
           if (!isCooldownActive) {
-            state = state.copyWith(
-              status: UpdateStatus.optionalUpdate,
-              info: updateInfo,
-            );
+            // Check if already downloaded — restore completed state
+            final apkFile = await _getApkFile();
+            if (await apkFile.exists()) {
+              final fileSize = await apkFile.length();
+              if (fileSize > 10 * 1024 * 1024) {
+                // File exists and is reasonably large (>10 MB) — already downloaded
+                state = state.copyWith(
+                  status: UpdateStatus.optionalUpdate,
+                  info: updateInfo,
+                  downloadState: DownloadState.completed,
+                  downloadedApkPath: apkFile.path,
+                  progress: 1.0,
+                );
+                return;
+              }
+            }
+            state = state.copyWith(status: UpdateStatus.optionalUpdate, info: updateInfo);
           }
         }
       } else {
@@ -224,7 +234,7 @@ class ForceUpdateService extends Notifier<UpdateState> {
     }
   }
 
-  /// Dismiss update card for 24 hours
+  /// Dismiss update card for 24 hours (does NOT clear downloaded APK path)
   Future<void> dismissLater() async {
     if (state.info != null) {
       final prefs = await SharedPreferences.getInstance();
@@ -234,11 +244,12 @@ class ForceUpdateService extends Notifier<UpdateState> {
     state = state.copyWith(status: UpdateStatus.upToDate);
   }
 
-  /// Download and install the update
+  /// Start or resume a download
   Future<void> startUpdate() async {
     final info = state.info;
     if (info == null) return;
 
+    // iOS: open App Store
     if (!kIsWeb && Platform.isIOS) {
       if (info.storeUrl.isNotEmpty) {
         final uri = Uri.tryParse(info.storeUrl);
@@ -250,14 +261,28 @@ class ForceUpdateService extends Notifier<UpdateState> {
     }
 
     if (info.apkUrl.isEmpty || !info.apkUrl.startsWith('https://')) {
-      state = state.copyWith(
-        downloadState: DownloadState.failed,
-        errorMessage: 'Invalid download link.',
-      );
+      state = state.copyWith(downloadState: DownloadState.failed, errorMessage: 'Invalid download link.');
       return;
     }
 
-    // Check unknown app install permission on Android
+    // Check if already fully downloaded
+    final apkFile = await _getApkFile();
+    if (await apkFile.exists()) {
+      final fileSize = await apkFile.length();
+      if (fileSize > 10 * 1024 * 1024) {
+        // Already complete — show install button directly
+        state = state.copyWith(
+          downloadState: DownloadState.completed,
+          downloadedApkPath: apkFile.path,
+          progress: 1.0,
+          downloadedBytes: fileSize,
+          totalBytes: fileSize,
+        );
+        return;
+      }
+    }
+
+    // Check permission
     try {
       final canInstall = await _channel.invokeMethod<bool>('canInstallPackages') ?? true;
       if (!canInstall) {
@@ -266,63 +291,121 @@ class ForceUpdateService extends Notifier<UpdateState> {
       }
     } catch (_) {}
 
+    _isPaused = false;
+    await _doDownload(apkFile, info.apkUrl, resumeFrom: 0);
+  }
+
+  /// Pause an active download
+  void pauseUpdate() {
+    _isPaused = true;
+    _activeClient?.close(force: true);
+    _activeClient = null;
+    state = state.copyWith(downloadState: DownloadState.paused);
+  }
+
+  /// Resume a paused download
+  Future<void> resumeUpdate() async {
+    final info = state.info;
+    if (info == null) return;
+
+    _isPaused = false;
+    final apkFile = await _getApkFile();
+    final resumeFrom = await apkFile.exists() ? await apkFile.length() : 0;
+
+    state = state.copyWith(downloadState: DownloadState.downloading);
+    await _doDownload(apkFile, info.apkUrl, resumeFrom: resumeFrom);
+  }
+
+  Future<void> _doDownload(File apkFile, String apkUrl, {required int resumeFrom}) async {
     state = state.copyWith(
       downloadState: DownloadState.downloading,
-      progress: 0.0,
-      downloadedBytes: 0,
-      totalBytes: 0,
+      progress: resumeFrom > 0 ? (state.totalBytes > 0 ? resumeFrom / state.totalBytes : 0.0) : 0.0,
+      downloadedBytes: resumeFrom,
       errorMessage: null,
     );
 
     try {
-      final tempDir = await getTemporaryDirectory();
-      final apkFile = File('${tempDir.path}/update.apk');
-      if (await apkFile.exists()) {
-        await apkFile.delete();
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 15);
+      _activeClient = client;
+
+      final request = await client.getUrl(Uri.parse(apkUrl));
+
+      // Support resume via HTTP Range header
+      if (resumeFrom > 0) {
+        request.headers.set(HttpHeaders.rangeHeader, 'bytes=$resumeFrom-');
       }
 
-      final client = HttpClient();
-      final request = await client.getUrl(Uri.parse(info.apkUrl));
       final response = await request.close();
 
-      if (response.statusCode != 200) {
-        throw Exception('Download failed with server code ${response.statusCode}');
+      // 206 = Partial Content (resume), 200 = full download
+      if (response.statusCode != 200 && response.statusCode != 206) {
+        throw Exception('Server error: ${response.statusCode}');
       }
 
-      final total = response.contentLength;
-      int received = 0;
+      final contentLength = response.contentLength;
+      final totalBytes = resumeFrom + (contentLength > 0 ? contentLength : 0);
+      int received = resumeFrom;
 
-      final sink = apkFile.openWrite();
+      // Append if resuming, overwrite if starting fresh
+      final sink = apkFile.openWrite(mode: resumeFrom > 0 ? FileMode.append : FileMode.write);
 
       await for (final chunk in response) {
+        if (_isPaused) {
+          await sink.flush();
+          await sink.close();
+          return;
+        }
         sink.add(chunk);
         received += chunk.length;
 
-        final prog = total > 0 ? (received / total).clamp(0.0, 1.0) : 0.0;
+        final prog = totalBytes > 0 ? (received / totalBytes).clamp(0.0, 1.0) : 0.0;
         state = state.copyWith(
           progress: prog,
           downloadedBytes: received,
-          totalBytes: total > 0 ? total : 0,
+          totalBytes: totalBytes,
         );
       }
 
       await sink.flush();
       await sink.close();
       client.close();
+      _activeClient = null;
 
-      state = state.copyWith(downloadState: DownloadState.completed);
-
-      // Trigger native package installer
-      await _installApk(apkFile.path);
+      // ✅ Download complete — show Install button, don't auto-launch
+      state = state.copyWith(
+        downloadState: DownloadState.completed,
+        downloadedApkPath: apkFile.path,
+        progress: 1.0,
+        downloadedBytes: received,
+        totalBytes: totalBytes > 0 ? totalBytes : received,
+      );
     } catch (e) {
+      if (_isPaused) return; // Intentional cancellation
+      _activeClient = null;
       state = state.copyWith(
         downloadState: DownloadState.failed,
-        errorMessage: 'Download failed. Please check your internet connection.',
+        errorMessage: 'Download failed. Tap to try again.',
       );
     }
   }
 
-  /// Request Android install permission
+  /// Install the already-downloaded APK
+  Future<void> installUpdate() async {
+    final path = state.downloadedApkPath;
+    if (path == null || path.isEmpty) {
+      // Path lost — restart download
+      state = state.copyWith(downloadState: DownloadState.idle, clearApkPath: true);
+      return;
+    }
+    final file = File(path);
+    if (!await file.exists()) {
+      state = state.copyWith(downloadState: DownloadState.idle, clearApkPath: true);
+      return;
+    }
+    await _installApk(path);
+  }
+
   Future<void> requestInstallPermission() async {
     try {
       await _channel.invokeMethod('openInstallPermissionSettings');
@@ -371,14 +454,11 @@ class ForceUpdateService extends Notifier<UpdateState> {
   ) {
     if (remoteCode > localCode) return true;
 
-    // Normalize ABI offset for split APKs:
-    // e.g. 2005 (arm64) % 1000 = 5, 2006 % 1000 = 6, 6 > 5 = true
     final normRemote = remoteCode >= 1000 ? (remoteCode % 1000) : remoteCode;
     final normLocal = localCode >= 1000 ? (localCode % 1000) : localCode;
     if (normRemote > normLocal) return true;
     if (normRemote < normLocal) return false;
 
-    // Fall back to semantic version (e.g. "1.5.0" vs "1.4.0")
     try {
       final r = remoteVer.split('.').map((s) => int.tryParse(s.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();
       final l = localVer.split('.').map((s) => int.tryParse(s.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();

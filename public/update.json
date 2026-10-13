@@ -1,18 +1,18 @@
 {
-  "versionName": "1.5.20",
-  "versionCode": 27,
-  "latestVersion": "1.5.20",
-  "latestVersionCode": 27,
+  "versionName": "1.5.21",
+  "versionCode": 28,
+  "latestVersion": "1.5.21",
+  "latestVersionCode": 28,
   "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "forceUpdate": false,
   "minVersionCode": 10,
   "releaseNotes": [
-    "Pull-to-refresh on Plans and Receipts list screens",
-    "Shimmer skeleton loading on Plans and Receipts screens",
-    "Remote Config feature flags now gate Revenue, Waiting List, Export, Recycle Bin",
-    "Staff permission redirect: non-revenue staff cannot access Revenue dashboard",
-    "Library Closed Today banner on dashboard when today is a holiday",
-    "Dead widget files removed (frosted app bar, network aware widget, action bar)"
+    "Update banner: pause and resume download mid-way",
+    "Download saved to permanent storage — no re-download after restart",
+    "Install Now button appears after download — no auto-install surprise",
+    "Skipping install keeps the Install button ready for next time",
+    "Download size shown in real MB during progress",
+    "Retry button on failed downloads"
   ]
 }

@@ -10,13 +10,13 @@ class AppUpdateBanner extends ConsumerWidget {
     final updateState = ref.watch(updateServiceProvider);
     final theme = Theme.of(context);
 
-    // If up to date or no update info, show nothing
     if (updateState.status == UpdateStatus.upToDate || updateState.info == null) {
       return const SizedBox.shrink();
     }
 
     final info = updateState.info!;
     final isForce = updateState.status == UpdateStatus.forceUpdate;
+    final dl = updateState.downloadState;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -31,6 +31,7 @@ class AppUpdateBanner extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header
             Row(
               children: [
                 Container(
@@ -59,11 +60,10 @@ class AppUpdateBanner extends ConsumerWidget {
                 ),
               ],
             ),
+
             const SizedBox(height: 12),
-            Text(
-              info.message,
-              style: theme.textTheme.bodyMedium,
-            ),
+            Text(info.message, style: theme.textTheme.bodyMedium),
+
             if (info.releaseNotes.isNotEmpty) ...[
               const SizedBox(height: 8),
               ...info.releaseNotes.map(
@@ -79,15 +79,33 @@ class AppUpdateBanner extends ConsumerWidget {
                 ),
               ),
             ],
+
             const SizedBox(height: 16),
 
-            // Download State UI
-            if (updateState.downloadState == DownloadState.downloading) ...[
-              LinearProgressIndicator(
-                value: updateState.progress > 0 ? updateState.progress : null,
-                borderRadius: BorderRadius.circular(4),
+            // ── Downloading ───────────────────────────────────────────
+            if (dl == DownloadState.downloading) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: LinearProgressIndicator(
+                      value: updateState.progress > 0 ? updateState.progress : null,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Pause button
+                  IconButton(
+                    icon: const Icon(Icons.pause_circle_filled_rounded),
+                    tooltip: 'Pause',
+                    onPressed: () => ref.read(updateServiceProvider.notifier).pauseUpdate(),
+                    color: theme.colorScheme.primary,
+                    iconSize: 28,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -102,7 +120,81 @@ class AppUpdateBanner extends ConsumerWidget {
                     ),
                 ],
               ),
-            ] else if (updateState.downloadState == DownloadState.permissionRequired) ...[
+
+            // ── Paused ───────────────────────────────────────────────
+            ] else if (dl == DownloadState.paused) ...[
+              LinearProgressIndicator(
+                value: updateState.progress > 0 ? updateState.progress : null,
+                borderRadius: BorderRadius.circular(4),
+                color: Colors.orange,
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Paused — ${(updateState.progress * 100).toStringAsFixed(0)}% done',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (updateState.totalBytes > 0)
+                    Text(
+                      '${_formatBytes(updateState.downloadedBytes)} / ${_formatBytes(updateState.totalBytes)}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                onPressed: () => ref.read(updateServiceProvider.notifier).resumeUpdate(),
+                icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                label: const Text('Resume Download'),
+              ),
+
+            // ── Completed — Show Install Button ───────────────────────
+            ] else if (dl == DownloadState.completed) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Download complete!',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                          ),
+                          if (updateState.totalBytes > 0)
+                            Text(
+                              '${_formatBytes(updateState.totalBytes)} ready to install',
+                              style: const TextStyle(fontSize: 12, color: Colors.green),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: () => ref.read(updateServiceProvider.notifier).installUpdate(),
+                      icon: const Icon(Icons.install_mobile_rounded, size: 18),
+                      label: const Text('Install Now'),
+                      style: FilledButton.styleFrom(backgroundColor: Colors.green),
+                    ),
+                  ],
+                ),
+              ),
+
+            // ── Permission Required ───────────────────────────────────
+            ] else if (dl == DownloadState.permissionRequired) ...[
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -118,30 +210,43 @@ class AppUpdateBanner extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     FilledButton.icon(
-                      onPressed: () => ref.read(updateServiceProvider.notifier).requestInstallPermission(),
+                      onPressed: () =>
+                          ref.read(updateServiceProvider.notifier).requestInstallPermission(),
                       icon: const Icon(Icons.settings, size: 16),
                       label: const Text('Open Settings'),
                     ),
                   ],
                 ),
               ),
-            ] else if (updateState.downloadState == DownloadState.failed) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      updateState.errorMessage ?? 'Download failed.',
-                      style: const TextStyle(color: Colors.red, fontSize: 13),
+
+            // ── Failed ───────────────────────────────────────────────
+            ] else if (dl == DownloadState.failed) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline_rounded, color: Colors.red, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        updateState.errorMessage ?? 'Download failed. Please try again.',
+                        style: const TextStyle(color: Colors.red, fontSize: 13),
+                      ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => ref.read(updateServiceProvider.notifier).startUpdate(),
-                    child: const Text('Try Again'),
-                  ),
-                ],
+                    TextButton(
+                      onPressed: () => ref.read(updateServiceProvider.notifier).startUpdate(),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
               ),
+
+            // ── Idle — Action Buttons ─────────────────────────────────
             ] else ...[
-              // Action Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [

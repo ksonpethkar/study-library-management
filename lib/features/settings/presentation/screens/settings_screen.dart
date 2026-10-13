@@ -96,19 +96,34 @@ class _UpdateBottomSheet extends ConsumerWidget {
           ],
           const SizedBox(height: 16),
 
-          // Download progress
+          // ── Downloading ─────────────────────────────────────────────
           if (state.downloadState == DownloadState.downloading) ...[
-            LinearProgressIndicator(
-              value: state.progress > 0 ? state.progress : null,
-              borderRadius: BorderRadius.circular(4),
+            Row(
+              children: [
+                Expanded(
+                  child: LinearProgressIndicator(
+                    value: state.progress > 0 ? state.progress : null,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.pause_circle_filled_rounded),
+                  tooltip: 'Pause',
+                  onPressed: () => ref.read(updateServiceProvider.notifier).pauseUpdate(),
+                  color: theme.colorScheme.primary,
+                  iconSize: 28,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('${(state.progress * 100).toStringAsFixed(0)}% downloaded',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(fontWeight: FontWeight.bold)),
+                    style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
                 if (state.totalBytes > 0)
                   Text(
                     '${_fmtBytes(state.downloadedBytes)} / ${_fmtBytes(state.totalBytes)}',
@@ -116,6 +131,35 @@ class _UpdateBottomSheet extends ConsumerWidget {
                   ),
               ],
             ),
+
+          // ── Paused ──────────────────────────────────────────────────
+          ] else if (state.downloadState == DownloadState.paused) ...[
+            LinearProgressIndicator(
+              value: state.progress > 0 ? state.progress : null,
+              borderRadius: BorderRadius.circular(4),
+              color: Colors.orange,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Paused — ${(state.progress * 100).toStringAsFixed(0)}% done',
+                  style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                if (state.totalBytes > 0)
+                  Text('${_fmtBytes(state.downloadedBytes)} / ${_fmtBytes(state.totalBytes)}',
+                      style: theme.textTheme.bodySmall),
+              ],
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: () => ref.read(updateServiceProvider.notifier).resumeUpdate(),
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('Resume Download'),
+            ),
+
+          // ── Permission Required ──────────────────────────────────────
           ] else if (state.downloadState == DownloadState.permissionRequired) ...[
             Card(
               color: Colors.amber.shade50,
@@ -138,31 +182,64 @@ class _UpdateBottomSheet extends ConsumerWidget {
                 ),
               ),
             ),
+
+          // ── Failed ──────────────────────────────────────────────────
           ] else if (state.downloadState == DownloadState.failed) ...[
             Text(state.errorMessage ?? 'Download failed.',
                 style: const TextStyle(color: Colors.red, fontSize: 13)),
             const SizedBox(height: 8),
             FilledButton.icon(
-              onPressed: () =>
-                  ref.read(updateServiceProvider.notifier).startUpdate(),
+              onPressed: () => ref.read(updateServiceProvider.notifier).startUpdate(),
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Try Again'),
             ),
+
+          // ── Completed — Install Button ───────────────────────────────
           ] else if (state.downloadState == DownloadState.completed) ...[
-            const Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: Colors.green),
-                SizedBox(width: 8),
-                Text('Download complete! Installing...',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              ],
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Download complete!',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                        if (state.totalBytes > 0)
+                          Text('${_fmtBytes(state.totalBytes)} ready to install',
+                              style: const TextStyle(fontSize: 12, color: Colors.green)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              onPressed: () => ref.read(updateServiceProvider.notifier).installUpdate(),
+              icon: const Icon(Icons.install_mobile_rounded),
+              label: const Text('Install Now'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+            ),
+
+          // ── Idle — Action Buttons ────────────────────────────────────
           ] else ...[
             FilledButton.icon(
-              onPressed: () =>
-                  ref.read(updateServiceProvider.notifier).startUpdate(),
+              onPressed: () => ref.read(updateServiceProvider.notifier).startUpdate(),
               icon: const Icon(Icons.download_rounded),
-              label: const Text('Download & Install (44.4 MB)'),
+              label: Text('Download & Install${state.totalBytes > 0 ? " (${_fmtBytes(state.totalBytes)})" : ""}'),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
@@ -181,6 +258,7 @@ class _UpdateBottomSheet extends ConsumerWidget {
       ),
     );
   }
+
 
   String _fmtBytes(int b) {
     if (b >= 1024 * 1024) return '${(b / (1024 * 1024)).toStringAsFixed(1)} MB';
