@@ -30,6 +30,7 @@ class _RegistrationFormScreenState
   late final TextEditingController _rollNumberController;
   late final TextEditingController _emergencyContactController;
   late final TextEditingController _yearController;
+  late final TextEditingController _prepController;
 
   String _gender = 'male';
   String _selectedGovIdType = 'aadhaar';
@@ -127,6 +128,10 @@ class _RegistrationFormScreenState
     _yearController = TextEditingController(text: yearVal);
     trackIfFilled('year', yearVal);
 
+    final prepVal = pick('prep');
+    _prepController = TextEditingController(text: prepVal);
+    trackIfFilled('prep', prepVal);
+
     _loadCustomFields();
   }
 
@@ -216,6 +221,7 @@ class _RegistrationFormScreenState
     _rollNumberController.dispose();
     _emergencyContactController.dispose();
     _yearController.dispose();
+    _prepController.dispose();
     for (final c in _customControllers.values) {
       c.dispose();
     }
@@ -246,6 +252,7 @@ class _RegistrationFormScreenState
       'rollNumber': _rollNumberController.text.trim(),
       'emergencyContact': _emergencyContactController.text.trim(),
       'year': _yearController.text.trim(),
+      'prep': _prepController.text.trim(),
       'gender': _gender,
       'customFields': customData,
     });
@@ -634,6 +641,19 @@ class _RegistrationFormScreenState
                         trackKey: 'year',
                         icon: Icons.school_outlined,
                         validator: _requiredValidator('year'),
+                      ),
+                    ],
+
+                    if (_isFieldVisible('prep')) ...[
+                      const SizedBox(height: 14),
+                      _field(
+                        controller: _prepController,
+                        label: _isFieldRequired('prep')
+                            ? 'Exam / Target Course *'
+                            : 'Exam / Target Course',
+                        trackKey: 'prep',
+                        icon: Icons.military_tech_rounded,
+                        validator: _requiredValidator('prep'),
                       ),
                     ],
 

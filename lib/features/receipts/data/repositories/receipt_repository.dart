@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:study_library/models/receipt_model.dart';
 
 class ReceiptRepository {
@@ -96,10 +97,35 @@ class ReceiptRepository {
     });
   }
 
+  /// Deletes a receipt by moving it to the recycle_bin collection (restorable for 30 days).
   Future<void> deleteReceipt(String libraryId, String receiptId) async {
-    await _receiptsRef(libraryId).doc(receiptId).update({
-      'deletedAt': DateTime.now().toIso8601String(),
+    final receiptRef = _receiptsRef(libraryId).doc(receiptId);
+    final doc = await receiptRef.get();
+    if (!doc.exists) return;
+
+    final data = doc.data()!;
+    final now = DateTime.now();
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    final batch = _firestore.batch();
+
+    // 1. Write a copy to the global recycle_bin collection
+    final binRef = _firestore.collection('recycle_bin').doc(receiptId);
+    batch.set(binRef, {
+      ...data,
+      'id': receiptId,
+      'type': 'receipt',
+      'libraryId': libraryId,
+      'deletedAt': now.toIso8601String(),
+      'deletedBy': currentUser?.email ?? currentUser?.uid ?? 'admin',
+      'displayName': 'Receipt #${data['receiptNumber'] ?? receiptId}',
+      'expiresAt': now.add(const Duration(days: 30)).toIso8601String(),
     });
+
+    // 2. Hard-delete from receipts collection
+    batch.delete(receiptRef);
+
+    await batch.commit();
   }
 
   /// Update receipt notes (admin editable)

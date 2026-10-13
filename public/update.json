@@ -1,16 +1,19 @@
 {
-  "versionName": "1.5.16",
-  "versionCode": 23,
-  "latestVersion": "1.5.16",
-  "latestVersionCode": 23,
+  "versionName": "1.5.17",
+  "versionCode": 24,
+  "latestVersion": "1.5.17",
+  "latestVersionCode": 24,
   "apkUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk",
   "forceUpdate": false,
   "minVersionCode": 10,
   "releaseNotes": [
-    "ID Card: Sequential membership number (CC20260001) shown as badge",
-    "ID Card: Blank fields (no value) no longer appear on card",
-    "ID Card: DOB, blood group, father name, college, course now on card",
-    "Registration: Admin-configured required fields now enforced with validation"
+    "WhatsApp button on student profile — Welcome, Renewal Reminder, Seat Assigned messages",
+    "WhatsApp messages fixed — library name included, country code auto-prefixed, emoji tiers",
+    "Rupee symbol (₹) now displays correctly in plan price on student detail",
+    "Receipts deleted now move to Recycle Bin (restorable for 30 days)",
+    "Staff permission providers — revenue dashboard locked for unauthorized staff",
+    "Exam / Target Course field added to registration form",
+    "All 6 staff permission flags now have dedicated Riverpod providers"
   ]
 }

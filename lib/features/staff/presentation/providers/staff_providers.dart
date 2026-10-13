@@ -54,3 +54,51 @@ final currentUserStaffProvider = StreamProvider<StaffModel?>((ref) {
     return null;
   });
 });
+
+// ── Derived Permission Providers ────────────────────────────────────────────
+// Each returns true when the current user has the specific permission.
+// Owners always receive all permissions = true.
+// Unknown users (null staff) default to false for destructive actions,
+// and true for read-only/data entry to avoid locking out admins during setup.
+
+/// Can view revenue dashboard and financial data.
+final canViewRevenueProvider = Provider<bool>((ref) {
+  final staff = ref.watch(currentUserStaffProvider).value;
+  if (staff == null) return true; // owner / pre-load: allow
+  return staff.canViewRevenue;
+});
+
+/// Can add, edit, or change student records.
+final canManageStudentsProvider = Provider<bool>((ref) {
+  final staff = ref.watch(currentUserStaffProvider).value;
+  if (staff == null) return true;
+  return staff.canManageStudents;
+});
+
+/// Can permanently delete a student (destructive).
+final canDeleteStudentsProvider = Provider<bool>((ref) {
+  final staff = ref.watch(currentUserStaffProvider).value;
+  if (staff == null) return false;
+  return staff.canDeleteStudents;
+});
+
+/// Can manage seats and sections.
+final canManageSeatsProvider = Provider<bool>((ref) {
+  final staff = ref.watch(currentUserStaffProvider).value;
+  if (staff == null) return true;
+  return staff.canManageSeats;
+});
+
+/// Can record and manage payments and receipts.
+final canRecordPaymentsProvider = Provider<bool>((ref) {
+  final staff = ref.watch(currentUserStaffProvider).value;
+  if (staff == null) return true;
+  return staff.canRecordPayments;
+});
+
+/// Can access Settings screens (library profile, customizer, backup, etc.).
+final canManageSettingsProvider = Provider<bool>((ref) {
+  final staff = ref.watch(currentUserStaffProvider).value;
+  if (staff == null) return true;
+  return staff.canManageSettings;
+});

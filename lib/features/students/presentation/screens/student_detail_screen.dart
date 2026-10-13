@@ -20,6 +20,7 @@ import 'package:flutter/services.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/utils/secure_screen_mixin.dart';
+import 'package:study_library/services/whatsapp_service.dart';
 
 class StudentDetailScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -136,6 +137,94 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     }
   }
 
+  void _showWhatsAppSheet(BuildContext context, StudentModel s) {
+    final library = ref.read(currentLibraryProvider).value;
+    final libraryName = library?.name ?? '';
+    final whatsapp = ref.read(whatsappServiceProvider);
+
+    final daysLeft = s.planEndDate?.difference(DateTime.now()).inDays;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
+                  const SizedBox(width: 8),
+                  Text('WhatsApp: ${s.name}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFDCF8C6),
+                child: Icon(Icons.waving_hand_rounded, color: Color(0xFF25D366)),
+              ),
+              title: const Text('Send Welcome Message'),
+              subtitle: const Text('Greet new member with library details'),
+              onTap: () {
+                Navigator.pop(ctx);
+                whatsapp.sendWelcomeMessage(s.phone, s.name, libraryName);
+              },
+            ),
+            if (daysLeft != null)
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFFFF3CD),
+                  child: Icon(Icons.schedule_rounded, color: Colors.orange),
+                ),
+                title: Text(daysLeft >= 0
+                    ? 'Send Renewal Reminder ($daysLeft days left)'
+                    : 'Send Expired Notice'),
+                subtitle: const Text('Notify student about plan status'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  whatsapp.sendExpiryReminder(
+                      s.phone, s.name, daysLeft,
+                      libraryName: libraryName);
+                },
+              ),
+            if (seatLabel.isNotEmpty)
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFE8F5E9),
+                  child: Icon(Icons.chair_rounded, color: Colors.green),
+                ),
+                title: const Text('Send Seat Assignment Info'),
+                subtitle: Text('Section: $sectionName · Seat: $seatLabel'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  whatsapp.sendSeatAssigned(
+                      s.phone, s.name, seatLabel, sectionName,
+                      libraryName: libraryName);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAssignSeatSheet() {
     showModalBottomSheet(
       context: context,
@@ -206,7 +295,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                         return ListTile(
                           title: Text(plan.name),
                           subtitle: Text('Duration: ${plan.duration} ${plan.durationUnit.name}'),
-                          trailing: Text('₹${plan.price}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          trailing: Text('\u20B9₹${plan.price}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           onTap: () async {
                             final libraryId = ref.read(currentLibraryIdProvider);
                             if (libraryId == null) return;
@@ -336,6 +425,13 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
         ),
         title: const Text('Student Details'),
         actions: [
+          // WhatsApp quick-message button
+          if (s.phone.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
+              tooltip: 'WhatsApp Message',
+              onPressed: () => _showWhatsAppSheet(context, s),
+            ),
           IconButton(
             icon: const Icon(Icons.badge_outlined),
             onPressed: () {

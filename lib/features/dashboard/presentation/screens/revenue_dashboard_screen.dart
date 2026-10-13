@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/models/receipt_model.dart';
 
 class RevenueDashboardScreen extends ConsumerStatefulWidget {
@@ -105,6 +106,26 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
     final theme = Theme.of(context);
     final fmt = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
     
+    final canView = ref.watch(canViewRevenueProvider);
+    if (!canView) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Revenue Dashboard')),
+        body: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock_rounded, size: 56, color: Colors.grey),
+              SizedBox(height: 16),
+              Text('Access Restricted', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              Text('You do not have permission to view revenue data.',
+                  textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Revenue & Analytics'),
