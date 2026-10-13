@@ -36,16 +36,16 @@ class ImageService {
               const SizedBox(height: 12),
               ListTile(
                 leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFEEF2FF),
-                  child: Icon(Icons.camera_alt_rounded, color: Color(0xFF4F46E5)),
+                  backgroundColor: Color(0xFFF3E5AB),
+                  child: Icon(Icons.camera_alt_rounded, color: Color(0xFF5D4037)),
                 ),
                 title: const Text('Take Photo with Camera'),
                 onTap: () => Navigator.pop(ctx, ImageSource.camera),
               ),
               ListTile(
                 leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFEEF2FF),
-                  child: Icon(Icons.photo_library_rounded, color: Color(0xFF4F46E5)),
+                  backgroundColor: Color(0xFFF3E5AB),
+                  child: Icon(Icons.photo_library_rounded, color: Color(0xFF5D4037)),
                 ),
                 title: const Text('Choose from Gallery'),
                 onTap: () => Navigator.pop(ctx, ImageSource.gallery),
@@ -268,3 +268,4 @@ class ImageService {
     return const Center(child: Icon(Icons.image_not_supported, color: Colors.grey));
   }
 }
+

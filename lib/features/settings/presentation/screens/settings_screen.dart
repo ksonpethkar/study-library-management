@@ -440,7 +440,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           if (RemoteConfigService.enableWaitingList) ...[
             ListTile(
-              leading: const Icon(Icons.queue_rounded, color: Colors.indigo),
+              leading: const Icon(Icons.queue_rounded, color: Colors.brown),
               title: const Text('Waiting List Queue'),
               subtitle: const Text('View waiting queue and assign available seats'),
               trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
@@ -626,7 +626,7 @@ class SettingsScreen extends ConsumerWidget {
                     subtitle: Text('$currentVer (Build $currentBuild) — Production'),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.system_update_rounded, color: Colors.indigo),
+                    leading: const Icon(Icons.system_update_rounded, color: Colors.brown),
                     title: const Text('Check for Updates'),
                     subtitle: const Text('Tap to check for the latest version'),
                     trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
@@ -687,7 +687,7 @@ class SettingsScreen extends ConsumerWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.new_releases_rounded, color: Colors.indigo),
+            leading: const Icon(Icons.new_releases_rounded, color: Colors.brown),
             title: const Text("What's New"),
             subtitle: const Text('View recent release highlights'),
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
@@ -1105,3 +1105,4 @@ class _StyleTile extends StatelessWidget {
     );
   }
 }
+

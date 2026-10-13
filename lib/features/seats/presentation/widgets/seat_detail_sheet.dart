@@ -343,7 +343,7 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
                 ListTile(
                   leading: const Icon(
                     Icons.checklist_rounded,
-                    color: Colors.indigo,
+                    color: Colors.brown,
                   ),
                   title: const Text('Select for Bulk Actions'),
                   trailing: const Icon(Icons.check_box_outline_blank, size: 16),
@@ -761,3 +761,4 @@ class _TransferSectionTile extends ConsumerWidget {
     );
   }
 }
+

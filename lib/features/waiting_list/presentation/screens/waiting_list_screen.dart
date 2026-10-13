@@ -659,7 +659,7 @@ class _WaitingListSeatAssignSheetState
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  const Icon(Icons.chair_alt, color: Colors.indigo),
+                  const Icon(Icons.chair_alt, color: Colors.brown),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -817,3 +817,4 @@ class _AvailableSeatsSectionTile extends ConsumerWidget {
     );
   }
 }
+

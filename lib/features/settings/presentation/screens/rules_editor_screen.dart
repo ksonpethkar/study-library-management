@@ -86,7 +86,7 @@ class _RulesEditorScreenState extends ConsumerState<RulesEditorScreen> {
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.gavel_rounded, color: Colors.indigo),
+            Icon(Icons.gavel_rounded, color: Colors.brown),
             SizedBox(width: 10),
             Text('Rules Preview'),
           ],
@@ -184,3 +184,4 @@ class _RulesEditorScreenState extends ConsumerState<RulesEditorScreen> {
     );
   }
 }
+

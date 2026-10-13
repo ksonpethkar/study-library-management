@@ -473,7 +473,7 @@ class SeatMapScreen extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.tune_rounded, color: Colors.indigo),
+                        const Icon(Icons.tune_rounded, color: Colors.brown),
                         const SizedBox(width: 8),
                         Text(
                           'Bulk Actions ($count Seats)',
@@ -609,7 +609,7 @@ class SeatMapScreen extends ConsumerWidget {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.people_outline, color: Colors.indigo),
+                leading: const Icon(Icons.people_outline, color: Colors.brown),
                 title: const Text('Allow Any Gender'),
                 onTap: () async {
                   Navigator.pop(ctx);
@@ -1051,3 +1051,4 @@ Color _sectionTypeColor(String type) {
     default: return Colors.grey.shade200;
   }
 }
+

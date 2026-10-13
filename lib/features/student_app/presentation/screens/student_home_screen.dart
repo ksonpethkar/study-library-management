@@ -110,7 +110,23 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                 ),
               )
             : null,
-        title: Text(libraryName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(libraryName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            if (library?.tagline.isNotEmpty == true)
+              Text(
+                library!.tagline,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.normal,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -445,7 +461,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                       icon: Icons.autorenew_rounded,
                       title: 'Renew Plan',
                       subtitle: 'Extend validity',
-                      color: const Color(0xFF4F46E5),
+                      color: Theme.of(context).colorScheme.primary,
                       onTap: () => context.push(Routes.studentRenew),
                     ),
                     _QuickTile(
@@ -716,3 +732,4 @@ Widget _buildRealTimePendingView(BuildContext context, ThemeData theme, Map<Stri
     ),
   );
 }
+

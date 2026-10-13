@@ -405,10 +405,10 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                     child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       leading: CircleAvatar(
-                        backgroundColor: isManager ? const Color(0xFFEEF2FF) : const Color(0xFFF3F4F6),
+                        backgroundColor: isManager ? const Color(0xFFF3E5AB) : const Color(0xFFF3F4F6),
                         child: Icon(
                           isManager ? Icons.shield_rounded : Icons.person_rounded,
-                          color: isManager ? const Color(0xFF4F46E5) : const Color(0xFF4B5563),
+                          color: isManager ? const Color(0xFF5D4037) : const Color(0xFF4B5563),
                         ),
                       ),
                       title: Text(staff.name, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -435,7 +435,7 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: isManager ? const Color(0xFFEEF2FF) : const Color(0xFFF3F4F6),
+                              color: isManager ? const Color(0xFFF3E5AB) : const Color(0xFFF3F4F6),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -443,7 +443,7 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                color: isManager ? const Color(0xFF4F46E5) : const Color(0xFF4B5563),
+                                color: isManager ? const Color(0xFF5D4037) : const Color(0xFF4B5563),
                               ),
                             ),
                           ),
@@ -489,3 +489,4 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
     );
   }
 }
+

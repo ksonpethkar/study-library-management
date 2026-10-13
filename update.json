@@ -1,8 +1,8 @@
 {
-  "latestVersion": "1.5.22",
-  "latestBuild": 29,
-  "versionName": "1.5.22+29",
-  "releaseNotes": "v1.5.22: Auto-receipt on plan assign, announcement audit log, library email/helpline in PDF footer & student contact card, theme-aware admin shell colors",
-  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.22/StudyLibrary.apk",
+  "latestVersion": "1.5.23",
+  "latestBuild": 30,
+  "versionName": "1.5.23+30",
+  "releaseNotes": "v1.5.23: Dynamic app theme from library brand color, tagline shown in student home, all hardcoded indigo colors removed",
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.23/StudyLibrary.apk",
   "mandatory": false
 }
