@@ -124,3 +124,52 @@ class DashboardSkeleton extends StatelessWidget {
     );
   }
 }
+
+/// Generic card-row skeleton for plans, receipts, and similar list screens.
+class CardListSkeleton extends StatelessWidget {
+  final int count;
+  const CardListSkeleton({super.key, this.count = 6});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      itemCount: count,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemBuilder: (context, index) {
+        return const Card(
+          margin: EdgeInsets.only(bottom: 10),
+          child: Padding(
+            padding: EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    ShimmerBox(width: 42, height: 42, borderRadius: 21),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ShimmerBox(width: double.infinity, height: 15),
+                          SizedBox(height: 6),
+                          ShimmerBox(width: 140, height: 13),
+                        ],
+                      ),
+                    ),
+                    ShimmerBox(width: 50, height: 18),
+                  ],
+                ),
+                SizedBox(height: 10),
+                ShimmerBox(width: double.infinity, height: 12),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+

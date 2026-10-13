@@ -6,6 +6,7 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:study_library/core/widgets/empty_state_widget.dart';
+import 'package:study_library/core/widgets/loading_skeleton.dart';
 import 'receipt_preview_screen.dart';
 
 final receiptListProvider = StreamProvider<List<ReceiptModel>>((ref) {
@@ -250,16 +251,24 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
           ),
         ],
       ),
-      body: receiptsAsync.when(
-        data: (receipts) {
-          if (receipts.isEmpty) {
-            return const EmptyStateWidget(
-              icon: Icons.receipt_long,
-              title: 'No receipts yet',
-              message: 'When payments are recorded, generated receipts will appear here.',
-            );
-          }
-          return ListView.builder(
+      body: RefreshIndicator(
+        onRefresh: () async => ref.invalidate(receiptListProvider),
+        child: receiptsAsync.when(
+          data: (receipts) {
+            if (receipts.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: const SizedBox(
+                  height: 400,
+                  child: EmptyStateWidget(
+                    icon: Icons.receipt_long,
+                    title: 'No receipts yet',
+                    message: 'When payments are recorded, generated receipts will appear here.',
+                  ),
+                ),
+              );
+            }
+            return ListView.builder(
             padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: receipts.length,
             itemBuilder: (context, index) {
@@ -358,9 +367,10 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const CardListSkeleton(),
         error: (e, st) => Center(child: Text('Error: $e')),
       ),
-    );
+    ),
+  );
   }
 }

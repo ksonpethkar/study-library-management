@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
+import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/features/dashboard/presentation/screens/revenue_dashboard_screen.dart';
 import '../../features/students/presentation/screens/edit_student_screen.dart';
 import '../../features/students/presentation/screens/bulk_import_screen.dart';
@@ -159,6 +160,7 @@ final _studentShellNavigatorKey = GlobalKey<NavigatorState>();
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Watch role changes so router refreshes when user signs in/out
   final role = ref.watch(userRoleProvider);
+  final canViewRevenue = ref.watch(canViewRevenueProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
@@ -208,6 +210,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           if (user == null) return Routes.login;
           return null;
         }
+      }
+
+      // Staff permission: revenue requires canViewRevenue
+      if (path == Routes.adminRevenue && !canViewRevenue) {
+        return Routes.adminHome;
       }
 
       return null; // allow

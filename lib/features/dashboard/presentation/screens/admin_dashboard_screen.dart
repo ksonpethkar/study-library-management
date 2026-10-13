@@ -24,6 +24,7 @@ import 'package:study_library/features/admin_qr/presentation/screens/admin_qr_sc
 import 'package:study_library/core/widgets/loading_skeleton.dart';
 import 'package:study_library/services/quick_actions_service.dart';
 import 'package:study_library/services/remote_config_service.dart';
+import 'package:study_library/features/holidays/presentation/screens/holiday_calendar_screen.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -312,6 +313,40 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                 ),
               ),
             ),
+          // Library Closed Today banner (from Holiday Calendar)
+          Builder(builder: (context) {
+            final today = DateTime.now();
+            final todayKey = DateTime(today.year, today.month, today.day);
+            final holidaysAsync = ref.watch(holidaysStreamProvider);
+            return holidaysAsync.when(
+              data: (holidays) {
+                final todayHoliday = holidays.where((h) {
+                  final d = DateTime(h.date.year, h.date.month, h.date.day);
+                  return d == todayKey && h.isFullDay;
+                }).firstOrNull;
+                if (todayHoliday == null) return const SizedBox.shrink();
+                return Container(
+                  width: double.infinity,
+                  color: Colors.red.shade50,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.event_busy_rounded, size: 16, color: Colors.red),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '🔒 Library Closed Today — ${todayHoliday.reason}',
+                          style: const TextStyle(fontSize: 13, color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (e, _) => const SizedBox.shrink(),
+            );
+          }),
           Expanded(
             child: RefreshIndicator(
                 onRefresh: () async {

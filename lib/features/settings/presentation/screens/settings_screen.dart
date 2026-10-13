@@ -17,6 +17,7 @@ import 'package:study_library/services/membership_automation_service.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/badge_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:study_library/services/remote_config_service.dart';
 
 final _packageInfoProvider = FutureProvider<PackageInfo>((ref) async {
   return await PackageInfo.fromPlatform();
@@ -273,13 +274,14 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: const Text('View and download generated receipts'),
             onTap: () => context.push(Routes.adminReceipts),
           ),
-          ListTile(
-            leading: const Icon(Icons.bar_chart_rounded),
-            title: const Text('Revenue & Analytics'),
-            subtitle: const Text('View revenue, payments and trends'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(Routes.adminRevenue),
-          ),
+          if (RemoteConfigService.enableRevenueDashboard)
+            ListTile(
+              leading: const Icon(Icons.bar_chart_rounded),
+              title: const Text('Revenue & Analytics'),
+              subtitle: const Text('View revenue, payments and trends'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push(Routes.adminRevenue),
+            ),
           ListTile(
             leading: const Icon(Icons.campaign_rounded),
             title: const Text('Announcements'),
@@ -358,19 +360,21 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: const Text('Days before releasing lapsed seats'),
             onTap: () => context.push(Routes.adminGracePeriod),
           ),
-          ListTile(
-            leading: const Icon(Icons.queue_rounded, color: Colors.indigo),
-            title: const Text('Waiting List Queue'),
-            subtitle: const Text('View waiting queue and assign available seats'),
-            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-            onTap: () => context.push(Routes.adminWaitingQueue),
-          ),
-          ListTile(
-            leading: const Icon(Icons.tune_rounded),
-            title: const Text('Waiting List Policy'),
-            subtitle: const Text('Configure auto-join and allocation policies'),
-            onTap: () => context.push(Routes.adminWaitingList),
-          ),
+          if (RemoteConfigService.enableWaitingList) ...[
+            ListTile(
+              leading: const Icon(Icons.queue_rounded, color: Colors.indigo),
+              title: const Text('Waiting List Queue'),
+              subtitle: const Text('View waiting queue and assign available seats'),
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+              onTap: () => context.push(Routes.adminWaitingQueue),
+            ),
+            ListTile(
+              leading: const Icon(Icons.tune_rounded),
+              title: const Text('Waiting List Policy'),
+              subtitle: const Text('Configure auto-join and allocation policies'),
+              onTap: () => context.push(Routes.adminWaitingList),
+            ),
+          ],
           ListTile(
             leading: const Icon(Icons.format_list_numbered_rounded),
             title: const Text('Seat Numbering Format'),
@@ -477,26 +481,28 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Backup & Restore'),
             onTap: () => context.push(Routes.adminBackup),
           ),
-          ListTile(
-            leading: const Icon(Icons.file_download_rounded),
-            title: const Text('Export Data'),
-            subtitle: const Text('Download students & payments as CSV'),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const DataExportScreen()),
+          if (RemoteConfigService.enableDataExport)
+            ListTile(
+              leading: const Icon(Icons.file_download_rounded),
+              title: const Text('Export Data'),
+              subtitle: const Text('Download students & payments as CSV'),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const DataExportScreen()),
+              ),
             ),
-          ),
           ListTile(
             leading: const Icon(Icons.fact_check_rounded),
             title: const Text('Audit Log'),
             subtitle: const Text('Track staff actions and financial changes'),
             onTap: () => context.push(Routes.adminAuditLog),
           ),
-          ListTile(
-            leading: const Icon(Icons.delete_sweep_rounded),
-            title: const Text('Recycle Bin'),
-            subtitle: const Text('Restore soft-deleted students, seats, or plans'),
-            onTap: () => context.push(Routes.adminRecycleBin),
-          ),
+          if (RemoteConfigService.enableRecycleBin)
+            ListTile(
+              leading: const Icon(Icons.delete_sweep_rounded),
+              title: const Text('Recycle Bin'),
+              subtitle: const Text('Restore soft-deleted students, seats, or plans'),
+              onTap: () => context.push(Routes.adminRecycleBin),
+            ),
           const Divider(),
 
           _buildSectionHeader(context, 'Communication'),
