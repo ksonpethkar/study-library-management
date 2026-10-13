@@ -73,7 +73,7 @@ class _UpdateBottomSheet extends ConsumerWidget {
                   Text('Update Available',
                       style: theme.textTheme.titleMedium
                           ?.copyWith(fontWeight: FontWeight.bold)),
-                  Text('Version ${info?.versionName ?? '?'}  •  44.4 MB',
+                  Text('Version ${info?.versionName ?? '?'}  •  ${info?.apkSize ?? '74.0 MB'}',
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: theme.colorScheme.outline)),
                 ],
@@ -622,8 +622,10 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.info_outline_rounded),
-                    title: const Text('App Version'),
+                    title: const Text('App Version & Organization Info'),
                     subtitle: Text('$currentVer (Build $currentBuild) — Production'),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                    onTap: () => _showAppInfoDialog(context, ref, currentVer, currentBuild),
                   ),
                   ListTile(
                     leading: const Icon(Icons.system_update_rounded, color: Colors.brown),
@@ -1078,6 +1080,113 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showAppInfoDialog(BuildContext context, WidgetRef ref, String ver, String build) {
+    final lib = ref.read(currentLibraryProvider).value;
+    final theme = Theme.of(context);
+    final logoProvider = ImageService.getImageProvider(lib?.logoUrl);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: theme.colorScheme.primaryContainer,
+              backgroundImage: logoProvider,
+              child: logoProvider == null
+                  ? Icon(Icons.business_rounded, color: theme.colorScheme.primary, size: 24)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    lib?.name.isNotEmpty == true ? lib!.name : 'Cozy Corner Library',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'App Info & Organization',
+                    style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Divider(),
+            if (lib?.address.isNotEmpty == true) ...[
+              _buildInfoRow(Icons.location_on_outlined, 'Address', lib!.address),
+              const SizedBox(height: 8),
+            ],
+            if (lib?.contact.isNotEmpty == true || lib?.helplineNumber.isNotEmpty == true) ...[
+              _buildInfoRow(
+                Icons.phone_outlined,
+                'Helpline',
+                lib?.helplineNumber.isNotEmpty == true ? lib!.helplineNumber : lib!.contact,
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (lib?.email.isNotEmpty == true) ...[
+              _buildInfoRow(Icons.email_outlined, 'Email', lib!.email),
+              const SizedBox(height: 8),
+            ],
+            if (lib?.operatingHours.isNotEmpty == true) ...[
+              _buildInfoRow(Icons.access_time_rounded, 'Hours', lib!.operatingHours),
+              const SizedBox(height: 8),
+            ],
+            _buildInfoRow(Icons.android_rounded, 'Version', 'v$ver (Build $build) — Production'),
+            const SizedBox(height: 8),
+            _buildInfoRow(Icons.cloud_done_outlined, 'Backend', 'Firebase Cloud Firestore'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              WhatsNewService.showChangelog(context, isStudent: false);
+            },
+            child: const Text("What's New"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: Colors.brown),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 12, color: Colors.black87),
+              children: [
+                TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
+                TextSpan(text: value),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

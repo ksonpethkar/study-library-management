@@ -23,6 +23,7 @@ class UpdateInfo {
   final bool isForceUpdate;
   final String message;
   final List<String> releaseNotes;
+  final String apkSize;
 
   const UpdateInfo({
     required this.versionCode,
@@ -32,6 +33,7 @@ class UpdateInfo {
     required this.isForceUpdate,
     required this.message,
     required this.releaseNotes,
+    this.apkSize = '74.0 MB',
   });
 
   factory UpdateInfo.fromJson(Map<String, dynamic> json, {required bool isIos}) {
@@ -58,6 +60,7 @@ class UpdateInfo {
             (isIos ? data['iosUrl'] : null) ??
             '')
         .toString();
+    final size = (data['apkSize'] ?? '74.0 MB').toString();
 
     return UpdateInfo(
       versionCode: vCode,
@@ -67,6 +70,7 @@ class UpdateInfo {
       isForceUpdate: data['forceUpdate'] == true,
       message: 'Version ${vName.isNotEmpty ? vName : '?'} is ready to install.',
       releaseNotes: notes,
+      apkSize: size,
     );
   }
 }

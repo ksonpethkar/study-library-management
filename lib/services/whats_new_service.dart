@@ -114,7 +114,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.23+30';
+  static const String currentVersionIdentifier = '1.5.24+31';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -123,188 +123,91 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.16)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.24)
   static final List<ReleaseChange> adminChanges = [
     const ReleaseChange(
-      icon: Icons.history_edu_rounded,
-      rawIconName: 'history_edu',
-      badge: 'Fixed',
-      title: 'Audit Logs Now Visible',
+      icon: Icons.palette_rounded,
+      rawIconName: 'palette',
+      badge: 'Theme Sync',
+      title: 'Dynamic Brand Palette',
       description:
-          'Fixed a critical path mismatch — audit log entries are now correctly written to and read from the library-scoped path. All activity is now visible in Admin → Audit Logs.',
+          'Set any accent color in Library Settings — the entire app theme, landing portal, and live seat map adapt dynamically in light and dark mode.',
     ),
     const ReleaseChange(
-      icon: Icons.download_rounded,
-      rawIconName: 'download',
-      badge: 'Fixed',
-      title: 'Export Data — Independent Loading',
+      icon: Icons.approval_rounded,
+      rawIconName: 'approval',
+      badge: 'Automated',
+      title: 'Auto-Receipt on Plan Assign',
       description:
-          'Each export button (Students, Payments) now shows its own loading spinner independently. Clicking one no longer freezes the other.',
-    ),
-    const ReleaseChange(
-      icon: Icons.backup_rounded,
-      rawIconName: 'backup',
-      badge: 'Fixed',
-      title: 'Backup — Document IDs Preserved',
-      description:
-          'Backup now correctly stores each document\'s Firestore ID. Restore was previously skipping all documents due to missing IDs — now fully functional.',
-    ),
-    const ReleaseChange(
-      icon: Icons.timer_rounded,
-      rawIconName: 'timer',
-      badge: 'Fixed',
-      title: 'Grace Period — Respects Admin Setting',
-      description:
-          'The automation service now reads your saved grace period (Settings → Grace Period) instead of ignoring it. Admin-configured values are always honoured.',
-    ),
-    const ReleaseChange(
-      icon: Icons.notifications_rounded,
-      rawIconName: 'notifications',
-      badge: 'Fixed',
-      title: 'Notification Settings — Duplicate Button Removed',
-      description:
-          'The duplicate "Save" button in Notification Settings has been removed. Only one save button remains at the bottom of the screen.',
-    ),
-    const ReleaseChange(
-      icon: Icons.payment_rounded,
-      rawIconName: 'payment',
-      badge: 'Fixed',
-      title: 'Payment Methods — Settings Synced',
-      description:
-          'Recording a payment now shows the same methods you configured in Settings → Payment Methods. Hardcoded fallback list replaced.',
-    ),
-    const ReleaseChange(
-      icon: Icons.picture_as_pdf_rounded,
-      rawIconName: 'picture_as_pdf',
-      badge: 'Fixed',
-      title: 'Receipt Watermark in Shared PDF',
-      description:
-          'Organisation logo watermark now correctly appears in shared/downloaded receipt PDFs, not just in the preview.',
-    ),
-    const ReleaseChange(
-      icon: Icons.screenshot_monitor_rounded,
-      rawIconName: 'screenshot_monitor',
-      badge: 'New',
-      title: 'Screenshot Protection Toggle',
-      description:
-          'Admins can now enable or disable screenshot & screen-recording protection globally from Security Settings. Payment, ID Card, and Receipt screens always enforce protection.',
-    ),
-    const ReleaseChange(
-      icon: Icons.badge_rounded,
-      rawIconName: 'badge',
-      badge: 'New',
-      title: 'Membership ID in Student Profile',
-      description:
-          'Student membership ID is now prominently shown in the student detail header. Long-press to copy it to clipboard.',
-    ),
-    const ReleaseChange(
-      icon: Icons.drag_handle_rounded,
-      rawIconName: 'drag_handle',
-      badge: 'Fixed',
-      title: 'Field Reordering Now Works',
-      description:
-          'Drag-to-reorder in Admin Settings → Form Fields (and Payment Methods) was silently broken due to a wrong callback name. Now fully functional.',
-    ),
-    const ReleaseChange(
-      icon: Icons.arrow_back_rounded,
-      rawIconName: 'arrow_back',
-      badge: 'Fixed',
-      title: 'Back Button — No Longer Closes App',
-      description:
-          'Pressing back on a Student Profile no longer exits the app when it\'s the root screen. Now correctly navigates to the student list.',
-    ),
-    const ReleaseChange(
-      icon: Icons.image_rounded,
-      rawIconName: 'image',
-      badge: 'Fixed',
-      title: 'Login Logo — Instant Branding',
-      description:
-          'Organisation logo and name are now cached locally, so they appear instantly on the login screen without waiting for a network request.',
-    ),
-  ];
-
-
-  /// Concrete features exclusively relevant for Students (v1.5.12)
-  static final List<ReleaseChange> studentChanges = [
-    const ReleaseChange(
-      icon: Icons.shield_rounded,
-      rawIconName: 'shield',
-      badge: 'Account Security',
-      title: 'Play Integrity App Protection',
-      description:
-          'App communication is verified with Google Play Integrity attestation to safeguard your membership and attendance records.',
+          'Official fee receipts are automatically generated and recorded whenever an admin assigns or renews a student plan.',
     ),
     const ReleaseChange(
       icon: Icons.receipt_long_rounded,
       rawIconName: 'receipt',
-      badge: 'Fee Receipts',
-      title: 'Digital Receipts with Official Stamp & ₹',
+      badge: 'Audit Trail',
+      title: 'Full Announcement Audit Logs',
       description:
-          'Access and download official fee receipts featuring genuine ₹ rupee symbols and verified library watermark seals.',
+          'Deletion of notices, fee changes, and critical actions are immutably logged with timestamp and staff author.',
     ),
     const ReleaseChange(
-      icon: Icons.alarm_rounded,
-      rawIconName: 'alarm',
-      badge: 'Grace Period',
-      title: 'Automated Membership Status Badges',
+      icon: Icons.system_update_rounded,
+      rawIconName: 'system_update',
+      badge: 'Real-Time Web',
+      title: 'Real-Time Organization Web & Seat Sync',
       description:
-          'Your membership tab now shows clear Active, Grace Period (7 days), or Expired status chips with 1-tap seat renewal.',
+          'Web download portal and live seat map now dynamically synchronize with your library logo, colors, address, and live seats directly from Firestore.',
     ),
     const ReleaseChange(
-      icon: Icons.history_rounded,
-      rawIconName: 'history',
-      badge: 'Activity Log',
-      title: 'Verified Student History Ledger',
+      icon: Icons.document_scanner_rounded,
+      rawIconName: 'document_scanner',
+      badge: 'Sequential',
+      title: 'Sequential Student & Receipt IDs',
       description:
-          'View real-time database activity logs of your plan activations, renewals, and seat updates.',
+          'Atomic counters generate sequential receipt numbers (REC-0001) and student member IDs (CC20260001) without collision risk.',
+    ),
+  ];
+
+  /// Concrete features exclusively relevant for Students (v1.5.24)
+  static final List<ReleaseChange> studentChanges = [
+    const ReleaseChange(
+      icon: Icons.palette_rounded,
+      rawIconName: 'palette',
+      badge: 'Branding',
+      title: 'Matches Your Library Brand',
+      description:
+          'App theme colors and accent highlights now dynamically reflect your library official brand identity.',
     ),
     const ReleaseChange(
       icon: Icons.badge_rounded,
       rawIconName: 'badge',
-      badge: 'Digital Pass',
-      title: 'Digital Student ID Card & Offline Pocket Badge',
+      badge: 'Home Bar',
+      title: 'Library Tagline in Home Screen',
       description:
-          'Access your official library ID card with verified barcode and assigned seat anytime right from your profile, with instant PDF download.',
+          'Your library official tagline is now featured prominently under the library name in the student home app bar.',
+    ),
+    const ReleaseChange(
+      icon: Icons.receipt_long_rounded,
+      rawIconName: 'receipt',
+      badge: 'Official Stamp',
+      title: 'Official Fee Receipts & Rupee Currency',
+      description:
+          'View and download authentic fee receipts featuring genuine ₹ rupee symbols and official library verification stamps.',
+    ),
+    const ReleaseChange(
+      icon: Icons.shield_rounded,
+      rawIconName: 'lock',
+      badge: 'Play Integrity',
+      title: 'Play Integrity Account Security',
+      description:
+          'Cryptographically verified app attestation to safeguard your student account, seat, and personal data.',
     ),
     const ReleaseChange(
       icon: Icons.event_seat_rounded,
       rawIconName: 'seat',
-      badge: 'Live Availability',
-      title: 'Real-Time Seat Status & Quick Check',
+      badge: 'Live Map',
+      title: 'Live Real-Time Seat Status',
       description:
-          'Check your assigned seat and view real-time open seats in your reading section directly from your phone.',
-    ),
-    const ReleaseChange(
-      icon: Icons.lock_outline_rounded,
-      rawIconName: 'lock',
-      badge: 'Data Privacy',
-      title: 'Aadhaar & Personal Data Encryption',
-      description:
-          'Your government ID numbers are now encrypted with AES-256 and masked (•••• •••• 1234) with a secure 1-tap reveal toggle.',
-    ),
-    const ReleaseChange(
-      icon: Icons.receipt_long_rounded,
-      rawIconName: 'receipt',
-      badge: 'Instant Receipts',
-      title: 'Digital Fee Receipts with Official Stamp',
-      description:
-          'View and download authentic fee receipts featuring your library official stamp and watermark verification.',
-    ),
-    const ReleaseChange(
-      icon: Icons.campaign_rounded,
-      rawIconName: 'announcement',
-      badge: 'Live Alerts',
-      title: 'Library Notices & Upcoming Holidays',
-      description:
-          'Stay informed with instant schedule announcements and upcoming library holiday lists right on your home tab.',
-    ),
-    const ReleaseChange(
-      icon: Icons.auto_awesome_rounded,
-      rawIconName: 'auto_awesome',
-      badge: 'Performance',
-      title: 'Instant Launch & Offline Caching',
-      description:
-          'Lightning-fast app launch with your library branding and offline access to your membership profile and receipts.',
+          'Check current seat occupancy, available seats, and section tags directly from the live map.',
     ),
   ];
 

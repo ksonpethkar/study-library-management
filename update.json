@@ -1,8 +1,81 @@
 {
-  "latestVersion": "1.5.23",
-  "latestBuild": 30,
-  "versionName": "1.5.23+30",
-  "releaseNotes": "v1.5.23: Dynamic app theme from library brand color, tagline shown in student home, all hardcoded indigo colors removed",
-  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.23/StudyLibrary.apk",
-  "mandatory": false
+  "latestVersion": "1.5.24",
+  "latestBuild": 31,
+  "versionName": "1.5.24+31",
+  "apkSize": "74.0 MB",
+  "releaseNotes": "v1.5.24: Real-time organization branding & logo across web pages, live seat map & app info; updated release changelog; dynamic APK size",
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.24/StudyLibrary.apk",
+  "mandatory": false,
+  "organization": {
+    "name": "The Cozy Corner Centre",
+    "address": "Front Of Reliance Fasion Factory, Nath Road, Parli-431515",
+    "contact": "8625982248",
+    "email": "thecozycornersc@gmail.com",
+    "operatingHours": "6:00 AM - 11:00 PM",
+    "accentColor": "#5D4037"
+  },
+  "studentFeatures": [
+    {
+      "icon": "palette",
+      "badge": "Branding",
+      "title": "Matches Your Library Brand",
+      "description": "App styling and theme colors dynamically reflect your library's official brand accent."
+    },
+    {
+      "icon": "badge",
+      "badge": "Home Bar",
+      "title": "Library Tagline in Home Screen",
+      "description": "Your library official tagline is now featured directly under the library name in the home app bar."
+    },
+    {
+      "icon": "receipt",
+      "badge": "Verified",
+      "title": "Official Fee Receipts & Rupee Currency",
+      "description": "Download authentic fee receipts with official stamps, verification seals, and genuine ₹ rupee formatting."
+    },
+    {
+      "icon": "lock",
+      "badge": "Security",
+      "title": "Play Integrity Protection",
+      "description": "Cryptographically verified app attestation to safeguard your student account, seat, and personal data."
+    },
+    {
+      "icon": "seat",
+      "badge": "Live Map",
+      "title": "Live Real-Time Seat Status",
+      "description": "Check current seat occupancy, available seats, and section tags directly from the live map."
+    }
+  ],
+  "adminFeatures": [
+    {
+      "icon": "palette",
+      "badge": "Dynamic Theme",
+      "title": "Dynamic Brand Palette",
+      "description": "Set any accent color in Library Settings — the entire app theme and web pages adapt instantly in light and dark mode."
+    },
+    {
+      "icon": "approval",
+      "badge": "Automated",
+      "title": "Auto-Receipt on Plan Assignment",
+      "description": "Official fee receipts are automatically generated and recorded whenever an admin assigns or renews a student plan."
+    },
+    {
+      "icon": "receipt",
+      "badge": "Audit Logs",
+      "title": "Full Announcement & Action Audit Trails",
+      "description": "Deletion of notices and critical administrative actions are immutably logged with timestamp and staff author."
+    },
+    {
+      "icon": "system_update",
+      "badge": "Smart Updates",
+      "title": "Real-Time Organization Branding",
+      "description": "Website landing page, download portal, and live seat map now dynamically synchronize with your library's logo, colors, and address from Firestore."
+    },
+    {
+      "icon": "document_scanner",
+      "badge": "OCR & Scanner",
+      "title": "Automated Student ID & Sequential Numbers",
+      "description": "Sequential student member IDs (e.g., CC20260001) and receipt numbers generated atomically without conflicts."
+    }
+  ]
 }
