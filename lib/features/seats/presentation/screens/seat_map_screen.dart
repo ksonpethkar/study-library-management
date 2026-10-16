@@ -122,26 +122,43 @@ class SeatMapScreen extends ConsumerWidget {
                   section.id,
                 );
 
+                final sectionColor = Color(section.color != 0 ? section.color : 0xFF5D4037);
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),
                   elevation: hasSelectedInSection ? 3 : 1,
+                  clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side: hasSelectedInSection
                         ? BorderSide(
-                            color: Theme.of(context).primaryColor,
-                            width: 1.5,
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2,
                           )
-                        : BorderSide.none,
+                        : BorderSide(
+                            color: sectionColor.withValues(alpha: 0.35),
+                            width: 1.5,
+                          ),
                   ),
                   child: ExpansionTile(
                     initiallyExpanded: index == 0,
                     leading: Container(
-                      width: 18,
-                      height: 18,
+                      width: 28,
+                      height: 28,
                       decoration: BoxDecoration(
-                        color: Color(section.color),
+                        color: sectionColor,
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: sectionColor.withValues(alpha: 0.35),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.meeting_room_rounded,
+                        size: 16,
+                        color: Colors.white,
                       ),
                     ),
                     title: Row(
@@ -350,6 +367,7 @@ class SeatMapScreen extends ConsumerWidget {
                           sectionId: section.id,
                           rows: section.rows,
                           cols: section.cols,
+                          sectionColor: section.color,
                         ),
                       ),
                     ],

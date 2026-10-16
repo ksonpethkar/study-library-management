@@ -6,6 +6,7 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/widgets/empty_state_widget.dart';
 import 'package:study_library/models/announcement_model.dart';
 import 'package:study_library/core/security/audit_logger.dart';
+import 'package:study_library/features/recycle_bin/data/repositories/recycle_bin_repository.dart';
 
 /// Stream provider for announcements of the current library, sorted by createdAt descending.
 final announcementsStreamProvider =
@@ -186,6 +187,18 @@ class AnnouncementListScreen extends ConsumerWidget {
 
                   if (confirmed == true) {
                     try {
+                      // Move to Recycle Bin for 30-day recovery
+                      await RecycleBinRepository().moveToRecycleBin(
+                        libraryId,
+                        'announcement',
+                        {
+                          ...announcement.toJson(),
+                          'id': announcement.id,
+                          'name': announcement.title,
+                          'displayName': announcement.title,
+                        },
+                      );
+
                       await FirebaseFirestore.instance
                           .collection('libraries')
                           .doc(libraryId)
@@ -198,12 +211,20 @@ class AnnouncementListScreen extends ConsumerWidget {
                         entityType: AuditEntity.announcement,
                         libraryId: libraryId,
                         entityId: announcement.id,
-                        details: {'title': announcement.title},
+                        details: {'title': announcement.title, 'movedToRecycleBin': true},
                       ).ignore();
 
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Announcement deleted')),
+                          SnackBar(
+                            content: const Text('Announcement moved to Recycle Bin (30-day recovery)'),
+                            action: SnackBarAction(
+                              label: 'Undo',
+                              onPressed: () async {
+                                await RecycleBinRepository().restoreFromRecycleBin(libraryId, announcement.id);
+                              },
+                            ),
+                          ),
                         );
                       }
                       return true;

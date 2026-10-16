@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/staff_model.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
+import 'package:study_library/core/security/audit_logger.dart';
 
 class StaffListScreen extends ConsumerStatefulWidget {
   const StaffListScreen({super.key});
@@ -211,6 +212,14 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                               createdAt: DateTime.now(),
                             );
                             await repo.addStaff(libraryId, newStaff);
+                            AuditLogger().log(
+                              action: AuditAction.created,
+                              entityType: AuditEntity.staff,
+                              libraryId: libraryId,
+                              entityId: newStaff.id,
+                              entityName: newStaff.name,
+                              details: {'email': newStaff.email, 'role': newStaff.role.name},
+                            ).ignore();
                           } else {
                             final updated = existingStaff.copyWith(
                               name: name,
@@ -224,6 +233,14 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
                               updatedAt: DateTime.now(),
                             );
                             await repo.updateStaff(libraryId, updated);
+                            AuditLogger().log(
+                              action: AuditAction.updated,
+                              entityType: AuditEntity.staff,
+                              libraryId: libraryId,
+                              entityId: updated.id,
+                              entityName: updated.name,
+                              details: {'email': updated.email, 'role': updated.role.name},
+                            ).ignore();
                           }
 
                           if (ctx.mounted) Navigator.pop(ctx);
@@ -265,6 +282,14 @@ class _StaffListScreenState extends ConsumerState<StaffListScreen> {
             onPressed: () async {
               final repo = ref.read(staffRepositoryProvider);
               await repo.removeStaff(libraryId, staff.id, staff.email);
+              AuditLogger().log(
+                action: AuditAction.deleted,
+                entityType: AuditEntity.staff,
+                libraryId: libraryId,
+                entityId: staff.id,
+                entityName: staff.name,
+                details: {'email': staff.email},
+              ).ignore();
               if (ctx.mounted) Navigator.pop(ctx);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

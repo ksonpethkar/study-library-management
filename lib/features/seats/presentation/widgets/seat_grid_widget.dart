@@ -12,6 +12,7 @@ class SeatGridWidget extends ConsumerWidget {
   final String sectionId;
   final int rows;
   final int cols;
+  final int? sectionColor;
 
   const SeatGridWidget({
     super.key,
@@ -19,24 +20,42 @@ class SeatGridWidget extends ConsumerWidget {
     required this.sectionId,
     required this.rows,
     required this.cols,
+    this.sectionColor,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final seatsAsync = ref.watch(seatsProvider(sectionId));
     final selectedSeats = ref.watch(selectedSeatsProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Legend
+        // Legend with matching tile backgrounds and borders
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildLegendItem(Colors.green, 'Available'),
-            _buildLegendItem(Colors.red, 'Occupied'),
-            _buildLegendItem(Colors.amber, 'Reserved'),
-            _buildLegendItem(Colors.grey, 'Maintenance'),
+            _buildLegendItem(
+              isDark ? const Color(0xFF1B382B) : const Color(0xFFE8F5E9),
+              isDark ? const Color(0xFF2E7D32) : const Color(0xFF81C784),
+              'Available',
+            ),
+            _buildLegendItem(
+              isDark ? const Color(0xFF3E1D24) : const Color(0xFFFFEBEE),
+              isDark ? const Color(0xFFC62828) : const Color(0xFFEF9A9A),
+              'Occupied',
+            ),
+            _buildLegendItem(
+              isDark ? const Color(0xFF3E3218) : const Color(0xFFFFF8E1),
+              isDark ? const Color(0xFFF57F17) : const Color(0xFFFFD54F),
+              'Reserved',
+            ),
+            _buildLegendItem(
+              isDark ? const Color(0xFF2B2B2B) : const Color(0xFFEEEEEE),
+              isDark ? const Color(0xFF616161) : const Color(0xFFBDBDBD),
+              'Maintenance',
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -82,6 +101,7 @@ class SeatGridWidget extends ConsumerWidget {
                     return SeatTile(
                       seat: seat,
                       isSelected: isSelected,
+                      sectionColor: sectionColor != null ? Color(sectionColor!) : null,
                       onTap: () {
                         if (isMissing) return;
                         if (selectedSeats.isNotEmpty) {
@@ -119,19 +139,24 @@ class SeatGridWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildLegendItem(Color color, String label) {
+  Widget _buildLegendItem(Color bgColor, Color borderColor, String label) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 14,
+          height: 14,
           decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
+            color: bgColor,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: borderColor, width: 1.2),
           ),
         ),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 12)),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        ),
       ],
     );
   }

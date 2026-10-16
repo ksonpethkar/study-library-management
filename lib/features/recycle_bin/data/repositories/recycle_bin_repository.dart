@@ -98,6 +98,7 @@ class RecycleBinRepository {
       case 'section': return FirestorePaths.sections;
       case 'plan': return FirestorePaths.plans;
       case 'receipt': return FirestorePaths.receipts;
+      case 'announcement': return 'announcements';
       default: return '';
     }
   }

@@ -30,6 +30,7 @@ enum AuditEntity {
   holiday,
   settings,
   library,
+  staff,
 }
 
 class AuditLogger {

@@ -12,6 +12,79 @@ class BackupService {
 
   BackupService({FirebaseFirestore? firestore}) : _firestore = firestore ?? FirebaseFirestore.instance;
 
+  static const List<String> _supportedCollections = [
+    'students',
+    'seats',
+    'sections',
+    'plans',
+    'receipts',
+    'payments',
+    'settings',
+    'announcements',
+    'holidays',
+    'staff',
+    'waiting_list',
+    'requests',
+  ];
+
+  /// Recursively encodes Firestore types (like Timestamp and DateTime) into JSON-safe representations.
+  static dynamic _encodeValue(dynamic value) {
+    if (value is Timestamp) {
+      return {
+        '__type__': 'timestamp',
+        'seconds': value.seconds,
+        'nanoseconds': value.nanoseconds,
+      };
+    } else if (value is DateTime) {
+      return {
+        '__type__': 'datetime',
+        'iso': value.toIso8601String(),
+      };
+    } else if (value is GeoPoint) {
+      return {
+        '__type__': 'geopoint',
+        'latitude': value.latitude,
+        'longitude': value.longitude,
+      };
+    } else if (value is DocumentReference) {
+      return {
+        '__type__': 'docref',
+        'path': value.path,
+      };
+    } else if (value is Map) {
+      return value.map((k, v) => MapEntry(k.toString(), _encodeValue(v)));
+    } else if (value is List) {
+      return value.map(_encodeValue).toList();
+    }
+    return value;
+  }
+
+  /// Recursively decodes JSON representations back into Firestore-compatible objects.
+  static dynamic _decodeValue(dynamic value) {
+    if (value is Map) {
+      if (value['__type__'] == 'timestamp') {
+        final sec = value['seconds'] as int? ?? 0;
+        final nano = value['nanoseconds'] as int? ?? 0;
+        return Timestamp(sec, nano);
+      } else if (value['__type__'] == 'datetime') {
+        final iso = value['iso'] as String?;
+        if (iso != null) {
+          try {
+            return DateTime.parse(iso);
+          } catch (_) {}
+        }
+      } else if (value['__type__'] == 'geopoint') {
+        final lat = (value['latitude'] as num?)?.toDouble() ?? 0.0;
+        final lng = (value['longitude'] as num?)?.toDouble() ?? 0.0;
+        return GeoPoint(lat, lng);
+      }
+      return value.map((k, v) => MapEntry(k.toString(), _decodeValue(v)));
+    } else if (value is List) {
+      return value.map(_decodeValue).toList();
+    }
+    return value;
+  }
+
   /// Creates a JSON backup file containing all library collections.
   /// Each document includes its Firestore ID stored under '__docId__' key
   /// so it can be restored to the exact same document reference.
@@ -22,23 +95,19 @@ class BackupService {
       'timestamp': DateTime.now().toIso8601String(),
     };
 
-    final collections = [
-      'students', 'seats', 'sections', 'plans',
-      'receipts', 'payments', 'settings',
-    ];
-
-    for (final col in collections) {
+    for (final col in _supportedCollections) {
       try {
         final snapshot = await _firestore
             .collection('libraries')
             .doc(libraryId)
             .collection(col)
             .get();
-        // Include doc ID as '__docId__' so restore can use the exact same reference
+        // Include doc ID as '__docId__' and encode Firestore timestamps safely
         data[col] = snapshot.docs.map((doc) {
-          final d = Map<String, dynamic>.from(doc.data());
-          d['__docId__'] = doc.id;
-          return d;
+          final rawData = Map<String, dynamic>.from(doc.data());
+          final encoded = _encodeValue(rawData) as Map<String, dynamic>;
+          encoded['__docId__'] = doc.id;
+          return encoded;
         }).toList();
       } catch (e) {
         debugPrint('Backup: could not read collection $col — $e');
@@ -68,14 +137,9 @@ class BackupService {
         throw Exception('Backup file belongs to a different library.');
       }
 
-      final collections = [
-        'students', 'seats', 'sections', 'plans',
-        'receipts', 'payments', 'settings',
-      ];
-
       // Count total operations for progress
       int totalOperations = 0;
-      for (final col in collections) {
+      for (final col in _supportedCollections) {
         if (data[col] != null) {
           totalOperations += (data[col] as List).length;
         }
@@ -86,7 +150,7 @@ class BackupService {
       WriteBatch batch = _firestore.batch();
       int batchCount = 0;
 
-      for (final col in collections) {
+      for (final col in _supportedCollections) {
         if (data[col] == null) continue;
         final list = data[col] as List<dynamic>;
 
@@ -99,16 +163,17 @@ class BackupService {
               (docData['id'] as String?);
           if (docId == null || docId.isEmpty) continue;
 
-          // Remove the helper key before writing back to Firestore
+          // Remove helper key and decode timestamps back into native Firestore types
           final cleanData = Map<String, dynamic>.from(docData)
             ..remove('__docId__');
+          final decodedData = _decodeValue(cleanData) as Map<String, dynamic>;
 
           final docRef = _firestore
               .collection('libraries')
               .doc(libraryId)
               .collection(col)
               .doc(docId);
-          batch.set(docRef, cleanData, SetOptions(merge: true));
+          batch.set(docRef, decodedData, SetOptions(merge: true));
           batchCount++;
           completedOperations++;
 
@@ -133,13 +198,12 @@ class BackupService {
 
   /// Gets the estimated size of the backup in bytes by calculating average document size.
   Future<int> getBackupSize(String libraryId) async {
-    // This is an estimation since Firestore doesn't provide exact collection size easily.
     int estimatedBytes = 0;
-    final collections = ['students', 'seats', 'sections', 'plans', 'receipts', 'payments', 'settings'];
-    for (final col in collections) {
-      final snapshot = await _firestore.collection('libraries').doc(libraryId).collection(col).count().get();
-      // Assume average doc size is 1KB
-      estimatedBytes += (snapshot.count ?? 0) * 1024;
+    for (final col in _supportedCollections) {
+      try {
+        final snapshot = await _firestore.collection('libraries').doc(libraryId).collection(col).count().get();
+        estimatedBytes += (snapshot.count ?? 0) * 1024;
+      } catch (_) {}
     }
     return estimatedBytes;
   }

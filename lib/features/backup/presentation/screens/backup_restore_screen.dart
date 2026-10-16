@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/services/backup_service.dart';
 
 class BackupRestoreScreen extends ConsumerStatefulWidget {
@@ -26,6 +27,13 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     try {
       final service = BackupService();
       final file = await service.createBackup(libraryId);
+
+      AuditLogger().log(
+        action: AuditAction.exported,
+        entityType: AuditEntity.settings,
+        libraryId: libraryId,
+        details: {'type': 'full_json_backup', 'path': file.path},
+      ).ignore();
 
       await SharePlus.instance.share(
         ShareParams(
@@ -97,6 +105,13 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
     try {
       final service = BackupService();
       await service.restoreFromBackup(libraryId, File(path));
+
+      AuditLogger().log(
+        action: AuditAction.imported,
+        entityType: AuditEntity.settings,
+        libraryId: libraryId,
+        details: {'type': 'full_json_restore', 'path': path},
+      ).ignore();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

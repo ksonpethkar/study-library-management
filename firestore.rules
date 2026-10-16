@@ -16,10 +16,20 @@ service cloud.firestore {
       return request.auth.token.email;
     }
 
-    // Owner = person who created the library (ownerId field on library doc)
+    function isMasterAdmin() {
+      return isAuth() && (
+        email() in ['ksonpethkar@gmail.com', 'thecozycornersc@gmail.com'] ||
+        (exists(/databases/$(database)/documents/admin_whitelist/$(email())) &&
+         get(/databases/$(database)/documents/admin_whitelist/$(email())).data.isActive == true)
+      );
+    }
+
+    // Owner = person who created the library OR a verified master admin
     function isOwner(libraryId) {
-      return isAuth() &&
-        get(/databases/$(database)/documents/libraries/$(libraryId)).data.ownerId == uid();
+      return isAuth() && (
+        get(/databases/$(database)/documents/libraries/$(libraryId)).data.ownerId == uid() ||
+        isMasterAdmin()
+      );
     }
 
     // Staff helper — checks the staff sub-collection for a specific permission
