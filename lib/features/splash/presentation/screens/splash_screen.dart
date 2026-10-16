@@ -228,6 +228,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           role: AppUserRole.admin,
           libraryId: libId,
         );
+        // Restore cloud security settings (PIN, timeout) in case of fresh install
+        await BiometricService.restoreSecuritySettingsFromFirestore(libId);
         final isLocked = await BiometricService.isLockEnabled();
         await _ensureMinAnimationDuration(startTime);
         if (!mounted) return;
@@ -246,6 +248,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         if (roleStr == 'admin') {
           ref.read(currentLibraryIdProvider.notifier).set(libId);
           ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
+          await BiometricService.restoreSecuritySettingsFromFirestore(libId);
           final isLocked = await BiometricService.isLockEnabled();
           await _ensureMinAnimationDuration(startTime);
           if (!mounted) return;

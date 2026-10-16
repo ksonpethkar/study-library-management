@@ -33,6 +33,10 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
   }
 
   Future<void> _loadState() async {
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId != null && libraryId.isNotEmpty) {
+      await BiometricService.restoreSecuritySettingsFromFirestore(libraryId);
+    }
     final available = await BiometricService.isBiometricAvailable();
     final enabled = await BiometricService.isBiometricEnabled();
     final hasPin = await BiometricService.hasPin();
@@ -52,12 +56,13 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
   }
 
   Future<void> _toggleScreenshotProtection(bool value) async {
+    // Optimistic instant UI update
+    setState(() => _screenshotProtectionEnabled = value);
     await setScreenshotProtectionEnabled(value);
     final libraryId = ref.read(currentLibraryIdProvider);
     if (libraryId != null && libraryId.isNotEmpty) {
-      await syncScreenshotProtectionToFirestore(libraryId, value);
+      syncScreenshotProtectionToFirestore(libraryId, value).catchError((_) {});
     }
-    if (mounted) setState(() => _screenshotProtectionEnabled = value);
   }
 
   Future<void> _toggleBiometric(bool value) async {
@@ -91,6 +96,10 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
       }
     }
     await BiometricService.setBiometricEnabled(value);
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId != null && libraryId.isNotEmpty) {
+      BiometricService.syncSecuritySettingsToFirestore(libraryId).catchError((_) {});
+    }
     setState(() => _biometricEnabled = value);
   }
 
@@ -151,6 +160,10 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
                 return;
               }
               await BiometricService.setPin(pin);
+              final libraryId = ref.read(currentLibraryIdProvider);
+              if (libraryId != null && libraryId.isNotEmpty) {
+                BiometricService.syncSecuritySettingsToFirestore(libraryId).catchError((_) {});
+              }
               if (!ctx.mounted) return;
               Navigator.of(ctx).pop();
               if (!mounted) return;
@@ -168,6 +181,10 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
 
   Future<void> _removePin() async {
     await BiometricService.clearPin();
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId != null && libraryId.isNotEmpty) {
+      BiometricService.clearPinFromFirestore(libraryId).catchError((_) {});
+    }
     _loadState();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -220,26 +237,28 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
                   ),
                   const SizedBox(height: 16),
 
-                  // Screenshot Protection Toggle
-                  SwitchListTile(
+                  // Screenshot Protection Toggle (Switch isolated so tapping text doesn't click entire section)
+                  ListTile(
                     contentPadding: EdgeInsets.zero,
-                    secondary: const Icon(Icons.screenshot_monitor_rounded),
+                    leading: const Icon(Icons.screenshot_monitor_rounded),
                     title: const Text('Screenshot Protection', style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: const Text(
                       'Prevents screenshots & screen recording in the app. '
                       'Always enforced on: Payment, Receipt, ID Card, and Student financial screens.',
                       style: TextStyle(fontSize: 12),
                     ),
-                    value: _screenshotProtectionEnabled,
-                    onChanged: _toggleScreenshotProtection,
+                    trailing: Switch.adaptive(
+                      value: _screenshotProtectionEnabled,
+                      onChanged: _toggleScreenshotProtection,
+                    ),
                   ),
 
                   const Divider(),
 
-                  // Biometric Toggle
-                  SwitchListTile(
+                  // Biometric Toggle (Switch isolated)
+                  ListTile(
                     contentPadding: EdgeInsets.zero,
-                    secondary: const Icon(Icons.fingerprint_rounded),
+                    leading: const Icon(Icons.fingerprint_rounded),
                     title: const Text('Biometric Lock', style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: Text(
                       _biometricAvailable
@@ -247,8 +266,10 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
                           : 'Biometrics not available on this device',
                       style: const TextStyle(fontSize: 12),
                     ),
-                    value: _biometricEnabled && _biometricAvailable,
-                    onChanged: _biometricAvailable ? _toggleBiometric : null,
+                    trailing: Switch.adaptive(
+                      value: _biometricEnabled && _biometricAvailable,
+                      onChanged: _biometricAvailable ? _toggleBiometric : null,
+                    ),
                   ),
 
                   const Divider(),
@@ -299,6 +320,10 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
                       onChanged: (val) async {
                         if (val != null) {
                           await BiometricService.setAutoLockTimeoutMinutes(val);
+                          final libraryId = ref.read(currentLibraryIdProvider);
+                          if (libraryId != null && libraryId.isNotEmpty) {
+                            BiometricService.syncSecuritySettingsToFirestore(libraryId).catchError((_) {});
+                          }
                           setState(() => _autoLockMinutes = val);
                         }
                       },

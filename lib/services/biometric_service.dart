@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
@@ -90,6 +91,72 @@ class BiometricService {
   static Future<void> clearPin() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyPinHash);
+  }
+
+  /// Sync security settings to Firestore so they survive uninstalls/reinstalls
+  static Future<void> syncSecuritySettingsToFirestore(String libraryId) async {
+    if (libraryId.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pinHash = prefs.getString(_keyPinHash);
+      final bioEnabled = prefs.getBool(_keyBiometricEnabled) ?? false;
+      final autoLock = prefs.getInt(_keyAutoLockMinutes) ?? 2;
+
+      final data = <String, dynamic>{
+        'autoLockMinutes': autoLock,
+        'biometricEnabled': bioEnabled,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (pinHash != null && pinHash.isNotEmpty) {
+        data['pinHash'] = pinHash;
+      }
+      await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('settings')
+          .doc('security')
+          .set(data, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  /// Restore security settings from Firestore (called on login/app init)
+  static Future<void> restoreSecuritySettingsFromFirestore(String libraryId) async {
+    if (libraryId.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final doc = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('settings')
+          .doc('security')
+          .get();
+      if (!doc.exists) return;
+      final data = doc.data();
+      if (data == null) return;
+
+      final localPinHash = prefs.getString(_keyPinHash);
+      final remotePinHash = data['pinHash'] as String?;
+      if ((localPinHash == null || localPinHash.isEmpty) && remotePinHash != null && remotePinHash.isNotEmpty) {
+        await prefs.setString(_keyPinHash, remotePinHash);
+      }
+
+      if (data['autoLockMinutes'] is int) {
+        await prefs.setInt(_keyAutoLockMinutes, data['autoLockMinutes'] as int);
+      }
+    } catch (_) {}
+  }
+
+  /// Remove master PIN from Firestore
+  static Future<void> clearPinFromFirestore(String libraryId) async {
+    if (libraryId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('settings')
+          .doc('security')
+          .update({'pinHash': FieldValue.delete()});
+    } catch (_) {}
   }
 
   /// Is any security lock enabled (either biometric or PIN)?
