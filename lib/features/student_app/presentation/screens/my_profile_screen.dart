@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/services/image_service.dart';
@@ -13,6 +12,8 @@ import 'package:study_library/models/student_model.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/badge_service.dart';
 import 'package:study_library/services/expiry_scheduler_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 
 class MyProfileScreen extends ConsumerStatefulWidget {
   const MyProfileScreen({super.key});
@@ -232,6 +233,11 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     if (confirm == true) {
       await ExpirySchedulerService.cancelExpiryReminders();
       await BadgeService.clearBadge();
+      ref.read(userRoleProvider.notifier).clear();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('cached_current_user_role');
+      await prefs.remove('persisted_role');
+      await prefs.remove('persisted_uid');
       await FirebaseAuth.instance.signOut();
       if (mounted) context.go(Routes.login);
     }

@@ -1,0 +1,12 @@
+{
+  "latestVersion": "1.5.26-test.1",
+  "latestBuild": 33,
+  "versionName": "1.5.26-test.1+33",
+  "arm64Size": "45.0 MB",
+  "universalSize": "121.0 MB",
+  "releaseNotes": "Test Build: Admin Google Sign-In priority authorization, Base64 logo rendering on auth screen, dynamic tagline caching, and split-ABI mobile optimization (~45 MB).",
+  "arm64DownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/test-latest/StudyLibrary-Test-arm64.apk",
+  "universalDownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/test-latest/StudyLibrary-Test-Universal.apk",
+  "isTestChannel": true,
+  "builtAt": "2026-10-16"
+}

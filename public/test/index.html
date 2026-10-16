@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Cozy Corner Centre — Internal Test Portal</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Firebase Compat SDKs for Real-Time Firestore Sync -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <style>
+    :root {
+      --primary: #6366F1;
+      --primary-hover: #4F46E5;
+      --primary-light: #EEF2FF;
+      --test-badge-bg: #FEF3C7;
+      --test-badge-text: #B45309;
+      --surface: #FFFFFF;
+      --bg: #F8FAFC;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+      --success: #10B981;
+      --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary: #818CF8;
+        --primary-hover: #6366F1;
+        --primary-light: #1E1B4B;
+        --test-badge-bg: #451A03;
+        --test-badge-text: #FBBF24;
+        --surface: #1E293B;
+        --bg: #0F172A;
+        --text-main: #F8FAFC;
+        --text-muted: #94A3B8;
+        --border: #334155;
+        --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .test-banner {
+      background: var(--test-badge-bg);
+      color: var(--test-badge-text);
+      border: 1px dashed var(--test-badge-text);
+      border-radius: 12px;
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .hero-card {
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 2rem 1.75rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--card-shadow);
+      text-align: center;
+    }
+
+    .app-icon {
+      width: 96px;
+      height: 96px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, #6366F1 0%, #A855F7 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.25rem;
+      box-shadow: 0 12px 24px -4px rgba(99, 102, 241, 0.35);
+      color: white;
+      font-size: 2.5rem;
+      overflow: hidden;
+      border: 2px solid var(--border);
+    }
+
+    .app-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 22px;
+      display: block;
+    }
+
+    h1 {
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.35rem;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      margin-bottom: 0.85rem;
+    }
+
+    .badges-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .badge-test {
+      background: var(--test-badge-bg);
+      color: var(--test-badge-text);
+      border: 1px solid var(--test-badge-text);
+    }
+
+    .badge-signature {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .badge-size {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .download-btn-primary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+      color: white;
+      text-decoration: none;
+      padding: 1rem 1.25rem;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 1rem;
+      box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.4);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: none;
+    }
+
+    .download-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+    }
+
+    .download-btn-secondary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: var(--surface);
+      color: var(--text-main);
+      text-decoration: none;
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .download-btn-secondary:hover {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+
+    .checklist-card {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 1.5rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--card-shadow);
+    }
+
+    .checklist-card h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .checklist-items {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      font-size: 0.875rem;
+      line-height: 1.45;
+    }
+
+    .checklist-icon {
+      font-size: 1rem;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+
+    .prod-link-card {
+      text-align: center;
+      padding: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .prod-link-card a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .prod-link-card a:hover {
+      text-decoration: underline;
+    }
+
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 8px;
+      padding: 0.35rem 0.65rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-top: 0.5rem;
+    }
+
+    .copy-btn:hover {
+      color: var(--text-main);
+      background: var(--bg);
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Test Banner -->
+    <div class="test-banner">
+      <span>🧪 <strong>Private Testing Portal</strong> — Pre-Release Builds</span>
+      <span style="font-size: 0.75rem; opacity: 0.85;">Internal Use Only</span>
+    </div>
+
+    <!-- Main Card -->
+    <div class="hero-card">
+      <div class="app-icon" id="appLogo">
+        <span>📖</span>
+      </div>
+
+      <h1 id="appName">The Cozy Corner Centre</h1>
+      <p class="subtitle" id="appSubtitle">Smart Study Library & Co-Working Hub</p>
+
+      <div class="badges-row">
+        <span class="badge badge-test" id="testVersionBadge">v1.5.26-test (Build 33)</span>
+        <span class="badge badge-signature">✓ APK Scheme v2/v3</span>
+        <span class="badge badge-size" id="testSizeBadge">~45 MB (Optimized)</span>
+      </div>
+
+      <!-- Download Action Buttons -->
+      <div class="btn-group">
+        <a href="https://github.com/ksonpethkar/study-library-management/releases/download/test-latest/StudyLibrary-Test-arm64.apk" class="download-btn-primary" id="primaryDownloadBtn">
+          <span>📲</span>
+          <span id="primaryDownloadText">Download Test APK (~45 MB)</span>
+        </a>
+
+        <a href="https://github.com/ksonpethkar/study-library-management/releases/download/test-latest/StudyLibrary-Test-Universal.apk" class="download-btn-secondary" id="secondaryDownloadBtn">
+          <span>📦</span>
+          <span>Download Universal APK (All CPUs — ~120 MB)</span>
+        </a>
+      </div>
+
+      <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
+        💡 <strong>Recommendation:</strong> Use the <strong>~45 MB (arm64)</strong> build. It installs on 99% of modern phones and downloads 3x faster.
+      </p>
+
+      <button class="copy-btn" onclick="copyLink()">
+        <span>📋</span> Copy Direct Test Download Link
+      </button>
+    </div>
+
+    <!-- Testing Verification Checklist -->
+    <div class="checklist-card">
+      <h2>🔍 Verification Checklist for this Build</h2>
+      <ul class="checklist-items">
+        <li class="checklist-item">
+          <span class="checklist-icon">🔑</span>
+          <div>
+            <strong>1. Admin Google Sign-In</strong><br>
+            Sign in with your Google account (<code>ksonpethkar@gmail.com</code>). Verify it takes you straight to the <strong>Admin Dashboard</strong>, not student home.
+          </div>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-icon">🛡️</span>
+          <div>
+            <strong>2. Role Recovery Fallback</strong><br>
+            If any student error ever shows, verify the new button <strong>"I am Library Admin / Staff"</strong> promotes your session to Admin immediately.
+          </div>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-icon">🎨</span>
+          <div>
+            <strong>3. Logo & Brand Tagline</strong><br>
+            Verify your official library logo (Base64) renders sharply on the Auth and Splash screens without falling back to the book icon.
+          </div>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-icon">🌙</span>
+          <div>
+            <strong>4. Dark Mode Contrast</strong><br>
+            Turn on Dark Theme in settings. Verify card borders, buttons, and student home text are crisp and high-contrast.
+          </div>
+        </li>
+        <li class="checklist-item">
+          <span class="checklist-icon">⚡</span>
+          <div>
+            <strong>5. Reduced Mobile Size</strong><br>
+            Verify APK download was only ~45 MB instead of 127 MB.
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Production Portal Backlink -->
+    <div class="prod-link-card">
+      Looking for the official public release?<br>
+      <a href="/download/">Go to Official Production Download Portal (v1.5.25) &rarr;</a>
+    </div>
+
+    <footer>
+      The Cozy Corner Centre &bull; Staging & Testing Channel &bull; Private
+    </footer>
+  </div>
+
+  <script>
+    function copyLink() {
+      const url = document.getElementById('primaryDownloadBtn').href;
+      navigator.clipboard.writeText(url).then(function() {
+        alert('Test APK download link copied to clipboard!');
+      }).catch(function() {
+        prompt('Copy this URL:', url);
+      });
+    }
+
+    // 1. Fetch test metadata
+    fetch('/test-update.json?t=' + Date.now())
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.versionName) {
+          document.getElementById('testVersionBadge').textContent = data.versionName;
+        }
+        if (data.arm64Size) {
+          document.getElementById('testSizeBadge').textContent = data.arm64Size + ' (Optimized)';
+          document.getElementById('primaryDownloadText').textContent = 'Download Test APK (' + data.arm64Size + ')';
+        }
+        if (data.arm64DownloadUrl) {
+          document.getElementById('primaryDownloadBtn').href = data.arm64DownloadUrl;
+        }
+        if (data.universalDownloadUrl) {
+          document.getElementById('secondaryDownloadBtn').href = data.universalDownloadUrl;
+        }
+      })
+      .catch(function() {});
+
+    // 2. Real-Time Firestore Synchronization for Organization Data & Logo
+    const firebaseConfig = {
+      apiKey: "AIzaSyClC8NiUxzJAH8vID1SnSChJv40H_rRCts",
+      authDomain: "study-lib-mgmt-2026.firebaseapp.com",
+      projectId: "study-lib-mgmt-2026",
+      storageBucket: "study-lib-mgmt-2026.firebasestorage.app",
+      messagingSenderId: "670017745754",
+      appId: "1:670017745754:web:65b2714afda4abe9d03963"
+    };
+
+    try {
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+
+      db.collection('libraries').doc('aPSMq8xSAjuZQh2fTtuY').onSnapshot(function(doc) {
+        if (!doc.exists) return;
+        const lib = doc.data();
+
+        if (lib.name) {
+          document.getElementById('appName').textContent = lib.name;
+          document.title = lib.name + ' — Internal Test Portal';
+        }
+
+        if (lib.tagline && lib.tagline.trim().length > 0) {
+          document.getElementById('appSubtitle').textContent = lib.tagline;
+        } else if (lib.welcomeMessage && lib.welcomeMessage.trim().length > 0) {
+          document.getElementById('appSubtitle').textContent = lib.welcomeMessage;
+        }
+
+        if (lib.logoUrl && lib.logoUrl.trim().length > 0) {
+          var logoDiv = document.getElementById('appLogo');
+          if (logoDiv) {
+            logoDiv.innerHTML = '<img src="' + lib.logoUrl + '" alt="' + (lib.name || 'Library') + ' Logo">';
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('Firestore live sync init error:', e);
+    }
+  </script>
+</body>
+</html>

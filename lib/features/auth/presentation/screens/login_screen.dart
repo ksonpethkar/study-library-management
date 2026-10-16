@@ -11,6 +11,7 @@ import 'package:study_library/features/auth/services/admin_whitelist_service.dar
 import 'package:study_library/models/library_model.dart';
 import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/services/notification_service.dart';
+import 'package:study_library/services/image_service.dart';
 import 'package:study_library/features/legal/presentation/screens/privacy_policy_screen.dart';
 import 'package:study_library/features/legal/presentation/screens/terms_screen.dart';
 
@@ -23,9 +24,9 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLoading = false;
-  String _libraryName = 'Cozy Corner';
+  String _libraryName = 'The Cozy Corner Centre';
   String? _libraryLogoUrl;
-  String? _libraryTagline;
+  String? _libraryTagline = 'Smart Study Library & Co-Working Hub';
 
   static const String _prefLogoUrl = 'last_library_logo_url';
   static const String _prefLibName = 'last_library_name';
@@ -44,14 +45,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _restoreCachedBranding() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cachedLogo = prefs.getString(_prefLogoUrl);
-      final cachedName = prefs.getString(_prefLibName);
-      final cachedTagline = prefs.getString(_prefTagline);
-      if (mounted && (cachedLogo != null || cachedName != null)) {
+      final cachedLogo = prefs.getString('cached_library_logo_url') ?? prefs.getString(_prefLogoUrl);
+      final cachedName = prefs.getString('cached_library_name') ?? prefs.getString(_prefLibName);
+      final cachedTagline = prefs.getString('cached_library_tagline') ?? prefs.getString(_prefTagline);
+      if (mounted && (cachedLogo != null || cachedName != null || cachedTagline != null)) {
         setState(() {
           if (cachedLogo != null && cachedLogo.isNotEmpty) _libraryLogoUrl = cachedLogo;
           if (cachedName != null && cachedName.isNotEmpty) _libraryName = cachedName;
-          if (cachedTagline != null) _libraryTagline = cachedTagline;
+          if (cachedTagline != null && cachedTagline.isNotEmpty) _libraryTagline = cachedTagline;
         });
       }
     } catch (_) {}
@@ -67,9 +68,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         final data = doc.data()!;
         final name = (data['name'] as String?)?.trim().isNotEmpty == true
             ? data['name'] as String
-            : 'Cozy Corner';
+            : 'The Cozy Corner Centre';
         final logoUrl = data['logoUrl'] as String?;
-        final tagline = data['tagline'] as String?;
+        final tagline = (data['tagline'] as String?)?.trim().isNotEmpty == true
+            ? data['tagline'] as String
+            : (data['welcomeMessage'] as String?)?.trim().isNotEmpty == true
+                ? data['welcomeMessage'] as String
+                : 'Smart Study Library & Co-Working Hub';
 
         setState(() {
           _libraryName = name;
@@ -79,9 +84,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
         // Cache to SharedPreferences so next time it shows instantly
         final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cached_library_name', name);
         await prefs.setString(_prefLibName, name);
-        if (logoUrl != null) await prefs.setString(_prefLogoUrl, logoUrl);
-        if (tagline != null) await prefs.setString(_prefTagline, tagline);
+        if (logoUrl != null && logoUrl.isNotEmpty) {
+          await prefs.setString('cached_library_logo_url', logoUrl);
+          await prefs.setString(_prefLogoUrl, logoUrl);
+        }
+        await prefs.setString('cached_library_tagline', tagline);
+        await prefs.setString(_prefTagline, tagline);
       }
     } catch (_) {}
   }
@@ -95,7 +105,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
 
       final user = authRepo.getCurrentUser();
-      if (user == null) return;
+      if (user == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // ── Step 0: Priority Master Admin / Whitelist check ───────────────
+      final isWhitelisted = await AdminWhitelistService.isEmailWhitelisted(user.email);
+      if (isWhitelisted) {
+        await _goAdmin(user: user, libId: CurrentLibraryNotifier.defaultLibraryId);
+        return;
+      }
 
       // ── Step 1: Check persisted role (fastest path for returning users) ──
       final persisted = await readPersistedUserRole(user.uid);
@@ -207,33 +227,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
       if (!mounted) return;
 
-      // ── Step 5: New user — check admin whitelist ─────────────────────────
-      bool isWhitelisted = false;
-      try {
-        isWhitelisted =
-            await AdminWhitelistService.isEmailWhitelisted(user.email);
-      } catch (e) {
-        debugPrint('Whitelist lookup: $e');
-      }
+      // ── Step 5: Prospective student signing in -> route to Student Registration
+      ref.read(currentLibraryIdProvider.notifier).set(CurrentLibraryNotifier.defaultLibraryId);
+      ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
+      await persistUserRole(
+        uid: user.uid,
+        email: user.email ?? '',
+        displayName: user.displayName ?? '',
+        role: AppUserRole.student,
+        libraryId: CurrentLibraryNotifier.defaultLibraryId,
+      );
       if (!mounted) return;
-
-      if (isWhitelisted) {
-        ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
-        context.go(Routes.setupWizard);
-      } else {
-        // Prospective student signing in -> route to Student Registration
-        ref.read(currentLibraryIdProvider.notifier).set(CurrentLibraryNotifier.defaultLibraryId);
-        ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
-        await persistUserRole(
-          uid: user.uid,
-          email: user.email ?? '',
-          displayName: user.displayName ?? '',
-          role: AppUserRole.student,
-          libraryId: CurrentLibraryNotifier.defaultLibraryId,
-        );
-        if (!mounted) return;
-        context.go(Routes.studentRegister);
-      }
+      context.go(Routes.studentRegister);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -349,28 +354,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // App icon — dynamic org branding
-                Container(
-                  width: 100, height: 100,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    shape: BoxShape.circle,
-                  ),
-                  child: ClipOval(
-                    child: (_libraryLogoUrl != null && _libraryLogoUrl!.isNotEmpty)
-                        ? Image.network(
-                            _libraryLogoUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, e, s) => Icon(
+                // App icon — dynamic org branding using ImageService (handles base64 and URLs)
+                Builder(
+                  builder: (context) {
+                    final imageProvider = ImageService.getImageProvider(_libraryLogoUrl);
+                    return Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        shape: BoxShape.circle,
+                        image: imageProvider != null
+                            ? DecorationImage(
+                                image: imageProvider,
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: imageProvider == null
+                          ? Icon(
                               Icons.local_library_rounded,
-                              size: 56, color: theme.colorScheme.primary,
-                            ),
-                          )
-                        : Icon(
-                            Icons.local_library_rounded,
-                            size: 56, color: theme.colorScheme.primary,
-                          ),
-                  ),
+                              size: 56,
+                              color: theme.colorScheme.primary,
+                            )
+                          : null,
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
                 Text(
@@ -383,7 +392,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  _libraryTagline ?? 'Smart Library Management',
+                  _libraryTagline ?? 'Smart Study Library & Co-Working Hub',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.colorScheme.outline,
                   ),

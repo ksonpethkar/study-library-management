@@ -214,6 +214,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
 
     try {
+      // ── Step 0: Priority Master Admin / Whitelist check ───────────────
+      // If user's email is an authorized admin, always guarantee admin access
+      final isWhitelisted = await AdminWhitelistService.isEmailWhitelisted(user.email);
+      if (isWhitelisted) {
+        final libId = CurrentLibraryNotifier.defaultLibraryId;
+        ref.read(currentLibraryIdProvider.notifier).set(libId);
+        ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
+        await persistUserRole(
+          uid: user.uid,
+          email: user.email ?? '',
+          displayName: user.displayName ?? '',
+          role: AppUserRole.admin,
+          libraryId: libId,
+        );
+        final isLocked = await BiometricService.isLockEnabled();
+        await _ensureMinAnimationDuration(startTime);
+        if (!mounted) return;
+        context.go(isLocked ? Routes.biometricLock : Routes.adminHome);
+        return;
+      }
+
       // ── Step 1: Try persisted role from local storage / Firestore ─────────
       final persisted = await readPersistedUserRole(user.uid);
       if (!mounted) return;
@@ -327,31 +348,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return;
       }
 
-      // 2d. Whitelist check for new admin onboarding
-      final isWhitelisted =
-          await AdminWhitelistService.isEmailWhitelisted(user.email);
-      if (!mounted) return;
-
+      // 2d. User is signed in but not an enrolled student yet -> take them to Student Registration
+      ref.read(currentLibraryIdProvider.notifier).set(CurrentLibraryNotifier.defaultLibraryId);
+      ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
+      await persistUserRole(
+        uid: user.uid,
+        email: user.email ?? '',
+        displayName: user.displayName ?? '',
+        role: AppUserRole.student,
+        libraryId: CurrentLibraryNotifier.defaultLibraryId,
+      );
       await _ensureMinAnimationDuration(startTime);
       if (!mounted) return;
-
-      if (isWhitelisted) {
-        ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
-        context.go(Routes.setupWizard);
-      } else {
-        // User is signed in but not an enrolled student yet -> take them to Student Registration
-        ref.read(currentLibraryIdProvider.notifier).set(CurrentLibraryNotifier.defaultLibraryId);
-        ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
-        await persistUserRole(
-          uid: user.uid,
-          email: user.email ?? '',
-          displayName: user.displayName ?? '',
-          role: AppUserRole.student,
-          libraryId: CurrentLibraryNotifier.defaultLibraryId,
-        );
-        if (!mounted) return;
-        context.go(Routes.studentRegister);
-      }
+      context.go(Routes.studentRegister);
     } catch (e) {
       await _ensureMinAnimationDuration(startTime);
       if (mounted) context.go(Routes.login);

@@ -40,6 +40,10 @@
     "redirects": [],
     "rewrites": [
       {
+        "source": "/test",
+        "destination": "/test/index.html"
+      },
+      {
         "source": "/download",
         "destination": "/download/index.html"
       },

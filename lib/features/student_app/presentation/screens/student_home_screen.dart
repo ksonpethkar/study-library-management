@@ -15,6 +15,8 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/expiry_scheduler_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:study_library/features/auth/services/admin_whitelist_service.dart';
 import 'package:study_library/services/quick_actions_service.dart';
 
 /// Real-time stream of the current student's pending registration request.
@@ -164,21 +166,82 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                 }
                 // No request and no student profile
                 return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.person_off_outlined, size: 64, color: Colors.grey.shade400),
-                      const SizedBox(height: 16),
-                      const Text('No student profile found.', style: TextStyle(fontSize: 16)),
-                      const SizedBox(height: 8),
-                      const Text('Please contact the library admin.', style: TextStyle(color: Colors.grey)),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () => ref.invalidate(currentStudentProvider),
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Refresh'),
-                      ),
-                    ],
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.person_off_outlined, size: 64, color: Colors.grey.shade400),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No student profile found.',
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'If you are an enrolled student, please contact library staff.\nIf you are the library admin, switch to the Admin Console below.',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton.icon(
+                          onPressed: () async {
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user == null) {
+                              context.go(Routes.login);
+                              return;
+                            }
+                            final isWhitelisted = await AdminWhitelistService.isEmailWhitelisted(user.email);
+                            if (isWhitelisted && context.mounted) {
+                              final libId = CurrentLibraryNotifier.defaultLibraryId;
+                              ref.read(currentLibraryIdProvider.notifier).set(libId);
+                              ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
+                              await persistUserRole(
+                                uid: user.uid,
+                                email: user.email ?? '',
+                                displayName: user.displayName ?? '',
+                                role: AppUserRole.admin,
+                                libraryId: libId,
+                              );
+                              if (context.mounted) {
+                                context.go(Routes.adminHome);
+                              }
+                            } else if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${user.email ?? 'Your account'} is not recognized as an administrator.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.admin_panel_settings_rounded),
+                          label: const Text('I am Library Admin / Staff'),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () => ref.invalidate(currentStudentProvider),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Refresh Status'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton.icon(
+                          onPressed: () async {
+                            ref.read(userRoleProvider.notifier).clear();
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.remove('cached_current_user_role');
+                            await prefs.remove('persisted_role');
+                            await prefs.remove('persisted_uid');
+                            await FirebaseAuth.instance.signOut();
+                            if (context.mounted) context.go(Routes.login);
+                          },
+                          icon: const Icon(Icons.logout_rounded),
+                          label: const Text('Sign Out / Switch Account'),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
