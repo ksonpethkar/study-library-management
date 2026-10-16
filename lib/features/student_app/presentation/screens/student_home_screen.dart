@@ -562,58 +562,137 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                 // Contact Admin Card
                 if (library?.contact != null && library!.contact.isNotEmpty) ...[
                   Card(
-                    color: Colors.grey.shade50,
+                    color: theme.colorScheme.surfaceContainerLow,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                        child: Icon(Icons.support_agent_rounded, color: Theme.of(context).colorScheme.primary),
-                      ),
-                      title: const Text('Need Help? Contact Admin', style: TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Column(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(library.contact),
-                          if (library.helplineNumber.isNotEmpty)
-                            Text('Helpline: ${library.helplineNumber}',
-                                style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                          if (library.email.isNotEmpty)
-                            Text(library.email,
-                                style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                                child: Icon(Icons.support_agent_rounded, color: Theme.of(context).colorScheme.primary),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Need Help? Contact Admin', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                    const SizedBox(height: 4),
+                                    Text(library.contact, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                                    if (library.helplineNumber.isNotEmpty)
+                                      Text('Helpline: ${library.helplineNumber}',
+                                          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                    if (library.email.isNotEmpty)
+                                      Text(library.email,
+                                          style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                    if (library.address.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.location_on_outlined, size: 13, color: Colors.grey),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              library.address,
+                                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.phone, color: Colors.green),
+                                    tooltip: 'Call Admin',
+                                    onPressed: () async {
+                                      final uri = Uri.parse('tel:${library.contact}');
+                                      if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.chat_bubble_rounded, color: Color(0xFF25D366)),
+                                    tooltip: 'WhatsApp Admin',
+                                    onPressed: () async {
+                                      final rawPhone = library.whatsappNumber.isNotEmpty
+                                          ? library.whatsappNumber
+                                          : library.contact;
+                                      final clean = rawPhone.replaceAll(RegExp(r'\D'), '');
+                                      final withCode = clean.startsWith('91') || clean.length > 10
+                                          ? clean
+                                          : '91$clean';
+                                      final msg = Uri.encodeComponent(
+                                          'Hello Admin, I need help with my membership at $libraryName.');
+                                      final uri = Uri.parse('https://wa.me/$withCode?text=$msg');
+                                      if (await canLaunchUrl(uri)) {
+                                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          if (library.socialLinks.values.any((v) => v.trim().isNotEmpty)) ...[
+                            const SizedBox(height: 12),
+                            const Divider(height: 1),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: library.socialLinks.entries
+                                  .where((e) => e.value.trim().isNotEmpty)
+                                  .map((e) {
+                                    final key = e.key.toLowerCase().trim();
+                                    final url = e.value.trim();
+                                    IconData icon = Icons.language;
+                                    String label = key;
+                                    Color iconColor = theme.colorScheme.primary;
 
-                          IconButton(
-                            icon: const Icon(Icons.phone, color: Colors.green),
-                            onPressed: () async {
-                              final uri = Uri.parse('tel:${library.contact}');
-                              if (await canLaunchUrl(uri)) await launchUrl(uri);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.chat_bubble_rounded, color: Color(0xFF25D366)),
-                            tooltip: 'WhatsApp Admin',
-                            onPressed: () async {
-                              // Prefer whatsappNumber if set, fallback to contact
-                              final rawPhone = library.whatsappNumber.isNotEmpty
-                                  ? library.whatsappNumber
-                                  : library.contact;
-                              final clean = rawPhone.replaceAll(RegExp(r'\D'), '');
-                              final withCode = clean.startsWith('91') || clean.length > 10
-                                  ? clean
-                                  : '91$clean';
-                              final msg = Uri.encodeComponent(
-                                  'Hello Admin, I need help with my membership at $libraryName.');
-                              final uri = Uri.parse('https://wa.me/$withCode?text=$msg');
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri, mode: LaunchMode.externalApplication);
-                              }
-                            },
-                          ),
+                                    if (key.contains('instagram')) {
+                                      icon = Icons.camera_alt_outlined;
+                                      label = 'Instagram';
+                                      iconColor = const Color(0xFFE1306C);
+                                    } else if (key.contains('facebook')) {
+                                      icon = Icons.facebook;
+                                      label = 'Facebook';
+                                      iconColor = const Color(0xFF1877F2);
+                                    } else if (key.contains('youtube')) {
+                                      icon = Icons.smart_display_outlined;
+                                      label = 'YouTube';
+                                      iconColor = const Color(0xFFFF0000);
+                                    } else if (key.contains('website') || key.contains('web')) {
+                                      icon = Icons.language;
+                                      label = 'Website';
+                                      iconColor = theme.colorScheme.primary;
+                                    }
+
+                                    return ActionChip(
+                                      avatar: Icon(icon, size: 16, color: iconColor),
+                                      label: Text(label, style: const TextStyle(fontSize: 12)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      visualDensity: VisualDensity.compact,
+                                      onPressed: () async {
+                                        final uri = Uri.parse(url.startsWith('http') ? url : 'https://$url');
+                                        if (await canLaunchUrl(uri)) {
+                                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                        }
+                                      },
+                                    );
+                                  }).toList(),
+                            ),
+                          ],
                         ],
                       ),
                     ),

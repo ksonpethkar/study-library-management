@@ -441,28 +441,44 @@
       firebase.initializeApp(firebaseConfig);
       const db = firebase.firestore();
 
-      db.collection('libraries').doc('aPSMq8xSAjuZQh2fTtuY').onSnapshot(function(doc) {
-        if (!doc.exists) return;
-        const lib = doc.data();
-
-        if (lib.name) {
-          document.getElementById('appName').textContent = lib.name;
-          document.title = lib.name + ' — Internal Test Portal';
-        }
-
-        if (lib.tagline && lib.tagline.trim().length > 0) {
-          document.getElementById('appSubtitle').textContent = lib.tagline;
-        } else if (lib.welcomeMessage && lib.welcomeMessage.trim().length > 0) {
-          document.getElementById('appSubtitle').textContent = lib.welcomeMessage;
-        }
-
-        if (lib.logoUrl && lib.logoUrl.trim().length > 0) {
-          var logoDiv = document.getElementById('appLogo');
-          if (logoDiv) {
-            logoDiv.innerHTML = '<img src="' + lib.logoUrl + '" alt="' + (lib.name || 'Library') + ' Logo">';
+      async function initPortal() {
+        let libraryId = null;
+        try {
+          const cfgDoc = await db.collection('app_config').doc('default').get();
+          if (cfgDoc.exists && cfgDoc.data().defaultLibraryId) {
+            libraryId = cfgDoc.data().defaultLibraryId;
           }
+        } catch (e) {
+          console.warn('Could not read default app_config:', e);
         }
-      });
+        if (!libraryId) {
+          libraryId = 'aPSMq8xSAjuZQh2fTtuY';
+        }
+
+        db.collection('libraries').doc(libraryId).onSnapshot(function(doc) {
+          if (!doc.exists) return;
+          const lib = doc.data();
+
+          if (lib.name) {
+            document.getElementById('appName').textContent = lib.name;
+            document.title = lib.name + ' — Internal Test Portal';
+          }
+
+          if (lib.tagline && lib.tagline.trim().length > 0) {
+            document.getElementById('appSubtitle').textContent = lib.tagline;
+          } else if (lib.welcomeMessage && lib.welcomeMessage.trim().length > 0) {
+            document.getElementById('appSubtitle').textContent = lib.welcomeMessage;
+          }
+
+          if (lib.logoUrl && lib.logoUrl.trim().length > 0) {
+            var logoDiv = document.getElementById('appLogo');
+            if (logoDiv) {
+              logoDiv.innerHTML = '<img src="' + lib.logoUrl + '" alt="' + (lib.name || 'Library') + ' Logo">';
+            }
+          }
+        });
+      }
+      initPortal();
     } catch (e) {
       console.warn('Firestore live sync init error:', e);
     }

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/constants/firestore_paths.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/security/encryption_service.dart';
+import 'package:study_library/core/utils/sequence_counter.dart';
 import 'package:study_library/models/student_model.dart';
 
 class StudentRepository {
@@ -98,22 +99,16 @@ class StudentRepository {
           .collection(FirestorePaths.students)
           .doc();
           
-      // Auto-generate sequential membership number using Firestore transaction
+      // Sequential membership number
       String membershipNumber = '';
-      try {
-        final libDocRef = _firestore.collection(FirestorePaths.libraries).doc(libraryId);
-        await _firestore.runTransaction((tx) async {
-          final libSnap = await tx.get(libDocRef);
-          final libData = libSnap.data() ?? {};
-          final prefix = ((libData['membershipPrefix'] as String?) ?? 'CC').toUpperCase();
-          final year = DateTime.now().year;
-          final lastNum = (libData['lastMembershipNumber'] as num?)?.toInt() ?? 0;
-          final nextNum = lastNum + 1;
-          membershipNumber = '$prefix$year${nextNum.toString().padLeft(4, '0')}';
-          tx.update(libDocRef, {'lastMembershipNumber': nextNum});
-        });
-      } catch (e) {
-        membershipNumber = 'CC${DateTime.now().year}${DateTime.now().millisecondsSinceEpoch.toString().substring(9)}';
+      if (student.membershipNumber != null && student.membershipNumber!.trim().isNotEmpty) {
+        membershipNumber = student.membershipNumber!.trim();
+      } else {
+        try {
+          membershipNumber = await getNextMembershipNumber(libraryId);
+        } catch (e) {
+          membershipNumber = 'CC${DateTime.now().year}${DateTime.now().millisecondsSinceEpoch.toString().substring(9)}';
+        }
       }
 
       final base = student.copyWith(id: docRef.id, membershipNumber: membershipNumber).toJson();
@@ -142,6 +137,40 @@ class StudentRepository {
     } catch (e) {
       throw Exception('Failed to create student. Please try again.');
     }
+  }
+
+  /// Returns the next sequential membership number for this library
+  Future<String> getNextMembershipNumber(String libraryId) async {
+    try {
+      final libDoc = await _firestore.collection(FirestorePaths.libraries).doc(libraryId).get();
+      final prefix = (libDoc.data()?['membershipPrefix'] as String?)?.toUpperCase() ?? 'CC';
+      return await SequenceCounter.nextMembershipNumber(libraryId, prefix: prefix);
+    } catch (_) {
+      final year = DateTime.now().year;
+      return 'CC$year${DateTime.now().millisecondsSinceEpoch.toString().substring(9)}';
+    }
+  }
+
+  /// Assigns a new sequential ID to an existing student who lacks one
+  Future<String> assignSequentialId(String libraryId, String studentId) async {
+    final nextId = await getNextMembershipNumber(libraryId);
+    await _firestore
+        .collection(FirestorePaths.libraries)
+        .doc(libraryId)
+        .collection(FirestorePaths.students)
+        .doc(studentId)
+        .update({
+      'membershipNumber': nextId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    AuditLogger().log(
+      action: AuditAction.updated,
+      entityType: AuditEntity.student,
+      libraryId: libraryId,
+      entityId: studentId,
+      details: {'action': 'assignSequentialId', 'membershipNumber': nextId},
+    ).ignore();
+    return nextId;
   }
 
   Future<void> updateStudent(String libraryId, StudentModel student) async {

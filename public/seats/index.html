@@ -547,15 +547,17 @@
       const match = window.location.pathname.match(/\/library\/([^\/]+)\/seats/);
       if (match) libraryId = match[1];
     }
-    if (!libraryId) {
-      libraryId = DEFAULT_LIBRARY_ID;
-    }
-
-    let activeSectionId = null;
-    let sectionsList = [];
-    let seatsUnsubscribe = null;
-
     async function init() {
+      if (!libraryId) {
+        try {
+          const cfgDoc = await db.collection('app_config').doc('default').get();
+          if (cfgDoc.exists && cfgDoc.data().defaultLibraryId) {
+            libraryId = cfgDoc.data().defaultLibraryId;
+          }
+        } catch (e) {
+          console.warn('Could not read default app_config:', e);
+        }
+      }
       if (!libraryId) {
         libraryId = DEFAULT_LIBRARY_ID;
       }

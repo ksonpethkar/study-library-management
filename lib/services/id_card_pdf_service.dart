@@ -750,6 +750,8 @@ class IdCardPdfService {
           // Father name & Blood group row
           if (settings.showFatherName && student.fatherName.isNotEmpty)
             _buildRuleLine('• Guardian: ${student.fatherName}'),
+          if (settings.showBloodGroup && student.bloodGroup != null && student.bloodGroup!.isNotEmpty)
+            _buildRuleLine('• Blood Group: ${student.bloodGroup}'),
 
           // Rules
           if (settings.showRules) ...[
@@ -766,7 +768,7 @@ class IdCardPdfService {
           pw.Spacer(),
 
           // Emergency Contact Badge
-          if (settings.showEmergencyContact && student.emergencyContact.isNotEmpty)
+          if (student.emergencyContact.isNotEmpty)
             pw.Container(
               padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               decoration: pw.BoxDecoration(
@@ -775,9 +777,16 @@ class IdCardPdfService {
                 border: pw.Border.all(color: PdfColors.amber300, width: 0.5),
               ),
               child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('EMERGENCY: ', style: pw.TextStyle(fontSize: 4.5, fontWeight: pw.FontWeight.bold, color: PdfColors.amber900)),
-                  pw.Text(student.emergencyContact, style: const pw.TextStyle(fontSize: 4.5, color: PdfColors.amber900)),
+                  pw.Row(
+                    children: [
+                      pw.Text('EMERGENCY: ', style: pw.TextStyle(fontSize: 5, fontWeight: pw.FontWeight.bold, color: PdfColors.amber900)),
+                      pw.Text(student.emergencyContact, style: pw.TextStyle(fontSize: 5, fontWeight: pw.FontWeight.bold, color: PdfColors.amber900)),
+                    ],
+                  ),
+                  if (library.helplineNumber.isNotEmpty)
+                    pw.Text('Helpline: ${library.helplineNumber}', style: const pw.TextStyle(fontSize: 4.5, color: PdfColors.grey700)),
                 ],
               ),
             ),

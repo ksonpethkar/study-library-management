@@ -183,6 +183,40 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             debugPrint('Failed to link student user account: $e');
           }
         }
+      } else if (type == 'profile_update') {
+        final studentId = (data['studentId'] ?? '').toString();
+        final proposedData = (data['proposedData'] as Map<String, dynamic>?) ?? {};
+        if (studentId.isNotEmpty && proposedData.isNotEmpty) {
+          final Map<String, dynamic> updateFields = {
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+          if (proposedData.containsKey('emergencyContact')) {
+            updateFields['emergencyContact'] = proposedData['emergencyContact'];
+          }
+          if (proposedData.containsKey('college')) {
+            updateFields['college'] = proposedData['college'];
+          }
+          if (proposedData.containsKey('course')) {
+            updateFields['course'] = proposedData['course'];
+          }
+          if (proposedData.containsKey('year')) {
+            updateFields['year'] = proposedData['year'];
+          }
+          await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('students')
+              .doc(studentId)
+              .update(updateFields);
+
+          AuditLogger().log(
+            action: AuditAction.updated,
+            entityType: AuditEntity.student,
+            libraryId: libraryId,
+            entityId: studentId,
+            details: {'action': 'profile_update_approved', ...proposedData},
+          ).ignore();
+        }
       }
 
       // Mark request approved
@@ -209,13 +243,16 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       await _loadRequest();
 
       if (mounted) {
+        final successMsg = type == 'profile_update'
+            ? 'Profile update approved and applied successfully!'
+            : 'Request approved successfully! Student profile created.';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Request approved successfully! Student profile created.'), backgroundColor: Colors.green),
+          SnackBar(content: Text(successMsg), backgroundColor: Colors.green),
         );
         final studentName = _requestData?['studentName'] ?? (_requestData?['studentData'] as Map<String, dynamic>?)?['name'] ?? 'Student';
         final studentPhone = ((_requestData?['studentData'] as Map<String, dynamic>?)?['phone'] ?? _requestData?['studentPhone'] ?? '').toString();
         final studentUserId = ((_requestData?['studentData'] as Map<String, dynamic>?)?['userId'] ?? _requestData?['studentId'] ?? '').toString();
-        if (_newCreatedStudentId != null) {
+        if (type == 'registration' && _newCreatedStudentId != null) {
           _promptPaymentAfterApproval(
             libraryId,
             _newCreatedStudentId!,
@@ -413,36 +450,59 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Submitted Details Card
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Application Information', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                          const Divider(height: 20),
-                          _buildRow('Request Type', (data['type'] ?? 'Registration').toString().toUpperCase()),
-                          if (studentData['fatherName'] != null)
-                            _buildRow("Father's Name", studentData['fatherName']),
-                          if (studentData['gender'] != null)
-                            _buildRow('Gender', studentData['gender'].toString().toUpperCase()),
-                          if (studentData['email'] != null && studentData['email'].isNotEmpty)
-                            _buildRow('Email', studentData['email']),
-                          if (studentData['govIdNumber'] != null && studentData['govIdNumber'].isNotEmpty)
-                            _buildRow('Govt ID', studentData['govIdNumber']),
-                          if (studentData['college'] != null && studentData['college'].isNotEmpty)
-                            _buildRow('College', studentData['college']),
-                          if (studentData['course'] != null && studentData['course'].isNotEmpty)
-                            _buildRow('Course', studentData['course']),
-                          if (studentData['address'] != null && studentData['address'].isNotEmpty)
-                            _buildRow('Address', studentData['address']),
-                          if (data['rejectionReason'] != null)
-                            _buildRow('Rejection Reason', data['rejectionReason'], color: Colors.red),
-                        ],
+                  if (data['type'] == 'profile_update') ...[
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Requested Profile Updates', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            Text('Compare existing record with proposed updates:', style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600)),
+                            const Divider(height: 20),
+                            _buildDiffRow('Emergency Contact', (data['currentData'] as Map?)?['emergencyContact'], (data['proposedData'] as Map?)?['emergencyContact']),
+                            _buildDiffRow('College / Institution', (data['currentData'] as Map?)?['college'], (data['proposedData'] as Map?)?['college']),
+                            _buildDiffRow('Course', (data['currentData'] as Map?)?['course'], (data['proposedData'] as Map?)?['course']),
+                            _buildDiffRow('Year / Semester', (data['currentData'] as Map?)?['year'], (data['proposedData'] as Map?)?['year']),
+                            if (data['rejectionReason'] != null)
+                              _buildRow('Rejection Reason', data['rejectionReason'], color: Colors.red),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+                  ] else ...[
+                    // Submitted Details Card
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Application Information', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                            const Divider(height: 20),
+                            _buildRow('Request Type', (data['type'] ?? 'Registration').toString().toUpperCase()),
+                            if (studentData['fatherName'] != null)
+                              _buildRow("Father's Name", studentData['fatherName']),
+                            if (studentData['gender'] != null)
+                              _buildRow('Gender', studentData['gender'].toString().toUpperCase()),
+                            if (studentData['email'] != null && studentData['email'].isNotEmpty)
+                              _buildRow('Email', studentData['email']),
+                            if (studentData['govIdNumber'] != null && studentData['govIdNumber'].isNotEmpty)
+                              _buildRow('Govt ID', studentData['govIdNumber']),
+                            if (studentData['college'] != null && studentData['college'].isNotEmpty)
+                              _buildRow('College', studentData['college']),
+                            if (studentData['course'] != null && studentData['course'].isNotEmpty)
+                              _buildRow('Course', studentData['course']),
+                            if (studentData['address'] != null && studentData['address'].isNotEmpty)
+                              _buildRow('Address', studentData['address']),
+                            if (data['rejectionReason'] != null)
+                              _buildRow('Rejection Reason', data['rejectionReason'], color: Colors.red),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
 
                   if (data['createdStudentId'] != null) ...[
                     const SizedBox(height: 16),
@@ -450,6 +510,15 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                       onPressed: () => context.go('/admin/students/${data['createdStudentId']}'),
                       icon: const Icon(Icons.badge_rounded),
                       label: const Text('View Created Student Profile'),
+                    ),
+                  ],
+
+                  if (data['type'] == 'profile_update' && data['studentId'] != null) ...[
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => context.go('/admin/students/${data['studentId']}'),
+                      icon: const Icon(Icons.person_rounded),
+                      label: const Text('View Student Profile'),
                     ),
                   ],
 
@@ -506,6 +575,81 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               value,
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: color),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiffRow(String field, dynamic oldVal, dynamic newVal) {
+    final oldStr = (oldVal ?? '').toString().trim();
+    final newStr = (newVal ?? '').toString().trim();
+    final isChanged = oldStr != newStr;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(field, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Current', style: TextStyle(fontSize: 10, color: Colors.red.shade900, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text(
+                        oldStr.isEmpty ? '—' : oldStr,
+                        style: TextStyle(
+                          fontSize: 12,
+                          decoration: isChanged && oldStr.isNotEmpty ? TextDecoration.lineThrough : null,
+                          color: Colors.red.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.grey),
+              ),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Proposed', style: TextStyle(fontSize: 10, color: Colors.green.shade900, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text(
+                        newStr.isEmpty ? '—' : newStr,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isChanged ? FontWeight.bold : FontWeight.normal,
+                          color: Colors.green.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

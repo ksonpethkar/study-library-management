@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/constants/firestore_paths.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/router/app_router.dart';
@@ -169,19 +170,50 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen> {
     );
   }
 
-  Future<void> _notifyEntry(WaitingListEntry entry) async {
+  Future<void> _callPhone(String phone) async {
+    final clean = phone.replaceAll(RegExp(r'\D'), '');
+    if (clean.isEmpty) return;
+    final uri = Uri.parse('tel:$clean');
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  Future<void> _notifyViaWhatsApp(WaitingListEntry entry) async {
     final libraryId = ref.read(currentLibraryIdProvider);
-    if (libraryId == null) return;
+    final library = ref.read(currentLibraryProvider).value;
+    final libraryName = library?.name ?? 'our study library';
 
-    await ref
-        .read(waitingListRepositoryProvider)
-        .notifyEntry(libraryId, entry.id);
+    final cleanPhone = entry.studentPhone.replaceAll(RegExp(r'\D'), '');
+    final withCode = cleanPhone.startsWith('91') || cleanPhone.length > 10
+        ? cleanPhone
+        : '91$cleanPhone';
 
+    final message = 'Hello ${entry.studentName}, good news! A seat is now available for you at $libraryName. Please contact or visit the library to complete your seat registration.';
+    final uri = Uri.parse('https://wa.me/$withCode?text=${Uri.encodeComponent(message)}');
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+
+    if (libraryId != null) {
+      await ref.read(waitingListRepositoryProvider).notifyEntry(libraryId, entry.id);
+    }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Notified ${entry.studentName}')),
+        SnackBar(content: Text('Notified ${entry.studentName} via WhatsApp')),
       );
     }
+  }
+
+  void _registerStudent(WaitingListEntry entry) {
+    context.push(
+      Routes.adminStudentAdd,
+      extra: {
+        'name': entry.studentName,
+        'phone': entry.studentPhone,
+        'sectionId': entry.preferredSectionId,
+        'gender': entry.genderPreference,
+      },
+    );
   }
 
   Future<void> _removeEntry(WaitingListEntry entry) async {
@@ -340,22 +372,28 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen> {
                                         ),
                                       ),
                                       const SizedBox(height: 2),
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.phone,
-                                            size: 14,
-                                            color: Colors.grey,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            entry.studentPhone,
-                                            style: TextStyle(
-                                              color: Colors.grey.shade600,
-                                              fontSize: 13,
+                                      InkWell(
+                                        onTap: () => _callPhone(entry.studentPhone),
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.phone,
+                                              size: 14,
+                                              color: Colors.green,
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              entry.studentPhone,
+                                              style: TextStyle(
+                                                color: Colors.grey.shade700,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -433,15 +471,24 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen> {
                             const Divider(height: 24),
                             Row(
                               children: [
-                                OutlinedButton.icon(
-                                  onPressed: () => _notifyEntry(entry),
-                                  icon: const Icon(
-                                    Icons.notifications_active_outlined,
-                                    size: 16,
-                                  ),
-                                  label: const Text('Notify'),
+                                IconButton.filledTonal(
+                                  icon: const Icon(Icons.chat_bubble_rounded, color: Color(0xFF25D366), size: 18),
+                                  tooltip: 'Notify via WhatsApp',
+                                  onPressed: () => _notifyViaWhatsApp(entry),
+                                ),
+                                const SizedBox(width: 4),
+                                IconButton.filledTonal(
+                                  icon: const Icon(Icons.phone, color: Colors.green, size: 18),
+                                  tooltip: 'Call Phone',
+                                  onPressed: () => _callPhone(entry.studentPhone),
                                 ),
                                 const Spacer(),
+                                OutlinedButton.icon(
+                                  onPressed: () => _registerStudent(entry),
+                                  icon: const Icon(Icons.person_add_outlined, size: 16),
+                                  label: const Text('Register'),
+                                ),
+                                const SizedBox(width: 8),
                                 FilledButton.icon(
                                   onPressed: () => _showAssignSeatSheet(entry),
                                   icon: const Icon(Icons.chair_alt, size: 16),

@@ -227,6 +227,38 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     );
   }
 
+  Future<void> _assignSequentialId(StudentModel s) async {
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null || libraryId.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Assign Membership ID'),
+        content: Text('Generate and assign the next sequential membership ID to ${s.name}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Assign')),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    try {
+      final nextId = await ref.read(studentRepositoryProvider).assignSequentialId(libraryId, s.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Assigned ID: $nextId'), backgroundColor: Colors.green),
+      );
+      _loadStudent();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to assign ID: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   void _showAssignSeatSheet() {
     showModalBottomSheet(
       context: context,
@@ -634,6 +666,27 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               ),
                               const SizedBox(width: 4),
                               const Icon(Icons.copy, size: 12, color: Colors.grey),
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: () => _assignSequentialId(s),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add_card, size: 14, color: Theme.of(context).colorScheme.primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Assign Sequential ID',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
                             ],
                           ),
                         ),

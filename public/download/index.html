@@ -681,67 +681,85 @@
       const db = firebase.firestore();
 
       const urlParams = new URLSearchParams(window.location.search);
-      const libraryId = urlParams.get('lib') || 'aPSMq8xSAjuZQh2fTtuY';
+      const queryLibId = urlParams.get('lib');
 
-      // Update Live Seat Map link with library query
-      var seatBtn = document.getElementById('seatMapBtn');
-      if (seatBtn) seatBtn.href = '/seats/?lib=' + libraryId;
-
-      db.collection('libraries').doc(libraryId).onSnapshot(function(doc) {
-        if (!doc.exists) return;
-        const lib = doc.data();
-
-        // 1. Library Name
-        if (lib.name) {
-          document.getElementById('appName').textContent = lib.name;
-          document.title = lib.name + ' — Download Android APK';
-          var footer = document.getElementById('pageFooter');
-          if (footer) footer.innerHTML = lib.name + ' &bull; Android Official Release';
-        }
-
-        // 2. Library Tagline / Welcome
-        if (lib.tagline && lib.tagline.trim().length > 0) {
-          document.getElementById('appSubtitle').textContent = lib.tagline;
-        } else if (lib.welcomeMessage && lib.welcomeMessage.trim().length > 0) {
-          document.getElementById('appSubtitle').textContent = lib.welcomeMessage;
-        }
-
-        // 3. Organization Logo (Supports Base64 data URI and Cloud Storage HTTPS URLs)
-        if (lib.logoUrl && lib.logoUrl.trim().length > 0) {
-          var logoDiv = document.getElementById('appLogo');
-          if (logoDiv) {
-            logoDiv.innerHTML = '<img src="' + lib.logoUrl + '" alt="' + (lib.name || 'Library') + ' Logo">';
+      async function initPortal() {
+        let libraryId = queryLibId;
+        if (!libraryId) {
+          try {
+            const cfgDoc = await db.collection('app_config').doc('default').get();
+            if (cfgDoc.exists && cfgDoc.data().defaultLibraryId) {
+              libraryId = cfgDoc.data().defaultLibraryId;
+            }
+          } catch (e) {
+            console.warn('Could not read default app_config:', e);
           }
         }
-
-        // 4. Accent Color
-        if (lib.accentColor) {
-          var hex = '#' + (Number(lib.accentColor) & 0xFFFFFF).toString(16).padStart(6, '0');
-          applyAccentColor(hex);
+        if (!libraryId) {
+          libraryId = 'aPSMq8xSAjuZQh2fTtuY';
         }
 
-        // 5. Organization Address & Contacts
-        var orgMeta = document.getElementById('orgMeta');
-        var orgAddress = document.getElementById('orgAddress');
-        var orgLinks = document.getElementById('orgLinks');
+        // Update Live Seat Map link with library query
+        var seatBtn = document.getElementById('seatMapBtn');
+        if (seatBtn) seatBtn.href = '/seats/?lib=' + libraryId;
 
-        if (lib.address || lib.contact || lib.email) {
-          orgMeta.style.display = 'flex';
-          if (lib.address) orgAddress.textContent = '📍 ' + lib.address;
+        db.collection('libraries').doc(libraryId).onSnapshot(function(doc) {
+          if (!doc.exists) return;
+          const lib = doc.data();
 
-          var pills = '';
-          if (lib.contact) {
-            pills += '<a class="org-pill" href="tel:' + lib.contact + '">📞 ' + lib.contact + '</a>';
+          // 1. Library Name
+          if (lib.name) {
+            document.getElementById('appName').textContent = lib.name;
+            document.title = lib.name + ' — Download Android APK';
+            var footer = document.getElementById('pageFooter');
+            if (footer) footer.innerHTML = lib.name + ' &bull; Android Official Release';
           }
-          if (lib.email) {
-            pills += '<a class="org-pill" href="mailto:' + lib.email + '">✉️ ' + lib.email + '</a>';
+
+          // 2. Library Tagline / Welcome
+          if (lib.tagline && lib.tagline.trim().length > 0) {
+            document.getElementById('appSubtitle').textContent = lib.tagline;
+          } else if (lib.welcomeMessage && lib.welcomeMessage.trim().length > 0) {
+            document.getElementById('appSubtitle').textContent = lib.welcomeMessage;
           }
-          if (lib.operatingHours) {
-            pills += '<span class="org-pill">⏰ ' + lib.operatingHours + '</span>';
+
+          // 3. Organization Logo (Supports Base64 data URI and Cloud Storage HTTPS URLs)
+          if (lib.logoUrl && lib.logoUrl.trim().length > 0) {
+            var logoDiv = document.getElementById('appLogo');
+            if (logoDiv) {
+              logoDiv.innerHTML = '<img src="' + lib.logoUrl + '" alt="' + (lib.name || 'Library') + ' Logo">';
+            }
           }
-          orgLinks.innerHTML = pills;
-        }
-      });
+
+          // 4. Accent Color
+          if (lib.accentColor) {
+            var hex = '#' + (Number(lib.accentColor) & 0xFFFFFF).toString(16).padStart(6, '0');
+            applyAccentColor(hex);
+          }
+
+          // 5. Organization Address & Contacts
+          var orgMeta = document.getElementById('orgMeta');
+          var orgAddress = document.getElementById('orgAddress');
+          var orgLinks = document.getElementById('orgLinks');
+
+          if (lib.address || lib.contact || lib.email) {
+            orgMeta.style.display = 'flex';
+            if (lib.address) orgAddress.textContent = '📍 ' + lib.address;
+
+            var pills = '';
+            if (lib.contact) {
+              pills += '<a class="org-pill" href="tel:' + lib.contact + '">📞 ' + lib.contact + '</a>';
+            }
+            if (lib.email) {
+              pills += '<a class="org-pill" href="mailto:' + lib.email + '">✉️ ' + lib.email + '</a>';
+            }
+            if (lib.operatingHours) {
+              pills += '<span class="org-pill">⏰ ' + lib.operatingHours + '</span>';
+            }
+            orgLinks.innerHTML = pills;
+          }
+        });
+      }
+      initPortal();
     } catch (e) {
       console.warn('Firestore live sync init error:', e);
     }

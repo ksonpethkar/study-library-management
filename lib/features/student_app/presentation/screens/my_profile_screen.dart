@@ -624,28 +624,64 @@ void _showEditProfileSheet(BuildContext context, WidgetRef ref, StudentModel stu
                   setSheetState(() => saving = true);
                   try {
                     final libraryId = ref.read(currentLibraryIdProvider) ?? '';
-                    final studentId = student.id;
-                    await FirebaseFirestore.instance
-                        .collection('libraries').doc(libraryId)
-                        .collection('students').doc(studentId)
-                        .update({
-                      'emergencyContact': emergencyCtrl.text.trim(),
-                      'college': collegeCtrl.text.trim(),
-                      'course': courseCtrl.text.trim(),
-                      'year': yearCtrl.text.trim(),
-                      'updatedAt': FieldValue.serverTimestamp(),
+                    if (libraryId.isEmpty) throw Exception('Library ID not found');
+
+                    final requestRef = FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('requests')
+                        .doc();
+
+                    await requestRef.set({
+                      'id': requestRef.id,
+                      'studentId': student.id,
+                      'studentName': student.name,
+                      'studentPhone': student.phone,
+                      'type': 'profile_update',
+                      'title': 'Profile Information Update',
+                      'description': 'Student requested profile update',
+                      'currentData': {
+                        'emergencyContact': student.emergencyContact,
+                        'college': student.college,
+                        'course': student.course,
+                        'year': student.year,
+                      },
+                      'proposedData': {
+                        'emergencyContact': emergencyCtrl.text.trim(),
+                        'college': collegeCtrl.text.trim(),
+                        'course': courseCtrl.text.trim(),
+                        'year': yearCtrl.text.trim(),
+                      },
+                      'status': 'pending',
+                      'createdAt': FieldValue.serverTimestamp(),
                     });
+
+                    await FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('admin_notifications')
+                        .add({
+                      'type': 'profile_update_request',
+                      'title': 'Profile Update Request',
+                      'body': '${student.name} requested profile updates.',
+                      'createdAt': FieldValue.serverTimestamp(),
+                      'read': false,
+                    });
+
                     if (ctx.mounted) Navigator.pop(ctx);
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Profile updated successfully ✓'), backgroundColor: Colors.green),
+                        const SnackBar(
+                          content: Text('Profile update request submitted to admin for approval ✓'),
+                          backgroundColor: Colors.green,
+                        ),
                       );
                     }
                   } catch (e) {
                     setSheetState(() => saving = false);
                     if (ctx.mounted) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(content: Text('Update failed: $e'), backgroundColor: Colors.red),
+                        SnackBar(content: Text('Request failed: $e'), backgroundColor: Colors.red),
                       );
                     }
                   }

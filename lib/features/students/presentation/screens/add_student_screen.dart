@@ -14,7 +14,8 @@ import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/services/image_service.dart';
 
 class AddStudentScreen extends ConsumerStatefulWidget {
-  const AddStudentScreen({super.key});
+  final Map<String, dynamic>? initialData;
+  const AddStudentScreen({super.key, this.initialData});
 
   @override
   ConsumerState<AddStudentScreen> createState() => _AddStudentScreenState();
@@ -49,6 +50,25 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
   final _rollNumberController = TextEditingController();
   bool _isLoading = false;
   String _loadingMessage = 'Saving student...';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialData != null) {
+      final d = widget.initialData!;
+      if (d['name'] != null) _nameController.text = d['name'].toString();
+      if (d['phone'] != null) _phoneController.text = d['phone'].toString();
+      if (d['sectionId'] != null && d['sectionId'].toString().isNotEmpty) {
+        _selectedSectionId = d['sectionId'].toString();
+      }
+      if (d['gender'] != null) {
+        final g = d['gender'].toString().toLowerCase();
+        if (g == 'male') _gender = Gender.male;
+        if (g == 'female') _gender = Gender.female;
+        if (g == 'other') _gender = Gender.other;
+      }
+    }
+  }
 
   @override
   void dispose() {

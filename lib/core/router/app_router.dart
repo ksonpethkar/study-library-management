@@ -280,7 +280,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return AddSectionScreen(libraryId: libId);
         });
       }),
-      GoRoute(path: Routes.adminStudentAdd, builder: (context, state) => const AddStudentScreen()),
+      GoRoute(path: Routes.adminStudentAdd, builder: (context, state) => AddStudentScreen(initialData: state.extra as Map<String, dynamic>?)),
       GoRoute(path: Routes.adminStudentImport, builder: (context, state) => const BulkImportScreen()),
       GoRoute(path: Routes.adminStudentDetail, builder: (context, state) => StudentDetailScreen(studentId: state.pathParameters['id'] ?? '')),
       GoRoute(path: Routes.adminStudentEdit, builder: (context, state) => EditStudentScreen(studentId: state.pathParameters['id'] ?? '')),
