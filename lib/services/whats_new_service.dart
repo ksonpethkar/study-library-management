@@ -114,7 +114,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.24+31';
+  static const String currentVersionIdentifier = '1.5.25+32';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -123,15 +123,15 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.24)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.25)
   static final List<ReleaseChange> adminChanges = [
     const ReleaseChange(
-      icon: Icons.palette_rounded,
+      icon: Icons.contrast_rounded,
       rawIconName: 'palette',
-      badge: 'Theme Sync',
-      title: 'Dynamic Brand Palette',
+      badge: 'Dark Theme',
+      title: 'High-Contrast Dark Mode & Signature Fix',
       description:
-          'Set any accent color in Library Settings — the entire app theme, landing portal, and live seat map adapt dynamically in light and dark mode.',
+          'Crisp, high-contrast text and cards in dark theme across dashboards, settings, and forms. Modern APK v2/v3 signatures for seamless Android installs.',
     ),
     const ReleaseChange(
       icon: Icons.approval_rounded,
@@ -167,15 +167,15 @@ class WhatsNewService {
     ),
   ];
 
-  /// Concrete features exclusively relevant for Students (v1.5.24)
+  /// Concrete features exclusively relevant for Students (v1.5.25)
   static final List<ReleaseChange> studentChanges = [
     const ReleaseChange(
-      icon: Icons.palette_rounded,
+      icon: Icons.contrast_rounded,
       rawIconName: 'palette',
-      badge: 'Branding',
-      title: 'Matches Your Library Brand',
+      badge: 'Dark Theme',
+      title: 'High-Contrast Dark Mode & Readability',
       description:
-          'App theme colors and accent highlights now dynamically reflect your library official brand identity.',
+          'Student home, cards, and text are now enhanced for effortless readability in dark mode without eye strain.',
     ),
     const ReleaseChange(
       icon: Icons.badge_rounded,

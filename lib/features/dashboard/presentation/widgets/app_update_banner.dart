@@ -18,14 +18,23 @@ class AppUpdateBanner extends ConsumerWidget {
     final isForce = updateState.status == UpdateStatus.forceUpdate;
     final dl = updateState.downloadState;
 
+    final isDark = theme.brightness == Brightness.dark;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
+      elevation: isDark ? 3 : 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+        side: BorderSide(
+          color: isDark
+              ? theme.colorScheme.primary.withValues(alpha: 0.5)
+              : theme.colorScheme.primary.withValues(alpha: 0.3),
+          width: isDark ? 1.5 : 1.0,
+        ),
       ),
-      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+      color: isDark
+          ? theme.colorScheme.surfaceContainerHigh
+          : theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -37,7 +46,9 @@ class AppUpdateBanner extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                    color: isDark
+                        ? theme.colorScheme.primary.withValues(alpha: 0.25)
+                        : theme.colorScheme.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(Icons.system_update_rounded, color: theme.colorScheme.primary),
@@ -49,11 +60,17 @@ class AppUpdateBanner extends ConsumerWidget {
                     children: [
                       Text(
                         isForce ? '⚠️ Required Update Available' : '✨ New Version Available',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : null,
+                        ),
                       ),
                       Text(
                         'Version ${info.versionName}',
-                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -62,18 +79,31 @@ class AppUpdateBanner extends ConsumerWidget {
             ),
 
             const SizedBox(height: 12),
-            Text(info.message, style: theme.textTheme.bodyMedium),
+            Text(
+              info.message,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isDark ? Colors.white : null,
+              ),
+            ),
 
             if (info.releaseNotes.isNotEmpty) ...[
               const SizedBox(height: 8),
               ...info.releaseNotes.map(
                 (note) => Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
+                  padding: const EdgeInsets.only(bottom: 3),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Expanded(child: Text(note, style: theme.textTheme.bodySmall)),
+                      Text('• ', style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+                      Expanded(
+                        child: Text(
+                          note,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: isDark ? Colors.white70 : theme.colorScheme.onSurfaceVariant,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -253,6 +283,9 @@ class AppUpdateBanner extends ConsumerWidget {
                   if (!isForce)
                     TextButton(
                       onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
+                      style: TextButton.styleFrom(
+                        foregroundColor: isDark ? Colors.white70 : theme.colorScheme.onSurfaceVariant,
+                      ),
                       child: const Text('Later'),
                     ),
                   const SizedBox(width: 8),
@@ -260,6 +293,10 @@ class AppUpdateBanner extends ConsumerWidget {
                     onPressed: () => ref.read(updateServiceProvider.notifier).startUpdate(),
                     icon: const Icon(Icons.download_rounded, size: 18),
                     label: const Text('Update Now'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: theme.colorScheme.onPrimary,
+                    ),
                   ),
                 ],
               ),

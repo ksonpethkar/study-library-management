@@ -377,7 +377,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                       children: [
                         Text('$_greeting, $displayName!', style: theme.textTheme.titleMedium),
                         Text(libraryName, style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.outline,
+                          color: theme.colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.bold,
                         )),
                       ],
@@ -621,6 +621,8 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return PressableScale(
       onTap: onTap,
       child: Card(
@@ -633,18 +635,22 @@ class _StatCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Theme.of(context).colorScheme.primary),
+              Icon(icon, color: theme.colorScheme.primary),
               const Spacer(),
               Text(
                 value,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : null,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 title,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: isDark ? Colors.white70 : theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

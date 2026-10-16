@@ -279,6 +279,7 @@ class SettingsScreen extends ConsumerWidget {
           // Top Library Profile Card
           Builder(
             builder: (ctx) {
+              final theme = Theme.of(ctx);
               final lib = ref.watch(currentLibraryProvider).value;
               final imageProvider = ImageService.getImageProvider(lib?.logoUrl);
               return Card(
@@ -290,10 +291,10 @@ class SettingsScreen extends ConsumerWidget {
                     children: [
                       CircleAvatar(
                         radius: 30,
-                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                        backgroundColor: theme.colorScheme.primaryContainer,
                         backgroundImage: imageProvider,
                         child: imageProvider == null
-                            ? Icon(Icons.business_rounded, size: 30, color: Theme.of(context).colorScheme.primary)
+                            ? Icon(Icons.business_rounded, size: 30, color: theme.colorScheme.primary)
                             : null,
                       ),
                       const SizedBox(width: 14),
@@ -311,7 +312,7 @@ class SettingsScreen extends ConsumerWidget {
                               const SizedBox(height: 2),
                               Text(
                                 lib!.address,
-                                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -320,7 +321,7 @@ class SettingsScreen extends ConsumerWidget {
                               const SizedBox(height: 2),
                               Text(
                                 [if (lib?.contact.isNotEmpty ?? false) lib!.contact, if (lib?.email.isNotEmpty ?? false) lib!.email].join(' • '),
-                                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -1115,7 +1116,7 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   Text(
                     'App Info & Organization',
-                    style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+                    style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -1128,11 +1129,12 @@ class SettingsScreen extends ConsumerWidget {
           children: [
             const Divider(),
             if (lib?.address.isNotEmpty == true) ...[
-              _buildInfoRow(Icons.location_on_outlined, 'Address', lib!.address),
+              _buildInfoRow(context, Icons.location_on_outlined, 'Address', lib!.address),
               const SizedBox(height: 8),
             ],
             if (lib?.contact.isNotEmpty == true || lib?.helplineNumber.isNotEmpty == true) ...[
               _buildInfoRow(
+                context,
                 Icons.phone_outlined,
                 'Helpline',
                 lib?.helplineNumber.isNotEmpty == true ? lib!.helplineNumber : lib!.contact,
@@ -1140,16 +1142,16 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: 8),
             ],
             if (lib?.email.isNotEmpty == true) ...[
-              _buildInfoRow(Icons.email_outlined, 'Email', lib!.email),
+              _buildInfoRow(context, Icons.email_outlined, 'Email', lib!.email),
               const SizedBox(height: 8),
             ],
             if (lib?.operatingHours.isNotEmpty == true) ...[
-              _buildInfoRow(Icons.access_time_rounded, 'Hours', lib!.operatingHours),
+              _buildInfoRow(context, Icons.access_time_rounded, 'Hours', lib!.operatingHours),
               const SizedBox(height: 8),
             ],
-            _buildInfoRow(Icons.android_rounded, 'Version', 'v$ver (Build $build) — Production'),
+            _buildInfoRow(context, Icons.android_rounded, 'Version', 'v$ver (Build $build) — Production'),
             const SizedBox(height: 8),
-            _buildInfoRow(Icons.cloud_done_outlined, 'Backend', 'Firebase Cloud Firestore'),
+            _buildInfoRow(context, Icons.cloud_done_outlined, 'Backend', 'Firebase Cloud Firestore'),
           ],
         ),
         actions: [
@@ -1169,19 +1171,26 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  static Widget _buildInfoRow(IconData icon, String label, String value) {
+  static Widget _buildInfoRow(BuildContext context, IconData icon, String label, String value) {
+    final theme = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: Colors.brown),
+        Icon(icon, size: 16, color: theme.colorScheme.primary),
         const SizedBox(width: 8),
         Expanded(
-          child: RichText(
-            text: TextSpan(
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
+          child: Text.rich(
+            TextSpan(
+              style: theme.textTheme.bodySmall?.copyWith(fontSize: 12),
               children: [
-                TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
-                TextSpan(text: value),
+                TextSpan(
+                  text: '$label: ',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                ),
+                TextSpan(
+                  text: value,
+                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                ),
               ],
             ),
           ),

@@ -86,18 +86,22 @@ class SeatTile extends StatelessWidget {
                       ? Icons.male
                       : Icons.female,
                   size: 12,
-                  color: Colors.black54,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
             if (seat.status == SeatStatus.occupied && seat.studentId != null)
-              const Positioned(
+              Positioned(
                 bottom: 2,
                 left: 0,
                 right: 0,
                 child: Center(
                   child: Text(
                     'Occ',
-                    style: TextStyle(fontSize: 10, color: Colors.black54),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                    ),
                   ),
                 ),
               ),

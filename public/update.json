@@ -1,10 +1,10 @@
 {
-  "latestVersion": "1.5.24",
-  "latestBuild": 31,
-  "versionName": "1.5.24+31",
+  "latestVersion": "1.5.25",
+  "latestBuild": 32,
+  "versionName": "1.5.25+32",
   "apkSize": "74.0 MB",
-  "releaseNotes": "v1.5.24: Real-time organization branding & logo across web pages, live seat map & app info; updated release changelog; dynamic APK size",
-  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.24/StudyLibrary.apk",
+  "releaseNotes": "v1.5.25: Fixed APK v2/v3 signature scheme for seamless Android installation; enhanced dark mode text contrast & readability across dashboard, settings, and forms",
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.25/StudyLibrary.apk",
   "mandatory": false,
   "organization": {
     "name": "The Cozy Corner Centre",
@@ -17,15 +17,15 @@
   "studentFeatures": [
     {
       "icon": "palette",
-      "badge": "Branding",
-      "title": "Matches Your Library Brand",
-      "description": "App styling and theme colors dynamically reflect your library's official brand accent."
+      "badge": "Dark Mode",
+      "title": "High-Contrast Dark Theme",
+      "description": "Student home, cards, and text are enhanced for effortless readability on darker backgrounds without eye strain."
     },
     {
       "icon": "badge",
       "badge": "Home Bar",
       "title": "Library Tagline in Home Screen",
-      "description": "Your library official tagline is now featured directly under the library name in the home app bar."
+      "description": "Your library official tagline is featured directly under the library name in the home app bar."
     },
     {
       "icon": "receipt",
@@ -49,9 +49,9 @@
   "adminFeatures": [
     {
       "icon": "palette",
-      "badge": "Dynamic Theme",
-      "title": "Dynamic Brand Palette",
-      "description": "Set any accent color in Library Settings — the entire app theme and web pages adapt instantly in light and dark mode."
+      "badge": "Contrast Fix",
+      "title": "High-Contrast Dark Mode & APK Signatures",
+      "description": "Elevated cards, clear text labels, and official v1/v2/v3 APK signature schemes for smooth upgrades and flawless readability."
     },
     {
       "icon": "approval",
@@ -69,7 +69,7 @@
       "icon": "system_update",
       "badge": "Smart Updates",
       "title": "Real-Time Organization Branding",
-      "description": "Website landing page, download portal, and live seat map now dynamically synchronize with your library's logo, colors, and address from Firestore."
+      "description": "Website landing page, download portal, and live seat map dynamically synchronize with your library's logo, colors, and address from Firestore."
     },
     {
       "icon": "document_scanner",

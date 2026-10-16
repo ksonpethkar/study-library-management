@@ -254,7 +254,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Welcome back,', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600)),
+                          Text('Welcome back,', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                           Text(studentName, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                         ],
                       ),
@@ -360,7 +360,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                           const SizedBox(height: 4),
                           Text(
                             'Valid until: ${DateFormat('dd MMM yyyy').format(student.planEndDate!)}',
-                            style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                            style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
                           ),
                           const SizedBox(height: 14),
                           Builder(builder: (context) {
@@ -381,7 +381,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                                       daysLeft > 0 ? '$daysLeft Days Remaining' : 'Expired ${-daysLeft} days ago',
                                       style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13),
                                     ),
-                                    Text('${(progress * 100).toInt()}%', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                                    Text('${(progress * 100).toInt()}%', style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12)),
                                   ],
                                 ),
                                 const SizedBox(height: 6),
@@ -390,7 +390,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                                   child: LinearProgressIndicator(
                                     value: progress,
                                     color: color,
-                                    backgroundColor: Colors.grey.shade200,
+                                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
                                     minHeight: 8,
                                   ),
                                 ),
@@ -429,7 +429,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                       seatId != null
                           ? 'Section ID: $sectionId'
                           : 'Contact admin or apply for seat allocation.',
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
                     ),
                     trailing: OutlinedButton(
                       onPressed: () => context.push(Routes.studentSeatMap),
@@ -627,7 +627,7 @@ class _QuickTile extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: color)),
-            Text(subtitle, style: TextStyle(color: Colors.grey.shade600, fontSize: 11)),
+            Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11)),
           ],
         ),
       ),
@@ -722,11 +722,11 @@ Widget _buildRealTimePendingView(BuildContext context, ThemeData theme, Map<Stri
           if (requestId.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text('Reference: #${requestId.substring(0, 8).toUpperCase()}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontFamily: 'monospace')),
+                style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant, fontFamily: 'monospace')),
           ],
           const SizedBox(height: 8),
-          const Text('🔄 This screen will update automatically when approved.',
-              style: TextStyle(fontSize: 11, color: Colors.grey)),
+          Text('🔄 This screen will update automatically when approved.',
+              style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
         ],
       ),
     ),
