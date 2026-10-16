@@ -61,11 +61,12 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
       final receiptNumber = await SequenceCounter.nextReceiptNumber(libraryId);
       _receiptNumber = receiptNumber;
 
-      String fetchedStudentUserId = widget.studentUserId ?? '';
-      if (fetchedStudentUserId.isEmpty) {
-        final studentDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).collection('students').doc(widget.studentId).get();
-        fetchedStudentUserId = studentDoc.data()?['userId'] ?? '';
-      }
+      final studentDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).collection('students').doc(widget.studentId).get();
+      final studentData = studentDoc.data() ?? {};
+      final fetchedStudentUserId = widget.studentUserId ?? studentData['userId'] as String? ?? '';
+      final fetchedPlanId = studentData['planId'] as String? ?? '';
+      final parsedPlanEnd = StudentModel.parseDateStatic(studentData['planEndDate']);
+      final validToDate = parsedPlanEnd ?? DateTime.now().add(const Duration(days: 30));
 
       // Save receipt to Firestore
       final receipt = ReceiptModel(
@@ -74,11 +75,11 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
         receiptNumber: _receiptNumber,
         studentId: widget.studentId,
         studentUserId: fetchedStudentUserId,
-        planId: '',
+        planId: fetchedPlanId,
         amount: widget.amount,
         paymentMethod: widget.paymentMethod,
         validFrom: DateTime.now(),
-        validTo: DateTime.now().add(const Duration(days: 30)),
+        validTo: validToDate,
         customFields: {},
         status: ReceiptStatus.active,
       );
@@ -127,7 +128,11 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
     final templateData = templateDoc.exists ? templateDoc.data() : null;
 
     final studentDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).collection('students').doc(widget.studentId).get();
-    final fetchedStudentUserId = widget.studentUserId ?? studentDoc.data()?['userId'] ?? '';
+    final studentData = studentDoc.data() ?? {};
+    final fetchedStudentUserId = widget.studentUserId ?? studentData['userId'] as String? ?? '';
+    final fetchedPlanId = studentData['planId'] as String? ?? '';
+    final parsedPlanEnd = StudentModel.parseDateStatic(studentData['planEndDate']);
+    final validToDate = parsedPlanEnd ?? DateTime.now().add(const Duration(days: 30));
 
     final receipt = ReceiptModel(
       id: '',
@@ -135,11 +140,11 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
       receiptNumber: _receiptNumber,
       studentId: widget.studentId,
       studentUserId: fetchedStudentUserId,
-      planId: '',
+      planId: fetchedPlanId,
       amount: widget.amount,
       paymentMethod: widget.paymentMethod,
       validFrom: DateTime.now(),
-      validTo: DateTime.now().add(const Duration(days: 30)),
+      validTo: validToDate,
       customFields: widget.notes != null ? {'notes': widget.notes} : {},
       status: ReceiptStatus.active,
       createdAt: DateTime.now(),

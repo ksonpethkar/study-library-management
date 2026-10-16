@@ -203,6 +203,11 @@ class StudentRepository {
         ...student.toJson(),
         'govIdNumber': encryptedGovId,
         if (govIdHash.isNotEmpty) 'govIdHash': govIdHash,
+        if (student.planStartDate != null) 'planStartDate': Timestamp.fromDate(student.planStartDate!),
+        if (student.planEndDate != null)   'planEndDate':   Timestamp.fromDate(student.planEndDate!),
+        if (student.graceEndDate != null)  'graceEndDate':  Timestamp.fromDate(student.graceEndDate!),
+        if (student.dob != null)           'dob':           Timestamp.fromDate(student.dob!),
+        'updatedAt': FieldValue.serverTimestamp(),
       };
 
       await _firestore
