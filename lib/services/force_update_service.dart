@@ -211,20 +211,30 @@ class ForceUpdateService extends Notifier<UpdateState> {
               (now - dismissedTimeMs < const Duration(hours: 24).inMilliseconds);
 
           if (!isCooldownActive) {
-            // Check if already downloaded — restore completed state
             final apkFile = await _getApkFile();
             if (await apkFile.exists()) {
-              final fileSize = await apkFile.length();
-              if (fileSize > 10 * 1024 * 1024) {
-                // File exists and is reasonably large (>10 MB) — already downloaded
+              bool isValid = false;
+              try {
+                isValid = await _channel.invokeMethod<bool>('verifyApk', {'filePath': apkFile.path}) ?? false;
+              } catch (_) {}
+
+              if (isValid) {
+                final fileSize = await apkFile.length();
                 state = state.copyWith(
                   status: UpdateStatus.optionalUpdate,
                   info: updateInfo,
                   downloadState: DownloadState.completed,
                   downloadedApkPath: apkFile.path,
                   progress: 1.0,
+                  downloadedBytes: fileSize,
+                  totalBytes: fileSize,
                 );
                 return;
+              } else {
+                // Incomplete or corrupted file from prior interrupted download — delete cleanly
+                try {
+                  await apkFile.delete();
+                } catch (_) {}
               }
             }
             state = state.copyWith(status: UpdateStatus.optionalUpdate, info: updateInfo);
@@ -270,12 +280,16 @@ class ForceUpdateService extends Notifier<UpdateState> {
       return;
     }
 
-    // Check if already fully downloaded
+    // Check if already fully downloaded & valid
     final apkFile = await _getApkFile();
     if (await apkFile.exists()) {
-      final fileSize = await apkFile.length();
-      if (fileSize > 10 * 1024 * 1024) {
-        // Already complete — show install button directly
+      bool isValid = false;
+      try {
+        isValid = await _channel.invokeMethod<bool>('verifyApk', {'filePath': apkFile.path}) ?? false;
+      } catch (_) {}
+
+      if (isValid) {
+        final fileSize = await apkFile.length();
         state = state.copyWith(
           downloadState: DownloadState.completed,
           downloadedApkPath: apkFile.path,
@@ -284,6 +298,10 @@ class ForceUpdateService extends Notifier<UpdateState> {
           totalBytes: fileSize,
         );
         return;
+      } else {
+        try {
+          await apkFile.delete();
+        } catch (_) {}
       }
     }
 
@@ -408,6 +426,33 @@ class ForceUpdateService extends Notifier<UpdateState> {
       state = state.copyWith(downloadState: DownloadState.idle, clearApkPath: true);
       return;
     }
+
+    // Check package installer permission
+    try {
+      final canInstall = await _channel.invokeMethod<bool>('canInstallPackages') ?? true;
+      if (!canInstall) {
+        state = state.copyWith(downloadState: DownloadState.permissionRequired);
+        await requestInstallPermission();
+        return;
+      }
+    } catch (_) {}
+
+    // Verify APK archive integrity before launching installer
+    try {
+      final isValid = await _channel.invokeMethod<bool>('verifyApk', {'filePath': path}) ?? false;
+      if (!isValid) {
+        try {
+          await file.delete();
+        } catch (_) {}
+        state = state.copyWith(
+          downloadState: DownloadState.failed,
+          errorMessage: 'Downloaded file was incomplete. Please tap to re-download.',
+          clearApkPath: true,
+        );
+        return;
+      }
+    } catch (_) {}
+
     await _installApk(path);
   }
 

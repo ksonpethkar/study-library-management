@@ -37,6 +37,28 @@ class MainActivity : FlutterFragmentActivity() {
                         result.success(true)
                     }
                 }
+                "verifyApk" -> {
+                    val filePath = call.argument<String>("filePath")
+                    if (filePath == null) {
+                        result.success(false)
+                        return@setMethodCallHandler
+                    }
+                    val file = File(filePath)
+                    if (!file.exists() || file.length() < 1024 * 1024) {
+                        result.success(false)
+                        return@setMethodCallHandler
+                    }
+                    try {
+                        val archiveInfo = packageManager.getPackageArchiveInfo(filePath, 0)
+                        if (archiveInfo != null && archiveInfo.packageName == packageName) {
+                            result.success(true)
+                        } else {
+                            result.success(false)
+                        }
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
                 "installApk" -> {
                     val filePath = call.argument<String>("filePath")
                     if (filePath == null) {
@@ -62,6 +84,7 @@ class MainActivity : FlutterFragmentActivity() {
                             setDataAndType(contentUri, "application/vnd.android.package-archive")
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
                         }
                         startActivity(intent)
                         result.success(true)

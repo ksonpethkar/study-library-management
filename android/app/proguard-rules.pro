@@ -29,3 +29,12 @@
 # ML Kit Text Recognition languages not bundled
 -dontwarn com.google.mlkit.vision.text.**
 -dontwarn com.google.mlkit.**
+
+# AndroidX FileProvider & Biometric
+-keep class androidx.core.content.FileProvider { *; }
+-keep class androidx.biometric.** { *; }
+-dontwarn androidx.biometric.**
+
+# Cryptography & Security
+-keep class org.bouncycastle.** { *; }
+-dontwarn org.bouncycastle.**
