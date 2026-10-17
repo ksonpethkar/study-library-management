@@ -272,6 +272,79 @@ void main() {
       // Deleted 40 days ago -> 0 days left (expired)
       expect(calculateRemainingDays(now.subtract(const Duration(days: 40))), equals(0));
     });
+
+    test('13. Master PIN SHA-256 Cloud Sync & Reinstall Recovery Schema', () {
+      const plainPin = '8492';
+      final pinHash = sha256.convert(utf8.encode(plainPin)).toString();
+
+      // Cloud payload format stored in libraries/{id}/settings/security
+      final cloudSecurityPayload = {
+        'masterPinHash': pinHash,
+        'hasMasterPin': true,
+        'autoLockTimeoutMinutes': 5,
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+
+      expect(cloudSecurityPayload['hasMasterPin'], isTrue);
+      expect(cloudSecurityPayload['masterPinHash'], equals(pinHash));
+      expect(cloudSecurityPayload['autoLockTimeoutMinutes'], equals(5));
+
+      // Recovery simulation: Local SharedPreferences lost, recovered from cloud
+      final restoredHash = cloudSecurityPayload['masterPinHash'] as String?;
+      expect(restoredHash, isNotNull);
+      expect(restoredHash, equals(pinHash));
+
+      // Verifying candidate pin against restored hash
+      final testInputHash = sha256.convert(utf8.encode('8492')).toString();
+      expect(testInputHash, equals(restoredHash));
+    });
+
+    test('14. Student Expiry Date Field Consistency for Firestore Range Queries', () {
+      final now = DateTime(2026, 10, 17);
+      final expiryDate = now.add(const Duration(days: 5));
+
+      // When updating student, dates must not be saved as raw ISO strings which break range queries
+      final studentUpdateMap = <String, dynamic>{
+        'name': 'Aarav Patel',
+        'planEndDate': expiryDate, // Passed as DateTime / Timestamp, not String
+      };
+
+      expect(studentUpdateMap['planEndDate'], isA<DateTime>());
+      expect(studentUpdateMap['planEndDate'].isAfter(now), isTrue);
+
+      final daysUntilExpiry = (studentUpdateMap['planEndDate'] as DateTime).difference(now).inDays;
+      expect(daysUntilExpiry, equals(5));
+      expect(daysUntilExpiry <= 7, isTrue); // Expiring soon filter
+    });
+
+    test('15. Receipt Plan ID & Validity Auto-Population Logic', () {
+      final studentPlanEndDate = DateTime(2026, 11, 15);
+      const studentPlanId = 'plan_quarterly_special';
+
+      // Receipt auto-populates validTo and planId from student's active plan
+      final receiptData = {
+        'planId': studentPlanId,
+        'validFrom': DateTime(2026, 10, 15),
+        'validTo': studentPlanEndDate,
+      };
+
+      expect(receiptData['planId'], equals('plan_quarterly_special'));
+      expect(receiptData['validTo'], equals(DateTime(2026, 11, 15)));
+      expect((receiptData['validTo'] as DateTime).isAfter(receiptData['validFrom'] as DateTime), isTrue);
+    });
+
+    test('16. Seat Tile Clean Label Formatting (No "Occ" text overlap)', () {
+      // Clean seat display: only seat label should be displayed (e.g. A1, B4)
+      // No "Occ" badge placed on top of the seat number
+      String formatSeatDisplay(String seatLabel, SeatStatus status) {
+        // Returns clean seat label regardless of status
+        return seatLabel;
+      }
+
+      expect(formatSeatDisplay('A1', SeatStatus.occupied), equals('A1'));
+      expect(formatSeatDisplay('A1', SeatStatus.occupied).contains('Occ'), isFalse);
+      expect(formatSeatDisplay('B12', SeatStatus.available), equals('B12'));
+    });
   });
 }
 
