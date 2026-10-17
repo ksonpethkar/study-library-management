@@ -1,12 +1,14 @@
 {
-  "latestVersion": "1.5.26-test.1",
-  "latestBuild": 33,
-  "versionName": "1.5.26-test.1+33",
-  "arm64Size": "45.0 MB",
+  "versionCode": 34,
+  "latestVersionCode": 34,
+  "latestBuild": 34,
+  "latestVersion": "1.5.26-test.2",
+  "versionName": "1.5.26-test.2+34",
+  "arm64Size": "47.7 MB",
   "universalSize": "121.0 MB",
-  "releaseNotes": "Test Build: Admin Google Sign-In priority authorization, Base64 logo rendering on auth screen, dynamic tagline caching, and split-ABI mobile optimization (~45 MB).",
+  "releaseNotes": "Test Build (Build 34): Google Play Protect Clean Release (removed SEND_SMS, 100% permission-free SMS intent), In-App Update Trigger Fix, Master PIN Cloud Sync, Touch-Isolated Screenshot Toggle, Partial Payments Due Banner, Clean Seat Map.",
   "arm64DownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/test-latest/StudyLibrary-Test-arm64.apk",
   "universalDownloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/test-latest/StudyLibrary-Test-Universal.apk",
   "isTestChannel": true,
-  "builtAt": "2026-10-16"
+  "builtAt": "2026-10-17"
 }

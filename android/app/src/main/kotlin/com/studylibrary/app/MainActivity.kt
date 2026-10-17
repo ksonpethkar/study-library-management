@@ -80,37 +80,6 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
-
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "study_library/sms").setMethodCallHandler { call, result ->
-            when (call.method) {
-                "sendSms" -> {
-                    val phone = call.argument<String>("phone")
-                    val message = call.argument<String>("message")
-                    if (phone.isNullOrEmpty() || message.isNullOrEmpty()) {
-                        result.error("INVALID_ARGS", "Phone or message is empty", null)
-                        return@setMethodCallHandler
-                    }
-                    try {
-                        val smsManager: android.telephony.SmsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            applicationContext.getSystemService(android.telephony.SmsManager::class.java)
-                        } else {
-                            @Suppress("DEPRECATION")
-                            android.telephony.SmsManager.getDefault()
-                        }
-                        val parts = smsManager.divideMessage(message)
-                        if (parts.size > 1) {
-                            smsManager.sendMultipartTextMessage(phone, null, parts, null, null)
-                        } else {
-                            smsManager.sendTextMessage(phone, null, message, null, null)
-                        }
-                        result.success(true)
-                    } catch (e: Exception) {
-                        result.error("SMS_FAILED", e.message, null)
-                    }
-                }
-                else -> result.notImplemented()
-            }
-        }
     }
 }
 

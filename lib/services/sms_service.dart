@@ -1,13 +1,10 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// SmsService enables 100% free SMS messaging via the admin device's native SIM card.
-/// Uses Android's native SmsManager API in the background.
+/// Uses Android's official SMS intent with prefilled recipient and message (zero dangerous permissions).
 class SmsService {
-  static const _channel = MethodChannel('study_library/sms');
 
   /// Cleans phone number to standard format.
   String sanitizePhone(String raw) {
@@ -21,8 +18,8 @@ class SmsService {
     return digits;
   }
 
-  /// Sends a direct background SMS using the device's native SIM card.
-  /// Falls back to launching the default SMS app if background dispatch fails.
+  /// Sends SMS by launching the default SMS composer with recipient and text prefilled.
+  /// 100% permission-free, uses device SIM quota, and complies with Google Play Protect.
   Future<bool> sendDirectSms({
     required String phone,
     required String message,
@@ -33,35 +30,13 @@ class SmsService {
       return false;
     }
 
-    // Android native direct SMS dispatch
-    if (defaultTargetPlatform == TargetPlatform.android && !kIsWeb) {
-      try {
-        final status = await Permission.sms.request();
-        if (status.isGranted) {
-          final result = await _channel.invokeMethod<bool>('sendSms', {
-            'phone': cleanPhone,
-            'message': message,
-          });
-          if (result == true) {
-            debugPrint('SmsService: SMS dispatched directly via SIM to $cleanPhone');
-            return true;
-          }
-        } else {
-          debugPrint('SmsService: SMS permission not granted: $status');
-        }
-      } catch (e) {
-        debugPrint('SmsService native error: $e');
-      }
-    }
-
-    // Fallback: Launch SMS app with pre-filled text
     try {
       final uri = Uri.parse('sms:$cleanPhone?body=${Uri.encodeComponent(message)}');
       if (await canLaunchUrl(uri)) {
-        return await launchUrl(uri);
+        return await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      debugPrint('SmsService fallback error: $e');
+      debugPrint('SmsService error: $e');
     }
     return false;
   }

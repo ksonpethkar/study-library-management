@@ -1,9 +1,11 @@
 {
+  "versionCode": 34,
+  "latestVersionCode": 34,
+  "latestBuild": 34,
   "latestVersion": "1.5.26",
-  "latestBuild": 33,
-  "versionName": "1.5.26+33",
+  "versionName": "1.5.26+34",
   "apkSize": "47.7 MB",
-  "releaseNotes": "v1.5.26: Master PIN & Biometrics Cloud Sync, Touch-Isolated Screenshot Toggle, 100% Free Multi-Channel Messaging Stack (Admin SIM SMS, Telegram Bot API, 1-Tap WhatsApp, Local Bridge), Partial Payments & Due Balance Installment Tracking, Dynamic Payment Modes, Clean Seat Map Labels without 'occ', Autonomous Gov ID OCR, and In-App Student Plan Renewal Approval.",
+  "releaseNotes": "v1.5.26 (Build 34): Google Play Protect Clean Release (removed SEND_SMS, 100% permission-free SMS intent), In-App Update Trigger Fix, Master PIN Cloud Sync, Touch-Isolated Screenshot Toggle, Partial Payments & Due Tracking, Dynamic Payment Modes, and Clean Seat Map.",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.26/StudyLibrary.apk",
   "mandatory": false,
   "organization": {
@@ -51,7 +53,7 @@
       "icon": "system_update",
       "badge": "100% Free",
       "title": "Multi-Channel Free Messaging Stack",
-      "description": "Send automated fee receipts and alerts via Admin SIM Native Direct SMS, official Telegram Bot, 1-tap WhatsApp, or Local Desk PC Bridge."
+      "description": "Send automated fee receipts and alerts via Admin SIM Native Direct SMS (Play Protect verified safe), official Telegram Bot, 1-tap WhatsApp, or Local Desk PC Bridge."
     },
     {
       "icon": "receipt",

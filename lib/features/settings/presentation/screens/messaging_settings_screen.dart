@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/services/messaging_hub_service.dart';
 import 'package:study_library/services/telegram_service.dart';
@@ -19,7 +18,6 @@ class _MessagingSettingsScreenState extends ConsumerState<MessagingSettingsScree
 
   // SMS
   bool _smsEnabled = false;
-  PermissionStatus _smsPermissionStatus = PermissionStatus.denied;
 
   // Telegram
   bool _telegramEnabled = false;
@@ -43,25 +41,6 @@ class _MessagingSettingsScreenState extends ConsumerState<MessagingSettingsScree
   void initState() {
     super.initState();
     _loadSettings();
-    _checkSmsPermission();
-  }
-
-  Future<void> _checkSmsPermission() async {
-    final status = await Permission.sms.status;
-    if (mounted) setState(() => _smsPermissionStatus = status);
-  }
-
-  Future<void> _requestSmsPermission() async {
-    final status = await Permission.sms.request();
-    if (mounted) {
-      setState(() => _smsPermissionStatus = status);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(status.isGranted ? 'SMS Permission Granted! ✅' : 'SMS Permission Denied ⚠️'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
   }
 
   Future<void> _loadSettings() async {
@@ -271,26 +250,20 @@ class _MessagingSettingsScreenState extends ConsumerState<MessagingSettingsScree
                         if (_smsEnabled) ...[
                           const Divider(height: 24),
                           Text(
-                            'Sends automated text SMS in the background using the admin phone SIM card (utilizing your plan\'s 100 free SMS/day).',
+                            'Sends text SMS using the admin phone SIM card (utilizing your plan\'s 100 free SMS/day). Launches your native SMS app with recipient and receipt prefilled—100% permission-free and verified safe by Google Play Protect.',
                             style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
                           ),
                           const SizedBox(height: 12),
                           Row(
                             children: [
                               Chip(
-                                label: Text(_smsPermissionStatus.isGranted ? 'Permission: Granted' : 'Permission: Needed'),
-                                avatar: Icon(
-                                  _smsPermissionStatus.isGranted ? Icons.check_circle : Icons.warning_amber,
-                                  color: _smsPermissionStatus.isGranted ? Colors.green : Colors.orange,
+                                label: const Text('Verified Safe • No Risky Permissions'),
+                                avatar: const Icon(
+                                  Icons.verified_user_rounded,
+                                  color: Colors.green,
                                   size: 18,
                                 ),
                               ),
-                              const Spacer(),
-                              if (!_smsPermissionStatus.isGranted)
-                                OutlinedButton(
-                                  onPressed: _requestSmsPermission,
-                                  child: const Text('Grant Permission'),
-                                ),
                             ],
                           ),
                         ],

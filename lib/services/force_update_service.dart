@@ -53,6 +53,7 @@ class UpdateInfo {
 
     final vCode = (data['versionCode'] as num?)?.toInt() ??
         (data['latestVersionCode'] as num?)?.toInt() ??
+        (data['latestBuild'] as num?)?.toInt() ??
         0;
     final vName = (data['versionName'] ?? data['latestVersion'] ?? '').toString();
     final downloadLink = (data['apkUrl'] ??
