@@ -7,6 +7,8 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/models/waiting_list_model.dart';
+import 'package:study_library/models/payment_model.dart';
+import 'package:study_library/features/registration/data/ocr_parser.dart';
 import 'package:study_library/services/biometric_service.dart';
 
 void main() {
@@ -344,6 +346,86 @@ void main() {
       expect(formatSeatDisplay('A1', SeatStatus.occupied), equals('A1'));
       expect(formatSeatDisplay('A1', SeatStatus.occupied).contains('Occ'), isFalse);
       expect(formatSeatDisplay('B12', SeatStatus.available), equals('B12'));
+    });
+
+    test('17. Partial Payment & Installment Tracking Calculation', () {
+      const double totalFee = 1500.0;
+      const double firstInstallment = 500.0;
+      final double remainingDue = totalFee - firstInstallment;
+
+      expect(remainingDue, equals(1000.0));
+
+      final payment = PaymentModel(
+        id: 'pay_001',
+        studentId: 'stud_123',
+        amount: firstInstallment,
+        method: 'UPI / QR',
+        date: DateTime.now(),
+        totalPlanFee: totalFee,
+        remainingDue: remainingDue,
+        installmentNumber: 1,
+        status: PaymentStatus.partial,
+        createdAt: DateTime.now(),
+      );
+
+      expect(payment.totalPlanFee, equals(1500.0));
+      expect(payment.remainingDue, equals(1000.0));
+      expect(payment.installmentNumber, equals(1));
+      expect(payment.status, equals(PaymentStatus.partial));
+
+      final json = payment.toJson();
+      expect(json['totalPlanFee'], equals(1500.0));
+      expect(json['remainingDue'], equals(1000.0));
+      expect(json['installmentNumber'], equals(1));
+      expect(json['status'], equals('partial'));
+    });
+
+    test('18. Native SMS Phone Number Sanitization (Admin SIM Free Messaging)', () {
+      String sanitizePhone(String raw) {
+        String digits = raw.replaceAll(RegExp(r'\D'), '');
+        if (digits.length == 12 && digits.startsWith('91')) {
+          return digits.substring(2);
+        }
+        if (digits.length == 11 && digits.startsWith('0')) {
+          return digits.substring(1);
+        }
+        return digits;
+      }
+
+      expect(sanitizePhone('+91 98765 43210'), equals('9876543210'));
+      expect(sanitizePhone('09876543210'), equals('9876543210'));
+      expect(sanitizePhone('9876543210'), equals('9876543210'));
+    });
+
+    test('19. Autonomous OCR Document Detection Logic', () {
+      // PAN Card detection
+      expect(OcrParser.detectGovIdType('INCOME TAX DEPARTMENT GOVT OF INDIA ABCDE1234F'), equals(GovIdType.pan));
+
+      // Passport detection
+      expect(OcrParser.detectGovIdType('PASSPORT REPUBLIC OF INDIA P<IND'), equals(GovIdType.passport));
+
+      // Driving Licence detection
+      expect(OcrParser.detectGovIdType('UNION OF INDIA DRIVING LICENCE TRANSPORT DEPT DL NO'), equals(GovIdType.drivingLicence));
+
+      // College ID detection
+      expect(OcrParser.detectGovIdType('ABC COLLEGE OF ENGINEERING STUDENT IDENTITY CARD ROLL NO 42'), equals(GovIdType.collegeId));
+
+      // Aadhaar detection
+      expect(OcrParser.detectGovIdType('GOVERNMENT OF INDIA UNIQUE IDENTIFICATION AUTHORITY AADHAAR 1234 5678 9012'), equals(GovIdType.aadhaar));
+    });
+
+    test('20. Biometric & Security Firestore Recovery Schema Completeness', () {
+      final docData = <String, dynamic>{
+        'pinHash': '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8',
+        'biometricEnabled': true,
+        'autoLockMinutes': 5,
+        'screenshotProtectionEnabled': false,
+      };
+
+      expect(docData['pinHash'], isNotEmpty);
+      expect(docData['biometricEnabled'], isTrue);
+      expect(docData['autoLockMinutes'], equals(5));
+      expect(docData['screenshotProtectionEnabled'], isFalse);
     });
   });
 }

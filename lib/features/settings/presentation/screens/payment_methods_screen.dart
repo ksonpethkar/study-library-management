@@ -13,8 +13,10 @@ class PaymentMethodsScreen extends ConsumerStatefulWidget {
 class _PaymentMethodsScreenState extends ConsumerState<PaymentMethodsScreen> {
   List<Map<String, dynamic>> _methods = [
     {'id': 'cash', 'name': 'Cash', 'active': true, 'details': 'Cash payment at reception'},
-    {'id': 'upi', 'name': 'UPI / QR', 'active': true, 'details': 'GPay / PhonePe / Paytm'},
-    {'id': 'bank', 'name': 'Bank Transfer', 'active': false, 'details': 'NEFT / RTGS / IMPS'},
+    {'id': 'upi', 'name': 'UPI / QR', 'active': true, 'details': 'GPay / PhonePe / Paytm / BHIM'},
+    {'id': 'card', 'name': 'Debit / Credit Card', 'active': true, 'details': 'POS Card Swipe'},
+    {'id': 'bank', 'name': 'Bank Transfer', 'active': true, 'details': 'NEFT / RTGS / IMPS'},
+    {'id': 'cheque', 'name': 'Cheque / DD', 'active': false, 'details': 'Cheque in favour of library'},
   ];
 
   bool _isLoading = true;

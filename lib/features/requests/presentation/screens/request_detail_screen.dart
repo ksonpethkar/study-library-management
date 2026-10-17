@@ -217,6 +217,71 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             details: {'action': 'profile_update_approved', ...proposedData},
           ).ignore();
         }
+      } else if (type == 'renewal') {
+        final studentId = (data['studentId'] ?? '').toString();
+        final requestedPlanId = (data['requestedPlanId'] ?? '').toString();
+
+        if (studentId.isNotEmpty && requestedPlanId.isNotEmpty) {
+          final studentDoc = await FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('students')
+              .doc(studentId)
+              .get();
+
+          if (studentDoc.exists) {
+            final sData = studentDoc.data()!;
+            final currentPlanEndDate = StudentModel.parseDateStatic(sData['planEndDate']);
+
+            final plansAsync = ref.read(plansStreamProvider);
+            final plans = plansAsync.value ?? [];
+            final plan = plans.where((p) => p.id == requestedPlanId).firstOrNull;
+
+            DateTime newStartDate;
+            DateTime newEndDate;
+
+            if (currentPlanEndDate != null && currentPlanEndDate.isAfter(DateTime.now())) {
+              newStartDate = currentPlanEndDate;
+            } else {
+              newStartDate = DateTime.now();
+            }
+
+            if (plan != null) {
+              if (plan.durationUnit.name == 'months') {
+                newEndDate = DateTime(newStartDate.year, newStartDate.month + plan.duration, newStartDate.day);
+              } else {
+                newEndDate = newStartDate.add(Duration(days: plan.duration));
+              }
+            } else {
+              newEndDate = newStartDate.add(const Duration(days: 30));
+            }
+
+            await FirebaseFirestore.instance
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('students')
+                .doc(studentId)
+                .update({
+              'planId': requestedPlanId,
+              'planStartDate': Timestamp.fromDate(newStartDate),
+              'planEndDate': Timestamp.fromDate(newEndDate),
+              'membershipStatus': MembershipStatus.active.name,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+
+            AuditLogger().log(
+              action: AuditAction.updated,
+              entityType: AuditEntity.student,
+              libraryId: libraryId,
+              entityId: studentId,
+              details: {
+                'action': 'plan_renewal_approved',
+                'planId': requestedPlanId,
+                'planEndDate': newEndDate.toIso8601String(),
+              },
+            ).ignore();
+          }
+        }
       }
 
       // Mark request approved
@@ -245,7 +310,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       if (mounted) {
         final successMsg = type == 'profile_update'
             ? 'Profile update approved and applied successfully!'
-            : 'Request approved successfully! Student profile created.';
+            : (type == 'renewal'
+                ? 'Membership renewal approved and extended successfully!'
+                : 'Request approved successfully! Student profile created.');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMsg), backgroundColor: Colors.green),
         );
@@ -260,6 +327,17 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             studentName.toString(),
             studentPhone,
             planEndDate: finalPlanEndDate,
+          );
+        } else if (type == 'renewal') {
+          final sId = (_requestData?['studentId'] ?? '').toString();
+          final planAmt = (_requestData?['amount'] as num?)?.toDouble() ?? 0.0;
+          _promptRenewalPaymentAfterApproval(
+            libraryId,
+            sId,
+            studentUserId,
+            studentName.toString(),
+            studentPhone,
+            planAmt,
           );
         }
       }
@@ -722,24 +800,115 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     );
   }
 
+  void _promptRenewalPaymentAfterApproval(
+    String libraryId,
+    String studentId,
+    String studentUserId,
+    String studentName,
+    String studentPhone,
+    double renewalAmount,
+  ) {
+    if (!mounted) return;
+    final amountController = TextEditingController(text: renewalAmount > 0 ? renewalAmount.toStringAsFixed(0) : '');
+    String paymentMethod = 'UPI';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDs) => AlertDialog(
+          icon: const Icon(Icons.autorenew_rounded, color: Colors.blue, size: 36),
+          title: const Text('Renewal Approved! 🔄'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$studentName\'s renewal has been approved. Record payment to generate their renewal receipt.'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Renewal Amount (₹)',
+                  prefixText: '₹ ',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: paymentMethod,
+                decoration: const InputDecoration(labelText: 'Payment Method', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'UPI', child: Text('UPI / QR')),
+                  DropdownMenuItem(value: 'Cash', child: Text('Cash')),
+                  DropdownMenuItem(value: 'Card', child: Text('Debit/Credit Card')),
+                  DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer')),
+                ],
+                onChanged: (v) => setDs(() => paymentMethod = v ?? 'UPI'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Record Later'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final amount = double.tryParse(amountController.text.trim()) ?? renewalAmount;
+                Navigator.of(ctx).pop();
+                if (amount > 0) {
+                  await _recordPaymentAndReceipt(
+                    libraryId,
+                    studentId,
+                    studentUserId,
+                    studentName,
+                    studentPhone,
+                    amount,
+                    paymentMethod,
+                  );
+                }
+              },
+              child: const Text('Record Payment & Receipt'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _recordPaymentAndReceipt(String libraryId, String studentId, String studentUserId, String studentName, String studentPhone, double amount, String paymentMethod, {DateTime? planEndDate}) async {
     try {
+      final receiptNum = 'REC${DateTime.now().year}${(DateTime.now().millisecondsSinceEpoch % 100000).toString().padLeft(5,'0')}';
+      final receiptRef = FirebaseFirestore.instance.collection('libraries').doc(libraryId).collection('receipts').doc();
+
       final paymentRef = FirebaseFirestore.instance
           .collection('libraries').doc(libraryId)
-          .collection('students').doc(studentId)
           .collection('payments').doc();
-      await paymentRef.set({
+
+      final paymentData = {
         'id': paymentRef.id,
         'studentId': studentId,
         'amount': amount,
-        'method': paymentMethod,        // fixed: was 'paymentMethod' (PaymentModel uses 'method')
-        'status': 'paid',               // fixed: was 'completed' (not a valid PaymentStatus enum)
-        'date': FieldValue.serverTimestamp(), // fixed: was 'paidAt' (PaymentModel uses 'date')
+        'method': paymentMethod,
+        'status': 'paid',
+        'date': FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(),
         'recordedBy': FirebaseAuth.instance.currentUser?.email ?? 'admin',
-      });
-      final receiptNum = 'REC${DateTime.now().year}${(DateTime.now().millisecondsSinceEpoch % 100000).toString().padLeft(5,'0')}';
-      await FirebaseFirestore.instance.collection('libraries').doc(libraryId).collection('receipts').add({
+        'receiptId': receiptRef.id,
+      };
+
+      await paymentRef.set(paymentData);
+
+      // Also copy to subcollection for legacy compatibility
+      await FirebaseFirestore.instance
+          .collection('libraries').doc(libraryId)
+          .collection('students').doc(studentId)
+          .collection('payments').doc(paymentRef.id)
+          .set(paymentData);
+
+      await receiptRef.set({
+        'id': receiptRef.id,
         'receiptNumber': receiptNum,
         'studentId': studentId,
         'studentUserId': studentUserId,
@@ -756,6 +925,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         'planId': '',
         'customFields': {},
       });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Payment recorded & Receipt $receiptNum generated ✓'),

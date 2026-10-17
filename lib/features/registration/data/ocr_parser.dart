@@ -108,34 +108,56 @@ class OcrParser {
   /// Automatically detects which Indian Government ID document is scanned
   static GovIdType detectGovIdType(String rawText) {
     final text = rawText.toUpperCase();
-    // PAN Card check
+
+    // 1. PAN Card check (10-char alphanumeric or Income Tax keywords)
     if (RegExp(r'\b[A-Z]{5}[0-9]{4}[A-Z]\b').hasMatch(text) ||
         text.contains('INCOME TAX') ||
-        text.contains('PERMANENT ACCOUNT NUMBER')) {
+        text.contains('PERMANENT ACCOUNT') ||
+        text.contains('GOVT. OF INDIA') && text.contains('FATHER')) {
       return GovIdType.pan;
     }
-    // Passport check (before DL to avoid false-match on "REPUBLIC OF INDIA")
+
+    // 2. Passport check
     if (text.contains('PASSPORT') ||
-        text.contains('REPUBLIC OF INDIA') && text.contains('NATIONALITY') ||
-        RegExp(r'\b[A-Z][0-9]{7}\b').hasMatch(text)) { // Indian passport number format
+        (text.contains('REPUBLIC OF INDIA') && text.contains('NATIONALITY')) ||
+        text.contains('P<IND') ||
+        RegExp(r'\b[A-Z][0-9]{7}\b').hasMatch(text)) {
       return GovIdType.passport;
     }
-    // Driving Licence check
+
+    // 3. Driving Licence check
     if (text.contains('DRIVING LICENCE') ||
         text.contains('DRIVING LICENSE') ||
         text.contains('UNION OF INDIA DRIVING') ||
+        text.contains('TRANSPORT DEPARTMENT') ||
+        text.contains('AUTHORISED TO DRIVE') ||
         RegExp(r'\b[A-Z]{2}[-\s]?\d{2}[-\s]?(?:19|20)\d{2}\b').hasMatch(text)) {
       return GovIdType.drivingLicence;
     }
-    // College ID check
+
+    // 4. College / Student ID check
     if (text.contains('COLLEGE') ||
         text.contains('INSTITUTE') ||
         text.contains('UNIVERSITY') ||
         text.contains('STUDENT ID') ||
+        text.contains('STUDENT CARD') ||
         text.contains('ENROLLMENT NO') ||
-        text.contains('ROLL NO')) {
+        text.contains('ROLL NO') ||
+        text.contains('ACADEMIC YEAR')) {
       return GovIdType.collegeId;
     }
+
+    // 5. Aadhaar check (explicit UIDAI keywords or 12-digit pattern)
+    if (text.contains('AADHAAR') ||
+        text.contains('UIDAI') ||
+        text.contains('UNIQUE IDENTIFICATION') ||
+        text.contains('MERA AADHAAR') ||
+        text.contains('GOVERNMENT OF INDIA') ||
+        text.contains('ENROLMENT NO') ||
+        RegExp(r'\b\d{4}\s\d{4}\s\d{4}\b').hasMatch(text)) {
+      return GovIdType.aadhaar;
+    }
+
     // Default to Aadhaar
     return GovIdType.aadhaar;
   }

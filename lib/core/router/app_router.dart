@@ -58,6 +58,7 @@ import '../../features/qr_share/presentation/screens/qr_share_screen.dart';
 import '../../features/admin_qr/presentation/screens/admin_qr_scanner_screen.dart';
 import '../../features/settings/presentation/screens/grace_period_screen.dart';
 import '../../features/settings/presentation/screens/id_card_customizer_screen.dart';
+import '../../features/settings/presentation/screens/messaging_settings_screen.dart';
 
 import '../../features/student_app/presentation/screens/student_home_screen.dart';
 import '../../features/student_app/presentation/screens/my_membership_screen.dart';
@@ -123,6 +124,7 @@ class Routes {
   static const adminFormCustomizer = '/admin/settings/form-customizer';
   static const adminPaymentMethods = '/admin/settings/payment-methods';
   static const adminNotifications = '/admin/settings/notifications';
+  static const adminMessaging = '/admin/settings/messaging';
   static const adminRules = '/admin/settings/rules';
   static const adminWaitingList = '/admin/settings/waiting-list';
   static const adminWaitingQueue = '/admin/waiting-queue';
@@ -384,6 +386,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: Routes.adminFormCustomizer, builder: (context, state) => const FormCustomizerScreen()),
       GoRoute(path: Routes.adminPaymentMethods, builder: (context, state) => const PaymentMethodsScreen()),
       GoRoute(path: Routes.adminNotifications, builder: (context, state) => const NotificationSettingsScreen()),
+      GoRoute(path: Routes.adminMessaging, builder: (context, state) => const MessagingSettingsScreen()),
       GoRoute(path: Routes.adminBackup, builder: (context, state) => const BackupRestoreScreen()),
       GoRoute(path: Routes.adminAuditLog, builder: (context, state) => const AuditLogScreen()),
       GoRoute(path: Routes.adminRecycleBin, builder: (context, state) => const RecycleBinScreen()),

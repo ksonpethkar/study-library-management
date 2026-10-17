@@ -28,11 +28,15 @@ class SeatTile extends StatelessWidget {
 
     switch (seat.status) {
       case SeatStatus.available:
-        bgColor = isDark ? const Color(0xFF1B382B) : const Color(0xFFE8F5E9);
+        bgColor = sectionColor != null
+            ? sectionColor!.withValues(alpha: isDark ? 0.25 : 0.12)
+            : (isDark ? const Color(0xFF1B382B) : const Color(0xFFE8F5E9));
         borderColor = sectionColor != null
-            ? sectionColor!.withValues(alpha: 0.7)
+            ? sectionColor!.withValues(alpha: 0.85)
             : (isDark ? const Color(0xFF2E7D32) : const Color(0xFF81C784));
-        textColor = isDark ? const Color(0xFFA5D6A7) : const Color(0xFF1B5E20);
+        textColor = sectionColor != null
+            ? (isDark ? sectionColor!.withValues(alpha: 0.95) : sectionColor!)
+            : (isDark ? const Color(0xFFA5D6A7) : const Color(0xFF1B5E20));
         break;
       case SeatStatus.occupied:
         bgColor = isDark ? const Color(0xFF3E1D24) : const Color(0xFFFFEBEE);

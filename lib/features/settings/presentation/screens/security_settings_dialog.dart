@@ -237,28 +237,26 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
                   ),
                   const SizedBox(height: 16),
 
-                  // Screenshot Protection Toggle (Switch isolated so tapping text doesn't click entire section)
-                  ListTile(
+                  // Screenshot Protection Toggle
+                  SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.screenshot_monitor_rounded),
+                    secondary: const Icon(Icons.screenshot_monitor_rounded),
                     title: const Text('Screenshot Protection', style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: const Text(
                       'Prevents screenshots & screen recording in the app. '
                       'Always enforced on: Payment, Receipt, ID Card, and Student financial screens.',
                       style: TextStyle(fontSize: 12),
                     ),
-                    trailing: Switch.adaptive(
-                      value: _screenshotProtectionEnabled,
-                      onChanged: _toggleScreenshotProtection,
-                    ),
+                    value: _screenshotProtectionEnabled,
+                    onChanged: _toggleScreenshotProtection,
                   ),
 
                   const Divider(),
 
-                  // Biometric Toggle (Switch isolated)
-                  ListTile(
+                  // Biometric Toggle
+                  SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.fingerprint_rounded),
+                    secondary: const Icon(Icons.fingerprint_rounded),
                     title: const Text('Biometric Lock', style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: Text(
                       _biometricAvailable
@@ -266,10 +264,8 @@ class _SecuritySettingsDialogState extends ConsumerState<SecuritySettingsDialog>
                           : 'Biometrics not available on this device',
                       style: const TextStyle(fontSize: 12),
                     ),
-                    trailing: Switch.adaptive(
-                      value: _biometricEnabled && _biometricAvailable,
-                      onChanged: _biometricAvailable ? _toggleBiometric : null,
-                    ),
+                    value: _biometricEnabled && _biometricAvailable,
+                    onChanged: _biometricAvailable ? _toggleBiometric : null,
                   ),
 
                   const Divider(),

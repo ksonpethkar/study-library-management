@@ -13,6 +13,10 @@ class ReceiptModel {
   final DateTime validTo;
   final String? pdfUrl;
   final Map<String, dynamic> customFields;
+  final double? totalFee;
+  final double? paidAmount;
+  final double? remainingDue;
+  final int? installmentNumber;
   final ReceiptStatus status;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -31,6 +35,10 @@ class ReceiptModel {
     required this.validTo,
     this.pdfUrl,
     required this.customFields,
+    this.totalFee,
+    this.paidAmount,
+    this.remainingDue,
+    this.installmentNumber,
     required this.status,
     this.createdAt,
     this.updatedAt,
@@ -46,6 +54,10 @@ class ReceiptModel {
       studentUserId: json['studentUserId'] as String?,
       planId: json['planId'] as String? ?? '',
       amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+      totalFee: (json['totalFee'] as num?)?.toDouble(),
+      paidAmount: (json['paidAmount'] as num?)?.toDouble(),
+      remainingDue: (json['remainingDue'] as num?)?.toDouble(),
+      installmentNumber: json['installmentNumber'] as int?,
       paymentMethod: json['paymentMethod'] as String? ?? '',
       validFrom: _parseDate(json['validFrom']) ?? DateTime.now(),
       validTo: _parseDate(json['validTo']) ?? DateTime.now(),
@@ -67,6 +79,10 @@ class ReceiptModel {
       if (studentUserId != null) 'studentUserId': studentUserId,
       'planId': planId,
       'amount': amount,
+      if (totalFee != null) 'totalFee': totalFee,
+      if (paidAmount != null) 'paidAmount': paidAmount,
+      if (remainingDue != null) 'remainingDue': remainingDue,
+      if (installmentNumber != null) 'installmentNumber': installmentNumber,
       'paymentMethod': paymentMethod,
       'validFrom': validFrom.toIso8601String(),
       'validTo': validTo.toIso8601String(),
@@ -87,6 +103,10 @@ class ReceiptModel {
     String? studentUserId,
     String? planId,
     double? amount,
+    double? totalFee,
+    double? paidAmount,
+    double? remainingDue,
+    int? installmentNumber,
     String? paymentMethod,
     DateTime? validFrom,
     DateTime? validTo,
@@ -105,6 +125,10 @@ class ReceiptModel {
       studentUserId: studentUserId ?? this.studentUserId,
       planId: planId ?? this.planId,
       amount: amount ?? this.amount,
+      totalFee: totalFee ?? this.totalFee,
+      paidAmount: paidAmount ?? this.paidAmount,
+      remainingDue: remainingDue ?? this.remainingDue,
+      installmentNumber: installmentNumber ?? this.installmentNumber,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       validFrom: validFrom ?? this.validFrom,
       validTo: validTo ?? this.validTo,

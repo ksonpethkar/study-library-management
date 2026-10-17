@@ -22,6 +22,10 @@ import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:study_library/services/sms_service.dart';
+import 'package:study_library/services/telegram_service.dart';
+import 'package:study_library/services/messaging_hub_service.dart';
+import 'package:study_library/features/receipts/presentation/screens/receipt_preview_screen.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 
 class StudentDetailScreen extends ConsumerStatefulWidget {
@@ -979,6 +983,65 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Outstanding Due Balance Alert
+                    if ((s.pendingDueBalance ?? 0) > 0) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.amber.shade400),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Pending Due Balance: ₹${(s.pendingDueBalance ?? 0).toStringAsFixed(0)}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.amber.shade900,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Student has an outstanding installment for their membership.',
+                                    style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            FilledButton.tonal(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.amber.shade200,
+                                foregroundColor: Colors.amber.shade900,
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => RecordPaymentScreen(
+                                      studentId: widget.studentId,
+                                      studentName: s.name,
+                                      studentPhone: s.phone,
+                                      planPrice: s.pendingDueBalance ?? 0.0,
+                                      pendingDue: s.pendingDueBalance ?? 0.0,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: const Text('Clear Due'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -991,13 +1054,16 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                         ),
                         FilledButton.icon(
                           onPressed: () {
+                            final due = s.pendingDueBalance ?? 0.0;
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => RecordPaymentScreen(
                                   studentId: widget.studentId,
                                   studentName: s.name,
-                                  planPrice: planPrice,
+                                  studentPhone: s.phone,
+                                  planPrice: due > 0 ? due : planPrice,
+                                  pendingDue: due,
                                 ),
                               ),
                             );
@@ -1034,10 +1100,77 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           itemBuilder: (context, index) {
                             final data = docs[index].data() as Map<String, dynamic>;
                             final payment = PaymentModel.fromJson({...data, 'id': docs[index].id});
-                            return ListTile(
-                              title: Text('₹${payment.amount} - ${payment.method}'),
-                              subtitle: Text(DateFormat.yMMMd().format(payment.date)),
-                              trailing: Chip(label: Text(payment.status.name.toUpperCase())),
+                            final isRefunded = payment.status == PaymentStatus.refunded;
+
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () => _showPaymentActionSheet(context, payment, s, libraryId),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: isRefunded
+                                            ? Colors.red.shade50
+                                            : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(
+                                        isRefunded ? Icons.money_off_rounded : Icons.receipt_long_rounded,
+                                        color: isRefunded ? Colors.red : Theme.of(context).colorScheme.primary,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '₹${payment.amount.toStringAsFixed(0)} • ${payment.method}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                              decoration: isRefunded ? TextDecoration.lineThrough : null,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            DateFormat.yMMMd().format(payment.date) +
+                                                (payment.installmentNumber != null
+                                                    ? ' • Inst #${payment.installmentNumber}'
+                                                    : '') +
+                                                (payment.remainingDue != null && payment.remainingDue! > 0
+                                                    ? ' (Due: ₹${payment.remainingDue!.toStringAsFixed(0)})'
+                                                    : ''),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Chip(
+                                      label: Text(
+                                        payment.status.name.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: isRefunded ? Colors.red.shade900 : Colors.green.shade900,
+                                        ),
+                                      ),
+                                      backgroundColor: isRefunded ? Colors.red.shade100 : Colors.green.shade100,
+                                      padding: EdgeInsets.zero,
+                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                                  ],
+                                ),
+                              ),
                             );
                           },
                         );
@@ -1149,6 +1282,275 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showPaymentActionSheet(
+    BuildContext context,
+    PaymentModel payment,
+    StudentModel s,
+    String libraryId,
+  ) async {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Payment Details',
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          '₹${payment.amount.toStringAsFixed(0)} • ${payment.method} • ${DateFormat.yMMMd().format(payment.date)}',
+                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+                        ),
+                      ],
+                    ),
+                    Chip(
+                      label: Text(
+                        payment.status.name.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: payment.status == PaymentStatus.paid ? Colors.green.shade900 : Colors.red.shade900,
+                        ),
+                      ),
+                      backgroundColor: payment.status == PaymentStatus.paid
+                          ? Colors.green.shade100
+                          : Colors.red.shade100,
+                    ),
+                  ],
+                ),
+              ),
+              if (payment.remainingDue != null && payment.remainingDue! > 0) ...[
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: Text(
+                    'Remaining Due: ₹${payment.remainingDue!.toStringAsFixed(0)}${payment.installmentNumber != null ? " • Installment #${payment.installmentNumber}" : ""}',
+                    style: TextStyle(fontSize: 12, color: Colors.amber.shade900, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+              const Divider(height: 24),
+
+              // 1. View / Print PDF Receipt
+              ListTile(
+                leading: const Icon(Icons.picture_as_pdf_rounded, color: Colors.red),
+                title: const Text('View & Print Official PDF Receipt'),
+                subtitle: const Text('Render high-resolution GST compliant receipt'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  String? receiptId = payment.receiptId;
+                  if (receiptId == null || receiptId.isEmpty) {
+                    final rSnap = await FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('receipts')
+                        .where('studentId', isEqualTo: payment.studentId)
+                        .limit(5)
+                        .get();
+                    if (rSnap.docs.isNotEmpty) {
+                      receiptId = rSnap.docs.first.id;
+                    }
+                  }
+                  if (context.mounted) {
+                    if (receiptId != null && receiptId.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ReceiptPreviewScreen(receiptId: receiptId!),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Receipt record not found for this payment')),
+                      );
+                    }
+                  }
+                },
+              ),
+
+              // 2. Resend via WhatsApp
+              ListTile(
+                leading: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.green),
+                title: const Text('Resend Receipt via WhatsApp'),
+                subtitle: const Text('1-tap WhatsApp wa.me prefilled message'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final phone = s.phone.trim();
+                  if (phone.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Student has no phone number recorded')),
+                    );
+                    return;
+                  }
+                  final libDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).get();
+                  final libName = libDoc.data()?['name'] as String? ?? 'Cozy Corner Library';
+                  final rNum = payment.receiptId ?? (payment.id.length >= 6 ? payment.id.substring(0, 6).toUpperCase() : payment.id);
+                  await WhatsAppService().sendPaymentConfirmation(
+                    phone,
+                    s.name,
+                    libName,
+                    payment.amount,
+                    rNum,
+                  );
+                },
+              ),
+
+              // 3. Resend via Direct SMS
+              ListTile(
+                leading: const Icon(Icons.sms_rounded, color: Colors.blue),
+                title: const Text('Resend Receipt via Direct SMS'),
+                subtitle: const Text('Native SIM dispatch (100% Free)'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final phone = s.phone.trim();
+                  if (phone.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Student has no phone number recorded')),
+                    );
+                    return;
+                  }
+                  final libDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).get();
+                  final libName = libDoc.data()?['name'] as String? ?? 'Cozy Corner';
+                  final rNum = payment.receiptId ?? (payment.id.length >= 6 ? payment.id.substring(0, 6).toUpperCase() : payment.id);
+                  final ok = await ref.read(smsServiceProvider).sendPaymentReceiptSms(
+                    phone: phone,
+                    studentName: s.name,
+                    libraryName: libName,
+                    amount: payment.amount,
+                    receiptNumber: rNum,
+                    remainingDue: payment.remainingDue,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok ? 'SMS Receipt Dispatched! 📩' : 'SMS could not be sent directly.'),
+                        backgroundColor: ok ? Colors.green : Colors.red,
+                      ),
+                    );
+                  }
+                },
+              ),
+
+              // 4. Resend via Telegram
+              ListTile(
+                leading: const Icon(Icons.send_rounded, color: Colors.lightBlue),
+                title: const Text('Resend Receipt via Telegram'),
+                subtitle: const Text('Send to staff group or student handle'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final msgHub = ref.read(messagingHubServiceProvider);
+                  final config = await msgHub.getConfig(libraryId);
+                  if (!config.telegramEnabled || config.telegramBotToken.isEmpty) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Telegram is not configured in Settings > Messaging')),
+                      );
+                    }
+                    return;
+                  }
+                  final libDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).get();
+                  final libName = libDoc.data()?['name'] as String? ?? 'Cozy Corner';
+                  final rNum = payment.receiptId ?? (payment.id.length >= 6 ? payment.id.substring(0, 6).toUpperCase() : payment.id);
+                  final ok = await ref.read(telegramServiceProvider).sendPaymentAlert(
+                    botToken: config.telegramBotToken,
+                    chatId: config.telegramChatId,
+                    studentName: s.name,
+                    libraryName: libName,
+                    amount: payment.amount,
+                    receiptNumber: rNum,
+                    paymentMethod: payment.method,
+                    remainingDue: payment.remainingDue,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok ? 'Telegram Receipt Dispatched! 🚀' : 'Failed to send via Telegram.'),
+                        backgroundColor: ok ? Colors.green : Colors.red,
+                      ),
+                    );
+                  }
+                },
+              ),
+
+              // 5. Void Payment
+              if (payment.status != PaymentStatus.refunded)
+                ListTile(
+                  leading: const Icon(Icons.cancel_outlined, color: Colors.redAccent),
+                  title: const Text('Void / Cancel Payment', style: TextStyle(color: Colors.redAccent)),
+                  subtitle: const Text('Marks payment refunded and restores student due balance'),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (c) => AlertDialog(
+                        title: const Text('Void Payment?'),
+                        content: Text('Are you sure you want to void this ₹${payment.amount.toStringAsFixed(0)} payment? This will mark the record refunded.'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                          FilledButton(
+                            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                            onPressed: () => Navigator.pop(c, true),
+                            child: const Text('Void Payment'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      await FirebaseFirestore.instance
+                          .collection('libraries')
+                          .doc(libraryId)
+                          .collection('payments')
+                          .doc(payment.id)
+                          .update({'status': PaymentStatus.refunded.name, 'updatedAt': FieldValue.serverTimestamp()});
+
+                      // If student had pending balance, restore it
+                      final newDue = (s.pendingDueBalance ?? 0.0) + payment.amount;
+                      await FirebaseFirestore.instance
+                          .collection('libraries')
+                          .doc(libraryId)
+                          .collection('students')
+                          .doc(s.id)
+                          .update({'pendingDueBalance': newDue, 'updatedAt': FieldValue.serverTimestamp()});
+
+                      AuditLogger().log(
+                        action: AuditAction.deleted,
+                        entityType: AuditEntity.payment,
+                        libraryId: libraryId,
+                        entityId: payment.id,
+                        details: {'voidedAmount': payment.amount, 'studentId': s.id},
+                      ).ignore();
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Payment marked as void and refunded.'), backgroundColor: Colors.orange),
+                        );
+                      }
+                    }
+                  },
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,4 +1,4 @@
-enum PaymentStatus { paid, partial, pending, overdue }
+enum PaymentStatus { paid, partial, pending, overdue, refunded }
 
 class PaymentModel {
   final String id;
@@ -12,6 +12,9 @@ class PaymentModel {
   final String? screenshotCompressed;
   final String? notes;
   final String? receiptId;
+  final double? totalPlanFee;
+  final double? remainingDue;
+  final int? installmentNumber;
   final PaymentStatus status;
   final DateTime createdAt;
 
@@ -27,6 +30,9 @@ class PaymentModel {
     this.screenshotCompressed,
     this.notes,
     this.receiptId,
+    this.totalPlanFee,
+    this.remainingDue,
+    this.installmentNumber,
     required this.status,
     required this.createdAt,
   });
@@ -36,6 +42,9 @@ class PaymentModel {
       id: json['id'] as String? ?? '',
       studentId: json['studentId'] as String? ?? '',
       amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+      totalPlanFee: (json['totalPlanFee'] as num?)?.toDouble(),
+      remainingDue: (json['remainingDue'] as num?)?.toDouble(),
+      installmentNumber: json['installmentNumber'] as int?,
       method: json['method'] as String? ?? '',
       methodDetails: json['methodDetails'] as String?,
       date: _parseDate(json['date']) ?? DateTime.now(),
@@ -62,6 +71,9 @@ class PaymentModel {
       if (screenshotCompressed != null) 'screenshotCompressed': screenshotCompressed,
       if (notes != null) 'notes': notes,
       if (receiptId != null) 'receiptId': receiptId,
+      if (totalPlanFee != null) 'totalPlanFee': totalPlanFee,
+      if (remainingDue != null) 'remainingDue': remainingDue,
+      if (installmentNumber != null) 'installmentNumber': installmentNumber,
       'status': status.name,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -79,6 +91,9 @@ class PaymentModel {
     String? screenshotCompressed,
     String? notes,
     String? receiptId,
+    double? totalPlanFee,
+    double? remainingDue,
+    int? installmentNumber,
     PaymentStatus? status,
     DateTime? createdAt,
   }) {
@@ -94,6 +109,9 @@ class PaymentModel {
       screenshotCompressed: screenshotCompressed ?? this.screenshotCompressed,
       notes: notes ?? this.notes,
       receiptId: receiptId ?? this.receiptId,
+      totalPlanFee: totalPlanFee ?? this.totalPlanFee,
+      remainingDue: remainingDue ?? this.remainingDue,
+      installmentNumber: installmentNumber ?? this.installmentNumber,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -107,6 +125,8 @@ class PaymentModel {
         return PaymentStatus.pending;
       case 'overdue':
         return PaymentStatus.overdue;
+      case 'refunded':
+        return PaymentStatus.refunded;
       case 'paid':
       default:
         return PaymentStatus.paid;

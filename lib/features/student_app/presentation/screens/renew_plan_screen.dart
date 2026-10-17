@@ -17,11 +17,13 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
   String? _selectedPlanId;
   bool _keepSeat = true;
   final _notesController = TextEditingController();
+  final _transactionRefController = TextEditingController();
   bool _isSubmitting = false;
 
   @override
   void dispose() {
     _notesController.dispose();
+    _transactionRefController.dispose();
     super.dispose();
   }
 
@@ -54,6 +56,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
         'currentSeatId': currentSeatId,
         'keepSeat': _keepSeat,
         'notes': _notesController.text.trim(),
+        'referenceNumber': _transactionRefController.text.trim(),
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -188,13 +191,49 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                     ),
                   const SizedBox(height: 16),
 
+                  // Optional Online / UPI Payment Information
+                  Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.account_balance_wallet_rounded, color: theme.colorScheme.primary),
+                              const SizedBox(width: 8),
+                              Text('Payment Details (Optional)', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'If paying via UPI or bank transfer, enter your 12-digit UTR or reference number below so admin can instantly verify and approve.',
+                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _transactionRefController,
+                            decoration: const InputDecoration(
+                              labelText: 'UTR / Transaction Reference No.',
+                              hintText: 'e.g. 423589123456 or Cash at Desk',
+                              prefixIcon: Icon(Icons.tag_rounded),
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
                   // Notes
                   TextField(
                     controller: _notesController,
-                    maxLines: 3,
+                    maxLines: 2,
                     decoration: const InputDecoration(
                       labelText: 'Special Note / Requests (Optional)',
-                      hintText: 'e.g. Prefer morning shift, payment via UPI ref #...',
+                      hintText: 'e.g. Prefer morning shift, desk preference...',
                       border: OutlineInputBorder(),
                     ),
                   ),

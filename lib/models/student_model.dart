@@ -38,6 +38,7 @@ class StudentModel {
   final String? bloodGroup;       // e.g. "A+"
   final String? rollNumber;       // college roll number
   final String? blockedReason;
+  final double? pendingDueBalance;
 
   StudentModel({
     required this.id,
@@ -75,6 +76,7 @@ class StudentModel {
     this.bloodGroup,
     this.rollNumber,
     this.blockedReason,
+    this.pendingDueBalance,
   });
 
   factory StudentModel.fromJson(Map<String, dynamic> json) {
@@ -114,6 +116,7 @@ class StudentModel {
       bloodGroup: json['bloodGroup'] as String?,
       rollNumber: json['rollNumber'] as String?,
       blockedReason: json['blockedReason'] as String?,
+      pendingDueBalance: (json['pendingDueBalance'] as num?)?.toDouble(),
     );
   }
 
@@ -154,6 +157,7 @@ class StudentModel {
       if (bloodGroup != null) 'bloodGroup': bloodGroup,
       if (rollNumber != null) 'rollNumber': rollNumber,
       if (blockedReason != null) 'blockedReason': blockedReason,
+      if (pendingDueBalance != null) 'pendingDueBalance': pendingDueBalance,
     };
   }
 
@@ -193,6 +197,7 @@ class StudentModel {
     String? bloodGroup,
     String? rollNumber,
     String? blockedReason,
+    double? pendingDueBalance,
   }) {
     return StudentModel(
       id: id ?? this.id,
@@ -230,6 +235,7 @@ class StudentModel {
       bloodGroup: bloodGroup ?? this.bloodGroup,
       rollNumber: rollNumber ?? this.rollNumber,
       blockedReason: blockedReason ?? this.blockedReason,
+      pendingDueBalance: pendingDueBalance ?? this.pendingDueBalance,
     );
   }
 

@@ -434,6 +434,12 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => context.push(Routes.adminNotifications),
           ),
           ListTile(
+            leading: const Icon(Icons.hub_rounded),
+            title: const Text('Messaging & Notification Hub'),
+            subtitle: const Text('Free SMS, Telegram, WhatsApp & Webhooks'),
+            onTap: () => context.push(Routes.adminMessaging),
+          ),
+          ListTile(
             leading: const Icon(Icons.hourglass_top_rounded),
             title: const Text('Grace Period'),
             subtitle: const Text('Days before releasing lapsed seats'),

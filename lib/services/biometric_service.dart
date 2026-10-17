@@ -134,10 +134,13 @@ class BiometricService {
       final data = doc.data();
       if (data == null) return;
 
-      final localPinHash = prefs.getString(_keyPinHash);
       final remotePinHash = data['pinHash'] as String?;
-      if ((localPinHash == null || localPinHash.isEmpty) && remotePinHash != null && remotePinHash.isNotEmpty) {
+      if (remotePinHash != null && remotePinHash.isNotEmpty) {
         await prefs.setString(_keyPinHash, remotePinHash);
+      }
+
+      if (data['biometricEnabled'] is bool) {
+        await prefs.setBool(_keyBiometricEnabled, data['biometricEnabled'] as bool);
       }
 
       if (data['autoLockMinutes'] is int) {
