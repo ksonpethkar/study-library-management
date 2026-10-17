@@ -50,7 +50,14 @@ class MainActivity : FlutterFragmentActivity() {
                     }
                     try {
                         val authority = "${applicationContext.packageName}.fileprovider"
-                        val contentUri: Uri = FileProvider.getUriForFile(this, authority, file)
+                        val contentUri: Uri = try {
+                            FileProvider.getUriForFile(this, authority, file)
+                        } catch (ex: Exception) {
+                            // Fallback: copy to cacheDir which is always configured in file_paths.xml
+                            val cacheFile = File(cacheDir, "studylibrary_install.apk")
+                            file.copyTo(cacheFile, overwrite = true)
+                            FileProvider.getUriForFile(this, authority, cacheFile)
+                        }
                         val intent = Intent(Intent.ACTION_VIEW).apply {
                             setDataAndType(contentUri, "application/vnd.android.package-archive")
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
