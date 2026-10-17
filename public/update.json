@@ -1,10 +1,10 @@
 {
-  "latestVersion": "1.5.25",
-  "latestBuild": 32,
-  "versionName": "1.5.25+32",
-  "apkSize": "74.0 MB",
-  "releaseNotes": "v1.5.25: Fixed APK v2/v3 signature scheme for seamless Android installation; enhanced dark mode text contrast & readability across dashboard, settings, and forms",
-  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.25/StudyLibrary.apk",
+  "latestVersion": "1.5.26",
+  "latestBuild": 33,
+  "versionName": "1.5.26+33",
+  "apkSize": "47.7 MB",
+  "releaseNotes": "v1.5.26: Master PIN & Biometrics Cloud Sync, Touch-Isolated Screenshot Toggle, 100% Free Multi-Channel Messaging Stack (Admin SIM SMS, Telegram Bot API, 1-Tap WhatsApp, Local Bridge), Partial Payments & Due Balance Installment Tracking, Dynamic Payment Modes, Clean Seat Map Labels without 'occ', Autonomous Gov ID OCR, and In-App Student Plan Renewal Approval.",
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.26/StudyLibrary.apk",
   "mandatory": false,
   "organization": {
     "name": "The Cozy Corner Centre",
@@ -16,66 +16,66 @@
   },
   "studentFeatures": [
     {
-      "icon": "palette",
-      "badge": "Dark Mode",
-      "title": "High-Contrast Dark Theme",
-      "description": "Student home, cards, and text are enhanced for effortless readability on darker backgrounds without eye strain."
+      "icon": "approval",
+      "badge": "Self-Service",
+      "title": "In-App Plan Renewal with UTR",
+      "description": "Request plan renewals directly in-app with bank/UPI UTR transaction reference, seamlessly verified and approved by admin."
     },
     {
-      "icon": "badge",
-      "badge": "Home Bar",
-      "title": "Library Tagline in Home Screen",
-      "description": "Your library official tagline is featured directly under the library name in the home app bar."
+      "icon": "document_scanner",
+      "badge": "Instant KYC",
+      "title": "Autonomous Gov ID OCR Detection",
+      "description": "Smart optical scanning automatically recognizes Aadhaar, PAN, Driving Licence, and Passport without manual dropdown selection."
     },
     {
       "icon": "receipt",
-      "badge": "Verified",
-      "title": "Official Fee Receipts & Rupee Currency",
-      "description": "Download authentic fee receipts with official stamps, verification seals, and genuine ₹ rupee formatting."
+      "badge": "Transparent",
+      "title": "Partial Payments & Due Tracking",
+      "description": "Track installments, paid amounts, and remaining dues with authentic official fee receipts."
     },
     {
-      "icon": "lock",
-      "badge": "Security",
-      "title": "Play Integrity Protection",
-      "description": "Cryptographically verified app attestation to safeguard your student account, seat, and personal data."
+      "icon": "palette",
+      "badge": "Dark Mode",
+      "title": "High-Contrast Dark Theme",
+      "description": "Elevated cards, clear text labels, and comfortable contrast for long late-night study sessions."
     },
     {
       "icon": "seat",
       "badge": "Live Map",
-      "title": "Live Real-Time Seat Status",
-      "description": "Check current seat occupancy, available seats, and section tags directly from the live map."
+      "title": "Clean Real-Time Seat Map",
+      "description": "Clean, uncluttered seat labels and live section color tinting on available seats."
     }
   ],
   "adminFeatures": [
     {
-      "icon": "palette",
-      "badge": "Contrast Fix",
-      "title": "High-Contrast Dark Mode & APK Signatures",
-      "description": "Elevated cards, clear text labels, and official v1/v2/v3 APK signature schemes for smooth upgrades and flawless readability."
-    },
-    {
-      "icon": "approval",
-      "badge": "Automated",
-      "title": "Auto-Receipt on Plan Assignment",
-      "description": "Official fee receipts are automatically generated and recorded whenever an admin assigns or renews a student plan."
+      "icon": "system_update",
+      "badge": "100% Free",
+      "title": "Multi-Channel Free Messaging Stack",
+      "description": "Send automated fee receipts and alerts via Admin SIM Native Direct SMS, official Telegram Bot, 1-tap WhatsApp, or Local Desk PC Bridge."
     },
     {
       "icon": "receipt",
-      "badge": "Audit Logs",
-      "title": "Full Announcement & Action Audit Trails",
-      "description": "Deletion of notices and critical administrative actions are immutably logged with timestamp and staff author."
+      "badge": "Finances",
+      "title": "Partial Payments & Installment Engine",
+      "description": "Record split payments, track due balances with student profile banners, 1-tap clear dues, and interactive payment action sheets."
     },
     {
-      "icon": "system_update",
-      "badge": "Smart Updates",
-      "title": "Real-Time Organization Branding",
-      "description": "Website landing page, download portal, and live seat map dynamically synchronize with your library's logo, colors, and address from Firestore."
+      "icon": "lock",
+      "badge": "Zero Data Loss",
+      "title": "Master PIN & Biometric Cloud Sync",
+      "description": "Master PIN hash and biometric preferences are safely backed up to cloud settings, auto-restoring seamlessly across app reinstalls."
     },
     {
-      "icon": "document_scanner",
-      "badge": "OCR & Scanner",
-      "title": "Automated Student ID & Sequential Numbers",
-      "description": "Sequential student member IDs (e.g., CC20260001) and receipt numbers generated atomically without conflicts."
+      "icon": "security",
+      "badge": "Responsive",
+      "title": "Isolated Screenshot Protection Toggle",
+      "description": "Fixed touch targets for screenshot prevention and biometric lock with instantaneous 0ms optimistic response."
+    },
+    {
+      "icon": "seat",
+      "badge": "Visuals",
+      "title": "Clean Seat Labels & Dynamic Tinting",
+      "description": "Removed 'occ' badge clutter from occupied seats; available seats dynamically tinted with section assigned brand colors."
     }
   ]
 }
