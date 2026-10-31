@@ -9,6 +9,7 @@ import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/models/library_model.dart';
+import 'package:study_library/models/section_model.dart';
 import 'package:study_library/services/id_card_pdf_service.dart';
 import 'package:study_library/services/message_template_service.dart';
 import 'package:study_library/services/image_transparency_service.dart';
@@ -133,6 +134,7 @@ class PdfService {
     Map<String, dynamic>? template, {
     String? seatLabel,
     int? cols,
+    SectionModel? section,
   }) async {
     final pdf = pw.Document();
 
@@ -222,11 +224,6 @@ class PdfService {
         : PdfColor.fromHex('#881337');
     final currencyFmt = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
-    // Dynamic computations for professional invoice standard
-    final planDesc = plan.description.trim().isNotEmpty
-        ? sanitizePdfText(plan.description.trim())
-        : 'AC Study Hall Access • Reserved Desk • High-Speed Wi-Fi • Power Backup';
-
     final dueBalance = (receipt.remainingDue ?? student.pendingDueBalance ?? 0.0);
     final isDue = dueBalance > 0.01;
     final balanceText = isDue ? '${currencyFmt.format(dueBalance)} (Due)' : '₹0.00 (Nil)';
@@ -254,17 +251,92 @@ class PdfService {
 
     final wordsText = receipt.amount > 0 ? '${numberToIndianWords(receipt.amount.toInt())} Rupees Only' : 'Zero Rupees';
 
-    // Parse features for plan description pills
-    final rawFeatures = planDesc.contains('•')
-        ? planDesc.split('•')
-        : planDesc.contains(',')
-            ? planDesc.split(',')
-            : [planDesc];
-    final planFeatures = rawFeatures
-        .map((f) => f.trim())
-        .where((f) => f.isNotEmpty)
-        .take(4)
-        .toList();
+    // ── Dynamic Resolution of Active Plan & Service Features ──────────────────
+    List<String> resolvedFeatures = [];
+
+    // Priority 1: Plan custom description entered by admin
+    if (plan.description.trim().isNotEmpty) {
+      final raw = plan.description.contains('•')
+          ? plan.description.split('•')
+          : plan.description.contains(',')
+              ? plan.description.split(',')
+              : [plan.description];
+      resolvedFeatures = raw.map((f) => sanitizePdfText(f.trim())).where((f) => f.isNotEmpty).toList();
+    }
+
+    // Priority 2: Template custom service description configured by admin
+    if (resolvedFeatures.isEmpty && template != null) {
+      final customDesc = (template['defaultServiceDescription'] as String?)?.trim();
+      if (customDesc != null && customDesc.isNotEmpty) {
+        final raw = customDesc.contains('•')
+            ? customDesc.split('•')
+            : customDesc.contains(',')
+                ? customDesc.split(',')
+                : [customDesc];
+        resolvedFeatures = raw.map((f) => sanitizePdfText(f.trim())).where((f) => f.isNotEmpty).toList();
+      }
+    }
+
+    // Priority 3: Dynamically synthesize from ACTUAL active services (honest & compliant)
+    if (resolvedFeatures.isEmpty) {
+      final features = <String>[];
+
+      // A. Hall / Study Environment (Honest AC check: never claim AC if standard hall)
+      final isAc = section?.sectionType.toLowerCase() == 'ac' ||
+          (section?.amenities.any((a) => a.toLowerCase().contains('ac')) ?? false);
+      if (isAc) {
+        features.add('AC Study Hall Access');
+      } else {
+        features.add('Silent Reading Hall');
+      }
+
+      // B. Desk Allocation Status
+      final hasSeat = resolvedSeat != 'Unassigned' && resolvedSeat.isNotEmpty;
+      if (hasSeat) {
+        features.add('Reserved Desk');
+      } else {
+        features.add('Flexible Desk Access');
+      }
+
+      // C. Section-specific active amenities
+      if (section?.amenities != null && section!.amenities.isNotEmpty) {
+        for (final a in section.amenities) {
+          final low = a.toLowerCase();
+          if (low == 'ac') continue; // Handled above
+          if (low.contains('socket') || low.contains('power')) {
+            features.add('Power Backup & Outlets');
+          } else if (low.contains('wifi') || low.contains('wi-fi')) {
+            features.add('High-Speed Wi-Fi');
+          } else if (low.contains('silent') || low.contains('silence')) {
+            features.add('Silence Zone');
+          } else if (low.contains('chair') || low.contains('ergo')) {
+            features.add('Ergonomic Chairs');
+          } else if (low.contains('cctv')) {
+            features.add('CCTV Surveillance');
+          } else if (low.contains('locker')) {
+            features.add('Locker Facility');
+          } else if (low.contains('water') || low.contains('ro')) {
+            features.add('RO Drinking Water');
+          } else {
+            features.add(sanitizePdfText(a));
+          }
+        }
+      } else {
+        // Fallback to library general facilities
+        features.add('High-Speed Wi-Fi');
+        features.add('Power Backup');
+        if (library.facilities.any((f) => f.toLowerCase().contains('ro') || f.toLowerCase().contains('water'))) {
+          features.add('RO Drinking Water');
+        }
+        if (library.facilities.any((f) => f.toLowerCase().contains('silent') || f.toLowerCase().contains('silence'))) {
+          features.add('Silence Zone');
+        }
+      }
+
+      resolvedFeatures = features.toSet().toList();
+    }
+
+    final planFeatures = resolvedFeatures.take(4).toList();
 
     final universalTheme = await PdfFontService.getUniversalTheme(base: notoSans);
 

@@ -124,7 +124,7 @@ service cloud.firestore {
                             'pinHash', 'biometricEnabled', 'pinUpdatedAt', 'pinResetByAdmin', 'pinResetMessage'
                           ]) &&
                           // SEC-S2: Ensure student cannot set sensitive membership/financial fields
-                          !request.resource.data.keys().hasAny([
+                          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
                             'membershipStatus', 'planStartDate', 'planEndDate', 'planId',
                             'walletBalance', 'seatId', 'seatLabel', 'govIdNumber',
                             'govIdType', 'govIdImageUrl', 'isDeleted'
@@ -243,7 +243,7 @@ service cloud.firestore {
         allow read: if isOwner(libraryId) ||
                        staffCan(libraryId, 'canManageStudents') ||
                        (isAuth() && (
-                         resource.data.studentId == uid() ||
+                         resource.data.get('studentId', '') == uid() ||
                          resource.data.get('studentUserId', '') == uid() ||
                          resource.data.get('userId', '') == uid()
                        ));
@@ -251,7 +251,7 @@ service cloud.firestore {
         allow update, delete: if isOwner(libraryId) ||
                                  staffCan(libraryId, 'canManageStudents') ||
                                  (isAuth() && (
-                                   resource.data.studentId == uid() ||
+                                   resource.data.get('studentId', '') == uid() ||
                                    resource.data.get('studentUserId', '') == uid() ||
                                    resource.data.get('userId', '') == uid()
                                  ) && resource.data.get('status', 'pending') == 'pending');
@@ -262,22 +262,42 @@ service cloud.firestore {
       match /notifications/{id} {
         allow read: if isOwner(libraryId) ||
                        staffCan(libraryId, 'canManageStudents') ||
-                       (isAuth() && resource.data.get('targetUserId', '') == uid());
+                       (isAuth() && (
+                         resource.data.get('targetUserId', '') == uid() ||
+                         resource.data.get('studentUserId', '') == uid() ||
+                         resource.data.get('userId', '') == uid() ||
+                         resource.data.get('targetRole', '') == 'all' ||
+                         resource.data.get('targetRole', '') == 'student'
+                       ));
 
         // Students can create notifications for themselves only (e.g. renewal triggers)
         // Owner/staff can create for anyone
         allow create: if ownerOrStaffCan(libraryId, 'canManageStudents') ||
-                         (isAuth() && request.resource.data.get('targetUserId', '') == uid());
+                         (isAuth() && (
+                           request.resource.data.get('targetUserId', '') == uid() ||
+                           request.resource.data.get('studentUserId', '') == uid() ||
+                           request.resource.data.get('userId', '') == uid()
+                         ));
 
         // Students can mark their own notifications read; staff/owner can update any
         allow update: if ownerOrStaffCan(libraryId, 'canManageStudents') ||
-                         (isAuth() && resource.data.get('targetUserId', '') == uid() &&
-                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'readAt']));
+                         (isAuth() && (
+                           resource.data.get('targetUserId', '') == uid() ||
+                           resource.data.get('studentUserId', '') == uid() ||
+                           resource.data.get('userId', '') == uid() ||
+                           resource.data.get('targetRole', '') == 'all' ||
+                           resource.data.get('targetRole', '') == 'student'
+                         ) &&
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'isRead', 'readAt']));
 
         allow delete: if isOwner(libraryId) ||
                          staffCan(libraryId, 'canManageStudents') ||
-                         (isAuth() && (resource.data.get('targetUserId', '') == uid() ||
-                                       resource.data.get('targetRole', '') == 'student'));
+                         (isAuth() && (
+                           resource.data.get('targetUserId', '') == uid() ||
+                           resource.data.get('studentUserId', '') == uid() ||
+                           resource.data.get('userId', '') == uid() ||
+                           resource.data.get('targetRole', '') == 'student'
+                         ));
       }
 
       // ── Admin Notifications ───────────────────────────────────────────────

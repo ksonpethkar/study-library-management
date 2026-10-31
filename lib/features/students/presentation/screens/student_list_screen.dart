@@ -67,16 +67,18 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
 
   bool _matchesFilter(StudentModel s, String filter) {
     final now = DateTime.now();
-    final next7Days = now.add(const Duration(days: 7));
     switch (filter) {
       case 'All':
         return true;
       case 'Due Soon':
         final e = s.planEndDate;
-        return s.membershipStatus == MembershipStatus.active &&
+        // Include active AND grace-period students expiring within next 14 days
+        final isNearExpiry = (s.membershipStatus == MembershipStatus.active ||
+                s.membershipStatus == MembershipStatus.grace) &&
             e != null &&
-            !e.isBefore(now.subtract(const Duration(days: 1))) &&
-            !e.isAfter(next7Days);
+            e.isAfter(now.subtract(const Duration(days: 1))) &&
+            e.isBefore(now.add(const Duration(days: 14)));
+        return isNearExpiry;
       case 'Has Dues':
         return (s.pendingDueBalance ?? 0) > 0;
       case 'Active':
@@ -365,7 +367,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                       children: [
                         Icon(Icons.search_off_rounded, size: 64, color: theme.colorScheme.outline),
                         const SizedBox(height: 16),
-                        Text(_selectedFilter == 'Due Soon' ? 'No students due for renewal' : (_selectedFilter == 'Has Dues' ? 'No students with pending dues' : 'No matching students'), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        Text(_selectedFilter == 'Due Soon' ? 'No students expiring in the next 14 days' : (_selectedFilter == 'Has Dues' ? 'No students with pending dues' : 'No matching students'), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                         if (_selectedFilter != 'All') ...[
                           const SizedBox(height: 12),
                           FilledButton.tonalIcon(

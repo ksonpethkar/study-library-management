@@ -69,6 +69,7 @@ final studentNotificationsStreamProvider =
       .collection('libraries')
       .doc(libraryId)
       .collection('notifications')
+      .where('targetRole', whereIn: ['student', 'all'])
       .orderBy('createdAt', descending: true)
       .limit(50)
       .snapshots()
@@ -102,7 +103,7 @@ final studentNotificationsStreamProvider =
           if (personalTypes.contains(n.type.toLowerCase())) {
             return false; // Hard reject untargeted sensitive notifications
           }
-          return n.targetRole == 'all' || n.type == 'announcement';
+          return n.targetRole == 'all' || n.targetRole == 'student' || n.type == 'announcement';
         }).toList();
       });
 });

@@ -7,6 +7,7 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/services/pdf_service.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/plan_model.dart';
+import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/library_model.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
 import 'package:study_library/models/receipt_model.dart';

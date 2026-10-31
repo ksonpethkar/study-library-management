@@ -401,7 +401,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           return RefreshIndicator(
             onRefresh: _refreshAll,
             child: ListView(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
               children: [
                 const AppUpdateBanner(),
                 _buildPinResetNoticeBanner(context, ref, student),
@@ -531,7 +531,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
 
                 // 5. Compact Manager & Helpline Contact Dock
                 _buildCompactContactCard(context, theme, library, libraryName),
-                const SizedBox(height: 24),
+                const SizedBox(height: 48),
               ],
             ),
           );
@@ -1065,20 +1065,20 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
         ],
       ),
     ),
-        // Subtle 3D Watermark of Organization Logo in Background
+        // Subtle 3D Watermark of Organization Logo in Background (Dead Center)
         if (logoProvider != null)
-          Positioned(
-            right: -24,
-            bottom: -24,
-            child: IgnorePointer(
-              child: Opacity(
-                opacity: 0.08,
-                child: ClipOval(
-                  child: Image(
-                    image: logoProvider,
-                    width: 160,
-                    height: 160,
-                    fit: BoxFit.cover,
+          Positioned.fill(
+            child: Center(
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: 0.08,
+                  child: ClipOval(
+                    child: Image(
+                      image: logoProvider,
+                      width: 140,
+                      height: 140,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
@@ -1203,28 +1203,56 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           // QR Barcode & Seal Row
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
+              GestureDetector(
+                onTap: () => _showEnlargedQrDialog(
+                  context,
+                  student: student,
+                  membershipId: membershipId,
+                  seatLabel: seatLabel,
+                  libraryName: libraryName,
+                  library: library,
                 ),
-                child: QrImageView(
-                  data: jsonEncode({
-                  'type': 'STUDENT_PASS',
-                  'id': student.id,
-                  'lib': library?.id ?? '',
-                  'name': student.name,
-                  'memNo': membershipId,
-                  'phone': student.phone,
-                  'bloodGroup': student.bloodGroup ?? '',
-                  'emergency': student.emergencyContact,
-                  'seat': seatLabel.isNotEmpty ? seatLabel : (student.seatId ?? 'Unassigned'),
-                  'expiry': student.planEndDate != null ? DateFormat('dd/MM/yyyy').format(student.planEndDate!) : 'Active',
-                }),
-                  size: 60,
-                  eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
-                  dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Colors.black),
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                        ),
+                        child: QrImageView(
+                          data: jsonEncode({
+                            'type': 'STUDENT_PASS',
+                            'id': student.id,
+                            'lib': library?.id ?? '',
+                            'name': student.name,
+                            'memNo': membershipId,
+                            'phone': student.phone,
+                            'bloodGroup': student.bloodGroup ?? '',
+                            'emergency': student.emergencyContact,
+                            'seat': seatLabel.isNotEmpty ? seatLabel : (student.seatId ?? 'Unassigned'),
+                            'expiry': student.planEndDate != null ? DateFormat('dd/MM/yyyy').format(student.planEndDate!) : 'Active',
+                          }),
+                          size: 78,
+                          eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
+                          dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Colors.black),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      const Text(
+                        '🔍 Tap to Zoom',
+                        style: TextStyle(
+                          color: Color(0xFF38BDF8),
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -1271,26 +1299,164 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
         ],
       ),
     ),
-        // Subtle 3D Watermark of Organization Logo in Background
+        // Subtle 3D Watermark of Organization Logo in Background (Dead Center)
         if (logoProvider != null)
-          Positioned(
-            right: -24,
-            bottom: -24,
-            child: IgnorePointer(
-              child: Opacity(
-                opacity: 0.08,
-                child: ClipOval(
-                  child: Image(
-                    image: logoProvider,
-                    width: 160,
-                    height: 160,
-                    fit: BoxFit.cover,
+          Positioned.fill(
+            child: Center(
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: 0.08,
+                  child: ClipOval(
+                    child: Image(
+                      image: logoProvider,
+                      width: 140,
+                      height: 140,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
       ],
+    );
+  }
+
+  void _showEnlargedQrDialog(
+    BuildContext context, {
+    required StudentModel student,
+    required String membershipId,
+    required String seatLabel,
+    required String libraryName,
+    dynamic library,
+  }) {
+    final qrData = jsonEncode({
+      'type': 'STUDENT_PASS',
+      'id': student.id,
+      'lib': library?.id ?? '',
+      'name': student.name,
+      'memNo': membershipId,
+      'phone': student.phone,
+      'bloodGroup': student.bloodGroup ?? '',
+      'emergency': student.emergencyContact,
+      'seat': seatLabel.isNotEmpty ? seatLabel : (student.seatId ?? 'Unassigned'),
+      'expiry': student.planEndDate != null
+          ? DateFormat('dd/MM/yyyy').format(student.planEndDate!)
+          : 'Active',
+    });
+
+    showDialog(
+      context: context,
+      useRootNavigator: true,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Student QR Pass',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        Text(
+                          membershipId,
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: QrImageView(
+                  data: qrData,
+                  version: QrVersions.auto,
+                  size: 220,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Color(0xFF0F172A),
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                student.name,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Desk: ${seatLabel.isNotEmpty ? seatLabel : (student.seatId ?? "Seat Assigned")} • $libraryName',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.qr_code_scanner_rounded, size: 16, color: Color(0xFF10B981)),
+                    SizedBox(width: 6),
+                    Text(
+                      'Ready for Biometric & Desk Scanner',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF059669),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

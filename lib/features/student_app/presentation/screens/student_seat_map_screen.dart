@@ -572,10 +572,12 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
 
                                   try {
                                     // Pre-submission server guard: Check if user already has an active pending request
+                                    final curUid = FirebaseAuth.instance.currentUser?.uid ?? '';
                                     final pendingCheck = await FirebaseFirestore.instance
                                         .collection('libraries')
                                         .doc(libraryId)
                                         .collection('requests')
+                                        .where('userId', isEqualTo: curUid.isNotEmpty ? curUid : (student.userId ?? ''))
                                         .where('type', isEqualTo: 'seat_change')
                                         .where('status', isEqualTo: 'pending')
                                         .get();
@@ -704,13 +706,19 @@ class _StudentSeatMapScreenState extends ConsumerState<StudentSeatMapScreen> {
               // Expand first section or student's section by default
               _expandedSectionId ??= student.sectionId ?? sections.first.id;
 
+              final curAuthUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+              final effectiveUserId = curAuthUid.isNotEmpty ? curAuthUid : (student.userId ?? '');
+
               return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: FirebaseFirestore.instance
-                    .collection('libraries')
-                    .doc(libraryId)
-                    .collection('requests')
-                    .where('type', isEqualTo: 'seat_change')
-                    .snapshots(),
+                stream: effectiveUserId.isEmpty
+                    ? const Stream.empty()
+                    : FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('requests')
+                        .where('userId', isEqualTo: effectiveUserId)
+                        .where('type', isEqualTo: 'seat_change')
+                        .snapshots(),
                 builder: (context, reqSnap) {
                   final allReqDocs = reqSnap.data?.docs ?? [];
                   final myReqDocs = allReqDocs.where((d) {

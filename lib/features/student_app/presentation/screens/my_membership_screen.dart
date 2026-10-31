@@ -953,7 +953,7 @@ class _StudentTransactionsSection extends StatelessWidget {
                             icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
                             tooltip: 'View Official Receipt',
                             onPressed: () {
-                              Navigator.of(context).push(
+                              Navigator.of(context, rootNavigator: true).push(
                                 MaterialPageRoute(
                                   builder: (_) => ReceiptPreviewScreen(
                                     receiptId: receiptId,
@@ -967,7 +967,7 @@ class _StudentTransactionsSection extends StatelessWidget {
                         : null,
                     onTap: () {
                       if (receiptId != null) {
-                        Navigator.of(context).push(
+                        Navigator.of(context, rootNavigator: true).push(
                           MaterialPageRoute(
                             builder: (_) => ReceiptPreviewScreen(
                               receiptId: receiptId,

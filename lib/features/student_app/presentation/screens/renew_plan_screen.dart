@@ -49,10 +49,10 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
     final isCurrentActive = student.planEndDate != null && student.planEndDate!.isAfter(now);
 
     if (isCurrentActive && _timingMode == RenewalTiming.advance) {
-      // Advance renewal starts the day immediately following current plan expiry
-      return student.planEndDate!.add(const Duration(days: 1));
+      final currentEnd = student.planEndDate!;
+      return DateTime(currentEnd.year, currentEnd.month, currentEnd.day + 1);
     }
-    return now;
+    return DateTime(now.year, now.month, now.day);
   }
 
   DateTime _computeCycleEndDate(DateTime startDate, PlanModel plan) {
@@ -459,7 +459,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                             borderRadius: BorderRadius.circular(6),
                                           ),
                                           child: Text(
-                                            '$discPercent% OFF • Save ₹${savings?.toStringAsFixed(0) ?? '0'}',
+                                            '$discPercent% OFF',
                                             style: TextStyle(
                                               color: Colors.green.shade800,
                                               fontSize: 10,
@@ -474,11 +474,14 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                 ],
                               ),
                               if (hasDiscount && savings != null && savings > 0) ...[
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 8),
                                 Padding(
                                   padding: const EdgeInsets.only(left: 30),
                                   child: Text(
-                                    '🎉 Save ₹${savings.toStringAsFixed(0)} with this plan bundle',
+                                    (plan.durationUnit == DurationUnit.months && plan.duration > 1) ||
+                                            (plan.durationUnit == DurationUnit.days && plan.duration > 31)
+                                        ? '🎉 Save ₹${savings.toStringAsFixed(0)} compared to paying monthly'
+                                        : '🎉 Save ₹${savings.toStringAsFixed(0)} with special library discount',
                                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.green.shade700),
                                   ),
                                 ),
@@ -525,7 +528,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                             },
                             title: const Text('Advance Renewal (Continuous Study)', style: TextStyle(fontWeight: FontWeight.bold)),
                             subtitle: Text(
-                              'Starts after current plan ends (${dateFormat.format(student.planEndDate!.add(const Duration(days: 1)))}). Zero study days lost.',
+                              'Starts on ${dateFormat.format(DateTime(student.planEndDate!.year, student.planEndDate!.month, student.planEndDate!.day + 1))} (Current plan active till ${dateFormat.format(student.planEndDate!)}). Zero study days lost.',
                             ),
                           ),
                           const Divider(height: 1),

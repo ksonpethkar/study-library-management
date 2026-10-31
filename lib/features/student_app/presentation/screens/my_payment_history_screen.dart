@@ -254,7 +254,7 @@ class _MyPaymentHistoryScreenState extends ConsumerState<MyPaymentHistoryScreen>
                                 ),
                                 onTap: receiptId != null
                                     ? () {
-                                        Navigator.of(context).push(
+                                        Navigator.of(context, rootNavigator: true).push(
                                           MaterialPageRoute(
                                             builder: (_) => ReceiptPreviewScreen(
                                               receiptId: receiptId,

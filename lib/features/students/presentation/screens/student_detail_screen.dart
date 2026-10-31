@@ -9,6 +9,7 @@ import 'package:study_library/features/seats/presentation/providers/seat_provide
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/payments/presentation/screens/record_payment_screen.dart';
+import 'package:study_library/features/payments/presentation/screens/edit_payment_screen.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/features/id_cards/presentation/screens/id_card_preview_screen.dart';
 import 'package:study_library/models/student_model.dart';
@@ -1350,6 +1351,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     String libraryId,
   ) async {
     final theme = Theme.of(context);
+    // Compute a human-readable receipt number for display
+    final displayReceiptNum = payment.receiptNumber ??
+        (payment.receiptId != null && payment.receiptId!.startsWith('REC-')
+            ? payment.receiptId
+            : null);
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -1367,19 +1374,30 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Payment Details',
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '₹${payment.amount.toStringAsFixed(0)} • ${payment.method} • ${DateFormat.yMMMd().format(payment.date)}',
-                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Payment Details',
+                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            '₹${payment.amount.toStringAsFixed(0)} • ${payment.method} • ${DateFormat.yMMMd().format(payment.date)}',
+                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+                          ),
+                          if (displayReceiptNum != null)
+                            Text(
+                              'Receipt: $displayReceiptNum',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Chip(
                       label: Text(
                         payment.status.name.toUpperCase(),
@@ -1408,6 +1426,28 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
               ],
               const Divider(height: 24),
 
+              // 0. Edit / Modify Payment Details
+              ListTile(
+                leading: Icon(Icons.edit_note_rounded, color: theme.colorScheme.primary),
+                title: const Text('Edit / Modify Payment Details'),
+                subtitle: const Text('Correct amount, payment date, method, or notes'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  if (!context.mounted) return;
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EditPaymentScreen(
+                        payment: payment,
+                        student: s,
+                        libraryId: libraryId,
+                        receiptNumber: displayReceiptNum,
+                      ),
+                    ),
+                  );
+                },
+              ),
+
               // 1. View / Print PDF Receipt
               ListTile(
                 leading: const Icon(Icons.picture_as_pdf_rounded, color: Colors.red),
@@ -1430,8 +1470,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   }
                   if (context.mounted) {
                     if (receiptId != null && receiptId.isNotEmpty) {
-                      Navigator.push(
-                        context,
+                      Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute(
                           builder: (_) => ReceiptPreviewScreen(receiptId: receiptId!),
                         ),
@@ -1461,7 +1500,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   }
                   final libDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).get();
                   final libName = libDoc.data()?['name'] as String? ?? 'Cozy Corner Library';
-                  final rNum = payment.receiptId ?? (payment.id.length >= 6 ? payment.id.substring(0, 6).toUpperCase() : payment.id);
+                  final rNum = payment.receiptNumber ?? (payment.receiptId != null && payment.receiptId!.startsWith('REC-') ? payment.receiptId! : '#${payment.id.substring(0, payment.id.length >= 6 ? 6 : payment.id.length).toUpperCase()}');
                   if (context.mounted) { await WhatsAppService().sendPaymentConfirmation(phone, s.name, libName, payment.amount, rNum, context: context); }
                 },
               ),
@@ -1482,7 +1521,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   }
                   final libDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).get();
                   final libName = libDoc.data()?['name'] as String? ?? 'Cozy Corner';
-                  final rNum = payment.receiptId ?? (payment.id.length >= 6 ? payment.id.substring(0, 6).toUpperCase() : payment.id);
+                  final rNum = payment.receiptNumber ?? (payment.receiptId != null && payment.receiptId!.startsWith('REC-') ? payment.receiptId! : '#${payment.id.substring(0, payment.id.length >= 6 ? 6 : payment.id.length).toUpperCase()}');
                   final ok = await ref.read(smsServiceProvider).sendPaymentReceiptSms(
                     phone: phone,
                     studentName: s.name,
@@ -1521,7 +1560,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   }
                   final libDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).get();
                   final libName = libDoc.data()?['name'] as String? ?? 'Cozy Corner';
-                  final rNum = payment.receiptId ?? (payment.id.length >= 6 ? payment.id.substring(0, 6).toUpperCase() : payment.id);
+                  final rNum = payment.receiptNumber ?? (payment.receiptId != null && payment.receiptId!.startsWith('REC-') ? payment.receiptId! : '#${payment.id.substring(0, payment.id.length >= 6 ? 6 : payment.id.length).toUpperCase()}');
                   final ok = await ref.read(telegramServiceProvider).sendPaymentAlert(
                     botToken: config.telegramBotToken,
                     chatId: config.telegramChatId,

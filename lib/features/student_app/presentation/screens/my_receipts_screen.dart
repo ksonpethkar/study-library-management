@@ -66,7 +66,7 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
       ReceiptRepository().generateReceipt(libraryId, newReceipt).ignore();
 
       if (mounted) {
-        Navigator.of(context).push(
+        Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(
             builder: (_) => ReceiptPreviewScreen(
               receiptId: newReceipt.id,
@@ -420,7 +420,7 @@ class _MyReceiptsScreenState extends ConsumerState<MyReceiptsScreen> {
                                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                             ),
                                             onPressed: () {
-                                              Navigator.of(context).push(
+                                              Navigator.of(context, rootNavigator: true).push(
                                                 MaterialPageRoute(
                                                   builder: (_) => ReceiptPreviewScreen(
                                                     receiptId: receipt.id,

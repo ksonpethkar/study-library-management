@@ -141,16 +141,28 @@ class PlanCalculatorService {
   /// Computes end date from start date and plan duration parameters.
   /// Strictly aligns to the end of the calendar month (e.g. Oct 31 23:59:59).
   static DateTime calculatePlanEndDate(DateTime startDate, int duration, DurationUnit unit) {
+    // Normalize startDate to start of day
+    final cleanStart = DateTime(startDate.year, startDate.month, startDate.day);
     if (unit == DurationUnit.months) {
-      final monthsToAdd = startDate.day > 1 ? duration + 1 : duration;
-      return DateTime(startDate.year, startDate.month + monthsToAdd, 0, 23, 59, 59);
+      if (cleanStart.day == 1) {
+        return DateTime(cleanStart.year, cleanStart.month + duration, 0, 23, 59, 59);
+      } else {
+        // Ends on (start day - 1) of target month e.g. 23 Nov -> 22 Dec
+        final targetMonth = cleanStart.month + duration;
+        final targetYear = cleanStart.year + (targetMonth - 1) ~/ 12;
+        final normalizedMonth = ((targetMonth - 1) % 12) + 1;
+        final daysInTargetMonth = DateTime(targetYear, normalizedMonth + 1, 0).day;
+        final targetDay = (cleanStart.day - 1).clamp(1, daysInTargetMonth);
+        return DateTime(targetYear, normalizedMonth, targetDay, 23, 59, 59);
+      }
     } else if (unit == DurationUnit.weeks) {
-      return startDate.add(Duration(days: duration * 7)).subtract(const Duration(seconds: 1));
+      return cleanStart.add(Duration(days: duration * 7)).subtract(const Duration(seconds: 1));
     } else {
-      // Days / 30-day plans snap to the current calendar month end
-      final months = (duration / 30).round().clamp(1, 12);
-      final monthsToAdd = startDate.day > 1 ? months + 1 : months;
-      return DateTime(startDate.year, startDate.month + monthsToAdd, 0, 23, 59, 59);
+      // Days-based plan: add exact days from the start date
+      final effectiveDays = duration > 0 ? duration : 30;
+      return cleanStart
+          .add(Duration(days: effectiveDays))
+          .subtract(const Duration(seconds: 1));
     }
   }
 
