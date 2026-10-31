@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/staff_model.dart';
 import 'package:study_library/features/staff/data/repositories/staff_repository.dart';
+import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 
 final staffRepositoryProvider = Provider<StaffRepository>((ref) {
   return StaffRepository();
@@ -78,7 +78,10 @@ final canManageStudentsProvider = Provider<bool>((ref) {
 /// Can permanently delete a student (destructive).
 final canDeleteStudentsProvider = Provider<bool>((ref) {
   final staff = ref.watch(currentUserStaffProvider).value;
-  if (staff == null) return false;
+  if (staff == null) {
+    final role = ref.watch(userRoleProvider);
+    return role == AppUserRole.admin;
+  }
   return staff.canDeleteStudents;
 });
 

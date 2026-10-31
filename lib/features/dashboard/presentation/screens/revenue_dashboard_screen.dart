@@ -110,6 +110,74 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
         }
         receipts.add(receipt);
       }
+
+      final seenReceiptIds = <String>{};
+      final seenReceiptNumbers = <String>{};
+      for (final r in receipts) {
+        if (r.id.isNotEmpty) seenReceiptIds.add(r.id);
+        if (r.receiptNumber.isNotEmpty) seenReceiptNumbers.add(r.receiptNumber);
+      }
+
+      // Reconcile unreceipted payments so numbers match RevenueChart & netProfitProvider
+      try {
+        final paySnap = await FirebaseFirestore.instance
+            .collection('libraries').doc(libraryId)
+            .collection('payments')
+            .get();
+
+        for (final doc in paySnap.docs) {
+          final pData = doc.data();
+          final status = (pData['status'] ?? '').toString().toLowerCase();
+          if (status == 'voided' || status == 'cancelled' || status == 'refunded' || pData['isDeleted'] == true) {
+            continue;
+          }
+          final rId = pData['receiptId'] as String?;
+          final rNum = pData['receiptNumber'] as String?;
+          if ((rId != null && seenReceiptIds.contains(rId)) ||
+              (rNum != null && seenReceiptNumbers.contains(rNum)) ||
+              seenReceiptIds.contains(doc.id)) {
+            continue; // Already counted via receipt
+          }
+
+          final amt = (pData['amount'] as num?)?.toDouble() ?? 0.0;
+          total += amt;
+
+          final dateRaw = pData['date'] ?? pData['createdAt'];
+          DateTime? payDate;
+          if (dateRaw is String) payDate = DateTime.tryParse(dateRaw);
+          if (dateRaw is int) payDate = DateTime.fromMillisecondsSinceEpoch(dateRaw);
+          if (dateRaw is Timestamp) payDate = dateRaw.toDate();
+          if (dateRaw != null && dateRaw.runtimeType.toString() == 'Timestamp') {
+            try { payDate = (dateRaw as dynamic).toDate(); } catch (_) {}
+          }
+
+          if (since == null || (payDate != null && payDate.isAfter(since))) {
+            rangeTotal += amt;
+            final planId = pData['planId'] as String? ?? '';
+            final resolvedPlan = _planNames[planId] ?? (planId.isNotEmpty ? planId : 'General Membership');
+            byPlan[resolvedPlan] = (byPlan[resolvedPlan] ?? 0) + amt;
+            final method = (pData['method'] as String?)?.isNotEmpty == true ? pData['method'] as String : 'Cash';
+            byMethod[method] = (byMethod[method] ?? 0) + amt;
+          }
+
+          // Create synthetic receipt so it appears in the transactions table
+          receipts.add(ReceiptModel(
+            id: doc.id,
+            libraryId: libraryId,
+            receiptNumber: rNum ?? 'PAY-${doc.id.substring(0, doc.id.length > 6 ? 6 : doc.id.length)}',
+            studentId: pData['studentId'] as String? ?? '',
+            planId: pData['planId'] as String? ?? '',
+            amount: amt,
+            paymentMethod: (pData['method'] as String?) ?? 'Cash',
+            validFrom: payDate ?? DateTime.now(),
+            validTo: payDate ?? DateTime.now(),
+            createdAt: payDate ?? DateTime.now(),
+            status: ReceiptStatus.active,
+            customFields: const {},
+          ));
+        }
+        receipts.sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
+      } catch (_) {}
       
       // Active students count
       final stuSnap = await FirebaseFirestore.instance

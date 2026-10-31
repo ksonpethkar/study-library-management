@@ -421,7 +421,11 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           createdAt: DateTime.now(),
         );
 
-        createdReceiptId = await receiptRepo.generateReceipt(libraryId, newReceipt);
+        createdReceiptId = await receiptRepo.generateReceipt(
+          libraryId,
+          newReceipt,
+          recordMatchingPayment: false,
+        );
       }
 
       // 4. Save Payment Record linked to receipt

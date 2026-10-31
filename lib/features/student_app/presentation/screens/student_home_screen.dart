@@ -16,6 +16,7 @@ import 'package:study_library/features/students/presentation/providers/student_p
 import 'package:study_library/features/settings/presentation/screens/security_settings_dialog.dart';
 import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/features/announcements/presentation/screens/announcement_list_screen.dart';
+import 'package:study_library/features/holidays/presentation/screens/holiday_calendar_screen.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/models/student_model.dart';
@@ -403,6 +404,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 110.0),
               children: [
+                _buildHolidayNoticeBanner(context, ref),
                 const AppUpdateBanner(),
                 _buildPinResetNoticeBanner(context, ref, student),
                 // Header Greeting
@@ -1928,6 +1930,83 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Got it')),
         ],
       ),
+    );
+  }
+
+  Widget _buildHolidayNoticeBanner(BuildContext context, WidgetRef ref) {
+    final today = DateTime.now();
+    final todayKey = DateTime(today.year, today.month, today.day);
+    final holidaysAsync = ref.watch(holidaysStreamProvider);
+
+    return holidaysAsync.when(
+      data: (holidays) {
+        final todayHoliday = holidays.where((h) {
+          final d = DateTime(h.date.year, h.date.month, h.date.day);
+          return d == todayKey && h.isFullDay;
+        }).firstOrNull;
+
+        if (todayHoliday == null) return const SizedBox.shrink();
+
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFEF2F2),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFFCA5A5), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withValues(alpha: 0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.event_busy_rounded, size: 20, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      '🔒 Library Closed Today',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF991B1B),
+                      ),
+                    ),
+                    if (todayHoliday.reason.trim().isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        todayHoliday.reason,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: Color(0xFFB91C1C),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
     );
   }
 

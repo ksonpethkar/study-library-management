@@ -154,18 +154,6 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
       createdAt: DateTime.now(),
     );
 
-    // Look up real student, plan, and section for accurate active services
-    Map<String, dynamic> studentData = {};
-    try {
-      final sDoc = await FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('students')
-          .doc(widget.studentId)
-          .get();
-      studentData = sDoc.data() ?? {};
-    } catch (_) {}
-
     final student = StudentModel.fromJson({
       'id': widget.studentId,
       'name': widget.studentName,

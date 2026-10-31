@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:study_library/models/receipt_model.dart';
 
 class ReceiptRepository {
@@ -56,15 +57,56 @@ class ReceiptRepository {
     }
   }
 
-  Future<String> generateReceipt(String libraryId, ReceiptModel receipt) async {
+  Future<String> generateReceipt(
+    String libraryId,
+    ReceiptModel receipt, {
+    bool recordMatchingPayment = true,
+  }) async {
     final doc = _receiptsRef(libraryId).doc();
     final newReceipt = receipt.copyWith(
       id: doc.id,
       libraryId: libraryId,
-      createdAt: DateTime.now(),
+      createdAt: receipt.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
     await doc.set(newReceipt.toJson());
+
+    // Atomically increment revenue aggregate
+    final amt = newReceipt.amount;
+    final dateStr = (newReceipt.createdAt ?? DateTime.now()).toIso8601String();
+    final month = dateStr.substring(0, 7);
+    if (amt > 0) {
+      _firestore.collection('libraries').doc(libraryId).collection('settings').doc('revenue_aggregate').set({
+        'totalRevenue': FieldValue.increment(amt),
+        'totalPayments': FieldValue.increment(1),
+        'monthlyRevenue.$month': FieldValue.increment(amt),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true)).ignore();
+    }
+
+    // Atomically create matching payment document if not already recorded
+    if (recordMatchingPayment) {
+      try {
+        final paymentDoc = _firestore.collection('libraries').doc(libraryId).collection('payments').doc();
+        await paymentDoc.set({
+          'id': paymentDoc.id,
+          'studentId': newReceipt.studentId,
+          'amount': newReceipt.amount,
+          'totalPlanFee': newReceipt.totalFee ?? newReceipt.amount,
+          'remainingDue': newReceipt.remainingDue ?? 0.0,
+          'installmentNumber': newReceipt.installmentNumber,
+          'method': newReceipt.paymentMethod.isNotEmpty ? newReceipt.paymentMethod : 'Cash',
+          'date': newReceipt.createdAt != null ? Timestamp.fromDate(newReceipt.createdAt!) : FieldValue.serverTimestamp(),
+          'receiptId': doc.id,
+          'receiptNumber': newReceipt.receiptNumber,
+          'status': 'paid',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('Failed to record matching payment for receipt ${doc.id}: $e');
+      }
+    }
+
     return doc.id;
   }
 

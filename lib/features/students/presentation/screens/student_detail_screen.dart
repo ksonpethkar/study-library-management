@@ -28,6 +28,7 @@ import 'package:study_library/services/telegram_service.dart';
 import 'package:study_library/services/messaging_hub_service.dart';
 import 'package:study_library/features/receipts/presentation/screens/receipt_preview_screen.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
+import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 
 class StudentDetailScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -446,6 +447,14 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
   }
 
   Future<void> _deleteStudent() async {
+    final canDelete = ref.read(canDeleteStudentsProvider);
+    if (!canDelete) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You do not have permission to delete students.')),
+      );
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -628,11 +637,12 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             },
             tooltip: 'Edit Student',
           ),
-          IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
-            onPressed: _deleteStudent,
-            tooltip: 'Delete Student',
-          ),
+          if (ref.watch(canDeleteStudentsProvider))
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: _deleteStudent,
+              tooltip: 'Delete Student',
+            ),
         ],
       ),
       body: SingleChildScrollView(

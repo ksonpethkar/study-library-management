@@ -1034,7 +1034,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                   student: student,
                                   membershipId: student.membershipNumber ?? '',
                                   seatLabel: _seatLabel ?? student.seatId ?? 'Unassigned',
-                                  libraryName: libraryName,
+                                  libraryName: library?.name ?? 'Study Centre',
                                   library: library,
                                 ),
                                 child: MouseRegion(
@@ -1167,6 +1167,144 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showEnlargedQrDialog(
+    BuildContext context, {
+    required StudentModel student,
+    required String membershipId,
+    required String seatLabel,
+    required String libraryName,
+    dynamic library,
+  }) {
+    final qrData = jsonEncode({
+      'type': 'STUDENT_PASS',
+      'id': student.id,
+      'lib': library?.id ?? '',
+      'name': student.name,
+      'memNo': membershipId,
+      'phone': student.phone,
+      'bloodGroup': student.bloodGroup ?? '',
+      'emergency': student.emergencyContact,
+      'seat': seatLabel.isNotEmpty ? seatLabel : (student.seatId ?? 'Unassigned'),
+      'expiry': student.planEndDate != null
+          ? DateFormat('dd/MM/yyyy').format(student.planEndDate!)
+          : 'Active',
+    });
+
+    showDialog(
+      context: context,
+      useRootNavigator: true,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Student QR Pass',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        Text(
+                          membershipId,
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: QrImageView(
+                  data: qrData,
+                  version: QrVersions.auto,
+                  size: 220,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Color(0xFF0F172A),
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                student.name,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Desk: ${seatLabel.isNotEmpty ? seatLabel : (student.seatId ?? "Seat Assigned")} • $libraryName',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.qr_code_scanner_rounded, size: 16, color: Color(0xFF10B981)),
+                    SizedBox(width: 6),
+                    Text(
+                      'Ready for Biometric & Desk Scanner',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF059669),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

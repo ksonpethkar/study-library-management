@@ -29,6 +29,7 @@ import 'package:study_library/core/widgets/pressable_scale.dart';
 import 'package:study_library/services/quick_actions_service.dart';
 import 'package:study_library/services/remote_config_service.dart';
 import 'package:study_library/features/holidays/presentation/screens/holiday_calendar_screen.dart';
+import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/features/expenses/presentation/providers/expense_providers.dart';
 import 'package:intl/intl.dart';
@@ -909,6 +910,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
     final occupiedSeats = occ['occupied'] ?? 0;
     final availableSeats = occ['available'] ?? (totalSeats > occupiedSeats ? totalSeats - occupiedSeats : 0);
     final percent = totalSeats > 0 ? (occupiedSeats / totalSeats * 100).round() : 0;
+    final waitingListAsync = ref.watch(waitingListStreamProvider);
+    final waitingCount = waitingListAsync.value?.length ?? 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -952,34 +955,69 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
-                        shape: BoxShape.circle,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (waitingCount > 0) ...[
+                    InkWell(
+                      onTap: () => context.push(Routes.adminWaitingList),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.hourglass_top_rounded, size: 12, color: Color(0xFF4F46E5)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Queue: $waitingCount',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF4F46E5),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      '$percent% Full',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF059669),
-                      ),
-                    ),
                   ],
-                ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF10B981),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$percent% Full',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF059669),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1117,7 +1155,55 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
           );
         },
       ),
-          const SizedBox(height: 14),
+          if (waitingCount > 0) ...[
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: () => context.push(Routes.adminWaitingList),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF312E81).withValues(alpha: 0.3) : const Color(0xFFEEF2FF),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF818CF8).withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.hourglass_top_rounded, size: 15, color: Color(0xFF6366F1)),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$waitingCount ${waitingCount == 1 ? "student" : "students"} in Waiting Queue',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFFC7D2FE) : const Color(0xFF3730A3),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Row(
+                      children: [
+                        Text(
+                          'View Queue',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF6366F1),
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_ios_rounded, size: 10, color: Color(0xFF6366F1)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
           InkWell(
             onTap: () => context.push(Routes.adminSeats),
             borderRadius: BorderRadius.circular(10),

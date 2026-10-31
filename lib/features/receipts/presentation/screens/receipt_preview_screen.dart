@@ -643,7 +643,7 @@ class _ReceiptPreviewScreenState extends ConsumerState<ReceiptPreviewScreen> wit
 
       if (secDoc?.exists == true) {
         sectionCols = (secDoc!.data()?['cols'] as num?)?.toInt();
-        resolvedSection = SectionModel.fromJson({...secDoc!.data()!, 'id': secDoc.id});
+        resolvedSection = SectionModel.fromJson({...secDoc.data()!, 'id': secDoc.id});
       }
       if (seatDoc?.exists == true) {
         resolvedSeatLabel = seatDoc!.data()?['label'] as String?;
