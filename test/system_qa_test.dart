@@ -1674,9 +1674,9 @@ void main() {
 
     test('67. REAL-TIME SEAT CHANGE & MAP AMBER SYNC STABILITY', () {
       // 1. Version consistency check
-      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.44+52'));
-      expect(AppConstants.appVersion, equals('1.5.44'));
-      expect(AppConstants.buildNumber, equals(52));
+      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.45+53'));
+      expect(AppConstants.appVersion, equals('1.5.45'));
+      expect(AppConstants.buildNumber, equals(53));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -2335,6 +2335,28 @@ void main() {
       expect(updatedSeatB2.studentId, equals('student_001'));
       expect(updatedStudent.seatId, equals('seat_b2'));
       expect(updatedStudent.sectionId, equals('sec_ground'));
+    });
+
+    test('Test 78: DIGITAL PASS ORG LOGO & ZERO-BLINKING IMAGE PROVIDER CACHE', () {
+      // 1. ImageService base64 memory cache identity preservation
+      const sampleBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+      final p1 = ImageService.getImageProvider(sampleBase64);
+      final p2 = ImageService.getImageProvider(sampleBase64);
+      expect(p1, isNotNull);
+      expect(p2, isNotNull);
+      expect(identical(p1, p2), isTrue, reason: 'Identical MemoryImage instance must be returned across rebuilds to prevent flickering/blinking');
+
+      // 2. LibraryModel organization logoUrl propagation
+      final lib = LibraryModel.fromJson({
+        'id': 'lib_test',
+        'name': 'The Cozy Corner Study Centre',
+        'address': 'Parli',
+        'contact': '9403243830',
+        'logoUrl': 'https://firebasestorage.googleapis.com/v0/b/study-lib-mgmt-2026.appspot.com/o/logo.png?alt=media',
+      });
+      expect(lib.logoUrl, isNotEmpty);
+      final logoProvider = ImageService.getImageProvider(lib.logoUrl);
+      expect(logoProvider, isNotNull);
     });
   });
 }

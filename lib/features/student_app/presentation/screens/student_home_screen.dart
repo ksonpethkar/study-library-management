@@ -63,9 +63,6 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
   late final AnimationController _refreshAnimController;
   late final AnimationController _cardFlipController;
   late final Animation<double> _cardFlipAnimation;
-  late final AnimationController _pulseController;
-  late final Animation<double> _pulseAnimation;
-  late final AnimationController _sheenController;
 
   @override
   void initState() {
@@ -81,16 +78,6 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     _cardFlipAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _cardFlipController, curve: Curves.easeInOutCubic),
     );
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..repeat(reverse: true);
-    _pulseAnimation = CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut);
-
-    _sheenController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 3200),
-    )..repeat();
 
     QuickActionsService.initializeForStudent(context, (shortcutType) {
       if (!mounted) return;
@@ -109,8 +96,6 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
   void dispose() {
     _refreshAnimController.dispose();
     _cardFlipController.dispose();
-    _pulseController.dispose();
-    _sheenController.dispose();
     super.dispose();
   }
 
@@ -689,7 +674,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
       child: GestureDetector(
         onTap: _toggleCardFlip,
         child: AnimatedBuilder(
-          animation: Listenable.merge([_cardFlipAnimation, _pulseAnimation, _sheenController]),
+          animation: _cardFlipAnimation,
           builder: (context, child) {
             final angle = _cardFlipAnimation.value * pi;
             final isFront = angle < (pi / 2);
@@ -699,7 +684,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 ..setEntry(3, 2, 0.001)
                 ..rotateY(angle),
               child: isFront
-                  ? _buildPassFront(student, plan, seatLabel, sectionName, libraryName, theme)
+                  ? _buildPassFront(student, plan, seatLabel, sectionName, library, libraryName, theme)
                   : Transform(
                       alignment: Alignment.center,
                       transform: Matrix4.identity()..rotateY(pi),
@@ -717,6 +702,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     dynamic plan,
     String seatLabel,
     String sectionName,
+    dynamic library,
     String libraryName,
     ThemeData theme,
   ) {
@@ -748,15 +734,10 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
       _ => (const Color(0xFF6366F1), 'PENDING', Icons.schedule_rounded),
     };
 
-    final pulseVal = _pulseAnimation.value;
-    final dynamicBorderColor = Color.lerp(
-      statusColor.withValues(alpha: 0.35),
-      statusColor.withValues(alpha: 0.95),
-      pulseVal,
-    )!;
-    final dynamicHaloShadow = statusColor.withValues(alpha: 0.20 + 0.25 * pulseVal);
-    final haloBlur = 12.0 + 12.0 * pulseVal;
-    final sheenVal = _sheenController.value;
+    final logoUrl = (library != null && (library.logoUrl as String?)?.isNotEmpty == true)
+        ? library.logoUrl as String
+        : '';
+    final logoProvider = logoUrl.isNotEmpty ? ImageService.getImageProvider(logoUrl) : null;
 
     return Stack(
       children: [
@@ -768,11 +749,11 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
               colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: dynamicBorderColor, width: 1.5),
+            border: Border.all(color: statusColor.withValues(alpha: 0.75), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: dynamicHaloShadow,
-                blurRadius: haloBlur,
+                color: statusColor.withValues(alpha: 0.22),
+                blurRadius: 14,
                 spreadRadius: 1.0,
                 offset: const Offset(0, 4),
               ),
@@ -795,16 +776,34 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                     child: Row(
                       children: [
                         Container(
-                          width: 32,
-                          height: 32,
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
-                            border: Border.all(color: const Color(0xFF818CF8).withValues(alpha: 0.5)),
+                            color: Colors.white,
+                            border: Border.all(color: const Color(0xFF818CF8).withValues(alpha: 0.6), width: 1.2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
                           ),
-                          child: const Icon(Icons.school_rounded, color: Color(0xFF818CF8), size: 18),
+                          clipBehavior: Clip.antiAlias,
+                          child: logoProvider != null
+                              ? Image(
+                                  image: logoProvider,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => const Center(
+                                    child: Icon(Icons.school_rounded, color: Color(0xFF4F46E5), size: 18),
+                                  ),
+                                )
+                              : const Center(
+                                  child: Icon(Icons.school_rounded, color: Color(0xFF4F46E5), size: 18),
+                                ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -843,10 +842,10 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.22),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: statusColor.withValues(alpha: 0.5 + 0.35 * pulseVal), width: 1.1),
+                      border: Border.all(color: statusColor.withValues(alpha: 0.75), width: 1.1),
                       boxShadow: [
                         BoxShadow(
-                          color: statusColor.withValues(alpha: 0.3 * pulseVal),
+                          color: statusColor.withValues(alpha: 0.25),
                           blurRadius: 6,
                         ),
                       ],
@@ -1066,33 +1065,27 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
         ],
       ),
     ),
-    // Holographic Anti-Tamper Sheen Sweep Overlay
-    Positioned.fill(
-      child: IgnorePointer(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment(-2.5 + 5.0 * sheenVal, -1.2),
-                end: Alignment(-1.2 + 5.0 * sheenVal, 1.2),
-                colors: [
-                  Colors.transparent,
-                  Colors.white.withValues(alpha: 0.0),
-                  Colors.white.withValues(alpha: 0.05),
-                  Colors.white.withValues(alpha: 0.16),
-                  Colors.white.withValues(alpha: 0.05),
-                  Colors.transparent,
-                ],
-                stops: const [0.0, 0.35, 0.48, 0.50, 0.52, 1.0],
+        // Subtle 3D Watermark of Organization Logo in Background
+        if (logoProvider != null)
+          Positioned(
+            right: -24,
+            bottom: -24,
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: 0.08,
+                child: ClipOval(
+                  child: Image(
+                    image: logoProvider,
+                    width: 160,
+                    height: 160,
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
-    ),
-  ],
-);
+      ],
+    );
   }
 
   Widget _buildPassBack(
@@ -1114,15 +1107,10 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
       _ => const Color(0xFF6366F1),
     };
 
-    final pulseVal = _pulseAnimation.value;
-    final dynamicBorderColor = Color.lerp(
-      statusColor.withValues(alpha: 0.35),
-      statusColor.withValues(alpha: 0.95),
-      pulseVal,
-    )!;
-    final dynamicHaloShadow = statusColor.withValues(alpha: 0.20 + 0.25 * pulseVal);
-    final haloBlur = 12.0 + 12.0 * pulseVal;
-    final sheenVal = _sheenController.value;
+    final logoUrl = (library != null && (library.logoUrl as String?)?.isNotEmpty == true)
+        ? library.logoUrl as String
+        : '';
+    final logoProvider = logoUrl.isNotEmpty ? ImageService.getImageProvider(logoUrl) : null;
 
     return Stack(
       children: [
@@ -1134,11 +1122,11 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
               colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: dynamicBorderColor, width: 1.5),
+            border: Border.all(color: statusColor.withValues(alpha: 0.75), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: dynamicHaloShadow,
-                blurRadius: haloBlur,
+                color: statusColor.withValues(alpha: 0.22),
+                blurRadius: 14,
                 spreadRadius: 1.0,
                 offset: const Offset(0, 4),
               ),
@@ -1283,33 +1271,27 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
         ],
       ),
     ),
-    // Holographic Anti-Tamper Sheen Sweep Overlay
-    Positioned.fill(
-      child: IgnorePointer(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment(-2.5 + 5.0 * sheenVal, -1.2),
-                end: Alignment(-1.2 + 5.0 * sheenVal, 1.2),
-                colors: [
-                  Colors.transparent,
-                  Colors.white.withValues(alpha: 0.0),
-                  Colors.white.withValues(alpha: 0.05),
-                  Colors.white.withValues(alpha: 0.16),
-                  Colors.white.withValues(alpha: 0.05),
-                  Colors.transparent,
-                ],
-                stops: const [0.0, 0.35, 0.48, 0.50, 0.52, 1.0],
+        // Subtle 3D Watermark of Organization Logo in Background
+        if (logoProvider != null)
+          Positioned(
+            right: -24,
+            bottom: -24,
+            child: IgnorePointer(
+              child: Opacity(
+                opacity: 0.08,
+                child: ClipOval(
+                  child: Image(
+                    image: logoProvider,
+                    width: 160,
+                    height: 160,
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
-    ),
-  ],
-);
+      ],
+    );
   }
 
   Widget _buildAssignedSeatCard(BuildContext context, ThemeData theme, String seatLabel, String sectionName, String? seatId) {

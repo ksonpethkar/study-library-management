@@ -442,25 +442,36 @@ class StudentModel {
   static DateTime? parseDateStatic(dynamic date) => _parseDate(date);
 
   /// Dynamic evaluation: student is genuinely active ONLY if:
-  /// 1. Status is marked active
+  /// 1. Status is marked active or grace
   /// 2. Plan end date is in the future (or within grace period)
   bool get isEffectivelyActive {
-    if (membershipStatus != MembershipStatus.active) return false;
+    if (membershipStatus != MembershipStatus.active &&
+        membershipStatus != MembershipStatus.grace) {
+      return false;
+    }
     if (planEndDate == null) return false;
     final now = DateTime.now();
     if (now.isBefore(planEndDate!) || now.isAtSameMomentAs(planEndDate!)) {
       return true;
     }
-    if (graceEndDate != null && (now.isBefore(graceEndDate!) || now.isAtSameMomentAs(graceEndDate!))) {
+    if (membershipStatus == MembershipStatus.grace &&
+        graceEndDate != null &&
+        (now.isBefore(graceEndDate!) || now.isAtSameMomentAs(graceEndDate!))) {
       return true;
     }
     return false;
   }
 
-  /// True if the student's plan has expired based on current time
+  /// True if the student's plan has expired based on current time and grace period
   bool get isExpired {
     if (membershipStatus == MembershipStatus.expired) return true;
     if (planEndDate == null) return false;
+    final now = DateTime.now();
+    if (membershipStatus == MembershipStatus.grace &&
+        graceEndDate != null &&
+        (now.isBefore(graceEndDate!) || now.isAtSameMomentAs(graceEndDate!))) {
+      return false;
+    }
     return DateTime.now().isAfter(planEndDate!);
   }
 

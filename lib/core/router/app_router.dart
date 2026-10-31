@@ -486,13 +486,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: Routes.adminPaymentMethods, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const PaymentMethodsScreen(),
       )),
-      GoRoute(path: Routes.adminCommunications, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminCommunications, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const CommunicationsHubScreen(),
       )),
-      GoRoute(path: Routes.adminNotifications, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminNotifications, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const CommunicationsHubScreen(),
       )),
-      GoRoute(path: Routes.adminMessaging, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminMessaging, pageBuilder: (context, state) => AppPageTransitions.slideRight(
         state: state, child: const CommunicationsHubScreen(),
       )),
       GoRoute(path: Routes.adminBackup, pageBuilder: (context, state) => AppPageTransitions.slideRight(

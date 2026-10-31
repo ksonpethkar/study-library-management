@@ -458,6 +458,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       final studentUpdates = <String, dynamic>{
         'pendingDueBalance': remainingDue,
         'membershipStatus': 'active',
+        'graceEndDate': FieldValue.delete(), // Clear stale grace period from previous cycle
       };
       if (_selectedPlanId != null && _selectedPlanId != 'custom') {
         studentUpdates['planId'] = _selectedPlanId;

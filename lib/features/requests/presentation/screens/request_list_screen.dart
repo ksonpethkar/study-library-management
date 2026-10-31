@@ -28,6 +28,25 @@ class StudentRequestItem {
   final String status;
   final DateTime? createdAt;
   final String? rejectionReason;
+  final String? requestedPlanName;
+  final String? requestedPlanId;
+  final double? amount;
+  final String? paymentMethod;
+  final String? paymentModeLabel;
+  final String? referenceNumber;
+  final String? studentUserId;
+  final DateTime? cycleStartDate;
+  final DateTime? cycleEndDate;
+
+  bool get isPending {
+    final s = status.toLowerCase().trim();
+    return s == 'pending' ||
+        s == 'desk_payment_pending' ||
+        s == 'payment_pending' ||
+        s == 'submitted' ||
+        s == 'open' ||
+        s.contains('pending');
+  }
 
   const StudentRequestItem({
     required this.id,
@@ -46,6 +65,15 @@ class StudentRequestItem {
     required this.status,
     this.createdAt,
     this.rejectionReason,
+    this.requestedPlanName,
+    this.requestedPlanId,
+    this.amount,
+    this.paymentMethod,
+    this.paymentModeLabel,
+    this.referenceNumber,
+    this.studentUserId,
+    this.cycleStartDate,
+    this.cycleEndDate,
   });
 
   factory StudentRequestItem.fromFirestore(
@@ -82,6 +110,15 @@ class StudentRequestItem {
       status: (data['status'] as String? ?? 'pending').trim().toLowerCase(),
       createdAt: _parseDate(data['createdAt']),
       rejectionReason: (data['rejectionReason'] ?? data['rejectReason']) as String?,
+      requestedPlanName: (data['requestedPlanName'] ?? studentData['requestedPlanName'] ?? data['planName']) as String?,
+      requestedPlanId: (data['requestedPlanId'] ?? data['planId']) as String?,
+      amount: (data['amount'] as num?)?.toDouble() ?? (studentData['amount'] as num?)?.toDouble(),
+      paymentMethod: (data['paymentMethod'] ?? data['method']) as String?,
+      paymentModeLabel: data['paymentModeLabel'] as String?,
+      referenceNumber: (data['referenceNumber'] ?? data['reference']) as String?,
+      studentUserId: (data['studentUserId'] ?? data['userId'] ?? studentData['userId']) as String?,
+      cycleStartDate: _parseDate(data['cycleStartDate']),
+      cycleEndDate: _parseDate(data['cycleEndDate']),
     );
   }
 
@@ -180,7 +217,7 @@ class RequestListScreen extends ConsumerWidget {
         ),
       ),
       data: (requests) {
-        final pending = requests.where((r) => r.status == 'pending').toList();
+        final pending = requests.where((r) => r.isPending).toList();
         final approved = requests.where((r) => r.status == 'approved').toList();
         final rejected = requests.where((r) => r.status == 'rejected' || r.status == 'superseded' || r.status == 'cancelled').toList();
 
@@ -342,12 +379,12 @@ class RequestListScreen extends ConsumerWidget {
           final item = items[index];
           final card = _RequestCard(
             request: item,
-            onApprove: () => _updateRequestStatus(context, libraryId, item.id, 'approved'),
+            onApprove: () => _updateRequestStatus(context, libraryId, item.id, 'approved', requestItem: item),
             onReject: () => _promptReject(context, libraryId, item),
             onDelete: () => _confirmDelete(context, libraryId, item.id),
           );
 
-          if (item.status != 'pending') {
+          if (!item.isPending) {
             return card;
           }
 
@@ -388,7 +425,7 @@ class RequestListScreen extends ConsumerWidget {
             confirmDismiss: (direction) async {
               if (direction == DismissDirection.startToEnd) {
                 HapticFeedback.mediumImpact();
-                await _updateRequestStatus(context, libraryId, item.id, 'approved');
+                await _updateRequestStatus(context, libraryId, item.id, 'approved', requestItem: item);
               } else if (direction == DismissDirection.endToStart) {
                 HapticFeedback.lightImpact();
                 await _promptReject(context, libraryId, item);
@@ -408,88 +445,185 @@ class RequestListScreen extends ConsumerWidget {
     String requestId,
     String newStatus, {
     String? reason,
+    StudentRequestItem? requestItem,
   }) async {
     if (libraryId == null || libraryId.isEmpty) return;
 
     if (newStatus == 'approved') {
+      final isRenewal = requestItem != null &&
+          (requestItem.type.toLowerCase() == 'renewal' || requestItem.type.toLowerCase() == 'plan_renewal');
+      final amount = requestItem?.amount ?? 0.0;
+      final planName = requestItem?.requestedPlanName ?? 'Standard Plan';
+      final studentName = requestItem?.studentName ?? 'Student';
+      String selectedPaymentMethod = requestItem?.paymentMethod ?? 'Cash';
+
       final confirmed = await showModalBottomSheet<bool>(
         context: context,
+        isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (ctx) => Container(
-          decoration: BoxDecoration(
-            color: Theme.of(ctx).colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewPadding.bottom + 16,
-            left: 20,
-            right: 20,
-            top: 12,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setModalState) => Container(
+            decoration: BoxDecoration(
+              color: Theme.of(ctx).colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).viewPadding.bottom + 16,
+              left: 20,
+              right: 20,
+              top: 12,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Approve Request',
-                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Are you sure you want to approve this request? The student will be provisioned and assigned accordingly.',
-                style: Theme.of(ctx).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.green.shade700,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      child: const Text('Approve'),
+                      child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        isRenewal ? 'Collect Payment & Approve Renewal' : 'Approve Request',
+                        style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                if (isRenewal) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Theme.of(ctx).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Student:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
+                            Text(studentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Plan:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
+                            Text(planName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
+                        if (amount > 0) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Amount to Collect:', style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant, fontSize: 13)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '₹${amount.toStringAsFixed(0)}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedPaymentMethod,
+                    decoration: const InputDecoration(
+                      labelText: 'Payment Method Received',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'Cash', child: Text('Cash at Desk')),
+                      DropdownMenuItem(value: 'UPI', child: Text('UPI / QR Code')),
+                      DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer (NEFT/IMPS)')),
+                      DropdownMenuItem(value: 'Cheque', child: Text('Cheque / DD')),
+                      DropdownMenuItem(value: 'Other', child: Text('Other')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setModalState(() => selectedPaymentMethod = val);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Confirming will collect fee, issue digital receipt, and renew membership immediately.',
+                    style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+                  ),
+                ] else ...[
+                  Text(
+                    'Are you sure you want to approve this request? The student will be provisioned and assigned accordingly.',
+                    style: Theme.of(ctx).textTheme.bodyMedium,
+                  ),
                 ],
-              ),
-            ],
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.green.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                        ),
+                        onPressed: () {
+                          if (isRenewal && selectedPaymentMethod != requestItem.paymentMethod) {
+                            FirebaseFirestore.instance
+                                .collection('libraries')
+                                .doc(libraryId)
+                                .collection('requests')
+                                .doc(requestId)
+                                .update({'paymentMethod': selectedPaymentMethod}).ignore();
+                          }
+                          Navigator.of(ctx).pop(true);
+                        },
+                        child: Text(isRenewal ? 'Collect & Approve' : 'Approve'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -892,9 +1026,10 @@ class _RequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isPending = request.status == 'pending';
+    final isPending = request.isPending;
 
     final isSeatChange = (request.type.toLowerCase() == 'seat_change' || request.type.toLowerCase() == 'seatchange');
+    final isRenewal = (request.type.toLowerCase() == 'renewal' || request.type.toLowerCase() == 'plan_renewal');
 
     return Card(
       elevation: 0,
@@ -915,7 +1050,7 @@ class _RequestCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Row: Type chip, Status chip, and Overflow delete menu
+              // Top Row: Type chip, Status chip, and Overflow menu
               Row(
                 children: [
                   Container(
@@ -923,7 +1058,9 @@ class _RequestCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isSeatChange
                           ? const Color(0xFFFEF3C7)
-                          : theme.colorScheme.secondaryContainer.withValues(alpha: 0.7),
+                          : (isRenewal
+                              ? const Color(0xFFE0F2FE)
+                              : theme.colorScheme.secondaryContainer.withValues(alpha: 0.7)),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -934,7 +1071,9 @@ class _RequestCard extends StatelessWidget {
                           size: 15,
                           color: isSeatChange
                               ? const Color(0xFFB45309)
-                              : theme.colorScheme.onSecondaryContainer,
+                              : (isRenewal
+                                  ? const Color(0xFF0369A1)
+                                  : theme.colorScheme.onSecondaryContainer),
                         ),
                         const SizedBox(width: 6),
                         Text(
@@ -944,7 +1083,9 @@ class _RequestCard extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                             color: isSeatChange
                                 ? const Color(0xFF78350F)
-                                : theme.colorScheme.onSecondaryContainer,
+                                : (isRenewal
+                                    ? const Color(0xFF0C4A6E)
+                                    : theme.colorScheme.onSecondaryContainer),
                           ),
                         ),
                       ],
@@ -955,12 +1096,51 @@ class _RequestCard extends StatelessWidget {
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert_rounded, size: 20),
                     padding: EdgeInsets.zero,
+                    tooltip: 'Request options',
                     onSelected: (value) {
-                      if (value == 'delete') {
+                      if (value == 'view') {
+                        context.push('${Routes.adminRequests}/${request.id}');
+                      } else if (value == 'approve') {
+                        onApprove();
+                      } else if (value == 'reject') {
+                        onReject();
+                      } else if (value == 'delete') {
                         onDelete();
                       }
                     },
                     itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'view',
+                        child: Row(
+                          children: [
+                            Icon(Icons.visibility_outlined, color: Colors.blue, size: 18),
+                            SizedBox(width: 8),
+                            Text('View Details'),
+                          ],
+                        ),
+                      ),
+                      if (isPending) ...[
+                        const PopupMenuItem(
+                          value: 'approve',
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 18),
+                              SizedBox(width: 8),
+                              Text('Approve Request', style: TextStyle(color: Colors.green)),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'reject',
+                          child: Row(
+                            children: [
+                              Icon(Icons.cancel_outlined, color: Colors.orange, size: 18),
+                              SizedBox(width: 8),
+                              Text('Reject Request', style: TextStyle(color: Colors.orange)),
+                            ],
+                          ),
+                        ),
+                      ],
                       const PopupMenuItem(
                         value: 'delete',
                         child: Row(
@@ -1172,8 +1352,116 @@ class _RequestCard extends StatelessWidget {
                 ),
               ],
 
+              // Highlighted Plan Renewal Details Card (For Renewal Requests)
+              if (isRenewal) ...[
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isPending
+                          ? const Color(0xFF0284C7).withValues(alpha: 0.5)
+                          : theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'REQUESTED PLAN',
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  request.requestedPlanName ?? 'Standard Plan',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (request.amount != null && request.amount! > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                              ),
+                              child: Text(
+                                '₹${request.amount!.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Divider(height: 1),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.payment_rounded, size: 14, color: theme.colorScheme.outline),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Mode: ${request.paymentModeLabel ?? request.paymentMethod ?? 'Pay at Desk'}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          if (request.referenceNumber != null && request.referenceNumber!.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            Text('•', style: TextStyle(color: theme.colorScheme.outline)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Ref: ${request.referenceNumber!}',
+                                style: TextStyle(fontSize: 11.5, color: theme.colorScheme.outline),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (request.cycleStartDate != null && request.cycleEndDate != null) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_month_rounded, size: 14, color: theme.colorScheme.outline),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Cycle: ${_formatDate(request.cycleStartDate)} – ${_formatDate(request.cycleEndDate)}',
+                              style: TextStyle(fontSize: 11.5, color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+
               // Message Body (for other request types)
-              if (!isSeatChange && request.message.trim().isNotEmpty) ...[
+              if (!isSeatChange && !isRenewal && request.message.trim().isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
@@ -1256,7 +1544,11 @@ class _RequestCard extends StatelessWidget {
                     ),
                     onPressed: onApprove,
                     icon: const Icon(Icons.check_rounded, size: 18),
-                    label: const Text('Approve'),
+                    label: Text(
+                      isRenewal && (request.amount != null && request.amount! > 0)
+                          ? 'Collect ₹${request.amount!.toStringAsFixed(0)} & Approve'
+                          : (isSeatChange ? 'Approve Seat' : 'Approve'),
+                    ),
                   ),
                 ],
               ),

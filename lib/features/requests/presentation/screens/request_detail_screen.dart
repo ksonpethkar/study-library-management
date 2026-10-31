@@ -349,8 +349,14 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
     final data = _requestData!;
     final studentData = (data['studentData'] as Map<String, dynamic>?) ?? {};
-    final status = (data['status'] as String? ?? 'pending').toLowerCase();
-    final isPending = status == 'pending';
+    final type = (data['type'] as String? ?? 'registration').toLowerCase();
+    final status = (data['status'] as String? ?? 'pending').toLowerCase().trim();
+    final isPending = status == 'pending' ||
+        status == 'desk_payment_pending' ||
+        status == 'payment_pending' ||
+        status == 'submitted' ||
+        status == 'open' ||
+        status.contains('pending');
     final photoUrl = studentData['photoUrl'] as String? ?? '';
     final studentName = studentData['name'] ?? data['studentName'] ?? 'Student';
     final studentPhone = studentData['phone'] ?? data['studentPhone'] ?? '';
@@ -621,7 +627,13 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                             ),
                             onPressed: _approveRequest,
                             icon: const Icon(Icons.check_rounded),
-                            label: const Text('Approve & Add'),
+                            label: Text(
+                              type == 'renewal'
+                                  ? 'Approve Renewal'
+                                  : (type == 'seat_change' || type == 'seatchange'
+                                      ? 'Approve Seat'
+                                      : 'Approve & Add'),
+                            ),
                           ),
                         ),
                       ],

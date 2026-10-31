@@ -19,7 +19,7 @@ final _pendingCountProvider = StreamProvider.autoDispose<int>((ref) {
       .collection('libraries')
       .doc(libraryId)
       .collection('requests')
-      .where('status', isEqualTo: 'pending')
+      .where('status', whereIn: ['pending', 'desk_payment_pending', 'payment_pending'])
       .snapshots()
       .map((snap) => snap.docs.length);
 });

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/services/telegram_service.dart';
 import 'package:study_library/services/local_bridge_service.dart';
@@ -77,7 +78,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
             .doc(libraryId)
             .collection('settings')
             .doc('messaging')
-            .get();
+            .get()
+            .timeout(const Duration(seconds: 4));
         mData = messagingDoc.data() ?? {};
       } catch (e) {
         if (kDebugMode) debugPrint('Messaging settings fetch fallback: $e');
@@ -86,7 +88,11 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       // 2. Load Rules Config
       Map<String, dynamic> nData = {};
       try {
-        final libDoc = await firestore.collection('libraries').doc(libraryId).get();
+        final libDoc = await firestore
+            .collection('libraries')
+            .doc(libraryId)
+            .get()
+            .timeout(const Duration(seconds: 4));
         nData = (libDoc.data()?['notificationSettings'] as Map<String, dynamic>?) ?? {};
       } catch (e) {
         if (kDebugMode) debugPrint('Library notification settings fetch fallback: $e');
@@ -101,7 +107,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
             .doc(libraryId)
             .collection('settings')
             .doc('communications')
-            .get();
+            .get()
+            .timeout(const Duration(seconds: 4));
         final cData = commDoc.data() ?? {};
         cChannels = (cData['channels'] as Map<String, dynamic>?) ?? {};
         cRules = (cData['rules'] as Map<String, dynamic>?) ?? {};
@@ -340,6 +347,17 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back to Settings',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              context.go(Routes.adminMore);
+            }
+          },
+        ),
         title: const Text('Communications & Automation'),
         bottom: TabBar(
           controller: _tabController,
@@ -354,6 +372,12 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
           decoration: BoxDecoration(
             color: theme.scaffoldBackgroundColor,
+            border: Border(
+              top: BorderSide(
+                color: theme.dividerColor.withValues(alpha: 0.15),
+                width: 1,
+              ),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.12),
@@ -377,11 +401,11 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Icon(Icons.save_rounded),
                   label: Text(_isSaving ? 'Saving Configuration...' : 'Save Communications Configuration', style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
               ),
             ),
           ),
         ),
-      ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

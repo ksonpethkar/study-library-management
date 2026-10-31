@@ -506,7 +506,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx, false);
+                    _startNewRegistration(null);
+                  },
+                  icon: const Icon(Icons.edit_note_rounded, size: 18),
+                  label: const Text('Fill Form Manually without Google'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('Cancel'),

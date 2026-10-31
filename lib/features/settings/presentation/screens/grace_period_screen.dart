@@ -70,23 +70,37 @@ class _GracePeriodScreenState extends ConsumerState<GracePeriodScreen> {
     try {
       final defaultDays = int.tryParse(_defaultController.text.trim()) ?? 3;
       final planOverrides = <String, int>{};
+      final batch = FirebaseFirestore.instance.batch();
+
       for (final entry in _planControllers.entries) {
         final days = int.tryParse(entry.value.text.trim());
         if (days != null) {
           planOverrides[entry.key] = days;
+          final planRef = FirebaseFirestore.instance
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('plans')
+              .doc(entry.key);
+          batch.update(planRef, {
+            'gracePeriodDays': days,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
         }
       }
 
-      await FirebaseFirestore.instance
+      final gracePeriodDocRef = FirebaseFirestore.instance
           .collection('libraries')
           .doc(libraryId)
           .collection('settings')
-          .doc('grace_period')
-          .set({
+          .doc('grace_period');
+
+      batch.set(gracePeriodDocRef, {
         'defaultDays': defaultDays,
         'planOverrides': planOverrides,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      await batch.commit();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -204,7 +218,11 @@ class _GracePeriodScreenState extends ConsumerState<GracePeriodScreen> {
                           final plan = plans[index];
                           _planControllers.putIfAbsent(
                             plan.id,
-                            () => TextEditingController(text: _defaultController.text),
+                            () => TextEditingController(
+                              text: plan.gracePeriodDays > 0
+                                  ? plan.gracePeriodDays.toString()
+                                  : _defaultController.text,
+                            ),
                           );
                           return ListTile(
                             title: Text(plan.name, style: const TextStyle(fontWeight: FontWeight.bold)),

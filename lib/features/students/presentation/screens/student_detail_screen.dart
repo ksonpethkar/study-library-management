@@ -49,12 +49,16 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
   @override
   void initState() {
     super.initState();
-    _loadStudent();
+    final initialLibId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+    _loadStudent(overrideLibId: initialLibId);
   }
 
-  Future<void> _loadStudent() async {
-    final libraryId = ref.read(currentLibraryIdProvider);
-    if (libraryId == null) return;
+  Future<void> _loadStudent({String? overrideLibId}) async {
+    final libraryId = overrideLibId ?? ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+    if (libraryId.isEmpty || widget.studentId.isEmpty) {
+      if (mounted) setState(() => isLoading = false);
+      return;
+    }
 
     try {
       final doc = await FirebaseFirestore.instance
@@ -63,7 +67,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
           .collection('students')
           .doc(widget.studentId)
           .get();
-      if (doc.exists) {
+      if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         final rawGovId = data['govIdNumber']?.toString() ?? '';
         final decryptedGovId = EncryptionService.safeDecryptGovId(rawGovId, libraryId);
@@ -73,56 +77,64 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
           'govIdNumber': decryptedGovId,
         });
         
-        // Load seat + section names
+        // Load seat + section names safely
         String loadedSeatLabel = '';
         String loadedSectionName = '';
-        if (s.seatId != null && s.sectionId != null) {
-          final sectionDoc = await FirebaseFirestore.instance
-              .collection('libraries').doc(libraryId)
-              .collection('sections').doc(s.sectionId)
-              .get();
-          if (sectionDoc.exists) {
-            loadedSectionName = sectionDoc.data()?['name'] ?? 'Unknown Section';
-          }
+        if (s.seatId != null && s.sectionId != null && s.seatId!.isNotEmpty && s.sectionId!.isNotEmpty) {
+          try {
+            final sectionDoc = await FirebaseFirestore.instance
+                .collection('libraries').doc(libraryId)
+                .collection('sections').doc(s.sectionId)
+                .get();
+            if (sectionDoc.exists) {
+              loadedSectionName = sectionDoc.data()?['name'] ?? 'Unknown Section';
+            }
+          } catch (_) {}
           
-          final seatDoc = await FirebaseFirestore.instance
-              .collection('libraries').doc(libraryId)
-              .collection('sections').doc(s.sectionId)
-              .collection('seats').doc(s.seatId)
-              .get();
-          if (seatDoc.exists) {
-            loadedSeatLabel = seatDoc.data()?['label'] ?? 'Unknown Seat';
-          }
+          try {
+            final seatDoc = await FirebaseFirestore.instance
+                .collection('libraries').doc(libraryId)
+                .collection('sections').doc(s.sectionId)
+                .collection('seats').doc(s.seatId)
+                .get();
+            if (seatDoc.exists) {
+              loadedSeatLabel = seatDoc.data()?['label'] ?? 'Unknown Seat';
+            }
+          } catch (_) {}
         }
 
-        // Load plan name
+        // Load plan name safely
         String loadedPlanName = '';
         double loadedPlanPrice = 0;
-        if (s.planId != null) {
-          final planDoc = await FirebaseFirestore.instance
-              .collection('libraries').doc(libraryId)
-              .collection('plans').doc(s.planId)
-              .get();
-          if (planDoc.exists) {
-            loadedPlanName = planDoc.data()?['name'] ?? 'Unknown Plan';
-            loadedPlanPrice = (planDoc.data()?['price'] ?? 0).toDouble();
-          }
+        if (s.planId != null && s.planId!.isNotEmpty) {
+          try {
+            final planDoc = await FirebaseFirestore.instance
+                .collection('libraries').doc(libraryId)
+                .collection('plans').doc(s.planId)
+                .get();
+            if (planDoc.exists) {
+              loadedPlanName = planDoc.data()?['name'] ?? 'Unknown Plan';
+              loadedPlanPrice = (planDoc.data()?['price'] ?? 0).toDouble();
+            }
+          } catch (_) {}
         }
 
-        setState(() {
-          student = s;
-          seatLabel = loadedSeatLabel;
-          sectionName = loadedSectionName;
-          planName = loadedPlanName;
-          planPrice = loadedPlanPrice;
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            student = s;
+            seatLabel = loadedSeatLabel;
+            sectionName = loadedSectionName;
+            planName = loadedPlanName;
+            planPrice = loadedPlanPrice;
+            isLoading = false;
+          });
+        }
       } else {
-        setState(() => isLoading = false);
+        if (mounted) setState(() => isLoading = false);
       }
     } catch (e) {
       debugPrint('Error loading student: $e');
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -495,16 +507,67 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<String?>(currentLibraryIdProvider, (previous, next) {
+      if (next != null && next.isNotEmpty && (student == null || next != previous)) {
+        _loadStudent(overrideLibId: next);
+      }
+    });
+
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/admin/students');
+              }
+            },
+          ),
+          title: const Text('Student Details'),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (student == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Student Not Found')),
-        body: const Center(child: Text('The student could not be found.')),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/admin/students');
+              }
+            },
+          ),
+          title: const Text('Student Not Found'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.person_off_rounded, size: 64, color: Colors.grey),
+                const SizedBox(height: 16),
+                const Text('Student not found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text('The requested student could not be found or has been removed.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () => context.go('/admin/students'),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Back to Students'),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 

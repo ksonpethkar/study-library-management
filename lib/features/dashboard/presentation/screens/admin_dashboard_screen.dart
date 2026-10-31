@@ -97,7 +97,7 @@ final dashboardMetricsProvider = Provider<DashboardMetrics>((ref) {
   double totalDue = 0.0;
 
   for (final s in allStudents) {
-    if (s.membershipStatus == MembershipStatus.active) {
+    if (s.membershipStatus == MembershipStatus.active || s.membershipStatus == MembershipStatus.grace) {
       activeCount++;
     }
     final c = s.createdAt;
@@ -110,9 +110,9 @@ final dashboardMetricsProvider = Provider<DashboardMetrics>((ref) {
         expiredToday++;
       }
     }
-    if (s.membershipStatus == MembershipStatus.active) {
+    if (s.membershipStatus == MembershipStatus.active || s.membershipStatus == MembershipStatus.grace) {
       final e = s.planEndDate;
-      if (e != null && !e.isBefore(now) && !e.isAfter(next7Days)) {
+      if (e != null && (s.membershipStatus == MembershipStatus.grace || (!e.isBefore(now) && !e.isAfter(next7Days)))) {
         renewalsDue++;
       }
     }
@@ -197,7 +197,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
     _pendingRequestsSub = FirebaseFirestore.instance
         .collection('libraries').doc(libraryId)
         .collection('requests')
-        .where('status', isEqualTo: 'pending')
+        .where('status', whereIn: ['pending', 'desk_payment_pending', 'payment_pending'])
         .snapshots()
         .listen((snap) {
       if (mounted) {
@@ -1092,7 +1092,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                                     .collection('libraries')
                                     .doc(libId)
                                     .collection('requests')
-                                    .where('status', isEqualTo: 'pending')
+                                    .where('status', whereIn: ['pending', 'desk_payment_pending', 'payment_pending'])
                                     .snapshots()
                                 : null,
                             builder: (context, reqSnap) {

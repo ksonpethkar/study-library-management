@@ -116,7 +116,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.44+52';
+  static const String currentVersionIdentifier = '1.5.45+53';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -125,8 +125,24 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.44)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.45)
   static final List<ReleaseChange> adminChanges = [
+    const ReleaseChange(
+      icon: Icons.image_rounded,
+      rawIconName: 'image',
+      badge: 'Zero Blinking',
+      title: 'Stable Student Profile Photos & Image Caching',
+      description:
+          'Eliminated profile photo blinking across student passes by caching decoded base64 images in memory and removing redundant 60 FPS animation loops.',
+    ),
+    const ReleaseChange(
+      icon: Icons.account_balance_rounded,
+      rawIconName: 'account_balance',
+      badge: 'Brand Identity',
+      title: 'Dynamic Organization Logo on Digital Pass',
+      description:
+          'The digital smart access card now displays your official library logo dynamically on the front header with a subtle 3D watermark on the card background.',
+    ),
     const ReleaseChange(
       icon: Icons.notifications_active_rounded,
       rawIconName: 'notifications',
@@ -143,34 +159,26 @@ class WhatsNewService {
       description:
           'Streamlined student credentials into modern, interactive 3D virtual cards with dynamic verification QR codes, removing all redundant print layouts and PDF downloads.',
     ),
-    const ReleaseChange(
-      icon: Icons.badge_rounded,
-      rawIconName: 'badge',
-      badge: 'Key Personnel',
-      title: 'Separate Owner, Admin & Manager Contacts',
-      description:
-          'Configure independent names and direct phone numbers for Owner, Admin, and Manager in Library Profile. These propagate live to students with 1-tap Call and WhatsApp.',
-    ),
-    const ReleaseChange(
-      icon: Icons.room_service_rounded,
-      rawIconName: 'room_service',
-      badge: 'Dynamic Amenities',
-      title: 'Customizable Study Privileges & Amenities',
-      description:
-          'Select only the facilities your organization actually provides (e.g. Wi-Fi, RO Water, Sockets, Ergonomic Chairs). Unselected perks (like AC) will never be displayed to students.',
-    ),
-    const ReleaseChange(
-      icon: Icons.security_rounded,
-      rawIconName: 'security',
-      badge: 'Encrypted Gov ID',
-      title: 'Safe Gov ID Decryption & Clean Masking',
-      description:
-          'Student Government ID numbers are safely decrypted and formatted as clean masked identifiers (XXXX XXXX 1234), completely preventing ciphertext leaks.',
-    ),
   ];
 
-  /// Student-Friendly Highlights (v1.5.44)
+  /// Student-Friendly Highlights (v1.5.45)
   static final List<ReleaseChange> studentChanges = [
+    const ReleaseChange(
+      icon: Icons.image_rounded,
+      rawIconName: 'image',
+      badge: 'Crisp Display',
+      title: 'Rock-Solid Profile Photo & Smooth Pass',
+      description:
+          'Your profile photo on the digital smart pass now renders smoothly without any flickering or blinking, backed by instant image caching.',
+    ),
+    const ReleaseChange(
+      icon: Icons.account_balance_rounded,
+      rawIconName: 'account_balance',
+      badge: 'Official Pass',
+      title: 'Library Logo & 3D Security Seal',
+      description:
+          'Your digital pass now displays the official organization logo and authentic background watermark for verification.',
+    ),
     const ReleaseChange(
       icon: Icons.dashboard_customize_rounded,
       rawIconName: 'dashboard',
@@ -178,14 +186,6 @@ class WhatsNewService {
       title: 'Streamlined Student Dashboard',
       description:
           'Removed study streak and check-in widgets to give you instant, uninterrupted access to your Digital Smart Pass and desk allocation right at the top of your screen.',
-    ),
-    const ReleaseChange(
-      icon: Icons.badge_rounded,
-      rawIconName: 'badge',
-      badge: 'Virtual Pass',
-      title: 'Verified Digital Membership Pass',
-      description:
-          'Your official student ID is a modern, verified digital pass with live security QR code for fast, contactless library access, attendance, and desk verification.',
     ),
     const ReleaseChange(
       icon: Icons.shield_outlined,

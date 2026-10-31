@@ -1,12 +1,12 @@
 {
-  "versionCode": 52,
-  "latestVersionCode": 52,
-  "latestBuild": 52,
-  "latestVersion": "1.5.44",
-  "versionName": "1.5.44+52",
+  "versionCode": 53,
+  "latestVersionCode": 53,
+  "latestBuild": 53,
+  "latestVersion": "1.5.45",
+  "versionName": "1.5.45+53",
   "apkSize": "51.5 MB",
-  "releaseNotes": "v1.5.44: Optimized 51.5 MB build. Calendar-month billing, WhatsApp message preview, FCM topic push subscriptions, Bulk student CSV import, and instant offline pass caching.",
-  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.44/StudyLibrary.apk",
+  "releaseNotes": "v1.5.45: Stable student profile photo rendering with base64 image caching, dynamic organization logo and 3D watermark seal on digital access pass.",
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.45/StudyLibrary.apk",
   "mandatory": false,
   "organization": {
     "name": "The Cozy Corner Centre",
@@ -18,54 +18,48 @@
   },
   "studentFeatures": [
     {
-      "icon": "notifications",
-      "badge": "Live Alerts",
-      "title": "Student Notification Center",
-      "description": "View live alerts for pass approvals, seat changes, fee receipts, and library notices with the new notification bell on your home screen."
+      "icon": "image",
+      "badge": "Zero Blinking",
+      "title": "Stable Profile Photo & Pass Display",
+      "description": "Student profile photo now renders smoothly with instant memory caching and zero blinking on the digital smart pass."
     },
     {
-      "icon": "palette",
-      "badge": "Dashboard Action",
-      "title": "1-Tap Theme Toggle on Dashboard",
-      "description": "Conveniently toggle between Dark Mode and Light Mode right from the top dashboard header."
+      "icon": "account_balance",
+      "badge": "Brand Identity",
+      "title": "Dynamic Organization Logo",
+      "description": "Official organization logo and subtle 3D watermark seal dynamically rendered on your digital access pass."
     },
     {
-      "icon": "seat",
-      "badge": "Clean Desk",
-      "title": "Readable Seat & Hall Details",
-      "description": "Your allocated desk (e.g. Seat #2 [ALLOCATED]) and hall section name are clearly presented across home, profile, and membership screens."
-    },
-    {
-      "icon": "support_agent",
-      "badge": "Manager Sync",
-      "title": "Dynamic Admin Name & Real-time Support",
-      "description": "Instant live sync with official library admin and manager details with 1-tap call and pre-formatted WhatsApp assistance."
-    },
-    {
-      "icon": "refresh",
-      "badge": "Instant Sync",
-      "title": "Rotating Refresh & Full Data Sync",
-      "description": "Smooth 360-degree rotating sync button with haptic feedback to instantly reload all profile, seat, and library data."
+      "icon": "dashboard",
+      "badge": "Clean Home",
+      "title": "Streamlined Student Dashboard",
+      "description": "Removed study streak and check-in widgets for immediate, clean access to your Digital Smart Pass and desk allocation."
     }
   ],
   "adminFeatures": [
     {
-      "icon": "sync",
-      "badge": "Live Sync",
-      "title": "Real-Time Org & Manager Propagation",
-      "description": "Changes made in Library Profile immediately propagate dynamically across all active student logins and screens."
+      "icon": "image",
+      "badge": "Zero Blinking",
+      "title": "Stable Student Profile Photos & Image Caching",
+      "description": "Eliminated profile photo blinking across student passes by caching decoded base64 images in memory and removing redundant 60 FPS animation loops."
+    },
+    {
+      "icon": "account_balance",
+      "badge": "Brand Identity",
+      "title": "Dynamic Organization Logo on Digital Pass",
+      "description": "The digital smart access card now displays your official library logo dynamically on the front header with a subtle 3D watermark on the card background."
     },
     {
       "icon": "notifications",
-      "badge": "Direct Dispatch",
-      "title": "Student Notification Center Stream",
-      "description": "Admins can dispatch targeted or global alerts that appear immediately on student home screen badges."
+      "badge": "Admin Header",
+      "title": "Admin Notification Center & Theme Toggle",
+      "description": "Quick 1-tap Dark/Light theme toggle and real-time Notification Center added directly to the Admin Dashboard header with live unread alert badges."
     },
     {
-      "icon": "seat",
-      "badge": "Standardized Labels",
-      "title": "Universal Seat Readability",
-      "description": "Cleaned up all raw database section IDs into readable desk numbers and section names across all modules."
+      "icon": "badge",
+      "badge": "100% Digital",
+      "title": "Digital-Only Pass Architecture",
+      "description": "Streamlined student credentials into modern, interactive 3D virtual cards with dynamic verification QR codes, removing all redundant print layouts and PDF downloads."
     }
   ]
 }

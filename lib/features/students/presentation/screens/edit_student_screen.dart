@@ -53,7 +53,8 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
   @override
   void initState() {
     super.initState();
-    _loadStudent();
+    final initialLibId = ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+    _loadStudent(overrideLibId: initialLibId);
   }
 
   @override
@@ -73,10 +74,10 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
     super.dispose();
   }
 
-  Future<void> _loadStudent() async {
-    final libraryId = ref.read(currentLibraryIdProvider);
-    if (libraryId == null || libraryId.isEmpty) {
-      setState(() => _isLoading = false);
+  Future<void> _loadStudent({String? overrideLibId}) async {
+    final libraryId = overrideLibId ?? ref.read(currentLibraryIdProvider) ?? CurrentLibraryNotifier.defaultLibraryId;
+    if (libraryId.isEmpty || widget.studentId.isEmpty) {
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
 
@@ -269,6 +270,12 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<String?>(currentLibraryIdProvider, (previous, next) {
+      if (next != null && next.isNotEmpty && (_originalStudent == null || next != previous)) {
+        _loadStudent(overrideLibId: next);
+      }
+    });
+
     final theme = Theme.of(context);
 
     if (_isLoading) {

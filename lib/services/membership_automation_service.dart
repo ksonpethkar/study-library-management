@@ -66,21 +66,35 @@ class MembershipAutomationService {
 
       // Load grace period from settings/grace_period document (admin-configured).
       // Falls back to 3 days if not configured yet.
-      // Key is 'defaultDays' (as saved by GracePeriodScreen).
+      // Key is 'defaultDays' and 'planOverrides' (as saved by GracePeriodScreen).
       int defaultGraceDays = 3;
+      final planOverrides = <String, int>{};
       try {
         final gracePeriodDoc = await libRef
             .collection('settings')
             .doc('grace_period')
             .get();
         if (gracePeriodDoc.exists) {
-          defaultGraceDays =
-              (gracePeriodDoc.data()?['defaultDays'] as num?)?.toInt() ?? 3;
+          final data = gracePeriodDoc.data();
+          if (data != null) {
+            defaultGraceDays =
+                (data['defaultDays'] as num?)?.toInt() ?? 3;
+            final rawOverrides = data['planOverrides'] as Map<String, dynamic>?;
+            if (rawOverrides != null) {
+              rawOverrides.forEach((k, v) {
+                if (v is num) {
+                  planOverrides[k] = v.toInt();
+                } else if (v is String) {
+                  final parsed = int.tryParse(v);
+                  if (parsed != null) planOverrides[k] = parsed;
+                }
+              });
+            }
+          }
         }
       } catch (_) {
         // Use default if settings not found
       }
-
 
       // Query all students who are currently active or in grace
       final studentsSnap = await libRef
@@ -116,16 +130,25 @@ class MembershipAutomationService {
 
         if (planEnd == null) continue;
 
-        // Calculate grace end
+        // Resolve plan-specific override or global default
+        final studentPlanId = studentData['planId'] as String?;
+        final int effectiveGraceDays = (studentPlanId != null && planOverrides.containsKey(studentPlanId))
+            ? planOverrides[studentPlanId]!
+            : defaultGraceDays;
+
+        // Calculate grace end safely anchored to the current planEnd
         DateTime graceEnd;
         final graceEndRaw = studentData['graceEndDate'];
         if (graceEndRaw is Timestamp) {
-          graceEnd = graceEndRaw.toDate();
+          final parsed = graceEndRaw.toDate();
+          graceEnd = parsed.isAfter(planEnd) ? parsed : planEnd.add(Duration(days: effectiveGraceDays));
         } else if (graceEndRaw is String) {
-          graceEnd = DateTime.tryParse(graceEndRaw) ??
-              planEnd.add(Duration(days: defaultGraceDays));
+          final parsed = DateTime.tryParse(graceEndRaw);
+          graceEnd = (parsed != null && parsed.isAfter(planEnd))
+              ? parsed
+              : planEnd.add(Duration(days: effectiveGraceDays));
         } else {
-          graceEnd = planEnd.add(Duration(days: defaultGraceDays));
+          graceEnd = planEnd.add(Duration(days: effectiveGraceDays));
         }
 
         final currentStatus =
@@ -135,7 +158,8 @@ class MembershipAutomationService {
         final studentName = studentData['name'] as String? ?? 'Student';
 
         // ── SCENARIO A: Expired past grace period ──────────────────────────
-        if (now.isAfter(graceEnd)) {
+        // Only release seat if BOTH the plan and the grace period have elapsed.
+        if (now.isAfter(planEnd) && (now.isAfter(graceEnd) || now.isAtSameMomentAs(graceEnd))) {
           expired++;
           final studentUpdate = <String, dynamic>{
             'membershipStatus': MembershipStatus.expired.name,
@@ -189,6 +213,7 @@ class MembershipAutomationService {
         }
         // ── SCENARIO B: Plan expired, currently in grace period ────────────
         else if (now.isAfter(planEnd) &&
+            now.isBefore(graceEnd) &&
             currentStatus != MembershipStatus.grace.name) {
           enteredGrace++;
           batch.update(doc.reference, {

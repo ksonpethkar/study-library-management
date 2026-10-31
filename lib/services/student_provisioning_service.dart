@@ -352,31 +352,168 @@ class StudentProvisioningService {
         }
       }
 
-      // 5. Update Request Status to 'approved' and link createdStudentId
       final Map<String, dynamic> updateData = {
         'status': 'approved',
         'processedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
+
+      if (type == 'renewal' || type == 'plan_renewal') {
+        final targetStudentId = (data['studentId'] ?? studentData['studentId'] ?? studentUserId).toString();
+        final requestedPlanId = (data['requestedPlanId'] ?? data['planId'] ?? studentData['planId'] ?? '').toString();
+        final requestedPlanName = (data['requestedPlanName'] ?? data['planName'] ?? 'Standard Plan').toString();
+        final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+        final paymentMethod = (data['paymentMethod'] ?? data['method'] ?? 'Cash').toString();
+
+        DateTime? newStartDate;
+        DateTime? newEndDate;
+
+        if (data['cycleStartDate'] != null && data['cycleEndDate'] != null) {
+          newStartDate = StudentModel.parseDateStatic(data['cycleStartDate']);
+          newEndDate = StudentModel.parseDateStatic(data['cycleEndDate']);
+        }
+
+        if (targetStudentId.isNotEmpty) {
+          final studentDocRef = _firestore
+              .collection('libraries')
+              .doc(libraryId)
+              .collection('students')
+              .doc(targetStudentId);
+          final studentSnap = await studentDocRef.get();
+
+          if (studentSnap.exists) {
+            final sData = studentSnap.data()!;
+
+            // Calculate start and end date if not pre-populated
+            if (newStartDate == null || newEndDate == null) {
+              final currentPlanEndDate = StudentModel.parseDateStatic(sData['planEndDate']);
+              if (currentPlanEndDate != null && currentPlanEndDate.isAfter(DateTime.now())) {
+                newStartDate = currentPlanEndDate;
+              } else {
+                newStartDate = DateTime.now();
+              }
+
+              int duration = 1;
+              String unit = 'months';
+              if (requestedPlanId.isNotEmpty) {
+                final planDoc = await _firestore
+                    .collection('libraries')
+                    .doc(libraryId)
+                    .collection('plans')
+                    .doc(requestedPlanId)
+                    .get();
+                if (planDoc.exists) {
+                  duration = (planDoc.data()?['duration'] as num?)?.toInt() ?? 1;
+                  unit = (planDoc.data()?['durationUnit'] as String?)?.toLowerCase() ?? 'months';
+                }
+              }
+
+              if (unit == 'months' || unit == 'month') {
+                // Calendar-Month Billing Architecture: strictly snaps to end of calendar month
+                final targetMonth = newStartDate.month + duration;
+                newEndDate = DateTime(newStartDate.year, targetMonth + 1, 0, 23, 59, 59);
+              } else {
+                newEndDate = newStartDate.add(Duration(days: duration));
+              }
+            }
+
+            // Create Payment and Receipt records
+            String? paymentId;
+            String? receiptId;
+            if (amount > 0 && !isPaid) {
+              final payRef = _firestore.collection('libraries').doc(libraryId).collection('payments').doc();
+              paymentId = payRef.id;
+              await payRef.set({
+                'studentId': targetStudentId,
+                'studentName': data['studentName'] ?? sData['name'] ?? 'Student',
+                'amount': amount,
+                'paymentMethod': paymentMethod,
+                'method': paymentMethod,
+                'status': 'completed',
+                'paymentDate': FieldValue.serverTimestamp(),
+                'date': FieldValue.serverTimestamp(),
+                'createdAt': FieldValue.serverTimestamp(),
+                'notes': 'Plan Renewal - $requestedPlanName',
+                'requestId': requestId,
+              });
+
+              final recRef = _firestore.collection('libraries').doc(libraryId).collection('receipts').doc();
+              receiptId = recRef.id;
+              await recRef.set({
+                'paymentId': paymentId,
+                'studentId': targetStudentId,
+                'studentName': data['studentName'] ?? sData['name'] ?? 'Student',
+                'amount': amount,
+                'method': paymentMethod,
+                'paymentMethod': paymentMethod,
+                'issuedAt': FieldValue.serverTimestamp(),
+                'description': 'Plan Renewal - $requestedPlanName',
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+            }
+
+            // Update student document to active status and new plan validity
+            final Map<String, dynamic> studentUpdates = {
+              'membershipStatus': 'active',
+              'status': 'active',
+              'planStartDate': Timestamp.fromDate(newStartDate),
+              'planEndDate': Timestamp.fromDate(newEndDate),
+              'updatedAt': FieldValue.serverTimestamp(),
+            };
+            if (requestedPlanId.isNotEmpty) {
+              studentUpdates['planId'] = requestedPlanId;
+            }
+            if (requestedPlanName.isNotEmpty) {
+              studentUpdates['planName'] = requestedPlanName;
+            }
+            await studentDocRef.update(studentUpdates);
+
+            if (paymentId != null) {
+              updateData['paymentId'] = paymentId;
+              updateData['paymentStatus'] = 'paid';
+            }
+            if (receiptId != null) {
+              updateData['receiptId'] = receiptId;
+            }
+            createdStudentId = targetStudentId;
+
+            // Student Notification
+            final studentName = data['studentName'] ?? sData['name'] ?? 'Student';
+            AppNotificationService.sendNotification(
+              libraryId: libraryId,
+              title: 'Plan Renewal Approved! 🎉',
+              body: 'Hello $studentName! Your renewal for $requestedPlanName has been approved. Your pass is now active!',
+              type: 'renewal',
+              targetRole: 'student',
+              targetUserId: targetStudentId,
+              actionRoute: '/student/id-card',
+            ).ignore();
+          }
+        }
+      }
+
+      // 5. Update Request Status to 'approved' and link createdStudentId
       if (createdStudentId != null) {
         updateData['createdStudentId'] = createdStudentId;
       }
       await docRef.set(updateData, SetOptions(merge: true));
 
-      // 5.5 Dispatch Student Notification (Push + In-App with Unread Dot)
-      final studentName = studentData['name'] ?? data['studentName'] ?? 'Student';
-      final seatNotice = requestedSeatId != null ? ' (Seat $requestedSeatId)' : '';
-      AppNotificationService.sendNotification(
-        libraryId: libraryId,
-        title: 'Admission Approved! 🎉',
-        body: isPaid
-            ? 'Hello $studentName! Your admission is confirmed$seatNotice and your membership is active. Digital ID Pass unlocked!'
-            : 'Hello $studentName! Your admission is approved$seatNotice. Complete your fee payment to activate your pass.',
-        type: 'admission',
-        targetRole: 'student',
-        targetUserId: createdStudentId,
-        actionRoute: '/student/id-card',
-      ).ignore();
+      // 5.5 Dispatch Student Notification for Admission Only
+      if (type == 'registration' || type == 'newregistration') {
+        final studentName = studentData['name'] ?? data['studentName'] ?? 'Student';
+        final seatNotice = requestedSeatId != null ? ' (Seat $requestedSeatId)' : '';
+        AppNotificationService.sendNotification(
+          libraryId: libraryId,
+          title: 'Admission Approved! 🎉',
+          body: isPaid
+              ? 'Hello $studentName! Your admission is confirmed$seatNotice and your membership is active. Digital ID Pass unlocked!'
+              : 'Hello $studentName! Your admission is approved$seatNotice. Complete your fee payment to activate your pass.',
+          type: 'admission',
+          targetRole: 'student',
+          targetUserId: createdStudentId,
+          actionRoute: '/student/id-card',
+        ).ignore();
+      }
 
       // 6. Audit Logging
       AuditLogger().log(

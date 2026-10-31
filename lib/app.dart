@@ -175,18 +175,27 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
                       : const Color(0xFFF1F5F9),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 920),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.10),
-                              blurRadius: 28,
-                              spreadRadius: 2,
-                            ),
-                          ],
+                      constraints: BoxConstraints(
+                        maxWidth: 920,
+                        minHeight: constraints.maxHeight,
+                        maxHeight: constraints.maxHeight,
+                      ),
+                      child: SizedBox(
+                        height: constraints.maxHeight,
+                        width: double.infinity,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.10),
+                                blurRadius: 28,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: child,
                         ),
-                        child: child,
                       ),
                     ),
                   ),
