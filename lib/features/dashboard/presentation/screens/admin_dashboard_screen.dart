@@ -178,7 +178,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
           break;
         case 'record_payment':
           // Navigate to student list first (payment needs a student)
-          context.push(Routes.adminStudents);
+          context.go(Routes.adminStudents);
           break;
         case 'scan_qr':
           context.push(Routes.adminQrScanner);
@@ -535,20 +535,26 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                 Consumer(
                   builder: (context, ref, _) {
                     final notifs = ref.watch(adminNotificationsStreamProvider).value ?? [];
-                    final unreadCount = notifs.where((n) => !n.read).length;
+                    final unreadNotifsCount = notifs.where((n) => !n.read).length;
                     final libId = library.value?.id ?? ref.read(currentLibraryIdProvider) ?? '';
+                    final alertsState = libId.isNotEmpty
+                        ? ref.watch(systemAlertsProvider(libId))
+                        : const SystemAlertsState();
+                    final unreadPending = (_pendingCount - alertsState.acknowledgedPendingCount).clamp(0, 999999);
+                    final unreadRenewals = (effectiveRenewalsDue - alertsState.acknowledgedRenewalsCount).clamp(0, 999999);
+                    final totalUnread = unreadNotifsCount + unreadPending + unreadRenewals;
 
                     return Badge(
-                      isLabelVisible: unreadCount > 0,
-                      label: Text('$unreadCount'),
+                      isLabelVisible: totalUnread > 0,
+                      label: Text('$totalUnread'),
                       backgroundColor: Colors.redAccent,
                       child: IconButton(
                         icon: Icon(
-                          unreadCount > 0
+                          totalUnread > 0
                               ? Icons.notifications_active_rounded
                               : Icons.notifications_outlined,
                         ),
-                        tooltip: 'Admin Notifications ($unreadCount)',
+                        tooltip: 'Admin Notifications ($totalUnread)',
                         onPressed: () {
                           HapticFeedback.lightImpact();
                           NotificationCenterSheet.show(
@@ -1049,7 +1055,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                             subtext: 'of $totalSeats desks',
                             color: const Color(0xFFEF4444),
                             icon: Icons.event_seat_rounded,
-                            onTap: () => context.push(Routes.adminSeats),
+                            onTap: () => context.go(Routes.adminSeats),
                           ),
                         ),
                         const SizedBox(width: 8),
