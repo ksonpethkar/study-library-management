@@ -176,6 +176,12 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                             targetRole: widget.role,
                             targetUserId: widget.studentId,
                           );
+                          if (widget.role == 'admin' && widget.libraryId.isNotEmpty) {
+                            await ref.read(systemAlertsProvider(widget.libraryId).notifier).acknowledgeAll(
+                              pendingCount: widget.pendingRequestsCount,
+                              renewalsCount: widget.renewalsDueCount,
+                            );
+                          }
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -249,11 +255,11 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
 
                   final showPending = widget.role == 'admin' &&
                       widget.pendingRequestsCount > 0 &&
-                      unreadPending > 0;
+                      (!_showOnlyUnread || unreadPending > 0);
 
                   final showRenewals = widget.role == 'admin' &&
                       widget.renewalsDueCount > 0 &&
-                      unreadRenewals > 0;
+                      (!_showOnlyUnread || unreadRenewals > 0);
 
                   if (items.isEmpty && !showPending && !showRenewals) {
                     return Center(
@@ -309,7 +315,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                               ref.read(systemAlertsProvider(widget.libraryId).notifier)
                                   .acknowledgePending(widget.pendingRequestsCount);
                               Navigator.pop(context);
-                              context.push('/admin/requests');
+                              context.go(Routes.adminRequests);
                             },
                           ),
                         if (showRenewals)
@@ -318,7 +324,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                             theme: theme,
                             icon: Icons.alarm_rounded,
                             iconColor: Colors.orange.shade800,
-                            title: '${widget.renewalsDueCount} Memberships Expiring in 7 Days',
+                            title: '${widget.renewalsDueCount} Membership${widget.renewalsDueCount > 1 ? "s" : ""} Expiring Soon',
                             body: 'Follow up with students to renew study plans and retain seats.',
                             badgeText: unreadRenewals > 0
                                 ? '${widget.renewalsDueCount} Due'
@@ -336,7 +342,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                               ref.read(systemAlertsProvider(widget.libraryId).notifier)
                                   .acknowledgeRenewals(widget.renewalsDueCount);
                               Navigator.pop(context);
-                              context.push('/admin/students?filter=Renew in 7d');
+                              context.go('${Routes.adminStudents}?filter=Due Soon');
                             },
                           ),
                       ],

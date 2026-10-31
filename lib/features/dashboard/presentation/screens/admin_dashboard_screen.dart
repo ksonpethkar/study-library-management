@@ -587,7 +587,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                       InkWell(
                         onTap: () {
                           HapticFeedback.lightImpact();
-                          context.push('${Routes.adminStudents}?filter=Due Soon');
+                          context.go('${Routes.adminStudents}?filter=Due Soon');
                         },
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
@@ -988,7 +988,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                 children: [
                   // Circular Occupancy Gauge
                   GestureDetector(
-                    onTap: () => context.push(Routes.adminSeats),
+                    onTap: () => context.go(Routes.adminSeats),
                     child: SizedBox(
                       width: gaugeDimension,
                       height: gaugeDimension,
@@ -1075,7 +1075,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                             subtext: '$totalStudentsCount enrolled',
                             color: const Color(0xFF3B82F6),
                             icon: Icons.school_rounded,
-                            onTap: () => context.push(Routes.adminStudents),
+                            onTap: () => context.go(Routes.adminStudents),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -1391,7 +1391,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
           // Outstanding dues alert or healthy confirmation
           if (defaulters.isNotEmpty)
             InkWell(
-              onTap: () => context.push('${Routes.adminStudents}?filter=Has Dues'),
+              onTap: () => context.go('${Routes.adminStudents}?filter=Has Dues'),
               borderRadius: BorderRadius.circular(12),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1565,7 +1565,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
                 icon: Icons.alarm_rounded,
                 label: '$renewalsDue Renew in 7d',
                 color: renewalsDue > 0 ? const Color(0xFFEA580C) : null,
-                onTap: () => context.push('${Routes.adminStudents}?filter=Renew in 7d'),
+                onTap: () => context.go('${Routes.adminStudents}?filter=Due Soon'),
               ),
             ),
           ],
