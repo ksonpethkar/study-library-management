@@ -85,11 +85,53 @@ class A4EntrancePosterPdfService {
     final pdf = pw.Document();
     final universalTheme = await PdfFontService.getUniversalTheme();
 
-    final effectiveUrgency = (urgencyText != null && urgencyText.trim().isNotEmpty)
+    final rawUrgency = (urgencyText != null && urgencyText.trim().isNotEmpty)
         ? urgencyText.trim()
-        : '⚡  HURRY! LIMITED SEATS LEFT';
+        : 'HURRY! LIMITED SEATS LEFT';
+    final cleanUrgency = rawUrgency
+        .replaceAll(RegExp(r'[^\x20-\x7E\u0900-\u097F]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    final effectiveUrgency = cleanUrgency.isNotEmpty ? cleanUrgency : 'HURRY! LIMITED SEATS LEFT';
 
-    
+    String getAmenitySvg(String idOrLabel) {
+      final l = idOrLabel.toLowerCase();
+      if (l.contains('wi-fi') || l.contains('wifi')) {
+        return '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M12 18c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-4.9-4.9l1.4 1.4C9.6 13.4 10.7 13 12 13s2.4.4 3.5 1.5l1.4-1.4C15.4 11.6 13.8 11 12 11s-3.4.6-4.9 2.1zm-3.5-3.5l1.4 1.4C6.8 9.2 9.3 8 12 8s5.2 1.2 7 3l1.4-1.4C18.2 7.4 15.2 6 12 6S5.8 7.4 3.6 9.6z" fill="#0284C7"/></svg>';
+      }
+      if (l.contains('silence') || l.contains('quiet') || l.contains('zone')) {
+        return '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M4.34 2.93L2.93 4.34 7.29 8.7 7 9H3v6h4l5 5v-6.59l4.18 4.18c-.65.49-1.38.88-2.18 1.11v2.06c1.34-.3 2.57-.92 3.61-1.75l2.05 2.05 1.41-1.41L4.34 2.93zM12 4L9.91 6.09 12 8.18V4z" fill="#D97706"/></svg>';
+      }
+      if (l.contains('water') || l.contains('ro')) {
+        return '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="#0284C7"/></svg>';
+      }
+      if (l.contains('power') || l.contains('outlet') || l.contains('socket') || l.contains('plug')) {
+        return '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M16 7V3h-2v4h-4V3H8v4H6v6c0 3.31 2.69 6 6 6v3h2v-3c3.31 0 6-2.69 6-6V7h-4z" fill="#475569"/></svg>';
+      }
+      if (l.contains('backup') || l.contains('battery') || l.contains('inverter') || l.contains('generator')) {
+        return '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4zM11 20v-5.5H9L13 7v5.5h2L11 20z" fill="#16A34A"/></svg>';
+      }
+      if (l.contains('cctv') || l.contains('surveillance') || l.contains('camera') || l.contains('security')) {
+        return '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" fill="#4F46E5"/></svg>';
+      }
+      if (l.contains('ac') || l.contains('air') || l.contains('cool') || l.contains('climate')) {
+        return '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z" fill="#0284C7"/></svg>';
+      }
+      if (l.contains('24/7') || l.contains('hour') || l.contains('time') || l.contains('open')) {
+        return '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" fill="#D97706"/></svg>';
+      }
+      if (l.contains('chair') || l.contains('desk') || l.contains('seat')) {
+        return '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M19 13v-2c0-1.1-.9-2-2-2H7c-1.1 0-2 .9-2 2v2H3v6h2v-2h14v2h2v-6h-2zm-2-2H7V9h10v2z" fill="#78350F"/></svg>';
+      }
+      if (l.contains('parking')) {
+        return '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M13.2 11H10V7h3.2c1.1 0 2 .9 2 2s-.9 2-2 2zm-3.2 9h2v-6h1.2c2.2 0 4-1.8 4-4s-1.8-4-4-4H8v14h2z" fill="#2563EB"/></svg>';
+      }
+      if (l.contains('locker') || l.contains('storage')) {
+        return '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" fill="#0D9488"/></svg>';
+      }
+      return '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" fill="#16A34A"/></svg>';
+    }
+
     String getAmenityDesc(String label) {
       final l = label.toLowerCase();
       if (l.contains('wi-fi') || l.contains('wifi')) return 'High-Speed Optical Fiber';
@@ -109,9 +151,9 @@ class A4EntrancePosterPdfService {
     }
 
     pw.Widget buildAmenityCard(Map<String, dynamic> item) {
-      final rawIcon = item['icon']?.toString() ?? '';
-      final icon = (rawIcon.isNotEmpty && rawIcon.codeUnits.every((c) => c < 10000)) ? rawIcon : '✓';
       final label = item['label']?.toString() ?? '';
+      final itemId = item['id']?.toString() ?? label;
+      final svgIcon = getAmenitySvg('$itemId $label');
       final desc = (item['description']?.toString() ?? '').isNotEmpty
           ? item['description']!.toString()
           : getAmenityDesc(label);
@@ -135,7 +177,11 @@ class A4EntrancePosterPdfService {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.center,
                 children: [
-                  pw.Text(icon, style: const pw.TextStyle(fontSize: 10)),
+                  pw.SvgImage(
+                    svg: svgIcon,
+                    width: 11,
+                    height: 11,
+                  ),
                   pw.SizedBox(width: 4),
                   pw.Text(
                     label,
@@ -318,15 +364,12 @@ class A4EntrancePosterPdfService {
                           child: pw.Row(
                             mainAxisSize: pw.MainAxisSize.min,
                             children: [
-                              pw.Container(
-                                width: 7,
-                                height: 7,
-                                decoration: const pw.BoxDecoration(
-                                  color: PdfColor.fromInt(0xFFD97706),
-                                  shape: pw.BoxShape.circle,
-                                ),
+                              pw.SvgImage(
+                                svg: '<svg viewBox="0 0 24 24" width="13" height="13"><path d="M7 2v11h3v9l7-12h-4l4-8z" fill="#D97706"/></svg>',
+                                width: 13,
+                                height: 13,
                               ),
-                              pw.SizedBox(width: 8),
+                              pw.SizedBox(width: 7),
                               pw.Text(
                                 effectiveUrgency,
                                 style: pw.TextStyle(

@@ -15,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/widgets/loading_skeleton.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 
 class StudentListScreen extends ConsumerStatefulWidget {
   final String? initialFilter;
@@ -1011,7 +1012,7 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                                         Icon(Icons.chair_outlined, size: 10, color: theme.colorScheme.primary),
                                         const SizedBox(width: 2),
                                         Text(
-                                          student.seatId!.split('_').last.toUpperCase(),
+                                          SeatHelper.formatSeatLabel(seatId: student.seatId, includePrefix: false),
                                           style: TextStyle(
                                             fontSize: 10,
                                             fontWeight: FontWeight.bold,
