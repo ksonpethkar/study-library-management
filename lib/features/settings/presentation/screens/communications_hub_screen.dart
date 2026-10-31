@@ -354,7 +354,7 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
             if (Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
             } else {
-              context.go(Routes.adminMore);
+              context.go('/admin/more');
             }
           },
         ),
