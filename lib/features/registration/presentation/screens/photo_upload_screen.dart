@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/registration_provider.dart';
@@ -12,36 +11,60 @@ class PhotoUploadScreen extends ConsumerStatefulWidget {
 }
 
 class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
-  File? _pickedFile;
+  String? _photoUrlOrDataUrl;
+  bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
     final regData = ref.read(registrationNotifierProvider);
-    final existingPath = regData['photoPath'] as String?;
-    if (existingPath != null && existingPath.isNotEmpty) {
-      final f = File(existingPath);
-      if (f.existsSync()) _pickedFile = f;
-    }
+    _photoUrlOrDataUrl = (regData['photoDataUrl'] as String?) ??
+        (regData['photoUrl'] as String?) ??
+        (regData['photoPath'] as String?);
   }
 
   Future<void> _pickPhoto() async {
     final source = await ImageService.showSourcePicker(
       context,
-      canRemove: _pickedFile != null,
+      canRemove: _photoUrlOrDataUrl != null && _photoUrlOrDataUrl!.isNotEmpty,
     );
     if (!mounted) return;
 
     if (source == null) {
-      setState(() => _pickedFile = null);
-      ref.read(registrationNotifierProvider.notifier).updateField('photoPath', null);
+      setState(() => _photoUrlOrDataUrl = null);
+      ref.read(registrationNotifierProvider.notifier).updateFields({
+        'photoDataUrl': null,
+        'photoUrl': null,
+        'photoPath': null,
+      });
       return;
     }
 
-    final compressed = await ImageService.pickAndCompressImage(source: source);
-    if (compressed != null && mounted) {
-      setState(() => _pickedFile = compressed);
-      ref.read(registrationNotifierProvider.notifier).updateField('photoPath', compressed.path);
+    setState(() => _isProcessing = true);
+
+    try {
+      final dataUrl = await ImageService.pickImageAsDataUrl(
+        source: source,
+        maxWidth: 800,
+        quality: 75,
+      );
+
+      if (dataUrl != null && mounted) {
+        setState(() => _photoUrlOrDataUrl = dataUrl);
+        ref.read(registrationNotifierProvider.notifier).updateFields({
+          'photoDataUrl': dataUrl,
+          'photoUrl': dataUrl,
+          'photoPath': dataUrl,
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load image: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -52,6 +75,8 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final imageProvider = ImageService.getImageProvider(_photoUrlOrDataUrl);
+    final hasPhoto = imageProvider != null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile Photo')),
@@ -70,31 +95,23 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'This photo will be printed on your library ID card and membership profile.',
+                    'This photo will appear on your digital ID card and membership profile.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 36),
                   GestureDetector(
-                    onTap: () {
-                      if (_pickedFile != null) {
-                        ImageService.showImageViewer(
-                          context,
-                          imageFile: _pickedFile,
-                          title: 'Profile Photo Preview',
-                        );
-                      } else {
-                        _pickPhoto();
-                      }
-                    },
+                    onTap: _pickPhoto,
                     child: Stack(
                       children: [
                         CircleAvatar(
                           radius: 75,
                           backgroundColor: theme.colorScheme.primaryContainer,
-                          backgroundImage: _pickedFile != null ? FileImage(_pickedFile!) : null,
-                          child: _pickedFile == null
-                              ? Icon(Icons.person_rounded, size: 75, color: theme.colorScheme.onPrimaryContainer)
+                          backgroundImage: imageProvider,
+                          child: !hasPhoto
+                              ? (_isProcessing
+                                  ? const CircularProgressIndicator()
+                                  : Icon(Icons.person_rounded, size: 75, color: theme.colorScheme.onPrimaryContainer))
                               : null,
                         ),
                         Positioned(
@@ -110,23 +127,16 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (_pickedFile != null)
-                    TextButton.icon(
-                      onPressed: () {
-                        ImageService.showImageViewer(
-                          context,
-                          imageFile: _pickedFile,
-                          title: 'Profile Photo Preview',
-                        );
-                      },
-                      icon: const Icon(Icons.zoom_in_rounded),
-                      label: const Text('Tap to Preview Fullscreen'),
+                  if (hasPhoto)
+                    Text(
+                      '✓ Photo Selected Ready',
+                      style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                   const SizedBox(height: 24),
                   FilledButton.icon(
-                    onPressed: _pickPhoto,
-                    icon: Icon(_pickedFile == null ? Icons.add_a_photo_rounded : Icons.sync_rounded),
-                    label: Text(_pickedFile == null ? 'Select Photo' : 'Change Photo'),
+                    onPressed: _isProcessing ? null : _pickPhoto,
+                    icon: Icon(!hasPhoto ? Icons.add_a_photo_rounded : Icons.sync_rounded),
+                    label: Text(!hasPhoto ? 'Select Photo' : 'Change Photo'),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                     ),
@@ -147,7 +157,7 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                         ),
-                        child: Text(_pickedFile != null ? 'Next: Plan Selection ➔' : 'Skip & Continue ➔'),
+                        child: Text(hasPhoto ? 'Next: Plan Selection ➔' : 'Skip & Continue ➔'),
                       ),
                     ],
                   ),

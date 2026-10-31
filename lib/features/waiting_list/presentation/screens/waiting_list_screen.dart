@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/constants/firestore_paths.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/models/library_model.dart';
 import 'package:study_library/models/waiting_list_model.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/section_model.dart';
@@ -14,13 +15,106 @@ import 'package:study_library/features/waiting_list/data/repositories/waiting_li
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 
 class WaitingListScreen extends ConsumerStatefulWidget {
-  const WaitingListScreen({super.key});
+  final int initialTab;
+
+  const WaitingListScreen({
+    super.key,
+    this.initialTab = 0,
+  });
 
   @override
   ConsumerState<WaitingListScreen> createState() => _WaitingListScreenState();
 }
 
-class _WaitingListScreenState extends ConsumerState<WaitingListScreen> {
+class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  String _queueFilter = 'all'; // 'all', 'ready', 'notified'
+  String? _selectedSectionFilter;
+
+  // Policy Tab Form State
+  String _policyMode = 'waitingList';
+  int _holdingHours = 24;
+  bool _autoNotify = true;
+  final TextEditingController _notificationTemplateController = TextEditingController();
+  bool _isSavingPolicy = false;
+  bool _policyInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, 1),
+    );
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _notificationTemplateController.dispose();
+    super.dispose();
+  }
+
+  void _initPolicyFromLibrary(LibraryModel? library) {
+    if (_policyInitialized || library == null) return;
+    _policyMode = library.waitingListMode.name;
+    _holdingHours = library.waitingListHoldingHours;
+    _autoNotify = library.waitingListAutoNotify;
+    _notificationTemplateController.text = library.waitingListNotificationTemplate.isNotEmpty
+        ? library.waitingListNotificationTemplate
+        : 'Hello {studentName}, exciting news! Seat {seatLabel} has just become available for you at {libraryName}. Your position on the waiting list has arrived! Please visit or contact us to confirm your admission.';
+    _policyInitialized = true;
+  }
+
+  Future<void> _savePolicySettings() async {
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null || libraryId.isEmpty) return;
+
+    setState(() => _isSavingPolicy = true);
+
+    try {
+      await FirebaseFirestore.instance.collection('libraries').doc(libraryId).update({
+        'waitingListMode': _policyMode,
+        'waitingListHoldingHours': _holdingHours,
+        'waitingListAutoNotify': _autoNotify,
+        'waitingListNotificationTemplate': _notificationTemplateController.text.trim(),
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+
+      ref.invalidate(currentLibraryProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Expanded(child: Text('Capacity policies saved successfully!')),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save policies: $e'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingPolicy = false);
+    }
+  }
+
   void _showAddDialog(List<SectionModel> sections) {
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
@@ -30,8 +124,14 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Add to Waiting List'),
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.person_add_rounded, color: Colors.brown),
+              SizedBox(width: 8),
+              Text('Add to Waiting List'),
+            ],
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -127,17 +227,22 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen> {
                   createdAt: DateTime.now(),
                 );
 
-                final messenger = ScaffoldMessenger.of(context);
                 await ref.read(waitingListRepositoryProvider).addToWaitingList(
                       libraryId,
                       entry,
                     );
 
-                messenger.showSnackBar(
-                  SnackBar(content: Text('$name added to waiting list')),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$name added to waiting list'),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               },
-              child: const Text('Add'),
+              child: const Text('Add Candidate'),
             ),
           ],
         ),
@@ -162,6 +267,8 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen> {
                 content: Text(
                   '${entry.studentName} has been assigned a seat and removed from the queue.',
                 ),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
               ),
             );
           }
@@ -180,14 +287,24 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen> {
   Future<void> _notifyViaWhatsApp(WaitingListEntry entry) async {
     final libraryId = ref.read(currentLibraryIdProvider);
     final library = ref.read(currentLibraryProvider).value;
-    final libraryName = library?.name ?? 'our study library';
+    final libraryName = library?.name.isNotEmpty == true ? library!.name : 'Study Library';
+    final seatLabel = entry.suggestedSeatLabel ?? 'Available Desk';
 
     final cleanPhone = entry.studentPhone.replaceAll(RegExp(r'\D'), '');
     final withCode = cleanPhone.startsWith('91') || cleanPhone.length > 10
         ? cleanPhone
         : '91$cleanPhone';
 
-    final message = 'Hello ${entry.studentName}, good news! A seat is now available for you at $libraryName. Please contact or visit the library to complete your seat registration.';
+    String template = library?.waitingListNotificationTemplate ?? '';
+    if (template.isEmpty) {
+      template = 'Hello {studentName}, exciting news! Seat {seatLabel} has just become available for you at {libraryName}. Your position on the waiting list has arrived! Please visit or contact us to confirm your admission.';
+    }
+
+    final message = template
+        .replaceAll('{studentName}', entry.studentName)
+        .replaceAll('{seatLabel}', seatLabel)
+        .replaceAll('{libraryName}', libraryName);
+
     final uri = Uri.parse('https://wa.me/$withCode?text=${Uri.encodeComponent(message)}');
 
     if (await canLaunchUrl(uri)) {
@@ -199,7 +316,11 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen> {
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Notified ${entry.studentName} via WhatsApp')),
+        SnackBar(
+          content: Text('Notified ${entry.studentName} via WhatsApp'),
+          backgroundColor: Colors.green.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -246,7 +367,10 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${entry.studentName} removed from queue')),
+        SnackBar(
+          content: Text('${entry.studentName} removed from queue'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -256,260 +380,626 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen> {
     final waitingListAsync = ref.watch(waitingListStreamProvider);
     final sectionsAsync = ref.watch(sectionsProvider);
     final sections = sectionsAsync.value ?? [];
+    final libraryAsync = ref.watch(currentLibraryProvider);
+    final library = libraryAsync.value;
+    final libraryName = library?.name.isNotEmpty == true ? library!.name : 'the study center';
+
+    _initPolicyFromLibrary(library);
+
+    final entries = waitingListAsync.value ?? [];
+    final readyCount = entries.where((e) => e.suggestedSeatId != null).length;
+    final notifiedCount = entries.where((e) => e.notifiedAt != null).length;
+
+    // Filter queue entries
+    List<WaitingListEntry> filteredEntries = entries;
+    if (_queueFilter == 'ready') {
+      filteredEntries = filteredEntries.where((e) => e.suggestedSeatId != null).toList();
+    } else if (_queueFilter == 'notified') {
+      filteredEntries = filteredEntries.where((e) => e.notifiedAt != null).toList();
+    }
+    if (_selectedSectionFilter != null) {
+      filteredEntries = filteredEntries.where((e) => e.preferredSectionId == _selectedSectionFilter).toList();
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Waiting List Queue'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.tune),
-            tooltip: 'Queue Settings',
-            onPressed: () => context.push(Routes.adminWaitingList),
-          ),
-        ],
+        title: const Text('Waiting List & Capacity Hub'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.queue_play_next_rounded),
+              text: 'Active Queue (${entries.length})',
+            ),
+            const Tab(
+              icon: Icon(Icons.tune_rounded),
+              text: 'Capacity Policies & Rules',
+            ),
+          ],
+        ),
       ),
-      body: waitingListAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Error: $err')),
-              data: (entries) {
-                if (entries.isEmpty) {
-                  return RefreshIndicator(
-                    onRefresh: () async {
-                      ref.invalidate(waitingListStreamProvider);
-                      await Future.delayed(const Duration(milliseconds: 500));
-                    },
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(32.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.queue_outlined,
-                                size: 72,
-                                color: Colors.grey.shade400,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Waiting List is Empty',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Students will appear here when the library reaches capacity, or you can add them manually.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.grey.shade600),
-                              ),
-                              const SizedBox(height: 24),
-                              FilledButton.icon(
-                                onPressed: () => _showAddDialog(sections),
-                                icon: const Icon(Icons.person_add),
-                                label: const Text('Add to Queue'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // ── TAB 1: ACTIVE LIVE QUEUE ──
+          Column(
+            children: [
+              // Top Metric Strip
+              _buildTopMetricsStrip(
+                totalCount: entries.length,
+                readyCount: readyCount,
+                library: library,
+              ),
+
+              // Filter Chips Strip
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    FilterChip(
+                      selected: _queueFilter == 'all' && _selectedSectionFilter == null,
+                      label: Text('All (${entries.length})'),
+                      onSelected: (_) {
+                        setState(() {
+                          _queueFilter = 'all';
+                          _selectedSectionFilter = null;
+                        });
+                      },
                     ),
-                  );
-                }
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      selected: _queueFilter == 'ready',
+                      label: Text('Seat Ready ($readyCount)'),
+                      avatar: const Icon(Icons.event_seat_rounded, size: 14, color: Colors.amber),
+                      onSelected: (_) {
+                        setState(() {
+                          _queueFilter = _queueFilter == 'ready' ? 'all' : 'ready';
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      selected: _queueFilter == 'notified',
+                      label: Text('Notified ($notifiedCount)'),
+                      avatar: const Icon(Icons.check_circle_rounded, size: 14, color: Colors.green),
+                      onSelected: (_) {
+                        setState(() {
+                          _queueFilter = _queueFilter == 'notified' ? 'all' : 'notified';
+                        });
+                      },
+                    ),
+                    if (sections.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      ...sections.map((sec) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: FilterChip(
+                              selected: _selectedSectionFilter == sec.id,
+                              label: Text(sec.name),
+                              onSelected: (val) {
+                                setState(() {
+                                  _selectedSectionFilter = val ? sec.id : null;
+                                });
+                              },
+                            ),
+                          )),
+                    ],
+                  ],
+                ),
+              ),
 
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    ref.invalidate(waitingListStreamProvider);
-                    await Future.delayed(const Duration(milliseconds: 500));
-                  },
-                  child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
-                  itemCount: entries.length,
-                  itemBuilder: (ctx, index) {
-                    final entry = entries[index];
-                    final preferredSection = sections
-                        .where((s) => s.id == entry.preferredSectionId)
-                        .firstOrNull;
+              const Divider(height: 1),
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+              // Candidate Cards List
+              Expanded(
+                child: waitingListAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (err, _) => Center(child: Text('Error loading queue: $err')),
+                  data: (_) {
+                    if (filteredEntries.isEmpty) {
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          ref.invalidate(waitingListStreamProvider);
+                          await Future.delayed(const Duration(milliseconds: 500));
+                        },
+                        child: ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
                           children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: Theme.of(context)
-                                      .primaryColor
-                                      .withValues(alpha: 0.15),
-                                  child: Text(
-                                    '#${index + 1}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context).primaryColor,
-                                    ),
+                            Padding(
+                              padding: const EdgeInsets.all(32.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.queue_outlined,
+                                    size: 64,
+                                    color: Colors.grey.shade400,
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _queueFilter != 'all' || _selectedSectionFilter != null
+                                        ? 'No Candidates Match Filter'
+                                        : 'Waiting List is Empty',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'When library seats reach capacity, candidates will automatically queue here or you can add them manually.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  FilledButton.icon(
+                                    onPressed: () => _showAddDialog(sections),
+                                    icon: const Icon(Icons.person_add),
+                                    label: const Text('Add Candidate to Queue'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        ref.invalidate(waitingListStreamProvider);
+                        await Future.delayed(const Duration(milliseconds: 500));
+                      },
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+                        itemCount: filteredEntries.length,
+                        itemBuilder: (ctx, index) {
+                          final entry = filteredEntries[index];
+                          final preferredSection = sections
+                              .where((s) => s.id == entry.preferredSectionId)
+                              .firstOrNull;
+
+                          final hasPromotedSeat = entry.suggestedSeatLabel != null &&
+                              entry.suggestedSeatLabel!.isNotEmpty;
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: hasPromotedSeat
+                                  ? BorderSide(color: Colors.amber.shade600, width: 1.5)
+                                  : BorderSide.none,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(14.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        entry.studentName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                                      CircleAvatar(
+                                        radius: 18,
+                                        backgroundColor: hasPromotedSeat
+                                            ? Colors.amber.shade100
+                                            : Theme.of(context).primaryColor.withValues(alpha: 0.15),
+                                        child: Text(
+                                          '#${index + 1}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: hasPromotedSeat
+                                                ? Colors.amber.shade900
+                                                : Theme.of(context).primaryColor,
+                                          ),
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
-                                      InkWell(
-                                        onTap: () => _callPhone(entry.studentPhone),
-                                        borderRadius: BorderRadius.circular(4),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            const Icon(
-                                              Icons.phone,
-                                              size: 14,
-                                              color: Colors.green,
-                                            ),
-                                            const SizedBox(width: 4),
                                             Text(
-                                              entry.studentPhone,
-                                              style: TextStyle(
-                                                color: Colors.grey.shade700,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w500,
+                                              entry.studentName,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            InkWell(
+                                              onTap: () => _callPhone(entry.studentPhone),
+                                              borderRadius: BorderRadius.circular(4),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                    Icons.phone,
+                                                    size: 13,
+                                                    color: Colors.green,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    entry.studentPhone,
+                                                    style: TextStyle(
+                                                      color: Colors.grey.shade700,
+                                                      fontSize: 12.5,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          color: Colors.red,
+                                          size: 20,
+                                        ),
+                                        tooltip: 'Remove',
+                                        onPressed: () => _removeEntry(entry),
+                                      ),
                                     ],
                                   ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.red,
-                                    size: 20,
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    children: [
+                                      if (hasPromotedSeat)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber.shade50,
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: Colors.amber.shade400),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.event_seat_rounded, size: 13, color: Colors.amber.shade900),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'SEAT READY: ${entry.suggestedSeatLabel}',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.amber.shade900,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      if (preferredSection != null)
+                                        Chip(
+                                          avatar: const Icon(Icons.meeting_room, size: 13),
+                                          label: Text('Pref: ${preferredSection.name}', style: const TextStyle(fontSize: 11)),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      if (entry.genderPreference != 'none')
+                                        Chip(
+                                          avatar: const Icon(Icons.wc, size: 13),
+                                          label: Text(entry.genderPreference.toUpperCase(), style: const TextStyle(fontSize: 11)),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      if (entry.notifiedAt != null)
+                                        Chip(
+                                          backgroundColor: Colors.green.shade50,
+                                          avatar: const Icon(Icons.check_circle_rounded, size: 13, color: Colors.green),
+                                          label: Text(
+                                            'Notified ${DateFormat('hh:mm a').format(entry.notifiedAt!)}',
+                                            style: TextStyle(fontSize: 11, color: Colors.green.shade800, fontWeight: FontWeight.bold),
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      if (entry.createdAt != null)
+                                        Chip(
+                                          avatar: const Icon(Icons.access_time, size: 13),
+                                          label: Text(
+                                            DateFormat('dd MMM, hh:mm a').format(entry.createdAt!),
+                                            style: const TextStyle(fontSize: 11),
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                    ],
                                   ),
-                                  tooltip: 'Remove',
-                                  onPressed: () => _removeEntry(entry),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 4,
-                              children: [
-                                if (preferredSection != null)
-                                  Chip(
-                                    avatar: const Icon(
-                                      Icons.meeting_room,
-                                      size: 14,
-                                    ),
-                                    label: Text(
-                                      'Pref: ${preferredSection.name}',
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                if (entry.genderPreference != 'none')
-                                  Chip(
-                                    avatar: const Icon(Icons.wc, size: 14),
-                                    label: Text(
-                                      entry.genderPreference.toUpperCase(),
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                if (entry.createdAt != null)
-                                  Chip(
-                                    avatar: const Icon(
-                                      Icons.access_time,
-                                      size: 14,
-                                    ),
-                                    label: Text(
-                                      DateFormat('dd MMM, hh:mm a')
-                                          .format(entry.createdAt!),
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                if (entry.notifiedAt != null)
-                                  Chip(
-                                    backgroundColor: Colors.green.shade50,
-                                    avatar: const Icon(
-                                      Icons.check_circle,
-                                      size: 14,
-                                      color: Colors.green,
-                                    ),
-                                    label: Text(
-                                      'Notified ${DateFormat('hh:mm a').format(entry.notifiedAt!)}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.green.shade800,
-                                        fontWeight: FontWeight.bold,
+                                  const Divider(height: 20),
+                                  Row(
+                                    children: [
+                                      IconButton.filledTonal(
+                                        icon: const Icon(Icons.chat_bubble_rounded, color: Color(0xFF25D366), size: 18),
+                                        tooltip: 'Notify via WhatsApp',
+                                        onPressed: () => _notifyViaWhatsApp(entry),
                                       ),
-                                    ),
-                                    visualDensity: VisualDensity.compact,
+                                      const SizedBox(width: 4),
+                                      IconButton.filledTonal(
+                                        icon: const Icon(Icons.phone, color: Colors.green, size: 18),
+                                        tooltip: 'Call Phone',
+                                        onPressed: () => _callPhone(entry.studentPhone),
+                                      ),
+                                      const Spacer(),
+                                      OutlinedButton.icon(
+                                        onPressed: () => _registerStudent(entry),
+                                        icon: const Icon(Icons.person_add_outlined, size: 15),
+                                        label: const Text('Register', style: TextStyle(fontSize: 12)),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      FilledButton.icon(
+                                        onPressed: () => _showAssignSeatSheet(entry),
+                                        icon: const Icon(Icons.chair_alt, size: 15),
+                                        label: Text(
+                                          hasPromotedSeat ? 'Assign ${entry.suggestedSeatLabel}' : 'Assign Seat',
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                        ),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: hasPromotedSeat ? Colors.amber.shade800 : null,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                              ],
+                                ],
+                              ),
                             ),
-                            const Divider(height: 24),
-                            Row(
-                              children: [
-                                IconButton.filledTonal(
-                                  icon: const Icon(Icons.chat_bubble_rounded, color: Color(0xFF25D366), size: 18),
-                                  tooltip: 'Notify via WhatsApp',
-                                  onPressed: () => _notifyViaWhatsApp(entry),
-                                ),
-                                const SizedBox(width: 4),
-                                IconButton.filledTonal(
-                                  icon: const Icon(Icons.phone, color: Colors.green, size: 18),
-                                  tooltip: 'Call Phone',
-                                  onPressed: () => _callPhone(entry.studentPhone),
-                                ),
-                                const Spacer(),
-                                OutlinedButton.icon(
-                                  onPressed: () => _registerStudent(entry),
-                                  icon: const Icon(Icons.person_add_outlined, size: 16),
-                                  label: const Text('Register'),
-                                ),
-                                const SizedBox(width: 8),
-                                FilledButton.icon(
-                                  onPressed: () => _showAssignSeatSheet(entry),
-                                  icon: const Icon(Icons.chair_alt, size: 16),
-                                  label: const Text('Assign Seat'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     );
                   },
                 ),
-              );
-            },
+              ),
+            ],
+          ),
+
+          // ── TAB 2: CAPACITY POLICIES & AUTOMATION RULES ──
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 820),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Full Capacity Allocation Policy',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Define what action the system takes when all study desks in $libraryName are 100% occupied.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 16),
+
+                // Capacity Action Mode Radios
+                RadioGroup<String>(
+                  groupValue: _policyMode,
+                  onChanged: (v) {
+                    if (v != null) setState(() => _policyMode = v);
+                  },
+                  child: Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    child: Column(
+                      children: [
+                        RadioListTile<String>(
+                          title: const Text('Enable Digital Waiting List (Recommended)', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Students can join a queue and are automatically notified when a desk becomes free.'),
+                          value: 'waitingList',
+                        ),
+                        const Divider(height: 1),
+                        RadioListTile<String>(
+                          title: const Text('Show "Library Full" Notice', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Students see a standard library full message without joining a queue.'),
+                          value: 'noSeatsMessage',
+                        ),
+                        const Divider(height: 1),
+                        RadioListTile<String>(
+                          title: const Text('Prompt Contact Administrator', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Students are prompted to message or call library management directly on WhatsApp.'),
+                          value: 'contactAdmin',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+                const Text(
+                  'Seat Reservation Holding Window',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'How long a freed seat is held exclusively for the notified candidate before passing to candidate #2.',
+                  style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 10),
+                SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 12, label: Text('12 Hours')),
+                    ButtonSegment(value: 24, label: Text('24 Hours (Std)')),
+                    ButtonSegment(value: 48, label: Text('48 Hours')),
+                  ],
+                  selected: {_holdingHours},
+                  onSelectionChanged: (set) => setState(() => _holdingHours = set.first),
+                ),
+
+                const SizedBox(height: 24),
+                const Text(
+                  'Auto-Promotion & Vacancy Cascade',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: SwitchListTile(
+                    title: const Text('Auto-Cascade Vacant Desks', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    subtitle: const Text(
+                      'When expired plans are swept nightly, automatically tag the next matching waitlist candidate with suggested seat details.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    value: _autoNotify,
+                    onChanged: (val) => setState(() => _autoNotify = val),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+                const Text(
+                  'WhatsApp Notification Message Template',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Variables available: {studentName}, {seatLabel}, {libraryName}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _notificationTemplateController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    hintText: 'Enter custom WhatsApp message...',
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+                const Text('Student View Preview:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                Card(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Center(
+                      child: Text(
+                        _policyMode == 'waitingList'
+                            ? '🏛️ $libraryName is currently at 100% capacity.\nJoin the Waiting List (#4 in line) to reserve your priority desk!'
+                            : _policyMode == 'noSeatsMessage'
+                                ? '⚠️ All study desks are currently occupied. Please check back later.'
+                                : '💬 All desks are occupied. Please contact library management directly on WhatsApp for priority admission.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(height: 1.4, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _isSavingPolicy ? null : _savePolicySettings,
+                    icon: _isSavingPolicy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.save_rounded),
+                    label: Text(_isSavingPolicy ? 'Saving Policies...' : 'Save Capacity Policies'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddDialog(sections),
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add to Queue'),
+          ),
+        ),
       ),
+        ],
+      ),
+      floatingActionButton: _tabController.index == 0
+          ? FloatingActionButton.extended(
+              onPressed: () => _showAddDialog(sections),
+              icon: const Icon(Icons.person_add_rounded),
+              label: const Text('Add Candidate'),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildTopMetricsStrip({
+    required int totalCount,
+    required int readyCount,
+    required LibraryModel? library,
+  }) {
+    final policyName = library?.waitingListMode == WaitingListMode.waitingList
+        ? 'Auto-Queue Active'
+        : (library?.waitingListMode == WaitingListMode.noSeatsMessage ? 'Full Notice Only' : 'Direct Inquiry');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildMetricItem(
+            label: 'IN QUEUE',
+            value: '$totalCount',
+            color: Colors.amber.shade700,
+          ),
+          _buildMetricItem(
+            label: 'SEAT READY',
+            value: '$readyCount',
+            color: Colors.green.shade700,
+          ),
+          _buildMetricItem(
+            label: 'POLICY',
+            value: policyName,
+            color: Theme.of(context).colorScheme.primary,
+            isSmall: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricItem({
+    required String label,
+    required String value,
+    required Color color,
+    bool isSmall = false,
+  }) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 9.5,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.8,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isSmall ? 12 : 18,
+            fontWeight: FontWeight.w900,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -565,7 +1055,6 @@ class _WaitingListSeatAssignSheetState
 
       String studentId = widget.entry.studentId;
 
-      // If no studentId exists in waiting entry, check if student already exists by phone
       if (studentId.isEmpty) {
         final existingStudentQuery = await firestore
             .collection(FirestorePaths.libraries)
@@ -584,7 +1073,6 @@ class _WaitingListSeatAssignSheetState
             'updatedAt': FieldValue.serverTimestamp(),
           });
         } else {
-          // Create student record
           final newStudentRef = firestore
               .collection(FirestorePaths.libraries)
               .doc(libraryId)
@@ -617,7 +1105,6 @@ class _WaitingListSeatAssignSheetState
         });
       }
 
-      // Release any previously occupied seat for this student across all sections
       final sectionsSnap = await firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
@@ -641,7 +1128,6 @@ class _WaitingListSeatAssignSheetState
         }
       }
 
-      // Mark seat occupied
       final seatRef = firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
@@ -656,7 +1142,6 @@ class _WaitingListSeatAssignSheetState
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Remove from waiting list
       final waitRef = firestore
           .collection(FirestorePaths.libraries)
           .doc(libraryId)
@@ -673,7 +1158,11 @@ class _WaitingListSeatAssignSheetState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to assign seat: $e')),
+          SnackBar(
+            content: Text('Failed to assign seat: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -864,4 +1353,3 @@ class _AvailableSeatsSectionTile extends ConsumerWidget {
     );
   }
 }
-

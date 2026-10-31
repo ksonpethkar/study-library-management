@@ -5,19 +5,43 @@ class AdminWhitelistService {
   static final CollectionReference<Map<String, dynamic>> _whitelistRef =
       _firestore.collection('admin_whitelist');
 
-  /// Primary administrator emails that are always authorized as Master Admins
-  static const Set<String> _masterAdminEmails = {
+  /// Compile-time fallback — only used if Firestore app_config is unreachable.
+  /// In production, master admin emails are read from Firestore app_config/default.
+  static const Set<String> _fallbackMasterEmails = {
     'ksonpethkar@gmail.com',
     'thecozycornersc@gmail.com',
   };
+
+  /// Cached master admin emails (loaded once from Firestore).
+  static Set<String>? _cachedMasterEmails;
+
+  /// Load master admin emails from Firestore app_config, falling back to compile-time set.
+  static Future<Set<String>> _getMasterEmails() async {
+    if (_cachedMasterEmails != null) return _cachedMasterEmails!;
+    try {
+      final doc = await _firestore.collection('app_config').doc('default').get();
+      if (doc.exists && doc.data()?['masterAdminEmails'] != null) {
+        final list = (doc.data()!['masterAdminEmails'] as List)
+            .map((e) => e.toString().trim().toLowerCase())
+            .toSet();
+        if (list.isNotEmpty) {
+          _cachedMasterEmails = list;
+          return list;
+        }
+      }
+    } catch (_) { /* intentionally silent */ }
+    _cachedMasterEmails = _fallbackMasterEmails;
+    return _fallbackMasterEmails;
+  }
 
   /// Check if an email is authorized to act as or create an admin account.
   static Future<bool> isEmailWhitelisted(String? email) async {
     if (email == null || email.trim().isEmpty) return false;
     final normalized = email.trim().toLowerCase();
 
-    // 0. Primary master admin failsafe
-    if (_masterAdminEmails.contains(normalized)) {
+    // 0. Primary master admin failsafe (loaded from Firestore app_config)
+    final masterEmails = await _getMasterEmails();
+    if (masterEmails.contains(normalized)) {
       return true;
     }
 
@@ -35,13 +59,8 @@ class AdminWhitelistService {
         if (libEmail != null && libEmail.isNotEmpty && libEmail == normalized) {
           return true;
         }
-      }
-
-      // 2. Check if ANY library exists in Firestore.
-      // If 0 libraries exist in the entire database, allow the first user to set up the system.
-      final existingLibraries = await _firestore.collection('libraries').limit(1).get();
-      if (existingLibraries.docs.isEmpty) {
-        // Automatically add first user to whitelist
+      } else {
+        // 2. If 0 libraries exist in the entire database, allow the first user to set up the system.
         await addWhitelistedAdmin(
           normalized,
           addedBy: 'initial_setup',

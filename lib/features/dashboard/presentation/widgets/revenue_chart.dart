@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:go_router/go_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/features/expenses/presentation/providers/expense_providers.dart';
 
 final revenueDataProvider = FutureProvider<List<_MonthlyRevenue>>((ref) async {
   final libraryId = ref.watch(currentLibraryIdProvider);
@@ -35,7 +38,7 @@ final revenueDataProvider = FutureProvider<List<_MonthlyRevenue>>((ref) async {
       try {
         date = dateRaw.toDate();
       } catch (_) {
-        date = DateTime.now(); // fallback to today if timestamp is malformed
+        date = DateTime.now();
       }
     }
     if (date == null) continue;
@@ -68,6 +71,7 @@ class RevenueChart extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final revenueAsync = ref.watch(revenueDataProvider);
+    final netProfitAsync = ref.watch(netProfitProvider);
     final theme = Theme.of(context);
 
     return revenueAsync.when(
@@ -151,6 +155,47 @@ class RevenueChart extends ConsumerWidget {
                       }).toList(),
                     ),
                   ),
+                ),
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 10),
+                netProfitAsync.when(
+                  data: (np) => Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            np.isProfitable ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                            size: 16,
+                            color: np.isProfitable ? Colors.green : Colors.red,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Net Profit: ₹${_formatAmount(np.netProfit)} (${np.profitMargin.toStringAsFixed(1)}%)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: np.isProfitable ? Colors.green.shade700 : Colors.red.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      InkWell(
+                        onTap: () => context.push(Routes.adminExpenses),
+                        child: Text(
+                          'Expenses →',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
                 ),
               ],
             ),

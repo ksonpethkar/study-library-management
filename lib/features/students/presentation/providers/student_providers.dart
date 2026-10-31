@@ -1,10 +1,13 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/features/students/data/repositories/student_repository.dart';
 import 'package:study_library/models/student_model.dart';
-import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 
 final studentRepositoryProvider = Provider<StudentRepository>((ref) {
   return StudentRepository();
@@ -37,25 +40,48 @@ final expiringStudentsProvider = FutureProvider.family<List<StudentModel>, Map<S
 });
 
 /// Stream of the current logged-in student (matched by Auth UID first, then email fallback)
-final currentStudentProvider = StreamProvider<StudentModel?>((ref) {
+/// Yields cached StudentModel instantly (<5ms) for offline access in basements / low connectivity.
+final currentStudentProvider = StreamProvider<StudentModel?>((ref) async* {
   final libraryId = ref.watch(currentLibraryIdProvider);
   final user = FirebaseAuth.instance.currentUser;
-  if (libraryId == null || libraryId.isEmpty) return Stream.value(null);
-  if (user == null) return Stream.value(null);
+  if (libraryId == null || libraryId.isEmpty || user == null) {
+    yield null;
+    return;
+  }
 
   final uid = user.uid;
   final email = user.email ?? '';
+  final cacheKey = 'offline_cached_student_${libraryId}_$uid';
 
-  return FirebaseFirestore.instance
+  // 1. Instantly yield cached student for offline & instant launch (<5ms)
+  try {
+    final prefs = ref.read(sharedPreferencesProvider);
+    final cachedJson = prefs.getString(cacheKey);
+    if (cachedJson != null && cachedJson.isNotEmpty) {
+      final Map<String, dynamic> data = jsonDecode(cachedJson);
+      yield StudentModel.fromJson(data);
+    }
+  } catch (_) { /* intentionally silent */ }
+
+  // 2. Stream real-time updates from Firestore
+  final stream = FirebaseFirestore.instance
       .collection('libraries')
       .doc(libraryId)
       .collection('students')
       .where('userId', isEqualTo: uid)
       .limit(1)
-      .snapshots()
-      .asyncExpand((snap) async* {
+      .snapshots();
+
+  await for (final snap in stream) {
     if (snap.docs.isNotEmpty) {
-      yield StudentModel.fromJson({...snap.docs.first.data(), 'id': snap.docs.first.id});
+      final doc = snap.docs.first;
+      final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
+      // Update cache for next offline launch
+      try {
+        final prefs = ref.read(sharedPreferencesProvider);
+        await prefs.setString(cacheKey, jsonEncode(model.toJson()));
+      } catch (_) { /* intentionally silent */ }
+      yield model;
     } else if (email.isNotEmpty) {
       // Fallback: match by email for admin-added students
       try {
@@ -70,17 +96,22 @@ final currentStudentProvider = StreamProvider<StudentModel?>((ref) {
           final doc = emailSnap.docs.first;
           // Backfill userId for future speed
           doc.reference.update({'userId': uid}).ignore();
-          yield StudentModel.fromJson({...doc.data(), 'id': doc.id});
+          final model = StudentModel.fromJson({...doc.data(), 'id': doc.id});
+          try {
+            final prefs = ref.read(sharedPreferencesProvider);
+            await prefs.setString(cacheKey, jsonEncode(model.toJson()));
+          } catch (_) { /* intentionally silent */ }
+          yield model;
         } else {
           yield null;
         }
       } catch (_) {
-        yield null;
+        // In case of offline/network failure, keep serving the cached model
       }
     } else {
       yield null;
     }
-  });
+  }
 });
 
 /// Stream of a specific student by studentId
@@ -145,18 +176,47 @@ class StudentPageNotifier extends StateNotifier<StudentPageState> {
   StudentPageNotifier(this.libraryId) : super(const StudentPageState()) {
     loadFirst();
   }
+
+  StudentModel _safeParseDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+    final rawGovId = data['govIdNumber']?.toString() ?? '';
+    final decryptedGovId = EncryptionService.safeDecryptGovId(rawGovId, libraryId);
+    return StudentModel.fromJson({
+      ...data,
+      'id': doc.id,
+      'govIdNumber': decryptedGovId,
+    });
+  }
   
   Future<void> loadFirst() async {
     if (libraryId.isEmpty) return;
     state = state.copyWith(isLoading: true, students: [], lastDoc: null, hasMore: true);
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('libraries').doc(libraryId)
-          .collection('students')
-          .orderBy('createdAt', descending: true)
-          .limit(_pageSize)
-          .get();
-      final students = snap.docs.map((d) => StudentModel.fromJson({...d.data(), 'id': d.id})).toList();
+      QuerySnapshot<Map<String, dynamic>> snap;
+      try {
+        snap = await FirebaseFirestore.instance
+            .collection('libraries').doc(libraryId)
+            .collection('students')
+            .orderBy('createdAt', descending: true)
+            .limit(_pageSize)
+            .get();
+      } catch (_) {
+        snap = await FirebaseFirestore.instance
+            .collection('libraries').doc(libraryId)
+            .collection('students')
+            .limit(_pageSize)
+            .get();
+      }
+
+      final students = <StudentModel>[];
+      for (final doc in snap.docs) {
+        try {
+          students.add(_safeParseDoc(doc));
+        } catch (parseErr) {
+          if (kDebugMode) debugPrint('Error parsing student doc ${doc.id}: $parseErr');
+        }
+      }
+
       state = state.copyWith(
         students: students,
         isLoading: false,
@@ -173,14 +233,33 @@ class StudentPageNotifier extends StateNotifier<StudentPageState> {
     if (state.isLoading || !state.hasMore || state.lastDoc == null || libraryId.isEmpty) return;
     state = state.copyWith(isLoading: true);
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('libraries').doc(libraryId)
-          .collection('students')
-          .orderBy('createdAt', descending: true)
-          .startAfterDocument(state.lastDoc!)
-          .limit(_pageSize)
-          .get();
-      final newStudents = snap.docs.map((d) => StudentModel.fromJson({...d.data(), 'id': d.id})).toList();
+      QuerySnapshot<Map<String, dynamic>> snap;
+      try {
+        snap = await FirebaseFirestore.instance
+            .collection('libraries').doc(libraryId)
+            .collection('students')
+            .orderBy('createdAt', descending: true)
+            .startAfterDocument(state.lastDoc!)
+            .limit(_pageSize)
+            .get();
+      } catch (_) {
+        snap = await FirebaseFirestore.instance
+            .collection('libraries').doc(libraryId)
+            .collection('students')
+            .startAfterDocument(state.lastDoc!)
+            .limit(_pageSize)
+            .get();
+      }
+
+      final newStudents = <StudentModel>[];
+      for (final doc in snap.docs) {
+        try {
+          newStudents.add(_safeParseDoc(doc));
+        } catch (parseErr) {
+          if (kDebugMode) debugPrint('Error parsing student doc ${doc.id}: $parseErr');
+        }
+      }
+
       state = state.copyWith(
         students: [...state.students, ...newStudents],
         isLoading: false,

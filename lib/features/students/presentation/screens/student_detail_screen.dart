@@ -13,7 +13,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/features/id_cards/presentation/screens/id_card_preview_screen.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/payment_model.dart';
-import 'package:study_library/models/plan_model.dart';
+import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/receipt_model.dart';
@@ -189,7 +189,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
               subtitle: const Text('Greet new member with library details'),
               onTap: () {
                 Navigator.pop(ctx);
-                whatsapp.sendWelcomeMessage(s.phone, s.name, libraryName);
+                whatsapp.sendWelcomeMessage(s.phone, s.name, libraryName, context: context);
               },
             ),
             if (daysLeft != null)
@@ -204,9 +204,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 subtitle: const Text('Notify student about plan status'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  whatsapp.sendExpiryReminder(
-                      s.phone, s.name, daysLeft,
-                      libraryName: libraryName);
+                  whatsapp.sendExpiryReminder(s.phone, s.name, daysLeft, libraryName: libraryName, context: context);
                 },
               ),
             if (seatLabel.isNotEmpty)
@@ -219,9 +217,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                 subtitle: Text('Section: $sectionName · Seat: $seatLabel'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  whatsapp.sendSeatAssigned(
-                      s.phone, s.name, seatLabel, sectionName,
-                      libraryName: libraryName);
+                  whatsapp.sendSeatAssigned(s.phone, s.name, seatLabel, sectionName, libraryName: libraryName, context: context);
                 },
               ),
             const SizedBox(height: 8),
@@ -367,13 +363,11 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                             }
 
                             final now = DateTime.now();
-                            DateTime endDate = now;
-                            final durationInt = plan.duration.toInt();
-                            if (plan.durationUnit == DurationUnit.days) {
-                              endDate = now.add(Duration(days: durationInt));
-                            } else if (plan.durationUnit == DurationUnit.months) {
-                              endDate = DateTime(now.year, now.month + durationInt, now.day);
-                            }
+                            final smartCalc = PlanCalculatorService.calculateSmartPlan(
+                              plan: plan,
+                              fromDate: now,
+                            );
+                            final endDate = smartCalc.endDate;
 
                             await FirebaseFirestore.instance
                                 .collection('libraries')
@@ -1405,13 +1399,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                   final libDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).get();
                   final libName = libDoc.data()?['name'] as String? ?? 'Cozy Corner Library';
                   final rNum = payment.receiptId ?? (payment.id.length >= 6 ? payment.id.substring(0, 6).toUpperCase() : payment.id);
-                  await WhatsAppService().sendPaymentConfirmation(
-                    phone,
-                    s.name,
-                    libName,
-                    payment.amount,
-                    rNum,
-                  );
+                  if (context.mounted) { await WhatsAppService().sendPaymentConfirmation(phone, s.name, libName, payment.amount, rNum, context: context); }
                 },
               ),
 

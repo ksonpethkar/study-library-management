@@ -1,3 +1,4 @@
+import '../../../../core/security/audit_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -48,11 +49,15 @@ class SeatRepository {
                 .doc(section.id);
 
       final sectionId = sectionRef.id;
-      final newSection = section.copyWith(id: sectionId, libraryId: libraryId);
+      final limit = totalSeats ?? (section.rows * section.cols);
+      final newSection = section.copyWith(
+        id: sectionId,
+        libraryId: libraryId,
+        totalSeats: limit,
+      );
       batch.set(sectionRef, newSection.toJson());
 
       // Auto-generate seat documents based on layout and exact totalSeats
-      final limit = totalSeats ?? (section.rows * section.cols);
       int count = 0;
 
       outerLoop:
@@ -140,6 +145,70 @@ class SeatRepository {
       rethrow;
     } catch (e) {
       throw Exception('Failed to update section. Please try again.');
+    }
+  }
+
+  Future<int> appendSeatsToSection({
+    required String libraryId,
+    required String sectionId,
+    required int additionalCount,
+    GenderRestriction genderRestriction = GenderRestriction.any,
+  }) async {
+    try {
+      final existingSeats = await getSeatsOnce(libraryId, sectionId);
+      final sectionDoc = await _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.sections)
+          .doc(sectionId)
+          .get();
+
+      if (!sectionDoc.exists) throw Exception("Section not found.");
+
+      int maxNumber = 0;
+      for (final s in existingSeats) {
+        final digits = s.label.replaceAll(RegExp(r'[^0-9]'), '');
+        final parsed = int.tryParse(digits);
+        if (parsed != null && parsed > maxNumber) {
+          maxNumber = parsed;
+        }
+      }
+      if (maxNumber == 0) maxNumber = existingSeats.length;
+
+      final batch = _firestore.batch();
+      final sectionRef = sectionDoc.reference;
+
+      for (int i = 0; i < additionalCount; i++) {
+        final seatNum = maxNumber + i + 1;
+        final seatId = '${sectionId}_seat_$seatNum';
+        final seatRef = sectionRef.collection(FirestorePaths.seats).doc(seatId);
+
+        final newSeat = SeatModel(
+          id: seatId,
+          sectionId: sectionId,
+          label: '$seatNum',
+          row: (existingSeats.length + i) ~/ 10,
+          col: (existingSeats.length + i) % 10,
+          status: SeatStatus.available,
+          genderRestriction: genderRestriction,
+        );
+
+        batch.set(seatRef, newSeat.toJson());
+      }
+
+      final totalNewCount = existingSeats.length + additionalCount;
+      batch.update(sectionRef, {
+        'rows': (totalNewCount / 10).ceil().clamp(1, 100),
+        'cols': 10,
+        'totalSeats': totalNewCount,
+        'capacity': totalNewCount,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
+      return totalNewCount;
+    } catch (e) {
+      throw Exception('Failed to add more seats: $e');
     }
   }
 
@@ -420,6 +489,61 @@ class SeatRepository {
     }
   }
 
+  Future<void> unassignStudent({
+    required String libraryId,
+    required String sectionId,
+    required String seatId,
+    required String studentId,
+  }) async {
+    try {
+      final batch = _firestore.batch();
+
+      final seatRef = _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.sections)
+          .doc(sectionId)
+          .collection(FirestorePaths.seats)
+          .doc(seatId);
+
+      batch.update(seatRef, {
+        'status': SeatStatus.available.name,
+        'studentId': null,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      final studentRef = _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection(FirestorePaths.students)
+          .doc(studentId);
+
+      batch.update(studentRef, {
+        'seatId': null,
+        'sectionId': null,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
+      AuditLogger().log(
+        action: AuditAction.updated,
+        entityType: AuditEntity.seat,
+        libraryId: libraryId,
+        entityId: seatId,
+        entityName: 'Seat #$seatId',
+        details: {
+          'seatId': seatId,
+          'sectionId': sectionId,
+          'studentId': studentId,
+          'operation': 'Seat Vacated / Unassigned',
+        },
+      ).ignore();
+    } catch (e) {
+      debugPrint('Failed to unassign student from seat: $e');
+      throw Exception('Failed to unassign student.');
+    }
+  }
+
   Future<void> transferStudent(
     String libraryId,
     String fromSectionId,
@@ -564,6 +688,30 @@ class SeatRepository {
       }
 
       await batch.commit();
+
+      // Recalculate remaining seats and keep section capacity in perfect sync
+      try {
+        final remainingSnap = await _firestore
+            .collection(FirestorePaths.libraries)
+            .doc(libraryId)
+            .collection(FirestorePaths.sections)
+            .doc(sectionId)
+            .collection(FirestorePaths.seats)
+            .get();
+        final remainingCount = remainingSnap.docs.length;
+        final newRows = (remainingCount / 10).ceil().clamp(1, 100);
+        await _firestore
+            .collection(FirestorePaths.libraries)
+            .doc(libraryId)
+            .collection(FirestorePaths.sections)
+            .doc(sectionId)
+            .update({
+          'totalSeats': remainingCount,
+          'capacity': remainingCount,
+          'rows': newRows,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
     } catch (e) {
       throw Exception(
         e.toString().contains('Cannot delete')

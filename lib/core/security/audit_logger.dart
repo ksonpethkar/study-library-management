@@ -79,7 +79,7 @@ class AuditLogger {
         'previousData': previousData,
       });
     } catch (e) {
-      debugPrint('Audit log failed: $e');
+      if (kDebugMode) debugPrint('Audit log failed: $e');
     }
   }
 

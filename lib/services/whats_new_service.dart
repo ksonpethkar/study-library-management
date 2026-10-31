@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:study_library/core/constants/app_constants.dart';
 
 class ReleaseChange {
   final IconData icon;
@@ -114,7 +116,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.25+32';
+  static const String currentVersionIdentifier = '1.5.44+52';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -123,91 +125,115 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.25)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.44)
   static final List<ReleaseChange> adminChanges = [
     const ReleaseChange(
-      icon: Icons.contrast_rounded,
-      rawIconName: 'palette',
-      badge: 'Dark Theme',
-      title: 'High-Contrast Dark Mode & Signature Fix',
+      icon: Icons.notifications_active_rounded,
+      rawIconName: 'notifications',
+      badge: 'Admin Header',
+      title: 'Admin Notification Center & Theme Toggle',
       description:
-          'Crisp, high-contrast text and cards in dark theme across dashboards, settings, and forms. Modern APK v2/v3 signatures for seamless Android installs.',
-    ),
-    const ReleaseChange(
-      icon: Icons.approval_rounded,
-      rawIconName: 'approval',
-      badge: 'Automated',
-      title: 'Auto-Receipt on Plan Assign',
-      description:
-          'Official fee receipts are automatically generated and recorded whenever an admin assigns or renews a student plan.',
-    ),
-    const ReleaseChange(
-      icon: Icons.receipt_long_rounded,
-      rawIconName: 'receipt',
-      badge: 'Audit Trail',
-      title: 'Full Announcement Audit Logs',
-      description:
-          'Deletion of notices, fee changes, and critical actions are immutably logged with timestamp and staff author.',
-    ),
-    const ReleaseChange(
-      icon: Icons.system_update_rounded,
-      rawIconName: 'system_update',
-      badge: 'Real-Time Web',
-      title: 'Real-Time Organization Web & Seat Sync',
-      description:
-          'Web download portal and live seat map now dynamically synchronize with your library logo, colors, address, and live seats directly from Firestore.',
-    ),
-    const ReleaseChange(
-      icon: Icons.document_scanner_rounded,
-      rawIconName: 'document_scanner',
-      badge: 'Sequential',
-      title: 'Sequential Student & Receipt IDs',
-      description:
-          'Atomic counters generate sequential receipt numbers (REC-0001) and student member IDs (CC20260001) without collision risk.',
-    ),
-  ];
-
-  /// Concrete features exclusively relevant for Students (v1.5.25)
-  static final List<ReleaseChange> studentChanges = [
-    const ReleaseChange(
-      icon: Icons.contrast_rounded,
-      rawIconName: 'palette',
-      badge: 'Dark Theme',
-      title: 'High-Contrast Dark Mode & Readability',
-      description:
-          'Student home, cards, and text are now enhanced for effortless readability in dark mode without eye strain.',
+          'Quick 1-tap Dark/Light theme toggle and real-time Notification Center added directly to the Admin Dashboard header with live unread alert badges.',
     ),
     const ReleaseChange(
       icon: Icons.badge_rounded,
       rawIconName: 'badge',
-      badge: 'Home Bar',
-      title: 'Library Tagline in Home Screen',
+      badge: '100% Digital',
+      title: 'Digital-Only Pass Architecture',
       description:
-          'Your library official tagline is now featured prominently under the library name in the student home app bar.',
+          'Streamlined student credentials into modern, interactive 3D virtual cards with dynamic verification QR codes, removing all redundant print layouts and PDF downloads.',
     ),
     const ReleaseChange(
-      icon: Icons.receipt_long_rounded,
-      rawIconName: 'receipt',
-      badge: 'Official Stamp',
-      title: 'Official Fee Receipts & Rupee Currency',
+      icon: Icons.badge_rounded,
+      rawIconName: 'badge',
+      badge: 'Key Personnel',
+      title: 'Separate Owner, Admin & Manager Contacts',
       description:
-          'View and download authentic fee receipts featuring genuine ₹ rupee symbols and official library verification stamps.',
+          'Configure independent names and direct phone numbers for Owner, Admin, and Manager in Library Profile. These propagate live to students with 1-tap Call and WhatsApp.',
     ),
     const ReleaseChange(
-      icon: Icons.shield_rounded,
-      rawIconName: 'lock',
-      badge: 'Play Integrity',
-      title: 'Play Integrity Account Security',
+      icon: Icons.room_service_rounded,
+      rawIconName: 'room_service',
+      badge: 'Dynamic Amenities',
+      title: 'Customizable Study Privileges & Amenities',
       description:
-          'Cryptographically verified app attestation to safeguard your student account, seat, and personal data.',
+          'Select only the facilities your organization actually provides (e.g. Wi-Fi, RO Water, Sockets, Ergonomic Chairs). Unselected perks (like AC) will never be displayed to students.',
     ),
     const ReleaseChange(
-      icon: Icons.event_seat_rounded,
-      rawIconName: 'seat',
-      badge: 'Live Map',
-      title: 'Live Real-Time Seat Status',
+      icon: Icons.security_rounded,
+      rawIconName: 'security',
+      badge: 'Encrypted Gov ID',
+      title: 'Safe Gov ID Decryption & Clean Masking',
       description:
-          'Check current seat occupancy, available seats, and section tags directly from the live map.',
+          'Student Government ID numbers are safely decrypted and formatted as clean masked identifiers (XXXX XXXX 1234), completely preventing ciphertext leaks.',
+    ),
+  ];
+
+  /// Student-Friendly Highlights (v1.5.44)
+  static final List<ReleaseChange> studentChanges = [
+    const ReleaseChange(
+      icon: Icons.dashboard_customize_rounded,
+      rawIconName: 'dashboard',
+      badge: 'Clean Home',
+      title: 'Streamlined Student Dashboard',
+      description:
+          'Removed study streak and check-in widgets to give you instant, uninterrupted access to your Digital Smart Pass and desk allocation right at the top of your screen.',
+    ),
+    const ReleaseChange(
+      icon: Icons.badge_rounded,
+      rawIconName: 'badge',
+      badge: 'Virtual Pass',
+      title: 'Verified Digital Membership Pass',
+      description:
+          'Your official student ID is a modern, verified digital pass with live security QR code for fast, contactless library access, attendance, and desk verification.',
+    ),
+    const ReleaseChange(
+      icon: Icons.shield_outlined,
+      rawIconName: 'shield',
+      badge: 'Real Perks',
+      title: 'Accurate Study Privileges & Facilities',
+      description:
+          'The Perks and Environment sections now reflect only the genuine facilities provided by your library. Air Conditioning and extra perks only appear if actually equipped.',
+    ),
+    const ReleaseChange(
+      icon: Icons.support_agent_rounded,
+      rawIconName: 'support_agent',
+      badge: 'Direct Contacts',
+      title: 'Direct Owner, Admin & Manager Helplines',
+      description:
+          'Access separate direct contact numbers for the Library Owner, Admin, and Manager with instant Call and WhatsApp buttons directly from your profile and dashboard.',
+    ),
+    const ReleaseChange(
+      icon: Icons.chair_rounded,
+      rawIconName: 'chair',
+      badge: 'Readable Desk',
+      title: 'Universal Clean Seat Numbering',
+      description:
+          'Your assigned seat number is now formatted cleanly across all screens (Seat #2 [Cozy Hall]) instead of showing complex internal database coordinates.',
+    ),
+    const ReleaseChange(
+      icon: Icons.badge_rounded,
+      rawIconName: 'badge',
+      badge: 'Private & Secure',
+      title: 'Clean Masked Government ID',
+      description:
+          'Your Aadhaar and Government ID numbers are now displayed securely in a standard masked format on your profile card.',
+    ),
+    const ReleaseChange(
+      icon: Icons.support_agent_rounded,
+      rawIconName: 'support_agent',
+      badge: 'Manager Sync',
+      title: 'Dynamic Library Admin Contact',
+      description:
+          'Instant real-time connection to your library administrator and manager with 1-tap call and pre-formatted WhatsApp assistance.',
+    ),
+    const ReleaseChange(
+      icon: Icons.refresh_rounded,
+      rawIconName: 'refresh',
+      badge: 'Live Sync',
+      title: 'Animated Instant Sync Button',
+      description:
+          'Smooth rotating sync button with haptic feedback to instantly synchronize your latest profile data, seat allocations, and library details.',
     ),
   ];
 
@@ -222,8 +248,8 @@ class WhatsNewService {
 
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      final verName = packageInfo.version.isNotEmpty ? packageInfo.version : '1.5.13';
-      final verCode = int.tryParse(packageInfo.buildNumber) ?? 20;
+      final verName = packageInfo.version.isNotEmpty ? packageInfo.version : AppConstants.appVersion;
+      final verCode = int.tryParse(packageInfo.buildNumber) ?? AppConstants.buildNumber;
       final verIdentifier = '$verName+$verCode';
 
       final prefs = await SharedPreferences.getInstance();
@@ -255,7 +281,7 @@ class WhatsNewService {
       );
     } catch (e) {
       _isShowingDialog = false;
-      debugPrint('WhatsNewService checkAndShow failed: $e');
+      if (kDebugMode) debugPrint('WhatsNewService checkAndShow failed: $e');
     }
   }
 
@@ -266,8 +292,8 @@ class WhatsNewService {
 
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      final verName = packageInfo.version.isNotEmpty ? packageInfo.version : '1.5.13';
-      final verCode = int.tryParse(packageInfo.buildNumber) ?? 20;
+      final verName = packageInfo.version.isNotEmpty ? packageInfo.version : AppConstants.appVersion;
+      final verCode = int.tryParse(packageInfo.buildNumber) ?? AppConstants.buildNumber;
 
       if (!context.mounted) {
         _isShowingDialog = false;
@@ -287,7 +313,7 @@ class WhatsNewService {
           },
         ),
       );
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
     _isShowingDialog = false;
   }
 
@@ -324,7 +350,7 @@ class WhatsNewService {
         }
       }
       client.close();
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
     return null;
   }
 }

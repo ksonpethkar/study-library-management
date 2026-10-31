@@ -58,3 +58,4 @@ keystore_credentials.md
 .firebase/
 functions/node_modules/
 node_modules/
+scratch/

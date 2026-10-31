@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:printing/printing.dart';
+import 'package:go_router/go_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/services/pdf_service.dart';
 import 'package:study_library/models/student_model.dart';
@@ -11,6 +12,7 @@ import 'package:study_library/features/receipts/data/repositories/receipt_reposi
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/utils/sequence_counter.dart';
+import 'package:study_library/core/error/error_handler.dart';
 
 class GenerateReceiptScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -41,6 +43,7 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
   bool _isGenerating = false;
   bool _isGenerated = false;
   String _receiptNumber = '';
+  String? _createdReceiptId;
 
   @override
   void initState() {
@@ -66,7 +69,7 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
       final fetchedStudentUserId = widget.studentUserId ?? studentData['userId'] as String? ?? '';
       final fetchedPlanId = studentData['planId'] as String? ?? '';
       final parsedPlanEnd = StudentModel.parseDateStatic(studentData['planEndDate']);
-      final validToDate = parsedPlanEnd ?? DateTime.now().add(const Duration(days: 30));
+      final validToDate = parsedPlanEnd ?? DateTime(DateTime.now().year, DateTime.now().month + 1, 0, 23, 59, 59);
 
       // Save receipt to Firestore
       final receipt = ReceiptModel(
@@ -95,15 +98,14 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
       ).ignore();
 
       setState(() {
+        _createdReceiptId = receiptId;
         _isGenerating = false;
         _isGenerated = true;
       });
     } catch (e) {
       setState(() => _isGenerating = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        AppSnackbar.showError(context, e);
       }
     }
   }
@@ -132,7 +134,8 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
     final fetchedStudentUserId = widget.studentUserId ?? studentData['userId'] as String? ?? '';
     final fetchedPlanId = studentData['planId'] as String? ?? '';
     final parsedPlanEnd = StudentModel.parseDateStatic(studentData['planEndDate']);
-    final validToDate = parsedPlanEnd ?? DateTime.now().add(const Duration(days: 30));
+    final now = DateTime.now();
+    final validToDate = parsedPlanEnd ?? DateTime(now.year, now.month + 1, 0, 23, 59, 59);
 
     final receipt = ReceiptModel(
       id: '',
@@ -161,8 +164,8 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
       libraryId: libraryId,
       name: widget.planName ?? 'N/A',
       price: widget.amount,
-      duration: 30,
-      durationUnit: DurationUnit.days,
+      duration: 1,
+      durationUnit: DurationUnit.months,
       description: '',
       gracePeriodDays: 0,
       isActive: true,
@@ -232,19 +235,34 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
 
                       const SizedBox(height: 32),
 
-                      // Share/Print button
+                      // View & Share actions
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: _shareOrPrint,
-                          icon: const Icon(Icons.share),
-                          label: const Text('Share / Print Receipt'),
+                          onPressed: () {
+                            if (_createdReceiptId != null && _createdReceiptId!.isNotEmpty) {
+                              context.pushReplacement('/admin/receipts/$_createdReceiptId');
+                            } else {
+                              _shareOrPrint();
+                            }
+                          },
+                          icon: const Icon(Icons.picture_as_pdf_rounded),
+                          label: const Text('View Official Receipt Preview'),
                         ),
                       ),
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
-                        child: OutlinedButton(
+                        child: OutlinedButton.icon(
+                          onPressed: _shareOrPrint,
+                          icon: const Icon(Icons.share),
+                          label: const Text('Share / Print PDF'),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton(
                           onPressed: () => Navigator.of(context).pop(),
                           child: const Text('Done'),
                         ),

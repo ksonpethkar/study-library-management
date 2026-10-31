@@ -17,7 +17,7 @@ class RemoteConfigService {
       // Default values — used if fetch fails or first launch
       await _rc.setDefaults({
         'grace_period_days': 7,
-        'max_seats_per_section': 100,
+        'max_seats_per_section': 2500,
         'renewal_reminder_days': 3,
         'enable_revenue_dashboard': true,
         'enable_bulk_import': true,
@@ -31,11 +31,12 @@ class RemoteConfigService {
         'app_notice_banner': '',       // shows a yellow banner at top if non-empty
         'maintenance_mode': false,     // shows maintenance screen if true
         'force_update_version': '',    // e.g. '1.5.0' — force update if below
+        'default_library_id': const String.fromEnvironment('DEFAULT_LIBRARY_ID', defaultValue: 'aPSMq8xSAjuZQh2fTtuY'),
       });
 
       await _rc.fetchAndActivate();
     } catch (e) {
-      debugPrint('RemoteConfig init failed: $e');
+      if (kDebugMode) debugPrint('RemoteConfig init failed: $e');
       // App works fine with defaults
     }
   }
@@ -53,6 +54,10 @@ class RemoteConfigService {
   static int get minPlanPrice => _rc.getInt('min_plan_price');
   static int get maxPlanDurationDays => _rc.getInt('max_plan_duration_days');
   static int get announcementMaxLength => _rc.getInt('announcement_max_length');
+  static String get defaultLibraryId {
+    final v = _rc.getString('default_library_id');
+    return v.isNotEmpty ? v : const String.fromEnvironment('DEFAULT_LIBRARY_ID', defaultValue: 'aPSMq8xSAjuZQh2fTtuY');
+  }
   static String get appNoticeBanner => _rc.getString('app_notice_banner');
   static bool get maintenanceMode => _rc.getBool('maintenance_mode');
   static String get forceUpdateVersion => _rc.getString('force_update_version');

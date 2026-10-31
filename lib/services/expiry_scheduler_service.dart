@@ -30,7 +30,7 @@ class ExpirySchedulerService {
       await _plugin.initialize(settings: settings);
       _initialized = true;
     } catch (e) {
-      debugPrint('ExpiryScheduler init failed: $e');
+      if (kDebugMode) debugPrint('ExpiryScheduler init failed: $e');
     }
   }
 
@@ -79,7 +79,7 @@ class ExpirySchedulerService {
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         );
       } catch (e) {
-        debugPrint('Schedule 3-day reminder failed: $e');
+        if (kDebugMode) debugPrint('Schedule 3-day reminder failed: $e');
       }
     }
 
@@ -96,7 +96,7 @@ class ExpirySchedulerService {
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         );
       } catch (e) {
-        debugPrint('Schedule 1-day reminder failed: $e');
+        if (kDebugMode) debugPrint('Schedule 1-day reminder failed: $e');
       }
     }
 
@@ -113,11 +113,11 @@ class ExpirySchedulerService {
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         );
       } catch (e) {
-        debugPrint('Schedule expiry-day reminder failed: $e');
+        if (kDebugMode) debugPrint('Schedule expiry-day reminder failed: $e');
       }
     }
 
-    debugPrint('Expiry reminders scheduled for ${_formatDate(expiryDate)}');
+    if (kDebugMode) debugPrint('Expiry reminders scheduled for ${_formatDate(expiryDate)}');
   }
 
   /// Cancel all scheduled expiry reminders (call on logout or plan change).
@@ -128,7 +128,7 @@ class ExpirySchedulerService {
       await _plugin.cancel(id: _expiryIn1DayId);
       await _plugin.cancel(id: _expiryTodayId);
     } catch (e) {
-      debugPrint('Cancel reminders failed: $e');
+      if (kDebugMode) debugPrint('Cancel reminders failed: $e');
     }
   }
 

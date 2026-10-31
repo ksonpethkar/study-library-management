@@ -1,4 +1,4 @@
-enum StaffRole { owner, manager, operator }
+enum StaffRole { owner, admin, manager, operator }
 
 class StaffModel {
   final String id;
@@ -13,6 +13,10 @@ class StaffModel {
   final bool canDeleteStudents;
   final bool canViewRevenue;
   final bool canManageSettings;
+  final bool canManagePlans;
+  final bool canExportData;
+  final bool canManageRequests;
+  final bool canViewAuditLog;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -29,6 +33,10 @@ class StaffModel {
     required this.canDeleteStudents,
     required this.canViewRevenue,
     required this.canManageSettings,
+    this.canManagePlans = true,
+    this.canExportData = false,
+    this.canManageRequests = true,
+    this.canViewAuditLog = false,
     required this.createdAt,
     this.updatedAt,
   });
@@ -43,6 +51,7 @@ class StaffModel {
   }) {
     switch (role) {
       case StaffRole.owner:
+      case StaffRole.admin:
         return StaffModel(
           id: id,
           libraryId: libraryId,
@@ -56,6 +65,10 @@ class StaffModel {
           canDeleteStudents: true,
           canViewRevenue: true,
           canManageSettings: true,
+          canManagePlans: true,
+          canExportData: true,
+          canManageRequests: true,
+          canViewAuditLog: true,
           createdAt: DateTime.now(),
         );
       case StaffRole.manager:
@@ -72,6 +85,10 @@ class StaffModel {
           canDeleteStudents: false,
           canViewRevenue: true,
           canManageSettings: false,
+          canManagePlans: true,
+          canExportData: false,
+          canManageRequests: true,
+          canViewAuditLog: true,
           createdAt: DateTime.now(),
         );
       case StaffRole.operator:
@@ -88,25 +105,38 @@ class StaffModel {
           canDeleteStudents: false,
           canViewRevenue: false,
           canManageSettings: false,
+          canManagePlans: false,
+          canExportData: false,
+          canManageRequests: false,
+          canViewAuditLog: false,
           createdAt: DateTime.now(),
         );
     }
   }
 
   factory StaffModel.fromJson(Map<String, dynamic> json) {
+    final role = _parseRole(json['role'] as String?);
     return StaffModel(
       id: json['id'] as String? ?? '',
       libraryId: json['libraryId'] as String? ?? '',
       userId: json['userId'] as String? ?? '',
       email: json['email'] as String? ?? '',
       name: json['name'] as String? ?? '',
-      role: _parseRole(json['role'] as String?),
+      role: role,
       canManageSeats: json['canManageSeats'] as bool? ?? true,
       canRecordPayments: json['canRecordPayments'] as bool? ?? true,
       canManageStudents: json['canManageStudents'] as bool? ?? true,
       canDeleteStudents: json['canDeleteStudents'] as bool? ?? false,
       canViewRevenue: json['canViewRevenue'] as bool? ?? false,
       canManageSettings: json['canManageSettings'] as bool? ?? false,
+      canManagePlans: json['canManagePlans'] as bool? ??
+          (role == StaffRole.owner || role == StaffRole.admin || role == StaffRole.manager),
+      canExportData: json['canExportData'] as bool? ??
+          (role == StaffRole.owner || role == StaffRole.admin),
+      canManageRequests: json['canManageRequests'] as bool? ??
+          (role != StaffRole.operator),
+      canViewAuditLog: json['canViewAuditLog'] as bool? ??
+          (role == StaffRole.owner || role == StaffRole.admin || role == StaffRole.manager),
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now(),
       updatedAt: _parseDate(json['updatedAt']),
     );
@@ -126,6 +156,10 @@ class StaffModel {
       'canDeleteStudents': canDeleteStudents,
       'canViewRevenue': canViewRevenue,
       'canManageSettings': canManageSettings,
+      'canManagePlans': canManagePlans,
+      'canExportData': canExportData,
+      'canManageRequests': canManageRequests,
+      'canViewAuditLog': canViewAuditLog,
       'createdAt': createdAt.toIso8601String(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
     };
@@ -144,6 +178,10 @@ class StaffModel {
     bool? canDeleteStudents,
     bool? canViewRevenue,
     bool? canManageSettings,
+    bool? canManagePlans,
+    bool? canExportData,
+    bool? canManageRequests,
+    bool? canViewAuditLog,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -160,6 +198,10 @@ class StaffModel {
       canDeleteStudents: canDeleteStudents ?? this.canDeleteStudents,
       canViewRevenue: canViewRevenue ?? this.canViewRevenue,
       canManageSettings: canManageSettings ?? this.canManageSettings,
+      canManagePlans: canManagePlans ?? this.canManagePlans,
+      canExportData: canExportData ?? this.canExportData,
+      canManageRequests: canManageRequests ?? this.canManageRequests,
+      canViewAuditLog: canViewAuditLog ?? this.canViewAuditLog,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -169,6 +211,8 @@ class StaffModel {
     switch (val) {
       case 'owner':
         return StaffRole.owner;
+      case 'admin':
+        return StaffRole.admin;
       case 'manager':
         return StaffRole.manager;
       case 'operator':

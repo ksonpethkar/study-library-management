@@ -1,279 +1,162 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/models/library_model.dart';
+import 'package:study_library/services/poster_config_service.dart';
+import 'package:study_library/services/a4_entrance_poster_pdf_service.dart';
+import 'package:study_library/features/qr_share/presentation/widgets/entrance_poster_card.dart';
 
-class ShareQrDialog extends StatelessWidget {
+class ShareQrDialog extends ConsumerStatefulWidget {
   final String libraryId;
-  final String libraryName;
+  final String? libraryName;
   final String? address;
 
   const ShareQrDialog({
     super.key,
     required this.libraryId,
-    required this.libraryName,
+    this.libraryName,
     this.address,
   });
 
-  String get seatMapUrl =>
-      'https://study-lib-mgmt-2026.web.app/seats?lib=$libraryId';
+  @override
+  ConsumerState<ShareQrDialog> createState() => _ShareQrDialogState();
+}
 
-  Future<void> _printPoster(BuildContext context) async {
-    final pdf = pw.Document();
+class _ShareQrDialogState extends ConsumerState<ShareQrDialog> {
+  final GlobalKey _posterCardKey = GlobalKey();
+  bool _isPrinting = false;
 
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(36),
-        build: (pw.Context ctx) {
-          return pw.Center(
-            child: pw.Column(
-              mainAxisAlignment: pw.MainAxisAlignment.center,
-              crossAxisAlignment: pw.CrossAxisAlignment.center,
-              children: [
-                pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.indigo700,
-                    borderRadius: pw.BorderRadius.circular(12),
-                  ),
-                  child: pw.Text(
-                    libraryName.toUpperCase(),
-                    style: pw.TextStyle(
-                      fontSize: 26,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.white,
-                    ),
-                  ),
-                ),
-                pw.SizedBox(height: 12),
-                if (address != null && address!.isNotEmpty) ...[
-                  pw.Text(
-                    address!,
-                    style: const pw.TextStyle(
-                      fontSize: 14,
-                      color: PdfColors.grey700,
-                    ),
-                  ),
-                  pw.SizedBox(height: 8),
-                ],
-                pw.Text(
-                  'SCAN TO VIEW LIVE SEAT AVAILABILITY',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey900,
-                  ),
-                ),
-                pw.SizedBox(height: 24),
-                pw.Container(
-                  padding: const pw.EdgeInsets.all(16),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey400, width: 2),
-                    borderRadius: pw.BorderRadius.circular(16),
-                  ),
-                  child: pw.BarcodeWidget(
-                    barcode: pw.Barcode.qrCode(),
-                    data: seatMapUrl,
-                    width: 240,
-                    height: 240,
-                  ),
-                ),
-                pw.SizedBox(height: 24),
-                pw.Text(
-                  'Point your smartphone camera at this QR code\nto see available seats in real-time.',
-                  textAlign: pw.TextAlign.center,
-                  style: const pw.TextStyle(
-                    fontSize: 13,
-                    color: PdfColors.grey600,
-                  ),
-                ),
-                pw.SizedBox(height: 36),
-                pw.Divider(color: PdfColors.grey300),
-                pw.SizedBox(height: 8),
-                pw.Text(
-                  'Powered by Cozy Corner • Smart Study Library Platform',
-                  style: const pw.TextStyle(
-                    fontSize: 10,
-                    color: PdfColors.grey500,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+  String get seatMapUrl => 'https://study-lib-mgmt-2026.web.app/seats?lib=${widget.libraryId}';
 
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: '${libraryName}_Seat_Map_QR.pdf',
-    );
+  Future<void> _printPoster(LibraryModel? library) async {
+    if (_isPrinting) return;
+    setState(() => _isPrinting = true);
+    try {
+      await A4EntrancePosterPdfService.printA4Poster(
+        context: context,
+        libraryId: widget.libraryId,
+        library: library,
+        seatMapUrl: seatMapUrl,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to print poster: $e'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPrinting = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final liveLibrary = ref.watch(currentLibraryProvider).value;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Center(
+        child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.qr_code_2_rounded,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Seat Map QR Code',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          libraryName,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.outline,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Students can scan this QR code with any smartphone camera to check live seat occupancy instantly without downloading any app.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
+              // Top Action Bar
               Container(
-                padding: const EdgeInsets.all(16),
+                constraints: const BoxConstraints(maxWidth: 420),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: theme.colorScheme.outlineVariant),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                  color: Colors.black.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.tune_rounded, size: 16, color: Colors.white),
+                      label: const Text('Customize Badges', style: TextStyle(color: Colors.white, fontSize: 12)),
+                      onPressed: () => PosterConfigService.showCustomizer(context, widget.libraryId),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
                 ),
-                child: QrImageView(
-                  data: seatMapUrl,
-                  version: QrVersions.auto,
-                  size: 200.0,
-                  backgroundColor: Colors.white,
-                  eyeStyle: const QrEyeStyle(
-                    eyeShape: QrEyeShape.square,
-                    color: Color(0xFF1E1B4B),
-                  ),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    dataModuleShape: QrDataModuleShape.square,
-                    color: Color(0xFF1E1B4B),
-                  ),
+              ),
+
+              // The Live Entrance Poster Card Preview wrapped in RepaintBoundary for 300+ DPI PDF export
+              RepaintBoundary(
+                key: _posterCardKey,
+                child: StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: PosterConfigService.streamAmenities(widget.libraryId),
+                  builder: (context, snapshot) {
+                    final amenities = snapshot.data ?? PosterConfigService.defaultAmenities;
+                    return EntrancePosterCard(
+                      library: liveLibrary,
+                      libraryId: widget.libraryId,
+                      amenities: amenities,
+                    );
+                  },
                 ),
               ),
+
               const SizedBox(height: 16),
+
+              // Bottom Action Buttons
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.5,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                constraints: const BoxConstraints(maxWidth: 420),
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        seatMapUrl,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontFamily: 'monospace',
-                          color: theme.colorScheme.primary,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
+                        icon: const Icon(Icons.share_rounded, size: 18),
+                        label: const Text('Share Link'),
+                        onPressed: () async {
+                          final libName = liveLibrary?.name ?? widget.libraryName ?? 'Study Library';
+                          await SharePlus.instance.share(
+                            ShareParams(
+                              text: 'Check live seat availability at $libName: $seatMapUrl',
+                              subject: '$libName - Live Seat Map',
+                            ),
+                          );
+                        },
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.copy_rounded, size: 18),
-                      tooltip: 'Copy Link',
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: seatMapUrl));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Seat map link copied to clipboard!'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF5D4037),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: _isPrinting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.print_rounded, size: 18),
+                        label: Text(_isPrinting ? 'Preparing…' : 'Print Poster'),
+                        onPressed: _isPrinting ? null : () => _printPoster(liveLibrary),
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.share_rounded, size: 18),
-                      label: const Text('Share Link'),
-                      onPressed: () async {
-                        await SharePlus.instance.share(
-                          ShareParams(
-                            text:
-                                'Check live seat availability at $libraryName: $seatMapUrl',
-                            subject: '$libraryName - Live Seat Map',
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      icon: const Icon(Icons.print_rounded, size: 18),
-                      label: const Text('Print Poster'),
-                      onPressed: () => _printPoster(context),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),

@@ -75,7 +75,6 @@ class MainActivity : FlutterFragmentActivity() {
                         val contentUri: Uri = try {
                             FileProvider.getUriForFile(this, authority, file)
                         } catch (ex: Exception) {
-                            // Fallback: copy to cacheDir which is always configured in file_paths.xml
                             val cacheFile = File(cacheDir, "studylibrary_install.apk")
                             file.copyTo(cacheFile, overwrite = true)
                             FileProvider.getUriForFile(this, authority, cacheFile)
@@ -110,6 +109,18 @@ class MainActivity : FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "study_library/app_widget").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "updateSeatWidget" -> {
+                    val occupied = (call.argument<Int>("occupied") ?: 0).toLong()
+                    val total = (call.argument<Int>("total") ?: 0).toLong()
+                    val libraryName = call.argument<String>("libraryName") ?: "Cozy Corner Library"
+                    SeatOccupancyWidgetProvider.updateAllWidgets(applicationContext, libraryName, occupied, total)
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
     }
 }
-

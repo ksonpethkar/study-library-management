@@ -1,9 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, debugPrint, defaultTargetPlatform;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, debugPrint, defaultTargetPlatform;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:study_library/services/badge_service.dart';
 import 'package:study_library/services/expiry_scheduler_service.dart';
+import 'package:study_library/services/notification_service.dart';
 
 class AuthRepository {
   final FirebaseAuth _auth;
@@ -61,7 +62,7 @@ class AuthRepository {
         'authMethod': 'Google Sign-In',
       });
     } catch (e) {
-      debugPrint('Login history log error: $e');
+      if (kDebugMode) debugPrint('Login history log error: $e');
     }
   }
 
@@ -82,7 +83,7 @@ class AuthRepository {
         await GoogleSignIn.instance.initialize();
         _googleSignInInitialized = true;
       } catch (e) {
-        debugPrint('GoogleSignIn warm-up: $e');
+        if (kDebugMode) debugPrint('GoogleSignIn warm-up: $e');
       }
     }
   }
@@ -92,7 +93,7 @@ class AuthRepository {
     if (!_googleSignInInitialized) {
       try {
         await GoogleSignIn.instance.initialize();
-      } catch (_) {}
+      } catch (_) { /* intentionally silent */ }
       _googleSignInInitialized = true;
     }
 
@@ -109,14 +110,17 @@ class AuthRepository {
     return await _auth.signInWithCredential(credential);
   }
 
-  Future<void> signOut() async {
+  Future<void> signOut({String? libraryId}) async {
     try {
+      if (libraryId != null && libraryId.isNotEmpty) {
+        await NotificationService.unsubscribeFromLibraryTopics(libraryId: libraryId);
+      }
       await ExpirySchedulerService.cancelExpiryReminders();
       await BadgeService.clearBadge();
       if (!kIsWeb) {
         try {
           await GoogleSignIn.instance.signOut();
-        } catch (_) {}
+        } catch (_) { /* intentionally silent */ }
       }
       await _auth.signOut();
     } catch (e) {

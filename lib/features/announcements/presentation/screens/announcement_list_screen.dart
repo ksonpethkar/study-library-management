@@ -10,7 +10,7 @@ import 'package:study_library/features/recycle_bin/data/repositories/recycle_bin
 
 /// Stream provider for announcements of the current library, sorted by createdAt descending.
 final announcementsStreamProvider =
-    StreamProvider.autoDispose<List<AnnouncementModel>>((ref) {
+    StreamProvider<List<AnnouncementModel>>((ref) {
   final libraryId = ref.watch(currentLibraryIdProvider);
   if (libraryId == null || libraryId.isEmpty) {
     return Stream.value([]);
@@ -344,6 +344,33 @@ class AnnouncementListScreen extends ConsumerWidget {
                                 ),
                               ],
                             ),
+                            // L7: Show read receipt count for admin
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.done_all_rounded,
+                                  size: 14,
+                                  color: announcement.readBy.isNotEmpty
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.outline,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  announcement.readBy.isEmpty
+                                      ? 'Not read by anyone yet'
+                                      : '${announcement.readBy.length} student${announcement.readBy.length == 1 ? '' : 's'} read this',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: announcement.readBy.isNotEmpty
+                                        ? theme.colorScheme.primary
+                                        : theme.colorScheme.outline,
+                                    fontWeight: announcement.readBy.isNotEmpty
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ],
                       ),
@@ -519,7 +546,7 @@ class _AnnouncementFormDialogState extends State<_AnnouncementFormDialog> {
               'createdAt': FieldValue.serverTimestamp(),
               'processed': false,
             });
-          } catch (_) {}
+          } catch (_) { /* intentionally silent */ }
         }
       }
 

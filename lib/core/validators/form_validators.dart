@@ -20,7 +20,7 @@ class FormValidators {
       return 'Name is too long. Please keep it under 100 characters.';
     }
 
-    if (!RegExp(RegexPatterns.name).hasMatch(value.trim())) {
+    if (!RegExp(RegexPatterns.name, unicode: true).hasMatch(value.trim())) {
       return 'Please enter a valid name using only letters and spaces.';
     }
     return null;

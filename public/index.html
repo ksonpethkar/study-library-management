@@ -1,10 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>
+    // Seamless routing: Redirect any Flutter hash routes (e.g. /#/admin/more) to /app/#/...
+    if (window.location.hash && window.location.hash.startsWith('#/')) {
+      window.location.replace('/app/' + window.location.hash);
+    }
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Cozy Corner Centre — Smart Study Library</title>
   <meta name="description" content="Download official mobile app for The Cozy Corner Centre Study Library. Manage seats, memberships, digital IDs, and fee receipts.">
+  <link rel="icon" type="image/png" href="/app/favicon.png">
+  <link rel="apple-touch-icon" href="/app/icons/Icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -425,7 +433,7 @@
 
       <div class="badge-container">
         <span class="badge badge-success">● Production Ready</span>
-        <span class="badge" id="appVersionBadge">v1.5.26 (Build 34)</span>
+        <span class="badge" id="appVersionBadge">v1.5.28 (Build 36)</span>
         <span class="badge badge-size" id="apkSizeBadge">47.7 MB (Optimized)</span>
       </div>
 
@@ -444,6 +452,11 @@
         <a href="/seats/" class="seat-btn" id="seatMapBtn">
           <span>🪑 View Live Seat Map</span>
         </a>
+
+        <!-- Web App Direct Link for Laptop / Desktop -->
+        <a href="/app/" class="seat-btn" id="webAppBtn" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; border: none; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+          <span>💻 Open Web App (Mobile / Laptop / Desktop)</span>
+        </a>
       </div>
 
       <div class="download-meta">Verified Signed Release • Direct Fast Download</div>
@@ -451,7 +464,7 @@
 
     <!-- What's New Card with Role Filter -->
     <div class="whats-new-card">
-      <h2 id="whatsNewHeading">🔥 What's New in v1.5.26</h2>
+      <h2 id="whatsNewHeading">🔥 What's New in v1.5.28 (Phase 1, 2 & 3 Update)</h2>
 
       <!-- Switcher: For Students vs For Library Owners -->
       <div class="role-tabs">

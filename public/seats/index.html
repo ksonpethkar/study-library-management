@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Live Seat Map — Cozy Corner</title>
+  <link rel="icon" type="image/png" href="/app/favicon.png">
+  <link rel="apple-touch-icon" href="/app/icons/Icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -540,18 +542,26 @@
     // Default to the active Cozy Corner library
     const DEFAULT_LIBRARY_ID = 'aPSMq8xSAjuZQh2fTtuY';
 
-    // Extract libraryId from query string (?lib=...) or path
+    // State variables
+    let sectionsList = [];
+    let activeSectionId = null;
+    let seatsUnsubscribe = null;
+    let libraryUnsubscribe = null;
+    let sectionsUnsubscribe = null;
+
+    // Extract libraryId from query string (?lib=...) or path (/library/:id/seats)
     const urlParams = new URLSearchParams(window.location.search);
     let libraryId = urlParams.get('lib');
     if (!libraryId) {
       const match = window.location.pathname.match(/\/library\/([^\/]+)\/seats/);
       if (match) libraryId = match[1];
     }
+
     async function init() {
       if (!libraryId) {
         try {
           const cfgDoc = await db.collection('app_config').doc('default').get();
-          if (cfgDoc.exists && cfgDoc.data().defaultLibraryId) {
+          if (cfgDoc.exists && cfgDoc.data() && cfgDoc.data().defaultLibraryId) {
             libraryId = cfgDoc.data().defaultLibraryId;
           }
         } catch (e) {
@@ -562,10 +572,13 @@
         libraryId = DEFAULT_LIBRARY_ID;
       }
 
+      console.log('Loading live seats for libraryId:', libraryId);
+
       // Listen to Library Info
-      db.collection('libraries').doc(libraryId).onSnapshot(doc => {
+      if (libraryUnsubscribe) libraryUnsubscribe();
+      libraryUnsubscribe = db.collection('libraries').doc(libraryId).onSnapshot(doc => {
         if (doc.exists) {
-          const data = doc.data();
+          const data = doc.data() || {};
           if (data.name) {
             document.getElementById('libName').innerText = data.name;
             document.title = data.name + ' — Live Seat Map';
@@ -582,29 +595,48 @@
             document.documentElement.style.setProperty('--primary-hover', hex);
           }
         }
+      }, err => {
+        console.warn('Library metadata listener error:', err);
       });
 
       // Listen to Sections
-      db.collection('libraries').doc(libraryId).collection('sections').onSnapshot(snap => {
+      if (sectionsUnsubscribe) sectionsUnsubscribe();
+      sectionsUnsubscribe = db.collection('libraries').doc(libraryId).collection('sections').onSnapshot(snap => {
         sectionsList = [];
         snap.forEach(doc => {
           sectionsList.push({ id: doc.id, ...doc.data() });
         });
 
+        // Sort sections by order / name
+        sectionsList.sort((a, b) => (a.order || 0) - (b.order || 0));
+
         renderSectionTabs();
 
-        if (sectionsList.length > 0 && !activeSectionId) {
-          selectSection(sectionsList[0].id);
-        } else if (sectionsList.length === 0) {
+        if (sectionsList.length > 0) {
+          // If current activeSectionId is not in list, pick the first
+          if (!activeSectionId || !sectionsList.some(s => s.id === activeSectionId)) {
+            selectSection(sectionsList[0].id);
+          }
+        } else {
           document.getElementById('loadingIndicator').style.display = 'none';
           document.getElementById('emptyMessage').style.display = 'block';
+          document.getElementById('gridContainer').style.display = 'none';
         }
+      }, err => {
+        console.error('Error fetching sections:', err);
+        document.getElementById('loadingIndicator').innerHTML = 
+          `<p style="color: #EF4444; font-size: 0.9rem; font-weight: 600;">Unable to connect to live server.<br><button onclick="location.reload()" style="margin-top:8px;padding:6px 12px;border-radius:8px;border:none;background:var(--primary);color:#fff;cursor:pointer;">Retry</button></p>`;
       });
     }
 
     function renderSectionTabs() {
       const tabsContainer = document.getElementById('sectionTabs');
       tabsContainer.innerHTML = '';
+      if (sectionsList.length <= 1) {
+        tabsContainer.style.display = 'none';
+        return;
+      }
+      tabsContainer.style.display = 'flex';
       sectionsList.forEach(sec => {
         const btn = document.createElement('button');
         btn.className = 'section-tab' + (sec.id === activeSectionId ? ' active' : '');
@@ -618,14 +650,17 @@
       activeSectionId = sectionId;
       renderSectionTabs();
 
-      if (seatsUnsubscribe) seatsUnsubscribe();
+      if (seatsUnsubscribe) {
+        seatsUnsubscribe();
+        seatsUnsubscribe = null;
+      }
 
       document.getElementById('loadingIndicator').style.display = 'block';
       document.getElementById('gridContainer').style.display = 'none';
       document.getElementById('emptyMessage').style.display = 'none';
 
       const sec = sectionsList.find(s => s.id === sectionId);
-      const cols = (sec && sec.cols) ? sec.cols : 4;
+      const cols = (sec && sec.cols && sec.cols > 0) ? sec.cols : 6;
 
       // Real-time listener for seats in active section
       seatsUnsubscribe = db.collection('libraries').doc(libraryId)
@@ -647,8 +682,9 @@
 
           updateStats(seats);
         }, err => {
-          console.error(err);
-          document.getElementById('loadingIndicator').innerHTML = '<p style="color: red; font-size: 0.85rem;">Error loading seats: ' + err.message + '</p>';
+          console.error('Error fetching seats:', err);
+          document.getElementById('loadingIndicator').innerHTML = 
+            `<p style="color: #EF4444; font-size: 0.9rem; font-weight: 600;">Error loading seats: ${err.message}<br><button onclick="selectSection('${sectionId}')" style="margin-top:8px;padding:6px 12px;border-radius:8px;border:none;background:var(--primary);color:#fff;cursor:pointer;">Retry</button></p>`;
         });
     }
 
@@ -657,10 +693,14 @@
       grid.style.gridTemplateColumns = `repeat(${cols}, minmax(44px, 52px))`;
       grid.innerHTML = '';
 
-      // Sort by row, then col
+      // Sort by row, then col, then label
       seats.sort((a, b) => {
-        if (a.row !== b.row) return (a.row || 0) - (b.row || 0);
-        return (a.col || a.column || 0) - (b.col || b.column || 0);
+        if ((a.row ?? 0) !== (b.row ?? 0)) return (a.row ?? 0) - (b.row ?? 0);
+        if ((a.col ?? 0) !== (b.col ?? 0)) return (a.col ?? 0) - (b.col ?? 0);
+        const aNum = parseInt(a.label, 10);
+        const bNum = parseInt(b.label, 10);
+        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+        return (a.label || '').localeCompare(b.label || '');
       });
 
       seats.forEach(seat => {
@@ -668,19 +708,25 @@
         const status = (seat.status || 'available').toLowerCase();
         div.className = `seat-cell ${status}`;
         
-        let genderIcon = '';
-        if (seat.genderRestriction === 'male') genderIcon = '<span class="gender-badge">👨</span>';
-        if (seat.genderRestriction === 'female') genderIcon = '<span class="gender-badge">👩</span>';
+        let genderBadge = '';
+        if (seat.genderRestriction === 'male') {
+          genderBadge = '<span class="gender-badge" style="color:#2563EB;" title="Male Only">♂</span>';
+        } else if (seat.genderRestriction === 'female') {
+          genderBadge = '<span class="gender-badge" style="color:#DB2777;" title="Female Only">♀</span>';
+        }
 
-        div.innerHTML = `${genderIcon}<span>${seat.label || seat.seatNumber || '•'}</span>`;
+        const seatDisplayLabel = seat.label || seat.seatNumber || '•';
+        div.innerHTML = `${genderBadge}<span>${seatDisplayLabel}</span>`;
 
         div.onclick = () => {
           if (status === 'available') {
-            showModal(seat.label || seat.seatNumber, '🟢 Currently Available');
+            showModal(seatDisplayLabel, '🟢 Currently Available', seat.genderRestriction);
           } else if (status === 'reserved') {
-            showModal(seat.label || seat.seatNumber, '🟡 Temporarily Reserved');
+            showModal(seatDisplayLabel, '🟡 Temporarily Reserved', seat.genderRestriction);
           } else if (status === 'occupied') {
-            showModal(seat.label || seat.seatNumber, '🔴 Currently Occupied');
+            showModal(seatDisplayLabel, '🔴 Currently Occupied', seat.genderRestriction);
+          } else {
+            showModal(seatDisplayLabel, '⚪ Under Maintenance', seat.genderRestriction);
           }
         };
 
@@ -704,9 +750,12 @@
       document.getElementById('statOccupied').innerText = occupied;
     }
 
-    function showModal(label, statusText) {
+    function showModal(label, statusText, gender) {
       document.getElementById('modalSeatTitle').innerText = 'Seat ' + label;
-      document.getElementById('modalSeatSubtitle').innerText = statusText;
+      let genderText = '';
+      if (gender === 'male') genderText = ' (Male Reserved)';
+      if (gender === 'female') genderText = ' (Female Reserved)';
+      document.getElementById('modalSeatSubtitle').innerText = statusText + genderText;
       document.getElementById('seatModal').style.display = 'flex';
     }
 
@@ -718,7 +767,8 @@
       if (e.target.id === 'seatModal') hideModal();
     }
 
-    init();
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
 </html>

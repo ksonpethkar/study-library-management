@@ -27,8 +27,10 @@ service cloud.firestore {
     // Owner = person who created the library OR a verified master admin
     function isOwner(libraryId) {
       return isAuth() && (
-        get(/databases/$(database)/documents/libraries/$(libraryId)).data.ownerId == uid() ||
-        isMasterAdmin()
+        isMasterAdmin() ||
+        (resource != null && resource.data.get('ownerId', '') == uid()) ||
+        (exists(/databases/$(database)/documents/libraries/$(libraryId)) &&
+         get(/databases/$(database)/documents/libraries/$(libraryId)).data.get('ownerId', '') == uid())
       );
     }
 
@@ -61,6 +63,12 @@ service cloud.firestore {
       allow update: if isOwner(libraryId) || staffCan(libraryId, 'canManageSettings');
       allow delete: if isOwner(libraryId);
 
+      // ── Seats (direct subcollection) ──────────────────────────────────────
+      match /seats/{seatId} {
+        allow read: if true;
+        allow write: if ownerOrStaffCan(libraryId, 'canManageSeats');
+      }
+
       // ── Sections & Seats (seat map) ─────────────────────────────────────
       match /sections/{sectionId} {
         allow read: if true;
@@ -82,14 +90,45 @@ service cloud.firestore {
       match /students/{studentId} {
         allow read: if isOwner(libraryId) ||
                        staffCan(libraryId, 'canManageStudents') ||
-                       (isAuth() && uid() == resource.data.userId);
+                       (isAuth() && (
+                         studentId == uid() ||
+                         uid() == resource.data.get('userId', '') ||
+                         uid() == resource.data.get('studentUserId', '') ||
+                         (resource.data.get('email', '') != '' && request.auth.token.email != null &&
+                          resource.data.get('email', '').lower() == request.auth.token.email.lower()) ||
+                         (request.auth.token.phone_number != null &&
+                          (resource.data.get('phone', '') == request.auth.token.phone_number ||
+                           ('+91' + resource.data.get('phone', '')) == request.auth.token.phone_number))
+                       ));
 
         allow create: if ownerOrStaffCan(libraryId, 'canManageStudents');
 
         allow update: if isOwner(libraryId) ||
                          staffCan(libraryId, 'canManageStudents') ||
-                         (isAuth() && uid() == resource.data.userId &&
-                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmToken', 'fcmUpdatedAt']));
+                         (isAuth() && (
+                           studentId == uid() ||
+                           uid() == resource.data.get('userId', '') ||
+                           uid() == resource.data.get('studentUserId', '') ||
+                           (resource.data.get('userId', '') == '' && (
+                             request.resource.data.get('userId', '') == uid() ||
+                             request.resource.data.get('studentUserId', '') == uid()
+                           )) ||
+                           (resource.data.get('email', '') != '' && request.auth.token.email != null &&
+                            resource.data.get('email', '').lower() == request.auth.token.email.lower()) ||
+                           (request.auth.token.phone_number != null &&
+                            (resource.data.get('phone', '') == request.auth.token.phone_number ||
+                             ('+91' + resource.data.get('phone', '')) == request.auth.token.phone_number))
+                         ) &&
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                            'fcmToken', 'fcmUpdatedAt', 'photoUrl', 'updatedAt', 'phone', 'email', 'emergencyContact', 'address', 'userId', 'studentUserId',
+                            'pinHash', 'biometricEnabled', 'pinUpdatedAt', 'pinResetByAdmin', 'pinResetMessage'
+                          ]) &&
+                          // SEC-S2: Ensure student cannot set sensitive membership/financial fields
+                          !request.resource.data.keys().hasAny([
+                            'membershipStatus', 'planStartDate', 'planEndDate', 'planId',
+                            'walletBalance', 'seatId', 'seatLabel', 'govIdNumber',
+                            'govIdType', 'govIdImageUrl', 'isDeleted'
+                          ]));
 
         allow delete: if isOwner(libraryId) || staffCan(libraryId, 'canDeleteStudents');
 
@@ -103,20 +142,21 @@ service cloud.firestore {
         // Students can read their OWN payment records via studentUserId field
         allow read: if isOwner(libraryId) ||
                        staffCan(libraryId, 'canRecordPayments') ||
+                       staffCan(libraryId, 'canViewRevenue') ||
                        (isAuth() && uid() == resource.data.get('studentUserId', ''));
 
         // SERVER-SIDE VALIDATION (ARCH-4):
         // - amount: positive number, max ₹10,00,000
         // - studentId: must be a non-empty string (can't write orphan payments)
-        // - paymentMethod: must be a non-empty string
+        // - paymentMethod / method: must be a non-empty string
         allow create: if ownerOrStaffCan(libraryId, 'canRecordPayments') &&
                          request.resource.data.amount is number &&
                          request.resource.data.amount > 0 &&
                          request.resource.data.amount < 1000000 &&
                          request.resource.data.studentId is string &&
                          request.resource.data.studentId.size() > 0 &&
-                         request.resource.data.paymentMethod is string &&
-                         request.resource.data.paymentMethod.size() > 0;
+                         ((request.resource.data.get('paymentMethod', '') is string && request.resource.data.get('paymentMethod', '').size() > 0) ||
+                          (request.resource.data.get('method', '') is string && request.resource.data.get('method', '').size() > 0));
 
         allow update: if ownerOrStaffCan(libraryId, 'canRecordPayments') &&
                          request.resource.data.amount is number &&
@@ -128,23 +168,18 @@ service cloud.firestore {
 
       // ── Receipts ─────────────────────────────────────────────────────────
       match /receipts/{receiptId} {
+        // Students can only read THEIR OWN receipts; staff/owner see all
         allow read: if isOwner(libraryId) ||
                        staffCan(libraryId, 'canRecordPayments') ||
+                       staffCan(libraryId, 'canViewRevenue') ||
                        (isAuth() && uid() == resource.data.get('studentUserId', ''));
 
-        // SERVER-SIDE VALIDATION (ARCH-4):
-        // - amount: positive number
-        // - studentId: non-empty string (no orphan receipts)
-        // - receiptNumber: must be a non-empty string
-        // - validTo: must be a timestamp (prevents fake/missing expiry dates)
+        // SEC-R1: Only owner/staff can create receipts (prevents payment bypass)
         allow create: if ownerOrStaffCan(libraryId, 'canRecordPayments') &&
                          request.resource.data.amount is number &&
                          request.resource.data.amount > 0 &&
                          request.resource.data.studentId is string &&
-                         request.resource.data.studentId.size() > 0 &&
-                         request.resource.data.receiptNumber is string &&
-                         request.resource.data.receiptNumber.size() > 0 &&
-                         request.resource.data.validTo is timestamp;
+                         request.resource.data.studentId.size() > 0;
 
         allow update: if ownerOrStaffCan(libraryId, 'canRecordPayments') &&
                          request.resource.data.amount is number &&
@@ -153,48 +188,109 @@ service cloud.firestore {
         allow delete: if isOwner(libraryId);
       }
 
+      // ── Metadata (counters, sync tokens) ──────────────────────────────────
+      // SEC-H2 FIX: Students can read metadata but only owner/staff can write
+      // (prevents counter manipulation by students)
+      match /metadata/{docId} {
+        allow read: if isAuth();
+        allow write: if isOwner(libraryId) || isActiveStaff(libraryId);
+      }
+
       // ── Revenue / Financial reports ───────────────────────────────────────
       match /revenue/{docId} {
         allow read: if isOwner(libraryId) || staffCan(libraryId, 'canViewRevenue');
         allow write: if isOwner(libraryId);
       }
 
-      // ── Announcements ────────────────────────────────────────────────────
-      match /announcements/{id} {
-        allow read: if isAuth();
-        allow write: if ownerOrStaffCan(libraryId, 'canManageStudents');
+      // ── Expenses ──────────────────────────────────────────────────────────
+      // SEC-8 FIX: canViewRevenue is VIEW only — write requires owner
+      match /expenses/{expenseId} {
+        allow read: if isOwner(libraryId) || staffCan(libraryId, 'canViewRevenue');
+        allow write: if isOwner(libraryId);
       }
 
-      // ── Holidays (public) ────────────────────────────────────────────────
+      // ── Announcements ────────────────────────────────────────────────────
+      // Enrolled students and staff can read all announcements
+      match /announcements/{id} {
+        allow read: if isAuth();
+        allow update: if ownerOrStaffCan(libraryId, 'canManageStudents') ||
+                         (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']));
+        allow create, delete: if ownerOrStaffCan(libraryId, 'canManageStudents');
+      }
+
+      // ── Holidays ─────────────────────────────────────────────────────────
+      // Require auth to read — no public access to library schedule data
       match /holidays/{id} {
-        allow read: if true;
+        allow read: if isAuth();
         allow write: if ownerOrStaffCan(libraryId, 'canManageSettings');
       }
 
       // ── Feedback ─────────────────────────────────────────────────────────
+      // SEC-4 FIX: Students can only read their OWN feedback (cross-library PII leak)
       match /feedback/{id} {
-        allow create: if isAuth();
-        allow read, update, delete: if isOwner(libraryId) ||
-                                       staffCan(libraryId, 'canManageStudents');
-      }
-
-      // ── Requests ─────────────────────────────────────────────────────────
-      // SEC-1 FIX: Each student can only read THEIR OWN requests — not other students'
-      match /requests/{id} {
         allow read: if isOwner(libraryId) ||
                        staffCan(libraryId, 'canManageStudents') ||
-                       (isAuth() && resource.data.studentId == uid());
+                       (isAuth() && resource.data.get('studentUserId', '') == uid());
         allow create: if isAuth() &&
-          request.resource.data.studentId == uid() &&
-          request.resource.data.status == 'pending';
+                         request.resource.data.get('libraryId', '') == libraryId;
         allow update, delete: if isOwner(libraryId) ||
                                  staffCan(libraryId, 'canManageStudents');
       }
 
-      // ── Audit log — immutable ─────────────────────────────────────────────
-      match /audit_log/{id} {
-        allow read: if isOwner(libraryId) || staffCan(libraryId, 'canViewRevenue');
+      // ── Requests ─────────────────────────────────────────────────────────
+      // SEC-5 FIX: Students can only read their OWN requests (cross-library PII leak)
+      match /requests/{id} {
+        allow read: if isOwner(libraryId) ||
+                       staffCan(libraryId, 'canManageStudents') ||
+                       (isAuth() && (
+                         resource.data.studentId == uid() ||
+                         resource.data.get('studentUserId', '') == uid() ||
+                         resource.data.get('userId', '') == uid()
+                       ));
         allow create: if isAuth();
+        allow update, delete: if isOwner(libraryId) ||
+                                 staffCan(libraryId, 'canManageStudents') ||
+                                 (isAuth() && (
+                                   resource.data.studentId == uid() ||
+                                   resource.data.get('studentUserId', '') == uid() ||
+                                   resource.data.get('userId', '') == uid()
+                                 ) && resource.data.get('status', 'pending') == 'pending');
+      }
+
+      // ── Student & In-App Notifications ─────────────────────────────────────
+      // SEC-3 FIX: Students can only read/create their own notifications
+      match /notifications/{id} {
+        allow read: if isOwner(libraryId) ||
+                       staffCan(libraryId, 'canManageStudents') ||
+                       (isAuth() && resource.data.get('targetUserId', '') == uid());
+
+        // Students can create notifications for themselves only (e.g. renewal triggers)
+        // Owner/staff can create for anyone
+        allow create: if ownerOrStaffCan(libraryId, 'canManageStudents') ||
+                         (isAuth() && request.resource.data.get('targetUserId', '') == uid());
+
+        // Students can mark their own notifications read; staff/owner can update any
+        allow update: if ownerOrStaffCan(libraryId, 'canManageStudents') ||
+                         (isAuth() && resource.data.get('targetUserId', '') == uid() &&
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'readAt']));
+
+        allow delete: if isOwner(libraryId) ||
+                         staffCan(libraryId, 'canManageStudents') ||
+                         (isAuth() && (resource.data.get('targetUserId', '') == uid() ||
+                                       resource.data.get('targetRole', '') == 'student'));
+      }
+
+      // ── Admin Notifications ───────────────────────────────────────────────
+      match /admin_notifications/{id} {
+        allow create: if isAuth();
+        allow read, update, delete: if isOwner(libraryId) || staffCan(libraryId, 'canManageStudents');
+      }
+
+      // ── Audit log — immutable ─────────────────────────────────────────────
+      // SEC-6 FIX: Only owner/staff can write audit entries (prevent log pollution)
+      match /audit_log/{id} {
+        allow read: if isOwner(libraryId) || staffCan(libraryId, 'canViewRevenue') || staffCan(libraryId, 'canManageStudents');
+        allow create: if ownerOrStaffCan(libraryId, 'canManageStudents');
         allow update, delete: if false; // NEVER modifiable
       }
 
@@ -221,28 +317,51 @@ service cloud.firestore {
         allow read: if isAuth();
         allow write: if isOwner(libraryId) || staffCan(libraryId, 'canManageSettings');
       }
+
+      // ── Daily Backups & Chunks ────────────────────────────────────────────
+      match /daily_backups/{backupId} {
+        allow read, write: if isOwner(libraryId) || staffCan(libraryId, 'canManageSettings');
+
+        match /chunks/{chunkId} {
+          allow read, write: if isOwner(libraryId) || staffCan(libraryId, 'canManageSettings');
+        }
+      }
     }
 
-    // ── Users collection (role persistence) ─────────────────────────────────
+    // ── Users collection (role persistence & FCM tokens) ────────────────────
     match /users/{userId} {
-      allow read: if isAuth() && uid() == userId;
-      allow create: if isAuth() && uid() == userId;
-      allow update: if isAuth() && uid() == userId;
-      allow delete: if isAuth() && uid() == userId;
+      // S7 FIX: Users can only read their own profile & FCM tokens; master admins can read for support
+      allow read: if isAuth() && (uid() == userId || isMasterAdmin());
+
+      // Prevent privilege escalation: only master admins can assign 'admin' role
+      allow create: if isAuth() && (
+        isMasterAdmin() ||
+        (uid() == userId && request.resource.data.get('role', 'student') != 'admin')
+      );
+
+      // S7 & S10 FIX: Prevent self-escalation of roles and unauthorized edits
+      allow update: if isAuth() && (
+        isMasterAdmin() ||
+        (uid() == userId && (
+          // Role cannot be changed by the user themselves unless already matches
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
+           request.resource.data.role == resource.data.role)
+        ))
+      );
+
+      allow delete: if isAuth() && (uid() == userId || isMasterAdmin());
 
       match /login_history/{logId} {
-        allow read, write: if isAuth() && uid() == userId;
+        allow read, write: if isAuth() && (uid() == userId || isMasterAdmin());
       }
     }
 
     // ── Admin whitelist ──────────────────────────────────────────────────────
+    // SEC-C1 FIX: Only master admins can manage the admin whitelist.
+    // Previously ANY authenticated user could write — privilege escalation risk.
     match /admin_whitelist/{emailKey} {
       allow read: if isAuth();
-      allow write: if isAuth() && (
-        !exists(/databases/$(database)/documents/admin_whitelist/$(email())) ||
-        (exists(/databases/$(database)/documents/admin_whitelist/$(email())) &&
-         get(/databases/$(database)/documents/admin_whitelist/$(email())).data.isActive == true)
-      );
+      allow write: if isMasterAdmin();
     }
 
     // ── App config (public read, no write) ──────────────────────────────────
@@ -252,8 +371,10 @@ service cloud.firestore {
     }
 
     // ── Root recycle bin fallback ───────────────────────────────────────────
+    // SEC-H1 FIX: Only master admins can access root-level recycle bin.
+    // Previously any authenticated user could read/write deleted data.
     match /recycle_bin/{docId} {
-      allow read, write: if isAuth();
+      allow read, write: if isMasterAdmin();
     }
 
     // ── Collection Group queries ─────────────────────────────────────────────
@@ -270,7 +391,14 @@ service cloud.firestore {
     // Prevents Student A from using collectionGroup('students') to read Student B's data
     match /{path=**}/students/{studentDoc} {
       allow read: if isAuth() && (
+        studentDoc == uid() ||
         uid() == resource.data.get('userId', '') ||
+        uid() == resource.data.get('studentUserId', '') ||
+        (resource.data.get('email', '') != '' && request.auth.token.email != null &&
+         resource.data.get('email', '').lower() == request.auth.token.email.lower()) ||
+        (request.auth.token.phone_number != null &&
+         (resource.data.get('phone', '') == request.auth.token.phone_number ||
+          ('+91' + resource.data.get('phone', '')) == request.auth.token.phone_number)) ||
         uid() == get(/databases/$(database)/documents/libraries/$(resource.data.get('libraryId', 'NONE'))).data.ownerId
       );
     }

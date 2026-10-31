@@ -1,6 +1,9 @@
 class AppConstants {
   static const String appName = 'Study Library Management';
-  static const String appVersion = '1.0.0';
+  // Note: Use PackageInfo.fromPlatform() for runtime version display.
+  // This constant is kept as a compile-time fallback only.
+  static const String appVersion = '1.5.44';
+  static const int buildNumber = 52;
 
   // Default values
   static const int minAge = 14;

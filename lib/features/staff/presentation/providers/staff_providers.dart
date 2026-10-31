@@ -102,3 +102,11 @@ final canManageSettingsProvider = Provider<bool>((ref) {
   if (staff == null) return true;
   return staff.canManageSettings;
 });
+
+/// Can export library data and reports.
+final canExportDataProvider = Provider<bool>((ref) {
+  final staff = ref.watch(currentUserStaffProvider).value;
+  if (staff == null) return true;
+  return staff.canExportData;
+});
+

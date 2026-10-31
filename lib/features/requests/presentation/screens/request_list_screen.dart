@@ -1,9 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/badge_service.dart';
+import 'package:study_library/services/student_provisioning_service.dart';
 
 /// Data representation of a student request from raw Firestore data.
 class StudentRequestItem {
@@ -12,6 +17,14 @@ class StudentRequestItem {
   final String message;
   final String studentName;
   final String studentId;
+  final String? studentPhone;
+  final String? studentEmail;
+  final String? membershipNumber;
+  final String? currentSeatLabel;
+  final String? currentSectionName;
+  final String? targetSeatLabel;
+  final String? targetSectionName;
+  final String? reason;
   final String status;
   final DateTime? createdAt;
   final String? rejectionReason;
@@ -22,6 +35,14 @@ class StudentRequestItem {
     required this.message,
     required this.studentName,
     required this.studentId,
+    this.studentPhone,
+    this.studentEmail,
+    this.membershipNumber,
+    this.currentSeatLabel,
+    this.currentSectionName,
+    this.targetSeatLabel,
+    this.targetSectionName,
+    this.reason,
     required this.status,
     this.createdAt,
     this.rejectionReason,
@@ -31,23 +52,33 @@ class StudentRequestItem {
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
     final data = doc.data() ?? {};
+    final studentData = (data['studentData'] as Map<String, dynamic>?) ?? {};
 
     // Support both direct fields and nested studentData fallback
     String studentName = 'Student';
     if (data['studentName'] is String && (data['studentName'] as String).trim().isNotEmpty) {
       studentName = (data['studentName'] as String).trim();
-    } else if (data['studentData'] is Map &&
-        (data['studentData'] as Map)['name'] != null &&
-        (data['studentData'] as Map)['name'].toString().trim().isNotEmpty) {
-      studentName = (data['studentData'] as Map)['name'].toString().trim();
+    } else if (studentData['name'] != null && studentData['name'].toString().trim().isNotEmpty) {
+      studentName = studentData['name'].toString().trim();
     }
+
+    final rawCurrentSeat = (data['currentSeatLabel'] ?? data['currentSeatId'] ?? studentData['currentSeatId']) as String?;
+    final rawTargetSeat = (data['targetSeatLabel'] ?? data['targetSeatId'] ?? data['seatId'] ?? studentData['targetSeatId']) as String?;
 
     return StudentRequestItem(
       id: doc.id,
       type: data['type'] as String? ?? 'General Request',
-      message: data['message'] as String? ?? '',
+      message: (data['message'] ?? data['reason'] ?? '') as String? ?? '',
       studentName: studentName,
       studentId: data['studentId'] as String? ?? '',
+      studentPhone: (data['studentPhone'] ?? studentData['phone']) as String?,
+      studentEmail: (data['studentEmail'] ?? studentData['email']) as String?,
+      membershipNumber: (data['membershipNumber'] ?? studentData['membershipNumber']) as String?,
+      currentSeatLabel: rawCurrentSeat != null ? SeatHelper.formatSeatLabel(rawLabel: rawCurrentSeat) : null,
+      currentSectionName: (data['currentSectionName'] ?? studentData['currentSectionName']) as String?,
+      targetSeatLabel: rawTargetSeat != null ? SeatHelper.formatSeatLabel(rawLabel: rawTargetSeat) : null,
+      targetSectionName: (data['targetSectionName'] ?? studentData['targetSectionName']) as String?,
+      reason: (data['reason'] ?? data['message']) as String?,
       status: (data['status'] as String? ?? 'pending').trim().toLowerCase(),
       createdAt: _parseDate(data['createdAt']),
       rejectionReason: (data['rejectionReason'] ?? data['rejectReason']) as String?,
@@ -151,7 +182,7 @@ class RequestListScreen extends ConsumerWidget {
       data: (requests) {
         final pending = requests.where((r) => r.status == 'pending').toList();
         final approved = requests.where((r) => r.status == 'approved').toList();
-        final rejected = requests.where((r) => r.status == 'rejected').toList();
+        final rejected = requests.where((r) => r.status == 'rejected' || r.status == 'superseded' || r.status == 'cancelled').toList();
 
         return DefaultTabController(
           length: 4,
@@ -309,11 +340,62 @@ class RequestListScreen extends ConsumerWidget {
         separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final item = items[index];
-          return _RequestCard(
+          final card = _RequestCard(
             request: item,
             onApprove: () => _updateRequestStatus(context, libraryId, item.id, 'approved'),
             onReject: () => _promptReject(context, libraryId, item),
             onDelete: () => _confirmDelete(context, libraryId, item.id),
+          );
+
+          if (item.status != 'pending') {
+            return card;
+          }
+
+          return Dismissible(
+            key: ValueKey('req_dismiss_${item.id}'),
+            direction: DismissDirection.horizontal,
+            background: Container(
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.green.shade600,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 26),
+                  SizedBox(width: 8),
+                  Text('Quick Approve', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                ],
+              ),
+            ),
+            secondaryBackground: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.red.shade600,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text('Reject Request', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  SizedBox(width: 8),
+                  Icon(Icons.cancel_rounded, color: Colors.white, size: 26),
+                ],
+              ),
+            ),
+            confirmDismiss: (direction) async {
+              if (direction == DismissDirection.startToEnd) {
+                HapticFeedback.mediumImpact();
+                await _updateRequestStatus(context, libraryId, item.id, 'approved');
+              } else if (direction == DismissDirection.endToStart) {
+                HapticFeedback.lightImpact();
+                await _promptReject(context, libraryId, item);
+              }
+              return false; // Retain card state until Firestore stream updates the list
+            },
+            child: card,
           );
         },
       ),
@@ -330,25 +412,85 @@ class RequestListScreen extends ConsumerWidget {
     if (libraryId == null || libraryId.isEmpty) return;
 
     if (newStatus == 'approved') {
-      final confirmed = await showDialog<bool>(
+      final confirmed = await showModalBottomSheet<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Approve Request'),
-          content: const Text('Are you sure you want to approve this request?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.green.shade700,
-                foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewPadding.bottom + 16,
+            left: 20,
+            right: 20,
+            top: 12,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Approve'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Approve Request',
+                      style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Are you sure you want to approve this request? The student will be provisioned and assigned accordingly.',
+                style: Theme.of(ctx).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: const Text('Approve'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       );
 
@@ -358,20 +500,28 @@ class RequestListScreen extends ConsumerWidget {
     if (!context.mounted) return;
 
     try {
-      final updateData = <String, dynamic>{
-        'status': newStatus,
-        'processedAt': FieldValue.serverTimestamp(),
-      };
-      if (reason != null && reason.trim().isNotEmpty) {
-        updateData['rejectionReason'] = reason.trim();
-      }
+      if (newStatus == 'approved') {
+        // Complete Provisioning: Creates student, assigns seat, links user, and updates request
+        await StudentProvisioningService.approveAndProvisionRequest(
+          libraryId: libraryId,
+          requestId: requestId,
+        );
+      } else {
+        final updateData = <String, dynamic>{
+          'status': newStatus,
+          'processedAt': FieldValue.serverTimestamp(),
+        };
+        if (reason != null && reason.trim().isNotEmpty) {
+          updateData['rejectionReason'] = reason.trim();
+        }
 
-      await FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('requests')
-          .doc(requestId)
-          .update(updateData);
+        await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('requests')
+            .doc(requestId)
+            .update(updateData);
+      }
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -405,15 +555,64 @@ class RequestListScreen extends ConsumerWidget {
   ) async {
     final reasonController = TextEditingController();
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reject Request'),
-        content: Column(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).viewPadding.bottom + 16,
+          left: 20,
+          right: 20,
+          top: 12,
+        ),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Are you sure you want to reject this request from ${request.studentName}?'),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.cancel_rounded, color: Colors.red, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Reject Request',
+                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Are you sure you want to reject this request from ${request.studentName}?',
+              style: Theme.of(ctx).textTheme.bodyMedium,
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: reasonController,
@@ -421,26 +620,37 @@ class RequestListScreen extends ConsumerWidget {
                 labelText: 'Rejection Reason (optional)',
                 hintText: 'e.g. Seat unavailable, invalid plan...',
                 border: OutlineInputBorder(),
-                isDense: true,
               ),
               maxLines: 2,
             ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(ctx).colorScheme.error,
+                      foregroundColor: Theme.of(ctx).colorScheme.onError,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    child: const Text('Reject Request'),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-              foregroundColor: Theme.of(ctx).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Reject'),
-          ),
-        ],
       ),
     );
 
@@ -462,27 +672,84 @@ class RequestListScreen extends ConsumerWidget {
   ) async {
     if (libraryId == null || libraryId.isEmpty) return;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Request'),
-        content: const Text(
-          'Are you sure you want to delete this request record? This action cannot be undone.',
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-              foregroundColor: Theme.of(ctx).colorScheme.onError,
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewPadding.bottom + 16,
+          left: 20,
+          right: 20,
+          top: 12,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
             ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Delete Request Record',
+                    style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Are you sure you want to delete this request record? This action cannot be undone.',
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(ctx).colorScheme.error,
+                      foregroundColor: Theme.of(ctx).colorScheme.onError,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    child: const Text('Delete'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
 
@@ -538,6 +805,7 @@ class _RequestCard extends StatelessWidget {
 
   String _formatType(String type) {
     switch (type.toLowerCase()) {
+      case 'seat_change':
       case 'seatchange':
         return 'Seat Change';
       case 'newregistration':
@@ -552,6 +820,7 @@ class _RequestCard extends StatelessWidget {
 
   IconData _getTypeIcon(String type) {
     switch (type.toLowerCase()) {
+      case 'seat_change':
       case 'seatchange':
         return Icons.event_seat_rounded;
       case 'renewal':
@@ -582,7 +851,12 @@ class _RequestCard extends StatelessWidget {
         icon = Icons.cancel_rounded;
         label = 'Rejected';
         break;
-      case 'pending':
+      case 'superseded':
+        bg = Colors.grey.withValues(alpha: 0.15);
+        fg = Colors.grey.shade700;
+        icon = Icons.history_rounded;
+        label = 'Superseded';
+        break;
       default:
         bg = Colors.amber.withValues(alpha: 0.15);
         fg = Colors.amber.shade900;
@@ -620,137 +894,302 @@ class _RequestCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isPending = request.status == 'pending';
 
+    final isSeatChange = (request.type.toLowerCase() == 'seat_change' || request.type.toLowerCase() == 'seatchange');
+
     return Card(
       elevation: 0,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
+          color: isPending
+              ? theme.colorScheme.primary.withValues(alpha: 0.4)
+              : theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
+          width: isPending ? 1.5 : 1,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: Type chip, Status chip, and Overflow delete menu
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: () => context.push('${Routes.adminRequests}/${request.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top Row: Type chip, Status chip, and Overflow delete menu
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isSeatChange
+                          ? const Color(0xFFFEF3C7)
+                          : theme.colorScheme.secondaryContainer.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _getTypeIcon(request.type),
+                          size: 15,
+                          color: isSeatChange
+                              ? const Color(0xFFB45309)
+                              : theme.colorScheme.onSecondaryContainer,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _formatType(request.type),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isSeatChange
+                                ? const Color(0xFF78350F)
+                                : theme.colorScheme.onSecondaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _getTypeIcon(request.type),
-                        size: 15,
-                        color: theme.colorScheme.onSecondaryContainer,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _formatType(request.type),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSecondaryContainer,
+                  const Spacer(),
+                  _buildStatusBadge(context, request.status),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded, size: 20),
+                    padding: EdgeInsets.zero,
+                    onSelected: (value) {
+                      if (value == 'delete') {
+                        onDelete();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18),
+                            SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: Colors.red)),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-                const Spacer(),
-                _buildStatusBadge(context, request.status),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert_rounded, size: 20),
-                  padding: EdgeInsets.zero,
-                  onSelected: (value) {
-                    if (value == 'delete') {
-                      onDelete();
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18),
-                          SizedBox(width: 8),
-                          Text('Delete', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                ],
+              ),
+              const SizedBox(height: 12),
 
-            // Student Info & Date
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  foregroundColor: theme.colorScheme.onPrimaryContainer,
-                  child: const Icon(Icons.person_rounded, size: 20),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
+              // Student Info & Date
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    foregroundColor: theme.colorScheme.onPrimaryContainer,
+                    child: const Icon(Icons.person_rounded, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          request.studentName,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Wrap(
+                          spacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            if (request.membershipNumber != null && request.membershipNumber!.isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Member ID: ${request.membershipNumber}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              )
+                            else if (request.studentPhone != null && request.studentPhone!.isNotEmpty)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.phone_rounded, size: 12, color: theme.colorScheme.onSurfaceVariant),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    request.studentPhone!,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            if (request.studentEmail != null && request.studentEmail!.isNotEmpty)
+                              Text(
+                                request.studentEmail!,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.colorScheme.outline,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    _formatDate(request.createdAt),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Highlighted Seat Change Transfer Card (For Seat Change Requests)
+              if (isSeatChange && request.targetSeatLabel != null) ...[
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isPending
+                          ? const Color(0xFFF59E0B).withValues(alpha: 0.5)
+                          : theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+                    ),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        request.studentName,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (request.studentId.isNotEmpty) ...[
-                        const SizedBox(height: 1),
-                        Text(
-                          'ID: ${request.studentId}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 12,
+                      Row(
+                        children: [
+                          // Current Seat
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'CURRENT SEAT',
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  request.currentSeatLabel ?? 'No Seat Assigned',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                ),
+                                if (request.currentSectionName != null && request.currentSectionName!.isNotEmpty)
+                                  Text(
+                                    request.currentSectionName!,
+                                    style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                              ],
+                            ),
                           ),
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.arrow_forward_rounded, color: Colors.green, size: 18),
+                          ),
+                          // Target Seat
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                const Text(
+                                  'REQUESTED SEAT',
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  request.targetSeatLabel!,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Colors.green),
+                                ),
+                                if (request.targetSectionName != null && request.targetSectionName!.isNotEmpty)
+                                  Text(
+                                    request.targetSectionName!,
+                                    style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (request.reason != null && request.reason!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        const Divider(height: 1),
+                        const SizedBox(height: 6),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.notes_rounded, size: 14, color: theme.colorScheme.outline),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Reason: "${request.reason!}"',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontStyle: FontStyle.italic,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],
                   ),
                 ),
-                Text(
-                  _formatDate(request.createdAt),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontSize: 11,
+              ],
+
+              // Message Body (for other request types)
+              if (!isSeatChange && request.message.trim().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    request.message,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      height: 1.35,
+                    ),
                   ),
                 ),
               ],
-            ),
-
-            // Message Body
-            if (request.message.trim().isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  request.message,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    height: 1.35,
-                  ),
-                ),
-              ),
-            ],
 
             // Rejection reason note if rejected
             if (request.status == 'rejected' &&
@@ -824,6 +1263,7 @@ class _RequestCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
       ),
     );
   }

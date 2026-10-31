@@ -15,7 +15,7 @@ class DeviceSecurityCheck {
       } else if (Platform.isIOS) {
         return _checkIOS();
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
     return false;
   }
 

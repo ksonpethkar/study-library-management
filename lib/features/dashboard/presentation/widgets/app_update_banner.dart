@@ -75,6 +75,14 @@ class AppUpdateBanner extends ConsumerWidget {
                     ],
                   ),
                 ),
+                if (!isForce)
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    tooltip: 'Dismiss',
+                    onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
+                    visualDensity: VisualDensity.compact,
+                    color: isDark ? Colors.white70 : Colors.grey.shade600,
+                  ),
               ],
             ),
 
@@ -177,10 +185,24 @@ class AppUpdateBanner extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              FilledButton.icon(
-                onPressed: () => ref.read(updateServiceProvider.notifier).resumeUpdate(),
-                icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                label: const Text('Resume Download'),
+              Row(
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => ref.read(updateServiceProvider.notifier).resumeUpdate(),
+                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                    label: const Text('Resume Download'),
+                  ),
+                  if (!isForce) ...[
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
+                      style: TextButton.styleFrom(
+                        foregroundColor: isDark ? Colors.white70 : Colors.grey.shade700,
+                      ),
+                      child: const Text('Later'),
+                    ),
+                  ],
+                ],
               ),
 
             // ── Completed — Show Install Button ───────────────────────
@@ -213,6 +235,16 @@ class AppUpdateBanner extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    if (!isForce) ...[
+                      TextButton(
+                        onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
+                        style: TextButton.styleFrom(
+                          foregroundColor: isDark ? Colors.white70 : Colors.grey.shade700,
+                        ),
+                        child: const Text('Later'),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
                     FilledButton.icon(
                       onPressed: () => ref.read(updateServiceProvider.notifier).installUpdate(),
                       icon: const Icon(Icons.install_mobile_rounded, size: 18),
@@ -235,7 +267,7 @@ class AppUpdateBanner extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Android requires permission to install apps from Cozy Corner. Please enable "Allow from this source".',
+                      'Android requires permission to install app updates. Please enable "Allow from this source".',
                       style: TextStyle(fontSize: 13),
                     ),
                     const SizedBox(height: 8),
@@ -267,6 +299,16 @@ class AppUpdateBanner extends ConsumerWidget {
                         style: const TextStyle(color: Colors.red, fontSize: 13),
                       ),
                     ),
+                    if (!isForce) ...[
+                      TextButton(
+                        onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
+                        style: TextButton.styleFrom(
+                          foregroundColor: isDark ? Colors.white70 : Colors.grey.shade700,
+                        ),
+                        child: const Text('Later'),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
                     TextButton(
                       onPressed: () => ref.read(updateServiceProvider.notifier).startUpdate(),
                       child: const Text('Retry'),

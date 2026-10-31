@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/registration_provider.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
+import 'package:study_library/services/plan_calculator_service.dart';
+import 'package:study_library/core/error/error_handler.dart';
 
 class PlanSelectionScreen extends ConsumerWidget {
   const PlanSelectionScreen({super.key});
@@ -48,6 +50,8 @@ class PlanSelectionScreen extends ConsumerWidget {
                   );
                 }
 
+                final baseMonthly = PlanCalculatorService.getBaseMonthlyPrice(activePlans);
+
                 return RadioGroup<String>(
                   groupValue: selectedPlanId ?? '',
                   onChanged: (String? val) {
@@ -56,29 +60,36 @@ class PlanSelectionScreen extends ConsumerWidget {
                     }
                   },
                   child: ListView(
-                    padding: const EdgeInsets.all(20.0),
+                    padding: const EdgeInsets.all(16.0),
                     children: [
                       Text(
                         'Choose Your Plan',
                         style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       Text(
-                        'Select the membership duration that fits your study schedule.',
+                        'Select the study pass duration that fits your schedule. Multi-month plans include exclusive savings.',
                         style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 18),
                       ...activePlans.map((plan) {
                         final isSelected = selectedPlanId == plan.id;
+                        final origPrice = plan.getEffectiveOriginalPrice(baseMonthlyPrice: baseMonthly);
+                        final discPercent = plan.getDiscountPercent(baseMonthlyPrice: baseMonthly);
+                        final saved = plan.getSavingsAmount(baseMonthlyPrice: baseMonthly);
+                        final hasDiscount = origPrice != null && origPrice > plan.price;
+                        final dailyRate = PlanCalculatorService.getDailyRate(plan);
+
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 14.0),
+                          padding: const EdgeInsets.only(bottom: 12.0),
                           child: InkWell(
                             onTap: () {
                               ref.read(selectedPlanProvider.notifier).select(plan.id);
                             },
                             borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: const EdgeInsets.all(18),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
@@ -87,67 +98,244 @@ class PlanSelectionScreen extends ConsumerWidget {
                                 border: Border.all(
                                   color: isSelected
                                       ? theme.colorScheme.primary
-                                      : theme.dividerColor,
+                                      : theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
                                   width: isSelected ? 2 : 1,
                                 ),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ]
+                                    : [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.02),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
                               ),
-                              child: Row(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Radio<String>(
-                                    value: plan.id,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
+                                  // Row 1: Radio + Title + Duration + Popular Badge
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Radio<String>(
+                                        value: plan.id,
+                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Wrap(
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          spacing: 8,
+                                          runSpacing: 4,
                                           children: [
                                             Text(
-                                              plan.name,
-                                              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                                              plan.displayName,
+                                              style: TextStyle(
+                                                fontSize: 16.5,
+                                                fontWeight: FontWeight.bold,
+                                                color: isSelected ? theme.colorScheme.primary : null,
+                                              ),
                                             ),
-                                            if (plan.isFeatured) ...[
-                                              const SizedBox(width: 8),
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.amber.shade100,
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                child: Text(
-                                                  'POPULAR',
-                                                  style: TextStyle(
-                                                    color: Colors.amber.shade900,
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                              decoration: BoxDecoration(
+                                                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                '${plan.duration} ${plan.durationUnit.name}',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: theme.colorScheme.primary,
                                                 ),
                                               ),
-                                            ],
+                                            ),
+                                            if (plan.isFeatured)
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                                decoration: BoxDecoration(
+                                                  gradient: const LinearGradient(
+                                                    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                                                  ),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.amber.withValues(alpha: 0.25),
+                                                      blurRadius: 4,
+                                                      offset: const Offset(0, 1),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: const Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(Icons.star_rounded, size: 12, color: Colors.white),
+                                                    SizedBox(width: 3),
+                                                    Text(
+                                                      'POPULAR',
+                                                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
                                           ],
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Duration: ${plan.duration} ${plan.durationUnit.name}',
-                                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                                        ),
-                                        if (plan.description.isNotEmpty) ...[
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            plan.description,
-                                            style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+
+                                  // Row 2: Description (if present)
+                                  if (plan.description.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      width: double.infinity,
+                                      margin: const EdgeInsets.only(left: 36),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 2),
+                                            child: Icon(Icons.check_circle_outline_rounded, size: 13, color: theme.colorScheme.primary),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              plan.description.trim(),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                height: 1.35,
+                                                color: theme.colorScheme.onSurfaceVariant,
+                                              ),
+                                            ),
                                           ),
                                         ],
-                                      ],
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    '₹${plan.price.toStringAsFixed(0)}',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800,
-                                      color: theme.colorScheme.primary,
+                                  ],
+
+                                  const SizedBox(height: 12),
+                                  const Divider(height: 1, thickness: 0.8),
+                                  const SizedBox(height: 10),
+
+                                  // Row 3: Pricing Hero Section
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 36),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        // Left: Pricing Details & Daily Rate
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Wrap(
+                                                crossAxisAlignment: WrapCrossAlignment.center,
+                                                spacing: 8,
+                                                runSpacing: 4,
+                                                children: [
+                                                  if (hasDiscount) ...[
+                                                    Text(
+                                                      '₹${origPrice.toStringAsFixed(0)}',
+                                                      style: TextStyle(
+                                                        decoration: TextDecoration.lineThrough,
+                                                        decorationColor: Colors.grey.shade500,
+                                                        color: Colors.grey.shade500,
+                                                        fontSize: 13,
+                                                        fontWeight: FontWeight.w500,
+                                                        fontFeatures: const [FontFeature.tabularFigures()],
+                                                      ),
+                                                    ),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.green.shade50,
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: Colors.green.shade300, width: 0.8),
+                                                      ),
+                                                      child: Text(
+                                                        '${discPercent ?? 0}% OFF • Save ₹${saved?.toStringAsFixed(0) ?? '0'}',
+                                                        style: TextStyle(
+                                                          color: Colors.green.shade800,
+                                                          fontSize: 11,
+                                                          fontWeight: FontWeight.w800,
+                                                          fontFeatures: const [FontFeature.tabularFigures()],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Wrap(
+                                                crossAxisAlignment: WrapCrossAlignment.center,
+                                                spacing: 8,
+                                                runSpacing: 4,
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.grey.shade100,
+                                                      borderRadius: BorderRadius.circular(6),
+                                                      border: Border.all(color: Colors.grey.shade300, width: 0.8),
+                                                    ),
+                                                    child: Text(
+                                                      '₹${dailyRate.toStringAsFixed(1)} / day',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: Colors.grey.shade800,
+                                                        fontFeatures: const [FontFeature.tabularFigures()],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (plan.gracePeriodDays > 0)
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.blue.shade50,
+                                                        borderRadius: BorderRadius.circular(6),
+                                                        border: Border.all(color: Colors.blue.shade200, width: 0.8),
+                                                      ),
+                                                      child: Text(
+                                                        '+${plan.gracePeriodDays}d Grace',
+                                                        style: TextStyle(
+                                                          fontSize: 10.5,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Colors.blue.shade900,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        // Right: Final Bold Price
+                                        Text(
+                                          '₹${plan.price.toStringAsFixed(0)}',
+                                          style: TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w900,
+                                            color: hasDiscount ? Colors.green.shade800 : theme.colorScheme.primary,
+                                            fontFeatures: const [FontFeature.tabularFigures()],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
@@ -156,28 +344,37 @@ class PlanSelectionScreen extends ConsumerWidget {
                           ),
                         );
                       }),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () => ref.read(registrationStepProvider.notifier).goTo(3),
-                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
-                          child: const Text('Back'),
-                        ),
-                        FilledButton(
-                          onPressed: () => ref.read(registrationStepProvider.notifier).goTo(5),
-                          style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14)),
-                          child: const Text('Next: Review & Submit ➔'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => ref.read(registrationStepProvider.notifier).goTo(3),
+                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
+                            child: const Text('Back'),
+                          ),
+                          FilledButton(
+                            onPressed: () => ref.read(registrationStepProvider.notifier).goTo(5),
+                            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14)),
+                            child: const Text('Next: Review & Submit ➔'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Error loading plans: $err')),
+              error: (err, _) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    ErrorHandler.handleError(err),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 13),
+                  ),
+                ),
+              ),
             ),
           ),
         ],

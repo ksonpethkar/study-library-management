@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/constants/firestore_paths.dart';
+import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/core/utils/sequence_counter.dart';
@@ -238,19 +239,78 @@ class StudentRepository {
           .collection(FirestorePaths.students)
           .doc(studentId)
           .get();
+      if (!studentDoc.exists) return;
+      final studentData = studentDoc.data() ?? {};
           
       final batch = _firestore.batch();
       
-      final recycleBinRef = _firestore.collection(FirestorePaths.recycleBin).doc(studentId);
-      batch.set(recycleBinRef, {
-        ...studentDoc.data()!,
+      final binPayload = {
+        ...studentData,
         'deletedAt': FieldValue.serverTimestamp(),
         'type': 'student',
         'libraryId': libraryId,
-      });
+      };
+      final recycleBinRef = _firestore.collection(FirestorePaths.recycleBin).doc(studentId);
+      batch.set(recycleBinRef, binPayload);
+      final libBinRef = _firestore
+          .collection(FirestorePaths.libraries)
+          .doc(libraryId)
+          .collection('recycle_bin')
+          .doc(studentId);
+      batch.set(libBinRef, binPayload);
+
+      // L1 FIX: Free student's seat upon deletion
+      final seatId = studentData['seatId'] as String?;
+      final sectionId = studentData['sectionId'] as String?;
+      if (seatId != null && seatId.isNotEmpty && sectionId != null && sectionId.isNotEmpty) {
+        final seatRef = _firestore
+            .collection(FirestorePaths.libraries)
+            .doc(libraryId)
+            .collection(FirestorePaths.sections)
+            .doc(sectionId)
+            .collection(FirestorePaths.seats)
+            .doc(seatId);
+        batch.update(seatRef, {
+          'status': 'available',
+          'isOccupied': false,
+          'studentId': null,
+          'studentName': null,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
       
       batch.delete(studentDoc.reference);
       await batch.commit();
+
+      // Secondary safety: also free any other seat in this library assigned to this student
+      try {
+        final occupiedSeats = await _firestore
+            .collectionGroup(FirestorePaths.seats)
+            .where('studentId', isEqualTo: studentId)
+            .get();
+        if (occupiedSeats.docs.isNotEmpty) {
+          final seatCleanup = _firestore.batch();
+          for (final doc in occupiedSeats.docs) {
+            if (doc.reference.path.contains(libraryId)) {
+              seatCleanup.update(doc.reference, {
+                'status': 'available',
+                'isOccupied': false,
+                'studentId': null,
+                'studentName': null,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+            }
+          }
+          await seatCleanup.commit();
+        }
+
+        // L10 FIX: Seat was vacated on student delete — notify next student in waiting queue
+        if (seatId != null && seatId.isNotEmpty) {
+          try {
+            WaitingListRepository().notifyNextInLine(libraryId);
+          } catch (_) { /* intentionally silent */ }
+        }
+      } catch (_) { /* intentionally silent */ }
       AuditLogger().log(
         action: AuditAction.deleted,
         entityType: AuditEntity.student,
@@ -640,7 +700,7 @@ class StudentRepository {
       if (hasUpdates) {
         await batch.commit();
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
   }
 
   Future<void> blockStudent(

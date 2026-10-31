@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/">
+
+  <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="The Cozy Corner Centre — Smart Study Library Management Platform">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="The Cozy Corner Centre">
+  <link rel="apple-touch-icon" href="/app/icons/Icon-192.png">
+
+  <!-- Favicon & Dynamic Branding -->
+  <link rel="shortcut icon" href="/app/favicon.ico">
+  <link rel="icon" type="image/x-icon" href="/app/favicon.ico">
+  <link rel="icon" type="image/png" id="appFavicon" href="/app/favicon.png"/>
+  <link rel="manifest" href="/app/manifest.json?v=2">
+  <script>
+    try {
+      const cachedLogo = localStorage.getItem("cached_library_logo_url");
+      const cachedName = localStorage.getItem("cached_library_name");
+      if (cachedName && cachedName.trim().length > 0) {
+        document.title = cachedName;
+        const metaTitle = document.querySelector("meta[name='apple-mobile-web-app-title']");
+        if (metaTitle) metaTitle.setAttribute("content", cachedName);
+      }
+      if (cachedLogo && cachedLogo.trim().length > 0) {
+        const fav = document.getElementById("appFavicon");
+        if (fav) fav.href = cachedLogo;
+        const appleIcon = document.querySelector("link[rel='apple-touch-icon']");
+        if (appleIcon) appleIcon.href = cachedLogo;
+      }
+    } catch (_) {}
+
+    window.updateWebBranding = function(url, title) {
+      try {
+        if (title && title.trim().length > 0) {
+          document.title = title;
+          const metaTitle = document.querySelector("meta[name='apple-mobile-web-app-title']");
+          if (metaTitle) metaTitle.setAttribute("content", title);
+        }
+        if (url && url.trim().length > 0) {
+          let link = document.getElementById("appFavicon") || document.querySelector("link[rel~='icon']");
+          if (!link) {
+            link = document.createElement("link");
+            link.id = "appFavicon";
+            link.rel = "icon";
+            document.head.appendChild(link);
+          }
+          link.href = url;
+          const appleIcon = document.querySelector("link[rel='apple-touch-icon']");
+          if (appleIcon) appleIcon.href = url;
+        }
+      } catch (e) {
+        console.warn("Could not update branding:", e);
+      }
+    };
+
+    window.updateWebFavicon = function(url) {
+      window.updateWebBranding(url, null);
+    };
+  </script>
+
+  <title>The Cozy Corner Centre</title>
+  <!-- Universal Multilingual Font Fallback for Indic & Global Scripts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- jsQR Client-Side Instant QR Code Decoder for Indian Gov IDs (PAN, Aadhaar, DL) -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"
+          integrity="sha256-MiFMdO6S033m2IJ2mHaQ2ZbOdXZo6CyhcJ26Xgvp/M4="
+          crossorigin="anonymous"></script>
+  <!-- Tesseract.js Client-Side OCR for Web -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"
+          integrity="sha256-qOKZGNCYsrBuEBK9rv+0rsBEXF1WVHCQI+C9H0QqgOg="
+          crossorigin="anonymous"></script>
+  <script>
+    // ── Instant Client-Side QR Decoder ──────────────────────────────────────────
+    window.decodeQrCodeFromImage = async function(base64Image) {
+      try {
+        if (!window.jsQR) {
+          console.warn("jsQR library not available");
+          return null;
+        }
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "Anonymous";
+          img.onload = () => {
+            try {
+              // 1. Try scanning at native resolution
+              const canvas = document.createElement("canvas");
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext("2d", { willReadFrequently: true });
+              ctx.drawImage(img, 0, 0);
+              let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              let code = jsQR(imgData.data, imgData.width, imgData.height, {
+                inversionAttempts: "attemptBoth"
+              });
+
+              // 2. If not found and image is large (>1000px), downsample to 1000px width
+              if (!code && (img.width > 1000 || img.height > 1000)) {
+                const scale = Math.min(1000 / img.width, 1000 / img.height);
+                const sWidth = Math.round(img.width * scale);
+                const sHeight = Math.round(img.height * scale);
+                const sCanvas = document.createElement("canvas");
+                sCanvas.width = sWidth;
+                sCanvas.height = sHeight;
+                const sCtx = sCanvas.getContext("2d", { willReadFrequently: true });
+                sCtx.drawImage(img, 0, 0, sWidth, sHeight);
+                const sData = sCtx.getImageData(0, 0, sWidth, sHeight);
+                code = jsQR(sData.data, sWidth, sHeight, {
+                  inversionAttempts: "attemptBoth"
+                });
+              }
+
+              if (code && code.data && code.data.trim().length > 0) {
+                console.log("QR Code decoded successfully from ID card:", code.data.substring(0, 60));
+                resolve(code.data);
+              } else {
+                resolve(null);
+              }
+            } catch (err) {
+              console.warn("QR canvas read error:", err);
+              resolve(null);
+            }
+          };
+          img.onerror = () => resolve(null);
+          img.src = base64Image;
+        });
+      } catch (err) {
+        console.warn("QR decode error:", err);
+        return null;
+      }
+    };
+
+    // ── Client-Side Tesseract OCR ───────────────────────────────────────────────
+    let _sharedTesseractWorker = null;
+    window.recognizeOcrText = async function(base64Image) {
+      try {
+        if (!window.Tesseract) {
+          console.warn("Tesseract.js not yet loaded");
+          return "";
+        }
+        // Lazy-create worker once for fast recognition
+        if (!_sharedTesseractWorker) {
+          _sharedTesseractWorker = await Tesseract.createWorker("eng");
+        }
+        const ret = await _sharedTesseractWorker.recognize(base64Image);
+        return (ret && ret.data && ret.data.text) ? ret.data.text : "";
+      } catch (err) {
+        console.error("Tesseract recognition error:", err);
+        // Reset worker on failure
+        _sharedTesseractWorker = null;
+        return "";
+      }
+    };
+  </script>
+
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+    <!-- Progressive Web App (PWA) Offline-First Loader -->
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

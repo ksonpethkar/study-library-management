@@ -1,8 +1,11 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:study_library/features/seats/data/repositories/seat_repository.dart';
 import 'package:study_library/models/section_model.dart';
 import 'package:study_library/models/seat_model.dart';
+import 'package:study_library/models/student_model.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 
 final seatRepositoryProvider = Provider<SeatRepository>((ref) {
   return SeatRepository();
@@ -32,11 +35,39 @@ final availableSeatsProvider = StreamProvider<List<SeatModel>>((ref) {
   return repository.getAvailableSeats(libraryId);
 });
 
-final occupancyProvider = FutureProvider<Map<String, int>>((ref) {
-  final repository = ref.watch(seatRepositoryProvider);
+final occupancyProvider = StreamProvider<Map<String, int>>((ref) async* {
   final libraryId = ref.watch(currentLibraryIdProvider);
-  if (libraryId == null) return {'total': 0, 'occupied': 0, 'available': 0};
-  return repository.getOccupancyCount(libraryId);
+  if (libraryId == null || libraryId.isEmpty) {
+    yield {'total': 0, 'occupied': 0, 'available': 0};
+    return;
+  }
+
+  final sections = ref.watch(sectionsProvider).value ?? [];
+  final students = ref.watch(studentsStreamProvider).value ?? [];
+
+  if (sections.isNotEmpty) {
+    final totalCapacity = sections
+        .where((s) => s.isActive)
+        .fold<int>(0, (sum, s) => sum + s.capacity);
+
+    final occupiedSeats = students
+        .where((s) => s.membershipStatus == MembershipStatus.active && s.seatId != null && s.seatId!.isNotEmpty)
+        .map((s) => s.seatId!)
+        .toSet()
+        .length;
+
+    final availableSeats = (totalCapacity - occupiedSeats).clamp(0, totalCapacity).toInt();
+
+    yield {
+      'total': totalCapacity,
+      'occupied': occupiedSeats,
+      'available': availableSeats,
+    };
+  } else {
+    // Initial / fallback count
+    final fallback = await ref.watch(seatRepositoryProvider).getOccupancyCount(libraryId);
+    yield fallback;
+  }
 });
 
 /// Selected seats for bulk operations: maps seatId -> sectionId
@@ -45,6 +76,7 @@ class SelectedSeatsNotifier extends Notifier<Map<String, String>> {
   Map<String, String> build() => {};
 
   void toggleSelection(String seatId, String sectionId) {
+    HapticFeedback.selectionClick();
     if (state.containsKey(seatId)) {
       final updated = Map<String, String>.from(state)..remove(seatId);
       state = updated;
@@ -54,10 +86,12 @@ class SelectedSeatsNotifier extends Notifier<Map<String, String>> {
   }
 
   void selectMultiple(Map<String, String> seats) {
+    HapticFeedback.selectionClick();
     state = {...state, ...seats};
   }
 
   void deselectMultiple(Iterable<String> seatIds) {
+    HapticFeedback.selectionClick();
     final updated = Map<String, String>.from(state);
     for (final id in seatIds) {
       updated.remove(id);
@@ -68,6 +102,8 @@ class SelectedSeatsNotifier extends Notifier<Map<String, String>> {
   void clearSelection() {
     state = {};
   }
+
+  void clear() => clearSelection();
 }
 
 final selectedSeatsProvider =

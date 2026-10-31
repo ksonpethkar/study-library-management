@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum UserRole { admin, student }
 
 class UserModel {
@@ -87,26 +89,27 @@ class UserModel {
     );
   }
 
+  // SEC-H3 FIX: Default to student (least privilege) instead of admin.
+  // Only explicitly set 'admin' role maps to admin — unknown/null = student.
   static UserRole _parseUserRole(String? r) {
     switch (r) {
-      case 'student':
-        return UserRole.student;
       case 'admin':
-      default:
         return UserRole.admin;
+      case 'student':
+      default:
+        return UserRole.student;
     }
   }
 
   static DateTime? _parseDate(dynamic date) {
     if (date == null) return null;
     if (date is DateTime) return date;
+    if (date is Timestamp) return date.toDate();
     if (date is int) return DateTime.fromMillisecondsSinceEpoch(date);
     if (date is String) return DateTime.tryParse(date);
-    if (date.runtimeType.toString() == 'Timestamp') {
-      try {
-        return date.toDate();
-      } catch (_) {}
-    }
+    try {
+      return (date as dynamic).toDate();
+    } catch (_) { /* intentionally silent */ }
     return null;
   }
 }

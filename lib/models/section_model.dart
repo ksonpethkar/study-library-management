@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class SectionModel {
   final String id;
   final String libraryId;
@@ -9,6 +11,10 @@ class SectionModel {
   final bool isActive;
   final String? notes;
   final String sectionType; // 'normal', 'window', 'ac', 'premium'
+  final String? genderRestriction; // 'any', 'male', 'female'
+  final String? floor; // e.g. 'Ground Floor', '1st Floor'
+  final List<String> amenities; // ['AC', 'Power Sockets', 'Wi-Fi']
+  final int? totalSeats;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
@@ -24,12 +30,16 @@ class SectionModel {
     required this.isActive,
     this.notes,
     this.sectionType = 'normal',
+    this.genderRestriction = 'any',
+    this.floor,
+    this.amenities = const [],
+    this.totalSeats,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
   });
 
-  int get capacity => rows * cols;
+  int get capacity => (totalSeats != null && totalSeats! > 0) ? totalSeats! : (rows * cols);
 
   factory SectionModel.fromJson(Map<String, dynamic> json) {
     return SectionModel(
@@ -43,6 +53,12 @@ class SectionModel {
       isActive: json['isActive'] as bool? ?? true,
       notes: json['notes'] as String?,
       sectionType: json['sectionType'] as String? ?? 'normal',
+      genderRestriction: json['genderRestriction'] as String? ?? 'any',
+      floor: json['floor'] as String?,
+      amenities: json['amenities'] is List
+          ? (json['amenities'] as List).map((e) => e.toString()).toList()
+          : const [],
+      totalSeats: json['totalSeats'] as int? ?? json['seatCount'] as int? ?? json['capacity'] as int?,
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now(),
       updatedAt: _parseDate(json['updatedAt']) ?? DateTime.now(),
       deletedAt: _parseDate(json['deletedAt']),
@@ -61,6 +77,10 @@ class SectionModel {
       'isActive': isActive,
       'notes': notes,
       'sectionType': sectionType,
+      'genderRestriction': genderRestriction,
+      if (floor != null) 'floor': floor,
+      'amenities': amenities,
+      if (totalSeats != null) 'totalSeats': totalSeats,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
@@ -78,6 +98,10 @@ class SectionModel {
     bool? isActive,
     String? notes,
     String? sectionType,
+    String? genderRestriction,
+    String? floor,
+    List<String>? amenities,
+    int? totalSeats,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -93,6 +117,10 @@ class SectionModel {
       isActive: isActive ?? this.isActive,
       notes: notes ?? this.notes,
       sectionType: sectionType ?? this.sectionType,
+      genderRestriction: genderRestriction ?? this.genderRestriction,
+      floor: floor ?? this.floor,
+      amenities: amenities ?? this.amenities,
+      totalSeats: totalSeats ?? this.totalSeats,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -102,13 +130,12 @@ class SectionModel {
   static DateTime? _parseDate(dynamic date) {
     if (date == null) return null;
     if (date is DateTime) return date;
+    if (date is Timestamp) return date.toDate();
     if (date is int) return DateTime.fromMillisecondsSinceEpoch(date);
     if (date is String) return DateTime.tryParse(date);
-    if (date.runtimeType.toString() == 'Timestamp') {
-      try {
-        return date.toDate();
-      } catch (_) {}
-    }
+    try {
+      return (date as dynamic).toDate();
+    } catch (_) { /* intentionally silent */ }
     return null;
   }
 }

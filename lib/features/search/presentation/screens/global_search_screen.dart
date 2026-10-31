@@ -139,7 +139,7 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
           ));
         }
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
 
     if (mounted) {
       setState(() {

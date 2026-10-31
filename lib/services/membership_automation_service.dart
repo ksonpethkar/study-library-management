@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/services/expiry_notification_service.dart';
+import 'package:study_library/services/waiting_list_promotion_service.dart';
 
 /// Summary report returned after running membership automation.
 class AutomationResult {
@@ -94,6 +95,7 @@ class MembershipAutomationService {
       int enteredGrace = 0;
       int expired = 0;
       int releasedSeats = 0;
+      final newlyReleasedSeats = <Map<String, String>>[];
 
       final batch = _firestore.batch();
       bool hasBatchOps = false;
@@ -159,6 +161,11 @@ class MembershipAutomationService {
             studentUpdate['seatId'] = null;
             studentUpdate['sectionId'] = null;
             releasedSeats++;
+            newlyReleasedSeats.add({
+              'seatId': seatId,
+              'sectionId': sectionId,
+              'studentName': studentName,
+            });
           }
 
           batch.update(doc.reference, studentUpdate);
@@ -216,11 +223,28 @@ class MembershipAutomationService {
         await batch.commit();
       }
 
+      // Phase 3 Automation Cascade: Link Seat Release directly to Waiting List Promotion Pipeline
+      if (newlyReleasedSeats.isNotEmpty) {
+        final promotionService = WaitingListPromotionService();
+        for (final rel in newlyReleasedSeats) {
+          try {
+            await promotionService.handleSeatReleaseCascade(
+              libraryId: libraryId,
+              sectionId: rel['sectionId']!,
+              seatId: rel['seatId']!,
+              seatLabel: 'Seat ${rel['seatId']}',
+            );
+          } catch (e) {
+            if (kDebugMode) debugPrint('Waiting list auto-promotion error: $e');
+          }
+        }
+      }
+
       // Also trigger upcoming expiry notification checks
       try {
         await ExpiryNotificationService.checkExpiringPlans(libraryId);
       } catch (e) {
-        debugPrint('Expiry notification check error: $e');
+        if (kDebugMode) debugPrint('Expiry notification check error: $e');
       }
 
       return AutomationResult(
@@ -230,7 +254,7 @@ class MembershipAutomationService {
         releasedSeatsCount: releasedSeats,
       );
     } catch (e) {
-      debugPrint('Membership automation failed: $e');
+      if (kDebugMode) debugPrint('Membership automation failed: $e');
       return const AutomationResult();
     } finally {
       _isRunning = false;

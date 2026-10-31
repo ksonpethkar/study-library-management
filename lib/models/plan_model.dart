@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum DurationUnit { days, weeks, months }
 
 class PlanModel {
@@ -7,6 +9,7 @@ class PlanModel {
   final int duration;
   final DurationUnit durationUnit;
   final double price;
+  final double? originalPrice; // MRP / Cut price for discount display (e.g. ~~₹2400~~ ₹2000)
   final String description;
   final int gracePeriodDays;
   final bool isActive;
@@ -25,6 +28,7 @@ class PlanModel {
     required this.duration,
     required this.durationUnit,
     required this.price,
+    this.originalPrice,
     required this.description,
     required this.gracePeriodDays,
     required this.isActive,
@@ -45,6 +49,7 @@ class PlanModel {
       duration: json['duration'] as int? ?? 1,
       durationUnit: _parseDurationUnit(json['durationUnit'] as String?),
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      originalPrice: (json['originalPrice'] as num?)?.toDouble() ?? (json['cutPrice'] as num?)?.toDouble() ?? (json['mrp'] as num?)?.toDouble(),
       description: json['description'] as String? ?? '',
       gracePeriodDays: json['gracePeriodDays'] as int? ?? 0,
       isActive: json['isActive'] as bool? ?? true,
@@ -66,6 +71,7 @@ class PlanModel {
       'duration': duration,
       'durationUnit': durationUnit.name,
       'price': price,
+      if (originalPrice != null) 'originalPrice': originalPrice,
       'description': description,
       'gracePeriodDays': gracePeriodDays,
       'isActive': isActive,
@@ -86,6 +92,7 @@ class PlanModel {
     int? duration,
     DurationUnit? durationUnit,
     double? price,
+    double? originalPrice,
     String? description,
     int? gracePeriodDays,
     bool? isActive,
@@ -104,6 +111,7 @@ class PlanModel {
       duration: duration ?? this.duration,
       durationUnit: durationUnit ?? this.durationUnit,
       price: price ?? this.price,
+      originalPrice: originalPrice ?? this.originalPrice,
       description: description ?? this.description,
       gracePeriodDays: gracePeriodDays ?? this.gracePeriodDays,
       isActive: isActive ?? this.isActive,
@@ -115,6 +123,57 @@ class PlanModel {
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
     );
+  }
+
+  /// Returns a clean display name, automatically normalizing common typos like "Quaterly" -> "Quarterly"
+  String get displayName {
+    final trimmed = name.trim();
+    if (trimmed.toLowerCase() == 'quaterly') {
+      return 'Quarterly';
+    }
+    return trimmed.isNotEmpty ? trimmed : 'Plan';
+  }
+
+  /// Returns the effective original (cut) price:
+  /// Either the explicitly set originalPrice, or if not set,
+  /// calculated from baseMonthlyPrice * duration (if multi-month).
+  double? getEffectiveOriginalPrice({double? baseMonthlyPrice}) {
+    if (originalPrice != null && originalPrice! > price) {
+      return originalPrice;
+    }
+    if (baseMonthlyPrice != null && baseMonthlyPrice > 0) {
+      int months = 1;
+      if (durationUnit == DurationUnit.months) {
+        months = duration;
+      } else if (durationUnit == DurationUnit.weeks) {
+        months = (duration / 4).round();
+      } else if (durationUnit == DurationUnit.days) {
+        months = (duration / 30).round();
+      }
+      if (months > 1) {
+        final regular = baseMonthlyPrice * months;
+        if (regular > price) return regular;
+      }
+    }
+    return null;
+  }
+
+  /// Calculates discount percentage (e.g. 17 for 17% OFF)
+  int? getDiscountPercent({double? baseMonthlyPrice}) {
+    final orig = getEffectiveOriginalPrice(baseMonthlyPrice: baseMonthlyPrice);
+    if (orig != null && orig > price && orig > 0) {
+      return (((orig - price) / orig) * 100).round();
+    }
+    return null;
+  }
+
+  /// Calculates amount saved (e.g. 400 for Save ₹400)
+  double? getSavingsAmount({double? baseMonthlyPrice}) {
+    final orig = getEffectiveOriginalPrice(baseMonthlyPrice: baseMonthlyPrice);
+    if (orig != null && orig > price) {
+      return orig - price;
+    }
+    return null;
   }
 
   static DurationUnit _parseDurationUnit(String? u) {
@@ -132,13 +191,12 @@ class PlanModel {
   static DateTime? _parseDate(dynamic date) {
     if (date == null) return null;
     if (date is DateTime) return date;
+    if (date is Timestamp) return date.toDate();
     if (date is int) return DateTime.fromMillisecondsSinceEpoch(date);
     if (date is String) return DateTime.tryParse(date);
-    if (date.runtimeType.toString() == 'Timestamp') {
-      try {
-        return date.toDate();
-      } catch (_) {}
-    }
+    try {
+      return (date as dynamic).toDate();
+    } catch (_) { /* intentionally silent */ }
     return null;
   }
 }

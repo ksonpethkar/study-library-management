@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/services/image_service.dart';
+import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 
 class AdminQrScannerScreen extends ConsumerStatefulWidget {
   const AdminQrScannerScreen({super.key});
@@ -15,9 +19,19 @@ class AdminQrScannerScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
-  final MobileScannerController _controller = MobileScannerController();
+  late final MobileScannerController _controller;
   bool _isProcessing = false;
   bool _scanned = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = MobileScannerController(
+      detectionSpeed: DetectionSpeed.normal,
+      facing: CameraFacing.back,
+      torchEnabled: false,
+    );
+  }
 
   @override
   void dispose() {
@@ -25,23 +39,118 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
     super.dispose();
   }
 
+  Future<void> _toggleTorch() async {
+    if (kIsWeb) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Flashlight is not supported in web browser mode.'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+    try {
+      await _controller.toggleTorch();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Flashlight unavailable: $e'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _switchCamera() async {
+    try {
+      await _controller.switchCamera();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Camera switch failed: $e. Try restarting the camera.'),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _restartCamera() async {
+    try {
+      await _controller.stop();
+      await Future.delayed(const Duration(milliseconds: 300));
+      await _controller.start();
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not restart camera: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _onDetect(BarcodeCapture capture) async {
     if (_scanned || _isProcessing) return;
     final barcode = capture.barcodes.firstOrNull;
     if (barcode?.rawValue == null) return;
+    HapticFeedback.mediumImpact();
     setState(() { _isProcessing = true; _scanned = true; });
     await _verifyStudent(barcode!.rawValue!);
   }
 
   Future<void> _verifyStudent(String qrValue) async {
-    final parts = qrValue.split('||');
-    final studentId = parts.isNotEmpty ? parts[0].trim() : qrValue.trim();
-    final libraryId = (parts.length > 1 && parts[1].isNotEmpty)
-        ? parts[1].trim()
-        : (ref.read(currentLibraryIdProvider) ?? '');
+    String studentId = '';
+    String libraryId = '';
+
+    // Handle signed/standard format prefixes:
+    // Pattern 1: COZY:{studentId}:{libraryId}
+    // Pattern 2: STUDENT-{studentId}||{libraryId}
+    // Pattern 3: {studentId}||{libraryId}
+    if (qrValue.startsWith('{') && qrValue.endsWith('}')) {
+      try {
+        final map = jsonDecode(qrValue) as Map<String, dynamic>;
+        studentId = (map['id'] ?? map['studentId'] ?? '').toString().trim();
+        libraryId = (map['lib'] ?? map['libraryId'] ?? '').toString().trim();
+      } catch (_) {}
+    } else if (qrValue.startsWith('COZY:')) {
+      final parts = qrValue.substring(5).split(':');
+      if (parts.isNotEmpty) studentId = parts[0].trim();
+      if (parts.length > 1) libraryId = parts[1].trim();
+    } else if (qrValue.startsWith('STUDENT-')) {
+      final clean = qrValue.substring(8);
+      final parts = clean.split('||');
+      if (parts.isNotEmpty) studentId = parts[0].trim();
+      if (parts.length > 1) libraryId = parts[1].trim();
+    } else {
+      final parts = qrValue.split('||');
+      studentId = parts.isNotEmpty ? parts[0].trim() : qrValue.trim();
+      if (parts.length > 1 && parts[1].isNotEmpty) libraryId = parts[1].trim();
+    }
+
+    if (libraryId.isEmpty) {
+      libraryId = ref.read(currentLibraryIdProvider) ?? '';
+    }
 
     if (studentId.isEmpty || libraryId.isEmpty) {
       _showError('Invalid QR code format');
+      return;
+    }
+
+    final currentLibId = ref.read(currentLibraryIdProvider) ?? '';
+    if (currentLibId.isNotEmpty && libraryId != currentLibId) {
+      _showError('Security Alert: This pass belongs to another library!');
       return;
     }
 
@@ -185,6 +294,108 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
     );
   }
 
+  void _openManualSearchDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        String query = '';
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final studentsAsync = ref.watch(studentsStreamProvider);
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.75,
+              maxChildSize: 0.92,
+              builder: (context, scrollController) {
+                return Padding(
+                  padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 16),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 40, height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2)),
+                      ),
+                      Row(
+                        children: [
+                          const Icon(Icons.person_search_rounded, size: 24),
+                          const SizedBox(width: 8),
+                          Text('Manual Student Lookup', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          hintText: 'Search by Name, Roll #, or Phone...',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: query.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () => setModalState(() => query = ''),
+                                )
+                              : null,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onChanged: (val) => setModalState(() => query = val.trim().toLowerCase()),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: studentsAsync.when(
+                          data: (students) {
+                            final filtered = students.where((s) {
+                              if (query.isEmpty) return true;
+                              final name = s.name.toLowerCase();
+                              final phone = s.phone.toLowerCase();
+                              final roll = (s.membershipNumber ?? '').toLowerCase();
+                              return name.contains(query) || phone.contains(query) || roll.contains(query);
+                            }).toList();
+
+                            if (filtered.isEmpty) {
+                              return Center(
+                                child: Text('No students matching "$query"', style: const TextStyle(color: Colors.grey)),
+                              );
+                            }
+
+                            return ListView.separated(
+                              controller: scrollController,
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, _) => const Divider(height: 1),
+                              itemBuilder: (context, idx) {
+                                final s = filtered[idx];
+                                return ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundImage: s.photoUrl.isNotEmpty ? ImageService.getImageProvider(s.photoUrl) : null,
+                                    child: s.photoUrl.isEmpty ? Text(s.name.isNotEmpty ? s.name[0] : 'S') : null,
+                                  ),
+                                  title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  subtitle: Text('${s.membershipNumber != null ? '#${s.membershipNumber} • ' : ''}${s.phone}'),
+                                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                                  onTap: () {
+                                    Navigator.of(ctx).pop();
+                                    _showVerification(s);
+                                  },
+                                );
+                              },
+                            );
+                          },
+                          loading: () => const Center(child: CircularProgressIndicator()),
+                          error: (e, _) => Center(child: Text('Error loading students: $e')),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -194,23 +405,81 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
         centerTitle: true,
         actions: [
           IconButton(
+            icon: const Icon(Icons.search_rounded),
+            tooltip: 'Lookup Student Manually',
+            onPressed: _openManualSearchDialog,
+          ),
+          IconButton(
             icon: ValueListenableBuilder<MobileScannerState>(
               valueListenable: _controller,
               builder: (_, state, _) => Icon(state.torchState == TorchState.on ? Icons.flash_on_rounded : Icons.flash_off_rounded),
             ),
-            onPressed: () => _controller.toggleTorch(),
+            onPressed: _toggleTorch,
             tooltip: 'Torch',
           ),
           IconButton(
             icon: const Icon(Icons.flip_camera_ios_rounded),
-            onPressed: () => _controller.switchCamera(),
+            onPressed: _switchCamera,
             tooltip: 'Switch Camera',
           ),
         ],
       ),
       body: Stack(
         children: [
-          MobileScanner(controller: _controller, onDetect: _onDetect),
+          MobileScanner(
+            controller: _controller,
+            onDetect: _onDetect,
+            errorBuilder: (context, error) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.4)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.videocam_off_rounded, color: Colors.redAccent, size: 48),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Camera Access Issue',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          error.errorDetails?.message ?? error.errorCode.name,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                        const SizedBox(height: 20),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            FilledButton.tonalIcon(
+                              onPressed: _restartCamera,
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: const Text('Restart Camera'),
+                            ),
+                            FilledButton.icon(
+                              onPressed: _openManualSearchDialog,
+                              icon: const Icon(Icons.search_rounded, size: 18),
+                              label: const Text('Manual Lookup'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
           // Scanning frame overlay
           Center(
             child: Container(
@@ -221,20 +490,24 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
               ),
             ),
           ),
-          // Instructions
+          // Instructions (safe area anchored)
           Positioned(
-            bottom: 48, left: 24, right: 24,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _isProcessing ? 'Verifying student...' : 'Point camera at student\'s ID card QR code',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
-                  textAlign: TextAlign.center,
+            bottom: 32, left: 24, right: 24,
+            child: SafeArea(
+              bottom: true,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  ),
+                  child: Text(
+                    _isProcessing ? 'Verifying student...' : 'Point camera at student\'s ID card QR code',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             ),

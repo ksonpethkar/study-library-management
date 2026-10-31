@@ -24,6 +24,16 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       textTheme: isDark ? AppTypography.getDarkTextTheme() : AppTypography.getLightTextTheme(),
+      fontFamilyFallback: const [
+        'Noto Sans',
+        'Noto Sans Devanagari',
+        'Noto Sans Tamil',
+        'Noto Sans Telugu',
+        'Noto Sans Gujarati',
+        'Noto Sans Bengali',
+        'Noto Sans Arabic',
+        'sans-serif',
+      ],
       scaffoldBackgroundColor: colorScheme.surface,
       appBarTheme: AppBarTheme(
         backgroundColor: colorScheme.surface,

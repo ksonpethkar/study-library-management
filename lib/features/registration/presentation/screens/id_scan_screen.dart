@@ -1,12 +1,11 @@
-import 'dart:io';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../providers/registration_provider.dart';
 import '../../data/ocr_parser.dart';
 import 'package:study_library/services/ocr_service.dart';
-import 'package:study_library/services/image_service.dart';
-import 'package:study_library/core/widgets/watermarked_kyc_widget.dart';
 
 class IdScanScreen extends ConsumerStatefulWidget {
   const IdScanScreen({super.key});
@@ -18,8 +17,8 @@ class IdScanScreen extends ConsumerStatefulWidget {
 class _IdScanScreenState extends ConsumerState<IdScanScreen> {
   GovIdType _selectedType = GovIdType.aadhaar;
   bool _isProcessing = false;
-  File? _scannedImage;
-  File? _scannedBackImage;
+  Uint8List? _scannedBytes;
+  Uint8List? _scannedBackBytes;
   String _statusMessage = 'Reading your ID document...';
   bool _frontScanned = false; // true after first (front) scan completes
 
@@ -27,55 +26,60 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
   bool get _hasTwoSides =>
       _selectedType == GovIdType.aadhaar ||
       _selectedType == GovIdType.drivingLicence ||
-      _selectedType == GovIdType.passport;
+      _selectedType == GovIdType.passport ||
+      _selectedType == GovIdType.voterId;
 
   Future<void> _captureAndScan(ImageSource source, {bool isBackSide = false}) async {
-    final image =
-        await ImageService.pickAndCompressImage(source: source, maxWidth: 1600, quality: 85);
-    if (image == null || !mounted) return;
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: source,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+
+    final bytes = await picked.readAsBytes();
+    if (bytes.isEmpty || !mounted) return;
+
+    final dataUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
 
     setState(() {
       if (isBackSide) {
-        _scannedBackImage = image;
+        _scannedBackBytes = bytes;
       } else {
-        _scannedImage = image;
+        _scannedBytes = bytes;
       }
       _isProcessing = true;
       _statusMessage = isBackSide
           ? 'Reading back side for address...'
-          : 'Analyzing ID with Google ML Kit...';
+          : 'Analyzing ID with OCR...';
     });
 
     try {
       final ocrService = OcrService();
-      final rawText = await ocrService.processImage(image.path);
+      final rawText = await ocrService.processImageBytes(bytes);
 
       if (isBackSide) {
         // For back side: only extract address/PIN — don't overwrite name/DOB
         final backResult = OcrParser.parseByType(_selectedType, rawText);
 
-        // Watermark the back side image
-        await WatermarkHelper.burnWatermark(
-          sourceFile: image,
-          targetPath: image.path.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '_kyc_back_verified.png'),
-        );
-
-        // Only update address-related fields from the back scan
-        final updates = <String, dynamic>{};
+        // Update address-related fields from the back scan
+        final updates = <String, dynamic>{
+          'govIdBackDataUrl': dataUrl,
+          'govIdBackImageUrl': dataUrl,
+          'govIdBackImagePath': dataUrl,
+        };
         if (backResult.address != null) updates['address'] = backResult.address;
         if (backResult.pinCode != null) updates['pinCode'] = backResult.pinCode;
         if (backResult.district != null) updates['district'] = backResult.district;
         if (backResult.state != null) updates['state'] = backResult.state;
 
-        if (updates.isNotEmpty) {
-          ref.read(registrationNotifierProvider.notifier).updateFields(updates);
-          // Also update OCR result provider
-          final existing = ref.read(ocrResultProvider);
-          ref.read(ocrResultProvider.notifier).setResult({
-            ...existing,
-            ...updates,
-          });
-        }
+        ref.read(registrationNotifierProvider.notifier).updateFields(updates);
+        final existing = ref.read(ocrResultProvider);
+        ref.read(ocrResultProvider.notifier).setResult({
+          ...existing,
+          ...updates,
+        });
 
         if (mounted) setState(() => _isProcessing = false);
         if (mounted) _showBackScanResult(backResult);
@@ -86,15 +90,11 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
 
         final result = OcrParser.parseByType(detectedType, rawText);
 
-        // Auto-watermark KYC document
-        final watermarked = await WatermarkHelper.burnWatermark(
-          sourceFile: image,
-          targetPath: image.path.replaceAll(RegExp(r'\.[a-zA-Z0-9]+$'), '_kyc_verified.png'),
-        );
-
         ref.read(registrationNotifierProvider.notifier).updateFields({
           'govIdType': detectedType.name,
-          'govIdImagePath': watermarked.path,
+          'govIdDataUrl': dataUrl,
+          'govIdImageUrl': dataUrl,
+          'govIdImagePath': dataUrl,
           if (result.name != null) 'name': result.name,
           if (result.fatherName != null) 'fatherName': result.fatherName,
           if (result.dob != null) 'dob': result.dob,
@@ -313,7 +313,7 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                 onPressed: () {
                   Navigator.of(ctx).pop();
                   setState(() {
-                    _scannedImage = null;
+                    _scannedBytes = null;
                   });
                 },
                 icon: const Icon(Icons.refresh_rounded),
@@ -338,10 +338,14 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
           'Front only: Name, Father\'s Name, DOB & PAN number.',
       GovIdType.drivingLicence:
           'Front: Name, DOB, DL number, Blood Group.\nBack: Address & PIN code.',
+      GovIdType.voterId:
+          'Front: Name, Father/Husband Name, EPIC number.\nBack: Address & district.',
       GovIdType.passport:
           'Front: Name, DOB, Passport number, Nationality.\nBack: Address & expiry.',
       GovIdType.collegeId:
           'Front: Name, Roll/Enroll No., College, Course.',
+      GovIdType.other:
+          'Front: Name, Photo & ID number.\nBack: Address & other details.',
     };
 
     return Scaffold(
@@ -381,28 +385,12 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                         prefixIcon: Icon(Icons.credit_card_rounded),
                         border: OutlineInputBorder(),
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: GovIdType.aadhaar,
-                          child: Text('Aadhaar Card'),
-                        ),
-                        DropdownMenuItem(
-                          value: GovIdType.pan,
-                          child: Text('PAN Card'),
-                        ),
-                        DropdownMenuItem(
-                          value: GovIdType.drivingLicence,
-                          child: Text('Driving Licence'),
-                        ),
-                        DropdownMenuItem(
-                          value: GovIdType.passport,
-                          child: Text('Passport'),
-                        ),
-                        DropdownMenuItem(
-                          value: GovIdType.collegeId,
-                          child: Text('College / Student ID'),
-                        ),
-                      ],
+                      items: GovIdType.values
+                          .map((t) => DropdownMenuItem(
+                                value: t,
+                                child: Text(t.displayName),
+                              ))
+                          .toList(),
                       onChanged: (val) {
                         if (val != null) setState(() => _selectedType = val);
                       },
@@ -514,7 +502,7 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
                     TextButton(
                       onPressed: () =>
                           ref.read(registrationStepProvider.notifier).goTo(2),
-                      child: const Text('Skip & Enter Details Manually ?'),
+                      child: const Text('Skip & Enter Details Manually ➔'),
                     ),
                   ],
                 ],
@@ -526,30 +514,30 @@ class _IdScanScreenState extends ConsumerState<IdScanScreen> {
     );
   }
 
-  /// Card-shaped scanning guide frame
+  /// Card-shaped scanning guide frame with instant cross-platform memory preview
   Widget _buildCardFrame(ThemeData theme) {
-    final scanned = _frontScanned ? _scannedBackImage ?? _scannedImage : _scannedImage;
+    final scannedBytes = _frontScanned ? (_scannedBackBytes ?? _scannedBytes) : _scannedBytes;
     return Center(
       child: Container(
-        width: 300,
-        height: 190,
+        width: 320,
+        height: 200,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: scanned != null
+            color: scannedBytes != null
                 ? theme.colorScheme.primary
                 : theme.colorScheme.outline.withValues(alpha: 0.5),
-            width: scanned != null ? 2.5 : 1.5,
+            width: scannedBytes != null ? 2.5 : 1.5,
           ),
           color: theme.colorScheme.surfaceContainerLow,
-          image: scanned != null
+          image: scannedBytes != null
               ? DecorationImage(
-                  image: FileImage(scanned),
+                  image: MemoryImage(scannedBytes),
                   fit: BoxFit.cover,
                 )
               : null,
         ),
-        child: scanned == null
+        child: scannedBytes == null
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

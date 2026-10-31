@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:study_library/services/seat_allocation_pdf_service.dart';
 import 'package:study_library/core/widgets/loading_skeleton.dart';
+import 'package:study_library/core/widgets/staggered_list_item.dart';
+import 'package:study_library/core/error/error_handler.dart';
 
 import '../providers/seat_providers.dart';
 import '../widgets/seat_grid_widget.dart';
@@ -14,7 +16,11 @@ import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/section_model.dart';
 
 class SeatMapScreen extends ConsumerWidget {
-  const SeatMapScreen({super.key});
+  /// When true, shows admin actions (add/edit/delete sections, bulk select).
+  /// When false (student view), shows read-only seat availability.
+  final bool isAdminView;
+
+  const SeatMapScreen({super.key, this.isAdminView = true});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,6 +44,12 @@ class SeatMapScreen extends ConsumerWidget {
           isSelecting ? '${selectedSeats.length} Selected' : 'Seat Map',
         ),
         actions: [
+          if (!isSelecting && isAdminView)
+            IconButton(
+              icon: const Icon(Icons.add_rounded),
+              tooltip: 'Add Section',
+              onPressed: () => _navigateToAddSection(context, libraryId),
+            ),
           IconButton(
             icon: const Icon(Icons.print_rounded),
             tooltip: 'Print Seating Chart',
@@ -94,37 +106,47 @@ class SeatMapScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Add a section to manage seats.',
+                    isAdminView
+                        ? 'Add a section to manage seats.'
+                        : 'Seat map is not configured yet.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => _navigateToAddSection(context, libraryId),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Section'),
-                  ),
+                  if (isAdminView) ...[
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () => _navigateToAddSection(context, libraryId),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Section'),
+                    ),
+                  ],
                 ],
               ),
             );
           }
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              // ignore: unused_result
-              ref.refresh(sectionsProvider);
-            },
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-              itemCount: sections.length,
-              itemBuilder: (context, index) {
-                final section = sections[index];
-                final hasSelectedInSection = selectedSeats.values.contains(
-                  section.id,
-                );
+          return Column(
+            children: [
+              _buildSeatMapLegend(context),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    // ignore: unused_result
+                    ref.refresh(sectionsProvider);
+                  },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+                    itemCount: sections.length,
+                    itemBuilder: (context, index) {
+                      final section = sections[index];
+                      final hasSelectedInSection = selectedSeats.values.contains(
+                        section.id,
+                      );
 
-                final sectionColor = Color(section.color != 0 ? section.color : 0xFF5D4037);
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
+                      final sectionColor = Color(section.color != 0 ? section.color : 0xFF5D4037);
+                      return StaggeredListItem(
+                        index: index,
+                        child: Card(
+                        margin: const EdgeInsets.only(bottom: 16),
                   elevation: hasSelectedInSection ? 3 : 1,
                   clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
@@ -218,29 +240,35 @@ class SeatMapScreen extends ConsumerWidget {
                           ),
                       ],
                     ),
-                    subtitle: Text(
-                      '${section.capacity} seats (${section.rows}×${section.cols})',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12,
-                      ),
-                    ),
+                    subtitle: _SectionSubtitle(section: section),
                     trailing: PopupMenuButton<String>(
                       icon: const Icon(Icons.more_vert, size: 20),
                       tooltip: 'Section Options',
                       onSelected: (val) async {
                         final seatRepo = ref.read(seatRepositoryProvider);
-                        if (val == 'details') {
+                        if (val == 'edit') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AddSectionScreen(
+                                libraryId: libraryId,
+                                section: section,
+                              ),
+                            ),
+                          );
+                        } else if (val == 'details') {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => SectionDetailScreen(sectionId: section.id),
                             ),
                           );
-                        } else if (val == 'duplicate') {
-                          _showDuplicateSectionDialog(context, ref, libraryId, section);
                         } else if (val == 'toggle_status') {
                           _toggleSectionStatus(context, ref, libraryId, section);
+                        } else if (val == 'duplicate') {
+                          _showDuplicateSectionDialog(context, ref, libraryId, section);
+                        } else if (val == 'delete') {
+                          _confirmDeleteSection(context, ref, libraryId, section);
                         } else if (val == 'select_all') {
                           final seats = await seatRepo.getSeatsOnce(
                             libraryId,
@@ -249,20 +277,6 @@ class SeatMapScreen extends ConsumerWidget {
                           final map = {
                             for (final s in seats)
                               if (!s.id.startsWith('missing_'))
-                                s.id: section.id,
-                          };
-                          ref
-                              .read(selectedSeatsProvider.notifier)
-                              .selectMultiple(map);
-                        } else if (val == 'select_available') {
-                          final seats = await seatRepo.getSeatsOnce(
-                            libraryId,
-                            section.id,
-                          );
-                          final map = {
-                            for (final s in seats)
-                              if (!s.id.startsWith('missing_') &&
-                                  s.status == SeatStatus.available)
                                 s.id: section.id,
                           };
                           ref
@@ -280,22 +294,22 @@ class SeatMapScreen extends ConsumerWidget {
                       },
                       itemBuilder: (ctx) => [
                         const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_outlined, size: 18),
+                              SizedBox(width: 8),
+                              Text('Edit Section'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
                           value: 'details',
                           child: Row(
                             children: [
                               Icon(Icons.dashboard_outlined, size: 18),
                               SizedBox(width: 8),
                               Text('Section Details'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'duplicate',
-                          child: Row(
-                            children: [
-                              Icon(Icons.copy_rounded, size: 18),
-                              SizedBox(width: 8),
-                              Text('Duplicate Section'),
                             ],
                           ),
                         ),
@@ -321,6 +335,16 @@ class SeatMapScreen extends ConsumerWidget {
                             ],
                           ),
                         ),
+                        const PopupMenuItem(
+                          value: 'duplicate',
+                          child: Row(
+                            children: [
+                              Icon(Icons.copy_rounded, size: 18),
+                              SizedBox(width: 8),
+                              Text('Duplicate Section'),
+                            ],
+                          ),
+                        ),
                         const PopupMenuDivider(),
                         const PopupMenuItem(
                           value: 'select_all',
@@ -329,20 +353,6 @@ class SeatMapScreen extends ConsumerWidget {
                               Icon(Icons.select_all, size: 18),
                               SizedBox(width: 8),
                               Text('Select All in Section'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'select_available',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle_outline,
-                                size: 18,
-                                color: Colors.green,
-                              ),
-                              SizedBox(width: 8),
-                              Text('Select Available Only'),
                             ],
                           ),
                         ),
@@ -357,11 +367,22 @@ class SeatMapScreen extends ConsumerWidget {
                               ],
                             ),
                           ),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Delete Section', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                     children: [
                       Padding(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
                         child: SeatGridWidget(
                           libraryId: libraryId,
                           sectionId: section.id,
@@ -372,19 +393,25 @@ class SeatMapScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+                ),
                 );
               },
             ),
-          );
+          ),
+        ),
+      ],
+    );
         },
         loading: () => const SeatGridSkeleton(count: 12),
         error: (err, stack) =>
             Center(child: Text('Error loading sections: $err')),
       ),
-      floatingActionButton: !isSelecting
+      floatingActionButton: (isAdminView && !isSelecting && MediaQuery.of(context).size.width >= 700)
           ? FloatingActionButton.extended(
+              heroTag: 'add_section_fab',
               onPressed: () => _navigateToAddSection(context, libraryId),
-              icon: const Icon(Icons.add),
+              tooltip: 'Add Section',
+              icon: const Icon(Icons.add_rounded),
               label: const Text('Add Section'),
             )
           : null,
@@ -451,6 +478,53 @@ class SeatMapScreen extends ConsumerWidget {
               ),
             )
           : null,
+    );
+  }
+
+  Widget _buildSeatMapLegend(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    Widget legendPill(String label, Color color) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 9,
+            height: 9,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          legendPill('Available', const Color(0xFF4CAF50)),
+          legendPill('Occupied', const Color(0xFFE53935)),
+          legendPill('Reserved', const Color(0xFFFFB300)),
+          legendPill('Maintenance', Colors.grey.shade500),
+        ],
+      ),
     );
   }
 
@@ -546,8 +620,7 @@ class SeatMapScreen extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text('Error: $e')));
+                      AppSnackbar.showError(context, e);
                     }
                   }
                 },
@@ -577,8 +650,7 @@ class SeatMapScreen extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text('Error: $e')));
+                      AppSnackbar.showError(context, e);
                     }
                   }
                 },
@@ -608,8 +680,7 @@ class SeatMapScreen extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text('Error: $e')));
+                      AppSnackbar.showError(context, e);
                     }
                   }
                 },
@@ -653,8 +724,7 @@ class SeatMapScreen extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text('Error: $e')));
+                      AppSnackbar.showError(context, e);
                     }
                   }
                 },
@@ -686,8 +756,7 @@ class SeatMapScreen extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text('Error: $e')));
+                      AppSnackbar.showError(context, e);
                     }
                   }
                 },
@@ -719,8 +788,7 @@ class SeatMapScreen extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text('Error: $e')));
+                      AppSnackbar.showError(context, e);
                     }
                   }
                 },
@@ -780,8 +848,7 @@ class SeatMapScreen extends ConsumerWidget {
                       }
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('Error: $e')));
+                        AppSnackbar.showError(context, e);
                       }
                     }
                   }
@@ -905,6 +972,57 @@ class SeatMapScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _confirmDeleteSection(
+    BuildContext context,
+    WidgetRef ref,
+    String libraryId,
+    SectionModel section,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Section?'),
+        content: Text(
+          'Are you sure you want to delete "${section.name}" and all its seats?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final repo = ref.read(seatRepositoryProvider);
+      await repo.deleteSection(libraryId, section.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Section "${section.name}" deleted successfully.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _showReorderSectionsSheet(
     BuildContext context,
     WidgetRef ref,
@@ -998,10 +1116,7 @@ class SeatMapScreen extends ConsumerWidget {
                           s.name,
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        subtitle: Text(
-                          '${s.capacity} seats (${s.rows}x${s.cols})',
-                          style: const TextStyle(fontSize: 12),
-                        ),
+                        subtitle: _SectionSubtitle(section: s),
                         trailing: const Icon(
                           Icons.drag_handle_rounded,
                           color: Colors.grey,
@@ -1069,4 +1184,23 @@ Color _sectionTypeColor(String type) {
     default: return Colors.grey.shade200;
   }
 }
+
+class _SectionSubtitle extends ConsumerWidget {
+  final SectionModel section;
+  const _SectionSubtitle({required this.section});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final seatsAsync = ref.watch(seatsProvider(section.id));
+    final count = seatsAsync.value?.where((s) => !s.id.startsWith('missing_')).length ?? section.capacity;
+    return Text(
+      '$count seats',
+      style: TextStyle(
+        color: Colors.grey.shade600,
+        fontSize: 12,
+      ),
+    );
+  }
+}
+
 

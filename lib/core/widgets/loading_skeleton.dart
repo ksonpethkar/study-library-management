@@ -173,3 +173,50 @@ class CardListSkeleton extends StatelessWidget {
   }
 }
 
+
+/// V2: Skeleton shown while student detail screen is loading.
+class StudentDetailSkeleton extends StatelessWidget {
+  const StudentDetailSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Profile header
+          Row(
+            children: [
+              const ShimmerBox(width: 80, height: 80, borderRadius: 40),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    ShimmerBox(width: double.infinity, height: 20),
+                    SizedBox(height: 8),
+                    ShimmerBox(width: 160, height: 15),
+                    SizedBox(height: 6),
+                    ShimmerBox(width: 100, height: 22, borderRadius: 11),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Info rows
+          ...List.generate(5, (_) => const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: ShimmerBox(width: double.infinity, height: 50, borderRadius: 12),
+          )),
+          const SizedBox(height: 16),
+          // Action buttons
+          const ShimmerBox(width: double.infinity, height: 44, borderRadius: 12),
+          const SizedBox(height: 10),
+          const ShimmerBox(width: double.infinity, height: 44, borderRadius: 12),
+        ],
+      ),
+    );
+  }
+}

@@ -1,0 +1,2397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart 3D ID Card, Smart Receipt, Amenity Badges & Admin Impact Architecture</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    .perspective-1000 { perspective: 1000px; }
+    .transform-style-3d { transform-style: preserve-3d; }
+    .rotate-y-180 { transform: rotateY(180deg); }
+    .backface-hidden { backface-visibility: hidden; }
+    .card-shimmer {
+      background: linear-gradient(135deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.05) 50%, rgba(0,0,0,0.15) 100%);
+    }
+    .chip-gold {
+      background: linear-gradient(135deg, #fce075 0%, #d4af37 50%, #aa820a 100%);
+      box-shadow: inset 0 1px 2px rgba(255,255,255,0.6), 0 2px 4px rgba(0,0,0,0.25);
+    }
+    .watermark-cover {
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center center;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-3 md:p-8 font-sans antialiased">
+
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- Header & Brand Theme Controller -->
+    <header class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 md:p-6 backdrop-blur-md shadow-2xl">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-3">
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Architecture & Design Review</span>
+            <span class="text-xs text-slate-400 font-mono">The Cozy Corner Centre • Parli</span>
+          </div>
+          <h1 class="text-xl md:text-3xl font-black text-white mt-1 tracking-tight">Smart 3D Virtual Cards, Receipt Redesign & Admin Impact Pipeline</h1>
+          <p class="text-slate-400 text-xs md:text-sm mt-1">Review live interactive previews for Full-Page Watermark Receipts, Amenity Badges Customizer, Dynamic Form Sync, and Admin Action Reflections.</p>
+        </div>
+
+        <!-- Global Color Picker Control -->
+        <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-700 flex items-center gap-4">
+          <div>
+            <div class="text-xs font-semibold text-slate-200">Brand Color Accent</div>
+            <div class="text-[11px] text-slate-400">Syncs across all documents</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="color" id="brandColorPicker" value="#881337" class="w-9 h-9 rounded-lg cursor-pointer border border-slate-600 bg-transparent">
+            <input type="text" id="brandColorHex" value="#881337" class="w-24 px-2 py-1 text-xs font-mono uppercase bg-slate-900 border border-slate-700 rounded-lg text-slate-200">
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex flex-wrap gap-2 mt-5 border-t border-slate-700/60 pt-4">
+        <button onclick="switchTab('tab-receipt')" id="btn-tab-receipt" class="px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all bg-emerald-600 text-white shadow-md">
+          🧾 1. Smart Receipt (Full-Page Watermark & Transparent Terms)
+        </button>
+        <button onclick="switchTab('tab-poster')" id="btn-tab-poster" class="px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all bg-slate-700/60 text-slate-300 hover:bg-slate-700">
+          🖼️ 2. Amenity Badges Customizer & Entrance Poster
+        </button>
+        <button onclick="switchTab('tab-form-sync')" id="btn-tab-form-sync" class="px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all bg-slate-700/60 text-slate-300 hover:bg-slate-700">
+          📋 3. Dynamic Form Fields System-wide Flow
+        </button>
+        <button onclick="switchTab('tab-admin-impact')" id="btn-tab-admin-impact" class="px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all bg-slate-700/60 text-slate-300 hover:bg-slate-700">
+          ⚡ 4. All Admin Actions & Student Login Impact Matrix
+        </button>
+        <button onclick="switchTab('tab-idcard')" id="btn-tab-idcard" class="px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all bg-slate-700/60 text-slate-300 hover:bg-slate-700">
+          💳 5. Smart 3D Virtual ID Card
+        </button>
+        <button onclick="switchTab('tab-notifications')" id="btn-tab-notifications" class="px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all bg-slate-700/60 text-slate-300 hover:bg-slate-700">
+          🔔 6. Modern Notification Architecture & Android Visuals
+        </button>
+        <button onclick="switchTab('tab-mobile-experience')" id="btn-tab-mobile-experience" class="px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all bg-slate-700/60 text-slate-300 hover:bg-slate-700">
+          ✨ 7. Mobile Gestures, Effects & Smart UI Studio
+        </button>
+      </div>
+    </header>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: Smart Receipt Redesign (Addressing Screenshot & Feedback)           -->
+    <!-- ========================================================================= -->
+    <section id="tab-receipt" class="space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Controls & Options Panel -->
+        <div class="lg:col-span-4 bg-slate-800/80 border border-slate-700 rounded-2xl p-5 space-y-4">
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span>🛠️</span> Receipt Layout & Watermark Settings
+          </h2>
+          <p class="text-xs text-slate-400">Directly addresses the issues visible in the screenshot (<code>media_1792745275133_c853daf0.png</code>).</p>
+
+          <!-- Issues & Fixes Breakdown -->
+          <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-700 space-y-2 text-xs">
+            <div class="font-bold text-emerald-400 flex items-center gap-1.5">
+              <span>✓</span> Improvements Applied in this Redesign:
+            </div>
+            <ul class="space-y-1.5 text-slate-300 list-disc pl-4">
+              <li><strong>Bold & Prominent Org Title:</strong> Library name rendered with genuine heavy bold font + brand accent color.</li>
+              <li><strong>Dynamic Org Details:</strong> Pulls latest phone (+91 7385817571), address, and email instead of cached/spelling-error data.</li>
+              <li><strong>Full-Page Watermark (90% Page Area):</strong> Watermark spans almost the entire page with small side margins, perfectly centered.</li>
+              <li><strong>Transparent Terms & Conditions:</strong> Removed the gray opaque container (<code>PdfColors.grey50</code>) so it never blocks or covers the watermark.</li>
+              <li><strong>Repositioned Terms:</strong> Placed neatly above the signature line without disrupting document harmony.</li>
+            </ul>
+          </div>
+
+          <!-- Interactive Sliders for Watermark -->
+          <div class="space-y-3 pt-2 border-t border-slate-700">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-300 font-semibold">Watermark Scale (Page Coverage)</span>
+              <span id="scaleValText" class="font-mono text-emerald-400 font-bold">88%</span>
+            </div>
+            <input type="range" id="watermarkScaleSlider" min="10" max="98" value="88" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+            
+            <div class="flex items-center justify-between text-xs pt-1">
+              <span class="text-slate-300 font-semibold">Watermark Opacity</span>
+              <span id="opacityValText" class="font-mono text-emerald-400 font-bold">6%</span>
+            </div>
+            <input type="range" id="watermarkOpacitySlider" min="2" max="40" value="6" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+          </div>
+
+          <div class="pt-2">
+            <div class="text-[11px] text-slate-400 bg-slate-950 p-3 rounded-xl border border-slate-800">
+              💡 <strong>Print Ready:</strong> Renders identically on standard A4 / A5 office printers and generates clean 80mm thermal receipt slips.
+            </div>
+          </div>
+        </div>
+
+        <!-- Receipt Live Preview (A4 Page Aspect Ratio) -->
+        <div class="lg:col-span-8 flex justify-center p-4 md:p-8 bg-slate-950 rounded-2xl border border-slate-800">
+          
+          <!-- A4 Page Container (White Paper with 1:1.414 Aspect Ratio) -->
+          <div id="receiptA4Paper" class="relative w-full max-w-[560px] min-h-[790px] bg-white text-slate-900 rounded-xl shadow-2xl p-7 border border-slate-300 flex flex-col justify-between overflow-hidden">
+            
+            <!-- ======================================================== -->
+            <!-- Full-Page Watermark Layer (Spans 90% of entire page)     -->
+            <!-- ======================================================== -->
+            <div id="receiptWatermarkLayer" class="absolute inset-0 pointer-events-none flex items-center justify-center z-0 transition-all duration-300" style="opacity: 0.06; padding: 24px;">
+              <!-- Saraswati / Study Emblem SVG spanning full page -->
+              <svg id="watermarkSvg" class="w-[90%] h-[90%] text-slate-900 transition-all duration-300" viewBox="0 0 400 400" fill="currentColor">
+                <circle cx="200" cy="200" r="185" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="8 6"/>
+                <circle cx="200" cy="200" r="165" fill="none" stroke="currentColor" stroke-width="2"/>
+                <!-- Veena & Lotus Stylized Emblem -->
+                <path d="M200 60 C240 60 270 90 270 130 C270 170 240 200 200 200 C160 200 130 170 130 130 C130 90 160 60 200 60 Z" fill="none" stroke="currentColor" stroke-width="3"/>
+                <circle cx="200" cy="130" r="28" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="M120 280 Q200 230 280 280 Q200 330 120 280 Z" fill="none" stroke="currentColor" stroke-width="3"/>
+                <path d="M140 260 Q200 210 260 260" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="M170 130 L230 290" stroke="currentColor" stroke-width="3"/>
+                <path d="M230 130 L170 290" stroke="currentColor" stroke-width="2"/>
+                <!-- Text In Emblem -->
+                <text x="200" y="360" text-anchor="middle" font-size="16" font-family="serif" font-weight="bold" fill="currentColor">THE COZY CORNER CENTRE • PARLI</text>
+                <text x="200" y="380" text-anchor="middle" font-size="11" font-family="sans-serif" fill="currentColor">स्वाध्यायेन ज्ञानवृद्धिः</text>
+              </svg>
+            </div>
+
+            <!-- Foreground Content Layer (z-10 ensures it's readable over watermark) -->
+            <div class="relative z-10 flex flex-col justify-between h-full space-y-4">
+              
+              <!-- 1. Header (Logo + Bold Org Name + Dynamic Details + Badge) -->
+              <div>
+                <div class="flex items-start justify-between gap-4">
+                  
+                  <div class="flex items-center gap-3.5">
+                    <!-- Library Logo -->
+                    <div class="w-14 h-14 rounded-full border-2 border-slate-300 p-1 flex-shrink-0 flex items-center justify-center bg-white shadow-sm">
+                      <span class="text-2xl">📚</span>
+                    </div>
+
+                    <div>
+                      <!-- GENUINE BOLD ORG NAME -->
+                      <h2 id="receiptOrgTitle" class="text-xl md:text-2xl font-black tracking-tight text-slate-900 uppercase" style="color: #881337;">
+                        The Cozy Corner Centre
+                      </h2>
+                      <!-- Dynamic Address & Phone -->
+                      <p class="text-xs text-slate-600 font-medium mt-0.5">
+                        Front Of Reliance Fashion Factory, Nath Road, Parli - 431515
+                      </p>
+                      <p class="text-[11px] text-slate-500 font-medium">
+                        Helpline: <strong>+91 7385817571</strong> • Email: thecozycornercc@gmail.com
+                      </p>
+                      <p class="text-[10px] text-slate-400 italic">"Welcome To The Cozy Corner Centre"</p>
+                    </div>
+                  </div>
+
+                  <!-- Receipt Badge -->
+                  <div class="text-right flex-shrink-0">
+                    <div id="receiptBadgeHeader" class="px-3 py-1 rounded text-xs font-black uppercase tracking-wider text-white" style="background-color: #881337;">
+                      FEE RECEIPT
+                    </div>
+                    <div class="text-[10px] text-slate-500 mt-1 font-mono">ORIGINAL STUDENT COPY</div>
+                  </div>
+
+                </div>
+
+                <!-- Divider with brand accent hint -->
+                <div class="w-full h-0.5 bg-slate-300 mt-3 mb-3"></div>
+
+                <!-- Metadata Row (Receipt #, Date, Student Name, Seat) -->
+                <div class="grid grid-cols-2 gap-4 text-xs bg-slate-50/70 p-3 rounded-lg border border-slate-200/80">
+                  <div class="space-y-0.5">
+                    <div><span class="text-slate-500">Receipt No:</span> <strong class="text-slate-900 font-mono">REC-2026-0003</strong></div>
+                    <div><span class="text-slate-500">Date:</span> <strong class="text-slate-800">23/10/2026</strong></div>
+                    <div><span class="text-slate-500">Admission No:</span> <strong class="text-slate-800">CC-2026-004</strong></div>
+                  </div>
+                  <div class="space-y-0.5 text-right">
+                    <div><span class="text-slate-500">Student:</span> <strong class="text-slate-900">Ashish Wagesh Choudhari</strong></div>
+                    <div><span class="text-slate-500">Mobile:</span> <strong class="text-slate-800">+91 7385817571</strong></div>
+                    <div><span class="text-slate-500">Seat:</span> <strong class="text-emerald-700">Cozy Hall - Seat 01</strong></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. Itemized Fee Table -->
+              <div class="border border-slate-200 rounded-lg overflow-hidden bg-white/60">
+                <table class="w-full text-xs">
+                  <thead>
+                    <tr class="bg-slate-800 text-white font-bold text-[11px]">
+                      <th class="py-2 px-3 text-left">Description</th>
+                      <th class="py-2 px-3 text-center">Validity Period</th>
+                      <th class="py-2 px-3 text-center">Payment Mode</th>
+                      <th class="py-2 px-3 text-right">Amount (₹)</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 text-slate-800">
+                    <tr>
+                      <td class="py-2.5 px-3">
+                        <div class="font-bold text-slate-900">Monthly Standard Membership</div>
+                        <div class="text-[10px] text-slate-500">AC Hall • Dedicated Seat • High-Speed Wi-Fi</div>
+                      </td>
+                      <td class="py-2.5 px-3 text-center text-slate-700 font-medium">
+                        23/10/2026 to 22/11/2026
+                      </td>
+                      <td class="py-2.5 px-3 text-center">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          UPI / QR
+                        </span>
+                      </td>
+                      <td class="py-2.5 px-3 text-right font-bold text-slate-900">
+                        ₹700.00
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- 3. Totals & Balance Row -->
+              <div class="flex items-center justify-between text-xs pt-1">
+                <div class="text-slate-500 text-[11px]">
+                  <span>Amount in words: <em>Seven Hundred Rupees Only</em></span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="text-right">
+                    <span class="text-slate-500 text-[11px]">Balance Due: </span>
+                    <strong class="text-emerald-700 font-bold">₹0.00 (Nil)</strong>
+                  </div>
+                  <div class="px-4 py-1.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 font-black text-sm">
+                    Total Paid: ₹700.00
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. TRANSPARENT Terms & Conditions (NO Gray Background Box!) -->
+              <div class="pt-2 text-slate-600 text-[10px] leading-relaxed">
+                <div class="font-bold text-slate-800 text-[11px] mb-1 flex items-center gap-1.5">
+                  <span>📜</span> Terms & Conditions:
+                </div>
+                <p>• Fees once paid are non-refundable and non-transferable under any circumstances.</p>
+                <p>• Please preserve this digital/printed receipt for library entry and renewal identification.</p>
+                <p>• Strict pin-drop silence and library discipline must be maintained at all times.</p>
+              </div>
+
+              <!-- 5. Verification QR + Authorized Signatory & Official Stamp -->
+              <div class="border-t border-slate-300 pt-3 flex items-end justify-between">
+                
+                <!-- QR Code for instant ledger verification -->
+                <div class="flex items-center gap-2.5">
+                  <div class="w-16 h-16 p-1 border border-slate-300 rounded bg-white shadow-sm flex-shrink-0">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://study-lib-mgmt-2026.web.app/verify?rec=REC-2026-0003" alt="Verify QR" class="w-full h-full">
+                  </div>
+                  <div class="text-[9px] text-slate-500 leading-tight">
+                    <strong class="text-slate-700 block">Scan To Verify Receipt</strong>
+                    Official digital verification<br>via Cozy Corner Cloud Ledger
+                  </div>
+                </div>
+
+                <!-- Official Stamp & Signature -->
+                <div class="text-center">
+                  <!-- Circular Seal Graphic -->
+                  <div class="w-16 h-16 rounded-full border-2 border-dashed border-indigo-700 text-indigo-800 mx-auto flex flex-col items-center justify-center p-1 text-[8px] font-bold uppercase rotate-[-6deg]">
+                    <span>★ COZY CORNER ★</span>
+                    <span class="text-[7px]">PARLI (V)</span>
+                    <span class="text-[7px] text-emerald-700 font-black">VERIFIED</span>
+                  </div>
+                  <div class="text-[10px] text-slate-600 font-semibold mt-1">Authorized Signatory & Seal</div>
+                </div>
+
+              </div>
+
+              <!-- Receipt Footer Line -->
+              <div class="text-center text-[9px] text-slate-500 pt-1 border-t border-slate-200">
+                Thank you for choosing The Cozy Corner Centre • Nath Road, Parli • Helpline: 7385817571
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: Amenity Badges Customizer & Entrance Poster ("Share QR")            -->
+    <!-- ========================================================================= -->
+    <section id="tab-poster" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Amenity Badges Management Controller -->
+        <div class="lg:col-span-5 bg-slate-800/80 border border-slate-700 rounded-2xl p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-bold text-white flex items-center gap-2">
+                <span>⚙️</span> Manage Visual Amenity Badges
+              </h2>
+              <p class="text-xs text-slate-400">Add, edit, toggle, or delete badges shown on the Entrance Poster & Live Seat Map.</p>
+            </div>
+            <button onclick="addNewAmenityPrompt()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1 shadow">
+              <span>+ Add</span>
+            </button>
+          </div>
+
+          <!-- Active Amenity Badges List (Admin can toggle / edit / delete) -->
+          <div id="amenityBadgesList" class="space-y-2 text-xs">
+            <!-- Dynamically populated via JS below -->
+          </div>
+
+          <!-- Predefined Library Amenity Catalog -->
+          <div class="border-t border-slate-700 pt-3 space-y-2">
+            <div class="text-xs font-semibold text-slate-300">Quick Add from Library Catalog:</div>
+            <div class="flex flex-wrap gap-1.5">
+              <button onclick="addPresetAmenity('📹', 'CCTV 24x7')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-300">
+                + 📹 CCTV 24x7
+              </button>
+              <button onclick="addPresetAmenity('🔒', 'Personal Lockers')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-300">
+                + 🔒 Personal Lockers
+              </button>
+              <button onclick="addPresetAmenity('☕', 'Pantry & Cafeteria')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-300">
+                + ☕ Pantry & Cafeteria
+              </button>
+              <button onclick="addPresetAmenity('🪑', 'Ergonomic Chairs')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-300">
+                + 🪑 Ergonomic Chairs
+              </button>
+              <button onclick="addPresetAmenity('📰', 'Daily Newspapers')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-300">
+                + 📰 Daily Newspapers
+              </button>
+              <button onclick="addPresetAmenity('🗣️', 'Discussion Room')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-300">
+                + 🗣️ Discussion Room
+              </button>
+            </div>
+          </div>
+
+          <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-slate-400">
+            💾 <strong>Auto-Saved to Firestore:</strong> Saved in <code>libraries/{libraryId}/settings/poster</code> as <code>amenities</code> array so both the Entrance Poster AND the Public Seat Availability Web Page (<code>/seats</code>) update synchronously in real time.
+          </div>
+        </div>
+
+        <!-- Live Entrance Poster Preview -->
+        <div class="lg:col-span-7 flex justify-center p-4 md:p-6 bg-slate-950 rounded-2xl border border-slate-800">
+          <div class="w-full max-w-md bg-white text-slate-900 rounded-3xl shadow-2xl overflow-hidden border-4 border-slate-800 flex flex-col justify-between">
+            
+            <!-- Top Banner with Dynamic Brand Gradient -->
+            <div id="posterBanner" class="p-5 text-center text-white" style="background: linear-gradient(135deg, #881337 0%, #4c0519 100%);">
+              <div class="inline-block px-3 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+                WELCOME TO
+              </div>
+              <h2 class="text-xl md:text-2xl font-black uppercase tracking-tight">The Cozy Corner Centre</h2>
+              <p class="text-[11px] text-white/90 mt-0.5">
+                Front Of Reliance Fashion Factory, Nath Road, Parli - 431515
+              </p>
+            </div>
+
+            <!-- Seat Tracker QR Core Section -->
+            <div class="p-5 text-center space-y-3">
+              <div>
+                <span class="text-[10px] font-bold text-rose-700 uppercase tracking-widest bg-rose-50 px-2.5 py-0.5 rounded-full">REAL-TIME SEAT TRACKER</span>
+                <h3 class="text-lg font-black text-slate-900 mt-1">Scan To Check Live Available Seats</h3>
+                <p class="text-[11px] text-slate-500">Point your smartphone camera at this QR code to view vacant seats in real-time before entering.</p>
+              </div>
+
+              <!-- High Res QR Code (No Broken Image Placeholder) -->
+              <div class="inline-block p-3 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 border-2 border-slate-300 shadow-inner">
+                <div class="bg-white p-2.5 rounded-xl shadow-md">
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://study-lib-mgmt-2026.web.app/seats?lib=default" alt="Seat Map QR" class="w-44 h-44 mx-auto">
+                </div>
+              </div>
+
+              <!-- Dynamic Amenity Badges Grid (Updates Live via Manager!) -->
+              <div class="pt-1">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Library Amenities & Facilities</div>
+                <div id="posterAmenityBadgesGrid" class="grid grid-cols-3 gap-2">
+                  <!-- Populated by JavaScript -->
+                </div>
+              </div>
+
+              <!-- Contact & Helpline Footer -->
+              <div class="pt-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+                <div class="text-left">
+                  <span class="text-slate-400 block text-[9px]">Admission Helpline / WhatsApp</span>
+                  <span class="font-bold text-slate-900 text-xs">📞 +91 7385817571</span>
+                </div>
+                <div class="text-right">
+                  <span class="text-slate-400 block text-[9px]">Direct Live URL</span>
+                  <span class="font-mono text-[11px] font-bold text-indigo-700">study-lib-mgmt-2026.web.app</span>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: Dynamic Form Fields System-wide Architecture Flow                  -->
+    <!-- ========================================================================= -->
+    <section id="tab-form-sync" class="hidden space-y-6">
+      <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-6 space-y-6">
+        
+        <div>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">System-Wide Consistency Engine</span>
+          <h2 class="text-xl md:text-2xl font-bold text-white mt-2 flex items-center gap-2">
+            <span>📋</span> How Admin Form Fields Propagate to Every Module
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">Directly addressing: <em>"form field/registation form as organisation arranged/ setted, that must be applied to all over entire system where they acually must be used."</em></p>
+        </div>
+
+        <!-- Flow Diagram Cards (Complete 5-Phase Lifecycle) -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+          
+          <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-700 space-y-2">
+            <div class="flex items-center gap-1.5 text-indigo-400 font-bold text-xs uppercase">
+              <span>1️⃣</span> Admin Configures
+            </div>
+            <div class="text-xs font-bold text-white">Form Customizer</div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              Admin defines custom fields (e.g., Locker No, Blood Donor) in <code>form_customizer_screen.dart</code>.
+            </p>
+            <div class="text-[10px] text-emerald-400 font-mono">Saved to: settings/form_config</div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-700 space-y-2">
+            <div class="flex items-center gap-1.5 text-indigo-400 font-bold text-xs uppercase">
+              <span>2️⃣</span> Registration
+            </div>
+            <div class="text-xs font-bold text-white">Admission Wizard</div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              <code>RegistrationFormScreen</code> queries <code>FormConfigService</code> and dynamically generates input widgets in sequence.
+            </p>
+            <div class="text-[10px] text-emerald-400 font-mono">Dynamic Form Validation</div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-700 space-y-2">
+            <div class="flex items-center gap-1.5 text-indigo-400 font-bold text-xs uppercase">
+              <span>3️⃣</span> Admin Desk Entry
+            </div>
+            <div class="text-xs font-bold text-white">Add & Edit Student</div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              <code>EditStudentScreen</code> loads controllers for all custom fields so admins can edit any custom value at any time.
+            </p>
+            <div class="text-[10px] text-emerald-400 font-mono">Editable _customControllers</div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-700 space-y-2">
+            <div class="flex items-center gap-1.5 text-indigo-400 font-bold text-xs uppercase">
+              <span>4️⃣</span> Student Profile
+            </div>
+            <div class="text-xs font-bold text-white">App Update Request</div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              Student taps Edit Profile in <code>my_profile_screen.dart</code>, editing custom fields inside <code>proposedData['customFields']</code>.
+            </p>
+            <div class="text-[10px] text-emerald-400 font-mono">Dynamic Profile Sheet</div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-700 space-y-2">
+            <div class="flex items-center gap-1.5 text-indigo-400 font-bold text-xs uppercase">
+              <span>5️⃣</span> Admin Approval
+            </div>
+            <div class="text-xs font-bold text-white">Diff View & Auto-Merge</div>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              <code>RequestDetailScreen</code> renders before/after diffs and merges approved fields cleanly via <code>customFields.<key></code>.
+            </p>
+            <div class="text-[10px] text-emerald-400 font-mono">Zero Data Overwrite</div>
+          </div>
+
+        </div>
+
+        <!-- Field Mapping Table -->
+        <div class="border-t border-slate-700 pt-5 space-y-3">
+          <h3 class="text-sm font-bold text-white">Configured Fields & Their Cross-System Behaviors</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left border border-slate-700 rounded-xl overflow-hidden">
+              <thead class="bg-slate-900 text-slate-300 text-[11px] uppercase">
+                <tr>
+                  <th class="p-3">Field ID</th>
+                  <th class="p-3">Admin Label</th>
+                  <th class="p-3">Student Registration Form</th>
+                  <th class="p-3">Admin Add/Edit Screen</th>
+                  <th class="p-3">ID Card & Receipt</th>
+                  <th class="p-3">Student App Profile</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800 text-slate-300">
+                <tr class="hover:bg-slate-800/50">
+                  <td class="p-3 font-mono text-emerald-400">name</td>
+                  <td class="p-3 font-bold text-white">Full Name</td>
+                  <td class="p-3">Required text input with live capitalization</td>
+                  <td class="p-3">Required input</td>
+                  <td class="p-3">Printed on ID Front & Receipt</td>
+                  <td class="p-3">Displayed in App Header</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="p-3 font-mono text-emerald-400">phone</td>
+                  <td class="p-3 font-bold text-white">Phone Number</td>
+                  <td class="p-3">10-digit numeric validation</td>
+                  <td class="p-3">Auto-formatted with +91</td>
+                  <td class="p-3">Printed on Receipt & ID Back</td>
+                  <td class="p-3">Used for WhatsApp & Login</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="p-3 font-mono text-emerald-400">email</td>
+                  <td class="p-3 font-bold text-white">Email Address</td>
+                  <td class="p-3">Google Auth sync & email validation</td>
+                  <td class="p-3">Account linking check</td>
+                  <td class="p-3">Digital receipt delivery</td>
+                  <td class="p-3">Authentication Identity</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="p-3 font-mono text-emerald-400">govId</td>
+                  <td class="p-3 font-bold text-white">Aadhaar / Govt ID</td>
+                  <td class="p-3">OCR scan + Format Validator (Aadhaar/PAN/DL/Voter/Passport)</td>
+                  <td class="p-3">AES-256 encrypted at rest</td>
+                  <td class="p-3">QR verification payload</td>
+                  <td class="p-3">Secure Document Vault</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="p-3 font-mono text-emerald-400">dob / gender</td>
+                  <td class="p-3 font-bold text-white">DOB & Gender</td>
+                  <td class="p-3">Calendar picker + Dropdown selector</td>
+                  <td class="p-3">Birthdate age validation</td>
+                  <td class="p-3">ID Card DOB line</td>
+                  <td class="p-3">Personal Info Card</td>
+                </tr>
+                <tr class="hover:bg-slate-800/50">
+                  <td class="p-3 font-mono text-emerald-400">customFields</td>
+                  <td class="p-3 font-bold text-white">Custom Dynamic Fields</td>
+                  <td class="p-3">Dynamically rendered in configured order</td>
+                  <td class="p-3">Input fields under Custom Section</td>
+                  <td class="p-3">Configurable toggle per field</td>
+                  <td class="p-3">Detailed Profile Section</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 4: All Admin Actions & Student Login App Impact Matrix                -->
+    <!-- ========================================================================= -->
+    <section id="tab-admin-impact" class="hidden space-y-6">
+      <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-6 space-y-6">
+        
+        <div>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">End-to-End Enterprise Event Matrix</span>
+          <h2 class="text-xl md:text-2xl font-bold text-white mt-2 flex items-center gap-2">
+            <span>⚡</span> All Admin Actions & Their System-Wide Impact on Student App
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">
+            Comprehensive audit of every administrative action, its real-time database mutations, what happens in the student's mobile login, and industry benchmark comparison (Classplus, Cobot, Nexudus).
+          </p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left border border-slate-700 rounded-xl overflow-hidden">
+            <thead class="bg-slate-950 text-slate-300 text-[11px] uppercase tracking-wider">
+              <tr>
+                <th class="p-3.5">Admin Action / Trigger</th>
+                <th class="p-3.5">Firestore Mutation & System Scope</th>
+                <th class="p-3.5">Instant Reflection in Student App</th>
+                <th class="p-3.5">Status in System</th>
+                <th class="p-3.5">Leading Competitor Benchmark</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800 text-slate-300">
+              
+              <!-- 1. Admission Approval -->
+              <tr class="hover:bg-slate-800/50">
+                <td class="p-3.5 font-bold text-white">
+                  <div class="flex items-center gap-1.5 text-emerald-400">
+                    <span>✅</span> Approve Registration Request
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">Admin > Requests > Approve</div>
+                </td>
+                <td class="p-3.5 leading-relaxed">
+                  1. Creates <code>libraries/{lib}/students/{studentId}</code><br>
+                  2. Updates <code>sections/{sec}/seats/{seat}</code> to <code>isOccupied: true</code><br>
+                  3. Sets <code>users/{uid}.role = 'student'</code> & links <code>studentId</code><br>
+                  4. Updates request doc with <code>status: 'approved'</code> & <code>createdStudentId</code>
+                </td>
+                <td class="p-3.5 text-emerald-300 leading-relaxed font-medium">
+                  <strong>Instant Screen Transition:</strong> App immediately leaves "Under Review" state and opens the active Student Home Dashboard showing their Membership ID, Seat Number, Plan Expiry, and Digital ID Card.
+                </td>
+                <td class="p-3.5 font-mono text-[11px] text-emerald-400">
+                  Fully Fixed via StudentProvisioningService
+                </td>
+                <td class="p-3.5 text-slate-400 text-[11px]">
+                  <strong>Cobot / Nexudus:</strong> Instant biometric access provisioning and push notification sent.
+                </td>
+              </tr>
+
+              <!-- 2. Admission Rejection -->
+              <tr class="hover:bg-slate-800/50">
+                <td class="p-3.5 font-bold text-white">
+                  <div class="flex items-center gap-1.5 text-rose-400">
+                    <span>❌</span> Reject Registration Request
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">Admin > Requests > Reject with Reason</div>
+                </td>
+                <td class="p-3.5 leading-relaxed">
+                  1. Updates <code>requests/{reqId}</code> with <code>status: 'rejected'</code> and <code>rejectionReason</code><br>
+                  2. Leaves seat vacant
+                </td>
+                <td class="p-3.5 text-rose-300 leading-relaxed font-medium">
+                  <strong>Polite Notice Banner:</strong> Shows "Application Not Approved" with the admin's exact reason and direct WhatsApp Helpline link to contact reception.
+                </td>
+                <td class="p-3.5 font-mono text-[11px] text-emerald-400">Active & Operational</td>
+                <td class="p-3.5 text-slate-400 text-[11px]">
+                  <strong>Classplus:</strong> Automated SMS sent with reason and re-application link.
+                </td>
+              </tr>
+
+              <!-- 3. Seat Assignment / Swap -->
+              <tr class="hover:bg-slate-800/50">
+                <td class="p-3.5 font-bold text-white">
+                  <div class="flex items-center gap-1.5 text-blue-400">
+                    <span>🪑</span> Assign / Swap / Vacate Seat
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">Admin > Seats > Swap / Vacate</div>
+                </td>
+                <td class="p-3.5 leading-relaxed">
+                  1. Frees previous seat (<code>studentId: null, isOccupied: false</code>)<br>
+                  2. Assigns new seat (<code>studentId: sId, isOccupied: true</code>)<br>
+                  3. Updates student doc <code>seatId</code> and <code>sectionId</code>
+                </td>
+                <td class="p-3.5 text-blue-300 leading-relaxed font-medium">
+                  <strong>Live Seat Badge Update:</strong> Student Home card instantly reflects new seat number (e.g. <em>Cozy Hall - Seat #12</em>). Digital ID card QR code payload automatically updates.
+                </td>
+                <td class="p-3.5 font-mono text-[11px] text-emerald-400">Active & Synced</td>
+                <td class="p-3.5 text-slate-400 text-[11px]">
+                  <strong>Optix / Cobot:</strong> QR code key regenerated for door access switch.
+                </td>
+              </tr>
+
+              <!-- 4. Fee Payment & Receipt -->
+              <tr class="hover:bg-slate-800/50">
+                <td class="p-3.5 font-bold text-white">
+                  <div class="flex items-center gap-1.5 text-emerald-400">
+                    <span>💳</span> Collect Fee & Generate Receipt
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">Admin > Students > Collect Payment</div>
+                </td>
+                <td class="p-3.5 leading-relaxed">
+                  1. Creates document in <code>libraries/{lib}/receipts</code><br>
+                  2. Calculates and advances student's <code>planEndDate</code><br>
+                  3. Sets <code>membershipStatus: active</code> and records revenue ledger
+                </td>
+                <td class="p-3.5 text-emerald-300 leading-relaxed font-medium">
+                  <strong>Instant Receipt & Expiry Push:</strong> "Receipts" tab receives the new digital receipt with verified QR code. Membership countdown advances; expiry alert disappears.
+                </td>
+                <td class="p-3.5 font-mono text-[11px] text-emerald-400">Active & Synced</td>
+                <td class="p-3.5 text-slate-400 text-[11px]">
+                  <strong>Classplus:</strong> Instant WhatsApp PDF receipt delivered with UPI payment link.
+                </td>
+              </tr>
+
+              <!-- 5. Plan Renewal / Expiry Extension -->
+              <tr class="hover:bg-slate-800/50">
+                <td class="p-3.5 font-bold text-white">
+                  <div class="flex items-center gap-1.5 text-indigo-400">
+                    <span>⏳</span> Extend Validity / Change Plan
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">Admin > Students > Edit Plan</div>
+                </td>
+                <td class="p-3.5 leading-relaxed">
+                  1. Updates <code>planStartDate</code> and <code>planEndDate</code> in student doc<br>
+                  2. Updates plan name and tier
+                </td>
+                <td class="p-3.5 text-indigo-300 leading-relaxed font-medium">
+                  <strong>Plan Badge Update:</strong> Countdown timer refreshes to show extended days remaining. "Expiring Soon" warning chip resets to green "Active" status.
+                </td>
+                <td class="p-3.5 font-mono text-[11px] text-emerald-400">Active & Synced</td>
+                <td class="p-3.5 text-slate-400 text-[11px]">
+                  <strong>Nexudus:</strong> Subscription billing anchor date shifted in Stripe.
+                </td>
+              </tr>
+
+              <!-- 6. Form Fields Configuration -->
+              <tr class="hover:bg-slate-800/50">
+                <td class="p-3.5 font-bold text-white">
+                  <div class="flex items-center gap-1.5 text-purple-400">
+                    <span>⚙️</span> Reorder / Toggle Form Fields
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">Admin > More > Form Fields</div>
+                </td>
+                <td class="p-3.5 leading-relaxed">
+                  1. Saves new order, required flags, and custom fields to <code>settings/form_config</code>
+                </td>
+                <td class="p-3.5 text-purple-300 leading-relaxed font-medium">
+                  <strong>Dynamic Registration & Profile:</strong> New applicants immediately see the reordered fields with updated required checks (*). Existing students see new custom fields in their profile.
+                </td>
+                <td class="p-3.5 font-mono text-[11px] text-amber-400">
+                  Now Wired Across All Screens
+                </td>
+                <td class="p-3.5 text-slate-400 text-[11px]">
+                  <strong>HubSpot / Formstack:</strong> Schema compilation with dynamic JSON Schema validation.
+                </td>
+              </tr>
+
+              <!-- 7. Emergency Announcement -->
+              <tr class="hover:bg-slate-800/50">
+                <td class="p-3.5 font-bold text-white">
+                  <div class="flex items-center gap-1.5 text-amber-400">
+                    <span>📢</span> Publish Announcement / Holiday
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">Admin > Announcements > New</div>
+                </td>
+                <td class="p-3.5 leading-relaxed">
+                  1. Creates document in <code>libraries/{lib}/announcements</code>
+                </td>
+                <td class="p-3.5 text-amber-300 leading-relaxed font-medium">
+                  <strong>Real-Time Notice Banner:</strong> Pops up as an alert banner on top of the student's home screen with holiday dates and operational hours.
+                </td>
+                <td class="p-3.5 font-mono text-[11px] text-emerald-400">Active & Synced</td>
+                <td class="p-3.5 text-slate-400 text-[11px]">
+                  <strong>Classplus:</strong> Broadcast push notification sent to all enrolled devices.
+                </td>
+              </tr>
+
+              <!-- 8. Soft Delete / Recycle Bin -->
+              <tr class="hover:bg-slate-800/50">
+                <td class="p-3.5 font-bold text-white">
+                  <div class="flex items-center gap-1.5 text-rose-500">
+                    <span>🗑️</span> Delete Student / Move to Trash
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-0.5">Admin > Students > Delete</div>
+                </td>
+                <td class="p-3.5 leading-relaxed">
+                  1. Soft-deletes: sets <code>isDeleted: true, deletedAt: serverTimestamp()</code><br>
+                  2. Releases student's assigned seat immediately<br>
+                  3. Preserves student in Recycle Bin for 30-day retention
+                </td>
+                <td class="p-3.5 text-rose-400 leading-relaxed font-medium">
+                  <strong>Deactivation:</strong> Student app updates to "Membership Expired / Inactive". If restored by admin, status is instantly restored.
+                </td>
+                <td class="p-3.5 font-mono text-[11px] text-emerald-400">Active & Synced</td>
+                <td class="p-3.5 text-slate-400 text-[11px]">
+                  <strong>Google Workspace:</strong> 30-day grace recycle bin before permanent purge.
+                </td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 5: Smart 3D Virtual ID Card                                           -->
+    <!-- ========================================================================= -->
+    <section id="tab-idcard" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Controls & Presets -->
+        <div class="lg:col-span-4 bg-slate-800/80 border border-slate-700 rounded-2xl p-5 space-y-4">
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span>🎨</span> Color Presets & Styling
+          </h2>
+          <p class="text-xs text-slate-400">Select standard presets or pick ANY custom hex code for your brand identity.</p>
+
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="setBrandColor('#881337')" class="p-2 rounded-xl text-xs font-medium border border-rose-900 bg-rose-950/60 hover:bg-rose-900 text-rose-200 flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-rose-700"></span> Crimson
+            </button>
+            <button onclick="setBrandColor('#1E3A8A')" class="p-2 rounded-xl text-xs font-medium border border-blue-900 bg-blue-950/60 hover:bg-blue-900 text-blue-200 flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-blue-700"></span> Navy
+            </button>
+            <button onclick="setBrandColor('#065F46')" class="p-2 rounded-xl text-xs font-medium border border-emerald-900 bg-emerald-950/60 hover:bg-emerald-900 text-emerald-200 flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-emerald-600"></span> Emerald
+            </button>
+            <button onclick="setBrandColor('#1E293B')" class="p-2 rounded-xl text-xs font-medium border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-slate-600"></span> Slate
+            </button>
+            <button onclick="setBrandColor('#78350F')" class="p-2 rounded-xl text-xs font-medium border border-amber-900 bg-amber-950/60 hover:bg-amber-900 text-amber-200 flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-amber-600"></span> Amber
+            </button>
+            <button onclick="setBrandColor('#4C1D95')" class="p-2 rounded-xl text-xs font-medium border border-purple-900 bg-purple-950/60 hover:bg-purple-900 text-purple-200 flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-purple-600"></span> Violet
+            </button>
+          </div>
+
+          <div class="pt-2">
+            <button onclick="toggleCardFlip()" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg">
+              🔄 Flip Virtual Card (Front / Back)
+            </button>
+          </div>
+        </div>
+
+        <!-- 3D Card Interactive Preview -->
+        <div class="lg:col-span-8 flex flex-col items-center justify-center p-6 bg-slate-950/80 rounded-2xl border border-slate-800">
+          
+          <div class="text-xs text-slate-400 mb-4 flex items-center gap-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Interactive 3D Virtual Card • Click card or button to flip
+          </div>
+
+          <!-- Flip Container -->
+          <div class="perspective-1000 w-full max-w-[460px] h-[285px] cursor-pointer" onclick="toggleCardFlip()">
+            <div id="card3d" class="relative w-full h-full transform-style-3d transition-transform duration-700 shadow-2xl rounded-2xl">
+              
+              <!-- FRONT SIDE -->
+              <div id="cardFront" class="absolute inset-0 w-full h-full rounded-2xl overflow-hidden backface-hidden shadow-2xl border border-white/10 flex flex-col justify-between p-5" style="background: linear-gradient(135deg, #881337 0%, #4c0519 100%);">
+                
+                <div class="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+                
+                <!-- Card Header -->
+                <div class="relative z-10 flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-white/10 border border-white/20 p-1 flex items-center justify-center backdrop-blur-md">
+                      <span class="text-lg">📚</span>
+                    </div>
+                    <div>
+                      <h3 class="font-extrabold text-sm uppercase tracking-wide text-white">The Cozy Corner Centre</h3>
+                      <p class="text-[10px] text-white/70">Parli • Smart Study Center</p>
+                    </div>
+                  </div>
+                  <span class="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40 uppercase tracking-wider">
+                    STUDENT PASS
+                  </span>
+                </div>
+
+                <!-- Mid Section: EMV Chip + Photo & Student Bio -->
+                <div class="relative z-10 flex items-center gap-4 my-auto">
+                  <div class="relative">
+                    <div class="w-20 h-24 rounded-xl overflow-hidden border-2 border-white/30 shadow-lg bg-slate-800">
+                      <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80" alt="Student Photo" class="w-full h-full object-cover">
+                    </div>
+                    <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-[10px] text-white font-bold">
+                      ✓
+                    </div>
+                  </div>
+
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center gap-2">
+                      <div class="w-9 h-7 rounded-md chip-gold border border-amber-300/40 relative overflow-hidden flex-shrink-0">
+                        <div class="absolute inset-x-0 top-1/2 h-px bg-amber-900/30"></div>
+                        <div class="absolute inset-y-0 left-1/3 w-px bg-amber-900/30"></div>
+                        <div class="absolute inset-y-0 right-1/3 w-px bg-amber-900/30"></div>
+                      </div>
+                      <span class="text-xs text-white/60 font-mono tracking-widest">NFC • ACTIVE</span>
+                    </div>
+
+                    <div class="pt-1">
+                      <h4 class="text-base font-black text-white tracking-tight">Kri Sonpethkar</h4>
+                      <p class="text-xs font-mono text-emerald-300 font-semibold">ID: CC20260002</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-[10px] text-white/80 pt-0.5">
+                      <div><span class="text-white/50">Seat:</span> <strong>Cozy Hall #01</strong></div>
+                      <div><span class="text-white/50">Valid:</span> <strong>23 Nov 2026</strong></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Card Footer Bar -->
+                <div class="relative z-10 flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-white/70">
+                  <span class="font-mono text-[9px] tracking-wider">SECURE DIGITAL ID</span>
+                  <div class="flex items-center gap-1 font-mono text-[10px] text-white">
+                    <span>9403 2438 3012</span>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- BACK SIDE -->
+              <div id="cardBack" class="absolute inset-0 w-full h-full rounded-2xl overflow-hidden rotate-y-180 backface-hidden shadow-2xl border border-slate-700 bg-slate-900 p-5 flex flex-col justify-between text-slate-300">
+                
+                <!-- Magnetic Stripe -->
+                <div class="-mx-5 -mt-5 h-10 bg-slate-950 border-b border-slate-800 flex items-center px-5">
+                  <div class="h-2 w-full bg-slate-900/60 rounded"></div>
+                </div>
+
+                <!-- Rules & Guidelines -->
+                <div class="space-y-1.5 text-[10px] text-slate-300 pt-2">
+                  <div class="font-bold text-white uppercase text-[10px] flex items-center gap-1">
+                    <span>⚖️</span> Rules & Regulations
+                  </div>
+                  <ul class="space-y-1 text-slate-400 list-disc pl-4 text-[9px]">
+                    <li>Mandatory for biometric check-in and reading hall admission.</li>
+                    <li>Strict silence must be observed inside the study zones.</li>
+                    <li>Non-transferable; report loss immediately to reception.</li>
+                  </ul>
+                </div>
+
+                <!-- QR + Verification -->
+                <div class="border-t border-slate-800 pt-2 flex items-center justify-between">
+                  <div>
+                    <div class="text-[9px] text-slate-400">Emergency Helpline</div>
+                    <div class="text-xs font-bold text-rose-400">📞 +91 7385817571</div>
+                  </div>
+
+                  <div class="w-12 h-12 p-0.5 bg-white rounded border border-slate-700">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=STUDENT-CC20260002" alt="QR" class="w-full h-full">
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 6: Modern Notification Architecture & Android Visuals                 -->
+    <!-- ========================================================================= -->
+    <section id="tab-notifications" class="hidden space-y-6">
+      
+      <!-- Top Overview Banner -->
+      <div class="bg-gradient-to-r from-indigo-950/80 via-slate-900 to-slate-950 border border-indigo-800/50 rounded-2xl p-6 shadow-xl">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase tracking-wider mb-2">
+              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> Complete Notification Ecosystem
+            </div>
+            <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">Real-Time Notification Pipeline & Visual Impacts</h2>
+            <p class="text-xs md:text-sm text-slate-300 mt-1 max-w-3xl">
+              Modeled after world-class applications (<strong>Slack, WhatsApp, LinkedIn & Swiggy</strong>). Features multi-tier visual indicators: 
+              Android status bar heads-up message, launcher app icon unread dot/number, in-app top bar bell badge, and an individual unread glowing dot on every notification item.
+            </p>
+          </div>
+          <button onclick="simulateIncomingNotification()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-extrabold shadow-lg transition flex items-center gap-2 whitespace-nowrap">
+            <span>⚡</span> Simulate Push Notification
+          </button>
+        </div>
+      </div>
+
+      <!-- Grid: Left = Android OS Heads-Up Preview, Right = In-App Notification Center with Live Unread Dots -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- LEFT: Android OS System & Status Bar Notification Preview -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div class="flex items-center gap-2">
+                <span class="text-lg">📱</span>
+                <h3 class="text-sm font-extrabold text-white">Android System Status Bar Notification</h3>
+              </div>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">Android 14 Heads-Up</span>
+            </div>
+
+            <p class="text-xs text-slate-400 my-3">
+              When a notification arrives on Android, the OS displays a high-priority heads-up card with the study center icon, concise short message, and instant action buttons.
+            </p>
+
+            <!-- Android Device Mockup Frame -->
+            <div class="bg-black/90 rounded-2xl p-4 border-2 border-slate-800 shadow-inner space-y-3 font-sans">
+              
+              <!-- Android Status Bar Top -->
+              <div class="flex items-center justify-between text-[11px] text-slate-300 px-1 font-medium">
+                <span>15:58</span>
+                <div class="flex items-center gap-2 text-xs">
+                  <span>📶</span>
+                  <span>5G</span>
+                  <span>🔋 96%</span>
+                </div>
+              </div>
+
+              <!-- Android Notification Card (Interactive) -->
+              <div id="androidNotifCard" class="bg-slate-800/95 border border-slate-700/80 rounded-2xl p-3.5 shadow-2xl transition-all duration-300 hover:border-cyan-500/50">
+                
+                <!-- Card Header -->
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                  <div class="flex items-center gap-2">
+                    <div class="w-5 h-5 rounded-md bg-indigo-600 flex items-center justify-center text-[10px] text-white font-bold shadow-sm">
+                      📚
+                    </div>
+                    <span class="font-bold text-white text-xs">Study Library</span>
+                    <span class="text-slate-400 text-[10px]">• Just now</span>
+                  </div>
+                  <span class="text-slate-400 text-[10px]">⌄</span>
+                </div>
+
+                <!-- Notification Content -->
+                <div class="space-y-1 pl-7">
+                  <h4 id="androidNotifTitle" class="text-xs font-bold text-white tracking-tight">Payment Recorded • ₹700 Received</h4>
+                  <p id="androidNotifBody" class="text-[11px] text-slate-300 leading-snug">
+                    Receipt #REC-2026-0042 has been generated for Kri (Seat #Cozy-01). Your membership is now active! Tap to open.
+                  </p>
+                </div>
+
+                <!-- Android Action Buttons -->
+                <div class="flex items-center gap-2 mt-3 pl-7">
+                  <button class="px-2.5 py-1 rounded-lg bg-slate-700/80 hover:bg-slate-700 text-[10px] font-bold text-cyan-300 border border-slate-600 transition">
+                    View Receipt PDF
+                  </button>
+                  <button onclick="dismissAndroidPreview()" class="px-2.5 py-1 rounded-lg bg-slate-700/40 hover:bg-slate-700 text-[10px] font-medium text-slate-300 transition">
+                    Dismiss
+                  </button>
+                </div>
+
+              </div>
+
+              <!-- Android App Icon Launcher Badge Preview -->
+              <div class="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between px-2">
+                <div class="text-[11px] text-slate-400">Android Home Launcher:</div>
+                <div class="flex items-center gap-3">
+                  <div class="relative">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-700 to-purple-600 flex items-center justify-center text-lg shadow-lg border border-white/20">
+                      📚
+                    </div>
+                    <!-- Launcher Badge Number / Dot -->
+                    <div id="launcherBadge" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center border-2 border-black shadow-md">
+                      3
+                    </div>
+                  </div>
+                  <div class="text-[10px] text-slate-300">
+                    <div class="font-bold text-white">Study Library</div>
+                    <div class="text-slate-400">Dot/Number Badge Active</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+        <!-- RIGHT: In-App Notification Center with Live Unread Dots -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl">
+            
+            <!-- In-App Header with Bell & Dynamic Count Badge -->
+            <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+              <div class="flex items-center gap-3">
+                <div class="relative">
+                  <div class="w-10 h-10 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-lg">
+                    🔔
+                  </div>
+                  <!-- Bell Icon Badge Count -->
+                  <div id="bellBadgeCount" class="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 rounded-full bg-rose-600 text-white text-[11px] font-black flex items-center justify-center border-2 border-slate-900 shadow-md">
+                    3
+                  </div>
+                </div>
+                <div>
+                  <h3 class="text-base font-extrabold text-white">In-App Notification Center</h3>
+                  <p class="text-xs text-slate-400">Individual unread dots (<span class="text-cyan-400 font-bold">•</span>) indicate unread items</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <button onclick="markAllNotificationsRead()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 hover:text-white border border-slate-700 transition">
+                  ✓ Mark all as read
+                </button>
+              </div>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div class="flex items-center gap-2 my-3">
+              <button onclick="setNotifFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white">
+                All (<span id="count-all">4</span>)
+              </button>
+              <button onclick="setNotifFilter('unread')" id="filter-unread" class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-slate-700">
+                Unread (<span id="count-unread">3</span>)
+              </button>
+            </div>
+
+            <!-- Notification Items Feed with Unread Indicator Dots -->
+            <div id="notificationListContainer" class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+              <!-- Rendered via JS -->
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-slate-800 text-center text-xs text-slate-400">
+              💡 <em>Click any notification to mark it as read and clear its unread dot in real-time!</em>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Comparative Benchmark Table: How Leading Apps Behave -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <h3 class="text-base font-extrabold text-white mb-2 flex items-center gap-2">
+          <span>🏆</span> Industry Comparison: How Leading Apps Handle Notifications
+        </h3>
+        <p class="text-xs text-slate-400 mb-4">
+          A side-by-side architectural benchmark comparing Study Library SaaS with the world's most widely used products.
+        </p>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-300 border-collapse">
+            <thead>
+              <tr class="border-b border-slate-700 bg-slate-800/60 text-slate-200">
+                <th class="p-3 font-bold">App Benchmark</th>
+                <th class="p-3 font-bold">Android Push & Short Msg</th>
+                <th class="p-3 font-bold">App Icon Dot / Number</th>
+                <th class="p-3 font-bold">In-App Bell Badge</th>
+                <th class="p-3 font-bold">Feed Item Unread Dot</th>
+                <th class="p-3 font-bold">Action on Click</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800 text-[11.5px]">
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white flex items-center gap-1.5">
+                  <span>💬</span> WhatsApp
+                </td>
+                <td class="p-3">Sender name + 1-line chat message preview + reply button</td>
+                <td class="p-3"><span class="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 font-bold">Number (Green)</span></td>
+                <td class="p-3">Chat tab count badge</td>
+                <td class="p-3"><span class="text-emerald-400 font-bold">•</span> Unread green circle with message count</td>
+                <td class="p-3">Opens conversation, clears dot immediately</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white flex items-center gap-1.5">
+                  <span>💼</span> Slack
+                </td>
+                <td class="p-3">#channel + sender + message snippet with BigTextStyle</td>
+                <td class="p-3"><span class="px-1.5 py-0.5 rounded bg-rose-950 text-rose-300 font-bold">Dot / Number (Red)</span></td>
+                <td class="p-3">Activity bell with red indicator</td>
+                <td class="p-3"><span class="text-cyan-400 font-bold">•</span> Bold text + left indicator dot on channel</td>
+                <td class="p-3">Opens message thread, clears unread state</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white flex items-center gap-1.5">
+                  <span>👔</span> LinkedIn
+                </td>
+                <td class="p-3">Actor name + action (viewed your profile / posted update)</td>
+                <td class="p-3"><span class="px-1.5 py-0.5 rounded bg-blue-950 text-blue-300 font-bold">Number (Blue)</span></td>
+                <td class="p-3">Bottom nav / top bar bell with red counter</td>
+                <td class="p-3"><span class="text-blue-400 font-bold">•</span> Distinct blue dot on right of each unread item</td>
+                <td class="p-3">Opens post/profile, removes blue dot & decrements count</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white flex items-center gap-1.5">
+                  <span>🍔</span> Swiggy / Zomato
+                </td>
+                <td class="p-3">Live tracking: Restaurant accepted -> Out for delivery</td>
+                <td class="p-3"><span class="px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 font-bold">Dot Badge</span></td>
+                <td class="p-3">Bell icon with orange alert badge</td>
+                <td class="p-3"><span class="text-amber-400 font-bold">•</span> Orange unread indicator dot + order status pill</td>
+                <td class="p-3">Opens live GPS / order detail modal</td>
+              </tr>
+              <tr class="bg-indigo-950/40 border-l-4 border-indigo-500 hover:bg-indigo-950/60">
+                <td class="p-3 font-extrabold text-cyan-300 flex items-center gap-1.5">
+                  <span>📚</span> Study Library (Implemented)
+                </td>
+                <td class="p-3 font-semibold text-white">Title + Short message with BigTextStyle + Sound channel</td>
+                <td class="p-3"><span class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold">Number / Dot (Red)</span></td>
+                <td class="p-3 font-semibold text-cyan-300">Top AppBar Bell with live count badge</td>
+                <td class="p-3 font-bold"><span class="text-cyan-400 text-sm">•</span> Glowing cyan unread dot on every item</td>
+                <td class="p-3 text-emerald-300 font-medium">Auto-marks read, clears dot, navigates to Receipt/Seat/Pass</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Action & Reflection Pipeline Matrix -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+        <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+          <span>⚡</span> Every System Action & Its Notification Impact (Admin & Student)
+        </h3>
+        <p class="text-xs text-slate-400">
+          How each action triggers an Android notification, updates the in-app bell count, and places an unread dot in the notification center.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <!-- Event 1: Admission Approved -->
+          <div class="p-4 rounded-xl bg-slate-800/70 border border-slate-700/80 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>🎉</span> 1. Admin Approves Admission
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold">Recipient: Student</span>
+            </div>
+            <div class="text-[11px] text-slate-300">
+              <strong>Android Push:</strong> <span class="text-slate-400">"Admission Confirmed! 🎉 • Hello Kri, your admission has been approved for Cozy Hall #01."</span>
+            </div>
+            <div class="text-[11px] text-slate-300">
+              <strong>Visual Impact:</strong> Student app bell badge increments to <span class="text-rose-400 font-bold">1</span>. Notification center shows blue card with <span class="text-cyan-400 font-bold">• Unread Dot</span>.
+            </div>
+          </div>
+
+          <!-- Event 2: Fee Payment Recorded -->
+          <div class="p-4 rounded-xl bg-slate-800/70 border border-slate-700/80 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>💳</span> 2. Admin Records Fee Payment
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">Recipient: Student</span>
+            </div>
+            <div class="text-[11px] text-slate-300">
+              <strong>Android Push:</strong> <span class="text-slate-400">"Payment Received • ₹700 • Receipt #REC-2026-0042 generated. Digital pass is now unlocked!"</span>
+            </div>
+            <div class="text-[11px] text-slate-300">
+              <strong>Visual Impact:</strong> Notification center shows green payment card with <span class="text-cyan-400 font-bold">• Unread Dot</span>. Tap opens PDF receipt.
+            </div>
+          </div>
+
+          <!-- Event 3: Seat Changed / Allocated -->
+          <div class="p-4 rounded-xl bg-slate-800/70 border border-slate-700/80 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>🪑</span> 3. Seat Allocation / Reassignment
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">Recipient: Student</span>
+            </div>
+            <div class="text-[11px] text-slate-300">
+              <strong>Android Push:</strong> <span class="text-slate-400">"Seat Assigned • You have been assigned Seat #12 in Silent Reading Zone."</span>
+            </div>
+            <div class="text-[11px] text-slate-300">
+              <strong>Visual Impact:</strong> Digital 3D card auto-updates seat number. Notification center shows seat icon with <span class="text-cyan-400 font-bold">• Unread Dot</span>.
+            </div>
+          </div>
+
+          <!-- Event 4: Plan Expiry Warning -->
+          <div class="p-4 rounded-xl bg-slate-800/70 border border-slate-700/80 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>⏳</span> 4. Automatic Expiry Reminder (7d / 3d / Today)
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">Recipient: Student</span>
+            </div>
+            <div class="text-[11px] text-slate-300">
+              <strong>Android Push:</strong> <span class="text-slate-400">"Plan Expiring Soon • 3 Days Left • Renew now to keep your reserved seat."</span>
+            </div>
+            <div class="text-[11px] text-slate-300">
+              <strong>Visual Impact:</strong> Amber alert item with <span class="text-cyan-400 font-bold">• Unread Dot</span>. Tap routes straight to Renew Plan checkout.
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 7: Mobile Gestures, Effects & Smart UI Studio                         -->
+    <!-- ========================================================================= -->
+    <section id="tab-mobile-experience" class="hidden space-y-6">
+      
+      <!-- Top Overview Banner -->
+      <div class="bg-gradient-to-r from-purple-950/80 via-slate-900 to-indigo-950 border border-purple-800/50 rounded-2xl p-6 shadow-xl">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 uppercase tracking-wider mb-2">
+              <span class="w-2 h-2 rounded-full bg-pink-400 animate-pulse"></span> Ultra-Fluid Mobile Experience
+            </div>
+            <h2 class="text-xl md:text-2xl font-black text-white tracking-tight">Mobile Gestures, 120Hz Animations & Tactile Haptics</h2>
+            <p class="text-xs md:text-sm text-slate-300 mt-1 max-w-3xl">
+              Elevating Study Library from a standard web app into a high-end native mobile powerhouse (benchmarked against <strong>Apple Wallet, Revolut, CRED & Airbnb</strong>). 
+              Explore interactive 3D drag-to-tilt cards, swipe-to-action list gestures, skeleton loading, and tactile haptic feedback.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="toggleThemeMode()" id="btnThemeToggle" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold border border-slate-700 shadow-md transition flex items-center gap-2">
+              <span>🌙</span> AMOLED Black Mode
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Playground Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- MODULE 1: Interactive 3D Drag-To-Tilt Virtual Card -->
+        <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">💳</span>
+              <h3 class="text-sm font-extrabold text-white">3D Dynamic Tilt with Light Reflection</h3>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-900/40 text-purple-300 border border-purple-700/50">Touch Drag Gesture</span>
+          </div>
+
+          <p class="text-xs text-slate-400">
+            Click and drag (or move finger on mobile) anywhere on this card. Watch it physically tilt in 3D space with a dynamic light reflection glare that tracks your gesture.
+          </p>
+
+          <!-- Interactive Tilt Canvas -->
+          <div id="tiltArea" class="perspective-1000 w-full h-[270px] flex items-center justify-center cursor-grab active:cursor-grabbing select-none py-2"
+               onmousemove="handleTiltMove(event)" onmouseleave="handleTiltReset()" 
+               ontouchmove="handleTiltTouch(event)" ontouchend="handleTiltReset()">
+            
+            <div id="tiltCard" class="w-full max-w-[390px] h-[230px] rounded-2xl shadow-2xl transition-transform duration-75 relative overflow-hidden p-4 flex flex-col justify-between border border-white/20"
+                 style="background: linear-gradient(135deg, #881337 0%, #1e1b4b 100%);">
+              
+              <!-- Specular Light Reflection Glare -->
+              <div id="tiltGlare" class="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-150"
+                   style="background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.4) 0%, transparent 60%);"></div>
+
+              <!-- Card Header -->
+              <div class="relative z-10 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-sm">📚</div>
+                  <div>
+                    <h4 class="text-xs font-black text-white uppercase tracking-wider">The Cozy Corner</h4>
+                    <p class="text-[9px] text-white/70">Parli Study Center</p>
+                  </div>
+                </div>
+                <span class="px-2 py-0.5 rounded-full text-[8.5px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40">NFC PASS</span>
+              </div>
+
+              <!-- Card Mid -->
+              <div class="relative z-10 flex items-center gap-3">
+                <div class="w-14 h-18 rounded-lg bg-slate-800 border border-white/30 overflow-hidden shadow-md flex-shrink-0">
+                  <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" alt="Student" class="w-full h-full object-cover">
+                </div>
+                <div class="space-y-0.5 min-w-0">
+                  <div class="w-7 h-5 rounded chip-gold border border-amber-300/40 mb-1"></div>
+                  <div class="text-sm font-black text-white truncate">Kri Sonpethkar</div>
+                  <div class="text-[10px] font-mono text-emerald-300 font-semibold">ID: CC20260002</div>
+                  <div class="text-[9px] text-white/80">Seat: <strong>Cozy Hall #01</strong></div>
+                </div>
+              </div>
+
+              <!-- Card Footer -->
+              <div class="relative z-10 flex items-center justify-between border-t border-white/10 pt-1 text-[9px] text-white/70 font-mono">
+                <span>SECURE DIGITAL PASS</span>
+                <span>9403 2438 3012</span>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="text-[11px] text-slate-400 text-center flex items-center justify-center gap-2">
+            <span>👆</span> <em>Drag around inside the box to rotate in 3D perspective</em>
+          </div>
+        </div>
+
+        <!-- MODULE 2: Swipe-To-Action & Micro-Interactions -->
+        <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">👆</span>
+              <h3 class="text-sm font-extrabold text-white">Swipe Gestures & Tactile Haptic Engine</h3>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-300 border border-emerald-700/50">Fluid Physics</span>
+          </div>
+
+          <p class="text-xs text-slate-400">
+            Native mobile lists thrive on horizontal gestures. Swipe right to approve admission or swipe left to reject with real-time feedback:
+          </p>
+
+          <!-- Interactive Swipe Tile -->
+          <div class="relative overflow-hidden rounded-xl bg-slate-950 border border-slate-800 h-18 select-none">
+            
+            <!-- Background Actions Revealed on Swipe -->
+            <div class="absolute inset-0 flex items-center justify-between px-5 font-bold text-xs text-white">
+              <div class="flex items-center gap-1.5 text-emerald-400">
+                <span>✓</span> <span>Approve Admission</span>
+              </div>
+              <div class="flex items-center gap-1.5 text-rose-400">
+                <span>Reject</span> <span>✕</span>
+              </div>
+            </div>
+
+            <!-- Foreground Draggable Card -->
+            <div id="swipeRow" class="relative z-10 bg-slate-800 border border-slate-700 rounded-xl p-3 h-full flex items-center justify-between transition-transform duration-150 cursor-grab active:cursor-grabbing"
+                 onmousedown="startSwipe(event)" onmousemove="moveSwipe(event)" onmouseup="endSwipe(event)" onmouseleave="endSwipe(event)"
+                 ontouchstart="startSwipeTouch(event)" ontouchmove="moveSwipeTouch(event)" ontouchend="endSwipe(event)">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-blue-500/20 text-blue-300 flex items-center justify-center font-bold text-sm">
+                  KS
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-white">Kri Sonpethkar</h4>
+                  <p class="text-[10px] text-slate-400">Applied for Full-Day Pass (Seat #01)</p>
+                </div>
+              </div>
+              <div class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                ← Swipe →
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Swipe Status Feedback -->
+          <div id="swipeFeedbackText" class="text-xs text-center font-semibold text-slate-400 py-1">
+            Drag the student row left or right to trigger actions
+          </div>
+
+          <!-- Tactile Haptic Simulator -->
+          <div class="pt-2 border-t border-slate-800 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-white flex items-center gap-1.5">
+                <span>📳</span> Mobile Haptic Engine Simulation:
+              </span>
+              <span id="hapticStatus" class="text-[10px] text-emerald-400 font-mono">Ready</span>
+            </div>
+            <div class="grid grid-cols-4 gap-2">
+              <button onclick="triggerHaptic('Light Tick (Tab/Switch)', 'light')" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-[10px] font-medium text-slate-300 text-center border border-slate-700 transition active:scale-95">
+                Light Tick
+              </button>
+              <button onclick="triggerHaptic('Medium Impact (Buttons)', 'medium')" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-[10px] font-medium text-slate-300 text-center border border-slate-700 transition active:scale-95">
+                Medium Click
+              </button>
+              <button onclick="triggerHaptic('Heavy Success (Payment/Pass)', 'heavy')" class="p-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900 text-[10px] font-bold text-emerald-300 text-center border border-emerald-800 transition active:scale-95">
+                Success Vibe
+              </button>
+              <button onclick="triggerHaptic('Double Warning (Expiry/Error)', 'warning')" class="p-2 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-[10px] font-bold text-rose-300 text-center border border-rose-800 transition active:scale-95">
+                Error Buzz
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- MODULE 3: Biometric App Lock & PIN Security Engine -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between pb-3 border-b border-slate-800 gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🔐</span>
+            <div>
+              <h3 class="text-base font-extrabold text-white">Biometric Quick App Lock & Master PIN Security Studio</h3>
+              <p class="text-xs text-slate-400">Benchmarked against Apple Face ID, Google Pay biometric gating, and banking PIN pads.</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-mono px-2.5 py-1 rounded bg-indigo-950 text-indigo-300 border border-indigo-700/60 font-bold">local_auth + SHA-256</span>
+            <span class="text-[10px] font-mono px-2.5 py-1 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/60 font-bold">15-Min Lockout Cooldown</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+          
+          <!-- Phone Lock Screen Visual Preview -->
+          <div class="md:col-span-5 flex justify-center">
+            <div class="w-[280px] bg-slate-950 border-4 border-slate-800 rounded-[32px] p-5 shadow-2xl space-y-4 text-center relative overflow-hidden">
+              
+              <!-- Top Notch -->
+              <div class="w-24 h-4 bg-slate-800 rounded-b-xl mx-auto -mt-5 mb-2"></div>
+
+              <!-- Lock Status Badge -->
+              <div id="bioLockStatusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                <span id="bioLockIcon">🔒</span> <span id="bioLockText">App Protected & Locked</span>
+              </div>
+
+              <!-- Student Profile Avatar -->
+              <div class="w-16 h-16 rounded-full bg-slate-800 border-2 border-indigo-500 mx-auto overflow-hidden shadow-lg flex items-center justify-center text-xl font-bold text-indigo-300">
+                KS
+              </div>
+
+              <div>
+                <h4 class="text-sm font-bold text-white">The Cozy Corner</h4>
+                <p class="text-[11px] text-slate-400">Unlock your Digital Pass & Attendance</p>
+              </div>
+
+              <!-- PIN Dots -->
+              <div class="flex justify-center gap-3 py-2">
+                <div id="pinDot1" class="w-3.5 h-3.5 rounded-full border-2 border-slate-600 transition-all"></div>
+                <div id="pinDot2" class="w-3.5 h-3.5 rounded-full border-2 border-slate-600 transition-all"></div>
+                <div id="pinDot3" class="w-3.5 h-3.5 rounded-full border-2 border-slate-600 transition-all"></div>
+                <div id="pinDot4" class="w-3.5 h-3.5 rounded-full border-2 border-slate-600 transition-all"></div>
+              </div>
+
+              <!-- Biometric Fingerprint Button -->
+              <div class="pt-1">
+                <button onclick="simulateBiometricScan()" id="btnBioScan" class="w-16 h-16 rounded-full bg-indigo-950/80 hover:bg-indigo-900 border-2 border-indigo-500/60 mx-auto flex items-center justify-center text-2xl text-indigo-400 transition transform active:scale-90 shadow-lg group">
+                  <span class="group-hover:scale-110 transition">👆</span>
+                </button>
+                <div class="text-[10px] text-slate-400 mt-2 font-medium">Touch to Scan Biometric</div>
+              </div>
+
+              <!-- Unlock Result Feedback -->
+              <div id="bioFeedbackMsg" class="text-[11px] font-semibold text-slate-400 min-h-[20px]">
+                Ready to authenticate
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Controls & Technical Mechanism -->
+          <div class="md:col-span-7 space-y-4">
+            
+            <div class="grid grid-cols-3 gap-2">
+              <button onclick="pressPinDigit('1')" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white text-center border border-slate-700 transition active:scale-95">1</button>
+              <button onclick="pressPinDigit('2')" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white text-center border border-slate-700 transition active:scale-95">2</button>
+              <button onclick="pressPinDigit('3')" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white text-center border border-slate-700 transition active:scale-95">3</button>
+              <button onclick="pressPinDigit('4')" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white text-center border border-slate-700 transition active:scale-95">4</button>
+              <button onclick="pressPinDigit('5')" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white text-center border border-slate-700 transition active:scale-95">5</button>
+              <button onclick="pressPinDigit('6')" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white text-center border border-slate-700 transition active:scale-95">6</button>
+              <button onclick="pressPinDigit('7')" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white text-center border border-slate-700 transition active:scale-95">7</button>
+              <button onclick="pressPinDigit('8')" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white text-center border border-slate-700 transition active:scale-95">8</button>
+              <button onclick="pressPinDigit('9')" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white text-center border border-slate-700 transition active:scale-95">9</button>
+              <button onclick="simulateFaceScan()" class="py-3 rounded-xl bg-purple-950/70 hover:bg-purple-900 text-xs font-bold text-purple-300 text-center border border-purple-800 transition active:scale-95">Face ID 👤</button>
+              <button onclick="pressPinDigit('0')" class="py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white text-center border border-slate-700 transition active:scale-95">0</button>
+              <button onclick="clearPinInput()" class="py-3 rounded-xl bg-rose-950/70 hover:bg-rose-900 text-xs font-bold text-rose-300 text-center border border-rose-800 transition active:scale-95">⌫ Clear</button>
+            </div>
+
+            <!-- Real-Time SHA-256 Hash Display -->
+            <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-slate-400 font-semibold">Active SHA-256 Hash (Never Plaintext):</span>
+                <span id="pinAttemptsText" class="text-emerald-400 font-mono text-[10px]">Failed Attempts: 0 / 5</span>
+              </div>
+              <div id="pinHashDisplay" class="font-mono text-[10px] text-cyan-300 break-all select-all">
+                e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+              </div>
+            </div>
+
+            <!-- Features Wired in App -->
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-1">
+                <div class="font-bold text-white flex items-center gap-1.5">
+                  <span class="text-emerald-400">✓</span> Admin Settings Screen
+                </div>
+                <div class="text-[11px] text-slate-400">
+                  Settings > Biometric / PIN Lock. Cloud synced to Firestore for multi-device restore.
+                </div>
+              </div>
+              <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-1">
+                <div class="font-bold text-white flex items-center gap-1.5">
+                  <span class="text-emerald-400">✓</span> Student Profile Settings
+                </div>
+                <div class="text-[11px] text-slate-400">
+                  Profile > Biometric App Lock. Prevents unauthorized viewing of pass or check-in QR.
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- MODULE 4: Comprehensive Status Audit of Completed Implementations -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+        <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+          <span>📋</span> Comprehensive Status Audit: Tasks & Live Verified Implementations
+        </h3>
+        <p class="text-xs text-slate-400">
+          A completely honest, transparent audit comparing everything requested with current live production status.
+        </p>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-300 border-collapse">
+            <thead>
+              <tr class="border-b border-slate-700 bg-slate-800/60 text-slate-200">
+                <th class="p-3 font-bold">Feature / User Request</th>
+                <th class="p-3 font-bold">Domain</th>
+                <th class="p-3 font-bold">Implementation Status</th>
+                <th class="p-3 font-bold">Live Architecture Impact</th>
+                <th class="p-3 font-bold">Mobile Polish & Experience</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800 text-[11px]">
+              
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white">Full-Page Transparent Watermark Receipt</td>
+                <td class="p-3">Receipts</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">✓ Live Deployed</span></td>
+                <td class="p-3">Genuine bold org name, 100% transparent terms, 88% full-page watermark at 0.06 opacity.</td>
+                <td class="p-3 text-emerald-300">Live sliders in Receipt Template settings: 2%-40% Opacity & 10%-98% Page Scale.</td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white">Live Watermark Opacity & Scale Sliders</td>
+                <td class="p-3">Admin Settings</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">✓ Live Deployed</span></td>
+                <td class="p-3">Wired directly into `receipt_template_screen.dart` and clamped in `pdf_service.dart`.</td>
+                <td class="p-3 text-emerald-300">Live badge chips with exact percentage and 1-to-1 sync with PDF layout preview.</td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white">Gov ID Photo Visibility in Edit Student</td>
+                <td class="p-3">Admin / Students</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">✓ Live Deployed</span></td>
+                <td class="p-3">`StudentModel.fromJson` fallbacks for `govIdDataUrl`, `govIdImagePath`, front/back photos.</td>
+                <td class="p-3 text-cyan-300">Full color documents with tap-to-expand preview dialog.</td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white">Payment Gating & Pending Payment Lock</td>
+                <td class="p-3">Student App</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">✓ Live Deployed</span></td>
+                <td class="p-3">Approved students stay `inactive` until payment logged; displays admission approved screen with held seat.</td>
+                <td class="p-3 text-cyan-300">UPI payment details displayed with direct WhatsApp admin helpline button.</td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white">Real-Time Notification Pipeline</td>
+                <td class="p-3">Push & In-App</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">✓ Live Deployed</span></td>
+                <td class="p-3">Top AppBar Bell with count badge, individual unread cyan dots (`•`), mark-all-read, Android BigTextStyle.</td>
+                <td class="p-3 text-cyan-300">High-priority sound & heads-up preview card on Android.</td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white">Smart 3D Virtual Cards</td>
+                <td class="p-3">Student App</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">✓ Live Deployed</span></td>
+                <td class="p-3">650ms 3D flip animation, touch drag tilt, gold EMV chip, rules, helpline, and QR verification on back.</td>
+                <td class="p-3 text-emerald-300">Pan drag-to-tilt with spring snapback and medium haptic tick.</td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white">Dynamic Amenity Badges Customizer</td>
+                <td class="p-3">Entrance Poster</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">✓ Live Deployed</span></td>
+                <td class="p-3">`PosterConfigService` allowing admin to toggle, add, edit, or delete badges syncing to PDF & public seat map.</td>
+                <td class="p-3 text-cyan-300">Emoji icon picker with instant live poster re-render.</td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white">Dynamic Form Fields (5-Step System-wide Flow)</td>
+                <td class="p-3">Settings / Forms</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">✓ Live Deployed</span></td>
+                <td class="p-3">Fields created in Form Config flow into Registration, Add/Edit Student, Student Profile Edit Request, and Admin Review Diff.</td>
+                <td class="p-3 text-emerald-300">Dynamic `_customControllers` and dot-notation update (`customFields.<key>`) for zero data loss.</td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white">Pull-to-Refresh with Haptic Ticks</td>
+                <td class="p-3">All Screens</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">✓ Live Deployed</span></td>
+                <td class="p-3">Native `RefreshIndicator` on Admin Dashboard & Student Home with `HapticFeedback.lightImpact()`.</td>
+                <td class="p-3 text-emerald-300">Tactile physical tick whenever pull threshold is passed.</td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white">Biometric Quick App Lock (Fingerprint/Face/PIN)</td>
+                <td class="p-3">Security</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">✓ Live Deployed</span></td>
+                <td class="p-3">`local_auth` with SHA-256 PIN fallback, 5-attempt rate limiter, 15-minute cooldown, resume gating in `app.dart`.</td>
+                <td class="p-3 text-emerald-300">Exposed in both Admin Settings and Student Profile (`my_profile_screen.dart`).</td>
+              </tr>
+
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 font-bold text-white">Swipe-to-Action Gestures on Mobile Lists</td>
+                <td class="p-3">Requests / Mobile UX</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">✓ Live Deployed</span></td>
+                <td class="p-3">`Dismissible` list in `request_list_screen.dart`: Swipe Right to Quick Approve & Swipe Left to Reject.</td>
+                <td class="p-3 text-emerald-300">Green / Red visual triggers with `HapticFeedback.mediumImpact()` haptic pulses.</td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+
+  </div>
+
+  <!-- Interactive JavaScript Engine -->
+  <script>
+    // Tab Navigation
+    function switchTab(tabId) {
+      ['tab-receipt', 'tab-poster', 'tab-form-sync', 'tab-admin-impact', 'tab-idcard', 'tab-notifications', 'tab-mobile-experience'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+        const btn = document.getElementById('btn-' + id);
+        if (btn) {
+          btn.classList.remove('bg-emerald-600', 'text-white', 'shadow-md');
+          btn.classList.add('bg-slate-700/60', 'text-slate-300');
+        }
+      });
+      const activeEl = document.getElementById(tabId);
+      if (activeEl) activeEl.classList.remove('hidden');
+      const activeBtn = document.getElementById('btn-' + tabId);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-emerald-600', 'text-white', 'shadow-md');
+        activeBtn.classList.remove('bg-slate-700/60', 'text-slate-300');
+      }
+    }
+
+    // 3D Card Flip
+    let isFlipped = false;
+    function toggleCardFlip() {
+      isFlipped = !isFlipped;
+      const card = document.getElementById('card3d');
+      if (card) {
+        if (isFlipped) {
+          card.classList.add('rotate-y-180');
+        } else {
+          card.classList.remove('rotate-y-180');
+        }
+      }
+    }
+
+    // Color Picker Sync
+    const picker = document.getElementById('brandColorPicker');
+    const hexInput = document.getElementById('brandColorHex');
+
+    function setBrandColor(hex) {
+      picker.value = hex;
+      hexInput.value = hex.toUpperCase();
+      applyColor(hex);
+    }
+
+    picker.addEventListener('input', (e) => {
+      hexInput.value = e.target.value.toUpperCase();
+      applyColor(e.target.value);
+    });
+
+    hexInput.addEventListener('change', (e) => {
+      let val = e.target.value;
+      if (!val.startsWith('#')) val = '#' + val;
+      picker.value = val;
+      applyColor(val);
+    });
+
+    function applyColor(hex) {
+      // Receipt Title & Header Badge
+      const receiptOrg = document.getElementById('receiptOrgTitle');
+      if (receiptOrg) receiptOrg.style.color = hex;
+      const receiptBadge = document.getElementById('receiptBadgeHeader');
+      if (receiptBadge) receiptBadge.style.backgroundColor = hex;
+      
+      // Card Front
+      const cardFront = document.getElementById('cardFront');
+      if (cardFront) {
+        cardFront.style.background = `linear-gradient(135deg, ${hex} 0%, #111827 100%)`;
+      }
+      
+      // Poster Banner
+      const posterBanner = document.getElementById('posterBanner');
+      if (posterBanner) {
+        posterBanner.style.background = `linear-gradient(135deg, ${hex} 0%, #0f172a 100%)`;
+      }
+    }
+
+    // Watermark Sliders
+    const scaleSlider = document.getElementById('watermarkScaleSlider');
+    const scaleText = document.getElementById('scaleValText');
+    const opacitySlider = document.getElementById('watermarkOpacitySlider');
+    const opacityText = document.getElementById('opacityValText');
+    const watermarkSvg = document.getElementById('watermarkSvg');
+    const watermarkLayer = document.getElementById('receiptWatermarkLayer');
+
+    scaleSlider.addEventListener('input', (e) => {
+      const val = e.target.value;
+      scaleText.innerText = val + '%';
+      watermarkSvg.style.width = val + '%';
+      watermarkSvg.style.height = val + '%';
+    });
+
+    opacitySlider.addEventListener('input', (e) => {
+      const val = e.target.value;
+      opacityText.innerText = val + '%';
+      watermarkLayer.style.opacity = (val / 100).toString();
+    });
+
+    // =========================================================================
+    // Amenity Badges Management Engine (State & Functions)
+    // =========================================================================
+    let amenityBadges = [
+      { id: 'ac', icon: '❄️', label: 'Central AC', enabled: true },
+      { id: 'wifi', icon: '📶', label: 'High-Speed Wi-Fi', enabled: true },
+      { id: 'silence', icon: '🤫', label: 'Silence Zone', enabled: true },
+      { id: 'ro_water', icon: '💧', label: 'RO Drinking Water', enabled: true },
+      { id: 'power', icon: '🔌', label: 'Power Outlets', enabled: true },
+      { id: 'open_24_7', icon: '⏰', label: 'Open 24/7 Hours', enabled: true }
+    ];
+
+    function renderAmenityBadges() {
+      // 1. Render Manager List
+      const listEl = document.getElementById('amenityBadgesList');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+
+      amenityBadges.forEach((badge, index) => {
+        const item = document.createElement('div');
+        item.className = 'flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-700/80';
+        item.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <span class="text-base">${badge.icon}</span>
+            <input type="text" value="${badge.label}" onchange="updateAmenityLabel('${badge.id}', this.value)" 
+              class="bg-transparent border-b border-transparent hover:border-slate-600 focus:border-indigo-400 outline-none text-xs text-white font-medium px-1 py-0.5">
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="toggleAmenity('${badge.id}')" class="px-2 py-0.5 rounded text-[10px] font-bold ${badge.enabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-slate-800 text-slate-500 border border-slate-700'}">
+              ${badge.enabled ? 'Visible' : 'Hidden'}
+            </button>
+            <button onclick="deleteAmenity('${badge.id}')" class="text-rose-400 hover:text-rose-300 p-1 text-xs" title="Delete">
+              🗑️
+            </button>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+
+      // 2. Render Live Poster Grid
+      const posterGrid = document.getElementById('posterAmenityBadgesGrid');
+      if (!posterGrid) return;
+      posterGrid.innerHTML = '';
+
+      const activeBadges = amenityBadges.filter(b => b.enabled);
+      if (activeBadges.length === 0) {
+        posterGrid.innerHTML = '<div class="col-span-3 text-[10px] text-slate-400 italic py-2">No amenities selected</div>';
+        return;
+      }
+
+      activeBadges.forEach(badge => {
+        const pill = document.createElement('div');
+        pill.className = 'p-2 rounded-xl bg-slate-50 border border-slate-200 text-center shadow-xs';
+        pill.innerHTML = `
+          <div class="text-base">${badge.icon}</div>
+          <div class="text-[10px] font-bold text-slate-800 mt-0.5 truncate">${badge.label}</div>
+        `;
+        posterGrid.appendChild(pill);
+      });
+    }
+
+    function toggleAmenity(id) {
+      const match = amenityBadges.find(b => b.id === id);
+      if (match) {
+        match.enabled = !match.enabled;
+        renderAmenityBadges();
+      }
+    }
+
+    function updateAmenityLabel(id, newLabel) {
+      const match = amenityBadges.find(b => b.id === id);
+      if (match && newLabel.trim().length > 0) {
+        match.label = newLabel.trim();
+        renderAmenityBadges();
+      }
+    }
+
+    function deleteAmenity(id) {
+      if (amenityBadges.length <= 1) {
+        alert('You must keep at least 1 amenity badge.');
+        return;
+      }
+      amenityBadges = amenityBadges.filter(b => b.id !== id);
+      renderAmenityBadges();
+    }
+
+    function addNewAmenityPrompt() {
+      const label = prompt('Enter new amenity title (e.g. Inverter AC, Lockers, Discussion Room):');
+      if (!label || label.trim().length === 0) return;
+      const icon = prompt('Enter emoji icon (e.g. 🔒, ❄️, ☕, 🪑, 📹):', '✨') || '✨';
+      amenityBadges.push({
+        id: 'custom_' + Date.now(),
+        icon: icon.trim(),
+        label: label.trim(),
+        enabled: true
+      });
+      renderAmenityBadges();
+    }
+
+    function addPresetAmenity(icon, label) {
+      const existing = amenityBadges.find(b => b.label.toLowerCase() === label.toLowerCase());
+      if (existing) {
+        existing.enabled = true;
+      } else {
+        amenityBadges.push({
+          id: 'preset_' + Date.now(),
+          icon: icon,
+          label: label,
+          enabled: true
+        });
+      }
+      renderAmenityBadges();
+    }
+
+    // =========================================================================
+    // Notification Center & Android Simulation Engine
+    // =========================================================================
+    let currentNotifFilter = 'all';
+    let sampleNotifications = [
+      {
+        id: 'n1',
+        icon: '💳',
+        iconBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+        title: 'Payment Recorded • ₹700 Received',
+        body: 'Receipt #REC-2026-0042 has been generated for Kri (Seat #Cozy-01). Digital pass is active.',
+        time: '2 mins ago',
+        read: false,
+        type: 'payment',
+        badge: 'Fee Receipt'
+      },
+      {
+        id: 'n2',
+        icon: '🪑',
+        iconBg: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+        title: 'Seat Allocated: Cozy Hall #01',
+        body: 'Your reserved desk has been confirmed in Silent Zone. Digital pass QR updated.',
+        time: '18 mins ago',
+        read: false,
+        type: 'seat',
+        badge: 'Desk Allocated'
+      },
+      {
+        id: 'n3',
+        icon: '⏳',
+        iconBg: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+        title: 'Plan Validity Notice • 3 Days Left',
+        body: 'Your current study pass expires on 26 Oct 2026. Tap to renew and retain your seat.',
+        time: '1 hour ago',
+        read: false,
+        type: 'expiry',
+        badge: 'Validity Warning'
+      },
+      {
+        id: 'n4',
+        icon: '📢',
+        iconBg: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+        title: 'Library Open on Sunday',
+        body: 'Reading hall timings extended to 24/7 during exam revision month.',
+        time: 'Yesterday',
+        read: true,
+        type: 'announcement',
+        badge: 'Announcement'
+      }
+    ];
+
+    function renderNotifications() {
+      const container = document.getElementById('notificationListContainer');
+      if (!container) return;
+
+      const unreadCount = sampleNotifications.filter(n => !n.read).length;
+      const totalCount = sampleNotifications.length;
+
+      // Update counters
+      const bellBadge = document.getElementById('bellBadgeCount');
+      if (bellBadge) {
+        bellBadge.innerText = unreadCount;
+        bellBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
+      }
+      const launcherBadge = document.getElementById('launcherBadge');
+      if (launcherBadge) {
+        launcherBadge.innerText = unreadCount;
+        launcherBadge.style.display = unreadCount > 0 ? 'flex' : 'none';
+      }
+      const countAll = document.getElementById('count-all');
+      if (countAll) countAll.innerText = totalCount;
+      const countUnread = document.getElementById('count-unread');
+      if (countUnread) countUnread.innerText = unreadCount;
+
+      // Filter
+      const list = currentNotifFilter === 'unread' 
+        ? sampleNotifications.filter(n => !n.read)
+        : sampleNotifications;
+
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 text-slate-500 text-xs">
+            🎉 No ${currentNotifFilter === 'unread' ? 'unread' : ''} notifications! You're all caught up.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = list.map(n => `
+        <div onclick="toggleNotifRead('${n.id}')" 
+          class="group p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 relative ${
+            !n.read 
+              ? 'bg-indigo-950/30 border-indigo-500/40 hover:bg-indigo-950/50 shadow-sm' 
+              : 'bg-slate-900/60 border-slate-800 hover:bg-slate-800/50 opacity-80'
+          }">
+          
+          <!-- UNREAD GLOWING DOT -->
+          ${!n.read ? `
+            <div class="absolute -left-1 top-4 w-2.5 h-2.5 rounded-full bg-cyan-400 border-2 border-slate-900 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" title="Unread notification"></div>
+          ` : ''}
+
+          <!-- Icon Badge -->
+          <div class="w-9 h-9 rounded-xl border flex items-center justify-center flex-shrink-0 text-base ${n.iconBg}">
+            ${n.icon}
+          </div>
+
+          <!-- Text Body -->
+          <div class="flex-1 min-w-0 pr-2">
+            <div class="flex items-center justify-between gap-2 mb-0.5">
+              <h4 class="text-xs font-bold text-white truncate ${!n.read ? 'text-cyan-200' : 'text-slate-300'}">
+                ${n.title}
+              </h4>
+              <span class="text-[9.5px] text-slate-400 whitespace-nowrap">${n.time}</span>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-snug line-clamp-2">
+              ${n.body}
+            </p>
+            <div class="mt-1.5 flex items-center gap-2">
+              <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700/60">
+                ${n.badge}
+              </span>
+              ${!n.read ? `
+                <span class="text-[9px] text-cyan-400 font-bold flex items-center gap-1">
+                  <span class="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400"></span> Unread • Tap to clear
+                </span>
+              ` : `
+                <span class="text-[9px] text-slate-500">Read</span>
+              `}
+            </div>
+          </div>
+
+          <!-- Mark Button -->
+          <button onclick="event.stopPropagation(); toggleNotifRead('${n.id}')" 
+            class="text-[10px] text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800" title="${!n.read ? 'Mark as read' : 'Mark as unread'}">
+            ${!n.read ? '✓' : '↺'}
+          </button>
+
+        </div>
+      `).join('');
+    }
+
+    function toggleNotifRead(id) {
+      const match = sampleNotifications.find(n => n.id === id);
+      if (match) {
+        match.read = !match.read;
+        renderNotifications();
+      }
+    }
+
+    function markAllNotificationsRead() {
+      sampleNotifications.forEach(n => n.read = true);
+      renderNotifications();
+    }
+
+    function setNotifFilter(filter) {
+      currentNotifFilter = filter;
+      document.getElementById('filter-all').className = filter === 'all' 
+        ? 'px-3 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white' 
+        : 'px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-slate-700';
+      document.getElementById('filter-unread').className = filter === 'unread' 
+        ? 'px-3 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white' 
+        : 'px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:bg-slate-700';
+      renderNotifications();
+    }
+
+    function simulateIncomingNotification() {
+      const presets = [
+        {
+          icon: '🎉',
+          iconBg: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+          title: 'Admission Approved! 🎉',
+          body: 'Admin approved registration for Kri Sonpethkar. Welcome to Cozy Corner Study Center!',
+          type: 'admission',
+          badge: 'Admission'
+        },
+        {
+          icon: '💳',
+          iconBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+          title: 'Payment Received • ₹850',
+          body: 'Receipt #REC-2026-0043 generated. Validity extended till 23 Dec 2026.',
+          type: 'payment',
+          badge: 'Fee Receipt'
+        },
+        {
+          icon: '📢',
+          iconBg: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+          title: 'High-Speed Wi-Fi Upgrade',
+          body: '500 Mbps fiber line installed across all study zones. Connect to CozyCorner_5G.',
+          type: 'announcement',
+          badge: 'Notice'
+        }
+      ];
+
+      const item = presets[Math.floor(Math.random() * presets.length)];
+      const newNotif = {
+        id: 'sim_' + Date.now(),
+        ...item,
+        time: 'Just now',
+        read: false
+      };
+
+      sampleNotifications.unshift(newNotif);
+
+      // Update Android Heads-up preview
+      const card = document.getElementById('androidNotifCard');
+      const title = document.getElementById('androidNotifTitle');
+      const body = document.getElementById('androidNotifBody');
+      if (card && title && body) {
+        title.innerText = item.title;
+        body.innerText = item.body;
+        card.classList.remove('hidden');
+        card.classList.add('ring-2', 'ring-cyan-400');
+        setTimeout(() => card.classList.remove('ring-2', 'ring-cyan-400'), 1500);
+      }
+
+      renderNotifications();
+    }
+
+    function dismissAndroidPreview() {
+      const card = document.getElementById('androidNotifCard');
+      if (card) {
+        card.classList.add('opacity-40');
+        setTimeout(() => card.classList.remove('opacity-40'), 1000);
+      }
+    }
+
+    // =========================================================================
+    // Mobile Gestures & Interactive Haptic Engine
+    // =========================================================================
+    function handleTiltMove(e) {
+      const area = document.getElementById('tiltArea');
+      const card = document.getElementById('tiltCard');
+      const glare = document.getElementById('tiltGlare');
+      if (!area || !card) return;
+      const rect = area.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const rotateX = ((y - centerY) / centerY) * -22;
+      const rotateY = ((x - centerX) / centerX) * 22;
+      card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.04, 1.04, 1.04)`;
+      if (glare) {
+        glare.style.opacity = '0.7';
+        glare.style.background = `radial-gradient(circle at ${(x / rect.width) * 100}% ${(y / rect.height) * 100}%, rgba(255,255,255,0.45) 0%, transparent 60%)`;
+      }
+    }
+
+    function handleTiltReset() {
+      const card = document.getElementById('tiltCard');
+      const glare = document.getElementById('tiltGlare');
+      if (card) card.style.transform = 'rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+      if (glare) glare.style.opacity = '0';
+    }
+
+    function handleTiltTouch(e) {
+      if (e.touches && e.touches[0]) {
+        handleTiltMove(e.touches[0]);
+      }
+    }
+
+    // Swipe to Action
+    let isSwiping = false;
+    let startX = 0;
+    let currentTranslate = 0;
+
+    function startSwipe(e) {
+      isSwiping = true;
+      startX = e.clientX;
+    }
+
+    function startSwipeTouch(e) {
+      if (e.touches && e.touches[0]) {
+        isSwiping = true;
+        startX = e.touches[0].clientX;
+      }
+    }
+
+    function moveSwipe(e) {
+      if (!isSwiping) return;
+      const deltaX = e.clientX - startX;
+      updateSwipeUI(deltaX);
+    }
+
+    function moveSwipeTouch(e) {
+      if (!isSwiping || !e.touches[0]) return;
+      const deltaX = e.touches[0].clientX - startX;
+      updateSwipeUI(deltaX);
+    }
+
+    function updateSwipeUI(deltaX) {
+      const row = document.getElementById('swipeRow');
+      const feedback = document.getElementById('swipeFeedbackText');
+      currentTranslate = Math.max(-120, Math.min(120, deltaX));
+      if (row) row.style.transform = `translateX(${currentTranslate}px)`;
+      if (feedback) {
+        if (currentTranslate > 60) {
+          feedback.innerHTML = '<span class="text-emerald-400 font-bold">Release to APPROVE student admission ✓</span>';
+        } else if (currentTranslate < -60) {
+          feedback.innerHTML = '<span class="text-rose-400 font-bold">Release to REJECT application ✕</span>';
+        } else {
+          feedback.innerText = 'Drag left or right to trigger actions';
+        }
+      }
+    }
+
+    function endSwipe() {
+      if (!isSwiping) return;
+      isSwiping = false;
+      const row = document.getElementById('swipeRow');
+      const feedback = document.getElementById('swipeFeedbackText');
+      if (row) {
+        row.style.transform = 'translateX(0px)';
+      }
+      if (feedback) {
+        if (currentTranslate > 60) {
+          feedback.innerHTML = '<span class="text-emerald-400 font-bold">🎉 Admission Approved! Haptic tick fired.</span>';
+          triggerHaptic('Admission Approved!', 'heavy');
+        } else if (currentTranslate < -60) {
+          feedback.innerHTML = '<span class="text-rose-400 font-bold">Application Rejected. Haptic alert fired.</span>';
+          triggerHaptic('Rejected', 'warning');
+        } else {
+          feedback.innerText = 'Drag the student row left or right to trigger actions';
+        }
+      }
+      currentTranslate = 0;
+    }
+
+    // Haptic Simulator
+    function triggerHaptic(label, type) {
+      const status = document.getElementById('hapticStatus');
+      if (status) {
+        status.innerText = '⚡ ' + label;
+        status.classList.add('text-cyan-300', 'font-bold');
+        setTimeout(() => {
+          status.innerText = 'Ready';
+          status.classList.remove('text-cyan-300', 'font-bold');
+        }, 1400);
+      }
+      if (navigator.vibrate) {
+        if (type === 'light') navigator.vibrate(15);
+        else if (type === 'medium') navigator.vibrate(30);
+        else if (type === 'heavy') navigator.vibrate([40, 30, 40]);
+        else if (type === 'warning') navigator.vibrate([60, 50, 60]);
+      }
+    }
+
+    // Theme Mode Toggle (AMOLED Black)
+    let isAmoled = false;
+    function toggleThemeMode() {
+      isAmoled = !isAmoled;
+      const btn = document.getElementById('btnThemeToggle');
+      document.body.style.backgroundColor = isAmoled ? '#000000' : '#0B0F19';
+      if (btn) {
+        btn.innerHTML = isAmoled ? '<span>☀️</span> Standard Dark Mode' : '<span>🌙</span> AMOLED Black Mode';
+      }
+    }
+
+    // Biometric & PIN Security Simulator
+    let enteredPin = '';
+    let failedPinAttempts = 0;
+    let isAppLocked = true;
+    const correctPin = '1234';
+
+    async function sha256Hash(message) {
+      if (!message) return 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function updatePinDots() {
+      for (let i = 1; i <= 4; i++) {
+        const dot = document.getElementById('pinDot' + i);
+        if (dot) {
+          if (i <= enteredPin.length) {
+            dot.classList.add('bg-cyan-400', 'border-cyan-400', 'scale-110');
+            dot.classList.remove('bg-transparent', 'border-slate-600');
+          } else {
+            dot.classList.remove('bg-cyan-400', 'border-cyan-400', 'scale-110');
+            dot.classList.add('bg-transparent', 'border-slate-600');
+          }
+        }
+      }
+    }
+
+    async function pressPinDigit(digit) {
+      if (enteredPin.length >= 4) return;
+      enteredPin += digit;
+      updatePinDots();
+      triggerHaptic('PIN Digit', 'light');
+
+      // Update real-time SHA-256 hash
+      try {
+        const hash = await sha256Hash(enteredPin);
+        const hashEl = document.getElementById('pinHashDisplay');
+        if (hashEl) hashEl.innerText = hash;
+      } catch (_) {}
+
+      if (enteredPin.length === 4) {
+        setTimeout(verifyEnteredPin, 150);
+      }
+    }
+
+    function clearPinInput() {
+      enteredPin = '';
+      updatePinDots();
+      triggerHaptic('Clear PIN', 'light');
+      const hashEl = document.getElementById('pinHashDisplay');
+      if (hashEl) hashEl.innerText = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+      const msg = document.getElementById('bioFeedbackMsg');
+      if (msg) msg.innerText = 'PIN cleared';
+    }
+
+    function verifyEnteredPin() {
+      const msg = document.getElementById('bioFeedbackMsg');
+      if (enteredPin === correctPin) {
+        unlockAppWithSuccess('Master PIN Verified ✓');
+      } else {
+        failedPinAttempts++;
+        triggerHaptic('Wrong PIN', 'warning');
+        if (msg) {
+          msg.innerHTML = '<span class="text-rose-400 font-bold">Incorrect PIN! (Try 1234)</span>';
+        }
+        const attemptsText = document.getElementById('pinAttemptsText');
+        if (attemptsText) {
+          attemptsText.innerText = 'Failed Attempts: ' + failedPinAttempts + ' / 5';
+          if (failedPinAttempts >= 5) {
+            attemptsText.innerHTML = '<span class="text-rose-400 font-bold">15-MIN LOCKOUT ACTIVE</span>';
+            if (msg) msg.innerHTML = '<span class="text-rose-400 font-bold">Rate limit exceeded: 15-min cooldown!</span>';
+          }
+        }
+        setTimeout(() => {
+          enteredPin = '';
+          updatePinDots();
+        }, 500);
+      }
+    }
+
+    function simulateBiometricScan() {
+      const msg = document.getElementById('bioFeedbackMsg');
+      if (msg) msg.innerHTML = '<span class="text-indigo-400 animate-pulse">Scanning fingerprint sensor...</span>';
+      triggerHaptic('Sensor Touch', 'light');
+      setTimeout(() => {
+        unlockAppWithSuccess('Fingerprint Recognized ✓');
+      }, 650);
+    }
+
+    function simulateFaceScan() {
+      const msg = document.getElementById('bioFeedbackMsg');
+      if (msg) msg.innerHTML = '<span class="text-purple-400 animate-pulse">Scanning 3D TrueDepth Face...</span>';
+      triggerHaptic('Face ID', 'light');
+      setTimeout(() => {
+        unlockAppWithSuccess('Face ID Match Confirmed ✓');
+      }, 700);
+    }
+
+    function unlockAppWithSuccess(reason) {
+      isAppLocked = false;
+      failedPinAttempts = 0;
+      triggerHaptic('App Unlocked', 'heavy');
+      const badge = document.getElementById('bioLockStatusBadge');
+      const text = document.getElementById('bioLockText');
+      const icon = document.getElementById('bioLockIcon');
+      const msg = document.getElementById('bioFeedbackMsg');
+      if (badge && text && icon) {
+        badge.classList.remove('bg-amber-500/20', 'text-amber-300', 'border-amber-500/40');
+        badge.classList.add('bg-emerald-500/20', 'text-emerald-300', 'border-emerald-500/40');
+        icon.innerText = '🔓';
+        text.innerText = 'App Unlocked & Verified';
+      }
+      if (msg) {
+        msg.innerHTML = '<span class="text-emerald-400 font-bold">' + reason + '</span>';
+      }
+      setTimeout(() => {
+        relockApp();
+      }, 4000);
+    }
+
+    function relockApp() {
+      isAppLocked = true;
+      enteredPin = '';
+      updatePinDots();
+      const badge = document.getElementById('bioLockStatusBadge');
+      const text = document.getElementById('bioLockText');
+      const icon = document.getElementById('bioLockIcon');
+      const msg = document.getElementById('bioFeedbackMsg');
+      if (badge && text && icon) {
+        badge.classList.add('bg-amber-500/20', 'text-amber-300', 'border-amber-500/40');
+        badge.classList.remove('bg-emerald-500/20', 'text-emerald-300', 'border-emerald-500/40');
+        icon.innerText = '🔒';
+        text.innerText = 'App Protected & Locked';
+      }
+      if (msg) msg.innerText = 'Ready to authenticate (or enter PIN 1234)';
+    }
+
+    // Initial render
+    renderAmenityBadges();
+    renderNotifications();
+  </script>
+</body>
+</html>

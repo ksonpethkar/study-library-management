@@ -32,7 +32,7 @@ class LocalBridgeService {
       final response = await request.close();
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
-      debugPrint('LocalBridgeService error: $e');
+      if (kDebugMode) debugPrint('LocalBridgeService error: $e');
       return false;
     } finally {
       client?.close();
@@ -52,7 +52,7 @@ class LocalBridgeService {
       final response = await request.close();
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
-      debugPrint('LocalBridgeService ping failed: $e');
+      if (kDebugMode) debugPrint('LocalBridgeService ping failed: $e');
       return false;
     } finally {
       client?.close();

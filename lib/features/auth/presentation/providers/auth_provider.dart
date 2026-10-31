@@ -2,10 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:study_library/core/utils/web_favicon_helper.dart';
 import 'package:study_library/features/auth/data/repositories/auth_repository.dart';
 import 'package:study_library/features/onboarding/data/repositories/library_repository.dart';
 import 'package:study_library/models/library_model.dart';
 import 'package:study_library/models/staff_model.dart';
+import 'package:study_library/services/remote_config_service.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('sharedPreferencesProvider must be overridden in ProviderScope');
@@ -33,14 +35,11 @@ final libraryRepositoryProvider = Provider<LibraryRepository>((ref) {
 /// Persisted to SharedPreferences so it survives app restarts.
 class CurrentLibraryNotifier extends Notifier<String?> {
   static const _prefKey = 'cached_current_library_id';
-  // Compile-time fallback only — the real value is fetched from
-  // Firestore 'app_config/default' doc at runtime (see _autoResolve).
-  // This constant only applies if Firestore is unreachable AND no cached ID exists.
-  static const _compileFallbackId = 'aPSMq8xSAjuZQh2fTtuY';
   bool _hasLoaded = false;
 
-  /// Public getter for other code that needs a fallback library ID.
-  static String get defaultLibraryId => _compileFallbackId;
+  /// Dynamically resolves the default library ID from Remote Config or public Firestore config.
+  /// No unchangeable hardcoded ID is baked in (S1 Fix).
+  static String get defaultLibraryId => RemoteConfigService.defaultLibraryId;
 
   @override
   String? build() {
@@ -52,23 +51,28 @@ class CurrentLibraryNotifier extends Notifier<String?> {
         _hasLoaded = true;
         return cachedId;
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
 
-    // 2. Auto-resolve library ID from Firestore if user is logged in
+    // 2. If user is logged in, auto-resolve their actual library asynchronously
     final user = ref.watch(currentUserProvider);
-    if (user != null && !_hasLoaded) {
-      _hasLoaded = true;
-      _autoResolve(user.uid);
+    if (user != null) {
+      if (!_hasLoaded) {
+        _hasLoaded = true;
+        _autoResolve(user.uid);
+      }
+      // S3 FIX: Return null while resolving so downstream providers never query the wrong library during load
+      return null;
     }
-    // Return fallback while Firestore resolves; _fetchPublicDefault also runs
+
+    // 3. For unauthenticated users (e.g. login/onboarding), resolve public default library
     if (!_hasLoaded) {
       _hasLoaded = true;
-      _fetchPublicDefault(); // load from app_config/default for unauthenticated users
+      _fetchPublicDefault();
     }
-    return _compileFallbackId;
+    return defaultLibraryId;
   }
 
-  /// Fetches the default library ID from a public Firestore document.
+  /// Fetches the default library ID from a public Firestore document or Remote Config.
   /// This allows changing the active library without rebuilding the APK.
   /// Document: app_config/default  { defaultLibraryId: "..." }
   Future<void> _fetchPublicDefault() async {
@@ -78,10 +82,10 @@ class CurrentLibraryNotifier extends Notifier<String?> {
           .doc('default')
           .get();
       final id = doc.data()?['defaultLibraryId'] as String?;
-      if (id != null && id.isNotEmpty && state == _compileFallbackId) {
+      if (id != null && id.isNotEmpty && (state == null || state == defaultLibraryId)) {
         set(id);
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
   }
 
   Future<void> _autoResolve(String uid) async {
@@ -94,8 +98,17 @@ class CurrentLibraryNotifier extends Notifier<String?> {
       if (snapshot.docs.isNotEmpty) {
         final docs = snapshot.docs.toList()
           ..sort((a, b) {
-            final aTime = (a.data()['updatedAt'] ?? a.data()['createdAt']) as Timestamp?;
-            final bTime = (b.data()['updatedAt'] ?? b.data()['createdAt']) as Timestamp?;
+            DateTime? parse(dynamic v) {
+              if (v == null) return null;
+              if (v is Timestamp) return v.toDate();
+              if (v is DateTime) return v;
+              if (v is String) return DateTime.tryParse(v);
+              if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+              try { return (v as dynamic).toDate(); } catch (_) { /* intentionally silent */ }
+              return null;
+            }
+            final aTime = parse(a.data()['updatedAt'] ?? a.data()['createdAt']);
+            final bTime = parse(b.data()['updatedAt'] ?? b.data()['createdAt']);
             if (aTime == null && bTime == null) return 0;
             if (aTime == null) return 1;
             if (bTime == null) return -1;
@@ -120,14 +133,14 @@ class CurrentLibraryNotifier extends Notifier<String?> {
         }
       }
 
-      // 3. Fallback: try public config, then compile constant
+      // 3. Fallback: try public config, then Remote Config default
       await _fetchPublicDefault();
       if (state == null || state!.isEmpty) {
-        set(_compileFallbackId);
+        set(defaultLibraryId);
       }
     } catch (e) {
       if (state == null || state!.isEmpty) {
-        set(_compileFallbackId);
+        set(defaultLibraryId);
       }
     }
   }
@@ -137,7 +150,7 @@ class CurrentLibraryNotifier extends Notifier<String?> {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
       prefs.setString(_prefKey, libraryId);
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
     state = libraryId;
   }
 
@@ -146,8 +159,8 @@ class CurrentLibraryNotifier extends Notifier<String?> {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
       prefs.remove(_prefKey);
-    } catch (_) {}
-    state = _compileFallbackId;
+    } catch (_) { /* intentionally silent */ }
+    state = null; // S3 & Session Security: Don't revert to old library on sign out
   }
 }
 
@@ -163,10 +176,13 @@ final currentLibraryProvider = StreamProvider<LibraryModel?>((ref) {
       try {
         final prefs = ref.read(sharedPreferencesProvider);
         if (lib.name.isNotEmpty) prefs.setString('cached_library_name', lib.name);
-        if (lib.logoUrl.isNotEmpty) prefs.setString('cached_library_logo_url', lib.logoUrl);
+        if (lib.logoUrl.isNotEmpty) {
+          prefs.setString('cached_library_logo_url', lib.logoUrl);
+          setWebTabBranding(logoUrl: lib.logoUrl, title: lib.name);
+        }
         if (lib.accentColor != 0) prefs.setInt('cached_library_accent_color', lib.accentColor);
         if (lib.welcomeMessage.isNotEmpty) prefs.setString('cached_library_tagline', lib.welcomeMessage);
-      } catch (_) {}
+      } catch (_) { /* intentionally silent */ }
     }
     return lib;
   });
@@ -195,7 +211,7 @@ class UserRoleNotifier extends Notifier<AppUserRole> {
       final cachedRole = prefs.getString(_prefKey);
       if (cachedRole == 'admin') return AppUserRole.admin;
       if (cachedRole == 'student') return AppUserRole.student;
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
     return AppUserRole.none;
   }
 
@@ -207,7 +223,7 @@ class UserRoleNotifier extends Notifier<AppUserRole> {
       } else {
         prefs.setString(_prefKey, role.name);
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
     state = role;
   }
 
@@ -215,7 +231,7 @@ class UserRoleNotifier extends Notifier<AppUserRole> {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
       prefs.remove(_prefKey);
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
     state = AppUserRole.none;
   }
 }
@@ -246,7 +262,7 @@ Future<void> persistUserRole({
       'displayName': displayName,
       'lastLoginAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-  } catch (_) {}
+  } catch (_) { /* intentionally silent */ }
 }
 
 /// Reads a previously persisted role from SharedPreferences first (instant), then Firestore.
@@ -278,7 +294,7 @@ Future<Map<String, dynamic>?> readPersistedUserRole(String uid) async {
       }
       return data;
     }
-  } catch (_) {}
+  } catch (_) { /* intentionally silent */ }
   return null;
 }
 

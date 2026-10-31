@@ -1,4 +1,6 @@
-enum PaymentStatus { paid, partial, pending, overdue, refunded }
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+enum PaymentStatus { paid, partial, pending, overdue, refunded, voided, cancelled }
 
 class PaymentModel {
   final String id;
@@ -12,10 +14,12 @@ class PaymentModel {
   final String? screenshotCompressed;
   final String? notes;
   final String? receiptId;
+  final String? receiptNumber;
   final double? totalPlanFee;
   final double? remainingDue;
   final int? installmentNumber;
   final PaymentStatus status;
+  final String? cancellationReason;
   final DateTime createdAt;
 
   PaymentModel({
@@ -30,10 +34,12 @@ class PaymentModel {
     this.screenshotCompressed,
     this.notes,
     this.receiptId,
+    this.receiptNumber,
     this.totalPlanFee,
     this.remainingDue,
     this.installmentNumber,
     required this.status,
+    this.cancellationReason,
     required this.createdAt,
   });
 
@@ -45,7 +51,7 @@ class PaymentModel {
       totalPlanFee: (json['totalPlanFee'] as num?)?.toDouble(),
       remainingDue: (json['remainingDue'] as num?)?.toDouble(),
       installmentNumber: json['installmentNumber'] as int?,
-      method: json['method'] as String? ?? '',
+      method: (json['paymentMethod'] ?? json['method']) as String? ?? '',
       methodDetails: json['methodDetails'] as String?,
       date: _parseDate(json['date']) ?? DateTime.now(),
       referenceNumber: json['referenceNumber'] as String?,
@@ -53,7 +59,9 @@ class PaymentModel {
       screenshotCompressed: json['screenshotCompressed'] as String?,
       notes: json['notes'] as String?,
       receiptId: json['receiptId'] as String?,
+      receiptNumber: (json['receiptNumber'] ?? json['receiptNo']) as String?,
       status: _parsePaymentStatus(json['status'] as String?),
+      cancellationReason: json['cancellationReason'] as String? ?? json['voidReason'] as String?,
       createdAt: _parseDate(json['createdAt']) ?? DateTime.now(),
     );
   }
@@ -64,6 +72,7 @@ class PaymentModel {
       'studentId': studentId,
       'amount': amount,
       'method': method,
+      'paymentMethod': method,
       if (methodDetails != null) 'methodDetails': methodDetails,
       'date': date.toIso8601String(),
       if (referenceNumber != null) 'referenceNumber': referenceNumber,
@@ -71,10 +80,12 @@ class PaymentModel {
       if (screenshotCompressed != null) 'screenshotCompressed': screenshotCompressed,
       if (notes != null) 'notes': notes,
       if (receiptId != null) 'receiptId': receiptId,
+      if (receiptNumber != null) 'receiptNumber': receiptNumber,
       if (totalPlanFee != null) 'totalPlanFee': totalPlanFee,
       if (remainingDue != null) 'remainingDue': remainingDue,
       if (installmentNumber != null) 'installmentNumber': installmentNumber,
       'status': status.name,
+      if (cancellationReason != null) 'cancellationReason': cancellationReason,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -91,10 +102,12 @@ class PaymentModel {
     String? screenshotCompressed,
     String? notes,
     String? receiptId,
+    String? receiptNumber,
     double? totalPlanFee,
     double? remainingDue,
     int? installmentNumber,
     PaymentStatus? status,
+    String? cancellationReason,
     DateTime? createdAt,
   }) {
     return PaymentModel(
@@ -109,10 +122,12 @@ class PaymentModel {
       screenshotCompressed: screenshotCompressed ?? this.screenshotCompressed,
       notes: notes ?? this.notes,
       receiptId: receiptId ?? this.receiptId,
+      receiptNumber: receiptNumber ?? this.receiptNumber,
       totalPlanFee: totalPlanFee ?? this.totalPlanFee,
       remainingDue: remainingDue ?? this.remainingDue,
       installmentNumber: installmentNumber ?? this.installmentNumber,
       status: status ?? this.status,
+      cancellationReason: cancellationReason ?? this.cancellationReason,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -125,6 +140,10 @@ class PaymentModel {
         return PaymentStatus.pending;
       case 'overdue':
         return PaymentStatus.overdue;
+      case 'voided':
+        return PaymentStatus.voided;
+      case 'cancelled':
+        return PaymentStatus.cancelled;
       case 'refunded':
         return PaymentStatus.refunded;
       case 'paid':
@@ -136,13 +155,12 @@ class PaymentModel {
   static DateTime? _parseDate(dynamic date) {
     if (date == null) return null;
     if (date is DateTime) return date;
+    if (date is Timestamp) return date.toDate();
     if (date is int) return DateTime.fromMillisecondsSinceEpoch(date);
     if (date is String) return DateTime.tryParse(date);
-    if (date.runtimeType.toString() == 'Timestamp') {
-      try {
-        return date.toDate();
-      } catch (_) {}
-    }
+    try {
+      return (date as dynamic).toDate();
+    } catch (_) { /* intentionally silent */ }
     return null;
   }
 }

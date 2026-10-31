@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/models/student_model.dart';
+import 'package:study_library/core/validators/gov_id_validator.dart';
+import 'package:study_library/core/utils/app_validators.dart';
 import '../providers/registration_provider.dart';
 
 class RegistrationFormScreen extends ConsumerStatefulWidget {
@@ -33,7 +37,7 @@ class _RegistrationFormScreenState
   late final TextEditingController _prepController;
 
   String _gender = 'male';
-  String _selectedGovIdType = 'aadhaar';
+  GovIdType _selectedGovIdType = GovIdType.aadhaar;
 
   // Tracks which fields were auto-filled from OCR
   final Set<String> _autoFilledKeys = {};
@@ -46,14 +50,17 @@ class _RegistrationFormScreenState
     super.initState();
     final reg = ref.read(registrationNotifierProvider);
     final ocr = ref.read(ocrResultProvider);
+    final hasGenuineOcr = ocr.isNotEmpty &&
+        ocr.entries.any((e) => e.key != 'confidence' && e.value != null && e.value!.trim().isNotEmpty);
 
     String pick(String key) => reg[key]?.toString() ?? ocr[key]?.toString() ?? '';
+
+    // Only mark auto-filled if it genuinely was extracted by OCR
     bool isFromOcr(String key) =>
-        reg[key] == null && ocr[key] != null && ocr[key]!.isNotEmpty;
-    bool isFromReg(String key) => reg[key] != null && reg[key].toString().isNotEmpty;
+        hasGenuineOcr && (ocr[key]?.trim().isNotEmpty == true || (key == 'govIdNumber' && ocr['idNumber']?.trim().isNotEmpty == true));
 
     void trackIfFilled(String key, String value) {
-      if (value.isNotEmpty && (isFromOcr(key) || isFromReg(key))) {
+      if (value.isNotEmpty && isFromOcr(key)) {
         _autoFilledKeys.add(key);
       }
     }
@@ -114,11 +121,13 @@ class _RegistrationFormScreenState
     }
 
     final rawGovIdType = pick('govIdType').toLowerCase();
-    if (['pan', 'drivinglicence', 'collegeid'].contains(rawGovIdType)) {
-      _selectedGovIdType = rawGovIdType == 'drivinglicence' ? 'drivingLicence' : rawGovIdType == 'collegeid' ? 'collegeId' : rawGovIdType;
-    } else {
-      _selectedGovIdType = 'aadhaar';
-    }
+    _selectedGovIdType = GovIdType.values.firstWhere(
+      (t) => t.name.toLowerCase() == rawGovIdType ||
+             (rawGovIdType.contains('dl') && t == GovIdType.drivingLicence) ||
+             (rawGovIdType.contains('voter') && t == GovIdType.voterId) ||
+             (rawGovIdType.contains('pass') && t == GovIdType.passport),
+      orElse: () => GovIdType.aadhaar,
+    );
 
     final emergencyVal = pick('emergencyContact');
     _emergencyContactController = TextEditingController(text: emergencyVal);
@@ -168,16 +177,18 @@ class _RegistrationFormScreenState
           });
         }
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
   }
 
   bool _isFieldVisible(String fieldId) {
-    if (_customFieldsConfig.isEmpty) return true;
-    final match = _customFieldsConfig.where((f) => f['id'] == fieldId).firstOrNull;
-    if (match != null) {
-      return match['visible'] as bool? ?? true;
+    if (_customFieldsConfig.isNotEmpty) {
+      final match = _customFieldsConfig.where((f) => f['id'] == fieldId).firstOrNull;
+      if (match != null) {
+        return match['visible'] == true;
+      }
+      return false;
     }
-    return true;
+    return const ['name', 'phone', 'email', 'govId', 'gender', 'address', 'prep'].contains(fieldId);
   }
 
   /// Returns whether a built-in field is required per admin form_config.
@@ -242,7 +253,7 @@ class _RegistrationFormScreenState
       'dob': _dobController.text.trim(),
       'phone': _phoneController.text.trim(),
       'email': _emailController.text.trim(),
-      'govIdType': _selectedGovIdType,           // fixed: was missing
+      'govIdType': _selectedGovIdType.name,           // fixed: was missing
       'govIdNumber': _idNumberController.text.trim(),
       'address': _addressController.text.trim(),
       'pincode': _pinCodeController.text.trim(),
@@ -270,6 +281,9 @@ class _RegistrationFormScreenState
     String? Function(String?)? validator,
     int maxLines = 1,
     TextCapitalization capitalization = TextCapitalization.none,
+    List<TextInputFormatter>? inputFormatters,
+    String? helperText,
+    String? hintText,
   }) {
     final isAutoFilled = _autoFilledKeys.contains(trackKey);
     return TextFormField(
@@ -277,8 +291,11 @@ class _RegistrationFormScreenState
       keyboardType: keyboardType,
       maxLines: maxLines,
       textCapitalization: capitalization,
+      inputFormatters: inputFormatters,
       decoration: InputDecoration(
         labelText: label,
+        helperText: helperText,
+        hintText: hintText,
         prefixIcon: icon != null ? Icon(icon) : null,
         border: const OutlineInputBorder(),
         suffixIcon: isAutoFilled
@@ -291,7 +308,7 @@ class _RegistrationFormScreenState
         enabledBorder: isAutoFilled
             ? OutlineInputBorder(
                 borderSide:
-                    BorderSide(color: Colors.green.shade300, width: 1.5),
+                    BorderSide(color: Colors.green.shade400, width: 1.5),
               )
             : null,
       ),
@@ -312,9 +329,13 @@ class _RegistrationFormScreenState
           const LinearProgressIndicator(value: 2 / 5),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
+              padding: EdgeInsets.symmetric(
+                horizontal: MediaQuery.of(context).size.width < 380 ? 16.0 : 24.0,
+                vertical: 20.0,
+              ),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -355,11 +376,12 @@ class _RegistrationFormScreenState
                     _field(
                       controller: _nameController,
                       label: 'Full Name *',
+                      hintText: 'e.g. Rahul Sharma',
+                      helperText: 'Full legal name as shown on Government ID',
                       trackKey: 'name',
                       icon: Icons.person_rounded,
                       capitalization: TextCapitalization.words,
-                      validator: (v) =>
-                          (v == null || v.trim().length < 2) ? 'Name is required' : null,
+                      validator: (v) => AppValidators.name(v, label: 'Full Name'),
                     ),
                     const SizedBox(height: 14),
 
@@ -369,125 +391,170 @@ class _RegistrationFormScreenState
                         label: _isFieldRequired('fatherName')
                             ? "Father's / Guardian's Name *"
                             : "Father's / Guardian's Name",
+                        hintText: "e.g. Suresh Sharma",
+                        helperText: "Father or legal guardian's name",
                         trackKey: 'fatherName',
                         icon: Icons.family_restroom_rounded,
                         capitalization: TextCapitalization.words,
-                        validator: _requiredValidator('fatherName'),
+                        validator: (v) => AppValidators.name(
+                          v,
+                          required: _isFieldRequired('fatherName'),
+                          label: "Father's / Guardian's Name",
+                        ),
                       ),
                       const SizedBox(height: 14),
                     ],
 
-                    // DOB + Gender in a row
+                    // DOB + Gender (stacked on phone, row on desktop)
                     if (_isFieldVisible('dob') || _isFieldVisible('gender')) ...[
-                      Row(
-                        children: [
-                          if (_isFieldVisible('dob'))
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () async {
-                                  final picked = await showDatePicker(
-                                    context: context,
-                                    initialDate: DateTime(2000, 1, 1),
-                                    firstDate: DateTime(1940),
-                                    lastDate: DateTime.now().subtract(const Duration(days: 365 * 4)),
-                                  );
-                                  if (picked != null && mounted) {
-                                    setState(() {
-                                      _dobController.text = '${picked.day.toString().padLeft(2,'0')}/${picked.month.toString().padLeft(2,'0')}/${picked.year}';
-                                      _autoFilledKeys.remove('dob');
-                                    });
-                                  }
-                                },
-                                child: AbsorbPointer(
-                                  child: TextFormField(
-                                    controller: _dobController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Date of Birth',
-                                      prefixIcon: const Icon(Icons.cake_rounded),
-                                      border: const OutlineInputBorder(),
-                                      suffixIcon: _autoFilledKeys.contains('dob')
-                                          ? Icon(Icons.verified_rounded, color: Colors.green.shade600, size: 20)
-                                          : const Icon(Icons.calendar_today_outlined, size: 18),
-                                      enabledBorder: _autoFilledKeys.contains('dob')
-                                          ? OutlineInputBorder(borderSide: BorderSide(color: Colors.green.shade300, width: 1.5))
-                                          : null,
+                      if (MediaQuery.of(context).size.width < 600) ...[
+                        if (_isFieldVisible('dob')) ...[
+                          GestureDetector(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime(2000, 1, 1),
+                                firstDate: DateTime(1940),
+                                lastDate: DateTime.now().subtract(const Duration(days: 365 * 4)),
+                              );
+                              if (picked != null && mounted) {
+                                setState(() {
+                                  _dobController.text = '${picked.day.toString().padLeft(2,'0')}/${picked.month.toString().padLeft(2,'0')}/${picked.year}';
+                                  _autoFilledKeys.remove('dob');
+                                });
+                              }
+                            },
+                            child: AbsorbPointer(
+                              child: TextFormField(
+                                controller: _dobController,
+                                decoration: InputDecoration(
+                                  labelText: 'Date of Birth',
+                                  prefixIcon: const Icon(Icons.cake_rounded),
+                                  border: const OutlineInputBorder(),
+                                  suffixIcon: _autoFilledKeys.contains('dob')
+                                      ? Icon(Icons.verified_rounded, color: Colors.green.shade600, size: 20)
+                                      : const Icon(Icons.calendar_today_outlined, size: 18),
+                                  enabledBorder: _autoFilledKeys.contains('dob')
+                                      ? OutlineInputBorder(borderSide: BorderSide(color: Colors.green.shade300, width: 1.5))
+                                      : null,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        if (_isFieldVisible('gender')) ...[
+                          DropdownButtonFormField<String>(
+                            initialValue: _gender,
+                            decoration: const InputDecoration(
+                              labelText: 'Gender *',
+                              prefixIcon: Icon(Icons.people_outline_rounded),
+                              border: OutlineInputBorder(),
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 'male', child: Text('Male')),
+                              DropdownMenuItem(value: 'female', child: Text('Female')),
+                              DropdownMenuItem(value: 'other', child: Text('Other')),
+                            ],
+                            onChanged: (v) {
+                              if (v != null) setState(() => _gender = v);
+                            },
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                      ] else ...[
+                        Row(
+                          children: [
+                            if (_isFieldVisible('dob'))
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: DateTime(2000, 1, 1),
+                                      firstDate: DateTime(1940),
+                                      lastDate: DateTime.now().subtract(const Duration(days: 365 * 4)),
+                                    );
+                                    if (picked != null && mounted) {
+                                      setState(() {
+                                        _dobController.text = '${picked.day.toString().padLeft(2,'0')}/${picked.month.toString().padLeft(2,'0')}/${picked.year}';
+                                        _autoFilledKeys.remove('dob');
+                                      });
+                                    }
+                                  },
+                                  child: AbsorbPointer(
+                                    child: TextFormField(
+                                      controller: _dobController,
+                                      decoration: InputDecoration(
+                                        labelText: 'Date of Birth',
+                                        prefixIcon: const Icon(Icons.cake_rounded),
+                                        border: const OutlineInputBorder(),
+                                        suffixIcon: _autoFilledKeys.contains('dob')
+                                            ? Icon(Icons.verified_rounded, color: Colors.green.shade600, size: 20)
+                                            : const Icon(Icons.calendar_today_outlined, size: 18),
+                                        enabledBorder: _autoFilledKeys.contains('dob')
+                                            ? OutlineInputBorder(borderSide: BorderSide(color: Colors.green.shade300, width: 1.5))
+                                            : null,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          if (_isFieldVisible('dob') && _isFieldVisible('gender'))
-                            const SizedBox(width: 12),
-                          if (_isFieldVisible('gender'))
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                initialValue: _gender,
-                                decoration: const InputDecoration(
-                                  labelText: 'Gender *',
-                                  prefixIcon: Icon(Icons.people_outline_rounded),
-                                  border: OutlineInputBorder(),
+                            if (_isFieldVisible('dob') && _isFieldVisible('gender'))
+                              const SizedBox(width: 12),
+                            if (_isFieldVisible('gender'))
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: _gender,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Gender *',
+                                    prefixIcon: Icon(Icons.people_outline_rounded),
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                        value: 'male', child: Text('Male')),
+                                    DropdownMenuItem(
+                                        value: 'female', child: Text('Female')),
+                                    DropdownMenuItem(
+                                        value: 'other', child: Text('Other')),
+                                  ],
+                                  onChanged: (v) {
+                                    if (v != null) setState(() => _gender = v);
+                                  },
                                 ),
-                                items: const [
-                                  DropdownMenuItem(
-                                      value: 'male', child: Text('Male')),
-                                  DropdownMenuItem(
-                                      value: 'female', child: Text('Female')),
-                                  DropdownMenuItem(
-                                      value: 'other', child: Text('Other')),
-                                ],
-                                onChanged: (v) {
-                                  if (v != null) setState(() => _gender = v);
-                                },
                               ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                     ],
 
-                    // Blood Group + Roll Number in a row
-                    if (_isFieldVisible('bloodGroup') || _isFieldVisible('rollNumber')) ...[
-                      Row(
-                        children: [
-                          if (_isFieldVisible('bloodGroup'))
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                initialValue: _bloodGroupController.text.isNotEmpty ? _bloodGroupController.text : null,
-                                decoration: const InputDecoration(
-                                  labelText: 'Blood Group',
-                                  prefixIcon: Icon(Icons.bloodtype_rounded),
-                                  border: OutlineInputBorder(),
-                                ),
-                                hint: const Text('Select'),
-                                items: const [
-                                  DropdownMenuItem(value: 'A+', child: Text('A+')),
-                                  DropdownMenuItem(value: 'A-', child: Text('A-')),
-                                  DropdownMenuItem(value: 'B+', child: Text('B+')),
-                                  DropdownMenuItem(value: 'B-', child: Text('B-')),
-                                  DropdownMenuItem(value: 'AB+', child: Text('AB+')),
-                                  DropdownMenuItem(value: 'AB-', child: Text('AB-')),
-                                  DropdownMenuItem(value: 'O+', child: Text('O+')),
-                                  DropdownMenuItem(value: 'O-', child: Text('O-')),
-                                ],
-                                onChanged: (v) {
-                                  if (v != null) setState(() => _bloodGroupController.text = v);
-                                },
-                              ),
-                            ),
-                          if (_isFieldVisible('bloodGroup') && _isFieldVisible('rollNumber'))
-                            const SizedBox(width: 12),
-                          if (_isFieldVisible('rollNumber'))
-                            Expanded(
-                              child: _field(
-                                controller: _rollNumberController,
-                                label: 'Roll / Enroll No.',
-                                trackKey: 'rollNumber',
-                                icon: Icons.badge_outlined,
-                              ),
-                            ),
+                    // Blood Group
+                    if (_isFieldVisible('bloodGroup')) ...[
+                      DropdownButtonFormField<String>(
+                        initialValue: _bloodGroupController.text.isNotEmpty ? _bloodGroupController.text : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Blood Group',
+                          prefixIcon: Icon(Icons.bloodtype_rounded),
+                          border: OutlineInputBorder(),
+                        ),
+                        hint: const Text('Select Blood Group'),
+                        items: const [
+                          DropdownMenuItem(value: 'A+', child: Text('A+')),
+                          DropdownMenuItem(value: 'A-', child: Text('A-')),
+                          DropdownMenuItem(value: 'B+', child: Text('B+')),
+                          DropdownMenuItem(value: 'B-', child: Text('B-')),
+                          DropdownMenuItem(value: 'AB+', child: Text('AB+')),
+                          DropdownMenuItem(value: 'AB-', child: Text('AB-')),
+                          DropdownMenuItem(value: 'O+', child: Text('O+')),
+                          DropdownMenuItem(value: 'O-', child: Text('O-')),
                         ],
+                        onChanged: (v) {
+                          if (v != null) setState(() => _bloodGroupController.text = v);
+                        },
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
                     ],
 
                     // ── Contact ────────────────────────────────────────────
@@ -497,32 +564,28 @@ class _RegistrationFormScreenState
                     _field(
                       controller: _phoneController,
                       label: 'Mobile Phone *',
+                      hintText: 'e.g. 9823456789',
+                      helperText: '10-digit number for WhatsApp updates & admission alerts',
                       trackKey: 'phone',
                       icon: Icons.phone_android_rounded,
                       keyboardType: TextInputType.phone,
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Phone number is required';
-                        final digits = v.trim().replaceAll(RegExp(r'[^0-9]'), '');
-                        if (digits.length != 10) return 'Must be exactly 10 digits';
-                        if (!RegExp(r'^[6-9]').hasMatch(digits)) return 'Must start with 6, 7, 8, or 9';
-                        return null;
-                      },
+                      inputFormatters: AppValidators.phoneFormatters,
+                      validator: (v) => AppValidators.phone(v, label: 'Phone number'),
                     ),
                     if (_isFieldVisible('email')) ...[
                       const SizedBox(height: 14),
                       _field(
                         controller: _emailController,
                         label: _isFieldRequired('email') ? 'Email Address *' : 'Email Address',
+                        hintText: 'e.g. student@gmail.com',
+                        helperText: 'For digital receipts, renewal reminders & approval updates',
                         trackKey: 'email',
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
-                        validator: _isFieldRequired('email')
-                            ? (v) {
-                                if (v == null || v.trim().isEmpty) return 'Email is required';
-                                if (!v.contains('@')) return 'Enter a valid email';
-                                return null;
-                              }
-                            : null,
+                        validator: (v) => AppValidators.email(
+                          v,
+                          required: _isFieldRequired('email'),
+                        ),
                       ),
                     ],
                     if (_isFieldVisible('emergencyContact')) ...[
@@ -532,129 +595,265 @@ class _RegistrationFormScreenState
                         label: _isFieldRequired('emergencyContact')
                             ? 'Emergency Contact Number *'
                             : 'Emergency Contact Number',
+                        hintText: 'e.g. 9876543210',
+                        helperText: 'Parents or family emergency contact number',
                         trackKey: 'emergencyContact',
                         icon: Icons.emergency_rounded,
                         keyboardType: TextInputType.phone,
-                        validator: _requiredValidator('emergencyContact'),
+                        inputFormatters: AppValidators.phoneFormatters,
+                        validator: (v) => AppValidators.emergencyPhone(
+                          v,
+                          primaryPhone: _phoneController.text,
+                          required: _isFieldRequired('emergencyContact'),
+                        ),
                       ),
                     ],
                     const SizedBox(height: 24),
 
                     // ── ID Details ─────────────────────────────────────────
                     if (_isFieldVisible('govId')) ...[
-                      _sectionHeader(theme, 'ID Details'),
+                      _sectionHeader(theme, 'Government ID Verification'),
                       const SizedBox(height: 12),
+
+                      DropdownButtonFormField<GovIdType>(
+                        initialValue: _selectedGovIdType,
+                        decoration: const InputDecoration(
+                          labelText: 'Government ID Type *',
+                          prefixIcon: Icon(Icons.badge_rounded),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: GovIdType.values.map((t) => DropdownMenuItem(
+                          value: t,
+                          child: Text(t.displayName),
+                        )).toList(),
+                        onChanged: (v) {
+                          if (v != null) {
+                            setState(() {
+                              _selectedGovIdType = v;
+                              _idNumberController.text = GovIdValidator.format(v, _idNumberController.text);
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 14),
 
                       _field(
                         controller: _idNumberController,
                         label: _isFieldRequired('govId')
-                            ? 'Government ID Number *'
-                            : 'Government ID Number',
+                            ? '${_selectedGovIdType.displayName} Number *'
+                            : '${_selectedGovIdType.displayName} Number',
                         trackKey: 'govIdNumber',
+                        hintText: _selectedGovIdType.placeholder,
+                        helperText: _selectedGovIdType.helperText,
                         icon: Icons.credit_card_rounded,
-                        capitalization: (_selectedGovIdType == 'aadhaar')
-                            ? TextCapitalization.none
-                            : TextCapitalization.characters,
-                        keyboardType: (_selectedGovIdType == 'aadhaar')
-                            ? TextInputType.number
-                            : TextInputType.text,
-                        validator: _requiredValidator('govId'),
+                        capitalization: GovIdValidator.textCapitalization(_selectedGovIdType),
+                        keyboardType: GovIdValidator.keyboardType(_selectedGovIdType),
+                        inputFormatters: GovIdValidator.inputFormatters(_selectedGovIdType),
+                        validator: (v) => GovIdValidator.validate(
+                          _selectedGovIdType,
+                          v,
+                          isRequired: _isFieldRequired('govId'),
+                        ),
                       ),
                       const SizedBox(height: 24),
                     ],
 
                     // ── Address ────────────────────────────────────────────
                     if (_isFieldVisible('address')) ...[
-                      _sectionHeader(theme, 'Address'),
+                      _sectionHeader(theme, 'Address Details'),
                       const SizedBox(height: 12),
 
                       _field(
                         controller: _addressController,
                         label: _isFieldRequired('address') ? 'Address *' : 'Address',
+                        hintText: 'e.g. Near Bus Stand, Station Road, Parli',
+                        helperText: 'Permanent or current hostel/PG residential address',
                         trackKey: 'address',
                         icon: Icons.home_outlined,
                         maxLines: 2,
-                        validator: _requiredValidator('address'),
+                        validator: (v) => AppValidators.address(
+                          v,
+                          required: _isFieldRequired('address'),
+                        ),
                       ),
-                      const SizedBox(height: 14),
-
-                      _field(
-                        controller: _pinCodeController,
-                        label: _isFieldRequired('address') ? 'PIN Code *' : 'PIN Code',
-                        trackKey: 'pinCode',
-                        icon: Icons.pin_drop_outlined,
-                        keyboardType: TextInputType.number,
-                        validator: _isFieldRequired('address')
-                            ? (v) {
-                                if (v == null || v.trim().isEmpty) return 'PIN Code is required';
-                                if (v.trim().length != 6) return 'Must be 6 digits';
-                                return null;
-                              }
-                            : null,
-                      ),
+                      if (_isFieldVisible('pincode') || _isFieldVisible('pinCode')) ...[
+                        const SizedBox(height: 14),
+                        _field(
+                          controller: _pinCodeController,
+                          label: (_isFieldRequired('pincode') || _isFieldRequired('pinCode')) ? 'PIN Code *' : 'PIN Code',
+                          hintText: 'e.g. 431515',
+                          helperText: '6-digit area postal PIN code',
+                          trackKey: 'pinCode',
+                          icon: Icons.pin_drop_outlined,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: AppValidators.pincodeFormatters,
+                          validator: (v) => AppValidators.pinCode(
+                            v,
+                            required: _isFieldRequired('pincode') || _isFieldRequired('pinCode'),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 24),
                     ],
 
-                    // ── Academic Info ──────────────────────────────────────
-                    _sectionHeader(theme, 'Academic Information'),
-                    const SizedBox(height: 12),
+                    // ── Academic & Competitive Goals ─────────────────────────
+                    if (_isFieldVisible('prep') || _isFieldVisible('college') || _isFieldVisible('course') || _isFieldVisible('year') || _isFieldVisible('rollNumber')) ...[
+                      _sectionHeader(theme, 'Academic & Competitive Goals'),
+                      const SizedBox(height: 12),
 
-                    if (_isFieldVisible('college') || _isFieldVisible('course')) ...[
-                      Row(
-                        children: [
-                          if (_isFieldVisible('college'))
-                            Expanded(
-                              child: _field(
-                                controller: _collegeController,
-                                label: _isFieldRequired('college')
-                                    ? 'College / Institute *'
-                                    : 'College / Institute',
-                                trackKey: 'college',
-                                icon: Icons.school_outlined,
-                                validator: _requiredValidator('college'),
-                              ),
+                      if (_isFieldVisible('prep')) ...[
+                        _field(
+                          controller: _prepController,
+                          label: _isFieldRequired('prep')
+                              ? 'Exam / Target Course *'
+                              : 'Exam / Target Course',
+                          hintText: 'e.g. MPSC, UPSC, NEET, JEE, Banking, RTO, CA',
+                          helperText: 'Competitive exam or study target',
+                          trackKey: 'prep',
+                          icon: Icons.military_tech_rounded,
+                          validator: _requiredValidator('prep'),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
+                      if (_isFieldVisible('college') || _isFieldVisible('course')) ...[
+                        if (MediaQuery.of(context).size.width < 600) ...[
+                          if (_isFieldVisible('college')) ...[
+                            _field(
+                              controller: _collegeController,
+                              label: _isFieldRequired('college')
+                                  ? 'College / Institute *'
+                                  : 'College / Institute',
+                              hintText: 'e.g. Govt Degree College',
+                              helperText: 'Current College or University',
+                              trackKey: 'college',
+                              icon: Icons.school_outlined,
+                              validator: _requiredValidator('college'),
                             ),
-                          if (_isFieldVisible('college') && _isFieldVisible('course'))
-                            const SizedBox(width: 12),
-                          if (_isFieldVisible('course'))
-                            Expanded(
-                              child: _field(
-                                controller: _courseController,
-                                label: _isFieldRequired('course')
-                                    ? 'Course / Degree *'
-                                    : 'Course / Degree',
-                                trackKey: 'course',
-                                icon: Icons.menu_book_outlined,
-                                validator: _requiredValidator('course'),
-                              ),
+                            const SizedBox(height: 14),
+                          ],
+                          if (_isFieldVisible('course')) ...[
+                            _field(
+                              controller: _courseController,
+                              label: _isFieldRequired('course')
+                                  ? 'Course / Degree *'
+                                  : 'Course / Degree',
+                              hintText: 'e.g. B.Sc, B.Tech, MBA',
+                              helperText: 'Current Degree or Branch',
+                              trackKey: 'course',
+                              icon: Icons.menu_book_outlined,
+                              validator: _requiredValidator('course'),
                             ),
+                            const SizedBox(height: 14),
+                          ],
+                        ] else ...[
+                          Row(
+                            children: [
+                              if (_isFieldVisible('college'))
+                                Expanded(
+                                  child: _field(
+                                    controller: _collegeController,
+                                    label: _isFieldRequired('college')
+                                        ? 'College / Institute *'
+                                        : 'College / Institute',
+                                    hintText: 'e.g. Govt Degree College',
+                                    helperText: 'Current College or University',
+                                    trackKey: 'college',
+                                    icon: Icons.school_outlined,
+                                    validator: _requiredValidator('college'),
+                                  ),
+                                ),
+                              if (_isFieldVisible('college') && _isFieldVisible('course'))
+                                const SizedBox(width: 12),
+                              if (_isFieldVisible('course'))
+                                Expanded(
+                                  child: _field(
+                                    controller: _courseController,
+                                    label: _isFieldRequired('course')
+                                        ? 'Course / Degree *'
+                                        : 'Course / Degree',
+                                    hintText: 'e.g. B.Sc, B.Tech, MBA',
+                                    helperText: 'Current Degree or Branch',
+                                    trackKey: 'course',
+                                    icon: Icons.menu_book_outlined,
+                                    validator: _requiredValidator('course'),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
                         ],
-                      ),
-                    ],
-                    if (_isFieldVisible('year')) ...[
-                      const SizedBox(height: 14),
-                      _field(
-                        controller: _yearController,
-                        label: _isFieldRequired('year')
-                            ? 'Study Year / Semester *'
-                            : 'Study Year / Semester',
-                        trackKey: 'year',
-                        icon: Icons.school_outlined,
-                        validator: _requiredValidator('year'),
-                      ),
-                    ],
+                      ],
 
-                    if (_isFieldVisible('prep')) ...[
-                      const SizedBox(height: 14),
-                      _field(
-                        controller: _prepController,
-                        label: _isFieldRequired('prep')
-                            ? 'Exam / Target Course *'
-                            : 'Exam / Target Course',
-                        trackKey: 'prep',
-                        icon: Icons.military_tech_rounded,
-                        validator: _requiredValidator('prep'),
-                      ),
+                      if (_isFieldVisible('year') || _isFieldVisible('rollNumber')) ...[
+                        if (MediaQuery.of(context).size.width < 600) ...[
+                          if (_isFieldVisible('year')) ...[
+                            _field(
+                              controller: _yearController,
+                              label: _isFieldRequired('year')
+                                  ? 'Study Year / Semester *'
+                                  : 'Study Year / Semester',
+                              hintText: 'e.g. 2nd Year / 4th Sem',
+                              helperText: 'Academic year of study',
+                              trackKey: 'year',
+                              icon: Icons.calendar_today_outlined,
+                              validator: _requiredValidator('year'),
+                            ),
+                            const SizedBox(height: 14),
+                          ],
+                          if (_isFieldVisible('rollNumber')) ...[
+                            _field(
+                              controller: _rollNumberController,
+                              label: _isFieldRequired('rollNumber')
+                                  ? 'Roll / Enroll No. *'
+                                  : 'Roll / Enroll No.',
+                              hintText: 'e.g. 2024-ME-042',
+                              helperText: 'College roll / ID',
+                              trackKey: 'rollNumber',
+                              icon: Icons.badge_outlined,
+                              validator: _requiredValidator('rollNumber'),
+                            ),
+                            const SizedBox(height: 14),
+                          ],
+                        ] else ...[
+                          Row(
+                            children: [
+                              if (_isFieldVisible('year'))
+                                Expanded(
+                                  child: _field(
+                                    controller: _yearController,
+                                    label: _isFieldRequired('year')
+                                        ? 'Study Year / Semester *'
+                                        : 'Study Year / Semester',
+                                    hintText: 'e.g. 2nd Year / 4th Sem',
+                                    helperText: 'Academic year of study',
+                                    trackKey: 'year',
+                                    icon: Icons.calendar_today_outlined,
+                                    validator: _requiredValidator('year'),
+                                  ),
+                                ),
+                              if (_isFieldVisible('year') && _isFieldVisible('rollNumber'))
+                                const SizedBox(width: 12),
+                              if (_isFieldVisible('rollNumber'))
+                                Expanded(
+                                  child: _field(
+                                    controller: _rollNumberController,
+                                    label: _isFieldRequired('rollNumber')
+                                        ? 'Roll / Enroll No. *'
+                                        : 'Roll / Enroll No.',
+                                    hintText: 'e.g. 2024-ME-042',
+                                    helperText: 'College roll / ID',
+                                    trackKey: 'rollNumber',
+                                    icon: Icons.badge_outlined,
+                                    validator: _requiredValidator('rollNumber'),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                      ],
+                      const SizedBox(height: 24),
                     ],
 
                     if (_customControllers.isNotEmpty) ...[
@@ -691,30 +890,65 @@ class _RegistrationFormScreenState
 
                     const SizedBox(height: 32),
 
-                    // Navigation buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        OutlinedButton(
-                          onPressed: () =>
-                              ref.read(registrationStepProvider.notifier).goTo(1),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 14),
-                          ),
-                          child: const Text('Back'),
-                        ),
-                        FilledButton(
-                          onPressed: _onNext,
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 32, vertical: 14),
-                          ),
-                          child: const Text('Next: Profile Photo ➔'),
-                        ),
-                      ],
+                    // Navigation buttons (Responsive layout)
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final screenWidth = MediaQuery.of(context).size.width;
+                        final isSmallPhone = constraints.maxWidth < 360 || screenWidth < 380;
+                        if (isSmallPhone) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              FilledButton(
+                                onPressed: _onNext,
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                child: const Text('Next: Profile Photo ➔'),
+                              ),
+                              const SizedBox(height: 10),
+                              OutlinedButton(
+                                onPressed: () =>
+                                    ref.read(registrationStepProvider.notifier).goTo(1),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                child: const Text('Back'),
+                              ),
+                            ],
+                          );
+                        }
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            OutlinedButton(
+                              onPressed: () =>
+                                  ref.read(registrationStepProvider.notifier).goTo(1),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 14),
+                              ),
+                              child: const Text('Back'),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: _onNext,
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 14),
+                                ),
+                                child: const FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text('Next: Profile Photo ➔'),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -728,11 +962,13 @@ class _RegistrationFormScreenState
   Widget _sectionHeader(ThemeData theme, String title) {
     return Row(
       children: [
-        Expanded(
-          child: Divider(color: theme.colorScheme.outlineVariant, height: 1),
+        Container(
+          width: 14,
+          height: 1,
+          color: theme.colorScheme.outlineVariant,
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Text(
             title,
             style: theme.textTheme.labelMedium?.copyWith(
@@ -740,6 +976,8 @@ class _RegistrationFormScreenState
               fontWeight: FontWeight.bold,
               letterSpacing: 0.5,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         Expanded(

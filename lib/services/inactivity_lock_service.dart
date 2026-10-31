@@ -10,12 +10,17 @@ class InactivityLockService {
   static DateTime _lastInteraction = DateTime.now();
   static Timer? _idleCheckTimer;
   static VoidCallback? _onLockTriggered;
+  static Future<bool> Function()? _checkLockEnabledCallback;
   static bool _isEnabled = true;
   static bool _isLocked = false;
 
   /// Initialize the idle timer with a callback to invoke when timeout is reached.
-  static void initialize({required VoidCallback onLock}) {
+  static void initialize({
+    required VoidCallback onLock,
+    Future<bool> Function()? checkLockEnabled,
+  }) {
     _onLockTriggered = onLock;
+    _checkLockEnabledCallback = checkLockEnabled;
     _lastInteraction = DateTime.now();
     _idleCheckTimer?.cancel();
     _idleCheckTimer = Timer.periodic(const Duration(seconds: 15), (_) => _checkInactivity());
@@ -45,7 +50,12 @@ class InactivityLockService {
   static Future<void> _checkInactivity() async {
     if (!_isEnabled || _isLocked) return;
 
-    final lockEnabled = await BiometricService.isLockEnabled();
+    final bool lockEnabled;
+    if (_checkLockEnabledCallback != null) {
+      lockEnabled = await _checkLockEnabledCallback!();
+    } else {
+      lockEnabled = await BiometricService.isLockEnabled();
+    }
     if (!lockEnabled) return;
 
     final timeoutMinutes = await BiometricService.getAutoLockTimeoutMinutes();

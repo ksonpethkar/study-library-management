@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-/// ValidatedTextField provides an inline validation form field.
+/// ValidatedTextField provides an inline validation form field with real-time feedback.
 class ValidatedTextField extends StatefulWidget {
   final String label;
   final String? hint;
   final String? Function(String?)? validator;
   final TextEditingController? controller;
   final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+  final TextCapitalization textCapitalization;
+  final TextInputAction? textInputAction;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
+  final String? prefixText;
+  final String? suffixText;
   final int? maxLines;
   final int? maxLength;
   final bool enabled;
@@ -16,6 +22,8 @@ class ValidatedTextField extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final String? tooltipText;
   final Iterable<String>? autofillHints;
+  final FocusNode? focusNode;
+  final AutovalidateMode? autovalidateMode;
 
   const ValidatedTextField({
     super.key,
@@ -24,8 +32,13 @@ class ValidatedTextField extends StatefulWidget {
     this.validator,
     this.controller,
     this.keyboardType,
+    this.inputFormatters,
+    this.textCapitalization = TextCapitalization.none,
+    this.textInputAction,
     this.prefixIcon,
     this.suffixIcon,
+    this.prefixText,
+    this.suffixText,
     this.maxLines = 1,
     this.maxLength,
     this.enabled = true,
@@ -33,6 +46,8 @@ class ValidatedTextField extends StatefulWidget {
     this.onChanged,
     this.tooltipText,
     this.autofillHints,
+    this.focusNode,
+    this.autovalidateMode,
   });
 
   @override
@@ -53,9 +68,9 @@ class ValidatedTextFieldState extends State<ValidatedTextField> {
         children: [
           if (widget.suffixIcon != null) widget.suffixIcon!,
           if (_isValid == true)
-            const Icon(Icons.check_circle, color: Colors.green)
+            const Icon(Icons.check_circle, color: Colors.green, size: 20)
           else if (_isValid == false)
-            const Icon(Icons.cancel, color: Colors.red),
+            const Icon(Icons.cancel, color: Colors.red, size: 20),
           if (widget.tooltipText != null)
             Tooltip(
               message: widget.tooltipText!,
@@ -85,16 +100,23 @@ class ValidatedTextFieldState extends State<ValidatedTextField> {
     return TextFormField(
       controller: widget.controller,
       keyboardType: widget.keyboardType,
+      inputFormatters: widget.inputFormatters,
+      textCapitalization: widget.textCapitalization,
+      textInputAction: widget.textInputAction,
       maxLines: widget.maxLines,
       maxLength: widget.maxLength,
       enabled: widget.enabled,
       obscureText: widget.obscureText,
       autofillHints: widget.autofillHints,
+      focusNode: widget.focusNode,
+      autovalidateMode: widget.autovalidateMode,
       decoration: InputDecoration(
         labelText: widget.label,
         hintText: widget.hint,
         prefixIcon: widget.prefixIcon,
         suffixIcon: builtSuffixIcon,
+        prefixText: widget.prefixText,
+        suffixText: widget.suffixText,
         errorText: _errorText,
       ),
       validator: (value) {

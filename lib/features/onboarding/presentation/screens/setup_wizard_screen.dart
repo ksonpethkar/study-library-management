@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/app_validators.dart';
+import 'package:study_library/core/error/error_handler.dart';
 
 
 class SetupWizardScreen extends ConsumerStatefulWidget {
@@ -49,7 +51,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
   final _formKey4 = GlobalKey<FormState>();
   String _planName = '';
   double _price = 0.0;
-  int _durationDays = 0;
+  int _durationMonths = 1;
 
   Future<void> _saveSetupData() async {
     setState(() => _isLoading = true);
@@ -117,8 +119,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
         'libraryId': libraryId,
         'name': _planName,
         'price': _price,
-        'duration': _durationDays,
-        'durationUnit': 'days',
+        'duration': _durationMonths,
+        'durationUnit': 'months',
         'description': '',
         'isActive': true,
         'isFeatured': false,
@@ -137,9 +139,7 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
 
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save: $e')),
-      );
+      AppSnackbar.showError(context, e);
       setState(() => _isLoading = false);
     }
   }
@@ -191,24 +191,43 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                     child: Column(
                       children: [
                         TextFormField(
-                          decoration: const InputDecoration(labelText: 'Library Name'),
-                          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                          onSaved: (v) => _libraryName = v!,
+                          decoration: const InputDecoration(
+                            labelText: 'Library Name',
+                            hintText: 'e.g. Apex Study Lounge',
+                          ),
+                          validator: (v) => AppValidators.name(v, required: true, label: 'Library Name', min: 3),
+                          onSaved: (v) => _libraryName = v!.trim(),
                         ),
+                        const SizedBox(height: 12),
                         TextFormField(
-                          decoration: const InputDecoration(labelText: 'Address'),
-                          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                          onSaved: (v) => _libraryAddress = v!,
+                          decoration: const InputDecoration(
+                            labelText: 'Address',
+                            hintText: 'e.g. Station Road, City',
+                          ),
+                          validator: (v) => AppValidators.address(v, required: true, label: 'Address', min: 5),
+                          onSaved: (v) => _libraryAddress = v!.trim(),
                         ),
+                        const SizedBox(height: 12),
                         TextFormField(
-                          decoration: const InputDecoration(labelText: 'Phone'),
-                          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                          onSaved: (v) => _libraryPhone = v!,
+                          decoration: const InputDecoration(
+                            labelText: 'Phone',
+                            hintText: '10-digit mobile number',
+                            prefixText: '+91 ',
+                          ),
+                          inputFormatters: AppValidators.phoneFormatters,
+                          keyboardType: TextInputType.phone,
+                          validator: (v) => AppValidators.phone(v, label: 'Phone number'),
+                          onSaved: (v) => _libraryPhone = v!.trim(),
                         ),
+                        const SizedBox(height: 12),
                         TextFormField(
-                          decoration: const InputDecoration(labelText: 'Email'),
-                          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                          onSaved: (v) => _libraryEmail = v!,
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            hintText: 'e.g. contact@library.com',
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (v) => AppValidators.email(v, required: true),
+                          onSaved: (v) => _libraryEmail = v!.trim(),
                         ),
                       ],
                     ),
@@ -238,21 +257,36 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         TextFormField(
-                          decoration: const InputDecoration(labelText: 'Section Name'),
-                          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                          onSaved: (v) => _sectionName = v!,
+                          decoration: const InputDecoration(
+                            labelText: 'Section Name',
+                            hintText: 'e.g. Main Hall, Silent Zone',
+                          ),
+                          validator: (v) => AppValidators.name(v, required: true, label: 'Section Name', min: 2),
+                          onSaved: (v) => _sectionName = v!.trim(),
                         ),
+                        const SizedBox(height: 12),
                         TextFormField(
-                          decoration: const InputDecoration(labelText: 'Rows'),
+                          decoration: const InputDecoration(labelText: 'Rows (1–50)'),
                           keyboardType: TextInputType.number,
-                          validator: (v) => v == null || int.tryParse(v) == null ? 'Invalid number' : null,
-                          onSaved: (v) => _rows = int.parse(v!),
+                          inputFormatters: [AppValidators.digitsOnly],
+                          validator: (v) {
+                            final n = int.tryParse(v ?? '');
+                            if (n == null || n < 1 || n > 50) return 'Rows must be between 1 and 50';
+                            return null;
+                          },
+                          onSaved: (v) => _rows = int.parse(v!.trim()),
                         ),
+                        const SizedBox(height: 12),
                         TextFormField(
-                          decoration: const InputDecoration(labelText: 'Columns'),
+                          decoration: const InputDecoration(labelText: 'Columns (1–50)'),
                           keyboardType: TextInputType.number,
-                          validator: (v) => v == null || int.tryParse(v) == null ? 'Invalid number' : null,
-                          onSaved: (v) => _cols = int.parse(v!),
+                          inputFormatters: [AppValidators.digitsOnly],
+                          validator: (v) {
+                            final n = int.tryParse(v ?? '');
+                            if (n == null || n < 1 || n > 50) return 'Columns must be between 1 and 50';
+                            return null;
+                          },
+                          onSaved: (v) => _cols = int.parse(v!.trim()),
                         ),
                         const SizedBox(height: 16),
                         const Text('Section Color'),
@@ -293,21 +327,35 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
                     child: Column(
                       children: [
                         TextFormField(
-                          decoration: const InputDecoration(labelText: 'Plan Name'),
-                          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                          onSaved: (v) => _planName = v!,
+                          decoration: const InputDecoration(
+                            labelText: 'Plan Name',
+                            hintText: 'e.g. Full Day Monthly',
+                          ),
+                          validator: (v) => AppValidators.planName(v, required: true),
+                          onSaved: (v) => _planName = v!.trim(),
                         ),
+                        const SizedBox(height: 12),
                         TextFormField(
-                          decoration: const InputDecoration(labelText: 'Price'),
-                          keyboardType: TextInputType.number,
-                          validator: (v) => v == null || double.tryParse(v) == null ? 'Invalid price' : null,
-                          onSaved: (v) => _price = double.parse(v!),
+                          decoration: const InputDecoration(
+                            labelText: 'Price (₹)',
+                            prefixText: '₹ ',
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: AppValidators.amountFormatters,
+                          validator: (v) => AppValidators.amount(v, required: true, min: 1, max: 99999, label: 'Price'),
+                          onSaved: (v) => _price = double.parse(v!.trim()),
                         ),
+                        const SizedBox(height: 12),
                         TextFormField(
-                          decoration: const InputDecoration(labelText: 'Duration (Days)'),
+                          initialValue: '1',
+                          decoration: const InputDecoration(
+                            labelText: 'Duration (Months)',
+                            hintText: 'e.g. 1 (Calendar Month)',
+                          ),
                           keyboardType: TextInputType.number,
-                          validator: (v) => v == null || int.tryParse(v) == null ? 'Invalid days' : null,
-                          onSaved: (v) => _durationDays = int.parse(v!),
+                          inputFormatters: [AppValidators.digitsOnly],
+                          validator: (v) => AppValidators.duration(v, min: 1, max: 24, label: 'Duration (Months)'),
+                          onSaved: (v) => _durationMonths = int.parse(v!.trim()),
                         ),
                       ],
                     ),

@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum AnnouncementType { broadcast, banner }
 
 class AnnouncementModel {
@@ -7,6 +9,7 @@ class AnnouncementModel {
   final String message;
   final AnnouncementType type;
   final bool isActive;
+  final List<String> readBy;
   final DateTime? createdAt;
   final DateTime? expiresAt;
 
@@ -17,6 +20,7 @@ class AnnouncementModel {
     required this.message,
     required this.type,
     required this.isActive,
+    this.readBy = const [],
     this.createdAt,
     this.expiresAt,
   });
@@ -29,6 +33,7 @@ class AnnouncementModel {
       message: json['message'] as String? ?? '',
       type: _parseType(json['type'] as String?),
       isActive: json['isActive'] as bool? ?? true,
+      readBy: (json['readBy'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
       createdAt: _parseDate(json['createdAt']),
       expiresAt: _parseDate(json['expiresAt']),
     );
@@ -42,6 +47,7 @@ class AnnouncementModel {
       'message': message,
       'type': type.name,
       'isActive': isActive,
+      'readBy': readBy,
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
       if (expiresAt != null) 'expiresAt': expiresAt!.toIso8601String(),
     };
@@ -54,6 +60,7 @@ class AnnouncementModel {
     String? message,
     AnnouncementType? type,
     bool? isActive,
+    List<String>? readBy,
     DateTime? createdAt,
     DateTime? expiresAt,
   }) {
@@ -64,6 +71,7 @@ class AnnouncementModel {
       message: message ?? this.message,
       type: type ?? this.type,
       isActive: isActive ?? this.isActive,
+      readBy: readBy ?? this.readBy,
       createdAt: createdAt ?? this.createdAt,
       expiresAt: expiresAt ?? this.expiresAt,
     );
@@ -82,13 +90,12 @@ class AnnouncementModel {
   static DateTime? _parseDate(dynamic date) {
     if (date == null) return null;
     if (date is DateTime) return date;
+    if (date is Timestamp) return date.toDate();
     if (date is int) return DateTime.fromMillisecondsSinceEpoch(date);
     if (date is String) return DateTime.tryParse(date);
-    if (date.runtimeType.toString() == 'Timestamp') {
-      try {
-        return date.toDate();
-      } catch (_) {}
-    }
+    try {
+      return (date as dynamic).toDate();
+    } catch (_) { /* intentionally silent */ }
     return null;
   }
 }

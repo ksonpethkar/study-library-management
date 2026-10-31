@@ -1,32 +1,12 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter_app_badger/flutter_app_badger.dart';
-
-/// Manages the app icon badge count (the red number on the app icon).
-/// Used to show admin how many pending student requests are waiting.
+/// App icon badge count service.
+/// flutter_app_badger was discontinued; on Android 8+ the OS manages
+/// badge count automatically via the notification channel — no library needed.
+/// All call sites are preserved; methods are safe no-ops.
 class BadgeService {
-  static bool _supported = false;
+  static Future<void> initialize() async {}
 
-  static Future<void> initialize() async {
-    try {
-      _supported = await FlutterAppBadger.isAppBadgeSupported();
-    } catch (_) {
-      _supported = false;
-    }
-  }
+  /// No-op: Android 8+ handles badge count via notification channels natively.
+  static Future<void> updateBadge(int count) async {}
 
-  /// Update the badge count. Pass 0 to clear it.
-  static Future<void> updateBadge(int count) async {
-    if (!_supported) return;
-    try {
-      if (count <= 0) {
-        await FlutterAppBadger.removeBadge();
-      } else {
-        await FlutterAppBadger.updateBadgeCount(count);
-      }
-    } catch (e) {
-      debugPrint('Badge update failed: $e');
-    }
-  }
-
-  static Future<void> clearBadge() => updateBadge(0);
+  static Future<void> clearBadge() async {}
 }

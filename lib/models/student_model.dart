@@ -1,5 +1,100 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum Gender { male, female, other }
-enum GovIdType { aadhaar, pan, drivingLicence, collegeId }
+enum GovIdType {
+  aadhaar,
+  pan,
+  drivingLicence,
+  voterId,
+  passport,
+  collegeId,
+  other,
+}
+
+extension GovIdTypeExtension on GovIdType {
+  String get displayName {
+    switch (this) {
+      case GovIdType.aadhaar:
+        return 'Aadhaar Card';
+      case GovIdType.pan:
+        return 'PAN Card';
+      case GovIdType.drivingLicence:
+        return 'Driving Licence';
+      case GovIdType.voterId:
+        return 'Voter ID (EPIC)';
+      case GovIdType.passport:
+        return 'Passport';
+      case GovIdType.collegeId:
+        return 'College / Student ID';
+      case GovIdType.other:
+        return 'Other Govt. Photo ID';
+    }
+  }
+
+  String get shortCode {
+    switch (this) {
+      case GovIdType.aadhaar:
+        return 'AADHAAR';
+      case GovIdType.pan:
+        return 'PAN';
+      case GovIdType.drivingLicence:
+        return 'DL';
+      case GovIdType.voterId:
+        return 'VOTER ID';
+      case GovIdType.passport:
+        return 'PASSPORT';
+      case GovIdType.collegeId:
+        return 'COLLEGE ID';
+      case GovIdType.other:
+        return 'GOV ID';
+    }
+  }
+
+  String get placeholder {
+    switch (this) {
+      case GovIdType.aadhaar:
+        return 'XXXX XXXX 1234 (12 digits)';
+      case GovIdType.pan:
+        return 'ABCDE1234F (10 chars)';
+      case GovIdType.drivingLicence:
+        return 'MH12 20210001234';
+      case GovIdType.voterId:
+        return 'ABC1234567 (10 chars)';
+      case GovIdType.passport:
+        return 'A1234567 (8 chars)';
+      case GovIdType.collegeId:
+        return 'Roll No / Enrollment No';
+      case GovIdType.other:
+        return 'Govt ID Document Number';
+    }
+  }
+
+  String get helperText {
+    switch (this) {
+      case GovIdType.aadhaar:
+        return '12-digit UIDAI number (e.g. 1234 5678 9012)';
+      case GovIdType.pan:
+        return '10-character alphanumeric (e.g. ABCDE1234F)';
+      case GovIdType.drivingLicence:
+        return '15-16 character state RTO number';
+      case GovIdType.voterId:
+        return '10-character EPIC number (3 letters + 7 digits)';
+      case GovIdType.passport:
+        return '8-character passport number (1 letter + 7 digits)';
+      case GovIdType.collegeId:
+        return 'Student roll number or college registration number';
+      case GovIdType.other:
+        return 'Official government issued identity card number';
+    }
+  }
+
+  bool get requiresTwoSides {
+    return this == GovIdType.aadhaar ||
+        this == GovIdType.drivingLicence ||
+        this == GovIdType.passport ||
+        this == GovIdType.voterId;
+  }
+}
 enum MembershipStatus { active, expired, grace, pending, inactive, archived, blocked }
 
 class StudentModel {
@@ -15,6 +110,7 @@ class StudentModel {
   final GovIdType govIdType;
   final String govIdNumber; // encrypted ideally
   final String govIdImageUrl;
+  final String? govIdBackImageUrl;
   final String photoUrl;
   final String college;
   final String course;
@@ -39,6 +135,7 @@ class StudentModel {
   final String? rollNumber;       // college roll number
   final String? blockedReason;
   final double? pendingDueBalance;
+  final bool pinResetByAdmin;
 
   StudentModel({
     required this.id,
@@ -53,6 +150,7 @@ class StudentModel {
     required this.govIdType,
     required this.govIdNumber,
     required this.govIdImageUrl,
+    this.govIdBackImageUrl,
     required this.photoUrl,
     required this.college,
     required this.course,
@@ -77,6 +175,7 @@ class StudentModel {
     this.rollNumber,
     this.blockedReason,
     this.pendingDueBalance,
+    this.pinResetByAdmin = false,
   });
 
   factory StudentModel.fromJson(Map<String, dynamic> json) {
@@ -92,7 +191,28 @@ class StudentModel {
       pincode: json['pincode'] as String? ?? '',
       govIdType: _parseGovIdType(json['govIdType'] as String?),
       govIdNumber: json['govIdNumber'] as String? ?? '',
-      govIdImageUrl: json['govIdImageUrl'] as String? ?? '',
+      govIdImageUrl: (json['govIdImageUrl'] ??
+              json['govIdDataUrl'] ??
+              json['govIdImagePath'] ??
+              json['govIdFrontUrl'] ??
+              json['govIdFrontDataUrl'] ??
+              json['idProofUrl'] ??
+              json['documentUrl'] ??
+              json['idProof'] ??
+              json['govIdUrl'] ??
+              json['idCardFrontUrl'] ??
+              json['panCardUrl'] ??
+              json['aadhaarUrl'] ??
+              json['idCardUrl']) as String? ??
+          '',
+      govIdBackImageUrl: (json['govIdBackImageUrl'] ??
+              json['govIdBackDataUrl'] ??
+              json['govIdBackImagePath'] ??
+              json['govIdBackUrl'] ??
+              json['idProofBackUrl'] ??
+              json['documentBackUrl'] ??
+              json['idCardBackUrl'] ??
+              json['aadhaarBackUrl']) as String?,
       photoUrl: json['photoUrl'] as String? ?? '',
       college: json['college'] as String? ?? '',
       course: json['course'] as String? ?? '',
@@ -117,6 +237,7 @@ class StudentModel {
       rollNumber: json['rollNumber'] as String?,
       blockedReason: json['blockedReason'] as String?,
       pendingDueBalance: (json['pendingDueBalance'] as num?)?.toDouble(),
+      pinResetByAdmin: json['pinResetByAdmin'] == true,
     );
   }
 
@@ -134,6 +255,7 @@ class StudentModel {
       'govIdType': govIdType.name,
       'govIdNumber': govIdNumber,
       'govIdImageUrl': govIdImageUrl,
+      if (govIdBackImageUrl != null) 'govIdBackImageUrl': govIdBackImageUrl,
       'photoUrl': photoUrl,
       'college': college,
       'course': course,
@@ -158,6 +280,7 @@ class StudentModel {
       if (rollNumber != null) 'rollNumber': rollNumber,
       if (blockedReason != null) 'blockedReason': blockedReason,
       if (pendingDueBalance != null) 'pendingDueBalance': pendingDueBalance,
+      if (pinResetByAdmin) 'pinResetByAdmin': true,
     };
   }
 
@@ -174,6 +297,7 @@ class StudentModel {
     GovIdType? govIdType,
     String? govIdNumber,
     String? govIdImageUrl,
+    String? govIdBackImageUrl,
     String? photoUrl,
     String? college,
     String? course,
@@ -198,6 +322,7 @@ class StudentModel {
     String? rollNumber,
     String? blockedReason,
     double? pendingDueBalance,
+    bool? pinResetByAdmin,
   }) {
     return StudentModel(
       id: id ?? this.id,
@@ -212,6 +337,7 @@ class StudentModel {
       govIdType: govIdType ?? this.govIdType,
       govIdNumber: govIdNumber ?? this.govIdNumber,
       govIdImageUrl: govIdImageUrl ?? this.govIdImageUrl,
+      govIdBackImageUrl: govIdBackImageUrl ?? this.govIdBackImageUrl,
       photoUrl: photoUrl ?? this.photoUrl,
       college: college ?? this.college,
       course: course ?? this.course,
@@ -236,6 +362,7 @@ class StudentModel {
       rollNumber: rollNumber ?? this.rollNumber,
       blockedReason: blockedReason ?? this.blockedReason,
       pendingDueBalance: pendingDueBalance ?? this.pendingDueBalance,
+      pinResetByAdmin: pinResetByAdmin ?? this.pinResetByAdmin,
     );
   }
 
@@ -252,13 +379,25 @@ class StudentModel {
   }
 
   static GovIdType _parseGovIdType(String? t) {
-    switch (t) {
+    switch (t?.toLowerCase()) {
       case 'pan':
         return GovIdType.pan;
-      case 'drivingLicence':
+      case 'drivinglicence':
+      case 'drivinglicense':
+      case 'dl':
         return GovIdType.drivingLicence;
-      case 'collegeId':
+      case 'voterid':
+      case 'voter':
+      case 'epic':
+        return GovIdType.voterId;
+      case 'passport':
+        return GovIdType.passport;
+      case 'collegeid':
+      case 'college':
+      case 'studentid':
         return GovIdType.collegeId;
+      case 'other':
+        return GovIdType.other;
       case 'aadhaar':
       default:
         return GovIdType.aadhaar;
@@ -288,16 +427,49 @@ class StudentModel {
   static DateTime? _parseDate(dynamic date) {
     if (date == null) return null;
     if (date is DateTime) return date;
+    if (date is Timestamp) return date.toDate();
     if (date is int) return DateTime.fromMillisecondsSinceEpoch(date);
     if (date is String) return DateTime.tryParse(date);
-    if (date.runtimeType.toString() == 'Timestamp') {
-      try {
-        return date.toDate();
-      } catch (_) {}
-    }
+    try {
+      final dynamic d = date;
+      final res = d.toDate();
+      if (res is DateTime) return res;
+    } catch (_) { /* intentionally silent */ }
     return null;
   }
 
   /// Public alias for _parseDate — allows external callers to reuse date parsing logic.
   static DateTime? parseDateStatic(dynamic date) => _parseDate(date);
+
+  /// Dynamic evaluation: student is genuinely active ONLY if:
+  /// 1. Status is marked active
+  /// 2. Plan end date is in the future (or within grace period)
+  bool get isEffectivelyActive {
+    if (membershipStatus != MembershipStatus.active) return false;
+    if (planEndDate == null) return false;
+    final now = DateTime.now();
+    if (now.isBefore(planEndDate!) || now.isAtSameMomentAs(planEndDate!)) {
+      return true;
+    }
+    if (graceEndDate != null && (now.isBefore(graceEndDate!) || now.isAtSameMomentAs(graceEndDate!))) {
+      return true;
+    }
+    return false;
+  }
+
+  /// True if the student's plan has expired based on current time
+  bool get isExpired {
+    if (membershipStatus == MembershipStatus.expired) return true;
+    if (planEndDate == null) return false;
+    return DateTime.now().isAfter(planEndDate!);
+  }
+
+  /// Days remaining until plan expires (negative if already expired)
+  int? get daysRemaining {
+    if (planEndDate == null) return null;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final end = DateTime(planEndDate!.year, planEndDate!.month, planEndDate!.day);
+    return end.difference(today).inDays;
+  }
 }

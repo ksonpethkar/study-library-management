@@ -10,6 +10,7 @@ import 'package:study_library/models/student_model.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/core/security/audit_logger.dart';
+import 'package:study_library/core/utils/app_validators.dart';
 
 class EditStudentScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -40,6 +41,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
   Gender _gender = Gender.male;
   GovIdType _govIdType = GovIdType.aadhaar;
   MembershipStatus _membershipStatus = MembershipStatus.active;
+  String? _bloodGroup;
   DateTime? _dob;
   File? _newPhoto;
   String _currentPhotoUrl = '';
@@ -109,6 +111,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
         _govIdNumberController.text = s.govIdNumber;
         _notesController.text = s.notes ?? '';
         _gender = s.gender;
+        _bloodGroup = s.bloodGroup;
         _govIdType = s.govIdType;
         _membershipStatus = s.membershipStatus;
         _dob = s.dob;
@@ -223,6 +226,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
         dob: _dob,
         photoUrl: finalPhotoUrl,
         membershipStatus: _membershipStatus,
+        bloodGroup: _bloodGroup,
         updatedAt: DateTime.now(),
       );
 
@@ -433,7 +437,8 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<Gender>(
-                          initialValue: _gender,
+                                    isExpanded: true,
+                                    initialValue: _gender,
                           decoration: const InputDecoration(
                             labelText: 'Gender *',
                             prefixIcon: Icon(Icons.people_outline_rounded),
@@ -469,7 +474,30 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                   ),
 
                   const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    initialValue: _bloodGroup,
+                    decoration: const InputDecoration(
+                      labelText: 'Blood Group',
+                      prefixIcon: Icon(Icons.bloodtype_rounded),
+                      border: OutlineInputBorder(),
+                    ),
+                    hint: const Text('Select Blood Group'),
+                    items: const [
+                      DropdownMenuItem(value: 'A+', child: Text('A+')),
+                      DropdownMenuItem(value: 'A-', child: Text('A-')),
+                      DropdownMenuItem(value: 'B+', child: Text('B+')),
+                      DropdownMenuItem(value: 'B-', child: Text('B-')),
+                      DropdownMenuItem(value: 'AB+', child: Text('AB+')),
+                      DropdownMenuItem(value: 'AB-', child: Text('AB-')),
+                      DropdownMenuItem(value: 'O+', child: Text('O+')),
+                      DropdownMenuItem(value: 'O-', child: Text('O-')),
+                    ],
+                    onChanged: (v) => setState(() => _bloodGroup = v),
+                  ),
+                  const SizedBox(height: 12),
                   DropdownButtonFormField<MembershipStatus>(
+                    isExpanded: true,
                     initialValue: _membershipStatus,
                     decoration: const InputDecoration(
                       labelText: 'Membership Status',
@@ -561,6 +589,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                       Expanded(
                         flex: 2,
                         child: DropdownButtonFormField<GovIdType>(
+                          isExpanded: true,
                           initialValue: _govIdType,
                           decoration: const InputDecoration(labelText: 'ID Type', border: OutlineInputBorder()),
                           items: GovIdType.values.map((t) => DropdownMenuItem(value: t, child: Text(t.name.toUpperCase()))).toList(),
@@ -583,6 +612,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                   TextFormField(
                     controller: _collegeController,
                     decoration: const InputDecoration(labelText: 'College / School', prefixIcon: Icon(Icons.school), border: OutlineInputBorder()),
+                    validator: AppValidators.collegeName,
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -598,6 +628,7 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
                         child: TextFormField(
                           controller: _yearController,
                           decoration: const InputDecoration(labelText: 'Year / Semester', border: OutlineInputBorder()),
+                          validator: AppValidators.yearOrSem,
                         ),
                       ),
                     ],

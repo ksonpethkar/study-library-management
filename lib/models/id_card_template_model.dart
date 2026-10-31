@@ -12,6 +12,15 @@ class IdCardTemplateSettings {
   final bool showRules;
   final bool showBarcode;
   final String customRulesText;
+  final String cardTheme; // 'amberClassic', 'royalNavy', 'emeraldAcademic', 'crimsonExecutive', 'darkSlate', 'amethystPurple', 'customBrand'
+  final String? customColorHex; // Hex string e.g. '#881337' or '881337'
+  final String templateStyle; // 'modernExecutive', 'minimalAcademic', 'classicInstitutional', 'techShield'
+  final bool showStamp;
+  final bool showSignature;
+  final String signatureTitle;
+  final String? stampUrl;
+  final String? signatureUrl;
+  final String backgroundStyle; // 'gradientMesh', 'cleanWhite'
 
   const IdCardTemplateSettings({
     this.showPhoto = true,
@@ -27,6 +36,15 @@ class IdCardTemplateSettings {
     this.showRules = true,
     this.showBarcode = false,
     this.customRulesText = '',
+    this.cardTheme = 'royalNavy',
+    this.customColorHex,
+    this.templateStyle = 'modernExecutive',
+    this.showStamp = true,
+    this.showSignature = true,
+    this.signatureTitle = 'Authorized Signatory',
+    this.stampUrl,
+    this.signatureUrl,
+    this.backgroundStyle = 'gradientMesh',
   });
 
   factory IdCardTemplateSettings.fromJson(Map<String, dynamic> json) {
@@ -44,6 +62,15 @@ class IdCardTemplateSettings {
       showRules: json['showRules'] as bool? ?? true,
       showBarcode: json['showBarcode'] as bool? ?? false,
       customRulesText: json['customRulesText'] as String? ?? '',
+      cardTheme: json['cardTheme'] as String? ?? 'royalNavy',
+      customColorHex: json['customColorHex'] as String?,
+      templateStyle: json['templateStyle'] as String? ?? 'modernExecutive',
+      showStamp: json['showStamp'] as bool? ?? true,
+      showSignature: json['showSignature'] as bool? ?? true,
+      signatureTitle: json['signatureTitle'] as String? ?? 'Authorized Signatory',
+      stampUrl: json['stampUrl'] as String?,
+      signatureUrl: json['signatureUrl'] as String?,
+      backgroundStyle: json['backgroundStyle'] as String? ?? 'gradientMesh',
     );
   }
 
@@ -61,6 +88,15 @@ class IdCardTemplateSettings {
         'showRules': showRules,
         'showBarcode': showBarcode,
         'customRulesText': customRulesText,
+        'cardTheme': cardTheme,
+        if (customColorHex != null) 'customColorHex': customColorHex,
+        'templateStyle': templateStyle,
+        'showStamp': showStamp,
+        'showSignature': showSignature,
+        'signatureTitle': signatureTitle,
+        if (stampUrl != null) 'stampUrl': stampUrl,
+        if (signatureUrl != null) 'signatureUrl': signatureUrl,
+        'backgroundStyle': backgroundStyle,
       };
 
   IdCardTemplateSettings copyWith({
@@ -77,6 +113,15 @@ class IdCardTemplateSettings {
     bool? showRules,
     bool? showBarcode,
     String? customRulesText,
+    String? cardTheme,
+    String? customColorHex,
+    String? templateStyle,
+    bool? showStamp,
+    bool? showSignature,
+    String? signatureTitle,
+    String? stampUrl,
+    String? signatureUrl,
+    String? backgroundStyle,
   }) {
     return IdCardTemplateSettings(
       showPhoto: showPhoto ?? this.showPhoto,
@@ -92,6 +137,15 @@ class IdCardTemplateSettings {
       showRules: showRules ?? this.showRules,
       showBarcode: showBarcode ?? this.showBarcode,
       customRulesText: customRulesText ?? this.customRulesText,
+      cardTheme: cardTheme ?? this.cardTheme,
+      customColorHex: customColorHex ?? this.customColorHex,
+      templateStyle: templateStyle ?? this.templateStyle,
+      showStamp: showStamp ?? this.showStamp,
+      showSignature: showSignature ?? this.showSignature,
+      signatureTitle: signatureTitle ?? this.signatureTitle,
+      stampUrl: stampUrl ?? this.stampUrl,
+      signatureUrl: signatureUrl ?? this.signatureUrl,
+      backgroundStyle: backgroundStyle ?? this.backgroundStyle,
     );
   }
 }

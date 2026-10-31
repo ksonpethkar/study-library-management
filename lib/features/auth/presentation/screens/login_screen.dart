@@ -12,8 +12,8 @@ import 'package:study_library/models/library_model.dart';
 import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/services/notification_service.dart';
 import 'package:study_library/services/image_service.dart';
-import 'package:study_library/features/legal/presentation/screens/privacy_policy_screen.dart';
-import 'package:study_library/features/legal/presentation/screens/terms_screen.dart';
+import 'package:study_library/features/registration/presentation/providers/registration_provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -24,7 +24,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLoading = false;
-  String _libraryName = 'The Cozy Corner Centre';
+  String _loadingStatus = 'Verifying your access…';
+  String _libraryName = 'Study Library';
   String? _libraryLogoUrl;
   String? _libraryTagline = 'Smart Study Library & Co-Working Hub';
 
@@ -55,7 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           if (cachedTagline != null && cachedTagline.isNotEmpty) _libraryTagline = cachedTagline;
         });
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
   }
 
   Future<void> _loadBranding() async {
@@ -68,7 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         final data = doc.data()!;
         final name = (data['name'] as String?)?.trim().isNotEmpty == true
             ? data['name'] as String
-            : 'The Cozy Corner Centre';
+            : 'Study Library';
         final logoUrl = data['logoUrl'] as String?;
         final tagline = (data['tagline'] as String?)?.trim().isNotEmpty == true
             ? data['tagline'] as String
@@ -93,12 +94,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         await prefs.setString('cached_library_tagline', tagline);
         await prefs.setString(_prefTagline, tagline);
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
   }
 
   Future<void> _handleSignIn() async {
     if (_isLoading) return; // Guard against double-tap
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _loadingStatus = 'Signing in with Google…';
+    });
+
     try {
       final authRepo = ref.read(authRepositoryProvider);
       await authRepo.signInWithGoogle();
@@ -110,15 +115,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return;
       }
 
+      setState(() => _loadingStatus = 'Verifying admission records…');
+
+      final rawEmail = user.email?.trim() ?? '';
+      final normalizedEmail = rawEmail.toLowerCase();
+      final defaultLibId = CurrentLibraryNotifier.defaultLibraryId;
+
       // ── Step 0: Priority Master Admin / Whitelist check ───────────────
-      final isWhitelisted = await AdminWhitelistService.isEmailWhitelisted(user.email);
-      if (isWhitelisted) {
-        await _goAdmin(user: user, libId: CurrentLibraryNotifier.defaultLibraryId);
-        return;
+      if (normalizedEmail.isNotEmpty) {
+        final isWhitelisted = await AdminWhitelistService.isEmailWhitelisted(normalizedEmail)
+            .timeout(const Duration(seconds: 2), onTimeout: () => false);
+        if (isWhitelisted) {
+          await _goAdmin(user: user, libId: defaultLibId);
+          return;
+        }
       }
 
-      // ── Step 1: Check persisted role (fastest path for returning users) ──
-      final persisted = await readPersistedUserRole(user.uid);
+      // ── Step 1: Check persisted role (fastest path for returning users - 0ms if cached) ──
+      final persisted = await readPersistedUserRole(user.uid)
+          .timeout(const Duration(seconds: 2), onTimeout: () => null);
       if (!mounted) return;
 
       if (persisted != null && persisted['role'] != null) {
@@ -131,114 +146,236 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           }
           ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
           if (!mounted) return;
-          final isLocked = await BiometricService.isLockEnabled();
+          final isLocked = await BiometricService.isLockEnabled(isAdmin: true);
           if (!mounted) return;
           context.go(isLocked ? Routes.biometricLock : Routes.adminHome);
           return;
         }
 
         if (roleStr == AppUserRole.student.name) {
-          if (libId.isNotEmpty) {
-            ref.read(currentLibraryIdProvider.notifier).set(libId);
-          }
-          ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
-          if (!mounted) return;
-          context.go(Routes.studentHome);
-          return;
+          final effectiveLibId = libId.isNotEmpty ? libId : defaultLibId;
+
+          // Quick parallel verification of enrolled profile (strictly in students collection)
+          try {
+            final checkResults = await Future.wait([
+              FirebaseFirestore.instance
+                  .collection('libraries').doc(effectiveLibId)
+                  .collection('students').where('userId', isEqualTo: user.uid)
+                  .limit(1).get(),
+              (normalizedEmail.isNotEmpty
+                  ? FirebaseFirestore.instance
+                      .collection('libraries').doc(effectiveLibId)
+                      .collection('students').where('email', isEqualTo: normalizedEmail)
+                      .limit(1).get()
+                  : Future<QuerySnapshot?>.value(null)),
+            ]).timeout(const Duration(seconds: 2));
+
+            final studentByUid = checkResults[0];
+            final studentByEmail = checkResults.length > 1 ? checkResults[1] : null;
+
+            final validStudentDoc = (studentByUid?.docs.isNotEmpty == true)
+                ? studentByUid!.docs.first
+                : (studentByEmail?.docs.isNotEmpty == true ? studentByEmail!.docs.first : null);
+
+            if (validStudentDoc != null) {
+              if ((validStudentDoc.data() as Map<String, dynamic>?)?['userId'] != user.uid) {
+                validStudentDoc.reference.update({'userId': user.uid}).ignore();
+              }
+              await _goStudent(user: user, libId: effectiveLibId);
+              return;
+            } else {
+              // Stale or ghost role in cache — purge it immediately!
+              ref.read(userRoleProvider.notifier).clear();
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('cached_current_user_role');
+              await prefs.remove('persisted_role');
+              await prefs.remove('persisted_uid');
+              await FirebaseFirestore.instance.collection('users').doc(user.uid).delete().catchError((_) {});
+            }
+          } catch (_) {}
         }
       }
 
-      // ── Step 2: Check if user owns a library (Admin/Owner) ─────────────
-      LibraryModel? library;
-      try {
-        library = await ref
-            .read(libraryRepositoryProvider)
-            .getLibraryByOwnerId(user.uid);
-      } catch (e) {
-        debugPrint('Library lookup: $e');
-      }
+      // ── Step 2: High-Speed Parallel Discovery (< 800ms total) ───────────
+      // Run Library Owner, Local Student, Local Request, and Staff checks IN PARALLEL!
+      final discoveryResults = await Future.wait<dynamic>([
+        // [0] Check if user owns a library
+        ref.read(libraryRepositoryProvider).getLibraryByOwnerId(user.uid)
+            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+
+        // [1] Check if student is in default library by userId
+        FirebaseFirestore.instance
+            .collection('libraries').doc(defaultLibId)
+            .collection('students').where('userId', isEqualTo: user.uid)
+            .limit(1).get()
+            .then<QuerySnapshot?>((v) => v, onError: (_) => null)
+            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+
+        // [2] Check if student is in default library by normalized email
+        (normalizedEmail.isNotEmpty
+            ? FirebaseFirestore.instance
+                .collection('libraries').doc(defaultLibId)
+                .collection('students').where('email', isEqualTo: normalizedEmail)
+                .limit(1).get()
+                .then<QuerySnapshot?>((v) => v, onError: (_) => null)
+            : Future<QuerySnapshot?>.value(null))
+            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+
+        // [3] Check if student is in default library by raw email (case-insensitive fallback)
+        (rawEmail.isNotEmpty && rawEmail != normalizedEmail
+            ? FirebaseFirestore.instance
+                .collection('libraries').doc(defaultLibId)
+                .collection('students').where('email', isEqualTo: rawEmail)
+                .limit(1).get()
+                .then<QuerySnapshot?>((v) => v, onError: (_) => null)
+            : Future<QuerySnapshot?>.value(null))
+            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+
+        // [4] Check if user has an existing admission request in default library by studentId
+        FirebaseFirestore.instance
+            .collection('libraries').doc(defaultLibId)
+            .collection('requests').where('studentId', isEqualTo: user.uid)
+            .limit(1).get()
+            .then<QuerySnapshot?>((v) => v, onError: (_) => null)
+            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+
+        // [5] Check if user has an existing admission request in default library by email
+        (normalizedEmail.isNotEmpty
+            ? FirebaseFirestore.instance
+                .collection('libraries').doc(defaultLibId)
+                .collection('requests').where('email', isEqualTo: normalizedEmail)
+                .limit(1).get()
+                .then<QuerySnapshot?>((v) => v, onError: (_) => null)
+            : Future<QuerySnapshot?>.value(null))
+            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+
+        // [6] Check staff by email
+        (normalizedEmail.isNotEmpty
+            ? FirebaseFirestore.instance
+                .collectionGroup('staff')
+                .where('email', isEqualTo: normalizedEmail)
+                .limit(1).get()
+                .then<QuerySnapshot?>((v) => v, onError: (_) => null)
+            : Future<QuerySnapshot?>.value(null))
+            .timeout(const Duration(seconds: 2), onTimeout: () => null),
+      ]).timeout(const Duration(seconds: 3), onTimeout: () => [null, null, null, null, null, null, null]);
+
       if (!mounted) return;
 
-      if (library != null) {
-        await _goAdmin(user: user, libId: library.id);
+      final ownedLibrary = discoveryResults[0] as LibraryModel?;
+      final studentByUid = discoveryResults[1] as QuerySnapshot?;
+      final studentByNormEmail = discoveryResults[2] as QuerySnapshot?;
+      final studentByRawEmail = discoveryResults[3] as QuerySnapshot?;
+      final reqByUid = discoveryResults[4] as QuerySnapshot?;
+      final reqByEmail = discoveryResults[5] as QuerySnapshot?;
+      final staffByEmail = discoveryResults[6] as QuerySnapshot?;
+
+      // Check Owner match
+      if (ownedLibrary != null) {
+        await _goAdmin(user: user, libId: ownedLibrary.id);
         return;
       }
 
-      // ── Step 3: Check if user is staff of a library ─────────────────────
-      if (user.email != null && user.email!.isNotEmpty) {
-        try {
-          final staffDocs = await FirebaseFirestore.instance
-              .collectionGroup('staff')
-              .where('email', isEqualTo: user.email!.toLowerCase())
-              .limit(1)
-              .get();
-          if (!mounted) return;
-          if (staffDocs.docs.isNotEmpty) {
-            final staffDoc = staffDocs.docs.first;
-            final libId = staffDoc.reference.parent.parent?.id;
-            if (libId != null && libId.isNotEmpty) {
-              await _goAdmin(user: user, libId: libId, staffResult: staffDocs);
-              return;
-            }
-          }
-        } catch (e) {
-          debugPrint('Staff lookup: $e');
-        }
+      // Check Staff match
+      if (staffByEmail != null && staffByEmail.docs.isNotEmpty) {
+        final staffDoc = staffByEmail.docs.first;
+        final libId = staffDoc.reference.parent.parent?.id ?? defaultLibId;
+        await _goAdmin(user: user, libId: libId, staffResult: staffByEmail);
+        return;
       }
-      if (!mounted) return;
 
-      // ── Step 4: Check if user is an enrolled student ────────────────────
-      try {
-        final studentDocs = await FirebaseFirestore.instance
-            .collectionGroup('students')
-            .where('userId', isEqualTo: user.uid)
-            .limit(1)
-            .get();
+      // Check Student match (by UID or Email)
+      final matchedStudentDoc = (studentByUid?.docs.isNotEmpty == true)
+          ? studentByUid!.docs.first
+          : ((studentByNormEmail?.docs.isNotEmpty == true)
+              ? studentByNormEmail!.docs.first
+              : ((studentByRawEmail?.docs.isNotEmpty == true)
+                  ? studentByRawEmail!.docs.first
+                  : null));
+
+      if (matchedStudentDoc != null) {
+        final libId = matchedStudentDoc.reference.parent.parent?.id ?? defaultLibId;
+        // Link userId if it was matched by email
+        if ((matchedStudentDoc.data() as Map<String, dynamic>?)?['userId'] != user.uid) {
+          matchedStudentDoc.reference.update({'userId': user.uid}).ignore();
+        }
+        await _goStudent(user: user, libId: libId);
+        return;
+      }
+
+      // Check Admission Request match (ONLY if request status is strictly 'pending')
+      final matchedReqDoc = (reqByUid?.docs.isNotEmpty == true)
+          ? reqByUid!.docs.first
+          : ((reqByEmail?.docs.isNotEmpty == true)
+              ? reqByEmail!.docs.first
+              : null);
+
+      final reqData = matchedReqDoc?.data() as Map<String, dynamic>?;
+      if (matchedReqDoc != null && reqData != null && reqData['status'] == 'pending') {
+        // Link studentId if it was submitted before Google Auth
+        if (reqData['studentId'] != user.uid) {
+          matchedReqDoc.reference.update({'studentId': user.uid}).ignore();
+        }
+        ref.read(currentLibraryIdProvider.notifier).set(defaultLibId);
+        ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
+        await persistUserRole(
+          uid: user.uid,
+          email: user.email ?? '',
+          displayName: user.displayName ?? '',
+          role: AppUserRole.student,
+          libraryId: defaultLibId,
+        );
         if (!mounted) return;
-        if (studentDocs.docs.isNotEmpty) {
-          final doc = studentDocs.docs.first;
-          final libId = doc.reference.parent.parent?.id ?? '';
+        context.go(Routes.studentHome);
+        return;
+      }
+
+      // ── Step 3: Fast Multi-Library Fallback (collectionGroup) only if not in default library ──
+      try {
+        final multiLibResults = await Future.wait([
+          FirebaseFirestore.instance
+              .collectionGroup('students')
+              .where('userId', isEqualTo: user.uid)
+              .limit(1).get()
+              .then<QuerySnapshot?>((v) => v, onError: (_) => null),
+          if (normalizedEmail.isNotEmpty)
+            FirebaseFirestore.instance
+                .collectionGroup('students')
+                .where('email', isEqualTo: normalizedEmail)
+                .limit(1).get()
+                .then<QuerySnapshot?>((v) => v, onError: (_) => null)
+          else
+            Future<QuerySnapshot?>.value(null),
+        ]).timeout(const Duration(milliseconds: 1500));
+
+        final globalStudentByUid = multiLibResults[0];
+        final globalStudentByEmail = multiLibResults.length > 1 ? multiLibResults[1] : null;
+
+        final globalMatch = (globalStudentByUid?.docs.isNotEmpty == true)
+            ? globalStudentByUid!.docs.first
+            : (globalStudentByEmail?.docs.isNotEmpty == true ? globalStudentByEmail!.docs.first : null);
+
+        if (globalMatch != null) {
+          final libId = globalMatch.reference.parent.parent?.id ?? defaultLibId;
+          if ((globalMatch.data() as Map<String, dynamic>?)?['userId'] != user.uid) {
+            globalMatch.reference.update({'userId': user.uid}).ignore();
+          }
           await _goStudent(user: user, libId: libId);
           return;
         }
-      } catch (e) {
-        debugPrint('Student UID lookup: $e');
-      }
-      if (!mounted) return;
+      } catch (_) {}
 
-      if (user.email != null && user.email!.isNotEmpty) {
-        try {
-          final emailDocs = await FirebaseFirestore.instance
-              .collectionGroup('students')
-              .where('email', isEqualTo: user.email)
-              .limit(1)
-              .get();
-          if (!mounted) return;
-          if (emailDocs.docs.isNotEmpty) {
-            final doc = emailDocs.docs.first;
-            final libId = doc.reference.parent.parent?.id ?? '';
-            await doc.reference.update({'userId': user.uid});
-            await _goStudent(user: user, libId: libId);
-            return;
-          }
-        } catch (e) {
-          debugPrint('Student Email lookup: $e');
-        }
-      }
-      if (!mounted) return;
+      // ── Step 4: No admission record found — Show dialog immediately! (NO ghost student write!) ──
+      // Clean up session and cached roles so no unauthenticated student state exists
+      await FirebaseAuth.instance.signOut();
+      ref.read(userRoleProvider.notifier).clear();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('cached_current_user_role');
+      await prefs.remove('persisted_role');
+      await prefs.remove('persisted_uid');
 
-      // ── Step 5: Prospective student signing in -> route to Student Registration
-      ref.read(currentLibraryIdProvider.notifier).set(CurrentLibraryNotifier.defaultLibraryId);
-      ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
-      await persistUserRole(
-        uid: user.uid,
-        email: user.email ?? '',
-        displayName: user.displayName ?? '',
-        role: AppUserRole.student,
-        libraryId: CurrentLibraryNotifier.defaultLibraryId,
-      );
       if (!mounted) return;
-      context.go(Routes.studentRegister);
+      await _showAccountNotFoundDialog(user);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -250,6 +387,154 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _showAccountNotFoundDialog(User user) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.person_search_rounded, color: Colors.brown, size: 28),
+            SizedBox(width: 10),
+            Expanded(child: Text('Account Not Found', style: TextStyle(fontWeight: FontWeight.bold))),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'No registered admission profile was found for:\n${user.email ?? ''}',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'If you are a new student looking to enroll, please submit a new admission registration application.',
+              style: TextStyle(height: 1.4, fontSize: 13, color: Colors.black87),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await FirebaseAuth.instance.signOut();
+              ref.read(userRoleProvider.notifier).clear();
+            },
+            child: const Text('Sign in with Another Email'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _startNewRegistration(user);
+            },
+            icon: const Icon(Icons.assignment_ind_rounded),
+            label: const Text('Register New Admission'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startNewRegistration(User? user) {
+    ref.read(currentLibraryIdProvider.notifier).set(CurrentLibraryNotifier.defaultLibraryId);
+    ref.read(registrationStepProvider.notifier).reset();
+    if (user != null) {
+      ref.read(registrationNotifierProvider.notifier).updateFields({
+        'name': user.displayName ?? '',
+        'email': user.email ?? '',
+        'photoUrl': user.photoURL ?? '',
+      });
+    }
+    context.push(Routes.studentRegister);
+  }
+
+  Future<void> _handleNewStudentRegisterClick() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _startNewRegistration(user);
+      return;
+    }
+
+    // Prompt Google sign in first
+    final proceed = await showModalBottomSheet<bool>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+              ),
+              const Icon(Icons.assignment_ind_rounded, size: 48, color: Colors.brown),
+              const SizedBox(height: 12),
+              const Text(
+                'Student Admission Registration',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Sign in with Google to quickly autofill your personal details, secure your application, and get live updates on admission approval.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.4),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  icon: Image.network(
+                    'https://www.google.com/favicon.ico',
+                    width: 18, height: 18,
+                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.login, size: 18),
+                  ),
+                  label: const Text('Continue with Google'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (proceed == true) {
+      setState(() => _isLoading = true);
+      try {
+        final authRepo = ref.read(authRepositoryProvider);
+        await authRepo.signInWithGoogle();
+        final signedInUser = authRepo.getCurrentUser();
+        if (signedInUser != null) {
+          _startNewRegistration(signedInUser);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Sign in failed: $e')),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -281,11 +566,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             .collection('libraries').doc(libId)
             .update({'adminFcmToken': token, 'adminFcmUpdatedAt': FieldValue.serverTimestamp()});
       }
-      // Subscribe to library-specific admin topic (no Cloud Functions needed)
-      final ns = NotificationService();
-      await ns.subscribeToTopic('admin-$libId');
-      await ns.subscribeToTopic('lib-$libId'); // also receives library-wide announcements
-    } catch (_) {}
+      // Subscribe to library-specific admin & announcement topics (no Cloud Functions needed)
+      await NotificationService.subscribeToLibraryTopics(libraryId: libId, isAdmin: true);
+    } catch (_) { /* intentionally silent */ }
     // Link staff userId if missing
     if (staffResult != null && staffResult.docs.isNotEmpty) {
       final staffDoc = staffResult.docs.first;
@@ -294,7 +577,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     }
     if (!mounted) return;
-    final isLocked = await BiometricService.isLockEnabled();
+    final isLocked = await BiometricService.isLockEnabled(isAdmin: true);
     if (!mounted) return;
     context.go(isLocked ? Routes.biometricLock : Routes.adminHome);
   }
@@ -320,10 +603,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       libraryId: libId,
       details: {'email': FirebaseAuth.instance.currentUser?.email ?? ''},
     ).ignore();
+
+    String targetStudentId = user.uid as String;
     // Save FCM token and subscribe to library topic for push notifications
     try {
       final token = await NotificationService.getToken();
-      if (token != null && effectiveLibId.isNotEmpty && user.uid != null) {
+      if (effectiveLibId.isNotEmpty && user.uid != null) {
         // Try to update student doc that matches this userId
         final q = await FirebaseFirestore.instance
             .collection('libraries').doc(effectiveLibId)
@@ -331,15 +616,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             .where('userId', isEqualTo: user.uid)
             .limit(1).get();
         if (q.docs.isNotEmpty) {
-          q.docs.first.reference.update({'fcmToken': token, 'fcmUpdatedAt': FieldValue.serverTimestamp()}).ignore();
+          targetStudentId = q.docs.first.id;
+          if (token != null) {
+            q.docs.first.reference.update({'fcmToken': token, 'fcmUpdatedAt': FieldValue.serverTimestamp()}).ignore();
+          }
         }
       }
-      // Subscribe to library-wide topic (receives announcements without Cloud Functions)
-      final ns = NotificationService();
-      await ns.subscribeToTopic('lib-$effectiveLibId');
-    } catch (_) {}
+      // Subscribe to library-wide and student topics (receives announcements without Cloud Functions)
+      await NotificationService.subscribeToLibraryTopics(libraryId: effectiveLibId, isAdmin: false);
+    } catch (_) { /* intentionally silent */ }
+
+    final authUid = user.uid as String;
+    await BiometricService.restoreStudentSecurityFromFirestore(
+      libraryId: effectiveLibId,
+      studentId: targetStudentId,
+      authUid: authUid,
+      candidateIds: [targetStudentId, authUid],
+    );
+    final isLocked = await BiometricService.isLockEnabled(
+      userId: targetStudentId,
+      authUid: authUid,
+      libraryId: effectiveLibId,
+      candidateIds: [targetStudentId, authUid],
+    );
     if (!mounted) return;
-    context.go(Routes.studentHome);
+    context.go(isLocked ? Routes.biometricLock : Routes.studentHome);
   }
 
   @override
@@ -402,12 +703,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                 // Single sign-in button — industry standard
                 if (_isLoading)
-                  const Column(
+                  Column(
                     children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Verifying your access…',
-                          style: TextStyle(color: Colors.grey)),
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        _loadingStatus,
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
                     ],
                   )
                 else
@@ -445,10 +752,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.tonalIcon(
-                      onPressed: () {
-                        ref.read(currentLibraryIdProvider.notifier).set(CurrentLibraryNotifier.defaultLibraryId);
-                        context.push(Routes.studentRegister);
-                      },
+                      onPressed: _handleNewStudentRegisterClick,
                       icon: const Icon(Icons.how_to_reg_rounded, size: 20),
                       label: const Text(
                         'New Student? Register Application',
@@ -485,18 +789,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsScreen())),
+                      onPressed: () => context.push(Routes.terms),
                       child: const Text('Terms', style: TextStyle(fontSize: 11)),
                     ),
                     const Text('•', style: TextStyle(color: Colors.grey)),
                     TextButton(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
+                      onPressed: () => context.push(Routes.privacyPolicy),
                       child: const Text('Privacy Policy', style: TextStyle(fontSize: 11)),
                     ),
                   ],
                 ),
               ],
-            ),
+            ).animate()
+              .fadeIn(duration: 600.ms, curve: Curves.easeOut)
+              .slideY(begin: 0.05, end: 0, duration: 600.ms, curve: Curves.easeOutCubic),
           ),
         ),
       ),

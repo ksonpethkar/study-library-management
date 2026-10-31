@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/receipt_model.dart';
 import 'package:study_library/features/receipts/data/repositories/receipt_repository.dart';
+import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/core/widgets/empty_state_widget.dart';
 import 'package:study_library/core/widgets/loading_skeleton.dart';
-import 'receipt_preview_screen.dart';
+import 'package:study_library/core/widgets/staggered_list_item.dart';
+import 'package:study_library/core/error/error_handler.dart';
 
 final receiptListProvider = StreamProvider<List<ReceiptModel>>((ref) {
   final libraryId = ref.watch(currentLibraryIdProvider) ?? '';
@@ -24,25 +26,6 @@ class ReceiptListScreen extends ConsumerStatefulWidget {
 
 class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
   final _dateFormat = DateFormat('dd MMM yyyy');
-  // Cache student names: studentId → name
-  final Map<String, String> _studentNames = {};
-
-  Future<String> _fetchStudentName(String libraryId, String studentId) async {
-    if (_studentNames.containsKey(studentId)) return _studentNames[studentId]!;
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('students')
-          .doc(studentId)
-          .get();
-      final name = doc.data()?['name'] as String? ?? 'Student';
-      _studentNames[studentId] = name;
-      return name;
-    } catch (_) {
-      return 'Student';
-    }
-  }
 
   void _showAdminActions(BuildContext context, ReceiptModel receipt, String libraryId) {
     final theme = Theme.of(context);
@@ -88,9 +71,7 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
               title: const Text('View / Share PDF'),
               onTap: () {
                 Navigator.pop(ctx);
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => ReceiptPreviewScreen(receiptId: receipt.id),
-                ));
+                context.push('/admin/receipts/${receipt.id}');
               },
             ),
 
@@ -126,9 +107,7 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
                   Navigator.pop(ctx);
                   await ReceiptRepository().unvoidReceipt(libraryId, receipt.id);
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Receipt restored to active')),
-                    );
+                    AppSnackbar.showSuccess(context, 'Receipt restored to active');
                   }
                 },
               ),
@@ -239,6 +218,11 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
   Widget build(BuildContext context) {
     final libraryId = ref.watch(currentLibraryIdProvider) ?? '';
     final receiptsAsync = ref.watch(receiptListProvider);
+    // Build a synchronous studentId→name lookup from the already-watched students stream.
+    // This eliminates the per-row FutureBuilder that caused scroll flicker (P6 fix).
+    final studentNameMap = {
+      for (final s in ref.watch(studentsStreamProvider).value ?? []) s.id: s.name,
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -274,24 +258,16 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
             itemBuilder: (context, index) {
               final receipt = receipts[index];
               final isVoided = receipt.status == ReceiptStatus.voided;
-              return Card(
+              // Synchronous name lookup — no per-row async, no scroll flicker (P6 fix)
+              final studentName = studentNameMap[receipt.studentId] ?? 'Student';
+              return StaggeredListItem(
+                index: index,
+                child: Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-                child: FutureBuilder<String>(
-                  future: libraryId.isNotEmpty
-                      ? _fetchStudentName(libraryId, receipt.studentId)
-                      : Future.value('Student'),
-                  builder: (ctx, snap) {
-                    final studentName = snap.data ?? '…';
-                    return ListTile(
+                child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 6),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              ReceiptPreviewScreen(receiptId: receipt.id),
-                        ),
-                      ),
+                      onTap: () => context.push('/admin/receipts/${receipt.id}'),
                       leading: CircleAvatar(
                         backgroundColor: isVoided
                             ? Colors.grey.withValues(alpha: 0.12)
@@ -360,15 +336,23 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
                         onPressed: () =>
                             _showAdminActions(context, receipt, libraryId),
                       ),
-                    );
-                  },
-                ),
-              );
+                    ), // ListTile
+                ), // Card
+              ); // StaggeredListItem
             },
           );
         },
         loading: () => const CardListSkeleton(),
-        error: (e, st) => Center(child: Text('Error: $e')),
+        error: (e, st) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              ErrorHandler.handleError(e),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            ),
+          ),
+        ),
       ),
     ),
   );

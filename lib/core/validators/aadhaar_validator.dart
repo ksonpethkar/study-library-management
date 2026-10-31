@@ -38,14 +38,14 @@ class AadhaarValidator {
       return 'Aadhaar number should only contain numbers.';
     }
 
-    if (!_validateVerhoeff(cleanValue)) {
+    if (!validateVerhoeff(cleanValue)) {
       return 'Please enter a valid Aadhaar number.';
     }
 
     return null;
   }
 
-  static bool _validateVerhoeff(String numStr) {
+  static bool validateVerhoeff(String numStr) {
     int c = 0;
     List<int> myArray = numStr.split('').map(int.parse).toList();
     List<int> reversed = myArray.reversed.toList();

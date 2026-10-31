@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,14 +7,20 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/security/encryption_service.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:study_library/models/library_model.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/models/student_model.dart';
-import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/badge_service.dart';
 import 'package:study_library/services/expiry_scheduler_service.dart';
+import 'package:study_library/services/form_config_service.dart';
+import 'package:study_library/features/settings/presentation/screens/security_settings_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
+import 'package:study_library/core/providers/theme_provider.dart';
+import 'package:study_library/core/error/error_handler.dart';
 
 class MyProfileScreen extends ConsumerStatefulWidget {
   const MyProfileScreen({super.key});
@@ -34,6 +41,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     if (photoUrl != null && mounted) {
       setState(() => _isUploadingPhoto = true);
       try {
+        if (photoUrl.length > 500 * 1024) {
+          throw Exception('Photo exceeds compressed size limit. Please select a standard portrait photo.');
+        }
         await FirebaseFirestore.instance
             .collection('libraries')
             .doc(libraryId)
@@ -217,12 +227,171 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     }
   }
 
+  void _showPersonnelContactSheet(BuildContext context, ThemeData theme, dynamic library) {
+    final personnel = (library is LibraryModel) ? library.populatedPersonnel : <Map<String, String>>[];
+    final libName = library?.name.isNotEmpty == true ? library!.name : 'Study Centre';
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    child: Icon(Icons.support_agent_rounded, color: theme.colorScheme.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Library Key Personnel & Support',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        Text(
+                          libName,
+                          style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (personnel.isEmpty)
+                ListTile(
+                  leading: const Icon(Icons.phone_rounded, color: Colors.green),
+                  title: const Text('Reception Desk'),
+                  subtitle: Text(library?.contact ?? 'No phone configured'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.phone, color: Colors.green),
+                        onPressed: () => _contactAdmin(library?.contact),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...personnel.map((p) {
+                  final role = p['role'] ?? 'Staff';
+                  final name = p['name'] ?? '';
+                  final phone = p['contact'] ?? '';
+                  final cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
+                  final waPhone = cleanPhone.startsWith('91') || cleanPhone.length > 10 ? cleanPhone : '91$cleanPhone';
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+                          child: Icon(
+                            role.toLowerCase().contains('owner')
+                                ? Icons.person_pin_rounded
+                                : (role.toLowerCase().contains('admin')
+                                    ? Icons.admin_panel_settings_rounded
+                                    : Icons.support_agent_rounded),
+                            size: 20,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  role.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: theme.colorScheme.primary,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              Text(phone, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant)),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton.filledTonal(
+                              icon: const Icon(Icons.phone_rounded, color: Colors.green, size: 18),
+                              tooltip: 'Call $role',
+                              onPressed: () => _contactAdmin(phone),
+                            ),
+                            const SizedBox(width: 6),
+                            IconButton.filledTonal(
+                              icon: const Icon(Icons.chat_bubble_rounded, color: Color(0xFF25D366), size: 18),
+                              tooltip: 'WhatsApp $role',
+                              onPressed: () async {
+                                final msg = Uri.encodeComponent('Hello $name ($role), I am a student at $libName and need assistance.');
+                                final uri = Uri.parse('https://wa.me/$waPhone?text=$msg');
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _signOut() async {
+    final lib = ref.read(currentLibraryProvider).value;
+    final libName = lib?.name.isNotEmpty == true ? ' from ${lib!.name}' : '';
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out from Cozy Corner?'),
+        content: Text('Are you sure you want to sign out$libName?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sign Out')),
@@ -250,7 +419,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     final libraryAsync = ref.watch(currentLibraryProvider);
     final libraryId = ref.watch(currentLibraryIdProvider) ?? '';
     final library = libraryAsync.value;
-    final dateFormat = DateFormat('dd MMM yyyy');
 
     return Scaffold(
       appBar: AppBar(
@@ -300,276 +468,686 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           }
 
           final hasPhoto = student.photoUrl.isNotEmpty;
+          final membershipId = student.membershipNumber?.isNotEmpty == true
+              ? student.membershipNumber!
+              : 'CC${student.id.length >= 8 ? student.id.substring(0, 8).toUpperCase() : student.id.toUpperCase()}';
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Avatar & Photo Upload
-              Center(
-                child: Stack(
-                  children: [
-                    GestureDetector(
-                      onTap: hasPhoto
-                          ? () => ImageService.showImageViewer(
-                                context,
-                                imageUrl: student.photoUrl,
-                                title: student.name,
-                              )
-                          : null,
-                      child: CircleAvatar(
-                        radius: 54,
-                        backgroundColor: theme.colorScheme.primaryContainer,
-                        backgroundImage: hasPhoto ? ImageService.getImageProvider(student.photoUrl) : null,
-                        child: !hasPhoto
-                            ? Text(
-                                student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
-                                style: TextStyle(fontSize: 44, color: theme.colorScheme.primary),
-                              )
-                            : null,
-                      ),
+              // 1. Executive Student Passport Header Card
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: theme.brightness == Brightness.dark
+                        ? [const Color(0xFF0F172A), const Color(0xFF1E1B4B)]
+                        : [const Color(0xFF1E1B4B), const Color(0xFF312E81)],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF312E81).withValues(alpha: 0.3),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
-                    if (_isUploadingPhoto)
-                      const Positioned.fill(
-                        child: CircleAvatar(
-                          backgroundColor: Colors.black45,
-                          child: CircularProgressIndicator(color: Colors.white),
-                        ),
-                      ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Material(
-                        color: theme.colorScheme.primary,
-                        shape: const CircleBorder(),
-                        elevation: 4,
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: () => _changePhoto(student, libraryId),
-                          child: const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Icon(Icons.camera_alt_rounded, size: 20, color: Colors.white),
+                  ],
+                ),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0284C7).withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.5)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.verified_rounded, size: 12, color: Color(0xFF38BDF8)),
+                              SizedBox(width: 4),
+                              Text(
+                                'VERIFIED STUDENT',
+                                style: TextStyle(
+                                  color: Color(0xFF38BDF8),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.6,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.track_changes_rounded, size: 12, color: Color(0xFFFCD34D)),
+                              SizedBox(width: 4),
+                              Text(
+                                'Target: RTO Exam',
+                                style: TextStyle(
+                                  color: Color(0xFFFCD34D),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Avatar with Camera Upload Icon
+                    Center(
+                      child: Stack(
+                        children: [
+                          GestureDetector(
+                            onTap: hasPhoto
+                                ? () => ImageService.showImageViewer(
+                                      context,
+                                      imageUrl: student.photoUrl,
+                                      title: student.name,
+                                    )
+                                : null,
+                            child: CircleAvatar(
+                              radius: 46,
+                              backgroundColor: const Color(0xFF312E81),
+                              backgroundImage: hasPhoto ? ImageService.getImageProvider(student.photoUrl) : null,
+                              child: !hasPhoto
+                                  ? Text(
+                                      student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                                      style: const TextStyle(fontSize: 36, color: Colors.white, fontWeight: FontWeight.bold),
+                                    )
+                                  : null,
+                            ),
+                          ),
+                          if (_isUploadingPhoto)
+                            const Positioned.fill(
+                              child: CircleAvatar(
+                                backgroundColor: Colors.black45,
+                                child: CircularProgressIndicator(color: Colors.white),
+                              ),
+                            ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Material(
+                              color: const Color(0xFF6366F1),
+                              shape: const CircleBorder(),
+                              elevation: 4,
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: () => _changePhoto(student, libraryId),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(7.0),
+                                  child: Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    Text(
+                      student.name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (student.college.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        '${student.course.isNotEmpty ? "${student.course} • " : ""}${student.college}',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFFC7D2FE)),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+
+                    // Chips Row (ID & Seat)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B).withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF334155)),
+                          ),
+                          child: Text(
+                            'ID: $membershipId',
+                            style: const TextStyle(
+                              color: Color(0xFFCBD5E1),
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (student.seatId != null && student.seatId!.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.chair_rounded, size: 12, color: Color(0xFF34D399)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  SeatHelper.formatSeatLabel(seatId: student.seatId),
+                                  style: const TextStyle(
+                                    color: Color(0xFF34D399),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
 
-              Center(
-                child: Text(
-                  student.name,
-                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ),
-              if (student.college.isNotEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      '${student.course.isNotEmpty ? "${student.course} • " : ""}${student.college}',
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline),
+              // 2. Bento Info Grid (4 Grouped Cards)
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.phone_outlined, size: 14, color: theme.colorScheme.primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                'DIRECT CONTACT',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(student.phone, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          if (student.email.isNotEmpty)
+                            Text(student.email, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant), overflow: TextOverflow.ellipsis),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              const SizedBox(height: 24),
-
-              // Personal Information Card
-              Card(
-                elevation: 1,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Personal Information', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                      const Divider(height: 20),
-                      _ProfileTile(icon: Icons.phone_rounded, label: 'Phone', value: student.phone),
-                      if (student.email.isNotEmpty)
-                        _ProfileTile(icon: Icons.email_rounded, label: 'Email', value: student.email),
-                      if (student.fatherName.isNotEmpty)
-                        _ProfileTile(icon: Icons.family_restroom_rounded, label: "Father's Name", value: student.fatherName),
-                      if (student.dob != null)
-                        _ProfileTile(icon: Icons.cake_rounded, label: 'Date of Birth', value: dateFormat.format(student.dob!)),
-                      _ProfileTile(icon: Icons.wc_rounded, label: 'Gender', value: student.gender.name.toUpperCase()),
-                      if (student.address.isNotEmpty)
-                        _ProfileTile(
-                          icon: Icons.home_rounded,
-                          label: 'Address',
-                          value: '${student.address}${student.pincode.isNotEmpty ? " - ${student.pincode}" : ""}',
-                        ),
-                      if (student.emergencyContact.isNotEmpty)
-                        _ProfileTile(icon: Icons.contact_emergency_rounded, label: 'Emergency Contact', value: student.emergencyContact),
-                      if (student.govIdNumber.isNotEmpty)
-                        _ProfileTile(
-                          icon: Icons.badge_rounded,
-                          label: 'Govt ID (${student.govIdType.name.toUpperCase()})',
-                          value: student.govIdNumber,
-                        ),
-                      FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance
-                            .collection('libraries').doc(libraryId)
-                            .collection('settings').doc('form_config').get(),
-                        builder: (context, snap) {
-                          if (!snap.hasData) return const SizedBox();
-                          final data = snap.data!.data() as Map<String, dynamic>?;
-                          if (data == null) return const SizedBox();
-                          final fields = (data['fields'] as List<dynamic>? ?? [])
-                              .cast<Map<String, dynamic>>()
-                              .where((f) =>
-                                  !(f['builtin'] as bool? ?? false) && // custom fields only
-                                  (f['showOnProfile'] as bool? ?? true) &&
-                                  (f['visible'] as bool? ?? true))
-                              .toList();
-                          if (fields.isEmpty) return const SizedBox();
-                          final customData = student.customFields;
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.only(top: 12, bottom: 4),
-                                child: Text('Additional Info', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                              ),
-                              ...fields.map((f) {
-                                final value = customData[f['id']]?.toString() ?? '';
-                                if (value.isEmpty) return const SizedBox();
-                                return ListTile(
-                                  dense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(f['label'] as String? ?? '', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                                  subtitle: Text(value, style: const TextStyle(fontSize: 15)),
-                                );
-                              }),
-                            ],
-                          );
-                        },
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
                       ),
-                    ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.emergency_outlined, size: 14, color: Colors.red),
+                              SizedBox(width: 4),
+                              Text(
+                                'EMERGENCY',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            student.emergencyContact.isNotEmpty ? student.emergencyContact : student.phone,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          Text(
+                            'Guardian: ${student.fatherName.isNotEmpty ? student.fatherName : "On Record"}',
+                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.badge_outlined, size: 14, color: Colors.amber),
+                              SizedBox(width: 4),
+                              Text(
+                                'GOVT ID & BLOOD',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                  color: Colors.amber,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Builder(
+                            builder: (context) {
+                              final decryptedGovId = EncryptionService.safeDecryptGovId(student.govIdNumber, libraryId);
+                              String formattedGovId;
+                              final cleanGov = decryptedGovId.replaceAll(' ', '');
+                              if (decryptedGovId.isEmpty) {
+                                formattedGovId = 'ID: Verified';
+                              } else if (decryptedGovId == '••••••••') {
+                                formattedGovId = 'ID: ••••••••';
+                              } else if (cleanGov.length == 12 && RegExp(r'^\d+$').hasMatch(cleanGov)) {
+                                formattedGovId = 'ID: XXXX XXXX ${cleanGov.substring(8)}';
+                              } else if (cleanGov.length == 10 && RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(cleanGov)) {
+                                formattedGovId = 'PAN: ${cleanGov.substring(0, 2)}••••${cleanGov.substring(6)}';
+                              } else if (cleanGov.length > 4) {
+                                formattedGovId = 'ID: •••• ${cleanGov.substring(cleanGov.length - 4)}';
+                              } else {
+                                formattedGovId = 'ID: Verified';
+                              }
+
+                              return Text(
+                                formattedGovId,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, fontFamily: 'monospace'),
+                              );
+                            },
+                          ),
+                          Text(
+                            'Blood Group: ${student.bloodGroup ?? "O+"}',
+                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.location_on_outlined, size: 14, color: Colors.green),
+                              SizedBox(width: 4),
+                              Text(
+                                'RESIDENCE',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            student.address.isNotEmpty ? student.address : 'Not Provided',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            student.pincode.isNotEmpty ? 'Pincode: ${student.pincode}' : 'Pincode: Not Provided',
+                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
-              // Library Services Card
-              Card(
-                elevation: 1,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              // 3. Modern Settings Group 1: Access & Pass
+              Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                ),
+                clipBehavior: Clip.antiAlias,
                 child: Column(
                   children: [
-                    if (student.membershipNumber != null && student.membershipNumber!.isNotEmpty)
-                      ListTile(
-                        leading: const Icon(Icons.badge_rounded),
-                        title: const Text('Membership ID'),
-                        subtitle: Text(student.membershipNumber!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1)),
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.fingerprint_rounded, color: Color(0xFF4F46E5), size: 20),
                       ),
-                    if (student.membershipNumber != null && student.membershipNumber!.isNotEmpty)
-                      const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.badge_rounded, color: Colors.blue),
-                      title: const Text('Digital Student ID Card'),
-                      subtitle: const Text('View & download official card PDF'),
+                      title: const Text('Biometric & PIN App Lock', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text('Protect pass, receipts & records with PIN', style: TextStyle(fontSize: 11)),
                       trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => context.push(Routes.studentIdCard),
+                      onTap: () => SecuritySettingsDialog.show(
+                        context,
+                        isStudent: true,
+                        studentId: student.id,
+                        authUid: student.userId ?? FirebaseAuth.instance.currentUser?.uid,
+                        libraryId: libraryId,
+                      ),
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      leading: Icon(Icons.gavel_rounded, color: theme.colorScheme.primary),
-                      title: const Text('Library Rules & Guidelines'),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => _showRulesDialog(libraryId),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.celebration_rounded, color: Colors.orange),
-                      title: const Text('Upcoming Holidays'),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.calendar_today_rounded, color: Color(0xFFD97706), size: 20),
+                      ),
+                      title: const Text('Upcoming Library Holidays', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text('View scheduled maintenance & closures', style: TextStyle(fontSize: 11)),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => _showHolidaysSheet(libraryId),
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      leading: const Icon(Icons.support_agent_rounded, color: Colors.teal),
-                      title: const Text('Contact Library Admin'),
-                      subtitle: Text(library?.contact ?? 'Call or WhatsApp'),
-                      trailing: const Icon(Icons.call_rounded),
-                      onTap: () => _contactAdmin(library?.contact),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.rate_review_rounded, color: Colors.purple),
-                      title: const Text('Send Feedback / Suggestion'),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => context.push(Routes.studentFeedback),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.new_releases_rounded, color: Colors.teal),
-                      title: const Text("What's New in This Version"),
-                      subtitle: const Text("See latest features for students (v1.5.0)"),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => WhatsNewService.showChangelog(context, isStudent: true),
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.support_agent_rounded, color: Color(0xFF059669), size: 20),
+                      ),
+                      title: Text(
+                        (library is LibraryModel && library.populatedPersonnel.isNotEmpty)
+                            ? '${library.populatedPersonnel.first['role']}: ${library.populatedPersonnel.first['name']}'
+                            : (library?.adminName.isNotEmpty == true ? 'Helpline: ${library!.adminName}' : 'Reception Helpline'),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        (library is LibraryModel && library.populatedPersonnel.length > 1)
+                            ? '${library.populatedPersonnel.length} Contacts (Owner, Admin, Manager) • Tap to view'
+                            : (library?.contact ?? 'Call library team'),
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.phone_rounded, color: Colors.green),
+                          if (library is LibraryModel && library.populatedPersonnel.length > 1) ...[
+                            const SizedBox(width: 4),
+                            const Icon(Icons.chevron_right_rounded),
+                          ],
+                        ],
+                      ),
+                      onTap: () {
+                        if (library is LibraryModel && library.populatedPersonnel.isNotEmpty) {
+                          _showPersonnelContactSheet(context, theme, library);
+                        } else {
+                          _contactAdmin(library?.contact);
+                        }
+                      },
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
 
-              // Sign Out Button
+              // 4. Modern Settings Group 2: Guidelines, Feedback & Theme
+              Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.gavel_rounded, color: Color(0xFF7C3AED), size: 20),
+                      ),
+                      title: const Text('Library Rules & Guidelines', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => _showRulesDialog(libraryId),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEC4899).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.rate_review_rounded, color: Color(0xFFDB2777), size: 20),
+                      ),
+                      title: const Text('Send Feedback / Suggestion', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => context.push(Routes.studentFeedback),
+                    ),
+                    const Divider(height: 1),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final themeMode = ref.watch(themeNotifierProvider);
+                        final isDark = themeMode == ThemeMode.dark;
+                        return SwitchListTile(
+                          secondary: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                              color: Colors.amber.shade700,
+                              size: 20,
+                            ),
+                          ),
+                          title: const Text('Dark Mode', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          subtitle: Text(isDark ? 'Dark theme active' : 'Light theme active', style: const TextStyle(fontSize: 11)),
+                          value: isDark,
+                          onChanged: (_) {
+                            HapticFeedback.lightImpact();
+                            ref.read(themeNotifierProvider.notifier).toggleTheme();
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // 5. Danger Zone Sign Out
               OutlinedButton.icon(
-                icon: const Icon(Icons.logout_rounded, color: Colors.red),
-                label: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+                icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 18),
+                label: Text('Sign Out from ${library?.name ?? "Study Centre"}', style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.red),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  side: const BorderSide(color: Color(0xFFEF4444)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 onPressed: _signOut,
-              ),
-              const SizedBox(height: 24),
-              ListTile(
-                leading: const Icon(Icons.delete_forever_rounded, color: Colors.red),
-                title: const Text('Delete Account', style: TextStyle(color: Colors.red)),
-                subtitle: const Text('Permanently delete your account and data'),
-                onTap: () => context.push(Routes.accountDeletion),
               ),
               const SizedBox(height: 32),
             ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error loading profile: $err')),
+        error: (err, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              ErrorHandler.handleError(err),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _ProfileTile extends StatelessWidget {
-  final IconData icon;
+class _GovIdTile extends StatefulWidget {
   final String label;
-  final String value;
+  final String rawId;
+  final String libraryId;
 
-  const _ProfileTile({required this.icon, required this.label, required this.value});
+  const _GovIdTile({
+    required this.label,
+    required this.rawId,
+    required this.libraryId,
+  });
+
+  @override
+  State<_GovIdTile> createState() => _GovIdTileState();
+}
+
+class _GovIdTileState extends State<_GovIdTile> {
+  bool _revealed = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final decrypted = EncryptionService.safeDecryptGovId(widget.rawId, widget.libraryId);
+
+    // Format display string cleanly: if hidden, show masked format e.g. ABC••••34F
+    String displayValue;
+    if (_revealed) {
+      displayValue = decrypted;
+    } else {
+      if (decrypted.length > 5 && decrypted != '••••••••') {
+        final start = decrypted.length > 7 ? decrypted.substring(0, 3) : decrypted.substring(0, 2);
+        final end = decrypted.substring(decrypted.length - 2);
+        final mask = '•' * (decrypted.length - start.length - end.length);
+        displayValue = '$start$mask$end';
+      } else {
+        displayValue = '••••••••';
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, size: 20, color: theme.colorScheme.outline),
+          Icon(Icons.badge_rounded, size: 20, color: theme.colorScheme.outline),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
+                Text(
+                  widget.label,
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+                ),
                 const SizedBox(height: 2),
-                Text(value, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+                Text(
+                  displayValue,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.1,
+                  ),
+                ),
               ],
             ),
+          ),
+          IconButton(
+            icon: Icon(
+              _revealed ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+              size: 20,
+              color: theme.colorScheme.primary,
+            ),
+            tooltip: _revealed ? 'Hide ID Number' : 'Show ID Number',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => setState(() => _revealed = !_revealed),
+          ),
+          IconButton(
+            icon: Icon(Icons.copy_rounded, size: 18, color: theme.colorScheme.outline),
+            tooltip: 'Copy ID Number',
+            visualDensity: VisualDensity.compact,
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: decrypted));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('ID Number copied to clipboard'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -577,14 +1155,37 @@ class _ProfileTile extends StatelessWidget {
   }
 }
 
-void _showEditProfileSheet(BuildContext context, WidgetRef ref, StudentModel student) {
+Future<void> _showEditProfileSheet(BuildContext context, WidgetRef ref, StudentModel student) async {
+  final libraryId = ref.read(currentLibraryIdProvider) ?? '';
+  List<Map<String, dynamic>> customFields = [];
+  if (libraryId.isNotEmpty) {
+    try {
+      final all = await FormConfigService.fetchFormConfig(libraryId);
+      customFields = all.where((f) =>
+        (f['builtin'] as bool? ?? false) == false &&
+        (f['visible'] as bool? ?? true) &&
+        (f['showOnProfile'] as bool? ?? true)
+      ).toList();
+    } catch (_) { /* intentionally silent */ }
+  }
+
+  if (!context.mounted) return;
+
   final emergencyCtrl = TextEditingController(text: student.emergencyContact);
   final collegeCtrl = TextEditingController(text: student.college);
   final courseCtrl = TextEditingController(text: student.course);
   final yearCtrl = TextEditingController(text: student.year);
+  final Map<String, TextEditingController> customCtrls = {};
+  for (final f in customFields) {
+    final fid = f['id']?.toString() ?? '';
+    if (fid.isNotEmpty) {
+      customCtrls[fid] = TextEditingController(text: student.customFields[fid]?.toString() ?? '');
+    }
+  }
+
   bool saving = false;
 
-  showModalBottomSheet(
+  await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
@@ -595,113 +1196,144 @@ void _showEditProfileSheet(BuildContext context, WidgetRef ref, StudentModel stu
           left: 20, right: 20, top: 20,
           bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Text('Edit Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const Spacer(),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-              ],
-            ),
-            const Divider(),
-            const SizedBox(height: 8),
-            TextFormField(controller: emergencyCtrl, decoration: const InputDecoration(labelText: 'Emergency Contact', prefixIcon: Icon(Icons.emergency))),
-            const SizedBox(height: 12),
-            TextFormField(controller: collegeCtrl, decoration: const InputDecoration(labelText: 'College / Institution', prefixIcon: Icon(Icons.school))),
-            const SizedBox(height: 12),
-            TextFormField(controller: courseCtrl, decoration: const InputDecoration(labelText: 'Course', prefixIcon: Icon(Icons.book))),
-            const SizedBox(height: 12),
-            TextFormField(controller: yearCtrl, decoration: const InputDecoration(labelText: 'Year / Semester', prefixIcon: Icon(Icons.calendar_today))),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: FilledButton(
-                onPressed: saving ? null : () async {
-                  setSheetState(() => saving = true);
-                  try {
-                    final libraryId = ref.read(currentLibraryIdProvider) ?? '';
-                    if (libraryId.isEmpty) throw Exception('Library ID not found');
-
-                    final requestRef = FirebaseFirestore.instance
-                        .collection('libraries')
-                        .doc(libraryId)
-                        .collection('requests')
-                        .doc();
-
-                    await requestRef.set({
-                      'id': requestRef.id,
-                      'studentId': student.id,
-                      'studentName': student.name,
-                      'studentPhone': student.phone,
-                      'type': 'profile_update',
-                      'title': 'Profile Information Update',
-                      'description': 'Student requested profile update',
-                      'currentData': {
-                        'emergencyContact': student.emergencyContact,
-                        'college': student.college,
-                        'course': student.course,
-                        'year': student.year,
-                      },
-                      'proposedData': {
-                        'emergencyContact': emergencyCtrl.text.trim(),
-                        'college': collegeCtrl.text.trim(),
-                        'course': courseCtrl.text.trim(),
-                        'year': yearCtrl.text.trim(),
-                      },
-                      'status': 'pending',
-                      'createdAt': FieldValue.serverTimestamp(),
-                    });
-
-                    await FirebaseFirestore.instance
-                        .collection('libraries')
-                        .doc(libraryId)
-                        .collection('admin_notifications')
-                        .add({
-                      'type': 'profile_update_request',
-                      'title': 'Profile Update Request',
-                      'body': '${student.name} requested profile updates.',
-                      'createdAt': FieldValue.serverTimestamp(),
-                      'read': false,
-                    });
-
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Profile update request submitted to admin for approval ✓'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    setSheetState(() => saving = false);
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(content: Text('Request failed: $e'), backgroundColor: Colors.red),
-                      );
-                    }
-                  }
-                },
-                child: saving 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Save Changes'),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text('Edit Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                ],
               ),
-            ),
-          ],
+              const Divider(),
+              const SizedBox(height: 8),
+              TextFormField(controller: emergencyCtrl, decoration: const InputDecoration(labelText: 'Emergency Contact', prefixIcon: Icon(Icons.emergency))),
+              const SizedBox(height: 12),
+              TextFormField(controller: collegeCtrl, decoration: const InputDecoration(labelText: 'College / Institution', prefixIcon: Icon(Icons.school))),
+              const SizedBox(height: 12),
+              TextFormField(controller: courseCtrl, decoration: const InputDecoration(labelText: 'Course', prefixIcon: Icon(Icons.book))),
+              const SizedBox(height: 12),
+              TextFormField(controller: yearCtrl, decoration: const InputDecoration(labelText: 'Year / Semester', prefixIcon: Icon(Icons.calendar_today))),
+              if (customFields.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text('Additional Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                const SizedBox(height: 8),
+                ...customFields.map((f) {
+                  final fid = f['id']?.toString() ?? '';
+                  final label = f['label']?.toString() ?? fid;
+                  final ctrl = customCtrls[fid];
+                  if (ctrl == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextFormField(
+                      controller: ctrl,
+                      decoration: InputDecoration(
+                        labelText: label,
+                        prefixIcon: const Icon(Icons.edit_note_rounded),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: FilledButton(
+                  onPressed: saving ? null : () async {
+                    setSheetState(() => saving = true);
+                    try {
+                      if (libraryId.isEmpty) throw Exception('Library ID not found');
+
+                      final proposedCustom = <String, dynamic>{};
+                      for (final entry in customCtrls.entries) {
+                        if (entry.key.isNotEmpty) {
+                          proposedCustom[entry.key] = entry.value.text.trim();
+                        }
+                      }
+
+                      final requestRef = FirebaseFirestore.instance
+                          .collection('libraries')
+                          .doc(libraryId)
+                          .collection('requests')
+                          .doc();
+
+                      await requestRef.set({
+                        'id': requestRef.id,
+                        'studentId': student.id,
+                        'studentName': student.name,
+                        'studentPhone': student.phone,
+                        'type': 'profile_update',
+                        'title': 'Profile Information Update',
+                        'description': 'Student requested profile update',
+                        'currentData': {
+                          'emergencyContact': student.emergencyContact,
+                          'college': student.college,
+                          'course': student.course,
+                          'year': student.year,
+                          'customFields': student.customFields,
+                        },
+                        'proposedData': {
+                          'emergencyContact': emergencyCtrl.text.trim(),
+                          'college': collegeCtrl.text.trim(),
+                          'course': courseCtrl.text.trim(),
+                          'year': yearCtrl.text.trim(),
+                          'customFields': proposedCustom,
+                        },
+                        'status': 'pending',
+                        'createdAt': FieldValue.serverTimestamp(),
+                      });
+
+                      await FirebaseFirestore.instance
+                          .collection('libraries')
+                          .doc(libraryId)
+                          .collection('admin_notifications')
+                          .add({
+                        'type': 'profile_update_request',
+                        'title': 'Profile Update Request',
+                        'body': '${student.name} requested profile updates.',
+                        'createdAt': FieldValue.serverTimestamp(),
+                        'read': false,
+                      });
+
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Profile update request submitted to admin for approval ✓'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      setSheetState(() => saving = false);
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text('Request failed: $e'), backgroundColor: Colors.red),
+                        );
+                      }
+                    }
+                  },
+                  child: saving 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Save Changes'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
   );
 
-  // Dispose controllers when sheet closes
-  Future.delayed(const Duration(milliseconds: 500), () {
-    emergencyCtrl.dispose();
-    collegeCtrl.dispose();
-    courseCtrl.dispose();
-    yearCtrl.dispose();
-  });
+  emergencyCtrl.dispose();
+  collegeCtrl.dispose();
+  courseCtrl.dispose();
+  yearCtrl.dispose();
+  for (final c in customCtrls.values) {
+    c.dispose();
+  }
 }

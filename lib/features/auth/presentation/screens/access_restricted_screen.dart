@@ -61,7 +61,7 @@ class _AccessRestrictedScreenState extends ConsumerState<AccessRestrictedScreen>
           return;
         }
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
 
     // No valid role found — show the access denied UI
     if (mounted) setState(() => _isChecking = false);

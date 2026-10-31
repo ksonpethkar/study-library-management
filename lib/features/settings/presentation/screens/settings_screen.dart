@@ -1,277 +1,57 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/providers/theme_provider.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
-import 'package:study_library/features/settings/presentation/screens/data_export_screen.dart';
 import 'package:study_library/features/settings/presentation/screens/security_settings_dialog.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/force_update_service.dart';
-import 'package:study_library/models/seat_model.dart';
-import 'package:study_library/services/membership_automation_service.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/badge_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:study_library/services/remote_config_service.dart';
 
+String _getSafePlatformName() {
+  if (kIsWeb) return 'Web Browser';
+  try {
+    return Platform.operatingSystem.toUpperCase();
+  } catch (_) {
+    return 'Web/Client';
+  }
+}
+
+String _getSafePlatformVersion() {
+  if (kIsWeb) return 'Web Client (Browser)';
+  try {
+    return '${Platform.operatingSystem} (${Platform.operatingSystemVersion})';
+  } catch (_) {
+    return 'Web Environment';
+  }
+}
+
 final _packageInfoProvider = FutureProvider<PackageInfo>((ref) async {
   return await PackageInfo.fromPlatform();
 });
 
-/// Shows a bottom sheet with update info and live download progress.
-void _showUpdateSheet(BuildContext context, WidgetRef ref, UpdateState updateState) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
-    builder: (ctx) => _UpdateBottomSheet(initialState: updateState),
-  );
-}
 
-class _UpdateBottomSheet extends ConsumerWidget {
-  final UpdateState initialState;
-  const _UpdateBottomSheet({required this.initialState});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(updateServiceProvider);
-    final info = state.info ?? initialState.info;
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        24, 12, 24, MediaQuery.of(context).viewInsets.bottom + 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Icon(Icons.system_update_rounded,
-                  color: theme.colorScheme.primary, size: 32),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Update Available',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold)),
-                  Text('Version ${info?.versionName ?? '?'}  •  ${info?.apkSize ?? '74.0 MB'}',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.outline)),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (info != null && info.releaseNotes.isNotEmpty) ...[
-            const Divider(),
-            ...info.releaseNotes.map((n) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('•  ', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Expanded(child: Text(n, style: theme.textTheme.bodySmall)),
-                ],
-              ),
-            )),
-          ],
-          const SizedBox(height: 16),
-
-          // ── Downloading ─────────────────────────────────────────────
-          if (state.downloadState == DownloadState.downloading) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: LinearProgressIndicator(
-                    value: state.progress > 0 ? state.progress : null,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.pause_circle_filled_rounded),
-                  tooltip: 'Pause',
-                  onPressed: () => ref.read(updateServiceProvider.notifier).pauseUpdate(),
-                  color: theme.colorScheme.primary,
-                  iconSize: 28,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('${(state.progress * 100).toStringAsFixed(0)}% downloaded',
-                    style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
-                if (state.totalBytes > 0)
-                  Text(
-                    '${_fmtBytes(state.downloadedBytes)} / ${_fmtBytes(state.totalBytes)}',
-                    style: theme.textTheme.bodySmall,
-                  ),
-              ],
-            ),
-
-          // ── Paused ──────────────────────────────────────────────────
-          ] else if (state.downloadState == DownloadState.paused) ...[
-            LinearProgressIndicator(
-              value: state.progress > 0 ? state.progress : null,
-              borderRadius: BorderRadius.circular(4),
-              color: Colors.orange,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Paused — ${(state.progress * 100).toStringAsFixed(0)}% done',
-                  style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                if (state.totalBytes > 0)
-                  Text('${_fmtBytes(state.downloadedBytes)} / ${_fmtBytes(state.totalBytes)}',
-                      style: theme.textTheme.bodySmall),
-              ],
-            ),
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: () => ref.read(updateServiceProvider.notifier).resumeUpdate(),
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('Resume Download'),
-            ),
-
-          // ── Permission Required ──────────────────────────────────────
-          ] else if (state.downloadState == DownloadState.permissionRequired) ...[
-            Card(
-              color: Colors.amber.shade50,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Android requires permission to install apps from Cozy Corner.\nGo to Settings → Special App Access → Install unknown apps → allow Cozy Corner.',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-                    FilledButton(
-                      onPressed: () =>
-                          ref.read(updateServiceProvider.notifier).requestInstallPermission(),
-                      child: const Text('Open Permission Settings'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // ── Failed ──────────────────────────────────────────────────
-          ] else if (state.downloadState == DownloadState.failed) ...[
-            Text(state.errorMessage ?? 'Download failed.',
-                style: const TextStyle(color: Colors.red, fontSize: 13)),
-            const SizedBox(height: 8),
-            FilledButton.icon(
-              onPressed: () => ref.read(updateServiceProvider.notifier).startUpdate(),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Try Again'),
-            ),
-
-          // ── Completed — Install Button ───────────────────────────────
-          ] else if (state.downloadState == DownloadState.completed) ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Download complete!',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-                        if (state.totalBytes > 0)
-                          Text('${_fmtBytes(state.totalBytes)} ready to install',
-                              style: const TextStyle(fontSize: 12, color: Colors.green)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            FilledButton.icon(
-              onPressed: () => ref.read(updateServiceProvider.notifier).installUpdate(),
-              icon: const Icon(Icons.install_mobile_rounded),
-              label: const Text('Install Now'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-            ),
-
-          // ── Idle — Action Buttons ────────────────────────────────────
-          ] else ...[
-            FilledButton.icon(
-              onPressed: () => ref.read(updateServiceProvider.notifier).startUpdate(),
-              icon: const Icon(Icons.download_rounded),
-              label: Text('Download & Install${state.totalBytes > 0 ? " (${_fmtBytes(state.totalBytes)})" : ""}'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: () {
-                ref.read(updateServiceProvider.notifier).dismissLater();
-                Navigator.of(context).pop();
-              },
-              child: const Text('Remind Me Later'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-
-  String _fmtBytes(int b) {
-    if (b >= 1024 * 1024) return '${(b / (1024 * 1024)).toStringAsFixed(1)} MB';
-    if (b >= 1024) return '${(b / 1024).toStringAsFixed(0)} KB';
-    return '$b B';
-  }
-}
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final pkgInfo = ref.watch(_packageInfoProvider).value;
+    final ver = pkgInfo?.version ?? '1.5.0';
+    final build = pkgInfo?.buildNumber ?? '6';
+
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
@@ -285,433 +65,448 @@ class SettingsScreen extends ConsumerWidget {
               return Card(
                 margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: theme.colorScheme.primaryContainer,
-                        backgroundImage: imageProvider,
-                        child: imageProvider == null
-                            ? Icon(Icons.business_rounded, size: 30, color: theme.colorScheme.primary)
-                            : null,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              lib?.name.isNotEmpty == true ? lib!.name : 'Cozy Corner Library',
-                              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (lib?.address.isNotEmpty ?? false) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                lib!.address,
-                                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                            if ((lib?.contact.isNotEmpty ?? false) || (lib?.email.isNotEmpty ?? false)) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                [if (lib?.contact.isNotEmpty ?? false) lib!.contact, if (lib?.email.isNotEmpty ?? false) lib!.email].join(' • '),
-                                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ],
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => _showOrganizationDetailsDialog(context, lib),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: theme.colorScheme.primaryContainer,
+                          backgroundImage: imageProvider,
+                          child: imageProvider == null
+                              ? Icon(Icons.business_rounded, size: 30, color: theme.colorScheme.primary)
+                              : null,
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        tooltip: 'Edit Profile',
-                        onPressed: () => context.push(Routes.adminLibraryProfile),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-          _buildSectionHeader(context, 'Manage'),
-          ListTile(
-            leading: const Icon(Icons.assignment_rounded),
-            title: const Text('Membership Plans'),
-            subtitle: const Text('Add, edit, or delete plans'),
-            onTap: () => context.push(Routes.adminPlans),
-          ),
-          ListTile(
-            leading: const Icon(Icons.receipt_rounded),
-            title: const Text('Receipts'),
-            subtitle: const Text('View and download generated receipts'),
-            onTap: () => context.push(Routes.adminReceipts),
-          ),
-          if (RemoteConfigService.enableRevenueDashboard)
-            ListTile(
-              leading: const Icon(Icons.bar_chart_rounded),
-              title: const Text('Revenue & Analytics'),
-              subtitle: const Text('View revenue, payments and trends'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push(Routes.adminRevenue),
-            ),
-          ListTile(
-            leading: const Icon(Icons.campaign_rounded),
-            title: const Text('Announcements'),
-            subtitle: const Text('Broadcast messages to all student apps'),
-            onTap: () => context.push(Routes.adminAnnouncements),
-          ),
-          ListTile(
-            leading: const Icon(Icons.calendar_month_rounded),
-            title: const Text('Holidays'),
-            subtitle: const Text('Manage closed days and special timings'),
-            onTap: () => context.push(Routes.adminHolidays),
-          ),
-          ListTile(
-            leading: const Icon(Icons.feedback_rounded),
-            title: const Text('Feedback & Reviews'),
-            subtitle: const Text('Student complaints and suggestions'),
-            onTap: () => context.push(Routes.adminFeedback),
-          ),
-          ListTile(
-            leading: const Icon(Icons.move_to_inbox_rounded),
-            title: const Text('Requests'),
-            subtitle: const Text('Approve or reject seat and plan change requests'),
-            onTap: () => context.push(Routes.adminRequests),
-          ),
-          const Divider(),
-
-          _buildSectionHeader(context, 'Library Profile & Branding'),
-          ListTile(
-            leading: const Icon(Icons.business_rounded),
-            title: const Text('Library Profile'),
-            subtitle: const Text('Name, address, contact, and accent color'),
-            onTap: () => context.push(Routes.adminLibraryProfile),
-          ),
-          ListTile(
-            leading: const Icon(Icons.qr_code_2_rounded),
-            title: const Text('Live Seat QR Poster'),
-            subtitle: const Text('Entrance poster and live portal link'),
-            onTap: () => context.push(Routes.adminQrShare),
-          ),
-          ListTile(
-            leading: const Icon(Icons.badge_rounded),
-            title: const Text('Student ID Card Template'),
-            subtitle: const Text('Customize elements, A4 cut-and-fold, and bulk printing'),
-            onTap: () => context.push(Routes.adminIdCardTemplate),
-          ),
-          ListTile(
-            leading: const Icon(Icons.receipt_long_rounded),
-            title: const Text('Receipt Template'),
-            subtitle: const Text('Customize elements shown on PDF invoices'),
-            onTap: () => context.push(Routes.adminReceiptTemplate),
-          ),
-          ListTile(
-            leading: const Icon(Icons.app_registration_rounded),
-            title: const Text('Registration Form Layout'),
-            subtitle: const Text('Add custom fields and preview student signup form'),
-            onTap: () => context.push(Routes.adminFormCustomizer),
-          ),
-          ListTile(
-            leading: const Icon(Icons.payment_rounded),
-            title: const Text('Payment Methods'),
-            subtitle: const Text('Configure UPI, Cash, POS, and instructions'),
-            onTap: () => context.push(Routes.adminPaymentMethods),
-          ),
-          const Divider(),
-
-          _buildSectionHeader(context, 'Preferences & Operation'),
-          ListTile(
-            leading: const Icon(Icons.notifications_rounded),
-            title: const Text('Notifications'),
-            subtitle: const Text('Expiry alerts and auto-reminders'),
-            onTap: () => context.push(Routes.adminNotifications),
-          ),
-          ListTile(
-            leading: const Icon(Icons.hub_rounded),
-            title: const Text('Messaging & Notification Hub'),
-            subtitle: const Text('Free SMS, Telegram, WhatsApp & Webhooks'),
-            onTap: () => context.push(Routes.adminMessaging),
-          ),
-          ListTile(
-            leading: const Icon(Icons.hourglass_top_rounded),
-            title: const Text('Grace Period'),
-            subtitle: const Text('Days before releasing lapsed seats'),
-            onTap: () => context.push(Routes.adminGracePeriod),
-          ),
-          if (RemoteConfigService.enableWaitingList) ...[
-            ListTile(
-              leading: const Icon(Icons.queue_rounded, color: Colors.brown),
-              title: const Text('Waiting List Queue'),
-              subtitle: const Text('View waiting queue and assign available seats'),
-              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-              onTap: () => context.push(Routes.adminWaitingQueue),
-            ),
-            ListTile(
-              leading: const Icon(Icons.tune_rounded),
-              title: const Text('Waiting List Policy'),
-              subtitle: const Text('Configure auto-join and allocation policies'),
-              onTap: () => context.push(Routes.adminWaitingList),
-            ),
-          ],
-          ListTile(
-            leading: const Icon(Icons.format_list_numbered_rounded),
-            title: const Text('Seat Numbering Format'),
-            subtitle: const Text('Numeric (1, 2), Alpha (A1, A2), or Row-Col'),
-            onTap: () => _showSeatNumberingDialog(context, ref),
-          ),
-          ListTile(
-            leading: const Icon(Icons.gavel_rounded),
-            title: const Text('Rules & Regulations'),
-            subtitle: const Text('Set rules displayed in the student app'),
-            onTap: () => context.push(Routes.adminRules),
-          ),
-          const Divider(),
-
-          _buildSectionHeader(context, 'Automations & Maintenance'),
-          ListTile(
-            leading: const Icon(Icons.auto_mode_rounded, color: Colors.teal),
-            title: const Text('Run Expiry & Seat Check Now'),
-            subtitle: const Text('Check expired plans, apply grace periods, and release seats'),
-            trailing: const Icon(Icons.play_circle_outline_rounded, color: Colors.teal),
-            onTap: () async {
-              final libId = ref.read(currentLibraryIdProvider);
-              if (libId == null || libId.isEmpty) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Checking plans and seats in background...'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
-              final result = await MembershipAutomationService.runDailyMaintenance(libId, force: true);
-              if (context.mounted) {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Row(
-                      children: [
-                        Icon(Icons.check_circle_rounded, color: Colors.green),
-                        SizedBox(width: 8),
-                        Text('Maintenance Complete'),
-                      ],
-                    ),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('• Total students checked: ${result.checkedCount}'),
-                        const SizedBox(height: 4),
-                        Text('• Entered grace period: ${result.enteredGraceCount}'),
-                        const SizedBox(height: 4),
-                        Text('• Expired plans: ${result.expiredCount}'),
-                        const SizedBox(height: 4),
-                        Text('• Seats auto-released: ${result.releasedSeatsCount}'),
-                      ],
-                    ),
-                    actions: [
-                      FilledButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('OK'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-            },
-          ),
-          const Divider(),
-
-          _buildSectionHeader(context, 'Security & Access Control'),
-          ListTile(
-            leading: const Icon(Icons.fingerprint_rounded),
-            title: const Text('Biometric / PIN Lock'),
-            subtitle: const Text('Protect app with fingerprint, Face ID, or PIN'),
-            onTap: () => SecuritySettingsDialog.show(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.admin_panel_settings_rounded),
-            title: const Text('Authorized Admin Emails'),
-            subtitle: const Text('Manage whitelisted Google accounts that can access admin'),
-            onTap: () => context.push(Routes.adminWhitelist),
-          ),
-          ListTile(
-            leading: const Icon(Icons.badge_rounded),
-            title: const Text('Staff & Admin Roles'),
-            subtitle: const Text('Manage managers, operators, and granular permissions'),
-            onTap: () => context.push(Routes.adminStaff),
-          ),
-          ListTile(
-            leading: const Icon(Icons.history_rounded),
-            title: const Text('Login History'),
-            subtitle: const Text('View recent authentication events'),
-            onTap: () => _showLoginHistoryDialog(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout_rounded),
-            title: const Text('Remote Logout'),
-            subtitle: const Text('Sign out of all sessions across devices'),
-            onTap: () => _showRemoteLogoutDialog(context, ref),
-          ),
-          const Divider(),
-
-          _buildSectionHeader(context, 'Data & Maintenance'),
-          ListTile(
-            leading: const Icon(Icons.backup_rounded),
-            title: const Text('Backup & Restore'),
-            onTap: () => context.push(Routes.adminBackup),
-          ),
-          if (RemoteConfigService.enableDataExport)
-            ListTile(
-              leading: const Icon(Icons.file_download_rounded),
-              title: const Text('Export Data'),
-              subtitle: const Text('Download students & payments as CSV'),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const DataExportScreen()),
-              ),
-            ),
-          ListTile(
-            leading: const Icon(Icons.fact_check_rounded),
-            title: const Text('Audit Log'),
-            subtitle: const Text('Track staff actions and financial changes'),
-            onTap: () => context.push(Routes.adminAuditLog),
-          ),
-          if (RemoteConfigService.enableRecycleBin)
-            ListTile(
-              leading: const Icon(Icons.delete_sweep_rounded),
-              title: const Text('Recycle Bin'),
-              subtitle: const Text('Restore soft-deleted students, seats, or plans'),
-              onTap: () => context.push(Routes.adminRecycleBin),
-            ),
-          const Divider(),
-
-          _buildSectionHeader(context, 'Communication'),
-          ListTile(
-            leading: const Icon(Icons.chat_rounded, color: Colors.green),
-            title: const Text('Send WhatsApp Reminder'),
-            subtitle: const Text('Send renewal reminders directly via WhatsApp'),
-            onTap: () => _showWhatsAppReminderDialog(context, ref),
-          ),
-          const Divider(),
-
-          _buildSectionHeader(context, 'Appearance'),
-          Consumer(
-            builder: (context, ref, _) {
-              final themeMode = ref.watch(themeNotifierProvider);
-              return SwitchListTile(
-                secondary: Icon(
-                  themeMode == ThemeMode.dark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                ),
-                title: const Text('Dark Mode'),
-                subtitle: Text(themeMode == ThemeMode.dark ? 'Enabled' : 'Disabled'),
-                value: themeMode == ThemeMode.dark,
-                onChanged: (_) {
-                  ref.read(themeNotifierProvider.notifier).toggleTheme();
-                },
-              );
-            },
-          ),
-          const Divider(),
-
-          _buildSectionHeader(context, 'About & Updates'),
-          Consumer(
-            builder: (context, ref, _) {
-              final pkgInfo = ref.watch(_packageInfoProvider).value;
-              final currentVer = pkgInfo?.version ?? '1.5.0';
-              final currentBuild = pkgInfo?.buildNumber ?? '6';
-
-              return Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.info_outline_rounded),
-                    title: const Text('App Version & Organization Info'),
-                    subtitle: Text('$currentVer (Build $currentBuild) — Production'),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-                    onTap: () => _showAppInfoDialog(context, ref, currentVer, currentBuild),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.system_update_rounded, color: Colors.brown),
-                    title: const Text('Check for Updates'),
-                    subtitle: const Text('Tap to check for the latest version'),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-                    onTap: () async {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Row(
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
+                              Text(
+                                lib?.name.isNotEmpty == true ? lib!.name : 'Study Library',
+                                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              SizedBox(width: 12),
-                              Text('Checking for updates...'),
-                            ],
-                          ),
-                          duration: Duration(seconds: 2),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-
-                      await ref.read(updateServiceProvider.notifier).checkForUpdate(manualCheck: true);
-                      final updateState = ref.read(updateServiceProvider);
-
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-                      if (updateState.status == UpdateStatus.upToDate) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                const Icon(Icons.check_circle_rounded, color: Colors.white),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text('You are using the latest version (v$currentVer)!'),
+                              if (lib?.address.isNotEmpty ?? false) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  lib!.address,
+                                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                            margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                            backgroundColor: Colors.green,
-                            duration: const Duration(seconds: 4),
+                              if ((lib?.contact.isNotEmpty ?? false) || (lib?.email.isNotEmpty ?? false)) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  [if (lib?.contact.isNotEmpty ?? false) lib!.contact, if (lib?.email.isNotEmpty ?? false) lib!.email].join(' • '),
+                                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
                           ),
-                        );
-                      } else if (updateState.status == UpdateStatus.optionalUpdate ||
-                          updateState.status == UpdateStatus.forceUpdate) {
-                        _showUpdateSheet(context, ref, updateState);
-                      }
-                    },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined),
+                          tooltip: 'Edit Profile',
+                          onPressed: () => context.push(Routes.adminLibraryProfile),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
+                ),
               );
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.new_releases_rounded, color: Colors.brown),
-            title: const Text("What's New"),
-            subtitle: const Text('View recent release highlights'),
-            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-            onTap: () => WhatsNewService.showChangelog(context, isStudent: false),
+          // ── High-Frequency Quick Launch Tiles ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _QuickLaunchCard(
+                    icon: Icons.bar_chart_rounded,
+                    title: 'Revenue',
+                    subtitle: 'Ledger & Dues',
+                    color: const Color(0xFF059669),
+                    onTap: () => context.push(Routes.adminRevenue),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _QuickLaunchCard(
+                    icon: Icons.assignment_rounded,
+                    title: 'Plans',
+                    subtitle: 'Tiers & Fees',
+                    color: const Color(0xFF2563EB),
+                    onTap: () => context.push(Routes.adminPlans),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _QuickLaunchCard(
+                    icon: Icons.campaign_rounded,
+                    title: 'Broadcast',
+                    subtitle: 'Push Alerts',
+                    color: const Color(0xFFD97706),
+                    onTap: () => context.push(Routes.adminAnnouncements),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _QuickLaunchCard(
+                    icon: Icons.cloud_sync_rounded,
+                    title: 'Backup',
+                    subtitle: 'Safety Vault',
+                    color: const Color(0xFF7C3AED),
+                    onTap: () => context.push(Routes.adminBackup),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Group 1: Operations & Management ──
+          _buildGroupedSection(
+            context,
+            title: 'OPERATIONS & MANAGEMENT',
+            children: [
+              _buildSettingsTile(
+                icon: Icons.assignment_rounded,
+                iconColor: const Color(0xFF2563EB),
+                title: 'Membership Plans',
+                subtitle: 'Pricing tiers, validity durations, shifts & fees',
+                onTap: () => context.push(Routes.adminPlans),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.receipt_rounded,
+                iconColor: const Color(0xFF059669),
+                title: 'Receipts & Invoices',
+                subtitle: 'View and download generated fee receipts',
+                onTap: () => context.push(Routes.adminReceipts),
+              ),
+              if (RemoteConfigService.enableRevenueDashboard) ...[
+                const Divider(height: 1, indent: 56),
+                _buildSettingsTile(
+                  icon: Icons.bar_chart_rounded,
+                  iconColor: const Color(0xFF10B981),
+                  title: 'Revenue & Analytics',
+                  subtitle: 'View revenue, cash drawer, and financial trends',
+                  onTap: () => context.push(Routes.adminRevenue),
+                ),
+              ],
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.campaign_rounded,
+                iconColor: const Color(0xFFD97706),
+                title: 'Announcements',
+                subtitle: 'Broadcast notices to all student apps',
+                onTap: () => context.push(Routes.adminAnnouncements),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.calendar_month_rounded,
+                iconColor: const Color(0xFFDC2626),
+                title: 'Holidays & Timings',
+                subtitle: 'Manage closed days and special shift hours',
+                onTap: () => context.push(Routes.adminHolidays),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.feedback_rounded,
+                iconColor: const Color(0xFF7C3AED),
+                title: 'Feedback & Reviews',
+                subtitle: 'Student suggestions and help complaints',
+                onTap: () => context.push(Routes.adminFeedback),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.move_to_inbox_rounded,
+                iconColor: const Color(0xFF2563EB),
+                title: 'Admission & Seat Requests',
+                subtitle: 'Approve or reject seat and plan change requests',
+                onTap: () => context.push(Routes.adminRequests),
+              ),
+            ],
+          ),
+
+          // ── Group 2: Library Profile & Templates ──
+          _buildGroupedSection(
+            context,
+            title: 'FACILITY PROFILE & TEMPLATES',
+            children: [
+              _buildSettingsTile(
+                icon: Icons.business_rounded,
+                iconColor: const Color(0xFF2563EB),
+                title: 'Library Profile & Branding',
+                subtitle: 'Name, address, contact, and accent color',
+                onTap: () => context.push(Routes.adminLibraryProfile),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.qr_code_2_rounded,
+                iconColor: const Color(0xFF059669),
+                title: 'Live Seat QR Poster',
+                subtitle: 'Entrance poster and live portal link',
+                onTap: () => context.push(Routes.adminQrShare),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.badge_rounded,
+                iconColor: const Color(0xFF7C3AED),
+                title: 'Student ID Card Template',
+                subtitle: 'Customize elements, A4 cut-and-fold, bulk printing',
+                onTap: () => context.push(Routes.adminIdCardTemplate),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.receipt_long_rounded,
+                iconColor: const Color(0xFFD97706),
+                title: 'Receipt Template',
+                subtitle: 'Customize layout shown on PDF invoices',
+                onTap: () => context.push(Routes.adminReceiptTemplate),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.app_registration_rounded,
+                iconColor: const Color(0xFF0284C7),
+                title: 'Registration Form Layout',
+                subtitle: 'Custom fields and student signup preview',
+                onTap: () => context.push(Routes.adminFormCustomizer),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.payment_rounded,
+                iconColor: const Color(0xFF059669),
+                title: 'Payment Methods & Gateway',
+                subtitle: 'Configure UPI, Cash, POS, and account numbers',
+                onTap: () => context.push(Routes.adminPaymentMethods),
+              ),
+            ],
+          ),
+
+          // ── Group 3: Preferences & Automation ──
+          _buildGroupedSection(
+            context,
+            title: 'PREFERENCES & AUTOMATION',
+            children: [
+              _buildSettingsTile(
+                icon: Icons.hub_rounded,
+                iconColor: const Color(0xFF2563EB),
+                title: 'Communications & Automation Hub',
+                subtitle: 'Push, WhatsApp, Telegram, SMS & rules',
+                onTap: () => context.push(Routes.adminCommunications),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.hourglass_top_rounded,
+                iconColor: const Color(0xFFD97706),
+                title: 'Grace Period',
+                subtitle: 'Days before releasing lapsed desks',
+                onTap: () => context.push(Routes.adminGracePeriod),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.people_outline_rounded,
+                iconColor: const Color(0xFF7C3AED),
+                title: 'Waiting List & Capacity Hub',
+                subtitle: 'Live queue, auto-promotions, capacity policies',
+                onTap: () => context.push(Routes.adminWaitingList),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.gavel_rounded,
+                iconColor: const Color(0xFFDC2626),
+                title: 'Rules & Regulations',
+                subtitle: 'Guidelines displayed inside student apps',
+                onTap: () => context.push(Routes.adminRules),
+              ),
+            ],
+          ),
+
+          // ── Group 4: Security & Access Control ──
+          _buildGroupedSection(
+            context,
+            title: 'SECURITY & ACCESS CONTROL',
+            children: [
+              _buildSettingsTile(
+                icon: Icons.fingerprint_rounded,
+                iconColor: const Color(0xFF2563EB),
+                title: 'Biometric / PIN App Lock',
+                subtitle: 'Protect app with biometric or personal PIN lock',
+                onTap: () {
+                  final user = FirebaseAuth.instance.currentUser;
+                  SecuritySettingsDialog.show(
+                    context,
+                    isStudent: false,
+                    authUid: user?.uid,
+                  );
+                },
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.admin_panel_settings_rounded,
+                iconColor: const Color(0xFF059669),
+                title: 'Staff & Admin Whitelist',
+                subtitle: 'Manage co-owners, admins, staff & Google accounts',
+                onTap: () => context.push(Routes.adminStaff),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.devices_rounded,
+                iconColor: const Color(0xFF7C3AED),
+                title: 'Device & Session Security',
+                subtitle: 'Review login history & revoke active sessions',
+                onTap: () => _showDeviceSessionSecurityDialog(context, ref),
+              ),
+            ],
+          ),
+
+          // ── Group 5: Data & Maintenance ──
+          _buildGroupedSection(
+            context,
+            title: 'DATA & MAINTENANCE',
+            children: [
+              _buildSettingsTile(
+                icon: Icons.cloud_sync_rounded,
+                iconColor: const Color(0xFF2563EB),
+                title: 'Backup & Restore',
+                subtitle: 'Encrypted JSON/CSV cloud backups',
+                onTap: () => context.push(Routes.adminBackup),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.file_download_outlined,
+                iconColor: const Color(0xFF059669),
+                title: 'Export Data & Reports',
+                subtitle: 'Download student rosters, dues & transactions',
+                onTap: () => context.push(Routes.adminDataExport),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.history_rounded,
+                iconColor: const Color(0xFFD97706),
+                title: 'Audit Log',
+                subtitle: 'Track staff actions and financial changes',
+                onTap: () => context.push(Routes.adminAuditLog),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.delete_outline_rounded,
+                iconColor: const Color(0xFFDC2626),
+                title: 'Recycle Bin',
+                subtitle: 'Restore soft-deleted students, seats, or plans',
+                onTap: () => context.push(Routes.adminRecycleBin),
+              ),
+            ],
+          ),
+
+          // ── Group 6: System & About ──
+          _buildGroupedSection(
+            context,
+            title: 'SYSTEM PREFERENCES & ABOUT',
+            children: [
+              Consumer(
+                builder: (context, ref, _) {
+                  final themeMode = ref.watch(themeNotifierProvider);
+                  final isDark = themeMode == ThemeMode.dark;
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                        size: 20,
+                        color: Colors.amber.shade800,
+                      ),
+                    ),
+                    title: const Text('Dark Theme', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                    subtitle: Text(isDark ? 'Dark theme enabled' : 'Light theme enabled', style: const TextStyle(fontSize: 11.5)),
+                    trailing: Switch(
+                      value: isDark,
+                      onChanged: (_) => ref.read(themeNotifierProvider.notifier).toggleTheme(),
+                    ),
+                  );
+                },
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.info_outline_rounded,
+                iconColor: const Color(0xFF2563EB),
+                title: 'About Cozy Corner',
+                subtitle: 'Version specifications & system info',
+                onTap: () => _showAboutAppDialog(context, ref, ver, build),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.system_update_rounded,
+                iconColor: const Color(0xFF059669),
+                title: 'Check for Updates',
+                subtitle: 'Tap to check for latest version',
+                onTap: () {
+                  ref.read(updateServiceProvider.notifier).checkForUpdate(manualCheck: true);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Checking for updates…'), behavior: SnackBarBehavior.floating),
+                  );
+                },
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.auto_awesome_rounded,
+                iconColor: const Color(0xFF7C3AED),
+                title: "What's New",
+                subtitle: 'Release features and performance log',
+                onTap: () => WhatsNewService.showChangelog(context, isStudent: false),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.description_outlined,
+                iconColor: const Color(0xFF64748B),
+                title: 'Terms of Service',
+                subtitle: 'Usage conditions and rights',
+                onTap: () => context.push(Routes.terms),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.shield_outlined,
+                iconColor: const Color(0xFF64748B),
+                title: 'Privacy Policy',
+                subtitle: 'Data protection and storage policies',
+                onTap: () => context.push(Routes.privacyPolicy),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
+                icon: Icons.headset_mic_rounded,
+                iconColor: const Color(0xFF059669),
+                title: 'Support & Help Desk',
+                subtitle: 'Get help or share feedback',
+                onTap: () => _showSupportDialog(context, ref, ver, build),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: OutlinedButton.icon(
               onPressed: () async {
+                final lib = ref.read(currentLibraryProvider).value;
+                final libName = lib?.name.isNotEmpty == true ? ' from ${lib!.name}' : '';
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const Text('Sign Out'),
-                    content: const Text('Are you sure you want to sign out from Cozy Corner?'),
+                    content: Text('Are you sure you want to sign out$libName?'),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
                       FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sign Out')),
@@ -744,354 +539,618 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionHeader(BuildContext context, String title) {
+  Widget _buildGroupedSection(BuildContext context, {required String title, required List<Widget> children}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-
-
-  Future<void> _showSeatNumberingDialog(BuildContext context, WidgetRef ref) async {
-    var libraryId = ref.read(currentLibraryIdProvider);
-    if (libraryId == null || libraryId.isEmpty) {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        try {
-          final lib = await ref
-              .read(libraryRepositoryProvider)
-              .getLibraryByOwnerId(user.uid);
-          if (lib != null) {
-            ref.read(currentLibraryIdProvider.notifier).set(lib.id);
-            libraryId = lib.id;
-          }
-        } catch (_) {}
-      }
-    }
-
-    if (libraryId == null || libraryId.isEmpty) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please sign in to change seat numbering style.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-      return;
-    }
-
-    // Default — will be overwritten once we read Firestore value
-    SeatNamingStyle currentStyle = SeatNamingStyle.numeric;
-
-    if (!context.mounted) return;
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Seat Numbering Style'),
-          content: FutureBuilder<DocumentSnapshot>(
-            future: FirebaseFirestore.instance
-                .collection('libraries')
-                .doc(libraryId)
-                .get(),
-            builder: (context, snap) {
-              // Pre-select from saved Firestore value
-              if (snap.hasData && snap.data!.exists) {
-                final saved =
-                    (snap.data!.data() as Map)['seatNumberingFormat'] as String?;
-                if (saved != null) {
-                  try {
-                    currentStyle = SeatNamingStyle.values.byName(saved);
-                  } catch (_) {}
-                }
-              }
-              return RadioGroup<SeatNamingStyle>(
-                groupValue: currentStyle,
-                onChanged: (v) {
-                  if (v != null) setDialogState(() => currentStyle = v);
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    _StyleTile(
-                      title: 'Continuous Numbers  (1, 2, 3...)',
-                      subtitle: 'Best for open-plan / single hall',
-                      value: SeatNamingStyle.numeric,
-                    ),
-                    _StyleTile(
-                      title: 'Grid  (A1, A2, B1, B2...)',
-                      subtitle: 'Row letter + seat number — most common',
-                      value: SeatNamingStyle.alphanumeric,
-                    ),
-                    _StyleTile(
-                      title: 'Custom Prefix  (CAB-01, VIP-01...)',
-                      subtitle: 'Your own prefix code + number',
-                      value: SeatNamingStyle.customPrefix,
-                    ),
-                    _StyleTile(
-                      title: 'Section Code + Grid  (M-A1, M-A2...)',
-                      subtitle: 'Section initial + row letter + number',
-                      value: SeatNamingStyle.sectionPrefixAlphanumeric,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel')),
-            FilledButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await FirebaseFirestore.instance
-                    .collection('libraries')
-                    .doc(libraryId)
-                    .set({
-                  'seatNumberingFormat': currentStyle.name,
-                }, SetOptions(merge: true));
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Seat numbering style saved!'),
-                        behavior: SnackBarBehavior.floating),
-                  );
-                }
-              },
-              child: const Text('Save'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 6),
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.3,
+                color: theme.colorScheme.primary,
+              ),
             ),
-          ],
-        ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E28) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: children,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  void _showLoginHistoryDialog(BuildContext context) {
+  Widget _buildSettingsTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    Color? iconColor,
+    Widget? trailing,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: (iconColor ?? const Color(0xFF64748B)).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, size: 20, color: iconColor ?? const Color(0xFF475569)),
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11.5)),
+      trailing: trailing ?? const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF94A3B8)),
+      onTap: onTap,
+    );
+  }
+
+  void _showDeviceSessionSecurityDialog(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final user = FirebaseAuth.instance.currentUser;
     final lastSignIn = user?.metadata.lastSignInTime;
     final creationTime = user?.metadata.creationTime;
     final dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
 
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scrollController) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: ListView(
+            controller: scrollController,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.devices_rounded, color: Colors.blue, size: 28),
+                      SizedBox(width: 10),
+                      Text(
+                        'Device & Session Security',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Current Session Card (Theme-Aware High Contrast)
+              Card(
+                elevation: 0,
+                color: theme.brightness == Brightness.dark
+                    ? const Color(0xFF1E293B)
+                    : const Color(0xFFEFF6FF),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: theme.brightness == Brightness.dark
+                        ? const Color(0xFF3B82F6).withValues(alpha: 0.4)
+                        : const Color(0xFF93C5FD),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14.0),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: Colors.green.withValues(alpha: 0.15),
+                        child: const Icon(Icons.check_circle_rounded, color: Colors.green),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Current Active Session',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.brightness == Brightness.dark
+                                    ? Colors.white
+                                    : const Color(0xFF1E3A8A),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              user?.email ?? 'Logged In Administrator',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.brightness == Brightness.dark
+                                    ? const Color(0xFFCBD5E1)
+                                    : const Color(0xFF1E40AF),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              'Last authenticated: ${lastSignIn != null ? dateFormat.format(lastSignIn.toLocal()) : "Active"} • Created: ${creationTime != null ? dateFormat.format(creationTime.toLocal()) : "Active"}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 11,
+                                color: theme.brightness == Brightness.dark
+                                    ? const Color(0xFF94A3B8)
+                                    : const Color(0xFF475569),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Remote Logout Action
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.amber.shade300),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.logout_rounded, color: Colors.deepOrange, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Remote Session Invalidation',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Lost a phone or logged in on a public computer? Invalidate tokens on all other devices immediately while staying signed in here.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (c) => AlertDialog(
+                                title: const Text('Revoke Other Sessions?'),
+                                content: const Text(
+                                  'This will sign out all other devices logged into this account. Continue?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(c, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
+                                    onPressed: () => Navigator.pop(c, true),
+                                    child: const Text('Revoke Sessions'),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (confirm == true) {
+                              await FirebaseAuth.instance.currentUser?.getIdToken(true);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('All other remote sessions invalidated successfully! ✓'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.phonelink_erase_rounded, size: 18),
+                          label: const Text('Sign Out All Other Devices'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.deepOrange,
+                            side: const BorderSide(color: Colors.deepOrange),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Login History
+              Text(
+                'Recent Authentications & Devices',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+
+              if (user != null)
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.uid)
+                      .collection('login_history')
+                      .orderBy('timestamp', descending: true)
+                      .limit(10)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    }
+                    final docs = snapshot.data?.docs ?? [];
+                    if (docs.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        child: Center(
+                          child: Text(
+                            'No previous login history recorded yet.',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: docs.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final data = docs[index].data();
+                        final rawTs = data['timestamp'];
+                        final ts = rawTs is Timestamp
+                            ? rawTs.toDate()
+                            : rawTs is DateTime
+                                ? rawTs
+                                : rawTs is String
+                                    ? DateTime.tryParse(rawTs)
+                                    : null;
+                        final platform = data['platform'] ?? 'Web/Desktop';
+                        final method = data['authMethod'] ?? 'Google Sign-In';
+
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            platform == 'android'
+                                ? Icons.phone_android_rounded
+                                : platform == 'iOS'
+                                    ? Icons.phone_iphone_rounded
+                                    : Icons.laptop_mac_rounded,
+                            size: 20,
+                            color: Colors.blueGrey,
+                          ),
+                          title: Text(
+                            '$method ($platform)',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            ts != null ? dateFormat.format(ts.toLocal()) : 'Recently',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAboutAppDialog(BuildContext context, WidgetRef ref, String ver, String build) {
+    final theme = Theme.of(context);
+    final lib = ref.watch(currentLibraryProvider).value;
+    final imageProvider = ImageService.getImageProvider(lib?.logoUrl);
+
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        titlePadding: const EdgeInsets.fromLTRB(20, 16, 16, 0),
+        contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        title: Row(
           children: [
-            Icon(Icons.history_rounded, color: Colors.blue),
-            SizedBox(width: 8),
-            Text('Login History'),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: imageProvider != null
+                    ? Image(
+                        image: imageProvider,
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.contain,
+                      )
+                    : Image.asset(
+                        'assets/images/app_logo_transparent.png',
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => Icon(
+                          Icons.local_library_rounded,
+                          color: theme.colorScheme.primary,
+                          size: 26,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    lib?.name.isNotEmpty == true ? lib!.name : 'Cozy Corner',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    lib?.tagline.isNotEmpty == true ? lib!.tagline : 'Study Library Management System',
+                    style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded),
+              tooltip: 'Close',
+              onPressed: () => Navigator.pop(ctx),
+            ),
           ],
         ),
         content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.devices_rounded, color: Colors.green),
-                title: const Text('Current Session', style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text(
-                  '${user?.email ?? "Admin"}\n'
-                  'Last active: ${lastSignIn != null ? dateFormat.format(lastSignIn.toLocal()) : "Active"}\n'
-                  'Registered: ${creationTime != null ? dateFormat.format(creationTime.toLocal()) : "Active"}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-              const Divider(),
-              const Text(
-                'Recent Authentications:',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
-              ),
-              const SizedBox(height: 6),
-              if (user != null)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 220),
-                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(user.uid)
-                        .collection('login_history')
-                        .orderBy('timestamp', descending: true)
-                        .limit(10)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: CircularProgressIndicator(strokeWidth: 2),
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                // Library Center Profile Card
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: theme.colorScheme.primaryContainer,
+                            backgroundImage: imageProvider,
+                            child: imageProvider == null
+                                ? Icon(Icons.business_rounded, color: theme.colorScheme.primary, size: 20)
+                                : null,
                           ),
-                        );
-                      }
-                      final docs = snapshot.data?.docs ?? [];
-                      if (docs.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12.0),
-                          child: Text(
-                            'No previous login logs recorded yet.',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  lib?.name.isNotEmpty == true ? lib!.name : 'Study Library',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  maxLines: 2,
+                                ),
+                                if (lib?.tagline.isNotEmpty == true)
+                                  Text(
+                                    lib!.tagline,
+                                    style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                                  ),
+                              ],
+                            ),
                           ),
-                        );
-                      }
-                      return ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: docs.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final data = docs[index].data();
-                          final ts = (data['timestamp'] as Timestamp?)?.toDate();
-                          final platform = data['platform'] ?? 'Mobile';
-                          final method = data['authMethod'] ?? 'Google Sign-In';
-
-                          return ListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(
-                              platform == 'android'
-                                  ? Icons.phone_android_rounded
-                                  : platform == 'iOS'
-                                      ? Icons.phone_iphone_rounded
-                                      : Icons.laptop_mac_rounded,
-                              size: 20,
-                              color: Colors.blueGrey,
+                        ],
+                      ),
+                      if (lib?.address.isNotEmpty == true) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.location_on_outlined, size: 14, color: theme.colorScheme.primary),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                lib!.address,
+                                style: const TextStyle(fontSize: 12),
+                              ),
                             ),
-                            title: Text('$method ($platform)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                            subtitle: Text(
-                              ts != null ? dateFormat.format(ts.toLocal()) : 'Just now',
-                              style: const TextStyle(fontSize: 11),
+                          ],
+                        ),
+                      ],
+                      if (lib?.operatingHours.isNotEmpty == true) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.access_time_rounded, size: 14, color: theme.colorScheme.primary),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Hours: ${lib!.operatingHours}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
                             ),
-                          );
-                        },
-                      );
-                    },
+                          ],
+                        ),
+                      ],
+                      if (lib?.facilities.isNotEmpty == true) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: lib!.facilities.take(5).map((facility) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                facility,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                          icon: const Icon(Icons.edit_outlined, size: 14),
+                          label: const Text('Edit Library Profile', style: TextStyle(fontSize: 12)),
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            context.push(Routes.adminLibraryProfile);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-            ],
+                const SizedBox(height: 14),
+                // System Specs Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Column(
+                    children: [
+                      _buildInfoRow(context, Icons.verified_outlined, 'Version', 'v$ver (Build $build)'),
+                      const SizedBox(height: 8),
+                      _buildInfoRow(context, Icons.cloud_done_outlined, 'Backend', 'Firebase Cloud Services (Live)'),
+                      const SizedBox(height: 8),
+                      _buildInfoRow(context, Icons.devices_rounded, 'Platform', _getSafePlatformName()),
+                      const SizedBox(height: 8),
+                      _buildInfoRow(context, Icons.copyright_rounded, 'Copyright', '© 2026 Cozy Corner'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
-          FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
-        ],
-      ),
-    );
-  }
-
-  void _showRemoteLogoutDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.security_update_warning_rounded, color: Colors.amber),
-            SizedBox(width: 8),
-            Text('Remote Logout'),
-          ],
-        ),
-        content: const Text(
-          'This will invalidate access tokens on all other mobile and web devices. You will remain signed in on this current device.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton.icon(
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('Copy Info'),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(
+                text: 'Cozy Corner (Study Library)\n'
+                    'Version: v$ver (Build $build)\n'
+                    'Platform: ${_getSafePlatformVersion()}\n'
+                    'Library: ${lib?.name ?? 'Cozy Corner'} (ID: ${lib?.id ?? 'N/A'})',
+              ));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('App details copied to clipboard'),
+                  behavior: SnackBarBehavior.floating,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              showLicensePage(
+                context: context,
+                applicationName: 'Cozy Corner',
+                applicationVersion: 'v$ver (Build $build)',
+              );
+            },
+            child: const Text('Licenses'),
+          ),
           FilledButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await FirebaseAuth.instance.currentUser?.getIdToken(true);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('All remote sessions invalidated successfully.'),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            },
-            child: const Text('Revoke Other Sessions'),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
           ),
         ],
       ),
     );
   }
 
-  void _showWhatsAppReminderDialog(BuildContext context, WidgetRef ref) {
-    final phoneController = TextEditingController();
-    final messageController = TextEditingController(
-      text: 'Hi! This is a reminder from your study library. Your membership plan is expiring soon. Please renew to continue using the library. Thank you!',
-    );
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.message, color: Colors.green),
-            SizedBox(width: 8),
-            Text('WhatsApp Reminder'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Student Phone (with country code)',
-                  hintText: '919876543210',
-                  prefixIcon: Icon(Icons.phone),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: messageController,
-                decoration: const InputDecoration(
-                  labelText: 'Message',
-                  prefixIcon: Icon(Icons.message),
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 4,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton.icon(
-            icon: const Icon(Icons.send),
-            label: const Text('Send via WhatsApp'),
-            onPressed: () async {
-              final phone = phoneController.text.trim().replaceAll('+', '');
-              final message = Uri.encodeComponent(messageController.text.trim());
-              if (phone.isEmpty) return;
-              
-              final url = Uri.parse('https://wa.me/$phone?text=$message');
-              Navigator.pop(ctx);
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAppInfoDialog(BuildContext context, WidgetRef ref, String ver, String build) {
-    final lib = ref.read(currentLibraryProvider).value;
+  void _showOrganizationDetailsDialog(BuildContext context, dynamic lib) {
     final theme = Theme.of(context);
     final logoProvider = ImageService.getImageProvider(lib?.logoUrl);
 
@@ -1100,7 +1159,7 @@ class SettingsScreen extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-        contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
         title: Row(
           children: [
             CircleAvatar(
@@ -1117,11 +1176,11 @@ class SettingsScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    lib?.name.isNotEmpty == true ? lib!.name : 'Cozy Corner Library',
+                    lib?.name.isNotEmpty == true ? lib!.name : 'Study Library',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    'App Info & Organization',
+                    'Organization Profile',
                     style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ],
@@ -1143,7 +1202,9 @@ class SettingsScreen extends ConsumerWidget {
                 context,
                 Icons.phone_outlined,
                 'Helpline',
-                lib?.helplineNumber.isNotEmpty == true ? lib!.helplineNumber : lib!.contact,
+                lib?.effectiveContact.isNotEmpty == true
+                    ? lib!.effectiveContact
+                    : (lib?.effectiveHelpline ?? ''),
               ),
               const SizedBox(height: 8),
             ],
@@ -1155,24 +1216,394 @@ class SettingsScreen extends ConsumerWidget {
               _buildInfoRow(context, Icons.access_time_rounded, 'Hours', lib!.operatingHours),
               const SizedBox(height: 8),
             ],
-            _buildInfoRow(context, Icons.android_rounded, 'Version', 'v$ver (Build $build) — Production'),
-            const SizedBox(height: 8),
-            _buildInfoRow(context, Icons.cloud_done_outlined, 'Backend', 'Firebase Cloud Firestore'),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              WhatsNewService.showChangelog(context, isStudent: false);
+              context.push(Routes.adminLibraryProfile);
             },
-            child: const Text("What's New"),
+            child: const Text('Edit Profile'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _editDeveloperEmail(BuildContext context, String libraryId, String currentEmail) async {
+    final controller = TextEditingController(text: currentEmail);
+    final formKey = GlobalKey<FormState>();
+
+    final updated = await showDialog<String>(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.edit_note_rounded, size: 22),
+            SizedBox(width: 8),
+            Text('Developer Support Email', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Enter the developer or platform support email for receiving bug reports and inquiries:',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: controller,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Developer Support Email *',
+                  hintText: 'e.g. dev@thecozycorner.in',
+                  prefixIcon: Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Please enter a valid email address';
+                  }
+                  if (!val.contains('@') || !val.contains('.')) {
+                    return 'Please enter a valid email address';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dlgCtx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(dlgCtx, controller.text.trim());
+              }
+            },
+            child: const Text('Save Email'),
+          ),
+        ],
+      ),
+    );
+
+    if (updated != null && updated.isNotEmpty && context.mounted) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('settings')
+            .doc('support')
+            .set({
+          'developerEmail': updated,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .set({
+          'developerEmail': updated,
+        }, SetOptions(merge: true));
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Developer support email updated to $updated'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to update email: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  void _showSupportDialog(BuildContext context, WidgetRef ref, String ver, String build) {
+    final theme = Theme.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Consumer(
+        builder: (context, ref, _) {
+          final lib = ref.watch(currentLibraryProvider).value;
+          final helpline = lib?.effectiveContact.isNotEmpty == true
+              ? lib!.effectiveContact
+              : (lib?.effectiveHelpline ?? '');
+          final whatsapp = lib?.whatsappNumber.isNotEmpty == true
+              ? lib!.whatsappNumber
+              : helpline;
+          final hours = lib?.operatingHours.isNotEmpty == true
+              ? lib!.operatingHours
+              : '6:00 AM – 11:00 PM';
+
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(Icons.support_agent_rounded, color: theme.colorScheme.primary, size: 26),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Support & Help Desk',
+                                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                lib?.name.isNotEmpty == true ? lib!.name : 'Facility & Technical Assistance',
+                                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Facility Help Desk Section
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.storefront_rounded, size: 18, color: theme.colorScheme.primary),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Library Member Help Desk',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Live Desk',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(Icons.access_time_rounded, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Desk Hours: $hours',
+                                  style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              if (helpline.isNotEmpty)
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    icon: const Icon(Icons.phone_outlined, size: 18),
+                                    label: const Text('Call Desk', style: TextStyle(fontSize: 13)),
+                                    onPressed: () async {
+                                      final uri = Uri.parse('tel:$helpline');
+                                      if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                    },
+                                  ),
+                                ),
+                              if (helpline.isNotEmpty && whatsapp.isNotEmpty)
+                                const SizedBox(width: 10),
+                              if (whatsapp.isNotEmpty)
+                                Expanded(
+                                  child: FilledButton.icon(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: const Color(0xFF25D366),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                                    label: const Text('WhatsApp', style: TextStyle(fontSize: 13)),
+                                    onPressed: () async {
+                                      final cleanNum = whatsapp.replaceAll(RegExp(r'[^0-9]'), '');
+                                      final msg = Uri.encodeComponent('Hello ${lib?.name ?? 'Library'}, I need assistance.');
+                                      final uri = Uri.parse('https://wa.me/$cleanNum?text=$msg');
+                                      if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                    },
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              style: TextButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                              ),
+                              icon: const Icon(Icons.edit_outlined, size: 14),
+                              label: const Text('Edit Help Desk Details', style: TextStyle(fontSize: 11)),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                context.push(Routes.adminLibraryProfile);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Technical Support Section
+                    StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                      stream: (lib?.id != null && lib!.id.isNotEmpty)
+                          ? FirebaseFirestore.instance
+                              .collection('libraries')
+                              .doc(lib.id)
+                              .collection('settings')
+                              .doc('support')
+                              .snapshots()
+                          : const Stream.empty(),
+                      builder: (context, supportSnap) {
+                        final devEmail = supportSnap.data?.data()?['developerEmail'] as String? ??
+                            (lib?.email.isNotEmpty == true ? lib!.email : 'thecozycornersc@gmail.com');
+
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.terminal_rounded, size: 18, color: theme.colorScheme.secondary),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Platform & Bug Support',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: theme.colorScheme.secondary,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  TextButton.icon(
+                                    style: TextButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    ),
+                                    icon: const Icon(Icons.edit_outlined, size: 14),
+                                    label: const Text('Edit Email', style: TextStyle(fontSize: 11)),
+                                    onPressed: () {
+                                      if (lib?.id != null) {
+                                        _editDeveloperEmail(context, lib!.id, devEmail);
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                                leading: Icon(Icons.email_outlined, color: theme.colorScheme.primary),
+                                title: const Text('Email Developer Support', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                subtitle: Text(devEmail, style: const TextStyle(fontSize: 12)),
+                                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                                onTap: () async {
+                                  final uri = Uri.parse('mailto:$devEmail?subject=Support%20Request%20-%20v$ver%20(Build%20$build)&body=Library:%20${lib?.name}%20(ID:%20${lib?.id})%0APlatform:%20${_getSafePlatformVersion()}');
+                                  if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -1206,27 +1637,70 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-/// Radio tile used by the seat numbering style dialog.
-class _StyleTile extends StatelessWidget {
+
+class _QuickLaunchCard extends StatelessWidget {
+  final IconData icon;
   final String title;
   final String subtitle;
-  final SeatNamingStyle value;
+  final Color color;
+  final VoidCallback onTap;
 
-  const _StyleTile({
+  const _QuickLaunchCard({
+    required this.icon,
     required this.title,
     required this.subtitle,
-    required this.value,
+    required this.color,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return RadioListTile<SeatNamingStyle>(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      title: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-      value: value,
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: isDark ? 0.15 : 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: isDark ? 0.35 : 0.2)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: color.withValues(alpha: isDark ? 0.3 : 0.15),
+              child: Icon(icon, size: 18, color: color),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+                color: isDark ? Colors.white : color,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 9,
+                color: isDark ? Colors.white60 : Colors.grey.shade600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
-

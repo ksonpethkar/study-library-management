@@ -42,8 +42,10 @@ class ExpiryNotificationService {
         DateTime? endDate;
         if (endDateRaw is String) endDate = DateTime.tryParse(endDateRaw);
         if (endDateRaw is int) endDate = DateTime.fromMillisecondsSinceEpoch(endDateRaw);
-        if (endDateRaw != null && endDateRaw.runtimeType.toString() == 'Timestamp') {
-          try { endDate = endDateRaw.toDate(); } catch (_) {}
+        if (endDateRaw is Timestamp) {
+          endDate = endDateRaw.toDate();
+        } else if (endDateRaw != null) {
+          try { endDate = (endDateRaw as dynamic).toDate(); } catch (_) { /* intentionally silent */ }
         }
 
         if (endDate == null) continue;
@@ -67,7 +69,7 @@ class ExpiryNotificationService {
           );
         }
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
   }
 
   static Future<void> _showNotification({
@@ -97,7 +99,7 @@ class ExpiryNotificationService {
     await initialize();
     await _showNotification(
       id: 0,
-      title: 'Cozy Corner',
+      title: 'Library Alert',
       body: 'Notifications are working!',
     );
   }

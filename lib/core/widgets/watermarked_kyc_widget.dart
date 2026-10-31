@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 /// Renders a KYC document with a diagonal regulatory compliance watermark:
-/// "VERIFIED FOR COZY CORNER USE ONLY — [DATE]"
+/// "VERIFIED FOR [LIBRARY] USE ONLY — [DATE]"
 class WatermarkedKycWidget extends StatelessWidget {
   final Widget child;
   final String? customText;
@@ -22,7 +22,7 @@ class WatermarkedKycWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = DateFormat('dd MMM yyyy').format(verificationDate ?? DateTime.now());
-    final lib = libraryName ?? 'Cozy Corner Library';
+    final lib = libraryName?.isNotEmpty == true ? libraryName! : 'Library';
     final watermarkText = customText ?? 'VERIFIED FOR $lib USE ONLY • $date • CONFIDENTIAL KYC';
 
     return Stack(
@@ -106,7 +106,7 @@ class WatermarkHelper {
 
       // 2. Draw diagonal watermark
       final date = DateFormat('dd-MM-yyyy').format(DateTime.now());
-      final lib = (libraryName ?? 'COZY CORNER').toUpperCase();
+      final lib = (libraryName?.isNotEmpty == true ? libraryName! : 'LIBRARY').toUpperCase();
       final text = 'VERIFIED FOR $lib USE ONLY • $date • CONFIDENTIAL KYC';
 
       final fontSize = (image.width / 32).clamp(18.0, 48.0);

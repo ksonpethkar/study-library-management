@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/app_validators.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/services/image_service.dart';
+import 'package:study_library/services/image_transparency_service.dart';
 import 'package:study_library/services/message_template_service.dart';
 
 class LibraryProfileScreen extends ConsumerStatefulWidget {
@@ -17,18 +21,58 @@ class LibraryProfileScreen extends ConsumerStatefulWidget {
 
 class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+
+  // 1. Core Identity & Branding
   final _nameController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _welcomeController = TextEditingController();
-  final _hoursController = TextEditingController();
-  final _whatsappController = TextEditingController();
-  final _membershipPrefixController = TextEditingController();
   final _taglineController = TextEditingController();
+  final _membershipPrefixController = TextEditingController();
+  final _hoursController = TextEditingController();
+
+  // 2. Contact & Location
+  final _phoneController = TextEditingController();
+  final _whatsappController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _addressController = TextEditingController();
+  bool _sameAsWhatsApp = true;
+
+  // 3. Personnel & Administration
+  final _adminNameController = TextEditingController();
+  final _ownerNameController = TextEditingController();
+  final _managerNameController = TextEditingController();
+  final _managerContactController = TextEditingController();
+  bool _showManagerDetails = false;
+
+  // 4. Facilities
+  static const List<String> _standardFacilities = [
+    'High-Speed Wi-Fi',
+    'Power Sockets at Desk',
+    'Purified RO Water',
+    'Silent Study Zone',
+    'CCTV Surveillance',
+    'Ergonomic Chairs',
+    'Air Conditioning (AC)',
+    'Personal Locker',
+    'Pantry & Cafeteria',
+    'Daily Newspapers & Magazines',
+    'Two-Wheeler / Car Parking',
+  ];
+
+  List<String> _selectedFacilities = [
+    'High-Speed Wi-Fi',
+    'Power Sockets at Desk',
+    'Purified RO Water',
+    'Silent Study Zone',
+    'CCTV Surveillance',
+    'Ergonomic Chairs',
+  ];
+
+  // 5. In-Place Advanced Overrides (Preserved for 100% backward compatibility)
+  final _welcomeController = TextEditingController();
+  final _upiIdController = TextEditingController();
   late TextEditingController _whatsappTemplateController;
   late TextEditingController _receiptFooterController;
-  String _reminderDays = '7';
+  int _reminderDays = 7;
+
   String? _logoUrl;
   bool _isLoading = true;
   bool _isSaving = false;
@@ -37,6 +81,8 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _whatsappTemplateController = TextEditingController();
+    _receiptFooterController = TextEditingController();
     _loadProfile();
   }
 
@@ -54,7 +100,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
           ref.read(currentLibraryIdProvider.notifier).set(lib.id);
           return lib.id;
         }
-      } catch (_) {}
+      } catch (_) { /* intentionally silent */ }
     }
     return null;
   }
@@ -75,22 +121,48 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
       if (doc.exists && mounted) {
         final data = doc.data()!;
         _nameController.text = data['name'] ?? '';
+
+        final loadedAdmin = data['adminName'] ?? data['contactPerson'] ?? '';
+        final loadedOwner = data['ownerName'] ?? '';
+        _adminNameController.text = loadedAdmin.isNotEmpty ? loadedAdmin : loadedOwner;
+        _ownerNameController.text = loadedOwner.isNotEmpty ? loadedOwner : loadedAdmin;
+
+        _managerNameController.text = data['managerName'] ?? '';
+        _managerContactController.text = data['managerContact'] ?? '';
+        _showManagerDetails = _managerNameController.text.isNotEmpty || _managerContactController.text.isNotEmpty;
+
+        if (data['facilities'] is List) {
+          _selectedFacilities = (data['facilities'] as List).map((e) => e.toString()).toList();
+        }
         _addressController.text = data['address'] ?? '';
-        _phoneController.text = data['contact'] ?? data['phone'] ?? '';
+
+        final primaryPhone = data['contact'] ?? data['phone'] ?? data['helplineNumber'] ?? data['ownerContact'] ?? '';
+        _phoneController.text = primaryPhone;
+
+        final loadedWhatsApp = data['whatsappNumber'] ?? '';
+        _whatsappController.text = loadedWhatsApp;
+        _sameAsWhatsApp = loadedWhatsApp.isEmpty || loadedWhatsApp == primaryPhone;
+
         _emailController.text = data['email'] ?? '';
-        _welcomeController.text = data['welcomeMessage'] ?? '';
         _hoursController.text = data['operatingHours'] ?? '';
-        _whatsappController.text = data['whatsappNumber'] ?? '';
         _membershipPrefixController.text = data['membershipPrefix'] ?? 'CC';
-        _taglineController.text = data['tagline'] ?? '';
-        _whatsappTemplateController = TextEditingController(text: data['whatsappWelcomeTemplate'] ?? '');
-        _receiptFooterController = TextEditingController(text: data['receiptFooterText'] ?? '');
-        _reminderDays = (data['renewalReminderDays']?.toString() ?? '7').isEmpty ? '7' : data['renewalReminderDays']?.toString() ?? '7';
+
+        final loadedTagline = data['tagline'] ?? '';
+        final loadedWelcome = data['welcomeMessage'] ?? '';
+        _taglineController.text = loadedTagline.isNotEmpty ? loadedTagline : loadedWelcome;
+        _welcomeController.text = loadedWelcome;
+
+        _upiIdController.text = data['upiId'] ?? '';
+        _whatsappTemplateController.text = data['whatsappWelcomeTemplate'] ?? '';
+        _receiptFooterController.text = data['receiptFooterText'] ?? '';
+        _reminderDays = data['renewalReminderDays'] is int
+            ? data['renewalReminderDays'] as int
+            : int.tryParse(data['renewalReminderDays']?.toString() ?? '7') ?? 7;
         _logoUrl = data['logoUrl'] as String?;
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
       }
     }
 
@@ -112,7 +184,6 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
 
     if (!mounted) return;
 
-    // Inline bottom sheet — returns 'camera', 'gallery', 'remove', or null (dismissed)
     final choice = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -124,7 +195,8 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
           children: [
             const SizedBox(height: 8),
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
@@ -156,7 +228,6 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
       ),
     );
 
-    // null = user closed sheet without choosing → do nothing
     if (choice == null) return;
 
     if (choice == 'remove') {
@@ -164,28 +235,15 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
       return;
     }
 
-    // Pick and upload
     final source = choice == 'camera' ? ImageSource.camera : ImageSource.gallery;
     setState(() => _isUploadingLogo = true);
     try {
-      final file = await ImageService.pickAndCompressImage(source: source);
-      if (file == null) return;
-
-      final filename = 'logo_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final path = 'libraries/$libraryId/logos/$filename';
-      
-      String url;
-      try {
-        url = await ImageService.uploadToStorage(file: file, path: path);
-      } catch (storageErr) {
-        // Fallback: If Firebase Storage is not set up on Spark tier, store as compressed base64 data URL
-        debugPrint('Storage upload failed, using Base64 data URL: $storageErr');
-        final bytes = await file.readAsBytes();
-        url = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-      }
+      final url = await ImageService.pickImageAsDataUrl(source: source);
+      if (url == null || !mounted) return;
 
       if (mounted) {
-        setState(() => _logoUrl = url);
+        final cleanUrl = ImageTransparencyService.removeBackgroundFromDataUri(url, threshold: 225);
+        setState(() => _logoUrl = cleanUrl);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Logo selected! Tap "Save Profile" to apply.'),
@@ -197,8 +255,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Upload failed: ${e.toString().replaceAll("Exception:", "").trim()}'),
+            content: Text('Upload failed: ${e.toString().replaceAll("Exception:", "").trim()}'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -224,28 +281,58 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
     setState(() => _isSaving = true);
 
     try {
+      final primaryPhone = _phoneController.text.trim();
+      final whatsappNumber = _sameAsWhatsApp ? primaryPhone : _whatsappController.text.trim();
+      final adminName = _adminNameController.text.trim();
+      final ownerName = _ownerNameController.text.trim().isNotEmpty ? _ownerNameController.text.trim() : adminName;
+      final tagline = _taglineController.text.trim();
+      final welcomeMessage = tagline.isNotEmpty ? tagline : 'Welcome to ${_nameController.text.trim()}';
+
       await FirebaseFirestore.instance
           .collection('libraries')
           .doc(libraryId)
           .set({
         'name': _nameController.text.trim(),
+        'ownerName': ownerName,
+        'ownerContact': primaryPhone,
+        'adminName': adminName,
+        'adminContact': primaryPhone,
+        'managerName': _showManagerDetails ? _managerNameController.text.trim() : '',
+        'managerContact': _showManagerDetails ? _managerContactController.text.trim() : '',
+        'facilities': _selectedFacilities,
         'address': _addressController.text.trim(),
-        'contact': _phoneController.text.trim(),
-        'phone': _phoneController.text.trim(),
+        'contact': primaryPhone,
+        'phone': primaryPhone,
+        'helplineNumber': primaryPhone,
         'email': _emailController.text.trim(),
-        'welcomeMessage': _welcomeController.text.trim(),
+        'welcomeMessage': welcomeMessage,
         'operatingHours': _hoursController.text.trim(),
-        'whatsappNumber': _whatsappController.text.trim(),
+        'whatsappNumber': whatsappNumber,
         'membershipPrefix': _membershipPrefixController.text.trim().isNotEmpty
             ? _membershipPrefixController.text.trim().toUpperCase()
             : 'CC',
-        'tagline': _taglineController.text.trim(),
+        'tagline': tagline,
         'whatsappWelcomeTemplate': _whatsappTemplateController.text.trim(),
         'receiptFooterText': _receiptFooterController.text.trim(),
         'renewalReminderDays': _reminderDays,
+        'upiId': _upiIdController.text.trim(),
         'logoUrl': _logoUrl ?? '',
-        'updatedAt': FieldValue.serverTimestamp(), // fixed: was ISO string; library_repository sorts by Timestamp
+        'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      // Also sync UPI ID to payment_methods subcollection if present
+      if (_upiIdController.text.trim().isNotEmpty) {
+        FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('settings')
+            .doc('payment_methods')
+            .set({
+              'upiId': _upiIdController.text.trim(),
+              'payeeName': _nameController.text.trim(),
+            }, SetOptions(merge: true))
+            .catchError((_) {});
+      }
 
       // Cache immediately to SharedPreferences for instant splash and offline load
       try {
@@ -256,29 +343,43 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
         } else {
           prefs.remove('cached_library_logo_url');
         }
-        if (_welcomeController.text.trim().isNotEmpty) {
-          prefs.setString('cached_library_tagline', _welcomeController.text.trim());
+        if (tagline.isNotEmpty) {
+          prefs.setString('cached_library_tagline', tagline);
         }
-      } catch (_) {}
+      } catch (_) { /* intentionally silent */ }
 
       // Invalidate cached library data
       ref.invalidate(currentLibraryProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Library profile updated successfully!'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text('Library profile updated successfully!'),
+              ],
+            ),
+            backgroundColor: Color(0xFF15803D),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update library profile. Please check your network and try again.')),
+          SnackBar(
+            content: Text('Failed to update library profile: $e'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
-
-    if (mounted) setState(() => _isSaving = false);
   }
 
   ImageProvider? _getLogoImage() {
@@ -290,20 +391,321 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
     return NetworkImage(_logoUrl!);
   }
 
+  Future<void> _showAddCustomFacilityDialog() async {
+    final customCtrl = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Facility / Amenity'),
+        content: TextField(
+          controller: customCtrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Facility Name',
+            hintText: 'e.g. Dedicated Discussion Room',
+            border: OutlineInputBorder(),
+          ),
+          textCapitalization: TextCapitalization.words,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, customCtrl.text.trim()),
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    if (result != null && result.isNotEmpty && mounted) {
+      setState(() {
+        if (!_selectedFacilities.contains(result)) {
+          _selectedFacilities.add(result);
+        }
+      });
+    }
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
-    _addressController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    _welcomeController.dispose();
-    _hoursController.dispose();
-    _whatsappController.dispose();
-    _membershipPrefixController.dispose();
     _taglineController.dispose();
+    _membershipPrefixController.dispose();
+    _hoursController.dispose();
+    _phoneController.dispose();
+    _whatsappController.dispose();
+    _emailController.dispose();
+    _addressController.dispose();
+    _adminNameController.dispose();
+    _ownerNameController.dispose();
+    _managerNameController.dispose();
+    _managerContactController.dispose();
+    _welcomeController.dispose();
+    _upiIdController.dispose();
     _whatsappTemplateController.dispose();
     _receiptFooterController.dispose();
     super.dispose();
+  }
+
+  List<Widget> _buildCategorizedFacilities(ThemeData theme) {
+    const facilityCategories = <String, List<Map<String, dynamic>>>{
+      'Study Ambience & Environment': [
+        {'name': 'Silent Study Zone', 'icon': Icons.volume_off_rounded},
+        {'name': 'Ergonomic Chairs', 'icon': Icons.chair_rounded},
+        {'name': 'Air Conditioning (AC)', 'icon': Icons.ac_unit_rounded},
+      ],
+      'Power & Connectivity': [
+        {'name': 'High-Speed Wi-Fi', 'icon': Icons.wifi_rounded},
+        {'name': 'Power Sockets at Desk', 'icon': Icons.power_rounded},
+      ],
+      'Safety & Refreshments': [
+        {'name': 'Purified RO Water', 'icon': Icons.water_drop_rounded},
+        {'name': 'CCTV Surveillance', 'icon': Icons.videocam_rounded},
+        {'name': 'Pantry & Cafeteria', 'icon': Icons.coffee_rounded},
+      ],
+      'Convenience & Amenities': [
+        {'name': 'Personal Locker', 'icon': Icons.lock_rounded},
+        {'name': 'Two-Wheeler / Car Parking', 'icon': Icons.local_parking_rounded},
+        {'name': 'Daily Newspapers & Magazines', 'icon': Icons.menu_book_rounded},
+      ],
+    };
+
+    final standardNames = _standardFacilities.toSet();
+
+    final customFacilities = _selectedFacilities
+        .where((f) => !standardNames.contains(f))
+        .toList();
+
+    final widgets = <Widget>[];
+
+    facilityCategories.forEach((categoryTitle, items) {
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 8.0, bottom: 6.0),
+          child: Row(
+            children: [
+              Container(
+                width: 3,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                categoryTitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.3,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      widgets.add(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: items.map((item) {
+            final name = item['name'] as String;
+            final icon = item['icon'] as IconData;
+            final isSelected = _selectedFacilities.contains(name);
+
+            return FilterChip(
+              selected: isSelected,
+              showCheckmark: true,
+              avatar: isSelected ? null : Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+              label: Text(
+                name,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+                ),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(
+                  color: isSelected
+                      ? theme.colorScheme.primary.withValues(alpha: 0.7)
+                      : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ),
+              ),
+              selectedColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+              checkmarkColor: theme.colorScheme.primary,
+              onSelected: (selected) {
+                setState(() {
+                  if (selected) {
+                    if (!_selectedFacilities.contains(name)) _selectedFacilities.add(name);
+                  } else {
+                    _selectedFacilities.remove(name);
+                  }
+                });
+              },
+            );
+          }).toList(),
+        ),
+      );
+
+      widgets.add(const SizedBox(height: 8));
+    });
+
+    if (customFacilities.isNotEmpty) {
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 8.0, bottom: 6.0),
+          child: Row(
+            children: [
+              Container(
+                width: 3,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: Colors.teal,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Custom Organization Amenities',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.3,
+                  color: Colors.teal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      widgets.add(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: customFacilities.map((name) {
+            return Chip(
+              label: Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              deleteIcon: const Icon(Icons.close_rounded, size: 16),
+              onDeleted: () {
+                setState(() => _selectedFacilities.remove(name));
+              },
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: Colors.teal.withValues(alpha: 0.5)),
+              ),
+              backgroundColor: Colors.teal.withValues(alpha: 0.12),
+            );
+          }).toList(),
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
+  Widget _buildTwoColRow({required Widget left, required Widget right}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth > 560) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: left),
+              const SizedBox(width: 14),
+              Expanded(child: right),
+            ],
+          );
+        } else {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              left,
+              const SizedBox(height: 12),
+              right,
+            ],
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildBentoCard({
+    required ThemeData theme,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    Widget? trailing,
+    required List<Widget> children,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ?trailing,
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...children,
+        ],
+      ),
+    );
   }
 
   @override
@@ -312,239 +714,661 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
     final hasLogo = _logoUrl != null && _logoUrl!.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Library Profile')),
+      appBar: AppBar(
+        title: const Text('Library Profile'),
+        actions: [
+          if (!_isLoading)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: TextButton.icon(
+                onPressed: _isSaving ? null : _saveProfile,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_circle_outline_rounded, size: 18),
+                label: const Text('Save Profile'),
+              ),
+            ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16.0),
-                children: [
-                  // Logo Picker
-                  Center(
-                    child: Stack(
-                      children: [
-                        GestureDetector(
-                          onTap: hasLogo
-                              ? () => ImageService.showImageViewer(
-                                    context,
-                                    imageUrl: _logoUrl,
-                                    title: 'Library Logo',
-                                  )
-                              : _pickLogo,
-                          child: CircleAvatar(
-                            radius: 54,
-                            backgroundColor: theme.colorScheme.primaryContainer,
-                            backgroundImage: _getLogoImage(),
-                            child: !hasLogo
-                                ? Text(
-                                    _nameController.text.isNotEmpty ? _nameController.text[0].toUpperCase() : '?',
-                                    style: TextStyle(fontSize: 44, color: theme.colorScheme.primary),
-                                  )
-                                : null,
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 840),
+                child: Form(
+                  key: _formKey,
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+                    children: [
+                      // ── Hero Logo & Institutional Branding Card ──────────
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
+                              theme.colorScheme.surface,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: theme.colorScheme.primary.withValues(alpha: 0.05),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        if (_isUploadingLogo)
-                          const Positioned.fill(
-                            child: CircleAvatar(
-                              backgroundColor: Colors.black45,
-                              child: CircularProgressIndicator(color: Colors.white),
+                        child: Column(
+                          children: [
+                            Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                GestureDetector(
+                                  onTap: hasLogo
+                                      ? () => ImageService.showImageViewer(
+                                            context,
+                                            imageUrl: _logoUrl,
+                                            title: 'Library Logo',
+                                          )
+                                      : _pickLogo,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: theme.colorScheme.primary,
+                                        width: 2.5,
+                                      ),
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: 52,
+                                      backgroundColor: theme.colorScheme.primaryContainer,
+                                      backgroundImage: _getLogoImage(),
+                                      child: !hasLogo
+                                          ? Text(
+                                              _nameController.text.isNotEmpty
+                                                  ? _nameController.text[0].toUpperCase()
+                                                  : 'CC',
+                                              style: TextStyle(
+                                                fontSize: 42,
+                                                fontWeight: FontWeight.bold,
+                                                color: theme.colorScheme.primary,
+                                              ),
+                                            )
+                                          : null,
+                                    ),
+                                  ),
+                                ),
+                                if (_isUploadingLogo)
+                                  const Positioned.fill(
+                                    child: CircleAvatar(
+                                      backgroundColor: Colors.black45,
+                                      child: CircularProgressIndicator(color: Colors.white),
+                                    ),
+                                  ),
+                                Positioned(
+                                  bottom: 4,
+                                  right: 4,
+                                  child: Material(
+                                    color: theme.colorScheme.primary,
+                                    shape: const CircleBorder(),
+                                    elevation: 4,
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: _pickLogo,
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(8.0),
+                                        child: Icon(Icons.camera_alt_rounded, size: 18, color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _nameController.text.isNotEmpty ? _nameController.text : 'The Cozy Corner Study Centre',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            if (_taglineController.text.isNotEmpty) ...[
+                              const SizedBox(height: 3),
+                              Text(
+                                _taglineController.text,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 4),
+                            Text(
+                              'Visual brand across student portals, dynamic receipts & printed ID passes',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 8,
+                              alignment: WrapAlignment.center,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: _pickLogo,
+                                  icon: const Icon(Icons.upload_rounded, size: 16),
+                                  label: Text(hasLogo ? 'Change Library Logo' : 'Upload Library Logo'),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                if (hasLogo)
+                                  TextButton.icon(
+                                    onPressed: () => setState(() => _logoUrl = null),
+                                    icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red),
+                                    label: const Text('Remove Logo', style: TextStyle(color: Colors.red, fontSize: 12)),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // ── 1. Basic Identity & Branding ─────────────────────
+                      _buildBentoCard(
+                        theme: theme,
+                        icon: Icons.apartment_rounded,
+                        iconColor: theme.colorScheme.primary,
+                        title: 'Basic Identity & Branding',
+                        subtitle: 'Official library naming, institutional tagline, prefix and daily hours',
+                        children: [
+                          TextFormField(
+                            controller: _nameController,
+                            decoration: const InputDecoration(
+                              labelText: 'Library Name *',
+                              hintText: 'e.g. The Cozy Corner Study Centre',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.business_rounded),
+                            ),
+                            textCapitalization: TextCapitalization.words,
+                            validator: (v) => AppValidators.name(v, required: true, label: 'Library Name'),
+                          ),
+                          const SizedBox(height: 14),
+                          _buildTwoColRow(
+                            left: TextFormField(
+                              controller: _taglineController,
+                              decoration: const InputDecoration(
+                                labelText: 'Tagline / Motto',
+                                hintText: 'e.g. Smart Study Center & Silent Reading Hall',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.format_quote_rounded),
+                                helperText: 'Displayed on student mobile login, QR posters & receipts',
+                              ),
+                              maxLength: 80,
+                            ),
+                            right: TextFormField(
+                              controller: _membershipPrefixController,
+                              decoration: const InputDecoration(
+                                labelText: 'Membership ID Prefix',
+                                hintText: 'e.g. CC',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.badge_outlined),
+                                helperText: 'Generates prefixed IDs like CC20260001',
+                              ),
+                              textCapitalization: TextCapitalization.characters,
+                              maxLength: 4,
                             ),
                           ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Material(
-                            color: theme.colorScheme.primary,
-                            shape: const CircleBorder(),
-                            elevation: 4,
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: _pickLogo,
-                              child: const Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: Icon(Icons.camera_alt_rounded, size: 20, color: Colors.white),
+                          const SizedBox(height: 4),
+                          TextFormField(
+                            controller: _hoursController,
+                            decoration: const InputDecoration(
+                              labelText: 'Operating Hours',
+                              hintText: 'e.g. 06:00 AM – 11:00 PM',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.schedule_rounded),
+                              helperText: 'Displayed on the entrance QR poster and student admission passes',
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // ── 2. Contact & Physical Location ────────────────────
+                      _buildBentoCard(
+                        theme: theme,
+                        icon: Icons.contact_phone_rounded,
+                        iconColor: const Color(0xFF047857),
+                        title: 'Contact & Physical Location',
+                        subtitle: 'Official helpline, WhatsApp notifications channel, and physical address',
+                        children: [
+                          _buildTwoColRow(
+                            left: TextFormField(
+                              controller: _phoneController,
+                              decoration: const InputDecoration(
+                                labelText: 'Primary Helpline / Phone *',
+                                hintText: '9403243830',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.phone_in_talk_outlined),
+                                helperText: 'Primary official number printed on receipts & posters',
+                              ),
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: AppValidators.phoneFormatters,
+                              validator: (v) => AppValidators.phone(v, required: true, label: 'Contact Phone'),
+                            ),
+                            right: TextFormField(
+                              controller: _emailController,
+                              decoration: const InputDecoration(
+                                labelText: 'Official Email',
+                                hintText: 'e.g. thecozycornersc@gmail.com',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.email_outlined),
+                                helperText: 'For official invoices and administrative notices',
+                              ),
+                              keyboardType: TextInputType.emailAddress,
+                              validator: (v) => AppValidators.email(v, required: false, label: 'Contact Email'),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          // Clean WhatsApp Sync Toggle
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: _sameAsWhatsApp,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _sameAsWhatsApp = val ?? true;
+                                      if (_sameAsWhatsApp) {
+                                        _whatsappController.text = _phoneController.text;
+                                      }
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _sameAsWhatsApp = !_sameAsWhatsApp;
+                                        if (_sameAsWhatsApp) {
+                                          _whatsappController.text = _phoneController.text;
+                                        }
+                                      });
+                                    },
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Use same number for WhatsApp Broadcasts',
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                        ),
+                                        Text(
+                                          _sameAsWhatsApp
+                                              ? 'Welcome alerts and renewal receipts will be sent from ${_phoneController.text.isNotEmpty ? _phoneController.text : "the helpline"}'
+                                              : 'Custom separate WhatsApp number configured below',
+                                          style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!_sameAsWhatsApp) ...[
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _whatsappController,
+                              decoration: const InputDecoration(
+                                labelText: 'Dedicated WhatsApp Number',
+                                hintText: 'e.g. 9403243830',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.chat_outlined),
+                                helperText: 'Direct WhatsApp API sender phone number',
+                              ),
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: AppValidators.phoneFormatters,
+                              validator: (v) => _sameAsWhatsApp
+                                  ? null
+                                  : AppValidators.phone(v, required: true, label: 'WhatsApp Number'),
+                            ),
+                          ],
+                          const SizedBox(height: 14),
+                          TextFormField(
+                            controller: _addressController,
+                            decoration: const InputDecoration(
+                              labelText: 'Physical Address',
+                              hintText: 'e.g. Front Of Reliance Fashion Factory, Nath Road, Parli-431515',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.location_on_outlined),
+                              helperText: 'Displayed on invoices, entrance posters & digital ID cards',
+                            ),
+                            maxLines: 2,
+                            validator: (v) => AppValidators.address(v, required: false, label: 'Address'),
+                          ),
+                        ],
+                      ),
+
+                      // ── 3. Personnel & Administration ─────────────────────
+                      _buildBentoCard(
+                        theme: theme,
+                        icon: Icons.badge_rounded,
+                        iconColor: Colors.blue.shade700,
+                        title: 'Personnel & Administration',
+                        subtitle: 'Primary administrator details and optional staff desk contacts',
+                        children: [
+                          TextFormField(
+                            controller: _adminNameController,
+                            decoration: const InputDecoration(
+                              labelText: 'Administrator / Owner Name *',
+                              hintText: 'e.g. Sanket Shahane',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.person_outline_rounded),
+                              helperText: 'Displayed as authorized signatory and primary admin contact',
+                            ),
+                            textCapitalization: TextCapitalization.words,
+                            validator: (v) => AppValidators.name(v, required: true, label: 'Admin Name'),
+                          ),
+                          const SizedBox(height: 12),
+                          // Optional Manager / Supervisor Expansion
+                          Container(
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                            ),
+                            child: Theme(
+                              data: theme.copyWith(dividerColor: Colors.transparent),
+                              child: ExpansionTile(
+                                initiallyExpanded: _showManagerDetails,
+                                onExpansionChanged: (exp) => setState(() => _showManagerDetails = exp),
+                                leading: Icon(Icons.support_agent_rounded, size: 20, color: Colors.teal.shade700),
+                                title: const Text(
+                                  'Add Dedicated Manager / Staff (Optional)',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Text(
+                                  _showManagerDetails
+                                      ? 'Custom supervisor phone shown in student emergency rails'
+                                      : 'Tap to configure separate shift manager or receptionist',
+                                  style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                                ),
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                                    child: _buildTwoColRow(
+                                      left: TextFormField(
+                                        controller: _managerNameController,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Manager Name',
+                                          hintText: 'e.g. Rahul Deshmukh',
+                                          border: OutlineInputBorder(),
+                                          prefixIcon: Icon(Icons.person_pin_outlined),
+                                          isDense: true,
+                                        ),
+                                        textCapitalization: TextCapitalization.words,
+                                      ),
+                                      right: TextFormField(
+                                        controller: _managerContactController,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Manager Phone',
+                                          hintText: 'e.g. 9876543210',
+                                          border: OutlineInputBorder(),
+                                          prefixIcon: Icon(Icons.phone_outlined),
+                                          isDense: true,
+                                        ),
+                                        keyboardType: TextInputType.phone,
+                                        inputFormatters: AppValidators.phoneFormatters,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: _pickLogo,
-                      icon: const Icon(Icons.upload_rounded, size: 18),
-                      label: Text(hasLogo ? 'Change Library Logo' : 'Upload Library Logo'),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                        ],
+                      ),
 
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Library Name',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.business),
-                    ),
-                    validator: (v) => v!.trim().isEmpty ? 'Required' : null,
+                      // ── 4. Study Privileges & Facilities (Arranged to Industry Standards) ──
+                      _buildBentoCard(
+                        theme: theme,
+                        icon: Icons.room_service_rounded,
+                        iconColor: Colors.amber.shade800,
+                        title: 'Study Privileges & Facilities',
+                        subtitle: 'Check ONLY amenities provided. Categorized according to study centre standards.',
+                        trailing: OutlinedButton.icon(
+                          onPressed: _showAddCustomFacilityDialog,
+                          icon: const Icon(Icons.add_rounded, size: 16),
+                          label: const Text('Add Custom', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                        children: [
+                          // Industry Standard Categories
+                          ..._buildCategorizedFacilities(theme),
+                        ],
+                      ),
+
+                      // ── 5. Quick Links to Dedicated Configuration Hubs ─────
+                      _buildBentoCard(
+                        theme: theme,
+                        icon: Icons.tune_rounded,
+                        iconColor: const Color(0xFF6366F1),
+                        title: 'Dedicated System Configurations',
+                        subtitle: 'Manage specialized payment gateways, invoices, and automated communications',
+                        children: [
+                          // 1. Payment Methods Hub Link
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF059669).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.payment_rounded, color: Color(0xFF059669), size: 20),
+                            ),
+                            title: const Text('Payment Methods & UPI Gateway', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                            subtitle: Text(
+                              _upiIdController.text.isNotEmpty
+                                  ? 'Active UPI ID: ${_upiIdController.text}'
+                                  : 'Configure dynamic UPI QR, Cash on desk & bank accounts',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+                            onTap: () => context.push(Routes.adminPaymentMethods),
+                          ),
+                          const Divider(height: 1),
+                          // 2. Receipt Template Customizer Link
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD97706).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.receipt_long_rounded, color: Color(0xFFD97706), size: 20),
+                            ),
+                            title: const Text('Receipt & Invoice Layout Customizer', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Customize invoice headers, GSTIN, terms & conditions', style: TextStyle(fontSize: 11)),
+                            trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+                            onTap: () => context.push(Routes.adminReceiptTemplate),
+                          ),
+                          const Divider(height: 1),
+                          // 3. Communications Hub Link
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.hub_rounded, color: Color(0xFF2563EB), size: 20),
+                            ),
+                            title: const Text('Communications & Automation Hub', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Broadcasts, automated renewal alerts, and notification channels', style: TextStyle(fontSize: 11)),
+                            trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+                            onTap: () => context.push(Routes.adminCommunications),
+                          ),
+                          const SizedBox(height: 10),
+                          // Optional In-Place Template Overrides (Clean Accordion)
+                          Container(
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                            ),
+                            child: Theme(
+                              data: theme.copyWith(dividerColor: Colors.transparent),
+                              child: ExpansionTile(
+                                leading: const Icon(Icons.code_rounded, size: 18),
+                                title: const Text('Advanced In-Place Template Overrides', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                                subtitle: const Text('Edit WhatsApp raw template, receipt footer & expiry alerts directly', style: TextStyle(fontSize: 10.5)),
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        TextFormField(
+                                          controller: _upiIdController,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Library UPI ID / VPA',
+                                            hintText: 'e.g. 7276959070@upi',
+                                            border: OutlineInputBorder(),
+                                            prefixIcon: Icon(Icons.qr_code_2_rounded),
+                                            isDense: true,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        const Text('WhatsApp Welcome Template', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                        const SizedBox(height: 4),
+                                        TextFormField(
+                                          controller: _whatsappTemplateController,
+                                          maxLines: 4,
+                                          decoration: const InputDecoration(
+                                            hintText: MessageTemplateService.defaultWelcomeTemplate,
+                                            border: OutlineInputBorder(),
+                                            isDense: true,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Wrap(
+                                          spacing: 4,
+                                          runSpacing: 4,
+                                          children: MessageTemplateService.availableVariables.take(8).map((v) => ActionChip(
+                                            label: Text(v, style: const TextStyle(fontSize: 10)),
+                                            padding: EdgeInsets.zero,
+                                            onPressed: () {
+                                              final ctrl = _whatsappTemplateController;
+                                              final selection = ctrl.selection;
+                                              final newText = ctrl.text.replaceRange(
+                                                selection.start < 0 ? ctrl.text.length : selection.start,
+                                                selection.end < 0 ? ctrl.text.length : selection.end,
+                                                v,
+                                              );
+                                              ctrl.value = ctrl.value.copyWith(
+                                                text: newText,
+                                                selection: TextSelection.collapsed(
+                                                  offset: (selection.start < 0 ? ctrl.text.length : selection.start) + v.length,
+                                                ),
+                                              );
+                                            },
+                                          )).toList(),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        const Text('Receipt Footer Text', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                        const SizedBox(height: 4),
+                                        TextFormField(
+                                          controller: _receiptFooterController,
+                                          maxLines: 2,
+                                          decoration: const InputDecoration(
+                                            hintText: MessageTemplateService.defaultReceiptFooter,
+                                            border: OutlineInputBorder(),
+                                            isDense: true,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        const Text('Plan Expiry Reminder Window', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                        const SizedBox(height: 4),
+                                        DropdownButtonFormField<String>(
+                                          initialValue: _reminderDays.toString(),
+                                          items: ['3', '5', '7', '10', '14', '30'].map((d) =>
+                                            DropdownMenuItem(value: d, child: Text('$d days before expiry'))
+                                          ).toList(),
+                                          onChanged: (v) => setState(() => _reminderDays = int.tryParse(v ?? '7') ?? 7),
+                                          decoration: const InputDecoration(
+                                            border: OutlineInputBorder(),
+                                            prefixIcon: Icon(Icons.alarm_rounded),
+                                            isDense: true,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // ── Primary Bottom Save Action ────────────────────────
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: FilledButton.icon(
+                          onPressed: _isSaving ? null : _saveProfile,
+                          icon: _isSaving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.save_rounded, size: 20),
+                          label: Text(
+                            _isSaving ? 'Saving Profile...' : 'Save Library Profile',
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                          style: FilledButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _addressController,
-                    decoration: const InputDecoration(
-                      labelText: 'Address',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.location_on),
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _phoneController,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone / Contact Number',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.phone),
-                    ),
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _welcomeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Welcome Message',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.message),
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _hoursController,
-                    decoration: const InputDecoration(
-                      labelText: 'Operating Hours',
-                      hintText: 'e.g. 7:00 AM - 11:00 PM',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.schedule),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _whatsappController,
-                    decoration: const InputDecoration(
-                      labelText: 'WhatsApp Number',
-                      hintText: 'e.g. 9876543210',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.chat_rounded),
-                      helperText: 'Used to send welcome messages to approved students',
-                    ),
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _membershipPrefixController,
-                    decoration: const InputDecoration(
-                      labelText: 'Membership ID Prefix',
-                      hintText: 'e.g. CC (generates CC20260001)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.badge_rounded),
-                      helperText: 'Short 2–4 letter code used to prefix membership numbers',
-                    ),
-                    textCapitalization: TextCapitalization.characters,
-                    maxLength: 4,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _taglineController,
-                    decoration: const InputDecoration(
-                      labelText: 'Library Tagline',
-                      hintText: 'e.g. Your Focus, Our Responsibility',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.format_quote_rounded),
-                      helperText: 'Shown below library name on the login screen',
-                    ),
-                    maxLength: 80,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('WhatsApp Welcome Message Template', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 4),
-                  TextFormField(
-                    controller: _whatsappTemplateController,
-                    maxLines: 6,
-                    decoration: const InputDecoration(
-                      hintText: MessageTemplateService.defaultWelcomeTemplate,
-                      helperText: 'Leave blank to use the default message',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: MessageTemplateService.availableVariables.map((v) => ActionChip(
-                      label: Text(v, style: const TextStyle(fontSize: 11)),
-                      onPressed: () {
-                        final ctrl = _whatsappTemplateController;
-                        final selection = ctrl.selection;
-                        final newText = ctrl.text.replaceRange(
-                          selection.start < 0 ? ctrl.text.length : selection.start,
-                          selection.end < 0 ? ctrl.text.length : selection.end,
-                          v,
-                        );
-                        ctrl.value = ctrl.value.copyWith(
-                          text: newText,
-                          selection: TextSelection.collapsed(offset: (selection.start < 0 ? ctrl.text.length : selection.start) + v.length),
-                        );
-                      },
-                    )).toList(),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Receipt Footer Text', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 4),
-                  TextFormField(
-                    controller: _receiptFooterController,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      hintText: MessageTemplateService.defaultReceiptFooter,
-                      helperText: 'Appears at the bottom of every receipt. Supports {libraryName}.',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Plan Expiry Reminder (days before)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 4),
-                  DropdownButtonFormField<String>(
-                    // ignore: deprecated_member_use
-                     value: _reminderDays,
-                    items: ['3', '5', '7', '10', '14', '30'].map((d) =>
-                      DropdownMenuItem(value: d, child: Text('$d days before expiry'))
-                    ).toList(),
-                    onChanged: (v) => setState(() => _reminderDays = v ?? '7'),
-                    decoration: const InputDecoration(border: OutlineInputBorder(), prefixIcon: Icon(Icons.alarm)),
-                  ),
-                  const SizedBox(height: 32),
-                  FilledButton(
-                    onPressed: _isSaving ? null : _saveProfile,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: _isSaving
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text('Save Profile'),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
     );

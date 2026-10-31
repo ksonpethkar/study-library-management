@@ -91,7 +91,7 @@ class MessagingHubService {
           .get();
       return MessagingConfig.fromMap(doc.data());
     } catch (e) {
-      debugPrint('Error loading messaging config: $e');
+      if (kDebugMode) debugPrint('Error loading messaging config: $e');
       return const MessagingConfig();
     }
   }
@@ -108,7 +108,7 @@ class MessagingHubService {
           .set(config.toMap(), SetOptions(merge: true));
       return true;
     } catch (e) {
-      debugPrint('Error saving messaging config: $e');
+      if (kDebugMode) debugPrint('Error saving messaging config: $e');
       return false;
     }
   }
@@ -140,7 +140,7 @@ class MessagingHubService {
         );
         results['sms'] = smsSuccess;
       } catch (e) {
-        debugPrint('Dispatch SMS error: $e');
+        if (kDebugMode) debugPrint('Dispatch SMS error: $e');
         results['sms'] = false;
       }
     }
@@ -160,7 +160,7 @@ class MessagingHubService {
         );
         results['telegram'] = tgSuccess;
       } catch (e) {
-        debugPrint('Dispatch Telegram error: $e');
+        if (kDebugMode) debugPrint('Dispatch Telegram error: $e');
         results['telegram'] = false;
       }
     }
@@ -181,7 +181,7 @@ class MessagingHubService {
         );
         results['local_bridge'] = bridgeSuccess;
       } catch (e) {
-        debugPrint('Dispatch Local Bridge error: $e');
+        if (kDebugMode) debugPrint('Dispatch Local Bridge error: $e');
         results['local_bridge'] = false;
       }
     }
@@ -199,7 +199,7 @@ class MessagingHubService {
         );
         results['webhook'] = true;
       } catch (e) {
-        debugPrint('Dispatch Webhook error: $e');
+        if (kDebugMode) debugPrint('Dispatch Webhook error: $e');
         results['webhook'] = false;
       }
     }

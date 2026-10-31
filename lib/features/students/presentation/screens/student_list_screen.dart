@@ -1,25 +1,24 @@
+import 'package:study_library/services/whatsapp_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
-import 'package:printing/printing.dart';
 import '../providers/student_providers.dart';
 import '../../../../core/providers/library_provider.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/models/student_model.dart';
-import 'package:study_library/models/id_card_template_model.dart';
-import 'package:study_library/services/id_card_pdf_service.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:study_library/features/settings/presentation/screens/id_card_customizer_screen.dart';
 import 'package:study_library/core/widgets/loading_skeleton.dart';
 
 class StudentListScreen extends ConsumerStatefulWidget {
-  const StudentListScreen({super.key});
+  final String? initialFilter;
+  const StudentListScreen({super.key, this.initialFilter});
 
   @override
   ConsumerState<StudentListScreen> createState() => _StudentListScreenState();
@@ -33,16 +32,85 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
   Timer? _debounce;
   String _selectedFilter = 'All';
   Set<String> _selectedStudentIds = {};
+  final Set<String> _swipeThresholdReached = {};
   bool _isSelectionMode = false;
   late final ScrollController _scrollController;
   
-  final List<String> _filters = ['All', 'Active', 'Expired', 'Grace', 'Pending', 'Archived'];
+  final List<String> _filters = [
+    'All',
+    'Active',
+    'Due Soon',
+    'Has Dues',
+    'Expired',
+    'Grace',
+    'Pending',
+    'Archived',
+  ];
+
+  static String _normalizeFilter(String? raw) {
+    if (raw == null || raw.isEmpty) return 'All';
+    final lower = raw.toLowerCase().trim();
+    if (lower == 'renewals_due' || lower == 'renew in 7d' || lower == 'due soon' || lower == 'due_soon' || lower == 'expiring') {
+      return 'Due Soon';
+    }
+    if (lower == 'has dues' || lower == 'has_dues' || lower == 'defaulters' || lower == 'dues') {
+      return 'Has Dues';
+    }
+    if (lower == 'active') return 'Active';
+    if (lower == 'expired') return 'Expired';
+    if (lower == 'grace') return 'Grace';
+    if (lower == 'pending') return 'Pending';
+    if (lower == 'archived' || lower == 'blocked') return 'Archived';
+    return 'All';
+  }
+
+  bool _matchesFilter(StudentModel s, String filter) {
+    final now = DateTime.now();
+    final next7Days = now.add(const Duration(days: 7));
+    switch (filter) {
+      case 'All':
+        return true;
+      case 'Due Soon':
+        final e = s.planEndDate;
+        return s.membershipStatus == MembershipStatus.active &&
+            e != null &&
+            !e.isBefore(now.subtract(const Duration(days: 1))) &&
+            !e.isAfter(next7Days);
+      case 'Has Dues':
+        return (s.pendingDueBalance ?? 0) > 0;
+      case 'Active':
+        return s.membershipStatus == MembershipStatus.active;
+      case 'Expired':
+        return s.membershipStatus == MembershipStatus.expired;
+      case 'Grace':
+        return s.membershipStatus == MembershipStatus.grace;
+      case 'Pending':
+        return s.membershipStatus == MembershipStatus.pending;
+      case 'Archived':
+        return s.membershipStatus == MembershipStatus.archived || s.membershipStatus == MembershipStatus.blocked;
+      default:
+        return s.membershipStatus.name.toLowerCase() == filter.toLowerCase();
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    if (widget.initialFilter != null && widget.initialFilter!.isNotEmpty) {
+      _selectedFilter = _normalizeFilter(widget.initialFilter);
+    }
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void didUpdateWidget(covariant StudentListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialFilter != null && widget.initialFilter != oldWidget.initialFilter) {
+      setState(() {
+        _selectedFilter = _normalizeFilter(widget.initialFilter);
+      });
+    }
   }
 
   void _onScroll() {
@@ -141,36 +209,12 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
               onPressed: () => ref.read(studentPageProvider.notifier).refresh(),
             ),
             IconButton(
-              icon: const Icon(Icons.badge_rounded),
-              tooltip: 'Print All ID Cards (A4 Sheets)',
-              onPressed: () {
-                final all = studentState.students;
-                if (all.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('No students found to print.')),
-                  );
-                  return;
-                }
-                _printBulkIdCards(all);
-              },
-            ),
-            IconButton(
               icon: const Icon(Icons.upload_file),
               tooltip: 'Import CSV',
               onPressed: () => context.push('/admin/students/import'),
             ),
           ],
           if (_isSelectionMode) ...[
-            IconButton(
-              icon: const Icon(Icons.badge_rounded),
-              tooltip: 'Print Selected ID Cards',
-              onPressed: () {
-                final all = studentState.students;
-                final selected = all.where((s) => _selectedStudentIds.contains(s.id)).toList();
-                if (selected.isEmpty) return;
-                _printBulkIdCards(selected);
-              },
-            ),
             IconButton(
               icon: const Icon(Icons.person_off_outlined),
               tooltip: 'Deactivate selected',
@@ -264,10 +308,16 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
           Expanded(
             child: Builder(
               builder: (context) {
-                if (studentState.isLoading && studentState.students.isEmpty && !_isSearching) {
+                // Resolve students with stream fallback to prevent false errors
+                final streamStudents = ref.watch(studentsStreamProvider).value;
+                final students = studentState.students.isNotEmpty
+                    ? studentState.students
+                    : (streamStudents ?? []);
+
+                if (studentState.isLoading && students.isEmpty && !_isSearching) {
                   return const StudentListSkeleton(count: 6);
                 }
-                if (studentState.error != null && studentState.students.isEmpty) {
+                if (studentState.error != null && students.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -283,15 +333,8 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                     ),
                   );
                 }
-
-                // Apply search and filter
-                final students = studentState.students;
                 final searchResults = _searchResults ?? _filteredStudents(students);
-                var filtered = searchResults.where((s) {
-                  final matchesFilter = _selectedFilter == 'All' || 
-                                        s.membershipStatus.name.toLowerCase() == _selectedFilter.toLowerCase();
-                  return matchesFilter;
-                }).toList();
+                var filtered = searchResults.where((s) => _matchesFilter(s, _selectedFilter)).toList();
 
                 if (students.isEmpty) {
                   return Center(
@@ -321,7 +364,15 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                       children: [
                         Icon(Icons.search_off_rounded, size: 64, color: theme.colorScheme.outline),
                         const SizedBox(height: 16),
-                        Text('No matching students', style: theme.textTheme.titleMedium),
+                        Text(_selectedFilter == 'Due Soon' ? 'No students due for renewal' : (_selectedFilter == 'Has Dues' ? 'No students with pending dues' : 'No matching students'), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        if (_selectedFilter != 'All') ...[
+                          const SizedBox(height: 12),
+                          FilledButton.tonalIcon(
+                            onPressed: () => setState(() => _selectedFilter = 'All'),
+                            icon: const Icon(Icons.people_alt_rounded),
+                            label: const Text('Show All Students'),
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         Text('Try changing your search or filter', style: theme.textTheme.bodyMedium),
                       ],
@@ -370,45 +421,121 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
                       final student = filtered[index];
                       final isSelected = _selectedStudentIds.contains(student.id);
 
-                      return PressableScale(
-                        onTap: () {
-                          if (_isSelectionMode) {
-                            setState(() {
-                              isSelected ? _selectedStudentIds.remove(student.id) : _selectedStudentIds.add(student.id);
-                              if (_selectedStudentIds.isEmpty) _isSelectionMode = false;
-                            });
-                          } else {
-                            context.go('/admin/students/${student.id}');
-                          }
-                        },
-                        onLongPress: () {
-                          setState(() {
-                            _isSelectionMode = true;
-                            _selectedStudentIds.add(student.id);
-                          });
-                        },
-                        child: Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: ImageService.getImageProvider(student.photoUrl),
-                              child: ImageService.getImageProvider(student.photoUrl) == null
-                                  ? Text(student.name.isNotEmpty ? student.name[0].toUpperCase() : '?')
-                                  : null,
-                            ),
-                            title: Text(student.name),
-                            subtitle: Text('${student.membershipNumber != null ? "#${student.membershipNumber} \u2022 " : ''}${student.phone} \u2022 ${student.membershipStatus.name}'),
-                            trailing: _isSelectionMode
-                                ? Icon(isSelected ? Icons.check_circle : Icons.circle_outlined,
-                                    color: isSelected ? theme.colorScheme.primary : null)
-                                : Chip(
-                                    label: Text(student.membershipStatus.name,
-                                      style: const TextStyle(fontSize: 11)),
+                      return _isSelectionMode
+                          ? PressableScale(
+                              scaleFactor: 0.98,
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  isSelected
+                                      ? _selectedStudentIds.remove(student.id)
+                                      : _selectedStudentIds.add(student.id);
+                                  if (_selectedStudentIds.isEmpty) _isSelectionMode = false;
+                                });
+                              },
+                              onLongPress: () {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  _selectedStudentIds.add(student.id);
+                                });
+                              },
+                              child: _buildStudentCardContent(student, isSelected, theme),
+                            )
+                          : Dismissible(
+                              key: ValueKey('student_swipe_${student.id}'),
+                              direction: DismissDirection.horizontal,
+                              dismissThresholds: const {
+                                DismissDirection.startToEnd: 0.35,
+                                DismissDirection.endToStart: 0.35,
+                              },
+                              onUpdate: (details) {
+                                if (details.reached && !_swipeThresholdReached.contains(student.id)) {
+                                  _swipeThresholdReached.add(student.id);
+                                  HapticFeedback.lightImpact();
+                                } else if (!details.reached && _swipeThresholdReached.contains(student.id)) {
+                                  _swipeThresholdReached.remove(student.id);
+                                }
+                              },
+                              confirmDismiss: (direction) async {
+                                _swipeThresholdReached.remove(student.id);
+                                if (direction == DismissDirection.startToEnd) {
+                                  HapticFeedback.mediumImpact();
+                                  _showQuickContactSheet(student);
+                                  return false;
+                                } else if (direction == DismissDirection.endToStart) {
+                                  HapticFeedback.mediumImpact();
+                                  _showFastActionsSheet(student);
+                                  return false;
+                                }
+                                return false;
+                              },
+                              background: Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF059669), Color(0xFF10B981)],
                                   ),
-                            selected: isSelected,
-                          ),
-                        ),
-                      );
+                                ),
+                                alignment: Alignment.centerLeft,
+                                padding: const EdgeInsets.only(left: 20),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.phone_forwarded_rounded, color: Colors.white, size: 22),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Call / WhatsApp',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              secondaryBackground: Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                                  ),
+                                ),
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 20),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'Quick Actions',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Icon(Icons.bolt_rounded, color: Colors.white, size: 24),
+                                  ],
+                                ),
+                              ),
+                              child: PressableScale(
+                                scaleFactor: 0.98,
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  context.go('/admin/students/${student.id}');
+                                },
+                                onLongPress: () {
+                                  HapticFeedback.heavyImpact();
+                                  setState(() {
+                                    _isSelectionMode = true;
+                                    _selectedStudentIds.add(student.id);
+                                  });
+                                },
+                                child: _buildStudentCardContent(student, isSelected, theme),
+                              ),
+                            );
                     },
                   ),
                 );
@@ -578,59 +705,388 @@ class _StudentListScreenState extends ConsumerState<StudentListScreen> {
     setState(() { _isSelectionMode = false; _selectedStudentIds.clear(); });
   }
 
-  Future<void> _printBulkIdCards(List<StudentModel> students) async {
-    if (students.isEmpty) return;
-    final libraryAsync = ref.read(currentLibraryProvider);
-    final library = libraryAsync.value;
-    if (library == null) return;
+  Color _getStatusColor(MembershipStatus status) {
+    switch (status) {
+      case MembershipStatus.active:
+        return const Color(0xFF10B981);
+      case MembershipStatus.grace:
+        return const Color(0xFFF59E0B);
+      case MembershipStatus.expired:
+        return const Color(0xFFEF4444);
+      case MembershipStatus.blocked:
+        return const Color(0xFF7C3AED);
+      case MembershipStatus.pending:
+        return const Color(0xFF0284C7);
+      default:
+        return const Color(0xFF64748B);
+    }
+  }
 
-    final templateAsync = ref.read(idCardTemplateProvider);
-    final settings = templateAsync.value ?? const IdCardTemplateSettings();
-
-    showDialog(
+  void _showQuickContactSheet(StudentModel student) {
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Generating Batch ID Cards (A4 Sheets)...', style: TextStyle(fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text('Packing 4 cards per sheet to save paper', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
-            ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: ImageService.getImageProvider(student.photoUrl),
+                    child: ImageService.getImageProvider(student.photoUrl) == null
+                        ? Text(student.name.isNotEmpty ? student.name[0].toUpperCase() : '?')
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(student.phone, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.phone_rounded, color: Colors.green),
+                ),
+                title: const Text('Direct Phone Call', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text('Call ${student.phone}'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final uri = Uri.parse('tel:${student.phone}');
+                  if (await canLaunchUrl(uri)) await launchUrl(uri);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF25D366).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF25D366)),
+                ),
+                title: const Text('WhatsApp Message', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Open WhatsApp chat'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  if (context.mounted) {
+                    await WhatsAppService().sendMessage(
+                      student.phone,
+                      'Hello ${student.name},\n\nRegards,\nCozy Corner Library',
+                      recipientName: student.name,
+                      title: 'Message ${student.name}',
+                      context: context,
+                    );
+                  }
+                },
+              ),
+            ],
           ),
         ),
       ),
     );
-
-    try {
-      final pdfBytes = await IdCardPdfService.generateBulkIdCards(
-        students: students,
-        library: library,
-        settings: settings,
-      );
-
-      if (mounted) Navigator.pop(context); // close loader
-
-      await Printing.layoutPdf(
-        onLayout: (format) async => pdfBytes,
-        name: 'Batch_Student_ID_Cards.pdf',
-      );
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating batch ID cards: $e')),
-        );
-      }
-    }
   }
+
+  void _showFastActionsSheet(StudentModel student) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: ImageService.getImageProvider(student.photoUrl),
+                    child: ImageService.getImageProvider(student.photoUrl) == null
+                        ? Text(student.name.isNotEmpty ? student.name[0].toUpperCase() : '?')
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text('Status: ${student.membershipStatus.name.toUpperCase()}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.person_outline_rounded, color: Colors.blue),
+                title: const Text('View Full Profile & Dossier'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.go('/admin/students/${student.id}');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.payment_rounded, color: Colors.teal),
+                title: const Text('Record Payment / Collect Due'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/admin/payments/record/${student.id}');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.badge_outlined, color: Colors.purple),
+                title: const Text('View Digital Pass / ID Card'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/admin/id-cards/preview/${student.id}');
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStudentCardContent(StudentModel student, bool isSelected, ThemeData theme) {
+    final statusColor = _getStatusColor(student.membershipStatus);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? theme.colorScheme.primaryContainer.withValues(alpha: isDark ? 0.3 : 0.4)
+            : theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected
+              ? theme.colorScheme.primary
+              : (isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE2E8F0)),
+          width: isSelected ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 5,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(15),
+                    bottomLeft: Radius.circular(15),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: [
+                      Hero(
+                        tag: 'student-avatar-${student.id}',
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 22,
+                              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                              backgroundImage: ImageService.getImageProvider(student.photoUrl),
+                              child: ImageService.getImageProvider(student.photoUrl) == null
+                                  ? Text(
+                                      student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    )
+                                  : null,
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                width: 11,
+                                height: 11,
+                                decoration: BoxDecoration(
+                                  color: statusColor,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: theme.cardColor,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Hero(
+                              tag: 'student-name-${student.id}',
+                              child: Material(
+                                type: MaterialType.transparency,
+                                child: Text(
+                                  student.name,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.2,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                if (student.membershipNumber != null && student.membershipNumber!.isNotEmpty)
+                                  Text(
+                                    '#${student.membershipNumber}',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                Text(
+                                  student.phone,
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                if (student.seatId != null && student.seatId!.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.chair_outlined, size: 10, color: theme.colorScheme.primary),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          student.seatId!.split('_').last.toUpperCase(),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: theme.colorScheme.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (_isSelectionMode)
+                        Icon(
+                          isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
+                          size: 24,
+                        )
+                      else
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if ((student.pendingDueBalance ?? 0) > 0) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withValues(alpha: 0.12),
+                                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Due ₹${student.pendingDueBalance!.toStringAsFixed(0)}',
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.bold,
+                                    fontFeatures: [FontFeature.tabularFigures()],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                            ],
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                student.membershipStatus.name.toUpperCase(),
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 }
 
 /// Quick add student form — inline for now
@@ -776,4 +1232,3 @@ class _AddStudentQuickFormState extends ConsumerState<_AddStudentQuickForm> {
     );
   }
 }
-

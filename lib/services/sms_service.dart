@@ -26,7 +26,7 @@ class SmsService {
   }) async {
     final cleanPhone = sanitizePhone(phone);
     if (cleanPhone.length < 10) {
-      debugPrint('SmsService: Invalid phone number: $phone');
+      if (kDebugMode) debugPrint('SmsService: Invalid phone number: $phone');
       return false;
     }
 
@@ -36,7 +36,7 @@ class SmsService {
         return await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      debugPrint('SmsService error: $e');
+      if (kDebugMode) debugPrint('SmsService error: $e');
     }
     return false;
   }
@@ -88,6 +88,35 @@ class SmsService {
     final message = 'Welcome to $libraryName!\n'
         'Hi $studentName, your library registration is confirmed.$idText$seatText '
         'Happy studying!';
+    return await sendDirectSms(phone: phone, message: message);
+  }
+
+  /// Sends pending dues reminder SMS.
+  Future<bool> sendDueReminderSms({
+    required String phone,
+    required String studentName,
+    required String libraryName,
+    required double dueAmount,
+    String? dueDate,
+  }) async {
+    final dateText = (dueDate != null && dueDate.isNotEmpty) ? ' by $dueDate' : '';
+    final message = 'Fee Reminder:\n'
+        'Hi $studentName, a balance of Rs.${dueAmount.toStringAsFixed(0)} is pending for your membership at $libraryName$dateText. '
+        'Kindly settle at the reception desk. Thank you!';
+    return await sendDirectSms(phone: phone, message: message);
+  }
+
+  /// Sends seat allocation or change SMS.
+  Future<bool> sendSeatAssignedSms({
+    required String phone,
+    required String studentName,
+    required String libraryName,
+    required String seatLabel,
+    required String sectionName,
+  }) async {
+    final message = 'Seat Update:\n'
+        'Hi $studentName, your seat is confirmed at $libraryName: '
+        'Section $sectionName, Seat $seatLabel. Happy studying!';
     return await sendDirectSms(phone: phone, message: message);
   }
 }

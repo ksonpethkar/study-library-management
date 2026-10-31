@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -5,7 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'app_router.dart';
 
 import 'package:study_library/services/inactivity_lock_service.dart';
+import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/core/utils/app_haptics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Stream provider for pending request count shown in the bottom nav badge.
@@ -34,9 +37,12 @@ class _AdminShellState extends ConsumerState<AdminShell> {
   @override
   void initState() {
     super.initState();
-    InactivityLockService.initialize(onLock: () {
-      if (mounted) context.go(Routes.biometricLock);
-    });
+    InactivityLockService.initialize(
+      onLock: () {
+        if (mounted) context.go(Routes.biometricLock);
+      },
+      checkLockEnabled: () => BiometricService.isLockEnabled(isAdmin: true),
+    );
   }
 
   @override
@@ -87,23 +93,38 @@ class _AdminShellState extends ConsumerState<AdminShell> {
                 child: Icon(Icons.person_add_rounded, color: Theme.of(ctx).colorScheme.primary),
               ),
               title: const Text('Add Student'),
+              subtitle: const Text('Register new admission with ID & Desk'),
               onTap: () { Navigator.pop(ctx); context.push(Routes.adminStudentAdd); },
             ),
             ListTile(
               leading: CircleAvatar(
                 backgroundColor: Theme.of(ctx).colorScheme.primaryContainer,
-                child: Icon(Icons.receipt_long_rounded, color: Theme.of(ctx).colorScheme.primary),
+                child: Icon(Icons.payment_rounded, color: Theme.of(ctx).colorScheme.primary),
               ),
-              title: const Text('View Receipts'),
-              onTap: () { Navigator.pop(ctx); context.push(Routes.adminReceipts); },
+              title: const Text('Record Payment'),
+              subtitle: const Text('Collect fees, deposit, or dues from student'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showRecordPaymentPicker(context);
+              },
             ),
             ListTile(
               leading: CircleAvatar(
                 backgroundColor: Theme.of(ctx).colorScheme.primaryContainer,
-                child: Icon(Icons.event_seat_rounded, color: Theme.of(ctx).colorScheme.primary),
+                child: Icon(Icons.meeting_room_rounded, color: Theme.of(ctx).colorScheme.primary),
               ),
-              title: const Text('Add Section'),
+              title: const Text('Add Section / Room'),
+              subtitle: const Text('Create a new study hall, floor or cabin'),
               onTap: () { Navigator.pop(ctx); context.push(Routes.adminSeatsAddSection); },
+            ),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(ctx).colorScheme.primaryContainer,
+                child: Icon(Icons.campaign_rounded, color: Theme.of(ctx).colorScheme.primary),
+              ),
+              title: const Text('Broadcast Notice'),
+              subtitle: const Text('Post announcement to student dashboard'),
+              onTap: () { Navigator.pop(ctx); context.push(Routes.adminAnnouncements); },
             ),
             const SizedBox(height: 8),
           ],
@@ -112,10 +133,117 @@ class _AdminShellState extends ConsumerState<AdminShell> {
     );
   }
 
+  void _showRecordPaymentPicker(BuildContext context) async {
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null || libraryId.isEmpty) return;
+
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .orderBy('name')
+          .limit(100)
+          .get();
+
+      if (!context.mounted) return;
+      final students = snap.docs;
+      if (students.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No students registered yet. Add a student first.')),
+        );
+        return;
+      }
+
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (sheetCtx) {
+          String query = '';
+          return StatefulBuilder(
+            builder: (ctx, setSheetState) {
+              final filtered = students.where((doc) {
+                final d = doc.data();
+                final name = (d['name'] as String? ?? '').toLowerCase();
+                final phone = (d['phone'] as String? ?? '');
+                final q = query.toLowerCase();
+                return name.contains(q) || phone.contains(q);
+              }).toList();
+
+              return DraggableScrollableSheet(
+                expand: false,
+                initialChildSize: 0.7,
+                maxChildSize: 0.9,
+                builder: (ctx, scrollController) {
+                  return Column(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'Search student to record payment...',
+                            prefixIcon: const Icon(Icons.search),
+                            isDense: true,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onChanged: (val) => setSheetState(() => query = val),
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      Expanded(
+                        child: filtered.isEmpty
+                            ? const Center(child: Text('No matching students found'))
+                            : ListView.separated(
+                                controller: scrollController,
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, _) => const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                  final sDoc = filtered[index];
+                                  final data = sDoc.data();
+                                  final sId = sDoc.id;
+                                  final sName = data['name'] as String? ?? 'Student';
+                                  final sPhone = data['phone'] as String? ?? '';
+                                  final sDue = (data['pendingDueBalance'] as num?)?.toDouble() ?? 0.0;
+
+                                  return ListTile(
+                                    leading: CircleAvatar(
+                                      child: Text(sName.isNotEmpty ? sName[0].toUpperCase() : '?'),
+                                    ),
+                                    title: Text(sName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    subtitle: Text('$sPhone${sDue > 0 ? " • Due: ₹${sDue.toStringAsFixed(0)}" : ""}'),
+                                    trailing: const Icon(Icons.chevron_right),
+                                    onTap: () {
+                                      Navigator.pop(sheetCtx);
+                                      context.push('/admin/payments/record/$sId');
+                                    },
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          );
+        },
+      );
+    } catch (_) { /* intentionally silent */ }
+  }
+
   Widget _badgedIcon(IconData icon, int count, {bool selected = false}) {
     return Badge(
       isLabelVisible: count > 0,
-      label: Text(count > 9 ? '9+' : '$count'),
+      label: Text(count > 99 ? '99+' : '$count'),
       child: Icon(selected
           ? (icon == Icons.more_horiz_outlined ? Icons.more_horiz_rounded : icon)
           : icon),
@@ -153,43 +281,68 @@ class _AdminShellState extends ConsumerState<AdminShell> {
         }
       },
       child: Scaffold(
+        extendBody: true,
         body: Listener(
           onPointerDown: (_) => InactivityLockService.recordInteraction(),
           child: widget.child,
         ),
-        floatingActionButton: currentIndex == 3
-            ? null
-            : FloatingActionButton(
+        floatingActionButton: currentIndex == 0
+            ? FloatingActionButton(
                 heroTag: 'admin_fab',
-                onPressed: () => _showQuickActions(context),
+                onPressed: () {
+                  AppHaptics.medium();
+                  _showQuickActions(context);
+                },
                 child: const Icon(Icons.add_rounded),
+              )
+            : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        bottomNavigationBar: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
+                border: Border(
+                  top: BorderSide(
+                    color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                    width: 0.5,
+                  ),
+                ),
               ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: currentIndex,
-          onDestinationSelected: (index) => _onItemTapped(context, index),
-          destinations: [
-            const NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded),
-              label: 'Home',
+              child: NavigationBar(
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                selectedIndex: currentIndex,
+                onDestinationSelected: (index) {
+                  AppHaptics.light();
+                  _onItemTapped(context, index);
+                },
+                destinations: [
+                  const NavigationDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home_rounded),
+                    label: 'Home',
+                  ),
+                  const NavigationDestination(
+                    icon: Icon(Icons.event_seat_outlined),
+                    selectedIcon: Icon(Icons.event_seat_rounded),
+                    label: 'Seats',
+                  ),
+                  const NavigationDestination(
+                    icon: Icon(Icons.people_outline_rounded),
+                    selectedIcon: Icon(Icons.people_rounded),
+                    label: 'Students',
+                  ),
+                  NavigationDestination(
+                    icon: _badgedIcon(Icons.more_horiz_outlined, pendingCount),
+                    selectedIcon: _badgedIcon(Icons.more_horiz_rounded, pendingCount, selected: true),
+                    label: 'More',
+                  ),
+                ],
+              ),
             ),
-            const NavigationDestination(
-              icon: Icon(Icons.event_seat_outlined),
-              selectedIcon: Icon(Icons.event_seat_rounded),
-              label: 'Seats',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.people_outline_rounded),
-              selectedIcon: Icon(Icons.people_rounded),
-              label: 'Students',
-            ),
-            NavigationDestination(
-              icon: _badgedIcon(Icons.more_horiz_outlined, pendingCount),
-              selectedIcon: _badgedIcon(Icons.more_horiz_rounded, pendingCount, selected: true),
-              label: 'More',
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -19,6 +19,7 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _priceController;
+  late TextEditingController _originalPriceController;
   late TextEditingController _durationController;
   late TextEditingController _descriptionController;
   late TextEditingController _graceController;
@@ -32,6 +33,9 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
     super.initState();
     _nameController = TextEditingController(text: widget.plan?.name);
     _priceController = TextEditingController(text: widget.plan?.price.toString());
+    _originalPriceController = TextEditingController(
+      text: widget.plan?.originalPrice != null ? widget.plan!.originalPrice!.toStringAsFixed(0) : '',
+    );
     _durationController = TextEditingController(text: widget.plan?.duration.toString());
     _descriptionController = TextEditingController(text: widget.plan?.description);
     _graceController = TextEditingController(text: widget.plan?.gracePeriodDays.toString());
@@ -46,6 +50,7 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
+    _originalPriceController.dispose();
     _durationController.dispose();
     _descriptionController.dispose();
     _graceController.dispose();
@@ -54,13 +59,35 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
 
   void _save() async {
     if (_formKey.currentState!.validate()) {
+      // L4 FIX: Validate duration and price sanity
+      final dur = int.tryParse(_durationController.text.trim()) ?? 0;
+      if (dur <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Plan duration must be at least 1 day/month.')),
+        );
+        return;
+      }
+      final price = double.tryParse(_priceController.text.trim()) ?? -1;
+      if (price <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Plan fee must be greater than ₹0.')),
+        );
+        return;
+      }
+
+      String planName = _nameController.text.trim();
+      if (planName.toLowerCase() == 'quaterly') {
+        planName = 'Quarterly';
+      }
+
       final plan = PlanModel(
         id: widget.plan?.id ?? '',
         libraryId: widget.plan?.libraryId ?? '',
-        name: _nameController.text.trim(),
+        name: planName,
         duration: int.parse(_durationController.text),
         durationUnit: _durationUnit,
         price: double.parse(_priceController.text),
+        originalPrice: double.tryParse(_originalPriceController.text.trim()),
         description: _descriptionController.text.trim(),
         gracePeriodDays: int.tryParse(_graceController.text) ?? 0,
         isActive: _isActive,
@@ -111,7 +138,8 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
                     ValidatedTextField(
                       label: 'Plan Name',
                       controller: _nameController,
-                      validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                      textCapitalization: TextCapitalization.words,
+                      validator: AppValidators.planName,
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -121,17 +149,32 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
                             label: 'Duration',
                             controller: _durationController,
                             keyboardType: TextInputType.number,
-                            validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                            inputFormatters: [AppValidators.digitsOnly],
+                            validator: (val) => AppValidators.duration(val, min: 1, max: 365),
+                            onChanged: (_) => setState(() {}),
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: DropdownButtonFormField<DurationUnit>(
                             initialValue: _durationUnit,
-                            decoration: const InputDecoration(labelText: 'Unit'),
-                            items: DurationUnit.values.map((u) {
-                              return DropdownMenuItem(value: u, child: Text(u.name));
-                            }).toList(),
+                            decoration: const InputDecoration(labelText: 'Billing Cycle Unit'),
+                            items: [
+                              const DropdownMenuItem(
+                                value: DurationUnit.months,
+                                child: Text('Calendar Month(s)'),
+                              ),
+                              if (_durationUnit == DurationUnit.days)
+                                const DropdownMenuItem(
+                                  value: DurationUnit.days,
+                                  child: Text('Days (Legacy 30-Day)'),
+                                ),
+                              if (_durationUnit == DurationUnit.weeks)
+                                const DropdownMenuItem(
+                                  value: DurationUnit.weeks,
+                                  child: Text('Weeks (Legacy)'),
+                                ),
+                            ],
                             onChanged: (val) => setState(() => _durationUnit = val!),
                           ),
                         ),
@@ -142,7 +185,134 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
                       label: 'Price (₹)',
                       controller: _priceController,
                       keyboardType: TextInputType.number,
+                      inputFormatters: AppValidators.amountFormatters,
                       validator: AppValidators.price,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 16),
+                    ValidatedTextField(
+                      label: 'Original Price / MRP (Optional - for cut text)',
+                      controller: _originalPriceController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: AppValidators.amountFormatters,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        final p = double.tryParse(v.trim());
+                        if (p == null || p <= 0) return 'Enter a valid original price (> 0)';
+                        return null;
+                      },
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    Builder(builder: (context) {
+                      final p = double.tryParse(_priceController.text) ?? 0;
+                      final op = double.tryParse(_originalPriceController.text) ?? 0;
+                      final dur = int.tryParse(_durationController.text) ?? 1;
+                      int cycleDays = 30;
+                      if (_durationUnit == DurationUnit.days) {
+                        cycleDays = dur > 0 ? dur : 1;
+                      } else if (_durationUnit == DurationUnit.weeks) {
+                        cycleDays = dur > 0 ? dur * 7 : 7;
+                      } else {
+                        if (dur == 1) {
+                          cycleDays = 30;
+                        } else if (dur == 3) {
+                          cycleDays = 90;
+                        } else if (dur == 6) {
+                          cycleDays = 180;
+                        } else if (dur == 12) {
+                          cycleDays = 365;
+                        } else {
+                          cycleDays = dur * 30;
+                        }
+                      }
+                      final dailyRate = p > 0 && cycleDays > 0 ? (p / cycleDays) : 0.0;
+
+                      if (p > 0) {
+                        final hasDiscount = op > p;
+                        final disc = hasDiscount ? (((op - p) / op) * 100).round() : 0;
+                        final saved = hasDiscount ? (op - p) : 0.0;
+
+                        return Container(
+                          margin: const EdgeInsets.only(top: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.calculate_rounded, color: Colors.green, size: 18),
+                                  const SizedBox(width: 6),
+                                  const Text(
+                                    'Live Pricing Breakdown',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.green),
+                                  ),
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: Colors.green.shade300, width: 0.8),
+                                    ),
+                                    child: Text(
+                                      '⚡ ₹${dailyRate.toStringAsFixed(1)} / day',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green.shade900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (hasDiscount) ...[
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  children: [
+                                    const Text(
+                                      'Display Discount:',
+                                      style: TextStyle(fontSize: 12, color: Colors.black87),
+                                    ),
+                                    Text(
+                                      '₹${op.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        decoration: TextDecoration.lineThrough,
+                                        color: Colors.grey,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    Text(
+                                      '₹${p.toStringAsFixed(0)}',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.green),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '$disc% OFF (Save ₹${saved.toStringAsFixed(0)})',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
                     ),
                     const SizedBox(height: 16),
                     ValidatedTextField(

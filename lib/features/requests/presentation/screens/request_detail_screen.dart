@@ -6,14 +6,16 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/security/audit_logger.dart';
-import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/models/student_model.dart';
+import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/services/message_template_service.dart';
 import 'package:intl/intl.dart';
-import 'package:study_library/core/utils/sequence_counter.dart';
+import 'package:study_library/services/student_provisioning_service.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
+import 'package:study_library/core/error/error_handler.dart';
 
 class RequestDetailScreen extends ConsumerStatefulWidget {
   final String requestId;
@@ -71,118 +73,23 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
     try {
       final data = _requestData!;
-      final studentData = (data['studentData'] as Map<String, dynamic>?) ?? {};
       final type = data['type'] as String? ?? 'registration';
+      DateTime? finalPlanStartDate;
       DateTime? finalPlanEndDate;
+      String? renewalPlanId;
 
-      if (type == 'registration') {
-        // Calculate plan dates if planId is present
-        final planId = studentData['planId'] ?? data['planId'] as String?;
-        DateTime? planStartDate;
-        DateTime? planEndDate;
-        MembershipStatus status = MembershipStatus.active;
-
-        if (planId != null && planId.isNotEmpty) {
-          final plansAsync = ref.read(plansStreamProvider);
-          final plans = plansAsync.value ?? [];
-          final plan = plans.where((p) => p.id == planId).firstOrNull;
-          if (plan != null) {
-            planStartDate = DateTime.now();
-            if (plan.durationUnit.name == 'months') {
-              planEndDate = DateTime(planStartDate.year, planStartDate.month + plan.duration, planStartDate.day);
-            } else {
-              planEndDate = planStartDate.add(Duration(days: plan.duration));
-            }
-          }
-        }
-        
-        finalPlanEndDate = planEndDate;
-
-        final genderStr = (studentData['gender'] ?? 'male').toString().toLowerCase();
-        final gender = Gender.values.firstWhere(
-          (g) => g.name == genderStr,
-          orElse: () => Gender.male,
+      if (type == 'registration' || type == 'newregistration') {
+        _newCreatedStudentId = await StudentProvisioningService.approveAndProvisionRequest(
+          libraryId: libraryId,
+          requestId: widget.requestId,
+          preloadedData: data,
         );
-
-        final govIdTypeStr = (studentData['govIdType'] ?? 'aadhaar').toString().toLowerCase();
-        final govIdType = GovIdType.values.firstWhere(
-          (g) => g.name.toLowerCase() == govIdTypeStr,
-          orElse: () => GovIdType.aadhaar,
+      } else if (type == 'seat_change' || type == 'seatchange') {
+        _newCreatedStudentId = await StudentProvisioningService.approveAndProvisionRequest(
+          libraryId: libraryId,
+          requestId: widget.requestId,
+          preloadedData: data,
         );
-
-        final libDoc = await FirebaseFirestore.instance.collection('libraries').doc(libraryId).get();
-        final prefix = (libDoc.data()?['membershipPrefix'] as String?)?.toUpperCase() ?? 'CC';
-        final membershipNumber = await SequenceCounter.nextMembershipNumber(libraryId, prefix: prefix);
-
-        final newStudent = StudentModel(
-          id: '',
-          membershipNumber: membershipNumber,
-          name: studentData['name'] ?? data['studentName'] ?? 'Student',
-          fatherName: studentData['fatherName'] ?? '',
-          phone: studentData['phone'] ?? data['studentPhone'] ?? '',
-          email: studentData['email'] ?? '',
-          gender: gender,
-          address: studentData['address'] ?? '',
-          pincode: studentData['pincode'] ?? '',
-          govIdType: govIdType,                    // fixed: was hardcoded to aadhaar
-          govIdNumber: studentData['govIdNumber'] ?? '',
-          govIdImageUrl: '',
-          photoUrl: studentData['photoUrl'] ?? '',
-          college: studentData['college'] ?? '',
-          course: studentData['course'] ?? '',
-          year: studentData['year'] ?? '',
-          emergencyContact: studentData['emergencyContact'] ?? '',
-          dob: StudentModel.parseDateStatic(studentData['dob']), // fixed: was missing
-          bloodGroup: studentData['bloodGroup'] as String?,      // fixed: was missing
-          rollNumber: studentData['rollNumber'] as String?,      // fixed: was missing
-          seatId: studentData['seatId'] ?? data['requestedSeatId'],
-          sectionId: studentData['sectionId'] ?? data['requestedSectionId'],
-          planId: planId,
-          planStartDate: planStartDate,
-          planEndDate: planEndDate,
-          membershipStatus: status,
-          customFields: {},
-          notes: 'Registered via In-App Request (${widget.requestId})',
-          userId: studentData['userId'] ?? data['studentId'],
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-
-        final repo = ref.read(studentRepositoryProvider);
-        final newId = await repo.createStudent(libraryId, newStudent);
-        _newCreatedStudentId = newId;
-
-        // If seat was assigned, mark seat occupied and release any previously occupied seat
-        if (newStudent.seatId != null && newStudent.sectionId != null) {
-          await ref.read(seatRepositoryProvider).assignStudent(
-                libraryId,
-                newStudent.sectionId!,
-                newStudent.seatId!,
-                newId,
-              );
-        }
-
-        // Link student's Firebase Auth account to role: 'student' and this libraryId
-        // This breaks the login loop and redirects the student directly to StudentHome
-        final studentUserId = studentData['userId'] ?? data['studentId'];
-        if (studentUserId != null && studentUserId.toString().isNotEmpty) {
-          try {
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(studentUserId.toString())
-                .set({
-              'role': 'student',
-              'libraryId': libraryId,
-              'studentId': newId,
-              'email': newStudent.email,
-              'displayName': newStudent.name,
-              'phone': newStudent.phone,
-              'updatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
-          } catch (e) {
-            debugPrint('Failed to link student user account: $e');
-          }
-        }
       } else if (type == 'profile_update') {
         final studentId = (data['studentId'] ?? '').toString();
         final proposedData = (data['proposedData'] as Map<String, dynamic>?) ?? {};
@@ -201,6 +108,12 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           }
           if (proposedData.containsKey('year')) {
             updateFields['year'] = proposedData['year'];
+          }
+          if (proposedData.containsKey('customFields') && proposedData['customFields'] is Map) {
+            final customMap = Map<String, dynamic>.from(proposedData['customFields'] as Map);
+            for (final entry in customMap.entries) {
+              updateFields['customFields.${entry.key}'] = entry.value;
+            }
           }
           await FirebaseFirestore.instance
               .collection('libraries')
@@ -256,30 +169,10 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               newEndDate = newStartDate.add(const Duration(days: 30));
             }
 
-            await FirebaseFirestore.instance
-                .collection('libraries')
-                .doc(libraryId)
-                .collection('students')
-                .doc(studentId)
-                .update({
-              'planId': requestedPlanId,
-              'planStartDate': Timestamp.fromDate(newStartDate),
-              'planEndDate': Timestamp.fromDate(newEndDate),
-              'membershipStatus': MembershipStatus.active.name,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-
-            AuditLogger().log(
-              action: AuditAction.updated,
-              entityType: AuditEntity.student,
-              libraryId: libraryId,
-              entityId: studentId,
-              details: {
-                'action': 'plan_renewal_approved',
-                'planId': requestedPlanId,
-                'planEndDate': newEndDate.toIso8601String(),
-              },
-            ).ignore();
+            // Invariant: Do not prematurely activate or extend dates before payment!
+            finalPlanStartDate = newStartDate;
+            finalPlanEndDate = newEndDate;
+            renewalPlanId = requestedPlanId;
           }
         }
       }
@@ -310,9 +203,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       if (mounted) {
         final successMsg = type == 'profile_update'
             ? 'Profile update approved and applied successfully!'
-            : (type == 'renewal'
-                ? 'Membership renewal approved and extended successfully!'
-                : 'Request approved successfully! Student profile created.');
+            : (type == 'seat_change' || type == 'seatchange'
+                ? 'Seat change approved and allocated successfully!'
+                : (type == 'renewal'
+                    ? 'Renewal approved! Please record payment to extend validity.'
+                    : 'Request approved! Please record payment to activate pass.'));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMsg), backgroundColor: Colors.green),
         );
@@ -326,6 +221,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             studentUserId,
             studentName.toString(),
             studentPhone,
+            planStartDate: finalPlanStartDate,
             planEndDate: finalPlanEndDate,
           );
         } else if (type == 'renewal') {
@@ -338,6 +234,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             studentName.toString(),
             studentPhone,
             planAmt,
+            planId: renewalPlanId,
+            planStartDate: finalPlanStartDate,
+            planEndDate: finalPlanEndDate,
           );
         }
       }
@@ -423,9 +322,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
+        AppSnackbar.showError(context, e);
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -543,8 +440,38 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                             _buildDiffRow('College / Institution', (data['currentData'] as Map?)?['college'], (data['proposedData'] as Map?)?['college']),
                             _buildDiffRow('Course', (data['currentData'] as Map?)?['course'], (data['proposedData'] as Map?)?['course']),
                             _buildDiffRow('Year / Semester', (data['currentData'] as Map?)?['year'], (data['proposedData'] as Map?)?['year']),
+                            if ((data['proposedData'] as Map?)?['customFields'] is Map) ...[
+                              ...((data['proposedData'] as Map)['customFields'] as Map).entries.map((e) {
+                                final curMap = (data['currentData'] as Map?)?['customFields'] as Map?;
+                                final curVal = curMap?[e.key];
+                                return _buildDiffRow(e.key.toString(), curVal, e.value);
+                              }),
+                            ],
                             if (data['rejectionReason'] != null)
                               _buildRow('Rejection Reason', data['rejectionReason'], color: Colors.red),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ] else if (data['type'] == 'seat_change' || data['type'] == 'seatchange') ...[
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Requested Seat Change', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            Text('Review member move request:', style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600)),
+                            const Divider(height: 20),
+                            _buildRow('Current Seat', '${SeatHelper.formatSeatLabel(seatId: data['currentSeatId'] as String?, rawLabel: data['currentSeatLabel'] as String?)} (${data['currentSectionName'] ?? "Current Section"})'),
+                            _buildRow('Target Seat', '${SeatHelper.formatSeatLabel(seatId: data['targetSeatId'] as String?, rawLabel: data['targetSeatLabel'] as String?)} (${data['targetSectionName'] ?? "Target Section"})', color: Colors.green),
+                            if (data['reason'] != null && data['reason'].toString().isNotEmpty)
+                              _buildRow('Reason', data['reason'].toString()),
+                            if (data['studentGender'] != null)
+                              _buildRow('Student Gender', data['studentGender'].toString().toUpperCase()),
+                            if (data['rejectionReason'] != null)
+                              _buildRow('Rejection Reason', data['rejectionReason'].toString(), color: Colors.red),
                           ],
                         ),
                       ),
@@ -568,6 +495,75 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                               _buildRow('Email', studentData['email']),
                             if (studentData['govIdNumber'] != null && studentData['govIdNumber'].isNotEmpty)
                               _buildRow('Govt ID', studentData['govIdNumber']),
+                            if ((studentData['govIdImageUrl'] != null && studentData['govIdImageUrl'].toString().isNotEmpty) ||
+                                (studentData['govIdBackImageUrl'] != null && studentData['govIdBackImageUrl'].toString().isNotEmpty)) ...[
+                              const SizedBox(height: 8),
+                              const Text('Uploaded Identity Documents:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  if (studentData['govIdImageUrl'] != null && studentData['govIdImageUrl'].toString().isNotEmpty)
+                                    Expanded(
+                                      child: InkWell(
+                                        onTap: () => ImageService.showImageViewer(
+                                          context,
+                                          imageUrl: studentData['govIdImageUrl'].toString(),
+                                          title: 'Front ID Document',
+                                        ),
+                                        child: Container(
+                                          height: 90,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.grey.shade300),
+                                            image: DecorationImage(
+                                              image: ImageService.getImageProvider(studentData['govIdImageUrl'].toString())!,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                          alignment: Alignment.bottomCenter,
+                                          child: Container(
+                                            width: double.infinity,
+                                            color: Colors.black54,
+                                            padding: const EdgeInsets.symmetric(vertical: 2),
+                                            child: const Text('Front Side', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 10)),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  if ((studentData['govIdImageUrl'] != null && studentData['govIdImageUrl'].toString().isNotEmpty) &&
+                                      (studentData['govIdBackImageUrl'] != null && studentData['govIdBackImageUrl'].toString().isNotEmpty))
+                                    const SizedBox(width: 8),
+                                  if (studentData['govIdBackImageUrl'] != null && studentData['govIdBackImageUrl'].toString().isNotEmpty)
+                                    Expanded(
+                                      child: InkWell(
+                                        onTap: () => ImageService.showImageViewer(
+                                          context,
+                                          imageUrl: studentData['govIdBackImageUrl'].toString(),
+                                          title: 'Back ID Document',
+                                        ),
+                                        child: Container(
+                                          height: 90,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.grey.shade300),
+                                            image: DecorationImage(
+                                              image: ImageService.getImageProvider(studentData['govIdBackImageUrl'].toString())!,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                          alignment: Alignment.bottomCenter,
+                                          child: Container(
+                                            width: double.infinity,
+                                            color: Colors.black54,
+                                            padding: const EdgeInsets.symmetric(vertical: 2),
+                                            child: const Text('Back Side', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 10)),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
                             if (studentData['college'] != null && studentData['college'].isNotEmpty)
                               _buildRow('College', studentData['college']),
                             if (studentData['course'] != null && studentData['course'].isNotEmpty)
@@ -734,9 +730,35 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     );
   }
 
-  void _promptPaymentAfterApproval(String libraryId, String studentId, String studentUserId, String studentName, String studentPhone, {DateTime? planEndDate}) {
+  void _promptPaymentAfterApproval(
+    String libraryId,
+    String studentId,
+    String studentUserId,
+    String studentName,
+    String studentPhone, {
+    String? planId,
+    DateTime? planStartDate,
+    DateTime? planEndDate,
+  }) {
     if (!mounted) return;
-    final amountController = TextEditingController();
+
+    // Lookup plan price from plansStreamProvider or requestData
+    final data = _requestData ?? {};
+    final studentData = (data['studentData'] as Map<String, dynamic>?) ?? {};
+    final effectivePlanId = planId ?? (studentData['planId'] ?? data['planId'])?.toString();
+
+    double defaultAmount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+    if (defaultAmount <= 0 && effectivePlanId != null && effectivePlanId.isNotEmpty) {
+      final plans = ref.read(plansStreamProvider).value ?? [];
+      final matchedPlan = plans.where((p) => p.id == effectivePlanId).firstOrNull;
+      if (matchedPlan != null) {
+        defaultAmount = matchedPlan.price.toDouble();
+      }
+    }
+
+    final amountController = TextEditingController(
+      text: defaultAmount > 0 ? defaultAmount.toStringAsFixed(0) : '',
+    );
     String paymentMethod = 'Cash';
 
     showDialog(
@@ -750,7 +772,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('$studentName has been approved. Record their payment to generate a receipt.'),
+              Text('$studentName has been approved. Record payment to activate their pass and generate a receipt.'),
               const SizedBox(height: 16),
               TextField(
                 controller: amountController,
@@ -779,18 +801,41 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(ctx).pop();
-                if (mounted && studentPhone.isNotEmpty) _offerWhatsAppWelcome(studentId, studentName, studentPhone, 0, 'None', planEndDate: planEndDate);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$studentName remains inactive until fee payment is recorded.'),
+                      backgroundColor: Colors.orange.shade800,
+                    ),
+                  );
+                  if (studentPhone.isNotEmpty) {
+                    _offerWhatsAppWelcome(studentId, studentName, studentPhone, 0, 'None', planEndDate: planEndDate);
+                  }
+                }
               },
               child: const Text('Skip Payment'),
             ),
             FilledButton(
               onPressed: () async {
-                final amount = double.tryParse(amountController.text.trim()) ?? 0;
+                final amount = double.tryParse(amountController.text.trim()) ?? defaultAmount;
                 Navigator.of(ctx).pop();
                 if (amount > 0) {
-                  await _recordPaymentAndReceipt(libraryId, studentId, studentUserId, studentName, studentPhone, amount, paymentMethod, planEndDate: planEndDate);
+                  await _recordPaymentAndReceipt(
+                    libraryId,
+                    studentId,
+                    studentUserId,
+                    studentName,
+                    studentPhone,
+                    amount,
+                    paymentMethod,
+                    planId: effectivePlanId,
+                    planStartDate: planStartDate,
+                    planEndDate: planEndDate,
+                  );
                 }
-                if (mounted && studentPhone.isNotEmpty) _offerWhatsAppWelcome(studentId, studentName, studentPhone, amount, paymentMethod, planEndDate: planEndDate);
+                if (mounted && studentPhone.isNotEmpty) {
+                  _offerWhatsAppWelcome(studentId, studentName, studentPhone, amount, paymentMethod, planEndDate: planEndDate);
+                }
               },
               child: const Text('Confirm & Generate Receipt'),
             ),
@@ -806,8 +851,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     String studentUserId,
     String studentName,
     String studentPhone,
-    double renewalAmount,
-  ) {
+    double renewalAmount, {
+    String? planId,
+    DateTime? planStartDate,
+    DateTime? planEndDate,
+  }) {
     if (!mounted) return;
     final amountController = TextEditingController(text: renewalAmount > 0 ? renewalAmount.toStringAsFixed(0) : '');
     String paymentMethod = 'UPI';
@@ -823,7 +871,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('$studentName\'s renewal has been approved. Record payment to generate their renewal receipt.'),
+              Text('$studentName\'s renewal request has been approved. Record payment to extend their validity and generate receipt.'),
               const SizedBox(height: 16),
               TextField(
                 controller: amountController,
@@ -850,7 +898,17 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Renewal approved. $studentName will be activated once payment is recorded.'),
+                      backgroundColor: Colors.orange.shade800,
+                    ),
+                  );
+                }
+              },
               child: const Text('Record Later'),
             ),
             FilledButton(
@@ -866,6 +924,9 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                     studentPhone,
                     amount,
                     paymentMethod,
+                    planId: planId,
+                    planStartDate: planStartDate,
+                    planEndDate: planEndDate,
                   );
                 }
               },
@@ -877,7 +938,18 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     );
   }
 
-  Future<void> _recordPaymentAndReceipt(String libraryId, String studentId, String studentUserId, String studentName, String studentPhone, double amount, String paymentMethod, {DateTime? planEndDate}) async {
+  Future<void> _recordPaymentAndReceipt(
+    String libraryId,
+    String studentId,
+    String studentUserId,
+    String studentName,
+    String studentPhone,
+    double amount,
+    String paymentMethod, {
+    String? planId,
+    DateTime? planStartDate,
+    DateTime? planEndDate,
+  }) async {
     try {
       final receiptNum = 'REC${DateTime.now().year}${(DateTime.now().millisecondsSinceEpoch % 100000).toString().padLeft(5,'0')}';
       final receiptRef = FirebaseFirestore.instance.collection('libraries').doc(libraryId).collection('receipts').doc();
@@ -907,6 +979,63 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           .collection('payments').doc(paymentRef.id)
           .set(paymentData);
 
+      // Resolve plan and validity dates
+      DateTime effectiveStartDate = planStartDate ?? DateTime.now();
+      DateTime? effectiveEndDate = planEndDate;
+      String effectivePlanId = planId ?? '';
+
+      final studentDoc = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .doc(studentId)
+          .get();
+
+      if (studentDoc.exists) {
+        final sData = studentDoc.data() ?? {};
+        if (effectivePlanId.isEmpty) {
+          effectivePlanId = (sData['planId'] ?? '').toString();
+        }
+
+        if (effectiveEndDate == null && effectivePlanId.isNotEmpty) {
+          final plans = ref.read(plansStreamProvider).value ?? [];
+          final matchedPlan = plans.where((p) => p.id == effectivePlanId).firstOrNull;
+          if (matchedPlan != null) {
+            final currentEnd = StudentModel.parseDateStatic(sData['planEndDate']);
+            if (currentEnd != null && currentEnd.isAfter(DateTime.now())) {
+              effectiveStartDate = currentEnd;
+            }
+            if (matchedPlan.durationUnit == DurationUnit.months) {
+              effectiveEndDate = DateTime(
+                effectiveStartDate.year,
+                effectiveStartDate.month + matchedPlan.duration,
+                effectiveStartDate.day,
+              );
+            } else {
+              effectiveEndDate = effectiveStartDate.add(Duration(days: matchedPlan.duration));
+            }
+          } else {
+            effectiveEndDate = effectiveStartDate.add(const Duration(days: 30));
+          }
+        }
+      }
+
+      effectiveEndDate ??= effectiveStartDate.add(const Duration(days: 30));
+
+      // CRITICAL FIX: Activate the student upon recorded payment!
+      await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .doc(studentId)
+          .update({
+        'membershipStatus': MembershipStatus.active.name,
+        'planStartDate': Timestamp.fromDate(effectiveStartDate),
+        'planEndDate': Timestamp.fromDate(effectiveEndDate),
+        if (effectivePlanId.isNotEmpty) 'planId': effectivePlanId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
       await receiptRef.set({
         'id': receiptRef.id,
         'receiptNumber': receiptNum,
@@ -917,18 +1046,35 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         'amount': amount,
         'paymentMethod': paymentMethod,
         'status': 'active',
-        'validFrom': FieldValue.serverTimestamp(),
-        if (planEndDate != null) 'validTo': Timestamp.fromDate(planEndDate),
+        'validFrom': Timestamp.fromDate(effectiveStartDate),
+        'validTo': Timestamp.fromDate(effectiveEndDate),
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'libraryId': libraryId,
-        'planId': '',
+        'planId': effectivePlanId,
         'customFields': {},
       });
 
+      AuditLogger().log(
+        action: AuditAction.created,
+        entityType: AuditEntity.payment,
+        libraryId: libraryId,
+        entityId: paymentRef.id,
+        entityName: studentName,
+        details: {
+          'amount': amount,
+          'method': paymentMethod,
+          'receiptNumber': receiptNum,
+          'planStartDate': effectiveStartDate.toIso8601String(),
+          'planEndDate': effectiveEndDate.toIso8601String(),
+        },
+      ).ignore();
+
+      ref.invalidate(studentsStreamProvider);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Payment recorded & Receipt $receiptNum generated ✓'),
+          content: Text('Payment recorded & Receipt $receiptNum generated ✓ Student is now Active!'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
         ));

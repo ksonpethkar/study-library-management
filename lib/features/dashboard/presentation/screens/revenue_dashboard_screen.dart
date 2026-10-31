@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/features/expenses/presentation/providers/expense_providers.dart';
 import 'package:study_library/features/staff/presentation/providers/staff_providers.dart';
 import 'package:study_library/models/receipt_model.dart';
 
@@ -17,11 +20,16 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
   bool _isLoading = true;
   double _totalRevenue = 0;
   double _rangeRevenue = 0;
+  double _rangeExpenses = 0;
+  double _netProfit = 0;
+  double _operatingMargin = 0;
   int _activeStudents = 0;
   Map<String, double> _byPlan = {};
   Map<String, double> _byMethod = {};
   List<ReceiptModel> _recentReceipts = [];
   int _totalReceiptsCount = 0;
+  final Map<String, String> _studentNames = {};
+  final Map<String, String> _planNames = {};
 
   @override
   void initState() {
@@ -34,6 +42,28 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
     final libraryId = ref.read(currentLibraryIdProvider) ?? '';
     if (libraryId.isEmpty) { setState(() => _isLoading = false); return; }
     try {
+      // Fetch plan names
+      try {
+        final plansSnap = await FirebaseFirestore.instance
+            .collection('libraries').doc(libraryId)
+            .collection('plans').get();
+        for (final doc in plansSnap.docs) {
+          final pName = doc.data()['name'] as String? ?? '';
+          if (pName.isNotEmpty) _planNames[doc.id] = pName;
+        }
+      } catch (_) { /* intentionally silent */ }
+
+      // Fetch student names for display
+      try {
+        final studentsSnap = await FirebaseFirestore.instance
+            .collection('libraries').doc(libraryId)
+            .collection('students').limit(50).get();
+        for (final doc in studentsSnap.docs) {
+          final sName = doc.data()['name'] as String? ?? '';
+          if (sName.isNotEmpty) _studentNames[doc.id] = sName;
+        }
+      } catch (_) { /* intentionally silent */ }
+
       // Determine date range filter
       final now = DateTime.now();
       DateTime? since;
@@ -64,14 +94,17 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
         ReceiptModel receipt;
         try { receipt = ReceiptModel.fromJson(data); } catch (_) { continue; }
         
+        // Skip deleted or voided receipts from all calculations
+        if (receipt.deletedAt != null || receipt.status == ReceiptStatus.voided) continue;
+
         final amt = receipt.amount;
         total += amt;
         
         final genAt = receipt.createdAt;
         if (since == null || (genAt != null && genAt.isAfter(since))) {
           rangeTotal += amt;
-          final plan = receipt.planId.isNotEmpty ? receipt.planId : 'Unknown Plan';
-          byPlan[plan] = (byPlan[plan] ?? 0) + amt;
+          final resolvedPlan = _planNames[receipt.planId] ?? (receipt.planId.isNotEmpty ? receipt.planId : 'General Membership');
+          byPlan[resolvedPlan] = (byPlan[resolvedPlan] ?? 0) + amt;
           final method = receipt.paymentMethod.isNotEmpty ? receipt.paymentMethod : 'Cash';
           byMethod[method] = (byMethod[method] ?? 0) + amt;
         }
@@ -85,12 +118,29 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
           .where('membershipStatus', isEqualTo: 'active')
           .count()
           .get();
+
+      // Operating Expenses & Net Profit Calculation
+      double rangeExpenses = 0.0;
+      try {
+        final allExpenses = await ref.read(expenseRepositoryProvider).getExpenses(libraryId);
+        for (final ex in allExpenses) {
+          if (since == null || ex.date.isAfter(since)) {
+            rangeExpenses += ex.amount;
+          }
+        }
+      } catch (_) { /* intentionally silent */ }
+
+      final netProfit = rangeTotal - rangeExpenses;
+      final margin = rangeTotal > 0 ? (netProfit / rangeTotal) * 100 : 0.0;
       
       setState(() {
         _totalRevenue = total;
         _rangeRevenue = rangeTotal;
+        _rangeExpenses = rangeExpenses;
+        _netProfit = netProfit;
+        _operatingMargin = margin;
         _activeStudents = stuSnap.count ?? 0;
-        _totalReceiptsCount = allSnap.docs.length;
+        _totalReceiptsCount = receipts.length;
         _byPlan = byPlan;
         _byMethod = byMethod;
         _recentReceipts = receipts.take(10).toList();
@@ -128,10 +178,16 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Revenue & Analytics'),
+        title: const Text('Revenue & Net Profit'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.receipt_long_rounded),
+            tooltip: 'Operating Expenses',
+            onPressed: () => context.push(Routes.adminExpenses),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh',
             onPressed: _loadData,
           ),
         ],
@@ -168,6 +224,106 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
                     ),
                     const SizedBox(height: 16),
                     
+                    // Net Profit Engine Banner
+                    InkWell(
+                      onTap: () => context.push(Routes.adminExpenses),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: _netProfit >= 0
+                                ? [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)]
+                                : [const Color(0xFFFEF2F2), const Color(0xFFFEE2E2)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: _netProfit >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      _netProfit >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                                      color: _netProfit >= 0 ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'NET PROFIT ENGINE (${_rangeLabel().toUpperCase()})',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 1.1,
+                                        color: _netProfit >= 0 ? const Color(0xFF065F46) : const Color(0xFF991B1B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: _netProfit >= 0 ? const Color(0xFFA7F3D0) : const Color(0xFFFECACA),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '${_operatingMargin.toStringAsFixed(1)}% Margin',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: _netProfit >= 0 ? const Color(0xFF064E3B) : const Color(0xFF7F1D1D),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              fmt.format(_netProfit),
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                color: _netProfit >= 0 ? const Color(0xFF047857) : const Color(0xFFB91C1C),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Text(
+                                  'Gross: ${fmt.format(_rangeRevenue)}  •  Expenses: -${fmt.format(_rangeExpenses)}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: _netProfit >= 0 ? const Color(0xFF065F46) : const Color(0xFF991B1B),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  'Manage Overheads →',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: _netProfit >= 0 ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
                     // Summary Cards
                     Row(
                       children: [
@@ -230,19 +386,23 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
                         child: Text('No transactions yet', style: TextStyle(color: Colors.grey)),
                       ))
                     else
-                      ...(_recentReceipts.map((r) => Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.green.shade50,
-                            child: const Icon(Icons.receipt_rounded, color: Colors.green, size: 20),
+                      ...(_recentReceipts.map((r) {
+                        final studentName = _studentNames[r.studentId] ?? (r.studentId.isNotEmpty ? r.studentId : 'Student');
+                        final planName = _planNames[r.planId] ?? (r.planId.isNotEmpty ? r.planId : 'General Membership');
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.green.shade50,
+                              child: const Icon(Icons.receipt_rounded, color: Colors.green, size: 20),
+                            ),
+                            title: Text(studentName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            subtitle: Text('$planName • ${r.paymentMethod}\n${r.createdAt != null ? DateFormat('dd MMM yyyy, hh:mm a').format(r.createdAt!) : ''}'),
+                            trailing: Text(fmt.format(r.amount), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700, fontSize: 15)),
+                            isThreeLine: true,
                           ),
-                          title: Text(r.studentId.isNotEmpty ? r.studentId : 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Text('${r.planId} • ${r.paymentMethod}\n${r.createdAt != null ? DateFormat('dd MMM yyyy, hh:mm a').format(r.createdAt!) : ''}'),
-                          trailing: Text(fmt.format(r.amount), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700, fontSize: 15)),
-                          isThreeLine: true,
-                        ),
-                      ))),
+                        );
+                      })),
                     const SizedBox(height: 32),
                   ],
                 ),

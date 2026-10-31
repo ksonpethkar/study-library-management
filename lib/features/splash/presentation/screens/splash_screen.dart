@@ -33,10 +33,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late final Animation<double> _pulseAnimation;
 
   // Cached Brand Identity (Loaded instantly from local storage on Frame 1)
-  String _libraryName = 'The Cozy Corner Centre';
+  String _libraryName = 'Study Library';
   String? _logoUrl;
   Color? _accentColor = const Color(0xFFFFB74D);
-  String _tagline = 'Smart Study Library & Co-Working Hub';
+  String _tagline = 'Smart Study Space & Library Management';
   final bool _hasCustomBranding = true; // set once — load from Firebase on initState
 
   @override
@@ -121,7 +121,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       if (cachedTagline != null && cachedTagline.isNotEmpty) {
         _tagline = cachedTagline;
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
   }
 
   Future<void> _checkAuth() async {
@@ -192,7 +192,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Check for forced app update
     try {
       await ref.read(updateServiceProvider.notifier).checkForUpdate();
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
 
     // Wait for Firebase Auth to restore session from local device storage
     User? user = FirebaseAuth.instance.currentUser;
@@ -257,12 +257,43 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         }
 
         if (roleStr == 'student') {
-          ref.read(currentLibraryIdProvider.notifier).set(libId);
-          ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
-          await _ensureMinAnimationDuration(startTime);
-          if (!mounted) return;
-          context.go(Routes.studentHome);
-          return;
+          // Verify that this user actually has an enrolled student record in Firestore
+          final studentDoc = await FirebaseFirestore.instance
+              .collection('libraries').doc(libId)
+              .collection('students').where('userId', isEqualTo: user.uid)
+              .limit(1).get()
+              .then<QuerySnapshot?>((v) => v, onError: (_) => null);
+
+          final email = user.email?.trim().toLowerCase() ?? '';
+          final emailMatch = (studentDoc == null || studentDoc.docs.isEmpty) && email.isNotEmpty
+              ? await FirebaseFirestore.instance
+                  .collection('libraries').doc(libId)
+                  .collection('students').where('email', isEqualTo: email)
+                  .limit(1).get()
+                  .then<QuerySnapshot?>((v) => v, onError: (_) => null)
+              : null;
+
+          if ((studentDoc != null && studentDoc.docs.isNotEmpty) ||
+              (emailMatch != null && emailMatch.docs.isNotEmpty)) {
+            ref.read(currentLibraryIdProvider.notifier).set(libId);
+            ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
+            await _ensureMinAnimationDuration(startTime);
+            if (!mounted) return;
+            context.go(Routes.studentHome);
+            return;
+          } else {
+            // Stale or ghost role — purge and send to login
+            ref.read(userRoleProvider.notifier).clear();
+            final p = await SharedPreferences.getInstance();
+            await p.remove('cached_current_user_role');
+            await p.remove('persisted_role');
+            await p.remove('persisted_uid');
+            await FirebaseAuth.instance.signOut();
+            await _ensureMinAnimationDuration(startTime);
+            if (!mounted) return;
+            context.go(Routes.login);
+            return;
+          }
         }
       }
 
@@ -351,19 +382,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return;
       }
 
-      // 2d. User is signed in but not an enrolled student yet -> take them to Student Registration
-      ref.read(currentLibraryIdProvider.notifier).set(CurrentLibraryNotifier.defaultLibraryId);
-      ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
-      await persistUserRole(
-        uid: user.uid,
-        email: user.email ?? '',
-        displayName: user.displayName ?? '',
-        role: AppUserRole.student,
-        libraryId: CurrentLibraryNotifier.defaultLibraryId,
-      );
+      // 2d. User is signed in to Firebase Auth but has no valid role or student profile
+      await FirebaseAuth.instance.signOut();
+      ref.read(userRoleProvider.notifier).clear();
+      final p = await SharedPreferences.getInstance();
+      await p.remove('cached_current_user_role');
+      await p.remove('persisted_role');
+      await p.remove('persisted_uid');
       await _ensureMinAnimationDuration(startTime);
       if (!mounted) return;
-      context.go(Routes.studentRegister);
+      context.go(Routes.login);
     } catch (e) {
       await _ensureMinAnimationDuration(startTime);
       if (mounted) context.go(Routes.login);
@@ -382,7 +410,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           await prefs.setString('lastAutomationRun', today);
         }
       }
-    } catch (_) {}
+    } catch (_) { /* intentionally silent */ }
   }
 
   /// Ensures the entrance animation has time to cleanly complete (~1600ms)

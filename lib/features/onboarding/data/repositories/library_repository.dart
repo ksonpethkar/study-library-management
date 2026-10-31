@@ -50,8 +50,17 @@ class LibraryRepository {
     if (snapshot.docs.isNotEmpty) {
       final docs = snapshot.docs.toList()
         ..sort((a, b) {
-          final aTime = (a.data()['updatedAt'] ?? a.data()['createdAt']) as Timestamp?;
-          final bTime = (b.data()['updatedAt'] ?? b.data()['createdAt']) as Timestamp?;
+          DateTime? parse(dynamic v) {
+            if (v == null) return null;
+            if (v is Timestamp) return v.toDate();
+            if (v is DateTime) return v;
+            if (v is String) return DateTime.tryParse(v);
+            if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+            try { return (v as dynamic).toDate(); } catch (_) { /* intentionally silent */ }
+            return null;
+          }
+          final aTime = parse(a.data()['updatedAt'] ?? a.data()['createdAt']);
+          final bTime = parse(b.data()['updatedAt'] ?? b.data()['createdAt']);
           if (aTime == null && bTime == null) return 0;
           if (aTime == null) return 1;
           if (bTime == null) return -1;
@@ -80,7 +89,7 @@ class LibraryRepository {
       final bytes = await compressed.readAsBytes();
       return 'data:image/jpeg;base64,${base64Encode(bytes)}';
     } catch (e) {
-      debugPrint('Compression failed, using raw bytes: $e');
+      if (kDebugMode) debugPrint('Compression failed, using raw bytes: $e');
       final bytes = await image.readAsBytes();
       return 'data:image/jpeg;base64,${base64Encode(bytes)}';
     }
@@ -91,7 +100,7 @@ class LibraryRepository {
     try {
       return await _imageToBase64(image, maxWidth: 400, quality: 70);
     } catch (e) {
-      debugPrint('Logo encoding failed: $e');
+      if (kDebugMode) debugPrint('Logo encoding failed: $e');
       throw Exception('Failed to process logo image. Please try another photo.');
     }
   }
@@ -101,7 +110,7 @@ class LibraryRepository {
     try {
       return await _imageToBase64(image, maxWidth: 400, quality: 70);
     } catch (e) {
-      debugPrint('Stamp encoding failed: $e');
+      if (kDebugMode) debugPrint('Stamp encoding failed: $e');
       throw Exception('Failed to process stamp image. Please try another photo.');
     }
   }
@@ -111,7 +120,7 @@ class LibraryRepository {
     try {
       return await _imageToBase64(image, maxWidth: 400, quality: 70);
     } catch (e) {
-      debugPrint('Signature encoding failed: $e');
+      if (kDebugMode) debugPrint('Signature encoding failed: $e');
       throw Exception('Failed to process signature image. Please try another photo.');
     }
   }

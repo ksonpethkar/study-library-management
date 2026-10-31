@@ -87,10 +87,10 @@ exports.dailyMembershipExpiryCheck = onSchedule(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // FUNCTION 2: Revenue Aggregate on Payment Created
 // Triggers on every new payment doc → updates running revenue total in
 // libraries/{libId}/settings/revenue_aggregate
-// This means the dashboard never needs to fetch 200+ payment docs
 // ─────────────────────────────────────────────────────────────────────────────
 exports.onPaymentCreated = onDocumentCreated(
   { document: 'libraries/{libraryId}/payments/{paymentId}', region: 'us-central1' },
@@ -103,8 +103,18 @@ exports.onPaymentCreated = onDocumentCreated(
       return;
     }
 
-    const amount = paymentData.amount ?? 0;
-    const month = new Date().toISOString().slice(0, 7); // e.g. '2026-10'
+    const status = (paymentData.status || 'paid').toLowerCase();
+    const isVoid = status === 'voided' || status === 'cancelled';
+    if (isVoid) return; // Voided payments have 0 revenue contribution
+
+    const isRefund = status === 'refunded';
+    const amount = (paymentData.amount ?? 0) * (isRefund ? -1 : 1);
+
+    let dateObj = new Date();
+    if (paymentData.date) {
+      dateObj = paymentData.date.toDate ? paymentData.date.toDate() : new Date(paymentData.date);
+    }
+    const month = dateObj.toISOString().slice(0, 7); // e.g. '2026-10'
 
     const aggregateRef = db
       .collection(`libraries/${libraryId}/settings`)
@@ -118,7 +128,8 @@ exports.onPaymentCreated = onDocumentCreated(
           // First payment ever — initialize aggregate
           transaction.set(aggregateRef, {
             totalRevenue: amount,
-            totalPayments: 1,
+            totalPayments: isRefund ? 0 : 1,
+            totalRefunds: isRefund ? (paymentData.amount ?? 0) : 0,
             monthlyRevenue: { [month]: amount },
             lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
           });
@@ -127,16 +138,78 @@ exports.onPaymentCreated = onDocumentCreated(
           const currentMonthRevenue = data.monthlyRevenue?.[month] ?? 0;
           transaction.update(aggregateRef, {
             totalRevenue: admin.firestore.FieldValue.increment(amount),
-            totalPayments: admin.firestore.FieldValue.increment(1),
+            totalPayments: isRefund ? admin.firestore.FieldValue.increment(0) : admin.firestore.FieldValue.increment(1),
+            totalRefunds: isRefund ? admin.firestore.FieldValue.increment(paymentData.amount ?? 0) : admin.firestore.FieldValue.increment(0),
             [`monthlyRevenue.${month}`]: currentMonthRevenue + amount,
             lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
           });
         }
       });
 
-      logger.info(`Revenue aggregate updated for library ${libraryId}: +₹${amount}`);
+      logger.info(`Revenue aggregate updated for library ${libraryId} (Payment ${paymentId}): ${isRefund ? '-' : '+'}₹${Math.abs(amount)}`);
     } catch (err) {
       logger.error(`Failed to update revenue aggregate for ${libraryId}:`, err);
+      throw err;
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FUNCTION 2B: Revenue Aggregate on Payment Updated (Refunds, Voids, Edits)
+// Handles status transitions: paid -> refunded/voided, amount adjustments
+// ─────────────────────────────────────────────────────────────────────────────
+exports.onPaymentUpdated = onDocumentUpdated(
+  { document: 'libraries/{libraryId}/payments/{paymentId}', region: 'us-central1' },
+  async (event) => {
+    const { libraryId, paymentId } = event.params;
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+
+    if (!before || !after) return;
+
+    // Helper to calculate net financial contribution
+    const getNetContribution = (p) => {
+      const st = (p.status || 'paid').toLowerCase();
+      if (st === 'voided' || st === 'cancelled') return 0;
+      if (st === 'refunded') return -Number(p.amount || 0);
+      return Number(p.amount || 0);
+    };
+
+    const delta = getNetContribution(after) - getNetContribution(before);
+    if (delta === 0) return; // No financial change
+
+    let dateObj = new Date();
+    if (after.date) {
+      dateObj = after.date.toDate ? after.date.toDate() : new Date(after.date);
+    }
+    const month = dateObj.toISOString().slice(0, 7);
+
+    const aggregateRef = db
+      .collection(`libraries/${libraryId}/settings`)
+      .doc('revenue_aggregate');
+
+    try {
+      await db.runTransaction(async (transaction) => {
+        const aggregateDoc = await transaction.get(aggregateRef);
+        if (!aggregateDoc.exists) return;
+
+        const data = aggregateDoc.data();
+        const currentMonthRevenue = data.monthlyRevenue?.[month] ?? 0;
+
+        const isNewlyRefunded = (after.status || '').toLowerCase() === 'refunded' && (before.status || '').toLowerCase() !== 'refunded';
+        const refundAmountIncrement = isNewlyRefunded ? Number(after.amount || 0) : 0;
+
+        transaction.update(aggregateRef, {
+          totalRevenue: admin.firestore.FieldValue.increment(delta),
+          totalRefunds: admin.firestore.FieldValue.increment(refundAmountIncrement),
+          [`monthlyRevenue.${month}`]: currentMonthRevenue + delta,
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      });
+
+      logger.info(`Revenue aggregate adjusted for library ${libraryId} (Payment ${paymentId}): delta ₹${delta}`);
+    } catch (err) {
+      logger.error(`Failed to adjust revenue aggregate for ${libraryId}:`, err);
       throw err;
     }
   }
@@ -169,6 +242,129 @@ exports.onRequestCreated = onDocumentCreated(
     if (pendingDocs.length > 0) {
       logger.warn(`Student ${studentId} already has a pending request. Deleting duplicate ${requestId}`);
       await event.data.ref.delete();
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FUNCTION 4: Dispatch Real FCM Push & Alerts on New Notification Created
+// Triggers on: libraries/{libraryId}/notifications/{notificationId}
+// Dispatches downstream FCM push to device tokens & topics, plus Telegram
+// ─────────────────────────────────────────────────────────────────────────────
+exports.onNotificationCreated = onDocumentCreated(
+  { document: 'libraries/{libraryId}/notifications/{notificationId}', region: 'us-central1' },
+  async (event) => {
+    const { libraryId, notificationId } = event.params;
+    const notif = event.data?.data();
+    if (!notif) return;
+
+    const title = notif.title || 'Library Notification';
+    const body = notif.body || '';
+    const targetRole = notif.targetRole || 'all'; // 'admin', 'student', 'all'
+    const targetUserId = notif.targetUserId;
+    const type = notif.type || 'general';
+
+    try {
+      // 1. Fetch library data for admin token and name
+      const libDoc = await db.collection('libraries').doc(libraryId).get();
+      const libData = libDoc.data() || {};
+      const adminFcmToken = libData.adminFcmToken;
+
+      // 2. Dispatch to Admin if targeted
+      if (targetRole === 'admin' || targetRole === 'all') {
+        const payload = {
+          notification: { title, body },
+          data: {
+            notificationId,
+            libraryId,
+            type,
+            actionRoute: notif.actionRoute || '',
+          },
+        };
+
+        if (adminFcmToken) {
+          try {
+            await admin.messaging().send({
+              token: adminFcmToken,
+              ...payload,
+            });
+            logger.info(`FCM push sent to admin of ${libraryId}`);
+          } catch (e) {
+            logger.warn(`Failed to send direct FCM to admin token: ${e.message}`);
+          }
+        }
+
+        // Also broadcast to admin topic
+        try {
+          await admin.messaging().send({
+            topic: `admin-${libraryId}`,
+            ...payload,
+          });
+        } catch (_) {}
+
+        // Check if Telegram alert is enabled
+        try {
+          const msgDoc = await db.collection(`libraries/${libraryId}/settings`).doc('messaging').get();
+          const msgConfig = msgDoc.data() || {};
+          if (msgConfig.telegramEnabled && msgConfig.telegramBotToken && msgConfig.telegramChatId) {
+            const text = `🔔 <b>${title}</b>\n${body}\n\n<i>${libData.name || 'Cozy Corner Centre'}</i>`;
+            await fetch(`https://api.telegram.org/bot${msgConfig.telegramBotToken}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: msgConfig.telegramChatId,
+                text: text,
+                parse_mode: 'HTML',
+              }),
+            });
+            logger.info(`Telegram alert dispatched for ${type} in library ${libraryId}`);
+          }
+        } catch (tgErr) {
+          logger.warn(`Telegram dispatch failed: ${tgErr.message}`);
+        }
+      }
+
+      // 3. Dispatch to Student if targeted
+      if (targetRole === 'student' || targetRole === 'all') {
+        if (targetUserId) {
+          const studentDoc = await db.collection(`libraries/${libraryId}/students`).doc(targetUserId).get();
+          const studentFcmToken = studentDoc.data()?.fcmToken;
+          if (studentFcmToken) {
+            try {
+              await admin.messaging().send({
+                token: studentFcmToken,
+                notification: { title, body },
+                data: {
+                  notificationId,
+                  libraryId,
+                  type,
+                },
+              });
+              logger.info(`FCM push sent to student ${targetUserId}`);
+            } catch (e) {
+              logger.warn(`Failed to send FCM to student: ${e.message}`);
+            }
+          }
+        } else if (type === 'announcement') {
+          // Broadcast to all enrolled students
+          try {
+            await admin.messaging().send({
+              topic: `lib-${libraryId}`,
+              notification: { title, body },
+              data: {
+                notificationId,
+                libraryId,
+                type: 'announcement',
+              },
+            });
+            logger.info(`Broadcast FCM sent to topic lib-${libraryId}`);
+          } catch (e) {
+            logger.warn(`Failed to broadcast announcement to topic: ${e.message}`);
+          }
+        }
+      }
+    } catch (err) {
+      logger.error('Error dispatching notification alerts:', err);
     }
   }
 );

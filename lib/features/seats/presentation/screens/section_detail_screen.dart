@@ -451,7 +451,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
 
                           // Grid
                           Text(
-                            'Seat Layout (${section.rows} rows × ${section.cols} cols)',
+                            'Seat Layout ($totalSeats Seats)',
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),

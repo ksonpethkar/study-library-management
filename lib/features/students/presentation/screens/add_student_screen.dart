@@ -10,8 +10,8 @@ import 'package:study_library/features/seats/presentation/providers/seat_provide
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:study_library/features/plans/presentation/providers/plan_providers.dart';
 import 'package:study_library/models/student_model.dart';
-import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/services/image_service.dart';
+import 'package:study_library/services/plan_calculator_service.dart';
 
 class AddStudentScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic>? initialData;
@@ -187,15 +187,11 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
 
         if (plan != null) {
           planStartDate = DateTime.now();
-          if (plan.durationUnit == DurationUnit.months) {
-            planEndDate = DateTime(
-              planStartDate.year,
-              planStartDate.month + plan.duration,
-              planStartDate.day,
-            );
-          } else {
-            planEndDate = planStartDate.add(Duration(days: plan.duration));
-          }
+          final smartCalc = PlanCalculatorService.calculateSmartPlan(
+            plan: plan,
+            fromDate: planStartDate,
+          );
+          planEndDate = smartCalc.endDate;
           status = MembershipStatus.active;
         }
       }

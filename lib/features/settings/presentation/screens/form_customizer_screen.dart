@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/services/form_config_service.dart';
 
 class FormCustomizerScreen extends ConsumerStatefulWidget {
   const FormCustomizerScreen({super.key});
@@ -11,18 +12,44 @@ class FormCustomizerScreen extends ConsumerStatefulWidget {
 }
 
 class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
-  List<Map<String, dynamic>> _fields = [
-    {'id': 'name', 'label': 'Full Name', 'type': 'Text', 'required': true, 'visible': true, 'builtin': true, 'showOnProfile': true, 'showOnIdCard': false, 'showOnReceipt': false},
-    {'id': 'phone', 'label': 'Phone Number', 'type': 'Number', 'required': true, 'visible': true, 'builtin': true, 'showOnProfile': true, 'showOnIdCard': false, 'showOnReceipt': false},
-    {'id': 'email', 'label': 'Email Address', 'type': 'Text', 'required': false, 'visible': true, 'builtin': true, 'showOnProfile': true, 'showOnIdCard': false, 'showOnReceipt': false},
-    {'id': 'govId', 'label': 'Aadhaar / Govt ID', 'type': 'Text', 'required': false, 'visible': true, 'builtin': true, 'showOnProfile': true, 'showOnIdCard': false, 'showOnReceipt': false},
-    {'id': 'gender', 'label': 'Gender', 'type': 'Dropdown', 'required': false, 'visible': true, 'builtin': true, 'showOnProfile': true, 'showOnIdCard': false, 'showOnReceipt': false},
-    {'id': 'address', 'label': 'Residential Address', 'type': 'Text', 'required': false, 'visible': true, 'builtin': true, 'showOnProfile': true, 'showOnIdCard': false, 'showOnReceipt': false},
-    {'id': 'prep', 'label': 'Exam / Target Course', 'type': 'Text', 'required': false, 'visible': true, 'builtin': false, 'showOnProfile': true, 'showOnIdCard': false, 'showOnReceipt': false},
-  ];
+  List<Map<String, dynamic>> _fields = List.from(
+    FormConfigService.defaultBuiltinFields.map((f) => Map<String, dynamic>.from(f)),
+  );
 
   bool _isLoading = true;
   bool _isSaving = false;
+
+  static IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case FormFieldCategory.personal:
+        return Icons.person_outline_rounded;
+      case FormFieldCategory.contact:
+        return Icons.contact_phone_outlined;
+      case FormFieldCategory.govId:
+        return Icons.badge_outlined;
+      case FormFieldCategory.academics:
+        return Icons.school_outlined;
+      case FormFieldCategory.custom:
+      default:
+        return Icons.tune_rounded;
+    }
+  }
+
+  static Color _getCategoryColor(String category) {
+    switch (category) {
+      case FormFieldCategory.personal:
+        return Colors.teal;
+      case FormFieldCategory.contact:
+        return Colors.blue;
+      case FormFieldCategory.govId:
+        return Colors.brown;
+      case FormFieldCategory.academics:
+        return Colors.purple;
+      case FormFieldCategory.custom:
+      default:
+        return Colors.orange.shade800;
+    }
+  }
 
   @override
   void initState() {
@@ -47,14 +74,16 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
 
       if (doc.exists && mounted) {
         final data = doc.data();
-        if (data != null && data['fields'] is List) {
-          final loaded = (data['fields'] as List)
-              .map((item) => Map<String, dynamic>.from(item as Map))
-              .toList();
-          setState(() {
-            _fields = loaded;
-          });
-        }
+        final rawList = data != null ? data['fields'] as List<dynamic>? : null;
+        setState(() {
+          _fields = FormConfigService.normalizeConfig(rawList);
+        });
+      } else {
+        setState(() {
+          _fields = List<Map<String, dynamic>>.from(
+            FormConfigService.defaultBuiltinFields.map((f) => Map<String, dynamic>.from(f)),
+          );
+        });
       }
     } catch (_) {
     } finally {
@@ -106,6 +135,7 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
     final isEditing = index != null;
     final current = isEditing ? _fields[index] : null;
     final isBuiltin = current?['builtin'] == true;
+    String selectedCategory = (current?['category'] as String?) ?? FormFieldCategory.custom;
 
     final labelController = TextEditingController(text: current?['label'] ?? '');
     String fieldType = current?['type'] ?? 'Text';
@@ -146,17 +176,38 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
                   ],
                   onChanged: isBuiltin ? null : (val) => setDialogState(() => fieldType = val!),
                 ),
+                if (!isBuiltin) ...[
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedCategory,
+                    decoration: const InputDecoration(
+                      labelText: 'Section Category',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: FormFieldCategory.personal, child: Text('Personal Details')),
+                      DropdownMenuItem(value: FormFieldCategory.contact, child: Text('Contact & Residence')),
+                      DropdownMenuItem(value: FormFieldCategory.academics, child: Text('Academic & Goals')),
+                      DropdownMenuItem(value: FormFieldCategory.custom, child: Text('Custom & Additional')),
+                    ],
+                    onChanged: (v) => setDialogState(() => selectedCategory = v ?? FormFieldCategory.custom),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 CheckboxListTile(
                   title: const Text('Mandatory (Required)'),
-                  value: isRequired,
-                  onChanged: (val) => setDialogState(() => isRequired = val ?? false),
+                  value: (current?['id'] == 'name' || current?['id'] == 'phone') ? true : isRequired,
+                  onChanged: (current?['id'] == 'name' || current?['id'] == 'phone')
+                      ? null
+                      : (val) => setDialogState(() => isRequired = val ?? false),
                   contentPadding: EdgeInsets.zero,
                 ),
                 CheckboxListTile(
                   title: const Text('Visible on Registration'),
-                  value: isVisible,
-                  onChanged: (val) => setDialogState(() => isVisible = val ?? true),
+                  value: (current?['id'] == 'name' || current?['id'] == 'phone') ? true : isVisible,
+                  onChanged: (current?['id'] == 'name' || current?['id'] == 'phone')
+                      ? null
+                      : (val) => setDialogState(() => isVisible = val ?? true),
                   contentPadding: EdgeInsets.zero,
                 ),
                 if (!isBuiltin) ...[
@@ -211,6 +262,7 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
                   'required': isRequired,
                   'visible': isVisible,
                   'builtin': isBuiltin,
+                  'category': isBuiltin ? (current?['category'] ?? FormFieldCategory.custom) : selectedCategory,
                   'showOnProfile': showOnProfile,
                   'showOnIdCard': showOnIdCard,
                   'showOnReceipt': showOnReceipt,
@@ -337,158 +389,241 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ReorderableListView(
+          : ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
-              onReorderItem: (oldIndex, newIndex) {
-                setState(() {
-                  if (newIndex > oldIndex) newIndex--;
-                  final item = _fields.removeAt(oldIndex);
-                  _fields.insert(newIndex, item);
-                });
-              },
-              children: _fields.asMap().map((index, field) {
-                final isVisible = field['visible'] == true;
-                final isBuiltin = field['builtin'] == true;
-                final isRequired = field['required'] == true;
+              children: [
+                for (final categoryKey in FormFieldCategory.orderedCategories) ...[
+                  Builder(builder: (context) {
+                    final catFields = _fields
+                        .asMap()
+                        .entries
+                        .where((e) {
+                          final f = e.value;
+                          final cat = f['category']?.toString() ?? FormFieldCategory.custom;
+                          return cat == categoryKey;
+                        })
+                        .toList();
 
-                return MapEntry(
-                  index,
-                  Card(
-                    key: ValueKey(field['id']),
-                    elevation: 0,
-                    margin: const EdgeInsets.only(bottom: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: isVisible
-                            ? theme.colorScheme.primary.withValues(alpha: 0.3)
-                            : theme.colorScheme.outlineVariant,
-                        width: 1.2,
-                      ),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () => _showAddEditFieldDialog(index: index),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: isVisible
-                                  ? theme.colorScheme.primaryContainer
-                                  : theme.colorScheme.surfaceContainerHighest,
-                              child: Icon(
-                                field['type'] == 'Number'
-                                    ? Icons.numbers_rounded
-                                    : field['type'] == 'Dropdown'
-                                        ? Icons.list_rounded
-                                        : field['type'] == 'Date'
-                                            ? Icons.event_rounded
-                                            : Icons.text_fields_rounded,
-                                color: isVisible
-                                    ? theme.colorScheme.primary
-                                    : Colors.grey,
-                                size: 20,
+                    if (catFields.isEmpty && categoryKey == FormFieldCategory.custom) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final activeCount = catFields.where((e) => e.value['visible'] == true).length;
+                    final totalCount = catFields.length;
+                    final catTitle = FormFieldCategory.getCategoryTitle(categoryKey);
+                    final catSubtitle = FormFieldCategory.getCategorySubtitle(categoryKey);
+                    final catIcon = _getCategoryIcon(categoryKey);
+                    final catColor = _getCategoryColor(categoryKey);
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 14, bottom: 8, left: 4, right: 4),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: catColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(catIcon, size: 16, color: catColor),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          field['label'],
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15,
-                                            color: isVisible
-                                                ? theme.colorScheme.onSurface
-                                                : Colors.grey,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      catTitle,
+                                      style: theme.textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: -0.2,
                                       ),
-                                      if (isRequired) ...[
-                                        const SizedBox(width: 4),
-                                        const Text('*',
-                                            style: TextStyle(
-                                                color: Colors.red,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16)),
-                                      ],
-                                    ],
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        '${field['type']} • ${isRequired ? "Required" : "Optional"}${!isVisible ? " • Hidden" : ""}',
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            color: isVisible
-                                                ? Colors.grey.shade700
-                                                : Colors.grey),
+                                    ),
+                                    Text(
+                                      catSubtitle,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                                        fontSize: 11,
                                       ),
-                                      if (isBuiltin) ...[
-                                        const SizedBox(width: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 1.5),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade200,
-                                            borderRadius:
-                                                BorderRadius.circular(4),
-                                          ),
-                                          child: const Text('Standard',
-                                              style: TextStyle(
-                                                  fontSize: 10,
-                                                  color: Colors.black54,
-                                                  fontWeight: FontWeight.w600)),
-                                        ),
-                                      ],
-                                    ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                                decoration: BoxDecoration(
+                                  color: activeCount > 0
+                                      ? Colors.green.withValues(alpha: 0.12)
+                                      : Colors.grey.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: activeCount > 0
+                                        ? Colors.green.withValues(alpha: 0.3)
+                                        : Colors.grey.withValues(alpha: 0.3),
                                   ),
-                                ],
+                                ),
+                                child: Text(
+                                  '$activeCount/$totalCount active',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: activeCount > 0 ? Colors.green.shade700 : Colors.grey,
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Transform.scale(
-                              scale: 0.85,
-                              child: Switch(
-                                value: isVisible,
-                                onChanged: (v) =>
-                                    setState(() => field['visible'] = v),
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined, size: 20),
-                              visualDensity: VisualDensity.compact,
-                              tooltip: 'Edit field',
-                              onPressed: () =>
-                                  _showAddEditFieldDialog(index: index),
-                            ),
-                            const Icon(Icons.drag_handle_rounded,
-                                color: Colors.grey, size: 22),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
-                );
-              }).values.toList(),
+                        for (final entry in catFields)
+                          _buildFieldCard(context, entry.key, entry.value, theme),
+                        const SizedBox(height: 6),
+                      ],
+                    );
+                  }),
+                ],
+              ],
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddEditFieldDialog(),
         icon: const Icon(Icons.add_rounded),
         label: const Text('Add Custom Field'),
+      ),
+    );
+  }
+
+  Widget _buildFieldCard(BuildContext context, int index, Map<String, dynamic> field, ThemeData theme) {
+    final isVisible = field['visible'] == true;
+    final isBuiltin = field['builtin'] == true;
+    final isRequired = field['required'] == true;
+
+    return Card(
+      key: ValueKey(field['id']),
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: isVisible
+              ? theme.colorScheme.primary.withValues(alpha: 0.25)
+              : theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+          width: 1.2,
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _showAddEditFieldDialog(index: index),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: isVisible
+                    ? theme.colorScheme.primaryContainer
+                    : theme.colorScheme.surfaceContainerHighest,
+                child: Icon(
+                  field['type'] == 'Number'
+                      ? Icons.numbers_rounded
+                      : field['type'] == 'Dropdown'
+                          ? Icons.list_rounded
+                          : field['type'] == 'Date'
+                              ? Icons.event_rounded
+                              : Icons.text_fields_rounded,
+                  color: isVisible
+                      ? theme.colorScheme.primary
+                      : Colors.grey,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            field['label'],
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: isVisible
+                                  ? theme.colorScheme.onSurface
+                                  : Colors.grey,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isRequired) ...[
+                          const SizedBox(width: 4),
+                          const Text(
+                            '*',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          '${field['type']} • ${isRequired ? "Required" : "Optional"}${!isVisible ? " • Hidden" : ""}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isVisible
+                                ? Colors.grey.shade700
+                                : Colors.grey,
+                          ),
+                        ),
+                        if (isBuiltin) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'Standard',
+                              style: TextStyle(fontSize: 9.5, color: Colors.black54, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Transform.scale(
+                scale: 0.82,
+                child: Switch(
+                  value: (field['id'] == 'name' || field['id'] == 'phone') ? true : isVisible,
+                  onChanged: (field['id'] == 'name' || field['id'] == 'phone')
+                      ? null
+                      : (v) => setState(() => field['visible'] = v),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Edit field',
+                onPressed: () => _showAddEditFieldDialog(index: index),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -5,8 +5,25 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTypography {
   AppTypography._();
 
+  /// Universal font fallback chain covering all major Indian scripts and world languages:
+  /// Devanagari (Hindi, Marathi, Konkani, Sanskrit), Tamil, Telugu, Gujarati, Bengali,
+  /// Kannada, Malayalam, Gurmukhi, and global emojis.
+  static const List<String> universalFontFallbacks = [
+    'Noto Sans',
+    'Noto Sans Devanagari',
+    'Noto Sans Tamil',
+    'Noto Sans Telugu',
+    'Noto Sans Gujarati',
+    'Noto Sans Bengali',
+    'Noto Sans Kannada',
+    'Noto Sans Malayalam',
+    'Noto Sans Gurmukhi',
+    'Noto Color Emoji',
+    'sans-serif',
+  ];
+
   static TextTheme getLightTextTheme() {
-    return TextTheme(
+    final base = TextTheme(
       displayLarge: GoogleFonts.poppins(fontSize: 57, fontWeight: FontWeight.bold, letterSpacing: -0.25),
       displayMedium: GoogleFonts.poppins(fontSize: 45, fontWeight: FontWeight.bold, letterSpacing: 0),
       displaySmall: GoogleFonts.poppins(fontSize: 36, fontWeight: FontWeight.bold, letterSpacing: 0),
@@ -25,12 +42,14 @@ class AppTypography {
       labelMedium: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.5),
       labelSmall: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.5),
     );
+    return base.apply(fontFamilyFallback: universalFontFallbacks);
   }
 
   static TextTheme getDarkTextTheme() {
     return getLightTextTheme().apply(
       bodyColor: Colors.white,
       displayColor: Colors.white,
+      fontFamilyFallback: universalFontFallbacks,
     );
   }
 }

@@ -9,6 +9,10 @@ class WaitingListEntry {
   final int position;
   final DateTime? createdAt;
   final DateTime? notifiedAt;
+  final String? suggestedSeatId;
+  final String? suggestedSectionId;
+  final String? suggestedSeatLabel;
+  final String? notes;
 
   WaitingListEntry({
     required this.id,
@@ -21,6 +25,10 @@ class WaitingListEntry {
     required this.position,
     this.createdAt,
     this.notifiedAt,
+    this.suggestedSeatId,
+    this.suggestedSectionId,
+    this.suggestedSeatLabel,
+    this.notes,
   });
 
   factory WaitingListEntry.fromJson(Map<String, dynamic> json) {
@@ -35,6 +43,10 @@ class WaitingListEntry {
       position: json['position'] ?? 0,
       createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
       notifiedAt: json['notifiedAt'] != null ? DateTime.parse(json['notifiedAt']) : null,
+      suggestedSeatId: json['suggestedSeatId'] as String?,
+      suggestedSectionId: json['suggestedSectionId'] as String?,
+      suggestedSeatLabel: json['suggestedSeatLabel'] as String?,
+      notes: json['notes'] as String?,
     );
   }
 
@@ -50,6 +62,10 @@ class WaitingListEntry {
       'position': position,
       'createdAt': createdAt?.toIso8601String(),
       'notifiedAt': notifiedAt?.toIso8601String(),
+      if (suggestedSeatId != null) 'suggestedSeatId': suggestedSeatId,
+      if (suggestedSectionId != null) 'suggestedSectionId': suggestedSectionId,
+      if (suggestedSeatLabel != null) 'suggestedSeatLabel': suggestedSeatLabel,
+      if (notes != null) 'notes': notes,
     };
   }
 
@@ -64,6 +80,9 @@ class WaitingListEntry {
     int? position,
     DateTime? createdAt,
     DateTime? notifiedAt,
+    String? suggestedSeatId,
+    String? suggestedSectionId,
+    String? suggestedSeatLabel,
   }) {
     return WaitingListEntry(
       id: id ?? this.id,
@@ -76,6 +95,9 @@ class WaitingListEntry {
       position: position ?? this.position,
       createdAt: createdAt ?? this.createdAt,
       notifiedAt: notifiedAt ?? this.notifiedAt,
+      suggestedSeatId: suggestedSeatId ?? this.suggestedSeatId,
+      suggestedSectionId: suggestedSectionId ?? this.suggestedSectionId,
+      suggestedSeatLabel: suggestedSeatLabel ?? this.suggestedSeatLabel,
     );
   }
 }

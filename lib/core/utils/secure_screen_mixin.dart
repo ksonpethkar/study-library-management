@@ -77,7 +77,7 @@ Future<void> setScreenshotProtectionEnabled(bool enabled) async {
   // Also save to Firestore for multi-device sync (best effort)
   try {
     // libraryId must be passed by caller for Firestore sync
-  } catch (_) {}
+  } catch (_) { /* intentionally silent */ }
 }
 
 /// Reads current global screenshot protection preference.
@@ -97,7 +97,7 @@ Future<void> syncScreenshotProtectionToFirestore(
         .doc('security')
         .set({'screenshotProtectionEnabled': enabled},
             SetOptions(merge: true));
-  } catch (_) {}
+  } catch (_) { /* intentionally silent */ }
 }
 
 /// Helper to load screenshot protection setting from Firestore.

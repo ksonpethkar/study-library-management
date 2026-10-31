@@ -26,7 +26,7 @@ class NotificationWebhookService {
         return doc.data();
       }
     } catch (e) {
-      debugPrint('Error fetching webhook config: $e');
+      if (kDebugMode) debugPrint('Error fetching webhook config: $e');
     }
     return null;
   }
@@ -42,7 +42,7 @@ class NotificationWebhookService {
       final response = await request.close();
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
-      debugPrint('Webhook dispatch error: $e');
+      if (kDebugMode) debugPrint('Webhook dispatch error: $e');
       return false;
     } finally {
       client?.close();
@@ -83,7 +83,7 @@ class NotificationWebhookService {
 
       await _postWebhook(url.trim(), payload);
     } catch (e) {
-      debugPrint('Failed to dispatch payment webhook: $e');
+      if (kDebugMode) debugPrint('Failed to dispatch payment webhook: $e');
     }
   }
 
@@ -119,7 +119,7 @@ class NotificationWebhookService {
 
       await _postWebhook(url.trim(), payload);
     } catch (e) {
-      debugPrint('Failed to dispatch expiry webhook: $e');
+      if (kDebugMode) debugPrint('Failed to dispatch expiry webhook: $e');
     }
   }
 }

@@ -39,4 +39,24 @@ class AppColors {
   static const Color membershipGrace = Color(0xFFFF9800); // Orange
   static const Color membershipPending = Color(0xFFFFEB3B); // Yellow
   static const Color membershipArchived = Color(0xFF9E9E9E); // Grey
+
+  // Status Indicator Colors (use these instead of raw Colors.green/red/amber)
+  static const Color statusActive = Color(0xFF2E7D32); // Green 800
+  static const Color statusInactive = Color(0xFF9E9E9E); // Grey
+  static const Color statusBlocked = Color(0xFFC62828); // Red 800
+  static const Color statusPending = Color(0xFFEF6C00); // Orange 800
+  static const Color statusExpired = Color(0xFFD32F2F); // Red 700
+
+  // Payment / Financial
+  static const Color paymentReceived = Color(0xFF388E3C); // Green
+  static const Color paymentDue = Color(0xFFE65100); // Deep Orange
+  static const Color paymentOverdue = Color(0xFFC62828); // Red
+
+  // Notification badges
+  static const Color badgeUnread = Color(0xFFD32F2F); // Red
+  static const Color badgeInfo = Color(0xFF1565C0); // Blue
+
+  // Connectivity
+  static const Color offline = Color(0xFFC62828); // Red
+  static const Color online = Color(0xFF2E7D32); // Green
 }

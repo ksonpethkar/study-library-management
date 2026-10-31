@@ -13,7 +13,7 @@ class TelegramService {
     required String message,
   }) async {
     if (botToken.trim().isEmpty || chatId.trim().isEmpty) {
-      debugPrint('TelegramService: Bot token or chat ID is empty');
+      if (kDebugMode) debugPrint('TelegramService: Bot token or chat ID is empty');
       return false;
     }
 
@@ -35,14 +35,14 @@ class TelegramService {
       final responseBody = await response.transform(utf8.decoder).join();
 
       if (response.statusCode == 200) {
-        debugPrint('TelegramService: Message sent successfully');
+        if (kDebugMode) debugPrint('TelegramService: Message sent successfully');
         return true;
       } else {
-        debugPrint('TelegramService error (${response.statusCode}): $responseBody');
+        if (kDebugMode) debugPrint('TelegramService error (${response.statusCode}): $responseBody');
         return false;
       }
     } catch (e) {
-      debugPrint('TelegramService network error: $e');
+      if (kDebugMode) debugPrint('TelegramService network error: $e');
       return false;
     } finally {
       client?.close();
@@ -103,8 +103,10 @@ class TelegramService {
   Future<bool> testConnection({
     required String botToken,
     required String chatId,
+    String? libraryName,
   }) async {
-    final message = '🚀 <b>Cozy Corner Library System</b>\n\n'
+    final header = libraryName?.isNotEmpty == true ? libraryName! : 'Library System';
+    final message = '🚀 <b>$header</b>\n\n'
         'Telegram Bot notification integration is <b>active & verified</b>! ✅\n'
         '<i>Timestamp: ${DateTime.now().toIso8601String()}</i>';
     return await sendMessage(botToken: botToken, chatId: chatId, message: message);

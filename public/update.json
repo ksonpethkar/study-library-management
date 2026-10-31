@@ -1,83 +1,71 @@
 {
-  "versionCode": 34,
-  "latestVersionCode": 34,
-  "latestBuild": 34,
-  "latestVersion": "1.5.26",
-  "versionName": "1.5.26+34",
-  "apkSize": "47.7 MB",
-  "releaseNotes": "v1.5.26 (Build 34): Google Play Protect Clean Release (removed SEND_SMS, 100% permission-free SMS intent), In-App Update Trigger Fix, Master PIN Cloud Sync, Touch-Isolated Screenshot Toggle, Partial Payments & Due Tracking, Dynamic Payment Modes, and Clean Seat Map.",
-  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.26/StudyLibrary.apk",
+  "versionCode": 52,
+  "latestVersionCode": 52,
+  "latestBuild": 52,
+  "latestVersion": "1.5.44",
+  "versionName": "1.5.44+52",
+  "apkSize": "48.8 MB",
+  "releaseNotes": "v1.5.44 (Build 52): Added Theme Toggle and Notification Center to Admin Dashboard header; removed Study Streak and Check In/Out sections from Student Home screen for clean, direct pass view.",
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.44/StudyLibrary.apk",
   "mandatory": false,
   "organization": {
     "name": "The Cozy Corner Centre",
     "address": "Front Of Reliance Fasion Factory, Nath Road, Parli-431515",
-    "contact": "8625982248",
+    "contact": "",
     "email": "thecozycornersc@gmail.com",
     "operatingHours": "6:00 AM - 11:00 PM",
     "accentColor": "#5D4037"
   },
   "studentFeatures": [
     {
-      "icon": "approval",
-      "badge": "Self-Service",
-      "title": "In-App Plan Renewal with UTR",
-      "description": "Request plan renewals directly in-app with bank/UPI UTR transaction reference, seamlessly verified and approved by admin."
-    },
-    {
-      "icon": "document_scanner",
-      "badge": "Instant KYC",
-      "title": "Autonomous Gov ID OCR Detection",
-      "description": "Smart optical scanning automatically recognizes Aadhaar, PAN, Driving Licence, and Passport without manual dropdown selection."
-    },
-    {
-      "icon": "receipt",
-      "badge": "Transparent",
-      "title": "Partial Payments & Due Tracking",
-      "description": "Track installments, paid amounts, and remaining dues with authentic official fee receipts."
+      "icon": "notifications",
+      "badge": "Live Alerts",
+      "title": "Student Notification Center",
+      "description": "View live alerts for pass approvals, seat changes, fee receipts, and library notices with the new notification bell on your home screen."
     },
     {
       "icon": "palette",
-      "badge": "Dark Mode",
-      "title": "High-Contrast Dark Theme",
-      "description": "Elevated cards, clear text labels, and comfortable contrast for long late-night study sessions."
+      "badge": "Dashboard Action",
+      "title": "1-Tap Theme Toggle on Dashboard",
+      "description": "Conveniently toggle between Dark Mode and Light Mode right from the top dashboard header."
     },
     {
       "icon": "seat",
-      "badge": "Live Map",
-      "title": "Clean Real-Time Seat Map",
-      "description": "Clean, uncluttered seat labels and live section color tinting on available seats."
+      "badge": "Clean Desk",
+      "title": "Readable Seat & Hall Details",
+      "description": "Your allocated desk (e.g. Seat #2 [ALLOCATED]) and hall section name are clearly presented across home, profile, and membership screens."
+    },
+    {
+      "icon": "support_agent",
+      "badge": "Manager Sync",
+      "title": "Dynamic Admin Name & Real-time Support",
+      "description": "Instant live sync with official library admin and manager details with 1-tap call and pre-formatted WhatsApp assistance."
+    },
+    {
+      "icon": "refresh",
+      "badge": "Instant Sync",
+      "title": "Rotating Refresh & Full Data Sync",
+      "description": "Smooth 360-degree rotating sync button with haptic feedback to instantly reload all profile, seat, and library data."
     }
   ],
   "adminFeatures": [
     {
-      "icon": "system_update",
-      "badge": "100% Free",
-      "title": "Multi-Channel Free Messaging Stack",
-      "description": "Send automated fee receipts and alerts via Admin SIM Native Direct SMS (Play Protect verified safe), official Telegram Bot, 1-tap WhatsApp, or Local Desk PC Bridge."
+      "icon": "sync",
+      "badge": "Live Sync",
+      "title": "Real-Time Org & Manager Propagation",
+      "description": "Changes made in Library Profile immediately propagate dynamically across all active student logins and screens."
     },
     {
-      "icon": "receipt",
-      "badge": "Finances",
-      "title": "Partial Payments & Installment Engine",
-      "description": "Record split payments, track due balances with student profile banners, 1-tap clear dues, and interactive payment action sheets."
-    },
-    {
-      "icon": "lock",
-      "badge": "Zero Data Loss",
-      "title": "Master PIN & Biometric Cloud Sync",
-      "description": "Master PIN hash and biometric preferences are safely backed up to cloud settings, auto-restoring seamlessly across app reinstalls."
-    },
-    {
-      "icon": "security",
-      "badge": "Responsive",
-      "title": "Isolated Screenshot Protection Toggle",
-      "description": "Fixed touch targets for screenshot prevention and biometric lock with instantaneous 0ms optimistic response."
+      "icon": "notifications",
+      "badge": "Direct Dispatch",
+      "title": "Student Notification Center Stream",
+      "description": "Admins can dispatch targeted or global alerts that appear immediately on student home screen badges."
     },
     {
       "icon": "seat",
-      "badge": "Visuals",
-      "title": "Clean Seat Labels & Dynamic Tinting",
-      "description": "Removed 'occ' badge clutter from occupied seats; available seats dynamically tinted with section assigned brand colors."
+      "badge": "Standardized Labels",
+      "title": "Universal Seat Readability",
+      "description": "Cleaned up all raw database section IDs into readable desk numbers and section names across all modules."
     }
   ]
 }

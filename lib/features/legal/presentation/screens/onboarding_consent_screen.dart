@@ -2,17 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/core/router/app_router.dart';
-import 'package:study_library/features/legal/presentation/screens/privacy_policy_screen.dart';
-import 'package:study_library/features/legal/presentation/screens/terms_screen.dart';
 
-class OnboardingConsentScreen extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
+
+class OnboardingConsentScreen extends ConsumerStatefulWidget {
   const OnboardingConsentScreen({super.key});
 
   @override
-  State<OnboardingConsentScreen> createState() => _OnboardingConsentScreenState();
+  ConsumerState<OnboardingConsentScreen> createState() => _OnboardingConsentScreenState();
 }
 
-class _OnboardingConsentScreenState extends State<OnboardingConsentScreen> {
+class _OnboardingConsentScreenState extends ConsumerState<OnboardingConsentScreen> {
   bool _agreed = false;
 
   Future<void> _accept() async {
@@ -25,6 +26,8 @@ class _OnboardingConsentScreenState extends State<OnboardingConsentScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final lib = ref.watch(currentLibraryProvider).value;
+    final libName = lib?.name.isNotEmpty == true ? lib!.name : 'Study Library';
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -35,7 +38,7 @@ class _OnboardingConsentScreenState extends State<OnboardingConsentScreen> {
               Icon(Icons.local_library_rounded,
                   size: 72, color: theme.colorScheme.primary),
               const SizedBox(height: 24),
-              Text('Welcome to Cozy Corner',
+              Text('Welcome to $libName',
                   style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center),
               const SizedBox(height: 12),
@@ -51,8 +54,7 @@ class _OnboardingConsentScreenState extends State<OnboardingConsentScreen> {
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.description_outlined),
                       label: const Text('Terms of Service'),
-                      onPressed: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const TermsScreen())),
+                      onPressed: () => context.push(Routes.terms),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -60,8 +62,7 @@ class _OnboardingConsentScreenState extends State<OnboardingConsentScreen> {
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.privacy_tip_outlined),
                       label: const Text('Privacy Policy'),
-                      onPressed: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
+                      onPressed: () => context.push(Routes.privacyPolicy),
                     ),
                   ),
                 ],

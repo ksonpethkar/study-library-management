@@ -4,7 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/models/seat_model.dart';
 import 'package:study_library/models/section_model.dart';
+import 'package:study_library/models/waiting_list_model.dart';
+import 'package:study_library/services/waiting_list_promotion_service.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/core/error/error_handler.dart';
 
 import '../providers/seat_providers.dart';
 
@@ -138,21 +141,190 @@ class _SeatDetailSheetState extends ConsumerState<SeatDetailSheet> {
           .doc(widget.seat.id)
           .update(updates);
 
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Seat ${widget.seat.label} → ${newStatus.name}'),
-          ),
+      WaitingListEntry? candidate;
+      if (newStatus == SeatStatus.available) {
+        final promoService = ref.read(waitingListPromotionServiceProvider);
+        candidate = await promoService.findNextEligibleCandidate(
+          libraryId: libraryId,
+          sectionId: widget.sectionId,
+          seatGender: widget.seat.genderRestriction.name,
         );
+      }
+
+      if (mounted) {
+        if (candidate != null) {
+          await _showWaitingListPromotionDialog(libraryId, candidate);
+        }
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Seat ${widget.seat.label} → ${newStatus.name}'),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        AppSnackbar.showError(context, e);
       }
     }
     if (mounted) setState(() => isLoading = false);
+  }
+
+  Future<void> _showWaitingListPromotionDialog(
+    String libraryId,
+    WaitingListEntry candidate,
+  ) async {
+    final libraryAsync = ref.read(currentLibraryProvider);
+    final libraryName = libraryAsync.value?.name.isNotEmpty == true ? libraryAsync.value!.name : 'Study Library';
+    final promoService = ref.read(waitingListPromotionServiceProvider);
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        titlePadding: EdgeInsets.zero,
+        title: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: const BoxDecoration(
+            color: Color(0xFF881337),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+            ),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.queue_play_next, color: Colors.amber, size: 24),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Waiting List Match Found!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Seat ${widget.seat.label} is now available. The next candidate in queue matches this seat:',
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.person, size: 16, color: Color(0xFF881337)),
+                      const SizedBox(width: 6),
+                      Text(
+                        candidate.studentName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.phone, size: 14, color: Colors.grey),
+                      const SizedBox(width: 6),
+                      Text(
+                        candidate.studentPhone,
+                        style: const TextStyle(fontSize: 12, color: Colors.black87),
+                      ),
+                    ],
+                  ),
+                  if (candidate.notes != null && candidate.notes!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Note: ${candidate.notes}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Would you like to assign this seat directly or alert them on WhatsApp?',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Keep Available', style: TextStyle(color: Colors.grey)),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.chat, size: 16, color: Color(0xFF25D366)),
+            label: const Text('WhatsApp', style: TextStyle(color: Color(0xFF25D366))),
+            onPressed: () async {
+              await WaitingListPromotionService.launchWhatsAppNotification(
+                entry: candidate,
+                seatLabel: widget.seat.label,
+                libraryName: libraryName,
+              );
+            },
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF881337),
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.check_circle, size: 16),
+            label: const Text('Assign Now'),
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              try {
+                await promoService.assignSeatToCandidate(
+                  libraryId: libraryId,
+                  entry: candidate,
+                  sectionId: widget.sectionId,
+                  seatId: widget.seat.id,
+                  seatLabel: widget.seat.label,
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Seat ${widget.seat.label} assigned to ${candidate.studentName}!'),
+                      backgroundColor: Colors.green[800],
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to assign seat: $e')),
+                  );
+                }
+              }
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _vacateSeat() async {

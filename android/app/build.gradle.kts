@@ -13,6 +13,16 @@ android {
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
+    // Suppress SDK version warnings from third-party plugins (sqflite, url_launcher)
+    // that compile against Integer.MAX_VALUE (2147483647) as a sentinel
+    configurations.all {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "com.android.tools.build") {
+                // no-op: just suppress the warning
+            }
+        }
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17

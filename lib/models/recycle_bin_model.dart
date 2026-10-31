@@ -25,10 +25,22 @@ class RecycleBinItem {
       type: json['type'] ?? 'unknown',
       originalData: json['originalData'] ?? {},
       deletedBy: json['deletedBy'] ?? 'system',
-      deletedAt: (json['deletedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      expiresAt: (json['expiresAt'] as Timestamp?)?.toDate() ?? DateTime.now().add(const Duration(days: 30)),
+      deletedAt: _parseDate(json['deletedAt']) ?? DateTime.now(),
+      expiresAt: _parseDate(json['expiresAt']) ?? DateTime.now().add(const Duration(days: 30)),
       displayName: json['displayName'] ?? 'Deleted Item',
     );
+  }
+
+  static DateTime? _parseDate(dynamic date) {
+    if (date == null) return null;
+    if (date is DateTime) return date;
+    if (date is Timestamp) return date.toDate();
+    if (date is int) return DateTime.fromMillisecondsSinceEpoch(date);
+    if (date is String) return DateTime.tryParse(date);
+    try {
+      return (date as dynamic).toDate();
+    } catch (_) { /* intentionally silent */ }
+    return null;
   }
 
   Map<String, dynamic> toJson() {

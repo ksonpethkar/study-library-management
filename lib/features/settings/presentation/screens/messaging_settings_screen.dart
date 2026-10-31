@@ -112,7 +112,8 @@ class _MessagingSettingsScreenState extends ConsumerState<MessagingSettingsScree
 
     setState(() => _isTestingTelegram = true);
     final tg = ref.read(telegramServiceProvider);
-    final ok = await tg.testConnection(botToken: token, chatId: chatId);
+    final lib = ref.read(currentLibraryProvider).value;
+    final ok = await tg.testConnection(botToken: token, chatId: chatId, libraryName: lib?.name);
     if (mounted) {
       setState(() => _isTestingTelegram = false);
       ScaffoldMessenger.of(context).showSnackBar(

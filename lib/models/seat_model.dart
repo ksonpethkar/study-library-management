@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum SeatStatus { available, occupied, reserved, maintenance }
 enum GenderRestriction { male, female, any }
 enum SeatNamingStyle { alphanumeric, numeric, customPrefix, sectionPrefixAlphanumeric }
@@ -70,6 +72,7 @@ class SeatModel {
     SeatStatus? status,
     GenderRestriction? genderRestriction,
     String? studentId,
+    bool clearStudent = false,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
@@ -82,7 +85,7 @@ class SeatModel {
       label: label ?? this.label,
       status: status ?? this.status,
       genderRestriction: genderRestriction ?? this.genderRestriction,
-      studentId: studentId ?? this.studentId,
+      studentId: clearStudent ? null : (studentId ?? this.studentId),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -118,13 +121,12 @@ class SeatModel {
   static DateTime? _parseDate(dynamic date) {
     if (date == null) return null;
     if (date is DateTime) return date;
+    if (date is Timestamp) return date.toDate();
     if (date is int) return DateTime.fromMillisecondsSinceEpoch(date);
     if (date is String) return DateTime.tryParse(date);
-    if (date.runtimeType.toString() == 'Timestamp') {
-      try {
-        return date.toDate();
-      } catch (_) {}
-    }
+    try {
+      return (date as dynamic).toDate();
+    } catch (_) { /* intentionally silent */ }
     return null;
   }
 }

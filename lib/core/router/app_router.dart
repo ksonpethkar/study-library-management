@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'page_transitions.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/models/plan_model.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
@@ -35,6 +36,7 @@ import '../../features/plans/presentation/screens/plan_list_screen.dart';
 import '../../features/plans/presentation/screens/add_plan_screen.dart';
 import '../../features/payments/presentation/screens/record_payment_screen.dart';
 import '../../features/receipts/presentation/screens/receipt_list_screen.dart';
+import '../../features/expenses/presentation/screens/expense_list_screen.dart';
 import '../../features/receipts/presentation/screens/receipt_preview_screen.dart';
 import '../../features/receipts/presentation/screens/generate_receipt_screen.dart';
 import '../../features/settings/presentation/screens/receipt_template_screen.dart';
@@ -46,19 +48,18 @@ import '../../features/feedback/presentation/screens/feedback_list_screen.dart';
 import '../../features/settings/presentation/screens/library_profile_screen.dart';
 import '../../features/settings/presentation/screens/form_customizer_screen.dart';
 import '../../features/settings/presentation/screens/payment_methods_screen.dart';
-import '../../features/settings/presentation/screens/notification_settings_screen.dart';
+import '../../features/settings/presentation/screens/communications_hub_screen.dart';
 import '../../features/backup/presentation/screens/backup_restore_screen.dart';
 import '../../features/audit_log/presentation/screens/audit_log_screen.dart';
 import '../../features/recycle_bin/presentation/screens/recycle_bin_screen.dart';
 import '../../features/settings/presentation/screens/rules_editor_screen.dart';
-import '../../features/settings/presentation/screens/waiting_list_settings_screen.dart';
 import '../../features/waiting_list/presentation/screens/waiting_list_screen.dart';
 import '../../features/staff/presentation/screens/staff_list_screen.dart';
 import '../../features/qr_share/presentation/screens/qr_share_screen.dart';
 import '../../features/admin_qr/presentation/screens/admin_qr_scanner_screen.dart';
 import '../../features/settings/presentation/screens/grace_period_screen.dart';
 import '../../features/settings/presentation/screens/id_card_customizer_screen.dart';
-import '../../features/settings/presentation/screens/messaging_settings_screen.dart';
+import '../../features/settings/presentation/screens/data_export_screen.dart';
 
 import '../../features/student_app/presentation/screens/student_home_screen.dart';
 import '../../features/student_app/presentation/screens/my_membership_screen.dart';
@@ -70,10 +71,13 @@ import '../../features/registration/presentation/screens/student_registration_wi
 import '../../features/student_app/presentation/screens/student_feedback_screen.dart';
 import '../../features/student_app/presentation/screens/renew_plan_screen.dart';
 import '../../features/student_app/presentation/screens/my_id_card_screen.dart';
+import '../../features/student_app/presentation/screens/student_seat_map_screen.dart';
 import '../../features/id_cards/presentation/screens/id_card_preview_screen.dart';
 import '../../features/students/presentation/providers/student_providers.dart';
 import '../../features/settings/presentation/screens/account_deletion_screen.dart';
 import 'package:study_library/features/legal/presentation/screens/onboarding_consent_screen.dart';
+import 'package:study_library/features/legal/presentation/screens/terms_screen.dart';
+import 'package:study_library/features/legal/presentation/screens/privacy_policy_screen.dart';
 
 class Routes {
   static const splash = '/splash';
@@ -82,6 +86,8 @@ class Routes {
   static const biometricLock = '/biometric-lock';
   static const setupWizard = '/setup-wizard';
   static const accessRestricted = '/access-restricted';
+  static const terms = '/terms';
+  static const privacyPolicy = '/privacy-policy';
 
   // Admin routes
   static const adminHome = '/admin/home';
@@ -106,6 +112,7 @@ class Routes {
   static const adminRecordPayment = '/admin/payments/record/:studentId';
   
   static const adminReceipts = '/admin/receipts';
+  static const adminExpenses = '/admin/expenses';
   static const adminRevenue = '/admin/revenue';
   static const adminGenerateReceipt = '/admin/receipts/generate/:studentId';
   static const adminReceiptTemplate = '/admin/receipts/template';
@@ -123,6 +130,7 @@ class Routes {
   static const adminLibraryProfile = '/admin/settings/library-profile';
   static const adminFormCustomizer = '/admin/settings/form-customizer';
   static const adminPaymentMethods = '/admin/settings/payment-methods';
+  static const adminCommunications = '/admin/settings/communications';
   static const adminNotifications = '/admin/settings/notifications';
   static const adminMessaging = '/admin/settings/messaging';
   static const adminRules = '/admin/settings/rules';
@@ -135,6 +143,7 @@ class Routes {
   static const adminStaff = '/admin/settings/staff';
   
   static const adminBackup = '/admin/backup';
+  static const adminDataExport = '/admin/data-export';
   static const adminAuditLog = '/admin/audit-log';
   static const adminRecycleBin = '/admin/recycle-bin';
 
@@ -176,6 +185,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         Routes.splash,
         Routes.consent,
         Routes.login,
+        Routes.terms,
+        Routes.privacyPolicy,
         Routes.biometricLock,
         Routes.accessRestricted,
         Routes.setupWizard,
@@ -214,8 +225,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         }
       }
 
-      // Staff permission: revenue requires canViewRevenue
-      if (path == Routes.adminRevenue && !canViewRevenue) {
+      // Staff permission: revenue and operating expenses require canViewRevenue
+      if ((path == Routes.adminRevenue || path == Routes.adminExpenses) && !canViewRevenue) {
         return Routes.adminHome;
       }
 
@@ -224,27 +235,51 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: Routes.splash,
-        builder: (context, state) => const SplashScreen(),
+        pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+          state: state, child: const SplashScreen(),
+        ),
       ),
       GoRoute(
         path: Routes.consent,
-        builder: (context, state) => const OnboardingConsentScreen(),
+        pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+          state: state, child: const OnboardingConsentScreen(),
+        ),
       ),
       GoRoute(
         path: Routes.login,
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+          state: state, child: const LoginScreen(),
+        ),
       ),
       GoRoute(
         path: Routes.biometricLock,
-        builder: (context, state) => const BiometricLockScreen(),
+        pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+          state: state, child: const BiometricLockScreen(),
+        ),
       ),
       GoRoute(
         path: Routes.setupWizard,
-        builder: (context, state) => const SetupWizardScreen(),
+        pageBuilder: (context, state) => AppPageTransitions.slideUp(
+          state: state, child: const SetupWizardScreen(),
+        ),
       ),
       GoRoute(
         path: Routes.accessRestricted,
-        builder: (context, state) => const AccessRestrictedScreen(),
+        pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+          state: state, child: const AccessRestrictedScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.terms,
+        pageBuilder: (context, state) => AppPageTransitions.slideRight(
+          state: state, child: const TermsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.privacyPolicy,
+        pageBuilder: (context, state) => AppPageTransitions.slideRight(
+          state: state, child: const PrivacyPolicyScreen(),
+        ),
       ),
 
       // Admin Routes
@@ -254,19 +289,34 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: Routes.adminHome,
-            builder: (context, state) => const AdminDashboardScreen(),
+            pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+              state: state,
+              child: const AdminDashboardScreen(),
+            ),
           ),
           GoRoute(
             path: Routes.adminSeats,
-            builder: (context, state) => const SeatMapScreen(),
+            pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+              state: state,
+              child: const SeatMapScreen(),
+            ),
           ),
           GoRoute(
             path: Routes.adminStudents,
-            builder: (context, state) => const StudentListScreen(),
+            pageBuilder: (context, state) {
+              final filter = state.uri.queryParameters['filter'];
+              return AppPageTransitions.fadeThrough(
+                state: state,
+                child: StudentListScreen(initialFilter: filter),
+              );
+            },
           ),
           GoRoute(
             path: Routes.adminMore,
-            builder: (context, state) => const SettingsScreen(),
+            pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+              state: state,
+              child: const SettingsScreen(),
+            ),
           ),
         ],
       ),
@@ -274,42 +324,62 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Admin Sub-routes
       GoRoute(
         path: Routes.adminSeatsSection,
-        builder: (context, state) => SectionDetailScreen(sectionId: state.pathParameters['id'] ?? ''),
+        pageBuilder: (context, state) => AppPageTransitions.slideRight(
+          state: state, child: SectionDetailScreen(sectionId: state.pathParameters['id'] ?? ''),
+        ),
       ),
-      GoRoute(path: Routes.adminSeatsAddSection, builder: (context, state) {
-        return Consumer(builder: (ctx, ref, _) {
+      GoRoute(path: Routes.adminSeatsAddSection, pageBuilder: (context, state) {
+        return AppPageTransitions.slideUp(state: state, child: Consumer(builder: (ctx, ref, _) {
           final libId = ref.watch(currentLibraryIdProvider) ?? '';
           return AddSectionScreen(libraryId: libId);
-        });
+        }));
       }),
-      GoRoute(path: Routes.adminStudentAdd, builder: (context, state) => AddStudentScreen(initialData: state.extra as Map<String, dynamic>?)),
-      GoRoute(path: Routes.adminStudentImport, builder: (context, state) => const BulkImportScreen()),
-      GoRoute(path: Routes.adminStudentDetail, builder: (context, state) => StudentDetailScreen(studentId: state.pathParameters['id'] ?? '')),
-      GoRoute(path: Routes.adminStudentEdit, builder: (context, state) => EditStudentScreen(studentId: state.pathParameters['id'] ?? '')),
-      GoRoute(path: Routes.adminStudentHistory, builder: (context, state) => StudentHistoryScreen(studentId: state.pathParameters['id'] ?? '')),
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminStudentAdd, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+        state: state, child: AddStudentScreen(initialData: state.extra as Map<String, dynamic>?),
+      )),
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminStudentImport, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+        state: state, child: const BulkImportScreen(),
+      )),
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminStudentDetail, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: StudentDetailScreen(studentId: state.pathParameters['id'] ?? ''),
+      )),
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminStudentEdit, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+        state: state, child: EditStudentScreen(studentId: state.pathParameters['id'] ?? ''),
+      )),
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminStudentHistory, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: StudentHistoryScreen(studentId: state.pathParameters['id'] ?? ''),
+      )),
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: Routes.adminStudentIdCard,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final studentId = state.pathParameters['id'] ?? '';
-          return Consumer(
-            builder: (ctx, ref, _) {
-              final studentAsync = ref.watch(studentDetailProvider(studentId));
-              return studentAsync.when(
-                data: (student) => student != null
-                    ? IdCardPreviewScreen(student: student)
-                    : const Scaffold(body: Center(child: Text('Student not found'))),
-                loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-                error: (e, _) => Scaffold(body: Center(child: Text('Error loading ID Card'))),
-              );
-            },
+          return AppPageTransitions.slideRight(
+            state: state,
+            child: Consumer(
+              builder: (ctx, ref, _) {
+                final studentAsync = ref.watch(studentDetailProvider(studentId));
+                return studentAsync.when(
+                  data: (student) => student != null
+                      ? IdCardPreviewScreen(student: student)
+                      : const Scaffold(body: Center(child: Text('Student not found'))),
+                  loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+                  error: (e, _) => Scaffold(body: Center(child: Text('Error loading ID Card'))),
+                );
+              },
+            ),
           );
         },
       ),
-      GoRoute(path: Routes.adminPlans, builder: (context, state) => const PlanListScreen()),
-      GoRoute(path: Routes.adminPlanAdd, builder: (context, state) => const AddPlanScreen()),
-      GoRoute(path: Routes.adminPlanEdit, builder: (context, state) {
+      GoRoute(path: Routes.adminPlans, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const PlanListScreen(),
+      )),
+      GoRoute(path: Routes.adminPlanAdd, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+        state: state, child: const AddPlanScreen(),
+      )),
+      GoRoute(path: Routes.adminPlanEdit, pageBuilder: (context, state) {
         final planId = state.pathParameters['id'] ?? '';
-        return Consumer(builder: (ctx, ref, _) {
+        return AppPageTransitions.slideUp(state: state, child: Consumer(builder: (ctx, ref, _) {
           final libraryId = ref.watch(currentLibraryIdProvider);
           if (libraryId == null) return const Center(child: CircularProgressIndicator());
           return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -327,24 +397,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return AddPlanScreen(plan: plan);
             },
           );
-        });
+        }));
       }),
-      GoRoute(path: Routes.adminRecordPayment, builder: (context, state) {
+      GoRoute(path: Routes.adminRecordPayment, pageBuilder: (context, state) {
         final studentId = state.pathParameters['studentId'] ?? '';
-        return Consumer(builder: (ctx, ref, _) {
+        return AppPageTransitions.slideRight(state: state, child: Consumer(builder: (ctx, ref, _) {
           return _PaymentRouteWrapper(studentId: studentId);
-        });
+        }));
       }),
-      GoRoute(path: Routes.adminReceipts, builder: (context, state) => const ReceiptListScreen()),
-      GoRoute(path: Routes.adminRevenue, builder: (context, state) => const RevenueDashboardScreen()),
+      GoRoute(path: Routes.adminReceipts, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const ReceiptListScreen(),
+      )),
+      GoRoute(path: Routes.adminRevenue, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const RevenueDashboardScreen(),
+      )),
+      GoRoute(path: Routes.adminExpenses, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const ExpenseListScreen(),
+      )),
       GoRoute(
         path: Routes.adminGenerateReceipt,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final studentId = state.pathParameters['studentId'] ?? '';
           // amount and paymentMethod may be passed as query params from RecordPaymentScreen
           final amountParam = state.uri.queryParameters['amount'];
           final methodParam = state.uri.queryParameters['method'];
-          return Consumer(builder: (ctx, ref, _) {
+          return AppPageTransitions.slideUp(state: state, child: Consumer(builder: (ctx, ref, _) {
             final libraryId = ref.watch(currentLibraryIdProvider) ?? '';
             return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               future: FirebaseFirestore.instance
@@ -367,37 +444,93 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 );
               },
             );
-          });
+          }));
         },
       ),
-      GoRoute(path: Routes.adminReceiptTemplate, builder: (context, state) => const ReceiptTemplateScreen()),
-      GoRoute(path: Routes.adminIdCardTemplate, builder: (context, state) => const IdCardCustomizerScreen()),
+      GoRoute(path: Routes.adminReceiptTemplate, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const ReceiptTemplateScreen(),
+      )),
+      GoRoute(path: Routes.adminIdCardTemplate, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const IdCardCustomizerScreen(),
+      )),
       GoRoute(
         path: Routes.adminReceiptPreview,
-        builder: (context, state) => ReceiptPreviewScreen(receiptId: state.pathParameters['id'] ?? ''),
+        pageBuilder: (context, state) => AppPageTransitions.slideRight(
+          state: state, child: ReceiptPreviewScreen(receiptId: state.pathParameters['id'] ?? ''),
+        ),
       ),
-      GoRoute(path: Routes.adminRequests, builder: (context, state) => const RequestListScreen()),
-      GoRoute(path: Routes.adminRequestDetail, builder: (context, state) => RequestDetailScreen(requestId: state.pathParameters['id'] ?? '')),
-      GoRoute(path: Routes.adminAnnouncements, builder: (context, state) => const AnnouncementListScreen()),
-      GoRoute(path: Routes.adminHolidays, builder: (context, state) => const HolidayCalendarScreen()),
-      GoRoute(path: Routes.adminFeedback, builder: (context, state) => const FeedbackListScreen()),
-      GoRoute(path: Routes.adminSettings, builder: (context, state) => const SettingsScreen()),
-      GoRoute(path: Routes.adminLibraryProfile, builder: (context, state) => const LibraryProfileScreen()),
-      GoRoute(path: Routes.adminFormCustomizer, builder: (context, state) => const FormCustomizerScreen()),
-      GoRoute(path: Routes.adminPaymentMethods, builder: (context, state) => const PaymentMethodsScreen()),
-      GoRoute(path: Routes.adminNotifications, builder: (context, state) => const NotificationSettingsScreen()),
-      GoRoute(path: Routes.adminMessaging, builder: (context, state) => const MessagingSettingsScreen()),
-      GoRoute(path: Routes.adminBackup, builder: (context, state) => const BackupRestoreScreen()),
-      GoRoute(path: Routes.adminAuditLog, builder: (context, state) => const AuditLogScreen()),
-      GoRoute(path: Routes.adminRecycleBin, builder: (context, state) => const RecycleBinScreen()),
-      GoRoute(path: Routes.adminRules, builder: (context, state) => const RulesEditorScreen()),
-      GoRoute(path: Routes.adminWaitingList, builder: (context, state) => const WaitingListSettingsScreen()),
-      GoRoute(path: Routes.adminWaitingQueue, builder: (context, state) => const WaitingListScreen()),
-      GoRoute(path: Routes.adminWhitelist, builder: (context, state) => const AdminWhitelistScreen()),
-      GoRoute(path: Routes.adminStaff, builder: (context, state) => const StaffListScreen()),
-      GoRoute(path: Routes.adminGracePeriod, builder: (context, state) => const GracePeriodScreen()),
-      GoRoute(path: Routes.adminQrShare, builder: (context, state) => const QrShareScreen()),
-      GoRoute(path: Routes.adminQrScanner, builder: (context, state) => const AdminQrScannerScreen()),
+      GoRoute(path: Routes.adminRequests, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const RequestListScreen(),
+      )),
+      GoRoute(path: Routes.adminRequestDetail, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: RequestDetailScreen(requestId: state.pathParameters['id'] ?? ''),
+      )),
+      GoRoute(path: Routes.adminAnnouncements, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const AnnouncementListScreen(),
+      )),
+      GoRoute(path: Routes.adminHolidays, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const HolidayCalendarScreen(),
+      )),
+      GoRoute(path: Routes.adminFeedback, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const FeedbackListScreen(),
+      )),
+      GoRoute(path: Routes.adminSettings, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const SettingsScreen(),
+      )),
+      GoRoute(path: Routes.adminLibraryProfile, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+        state: state, child: const LibraryProfileScreen(),
+      )),
+      GoRoute(path: Routes.adminFormCustomizer, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const FormCustomizerScreen(),
+      )),
+      GoRoute(path: Routes.adminPaymentMethods, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const PaymentMethodsScreen(),
+      )),
+      GoRoute(path: Routes.adminCommunications, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const CommunicationsHubScreen(),
+      )),
+      GoRoute(path: Routes.adminNotifications, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const CommunicationsHubScreen(),
+      )),
+      GoRoute(path: Routes.adminMessaging, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const CommunicationsHubScreen(),
+      )),
+      GoRoute(path: Routes.adminBackup, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const BackupRestoreScreen(),
+      )),
+      GoRoute(path: Routes.adminDataExport, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const DataExportScreen(),
+      )),
+      GoRoute(path: Routes.adminAuditLog, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const AuditLogScreen(),
+      )),
+      GoRoute(path: Routes.adminRecycleBin, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const RecycleBinScreen(),
+      )),
+      GoRoute(path: Routes.adminRules, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const RulesEditorScreen(),
+      )),
+      GoRoute(path: Routes.adminWaitingList, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const WaitingListScreen(initialTab: 1),
+      )),
+      GoRoute(path: Routes.adminWaitingQueue, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const WaitingListScreen(),
+      )),
+      GoRoute(path: Routes.adminWhitelist, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const AdminWhitelistScreen(),
+      )),
+      GoRoute(path: Routes.adminStaff, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const StaffListScreen(),
+      )),
+      GoRoute(path: Routes.adminGracePeriod, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const GracePeriodScreen(),
+      )),
+      GoRoute(path: Routes.adminQrShare, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const QrShareScreen(),
+      )),
+      GoRoute(parentNavigatorKey: _rootNavigatorKey, path: Routes.adminQrScanner, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+        state: state, child: const AdminQrScannerScreen(),
+      )),
 
       // Student Routes
       ShellRoute(
@@ -406,34 +539,61 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: Routes.studentHome,
-            builder: (context, state) => const StudentHomeScreen(),
+            pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+              state: state,
+              child: const StudentHomeScreen(),
+            ),
           ),
           GoRoute(
             path: Routes.studentMembership,
-            builder: (context, state) => const MyMembershipScreen(),
+            pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+              state: state,
+              child: const MyMembershipScreen(),
+            ),
           ),
           GoRoute(
             path: Routes.studentReceipts,
-            builder: (context, state) => const MyReceiptsScreen(),
+            pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+              state: state,
+              child: const MyReceiptsScreen(),
+            ),
           ),
           GoRoute(
             path: Routes.studentProfile,
-            builder: (context, state) => const MyProfileScreen(),
+            pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+              state: state,
+              child: const MyProfileScreen(),
+            ),
           ),
           GoRoute(
             path: Routes.studentPaymentHistory,
-            builder: (context, state) => const MyPaymentHistoryScreen(),
+            pageBuilder: (context, state) => AppPageTransitions.fadeThrough(
+              state: state,
+              child: const MyPaymentHistoryScreen(),
+            ),
           ),
         ],
       ),
       
       // Student Sub-routes
-      GoRoute(path: Routes.studentRegister, builder: (context, state) => const StudentRegistrationWizard()),
-      GoRoute(path: Routes.studentSeatMap, builder: (context, state) => const SeatMapScreen()),
-      GoRoute(path: Routes.studentFeedback, builder: (context, state) => const StudentFeedbackScreen()),
-      GoRoute(path: Routes.studentRenew, builder: (context, state) => const RenewPlanScreen()),
-      GoRoute(path: Routes.studentIdCard, builder: (context, state) => const MyIdCardScreen()),
-      GoRoute(path: Routes.accountDeletion, builder: (context, state) => const AccountDeletionScreen()),
+      GoRoute(path: Routes.studentRegister, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+        state: state, child: const StudentRegistrationWizard(),
+      )),
+      GoRoute(path: Routes.studentSeatMap, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const StudentSeatMapScreen(),
+      )),
+      GoRoute(path: Routes.studentFeedback, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+        state: state, child: const StudentFeedbackScreen(),
+      )),
+      GoRoute(path: Routes.studentRenew, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+        state: state, child: const RenewPlanScreen(),
+      )),
+      GoRoute(path: Routes.studentIdCard, pageBuilder: (context, state) => AppPageTransitions.slideRight(
+        state: state, child: const MyIdCardScreen(),
+      )),
+      GoRoute(path: Routes.accountDeletion, pageBuilder: (context, state) => AppPageTransitions.slideUp(
+        state: state, child: const AccountDeletionScreen(),
+      )),
     ],
   );
 });
@@ -448,6 +608,7 @@ class _PaymentRouteWrapper extends ConsumerStatefulWidget {
 
 class _PaymentRouteWrapperState extends ConsumerState<_PaymentRouteWrapper> {
   StudentModel? _student;
+  double _planPrice = 0.0;
   bool _loading = true;
 
   @override
@@ -459,19 +620,34 @@ class _PaymentRouteWrapperState extends ConsumerState<_PaymentRouteWrapper> {
   Future<void> _loadStudent() async {
     final libraryId = ref.read(currentLibraryIdProvider) ?? '';
     if (libraryId.isEmpty || widget.studentId.isEmpty) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
       return;
     }
     final doc = await FirebaseFirestore.instance
         .collection('libraries').doc(libraryId)
         .collection('students').doc(widget.studentId).get();
     if (doc.exists && mounted) {
-      setState(() {
-        _student = StudentModel.fromJson({...doc.data()!, 'id': doc.id});
-        _loading = false;
-      });
+      final student = StudentModel.fromJson({...doc.data()!, 'id': doc.id});
+      double planPrice = 0.0;
+      if (student.planId != null && student.planId!.isNotEmpty) {
+        try {
+          final planDoc = await FirebaseFirestore.instance
+              .collection('libraries').doc(libraryId)
+              .collection('plans').doc(student.planId!).get();
+          if (planDoc.exists) {
+            planPrice = (planDoc.data()?['price'] as num?)?.toDouble() ?? 0.0;
+          }
+        } catch (_) { /* fallback to 0 if plan missing */ }
+      }
+      if (mounted) {
+        setState(() {
+          _student = student;
+          _planPrice = planPrice;
+          _loading = false;
+        });
+      }
     } else {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -482,7 +658,11 @@ class _PaymentRouteWrapperState extends ConsumerState<_PaymentRouteWrapper> {
     return RecordPaymentScreen(
       studentId: _student!.id,
       studentName: _student!.name,
-      planPrice: 0,
+      studentPhone: _student!.phone,
+      planPrice: _planPrice,
+      pendingDue: (_student!.pendingDueBalance != null && _student!.pendingDueBalance! > 0)
+          ? _student!.pendingDueBalance
+          : null,
     );
   }
 }
