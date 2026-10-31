@@ -25,6 +25,7 @@ class AuthRepository {
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
         googleProvider.addScope('email');
         googleProvider.addScope('profile');
+        googleProvider.setCustomParameters({'prompt': 'select_account'});
         cred = await _auth.signInWithPopup(googleProvider);
       } else {
         // Mobile: Use google_sign_in v7 native flow
