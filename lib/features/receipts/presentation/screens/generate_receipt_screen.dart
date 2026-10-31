@@ -154,16 +154,45 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
       createdAt: DateTime.now(),
     );
 
+    // Look up real student, plan, and section for accurate active services
+    Map<String, dynamic> studentData = {};
+    try {
+      final sDoc = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .doc(widget.studentId)
+          .get();
+      studentData = sDoc.data() ?? {};
+    } catch (_) {}
+
     final student = StudentModel.fromJson({
       'id': widget.studentId,
       'name': widget.studentName,
       'phone': widget.studentPhone,
+      ...studentData,
     });
 
-    final plan = PlanModel(
-      id: '',
+    PlanModel? resolvedPlan;
+    final planId = studentData['planId'] as String?;
+    if (planId != null && planId.isNotEmpty) {
+      try {
+        final pDoc = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('plans')
+            .doc(planId)
+            .get();
+        if (pDoc.exists) {
+          resolvedPlan = PlanModel.fromJson({...pDoc.data()!, 'id': pDoc.id});
+        }
+      } catch (_) {}
+    }
+
+    final plan = resolvedPlan ?? PlanModel(
+      id: planId ?? '',
       libraryId: libraryId,
-      name: widget.planName ?? 'N/A',
+      name: widget.planName ?? 'Membership',
       price: widget.amount,
       duration: 1,
       durationUnit: DurationUnit.months,
@@ -174,6 +203,38 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
       displayOrder: 0,
     );
 
+    SectionModel? section;
+    String? resolvedSeatLabel;
+    int? cols;
+    final seatId = studentData['seatId'] as String?;
+    final sectionId = studentData['sectionId'] as String?;
+    if (seatId != null && seatId.isNotEmpty) {
+      try {
+        final seatDoc = await FirebaseFirestore.instance
+            .collection('libraries')
+            .doc(libraryId)
+            .collection('seats')
+            .doc(seatId)
+            .get();
+        if (seatDoc.exists) {
+          resolvedSeatLabel = seatDoc.data()?['label'] as String?;
+          final derivedSecId = sectionId ?? (seatDoc.data()?['sectionId'] as String?);
+          if (derivedSecId != null && derivedSecId.isNotEmpty) {
+            final secDoc = await FirebaseFirestore.instance
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('sections')
+                .doc(derivedSecId)
+                .get();
+            if (secDoc.exists) {
+              cols = (secDoc.data()?['cols'] as num?)?.toInt();
+              section = SectionModel.fromJson({...secDoc.data()!, 'id': secDoc.id});
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
     final library = LibraryModel.fromJson({...libData, 'id': libraryId});
 
     final pdfBytes = await PdfService().generateReceiptPdf(
@@ -182,6 +243,9 @@ class _GenerateReceiptScreenState extends ConsumerState<GenerateReceiptScreen> {
       plan,
       library,
       templateData,
+      seatLabel: resolvedSeatLabel,
+      cols: cols,
+      section: section,
     );
 
     await Printing.sharePdf(bytes: pdfBytes, filename: 'receipt_$_receiptNumber.pdf');

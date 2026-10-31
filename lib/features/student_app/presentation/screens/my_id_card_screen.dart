@@ -1028,31 +1028,58 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.all(5),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                              GestureDetector(
+                                onTap: () => _showEnlargedQrDialog(
+                                  context,
+                                  student: student,
+                                  membershipId: student.membershipNumber ?? '',
+                                  seatLabel: _seatLabel ?? student.seatId ?? 'Unassigned',
+                                  libraryName: libraryName,
+                                  library: library,
                                 ),
-                                child: QrImageView(
-                                  data: jsonEncode({
-                                    'type': 'STUDENT_PASS',
-                                    'id': student.id,
-                                    'lib': library?.id ?? '',
-                                    'name': student.name,
-                                    'memNo': student.membershipNumber ?? '',
-                                    'phone': student.phone,
-                                    'bloodGroup': student.bloodGroup ?? '',
-                                    'emergency': student.emergencyContact,
-                                    'seat': _seatLabel ?? student.seatId ?? 'Unassigned',
-                                    'expiry': student.planEndDate != null ? DateFormat('dd/MM/yyyy').format(student.planEndDate!) : 'Active',
-                                  }),
-                                  version: QrVersions.auto,
-                                  size: 60,
-                                  eyeStyle: const QrEyeStyle(
-                                    eyeShape: QrEyeShape.square,
-                                    color: Color(0xFF0F172A),
+                                child: MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(8),
+                                          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                        ),
+                                        child: QrImageView(
+                                          data: jsonEncode({
+                                            'type': 'STUDENT_PASS',
+                                            'id': student.id,
+                                            'lib': library?.id ?? '',
+                                            'name': student.name,
+                                            'memNo': student.membershipNumber ?? '',
+                                            'phone': student.phone,
+                                            'bloodGroup': student.bloodGroup ?? '',
+                                            'emergency': student.emergencyContact,
+                                            'seat': _seatLabel ?? student.seatId ?? 'Unassigned',
+                                            'expiry': student.planEndDate != null ? DateFormat('dd/MM/yyyy').format(student.planEndDate!) : 'Active',
+                                          }),
+                                          version: QrVersions.auto,
+                                          size: 78,
+                                          eyeStyle: const QrEyeStyle(
+                                            eyeShape: QrEyeShape.square,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      const Text(
+                                        '🔍 Tap to Zoom',
+                                        style: TextStyle(
+                                          fontSize: 7,
+                                          color: Color(0xFF38BDF8),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),

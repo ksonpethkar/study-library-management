@@ -74,7 +74,7 @@ class ReceiptPdfService {
       price: amount,
       duration: 1,
       durationUnit: DurationUnit.months,
-      description: 'AC Study Hall Access • Reserved Desk • High-Speed Wi-Fi • Power Backup',
+      description: 'Silent Reading Hall • Reserved Desk • High-Speed Wi-Fi • Power Backup',
       gracePeriodDays: 0,
       isActive: true,
       isFeatured: false,
