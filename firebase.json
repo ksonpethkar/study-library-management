@@ -40,6 +40,18 @@
     "redirects": [],
     "rewrites": [
       {
+        "source": "/flutter_bootstrap.js",
+        "destination": "/app/flutter_bootstrap.js"
+      },
+      {
+        "source": "/flutter_service_worker.js",
+        "destination": "/app/flutter_service_worker.js"
+      },
+      {
+        "source": "/main.dart.js",
+        "destination": "/app/main.dart.js"
+      },
+      {
         "source": "/app",
         "destination": "/app/index.html"
       },

@@ -229,13 +229,6 @@ void main() {
       await tester.pump();
 
       expect(find.byType(TextFormField), findsOneWidget);
-      // After validate(), error text should appear
-      final errorText = tester.widgetList<Text>(find.byType(Text)).where((t) {
-        return t.style?.color == Theme.of(
-              tester.element(find.byType(TextFormField)),
-            ).colorScheme.error;
-      });
-      // Alternatively, just check raw validator return
       final error = AppValidators.phone('');
       expect(error, isNotNull);
     });

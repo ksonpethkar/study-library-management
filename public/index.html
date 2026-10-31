@@ -8,46 +8,55 @@
     }
   </script>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>The Cozy Corner Centre — Smart Study Library</title>
-  <meta name="description" content="Download official mobile app for The Cozy Corner Centre Study Library. Manage seats, memberships, digital IDs, and fee receipts.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>The Cozy Corner Study Centre — Smart Study Library</title>
+  <meta name="description" content="Official portal & Android app for The Cozy Corner Study Centre. Real-time seat allocation, digital student pass, and membership services.">
   <link rel="icon" type="image/png" href="/app/favicon.png">
   <link rel="apple-touch-icon" href="/app/icons/Icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <!-- Firebase Compat SDKs for Real-Time Firestore Sync -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <style>
     :root {
       --primary: #5D4037;
+      --primary-accent: #D97706;
       --primary-hover: #4E342E;
       --primary-light: #EFEBE9;
       --student: #0D9488;
       --student-light: #CCFBF1;
       --surface: #FFFFFF;
-      --bg: #F8FAFC;
+      --surface-elevated: #F8FAFC;
+      --bg: #F1F5F9;
       --text-main: #0F172A;
       --text-muted: #64748B;
       --border: #E2E8F0;
-      --success: #10B981;
+      --border-strong: #CBD5E1;
+      --success: #059669;
+      --success-bg: #ECFDF5;
       --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --primary: #D7CCC8;
-        --primary-hover: #BCAAA4;
-        --primary-light: #3E2723;
-        --student: #14B8A6;
-        --student-light: #134E4A;
-        --surface: #1E293B;
-        --bg: #0F172A;
+        --primary: #F59E0B;
+        --primary-accent: #FBBF24;
+        --primary-hover: #D97706;
+        --primary-light: rgba(245, 158, 11, 0.16);
+        --student: #10B981;
+        --student-light: rgba(16, 185, 129, 0.16);
+        --surface: #131B2E;
+        --surface-elevated: #1E293B;
+        --bg: #0A0F1D;
         --text-main: #F8FAFC;
         --text-muted: #94A3B8;
-        --border: #334155;
-        --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        --border: #23304A;
+        --border-strong: #334155;
+        --success: #34D399;
+        --success-bg: rgba(16, 185, 129, 0.16);
+        --card-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.5);
       }
     }
 
@@ -65,15 +74,47 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 2rem 1rem;
+      padding: 2rem 1rem 3rem;
+      transition: background 0.2s ease;
     }
 
+    /* Bento Grid Container */
     .container {
       width: 100%;
-      max-width: 520px;
+      max-width: 1060px;
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
+    }
+
+    @media (min-width: 880px) {
+      .container {
+        display: grid;
+        grid-template-columns: minmax(380px, 460px) 1fr;
+        align-items: start;
+        gap: 1.75rem;
+      }
+      .col-left {
+        position: sticky;
+        top: 2rem;
+      }
+      .col-right {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+    }
+
+    @media (max-width: 879px) {
+      .container {
+        max-width: 520px;
+      }
+      .col-left, .col-right {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        width: 100%;
+      }
     }
 
     .hero-card {
@@ -83,18 +124,19 @@
       border: 1px solid var(--border);
       box-shadow: var(--card-shadow);
       text-align: center;
+      transition: transform 0.2s ease;
     }
 
     .app-icon {
       width: 96px;
       height: 96px;
       border-radius: 24px;
-      background: linear-gradient(135deg, var(--primary) 0%, #7C3AED 100%);
+      background: linear-gradient(135deg, #78350F 0%, #D97706 100%);
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 0 auto 1.25rem;
-      box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 12px 28px -4px rgba(217, 119, 6, 0.35);
       color: white;
       font-size: 2.5rem;
       overflow: hidden;
@@ -110,17 +152,19 @@
     }
 
     h1 {
-      font-size: 1.75rem;
+      font-size: 1.65rem;
       font-weight: 800;
       letter-spacing: -0.02em;
       margin-bottom: 0.35rem;
+      line-height: 1.25;
     }
 
     .subtitle {
       color: var(--text-muted);
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       line-height: 1.5;
-      margin-bottom: 0.85rem;
+      margin-bottom: 0.95rem;
+      font-weight: 500;
     }
 
     .org-meta {
@@ -129,13 +173,14 @@
       color: var(--text-muted);
       display: flex;
       flex-direction: column;
-      gap: 0.35rem;
+      gap: 0.4rem;
       align-items: center;
     }
 
     .org-address {
-      max-width: 90%;
-      line-height: 1.4;
+      max-width: 92%;
+      line-height: 1.45;
+      font-weight: 500;
     }
 
     .org-links {
@@ -149,10 +194,10 @@
     .org-pill {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
-      padding: 0.25rem 0.75rem;
+      gap: 0.4rem;
+      padding: 0.3rem 0.8rem;
       border-radius: 9999px;
-      background: var(--bg);
+      background: var(--surface-elevated);
       border: 1px solid var(--border);
       font-size: 0.78rem;
       color: var(--text-main);
@@ -162,8 +207,9 @@
     }
 
     .org-pill:hover {
-      border-color: var(--primary);
-      color: var(--primary);
+      border-color: var(--primary-accent);
+      color: var(--primary-accent);
+      transform: translateY(-1px);
     }
 
     .badge-container {
@@ -178,23 +224,26 @@
       display: inline-flex;
       align-items: center;
       gap: 0.35rem;
-      padding: 0.3rem 0.75rem;
+      padding: 0.35rem 0.8rem;
       border-radius: 9999px;
-      font-size: 0.8rem;
-      font-weight: 600;
+      font-size: 0.78rem;
+      font-weight: 700;
       background: var(--primary-light);
       color: var(--primary);
+      border: 1px solid var(--border);
     }
 
     .badge-success {
-      background: rgba(16, 185, 129, 0.12);
+      background: var(--success-bg);
       color: var(--success);
+      border-color: rgba(5, 150, 105, 0.25);
     }
 
     .badge-size {
-      background: rgba(13, 148, 136, 0.12);
+      background: var(--student-light);
       color: var(--student);
-      font-weight: 700;
+      font-weight: 800;
+      border-color: rgba(13, 148, 136, 0.25);
     }
 
     .btn-group {
@@ -208,21 +257,22 @@
       align-items: center;
       justify-content: center;
       gap: 0.75rem;
-      background: var(--primary);
-      color: white;
+      background: linear-gradient(135deg, #B45309 0%, #D97706 100%);
+      color: #FFFFFF;
       text-decoration: none;
-      font-weight: 700;
+      font-weight: 800;
       font-size: 1.05rem;
       padding: 1.1rem 1.5rem;
       border-radius: 16px;
-      transition: all 0.2s ease;
-      box-shadow: 0 8px 20px -4px rgba(93, 64, 55, 0.4);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 10px 24px -4px rgba(217, 119, 6, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.15);
     }
 
     .download-btn:hover {
-      background: var(--primary-hover);
       transform: translateY(-2px);
-      box-shadow: 0 12px 24px -4px rgba(93, 64, 55, 0.5);
+      box-shadow: 0 14px 28px -4px rgba(217, 119, 6, 0.6);
+      background: linear-gradient(135deg, #92400E 0%, #B45309 100%);
     }
 
     .seat-btn {
@@ -230,56 +280,76 @@
       align-items: center;
       justify-content: center;
       gap: 0.6rem;
-      background: var(--surface);
+      background: var(--surface-elevated);
       color: var(--text-main);
       text-decoration: none;
       font-weight: 700;
       font-size: 0.95rem;
-      padding: 0.85rem 1.25rem;
+      padding: 0.9rem 1.25rem;
       border-radius: 14px;
-      border: 1px solid var(--border);
+      border: 1.5px solid var(--border);
       transition: all 0.2s ease;
     }
 
     .seat-btn:hover {
-      border-color: var(--primary);
-      color: var(--primary);
+      border-color: var(--primary-accent);
+      color: var(--primary-accent);
       transform: translateY(-1px);
+    }
+
+    .web-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+      color: white;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 0.9rem 1.25rem;
+      border-radius: 14px;
+      box-shadow: 0 6px 16px -2px rgba(79, 70, 229, 0.35);
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .web-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 22px -2px rgba(79, 70, 229, 0.5);
     }
 
     .download-meta {
       font-size: 0.75rem;
       color: var(--text-muted);
-      margin-top: 0.5rem;
+      margin-top: 0.65rem;
+      font-weight: 500;
     }
 
     .whats-new-card, .guide-card {
       background: var(--surface);
-      border-radius: 20px;
-      padding: 1.5rem;
+      border-radius: 22px;
+      padding: 1.65rem;
       border: 1px solid var(--border);
       box-shadow: var(--card-shadow);
     }
 
-    .whats-new-card {
-      border-color: rgba(93, 64, 55, 0.25);
-    }
-
     h2 {
       font-size: 1.15rem;
-      font-weight: 700;
+      font-weight: 800;
       margin-bottom: 0.85rem;
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      letter-spacing: -0.01em;
     }
 
     /* Role switcher tabs */
     .role-tabs {
       display: flex;
-      background: var(--bg);
-      padding: 4px;
-      border-radius: 12px;
+      background: var(--surface-elevated);
+      padding: 5px;
+      border-radius: 14px;
       border: 1px solid var(--border);
       margin-bottom: 1.25rem;
     }
@@ -287,7 +357,7 @@
     .role-tab {
       flex: 1;
       padding: 8px 12px;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 0.85rem;
       font-weight: 700;
       text-align: center;
@@ -301,7 +371,7 @@
     .role-tab.active {
       background: var(--surface);
       color: var(--text-main);
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 
     .role-tab.active.student-active {
@@ -316,20 +386,20 @@
       list-style: none;
       display: flex;
       flex-direction: column;
-      gap: 0.85rem;
+      gap: 0.95rem;
     }
 
     .whats-new-item {
       display: flex;
       align-items: flex-start;
-      gap: 0.8rem;
+      gap: 0.85rem;
       font-size: 0.88rem;
       line-height: 1.45;
     }
 
     .icon-box {
-      width: 34px;
-      height: 34px;
+      width: 36px;
+      height: 36px;
       border-radius: 10px;
       background: var(--primary-light);
       color: var(--primary);
@@ -337,7 +407,8 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      font-size: 1.1rem;
+      font-size: 1.15rem;
+      border: 1px solid var(--border);
     }
 
     .student-icon-box {
@@ -350,15 +421,16 @@
       align-items: center;
       gap: 6px;
       color: var(--text-main);
-      margin-bottom: 0.15rem;
+      margin-bottom: 0.2rem;
       font-size: 0.92rem;
+      font-weight: 700;
     }
 
     .item-tag {
       font-size: 0.65rem;
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
@@ -366,17 +438,20 @@
     .tag-admin {
       background: var(--primary-light);
       color: var(--primary);
+      border: 1px solid var(--border);
     }
 
     .tag-student {
       background: var(--student-light);
       color: var(--student);
+      border: 1px solid var(--border);
     }
 
     .whats-new-content p {
       color: var(--text-muted);
       margin: 0;
-      font-size: 0.85rem;
+      font-size: 0.84rem;
+      line-height: 1.45;
     }
 
     .step-list {
@@ -395,185 +470,192 @@
     }
 
     .step-num {
-      width: 26px;
-      height: 26px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       background: var(--primary-light);
       color: var(--primary);
-      font-weight: 700;
+      font-weight: 800;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
+      border: 1px solid var(--border);
     }
 
     footer {
-      margin-top: auto;
-      padding-top: 2rem;
+      margin-top: 2.5rem;
       text-align: center;
       color: var(--text-muted);
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       line-height: 1.5;
+      font-weight: 500;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="hero-card">
-      <div class="app-icon" id="appLogo">📚</div>
-      <h1 id="appName">The Cozy Corner Centre</h1>
-      <p class="subtitle" id="appSubtitle">Smart Study Library Management Platform</p>
-      
-      <!-- Organization Meta (Address & Contacts) -->
-      <div class="org-meta" id="orgMeta" style="display: none;">
-        <span class="org-address" id="orgAddress"></span>
-        <div class="org-links" id="orgLinks"></div>
+    <!-- Left Column (Desktop Hero & CTAs) -->
+    <div class="col-left">
+      <div class="hero-card">
+        <div class="app-icon" id="appLogo">📚</div>
+        <h1 id="appName">The Cozy Corner Study Centre</h1>
+        <p class="subtitle" id="appSubtitle">Smart Study Centre &amp; Silent Reading Hall</p>
+        
+        <!-- Organization Meta (Address & Contacts) -->
+        <div class="org-meta" id="orgMeta" style="display: none;">
+          <span class="org-address" id="orgAddress">Front Of Reliance Fashion Factory, Nath Road, Parli-431515</span>
+          <div class="org-links" id="orgLinks"></div>
+        </div>
+
+        <div class="badge-container">
+          <span class="badge badge-success">● Production Ready</span>
+          <span class="badge" id="appVersionBadge">v1.5.44+52</span>
+          <span class="badge badge-size" id="apkSizeBadge">51.5 MB</span>
+        </div>
+
+        <div class="btn-group">
+          <!-- Direct High-Speed Download URL -->
+          <a href="https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.44/StudyLibrary.apk" class="download-btn" id="downloadBtn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span id="downloadBtnText">Download Android APK (51.5 MB)</span>
+          </a>
+
+          <!-- Live Seat Map Direct Link -->
+          <a href="/seats/?lib=aPSMq8xSAjuZQh2fTtuY" class="seat-btn" id="seatMapBtn">
+            <span>🪑 View Live Seat Map</span>
+          </a>
+
+          <!-- Web App Direct Link for Laptop / Desktop -->
+          <a href="/app/" class="web-btn" id="webAppBtn">
+            <span>💻 Open Web App (Mobile / Laptop / Desktop)</span>
+          </a>
+        </div>
+
+        <div class="download-meta">Verified Signed Release • Direct Fast Download</div>
       </div>
-
-      <div class="badge-container">
-        <span class="badge badge-success">● Production Ready</span>
-        <span class="badge" id="appVersionBadge">v1.5.28 (Build 36)</span>
-        <span class="badge badge-size" id="apkSizeBadge">47.7 MB (Optimized)</span>
-      </div>
-
-      <div class="btn-group">
-        <!-- Direct High-Speed Download URL -->
-        <a href="https://github.com/ksonpethkar/study-library-management/releases/latest/download/StudyLibrary.apk" class="download-btn" id="downloadBtn">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-          <span id="downloadBtnText">Download Android APK (47.7 MB)</span>
-        </a>
-
-        <!-- Live Seat Map Direct Link -->
-        <a href="/seats/" class="seat-btn" id="seatMapBtn">
-          <span>🪑 View Live Seat Map</span>
-        </a>
-
-        <!-- Web App Direct Link for Laptop / Desktop -->
-        <a href="/app/" class="seat-btn" id="webAppBtn" style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; border: none; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
-          <span>💻 Open Web App (Mobile / Laptop / Desktop)</span>
-        </a>
-      </div>
-
-      <div class="download-meta">Verified Signed Release • Direct Fast Download</div>
     </div>
 
-    <!-- What's New Card with Role Filter -->
-    <div class="whats-new-card">
-      <h2 id="whatsNewHeading">🔥 What's New in v1.5.28 (Phase 1, 2 & 3 Update)</h2>
+    <!-- Right Column (What's New & Installation Guide) -->
+    <div class="col-right">
+      <!-- What's New Card with Role Filter -->
+      <div class="whats-new-card">
+        <h2 id="whatsNewHeading">🔥 What's New in v1.5.44</h2>
 
-      <!-- Switcher: For Students vs For Library Owners -->
-      <div class="role-tabs">
-        <button class="role-tab active student-active" id="tabStudent" onclick="switchRoleTab('student')">
-          🎓 For Students
-        </button>
-        <button class="role-tab" id="tabAdmin" onclick="switchRoleTab('admin')">
-          🏢 For Library Owners
-        </button>
+        <!-- Switcher: For Students vs For Library Owners -->
+        <div class="role-tabs">
+          <button class="role-tab active student-active" id="tabStudent" onclick="switchRoleTab('student')">
+            🎓 For Students
+          </button>
+          <button class="role-tab" id="tabAdmin" onclick="switchRoleTab('admin')">
+            🏢 For Library Owners
+          </button>
+        </div>
+
+        <!-- Student View -->
+        <ul class="whats-new-list" id="studentList">
+          <li class="whats-new-item">
+            <div class="icon-box student-icon-box">🔔</div>
+            <div class="whats-new-content">
+              <strong>Student Notification Center <span class="item-tag tag-student">Live Alerts</span></strong>
+              <p>View live alerts for pass approvals, seat changes, fee receipts, and library notices with the new notification bell on your home screen.</p>
+            </div>
+          </li>
+          <li class="whats-new-item">
+            <div class="icon-box student-icon-box">🎨</div>
+            <div class="whats-new-content">
+              <strong>1-Tap Theme Toggle on Dashboard <span class="item-tag tag-student">Dashboard Action</span></strong>
+              <p>Conveniently toggle between Dark Mode and Light Mode right from the top dashboard header.</p>
+            </div>
+          </li>
+          <li class="whats-new-item">
+            <div class="icon-box student-icon-box">🪑</div>
+            <div class="whats-new-content">
+              <strong>Readable Seat &amp; Hall Details <span class="item-tag tag-student">Clean Desk</span></strong>
+              <p>Your allocated desk (e.g. Seat #2 [ALLOCATED]) and hall section name are clearly presented across home, profile, and membership screens.</p>
+            </div>
+          </li>
+          <li class="whats-new-item">
+            <div class="icon-box student-icon-box">🧑‍💼</div>
+            <div class="whats-new-content">
+              <strong>Dynamic Admin Name &amp; Real-time Support <span class="item-tag tag-student">Manager Sync</span></strong>
+              <p>Instant live sync with official library admin and manager details with 1-tap call and pre-formatted WhatsApp assistance.</p>
+            </div>
+          </li>
+          <li class="whats-new-item">
+            <div class="icon-box student-icon-box">🔄</div>
+            <div class="whats-new-content">
+              <strong>Rotating Refresh &amp; Full Data Sync <span class="item-tag tag-student">Instant Sync</span></strong>
+              <p>Smooth 360-degree rotating sync button with haptic feedback to instantly reload all profile, seat, and library data.</p>
+            </div>
+          </li>
+        </ul>
+
+        <!-- Admin View -->
+        <ul class="whats-new-list" id="adminList" style="display: none;">
+          <li class="whats-new-item">
+            <div class="icon-box">🔄</div>
+            <div class="whats-new-content">
+              <strong>Real-Time Org &amp; Manager Propagation <span class="item-tag tag-admin">Live Sync</span></strong>
+              <p>Changes made in Library Profile immediately propagate dynamically across all active student logins and screens.</p>
+            </div>
+          </li>
+          <li class="whats-new-item">
+            <div class="icon-box">🔔</div>
+            <div class="whats-new-content">
+              <strong>Instant Student Push Notifications <span class="item-tag tag-admin">Direct Dispatch</span></strong>
+              <p>Seat approvals, payment receipts, and announcements dispatch instant cloud messages to students.</p>
+            </div>
+          </li>
+          <li class="whats-new-item">
+            <div class="icon-box">📊</div>
+            <div class="whats-new-content">
+              <strong>Automated Data Exports &amp; CSV Reports <span class="item-tag tag-admin">Reporting</span></strong>
+              <p>Export students, payments, and seat utilization records effortlessly into clean Excel / CSV formats.</p>
+            </div>
+          </li>
+          <li class="whats-new-item">
+            <div class="icon-box">🪑</div>
+            <div class="whats-new-content">
+              <strong>Interactive Live Seat Map <span class="item-tag tag-admin">Hall Management</span></strong>
+              <p>Live occupancy monitoring, gender-reserved sections, and printable A4 entrance QR posters.</p>
+            </div>
+          </li>
+        </ul>
       </div>
 
-      <!-- Student View -->
-      <ul class="whats-new-list" id="studentList">
-        <li class="whats-new-item">
-          <div class="icon-box student-icon-box">🔄</div>
-          <div class="whats-new-content">
-            <strong>In-App Plan Renewal Request <span class="item-tag tag-student">Self-Service</span></strong>
-            <p>Request membership renewal directly in-app by submitting your UPI/Bank UTR reference number for quick admin approval.</p>
-          </div>
-        </li>
-        <li class="whats-new-item">
-          <div class="icon-box student-icon-box">📷</div>
-          <div class="whats-new-content">
-            <strong>Autonomous Gov ID Detection <span class="item-tag tag-student">Instant KYC</span></strong>
-            <p>Camera scanner instantly detects Aadhaar, PAN, DL, and Passport formats without manual dropdown selection.</p>
-          </div>
-        </li>
-        <li class="whats-new-item">
-          <div class="icon-box student-icon-box">🧾</div>
-          <div class="whats-new-content">
-            <strong>Partial Payments &amp; Due Tracking <span class="item-tag tag-student">Transparent</span></strong>
-            <p>Transparent installment records, remaining balance tracking, and official PDF receipts with rupee symbols.</p>
-          </div>
-        </li>
-        <li class="whats-new-item">
-          <div class="icon-box student-icon-box">🪑</div>
-          <div class="whats-new-content">
-            <strong>Clean Seat Map <span class="item-tag tag-student">Live Map</span></strong>
-            <p>Uncluttered seat labels and live section color tinting on available seats for effortless navigation.</p>
-          </div>
-        </li>
-      </ul>
-
-      <!-- Admin View -->
-      <ul class="whats-new-list" id="adminList" style="display: none;">
-        <li class="whats-new-item">
-          <div class="icon-box">💬</div>
-          <div class="whats-new-content">
-            <strong>100% Free Multi-Channel Messaging <span class="item-tag tag-admin">Free Stack</span></strong>
-            <p>Automate payment receipts via Admin SIM Native Direct SMS, Telegram Bot, 1-tap WhatsApp, or Desk PC Bridge.</p>
-          </div>
-        </li>
-        <li class="whats-new-item">
-          <div class="icon-box">💰</div>
-          <div class="whats-new-content">
-            <strong>Partial Payments &amp; Due Balance Banner <span class="item-tag tag-admin">Finances</span></strong>
-            <p>Split payments, student due banners with 1-tap clear, and interactive payment actions (View PDF, Resend, Void).</p>
-          </div>
-        </li>
-        <li class="whats-new-item">
-          <div class="icon-box">🔒</div>
-          <div class="whats-new-content">
-            <strong>Master PIN &amp; Biometrics Cloud Backup <span class="item-tag tag-admin">Zero Data Loss</span></strong>
-            <p>Security preferences and Master PIN hash safely auto-sync to cloud settings—restored instantly on fresh reinstalls.</p>
-          </div>
-        </li>
-        <li class="whats-new-item">
-          <div class="icon-box">🛡️</div>
-          <div class="whats-new-content">
-            <strong>Touch-Isolated Screenshot Toggle <span class="item-tag tag-admin">Security UI</span></strong>
-            <p>Direct responsive switch toggles without accidental whole-card clicks, backed by 0ms optimistic UI updates.</p>
-          </div>
-        </li>
-        <li class="whats-new-item">
-          <div class="icon-box">🪑</div>
-          <div class="whats-new-content">
-            <strong>Clean Seat Labels &amp; Section Color Tinting <span class="item-tag tag-admin">Seat Map</span></strong>
-            <p>Removed 'occ' clutter from occupied seats; available seats dynamically display assigned section colors.</p>
-          </div>
-        </li>
-      </ul>
+      <!-- Android Install Guide -->
+      <div class="guide-card">
+        <h2>📲 Android Installation Guide</h2>
+        <ol class="step-list">
+          <li class="step-item">
+            <div class="step-num">1</div>
+            <div>Tap <strong>Download Android APK</strong> on the left and wait for the download to complete.</div>
+          </li>
+          <li class="step-item">
+            <div class="step-num">2</div>
+            <div>If Android warns <em>"File might be harmful"</em>, tap <strong>Download anyway</strong> (standard security prompt for direct APK releases).</div>
+          </li>
+          <li class="step-item">
+            <div class="step-num">3</div>
+            <div>Open the downloaded APK and tap <strong>Install</strong>. If prompted, toggle <strong>Allow from this source</strong>.</div>
+          </li>
+          <li class="step-item" style="border-left: 3px solid var(--primary); padding-left: 0.85rem; margin-top: 0.5rem; list-style: none;">
+            <div><small style="color: var(--text-muted); font-size: 0.8rem; line-height: 1.45;"><strong>Helpful Tip:</strong> If you see <em>"App not installed"</em>, simply uninstall the older version from your phone first, then tap the downloaded APK to install fresh.</small></div>
+          </li>
+        </ol>
+      </div>
     </div>
-
-    <!-- Android Install Guide -->
-    <div class="guide-card">
-      <h2>📲 Android Installation Guide</h2>
-      <ol class="step-list">
-        <li class="step-item">
-          <div class="step-num">1</div>
-          <div>Tap <strong>Download Android APK</strong> above and wait for the download to complete.</div>
-        </li>
-        <li class="step-item">
-          <div class="step-num">2</div>
-          <div>If Android warns <em>"File might be harmful"</em>, tap <strong>Download anyway</strong> (standard prompt for direct APK files).</div>
-        </li>
-        <li class="step-item">
-          <div class="step-num">3</div>
-          <div>Open the downloaded file and tap <strong>Install</strong>. If prompted, toggle <strong>Allow from this source</strong>.</div>
-        </li>
-        <li class="step-item" style="border-left: 2px solid var(--primary); padding-left: 0.75rem; margin-top: 0.5rem; list-style: none;">
-          <div><small style="color: var(--text-muted);"><strong>Note:</strong> If you see <em>"App not installed"</em>, simply uninstall the older app from your phone first, then tap the downloaded APK to install.</small></div>
-        </li>
-      </ol>
-    </div>
-
-    <footer id="pageFooter">
-      The Cozy Corner Centre &bull; v1.5.26 &bull; Android
-    </footer>
   </div>
+
+  <footer id="pageFooter">
+    The Cozy Corner Study Centre &bull; v1.5.44+52 &bull; Android Official Release
+  </footer>
 
   <script>
     function switchRoleTab(role) {
@@ -600,11 +682,14 @@
       var container = document.getElementById(listId);
       if (!container) return;
       var iconMap = {
+        'notifications': '🔔',
         'palette': '🎨',
-        'badge': '🏷️',
+        'seat': '🪑',
+        'support_agent': '🧑‍💼',
+        'refresh': '🔄',
+        'sync': '🔄',
         'receipt': '🧾',
         'lock': '🛡️',
-        'seat': '🪑',
         'approval': '✅',
         'system_update': '⚡',
         'document_scanner': '🔍'
@@ -625,19 +710,39 @@
       container.innerHTML = html;
     }
 
-    function applyAccentColor(colorHex) {
-      if (!colorHex) return;
-      document.documentElement.style.setProperty('--primary', colorHex);
-      document.documentElement.style.setProperty('--primary-hover', colorHex);
+    function formatPhone(phone) {
+      if (!phone) return '';
+      var cleaned = ('' + phone).replace(/\D/g, '');
+      if (cleaned.length === 10) {
+        return '+91 ' + cleaned.substring(0, 5) + ' ' + cleaned.substring(5);
+      }
+      if (cleaned.length === 12 && cleaned.startsWith('91')) {
+        return '+' + cleaned.substring(0, 2) + ' ' + cleaned.substring(2, 7) + ' ' + cleaned.substring(7);
+      }
+      return phone;
     }
 
-    // 1. Synchronous Dynamic fetch from update.json
+    function applyAccentColor(colorHex) {
+      if (!colorHex) return;
+      const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      // In dark mode, if user provides dark brown, retain readable amber/gold
+      if (isDark) {
+        // High-contrast vibrant tone for dark theme
+        document.documentElement.style.setProperty('--primary', '#F59E0B');
+        document.documentElement.style.setProperty('--primary-hover', '#D97706');
+        document.documentElement.style.setProperty('--primary-light', 'rgba(245, 158, 11, 0.16)');
+      } else {
+        document.documentElement.style.setProperty('--primary', colorHex);
+        document.documentElement.style.setProperty('--primary-hover', colorHex);
+      }
+    }
+
+    // 1. Dynamic fetch from update.json
     fetch('/update.json?t=' + Date.now())
       .then(function(res) { return res.json(); })
       .then(function(data) {
         var ver = data.versionName || data.latestVersion;
-        var code = data.latestBuild || data.versionCode;
-        var size = data.apkSize || '74.0 MB';
+        var size = data.apkSize || '51.5 MB';
         var url = data.downloadUrl || data.apkUrl;
 
         if (ver) {
@@ -648,7 +753,7 @@
           if (heading) heading.textContent = '🔥 What\'s New in v' + ver;
 
           var footer = document.getElementById('pageFooter');
-          if (footer) footer.innerHTML = 'The Cozy Corner Centre &bull; v' + ver + ' &bull; Android';
+          if (footer) footer.innerHTML = 'The Cozy Corner Study Centre &bull; v' + ver + ' &bull; Android Official Release';
         }
 
         if (size) {
@@ -728,14 +833,16 @@
             if (footer) footer.innerHTML = lib.name + ' &bull; Android Official Release';
           }
 
-          // 2. Library Tagline / Welcome
-          if (lib.tagline && lib.tagline.trim().length > 0) {
-            document.getElementById('appSubtitle').textContent = lib.tagline;
-          } else if (lib.welcomeMessage && lib.welcomeMessage.trim().length > 0) {
-            document.getElementById('appSubtitle').textContent = lib.welcomeMessage;
+          // 2. Library Tagline / Subtitle (Deduping)
+          var titleStr = (lib.name || '').trim().toLowerCase();
+          var subCandidate = (lib.tagline || lib.welcomeMessage || '').trim();
+          if (subCandidate && !subCandidate.toLowerCase().includes(titleStr) && !subCandidate.toLowerCase().startsWith('welcome to')) {
+            document.getElementById('appSubtitle').textContent = subCandidate;
+          } else {
+            document.getElementById('appSubtitle').textContent = 'Smart Study Centre & Silent Reading Hall';
           }
 
-          // 3. Organization Logo (Supports Base64 data URI and Cloud Storage HTTPS URLs)
+          // 3. Organization Logo
           if (lib.logoUrl && lib.logoUrl.trim().length > 0) {
             var logoDiv = document.getElementById('appLogo');
             if (logoDiv) {
@@ -754,13 +861,13 @@
           var orgAddress = document.getElementById('orgAddress');
           var orgLinks = document.getElementById('orgLinks');
 
-          if (lib.address || lib.contact || lib.email) {
+          if (lib.address || lib.contact || lib.email || lib.operatingHours) {
             orgMeta.style.display = 'flex';
             if (lib.address) orgAddress.textContent = '📍 ' + lib.address;
 
             var pills = '';
             if (lib.contact) {
-              pills += '<a class="org-pill" href="tel:' + lib.contact + '">📞 ' + lib.contact + '</a>';
+              pills += '<a class="org-pill" href="tel:' + lib.contact + '">📞 ' + formatPhone(lib.contact) + '</a>';
             }
             if (lib.email) {
               pills += '<a class="org-pill" href="mailto:' + lib.email + '">✉️ ' + lib.email + '</a>';
