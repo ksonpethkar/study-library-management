@@ -16,6 +16,7 @@ import 'package:study_library/features/students/presentation/providers/student_p
 import 'package:study_library/features/search/presentation/screens/global_search_screen.dart';
 import 'package:study_library/features/dashboard/presentation/widgets/revenue_chart.dart';
 import 'package:study_library/features/dashboard/presentation/widgets/app_update_banner.dart';
+import 'package:study_library/core/widgets/update_reminder_dialog.dart';
 import 'package:study_library/features/seats/presentation/widgets/share_qr_dialog.dart';
 import 'package:study_library/services/expiry_notification_service.dart';
 import 'package:study_library/services/whats_new_service.dart';
@@ -161,6 +162,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
       if (mounted) {
         if (_pendingRequestsSub == null) _watchPendingRequests();
         WhatsNewService.checkAndShow(context, isStudent: false);
+        UpdateReminderDialog.checkAndShow(context, ref);
         _runAutomations();
         _loadTodayStats();
       }

@@ -221,7 +221,7 @@ class UpdateReminderDialog {
                                 consumerRef.read(updateServiceProvider.notifier).startUpdate();
                               },
                               icon: const Icon(Icons.download_rounded, size: 18),
-                              label: const Text('Update Now'),
+                              label: Text('Download & Update (${info.apkSize})'),
                             ),
                         ],
                       ),

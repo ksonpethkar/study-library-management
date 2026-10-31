@@ -71,7 +71,7 @@ class UpdateInfo {
       isForceUpdate: data['forceUpdate'] == true,
       message: 'Version ${vName.isNotEmpty ? vName : '?'} is ready to install.',
       releaseNotes: notes,
-      apkSize: size,
+      apkSize: size.isNotEmpty && size != 'null' ? size : '51.5 MB',
     );
   }
 }
@@ -338,6 +338,26 @@ class ForceUpdateService extends Notifier<UpdateState> {
     _activeClient?.close(force: true);
     _activeClient = null;
     state = state.copyWith(downloadState: DownloadState.paused);
+  }
+
+  /// Cancel an active or paused download, delete partial file, and reset to idle
+  Future<void> cancelUpdate() async {
+    _isPaused = true;
+    _activeClient?.close(force: true);
+    _activeClient = null;
+    try {
+      final apkFile = await _getApkFile();
+      if (await apkFile.exists()) {
+        await apkFile.delete();
+      }
+    } catch (_) { /* intentionally silent */ }
+    state = state.copyWith(
+      downloadState: DownloadState.idle,
+      progress: 0.0,
+      downloadedBytes: 0,
+      clearApkPath: true,
+      errorMessage: null,
+    );
   }
 
   /// Resume a paused download

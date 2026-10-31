@@ -29,6 +29,7 @@ import 'package:study_library/services/expiry_scheduler_service.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:study_library/services/quick_actions_service.dart';
+import 'package:study_library/core/widgets/update_reminder_dialog.dart';
 import 'package:study_library/core/error/error_handler.dart';
 
 /// Real-time stream of the current student's pending registration request.
@@ -167,6 +168,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.mounted) {
         WhatsNewService.checkAndShow(context, isStudent: true);
+        UpdateReminderDialog.checkAndShow(context, ref);
       }
     });
 

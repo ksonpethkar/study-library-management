@@ -4,8 +4,8 @@
   "latestBuild": 52,
   "latestVersion": "1.5.44",
   "versionName": "1.5.44+52",
-  "apkSize": "48.8 MB",
-  "releaseNotes": "v1.5.44 (Build 52): Added Theme Toggle and Notification Center to Admin Dashboard header; removed Study Streak and Check In/Out sections from Student Home screen for clean, direct pass view.",
+  "apkSize": "51.5 MB",
+  "releaseNotes": "v1.5.44: Optimized 51.5 MB build. Calendar-month billing, WhatsApp message preview, FCM topic push subscriptions, Bulk student CSV import, and instant offline pass caching.",
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.44/StudyLibrary.apk",
   "mandatory": false,
   "organization": {

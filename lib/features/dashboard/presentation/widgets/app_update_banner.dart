@@ -134,10 +134,21 @@ class AppUpdateBanner extends ConsumerWidget {
                   // Pause button
                   IconButton(
                     icon: const Icon(Icons.pause_circle_filled_rounded),
-                    tooltip: 'Pause',
+                    tooltip: 'Pause Download',
                     onPressed: () => ref.read(updateServiceProvider.notifier).pauseUpdate(),
                     color: theme.colorScheme.primary,
                     iconSize: 28,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 6),
+                  // Cancel button
+                  IconButton(
+                    icon: const Icon(Icons.cancel_rounded),
+                    tooltip: 'Cancel Download',
+                    onPressed: () => ref.read(updateServiceProvider.notifier).cancelUpdate(),
+                    color: Colors.red.shade400,
+                    iconSize: 26,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -190,10 +201,16 @@ class AppUpdateBanner extends ConsumerWidget {
                   FilledButton.icon(
                     onPressed: () => ref.read(updateServiceProvider.notifier).resumeUpdate(),
                     icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                    label: const Text('Resume Download'),
+                    label: const Text('Continue'),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => ref.read(updateServiceProvider.notifier).cancelUpdate(),
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                    label: const Text('Cancel'),
                   ),
                   if (!isForce) ...[
-                    const SizedBox(width: 8),
+                    const Spacer(),
                     TextButton(
                       onPressed: () => ref.read(updateServiceProvider.notifier).dismissLater(),
                       style: TextButton.styleFrom(
@@ -216,21 +233,22 @@ class AppUpdateBanner extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.check_circle_rounded, color: Colors.green, size: 24),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Download complete!',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                            'Update Ready to Install 🎉',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 13.5),
                           ),
-                          if (updateState.totalBytes > 0)
-                            Text(
-                              '${_formatBytes(updateState.totalBytes)} ready to install',
-                              style: const TextStyle(fontSize: 12, color: Colors.green),
-                            ),
+                          Text(
+                            updateState.totalBytes > 0
+                                ? '${_formatBytes(updateState.totalBytes)} downloaded & verified'
+                                : '${info.apkSize} ready to install',
+                            style: const TextStyle(fontSize: 12, color: Colors.green),
+                          ),
                         ],
                       ),
                     ),
@@ -249,7 +267,7 @@ class AppUpdateBanner extends ConsumerWidget {
                       onPressed: () => ref.read(updateServiceProvider.notifier).installUpdate(),
                       icon: const Icon(Icons.install_mobile_rounded, size: 18),
                       label: const Text('Install Now'),
-                      style: FilledButton.styleFrom(backgroundColor: Colors.green),
+                      style: FilledButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
                     ),
                   ],
                 ),
@@ -334,7 +352,7 @@ class AppUpdateBanner extends ConsumerWidget {
                   FilledButton.icon(
                     onPressed: () => ref.read(updateServiceProvider.notifier).startUpdate(),
                     icon: const Icon(Icons.download_rounded, size: 18),
-                    label: const Text('Update Now'),
+                    label: Text('Download & Update (${info.apkSize})'),
                     style: FilledButton.styleFrom(
                       backgroundColor: theme.colorScheme.primary,
                       foregroundColor: theme.colorScheme.onPrimary,
