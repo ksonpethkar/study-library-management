@@ -57,6 +57,34 @@ class EntrancePosterCard extends ConsumerWidget {
     );
   }
 
+  IconData _getAmenityIconData(String id, String label) {
+    final l = '$id $label'.toLowerCase();
+    if (l.contains('wifi') || l.contains('wi-fi')) return Icons.wifi_rounded;
+    if (l.contains('silence') || l.contains('quiet')) return Icons.volume_off_rounded;
+    if (l.contains('water') || l.contains('ro')) return Icons.water_drop_rounded;
+    if (l.contains('power') || l.contains('socket') || l.contains('outlet')) return Icons.power_rounded;
+    if (l.contains('backup') || l.contains('inverter') || l.contains('battery')) return Icons.battery_charging_full_rounded;
+    if (l.contains('cctv') || l.contains('camera') || l.contains('surveillance')) return Icons.videocam_rounded;
+    if (l.contains('ac') || l.contains('cool') || l.contains('air')) return Icons.ac_unit_rounded;
+    if (l.contains('chair') || l.contains('seat')) return Icons.chair_rounded;
+    if (l.contains('24/7') || l.contains('hour') || l.contains('time')) return Icons.schedule_rounded;
+    if (l.contains('parking')) return Icons.local_parking_rounded;
+    if (l.contains('locker') || l.contains('storage')) return Icons.lock_rounded;
+    return Icons.verified_rounded;
+  }
+
+  Color _getAmenityIconColor(String id, String label) {
+    final l = '$id $label'.toLowerCase();
+    if (l.contains('wifi') || l.contains('wi-fi')) return const Color(0xFF0284C7);
+    if (l.contains('silence') || l.contains('quiet')) return const Color(0xFFD97706);
+    if (l.contains('water') || l.contains('ro')) return const Color(0xFF0284C7);
+    if (l.contains('power') || l.contains('socket')) return const Color(0xFF475569);
+    if (l.contains('backup') || l.contains('battery')) return const Color(0xFF16A34A);
+    if (l.contains('cctv') || l.contains('camera')) return const Color(0xFF4F46E5);
+    if (l.contains('ac') || l.contains('air')) return const Color(0xFF0284C7);
+    return const Color(0xFF16A34A);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final libName = library?.name.isNotEmpty == true ? library!.name : 'Study Centre';
@@ -289,9 +317,14 @@ class EntrancePosterCard extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        hasOccupancyData && availableSeats == 0 ? '🔴' : '⚡',
-                        style: const TextStyle(fontSize: 11),
+                      Icon(
+                        hasOccupancyData && availableSeats == 0
+                            ? Icons.error_outline_rounded
+                            : Icons.bolt_rounded,
+                        size: 15,
+                        color: hasOccupancyData && availableSeats == 0
+                            ? Colors.red.shade900
+                            : const Color(0xFFD97706),
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -474,9 +507,10 @@ class EntrancePosterCard extends ConsumerWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                icon,
-                                style: const TextStyle(fontSize: 12),
+                              Icon(
+                                _getAmenityIconData(id, item['label']?.toString() ?? ''),
+                                size: 13,
+                                color: _getAmenityIconColor(id, item['label']?.toString() ?? ''),
                               ),
                               const SizedBox(width: 4),
                               Flexible(
