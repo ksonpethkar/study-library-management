@@ -16,6 +16,7 @@ import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:study_library/core/error/error_handler.dart';
 import 'package:study_library/core/widgets/pressable_scale.dart';
+import 'package:study_library/services/image_service.dart';
 
 enum RenewalTiming { advance, immediate }
 enum RenewalPaymentMode { upi, bank, deskCash }
@@ -36,6 +37,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
   final _notesController = TextEditingController();
   final _transactionRefController = TextEditingController();
   bool _isSubmitting = false;
+  String? _paymentProofDataUrl;
 
   @override
   void dispose() {
@@ -125,7 +127,8 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
         'amount': selectedPlan.price,
         'originalPrice': origPrice,
         'discountAmount': hasDiscount && origPrice != null ? (origPrice - selectedPlan.price) : 0.0,
-        'currentSeatId': student.seatId,
+        'currentSeatId': student.seatId ?? student.previousSeatId,
+        'currentSectionId': student.sectionId ?? student.previousSectionId,
         'keepSeat': _keepSeat,
         'isAdvanceRenewal': isAdvance,
         'cycleStartDate': Timestamp.fromDate(startDate),
@@ -133,6 +136,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
         'paymentMethod': paymentMethodStr,
         'paymentModeLabel': paymentLabelStr,
         'referenceNumber': refNumberStr,
+        'paymentProofUrl': _paymentProofDataUrl,
         'notes': _notesController.text.trim(),
         'status': statusStr,
         'createdAt': FieldValue.serverTimestamp(),
@@ -208,6 +212,8 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
               final isCurrentPlanActive = student.planEndDate != null && student.planEndDate!.isAfter(DateTime.now());
               final startDate = selectedPlan != null ? _computeCycleStartDate(student) : DateTime.now();
               final endDate = selectedPlan != null ? _computeCycleEndDate(startDate, selectedPlan) : DateTime.now();
+              final effectiveDeskId = student.seatId ?? student.previousSeatId;
+              final isReclaiming = student.seatId == null && student.previousSeatId != null;
 
               return ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -583,28 +589,33 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                               ],
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${selectedPlan.duration} ${selectedPlan.durationUnit.name}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.onPrimaryContainer,
-                              ),
-                            ),
+                          Builder(
+                            builder: (context) {
+                              final actualDays = endDate.difference(startDate).inDays + 1;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$actualDays days',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
                     ),
                   const SizedBox(height: 16),
 
-                  // Keep Seat Toggle
-                  if (student.seatId != null)
+                  // Keep or Reclaim Seat Toggle
+                  if (effectiveDeskId != null)
                     Card(
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -612,8 +623,17 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                         side: BorderSide(color: theme.colorScheme.outlineVariant),
                       ),
                       child: SwitchListTile(
-                        title: Text('Keep My Allocated ${SeatHelper.formatSeatLabel(seatId: student.seatId)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: const Text('Retain your desk upon renewal approval'),
+                        title: Text(
+                          isReclaiming
+                              ? 'Reclaim Previous ${SeatHelper.formatSeatLabel(seatId: effectiveDeskId)}'
+                              : 'Keep My Allocated ${SeatHelper.formatSeatLabel(seatId: effectiveDeskId)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          isReclaiming
+                              ? 'Request to restore your previously allocated desk upon renewal approval'
+                              : 'Retain your desk upon renewal approval',
+                        ),
                         value: _keepSeat,
                         onChanged: (val) {
                           HapticFeedback.selectionClick();
@@ -965,6 +985,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                     helperText: 'Enter transaction reference / UTR from your bank app after transfer',
                                   ),
                                 ),
+                                _buildPaymentProofAttachmentWidget(theme),
                               ],
                             ),
                           ),
@@ -1124,6 +1145,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                   helperText: 'Enter 12-digit UTR from your bank or UPI payment confirmation',
                                 ),
                               ),
+                              _buildPaymentProofAttachmentWidget(theme),
 
                               if (refundPolicy.isNotEmpty) ...[
                                 const SizedBox(height: 12),
@@ -1247,6 +1269,113 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPaymentProofAttachmentWidget(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        Text(
+          'Payment Screenshot / Receipt (Optional)',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 6),
+        if (_paymentProofDataUrl == null)
+          OutlinedButton.icon(
+            onPressed: () async {
+              final source = await ImageService.showSourcePicker(context);
+              if (source != null) {
+                final dataUrl = await ImageService.pickImageAsDataUrl(
+                  source: source,
+                  maxWidth: 600,
+                  quality: 75,
+                );
+                if (dataUrl != null && mounted) {
+                  setState(() {
+                    _paymentProofDataUrl = dataUrl;
+                  });
+                }
+              }
+            },
+            icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+            label: const Text('Upload Payment Screenshot / Slip'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 44),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    ImageService.showImageViewer(
+                      context,
+                      imageUrl: _paymentProofDataUrl,
+                      title: 'Payment Proof Screenshot',
+                    );
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      width: 52,
+                      height: 52,
+                      child: Image(
+                        image: ImageService.getImageProvider(_paymentProofDataUrl)!,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: Colors.green, size: 16),
+                          const SizedBox(width: 4),
+                          const Text(
+                            'Payment Proof Attached',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Admin can verify this receipt directly',
+                        style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+                  tooltip: 'Remove Screenshot',
+                  onPressed: () {
+                    setState(() {
+                      _paymentProofDataUrl = null;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

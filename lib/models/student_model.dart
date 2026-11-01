@@ -118,6 +118,8 @@ class StudentModel {
   final String emergencyContact;
   final String? seatId;
   final String? sectionId;
+  final String? previousSeatId;
+  final String? previousSectionId;
   final String? planId;
   final DateTime? planStartDate;
   final DateTime? planEndDate;
@@ -158,6 +160,8 @@ class StudentModel {
     required this.emergencyContact,
     this.seatId,
     this.sectionId,
+    this.previousSeatId,
+    this.previousSectionId,
     this.planId,
     this.planStartDate,
     this.planEndDate,
@@ -220,6 +224,8 @@ class StudentModel {
       emergencyContact: json['emergencyContact'] as String? ?? '',
       seatId: json['seatId'] as String?,
       sectionId: json['sectionId'] as String?,
+      previousSeatId: json['previousSeatId'] as String?,
+      previousSectionId: json['previousSectionId'] as String?,
       planId: json['planId'] as String?,
       planStartDate: _parseDate(json['planStartDate']),
       planEndDate: _parseDate(json['planEndDate']),
@@ -263,6 +269,8 @@ class StudentModel {
       'emergencyContact': emergencyContact,
       if (seatId != null) 'seatId': seatId,
       if (sectionId != null) 'sectionId': sectionId,
+      if (previousSeatId != null) 'previousSeatId': previousSeatId,
+      if (previousSectionId != null) 'previousSectionId': previousSectionId,
       if (planId != null) 'planId': planId,
       if (planStartDate != null) 'planStartDate': planStartDate!.toIso8601String(),
       if (planEndDate != null) 'planEndDate': planEndDate!.toIso8601String(),
@@ -305,6 +313,8 @@ class StudentModel {
     String? emergencyContact,
     String? seatId,
     String? sectionId,
+    String? previousSeatId,
+    String? previousSectionId,
     String? planId,
     DateTime? planStartDate,
     DateTime? planEndDate,
@@ -345,6 +355,8 @@ class StudentModel {
       emergencyContact: emergencyContact ?? this.emergencyContact,
       seatId: seatId ?? this.seatId,
       sectionId: sectionId ?? this.sectionId,
+      previousSeatId: previousSeatId ?? this.previousSeatId,
+      previousSectionId: previousSectionId ?? this.previousSectionId,
       planId: planId ?? this.planId,
       planStartDate: planStartDate ?? this.planStartDate,
       planEndDate: planEndDate ?? this.planEndDate,
@@ -450,12 +462,28 @@ class StudentModel {
     if (membershipStatus == MembershipStatus.inactive || membershipStatus == MembershipStatus.archived) {
       return membershipStatus;
     }
-    if (isExpired) {
-      if (membershipStatus == MembershipStatus.grace ||
-          (graceEndDate != null && DateTime.now().isBefore(graceEndDate!))) {
-        return MembershipStatus.grace;
+    final now = DateTime.now();
+    if (planEndDate != null) {
+      final planEndInclusive = DateTime(
+        planEndDate!.year,
+        planEndDate!.month,
+        planEndDate!.day,
+        23, 59, 59, 999,
+      );
+      if (now.isAfter(planEndInclusive)) {
+        if (graceEndDate != null) {
+          final graceEndInclusive = DateTime(
+            graceEndDate!.year,
+            graceEndDate!.month,
+            graceEndDate!.day,
+            23, 59, 59, 999,
+          );
+          if (now.isBefore(graceEndInclusive) || now.isAtSameMomentAs(graceEndInclusive)) {
+            return MembershipStatus.grace;
+          }
+        }
+        return MembershipStatus.expired;
       }
-      return MembershipStatus.expired;
     }
     if (membershipStatus == MembershipStatus.grace) {
       return MembershipStatus.grace;
@@ -473,13 +501,25 @@ class StudentModel {
     }
     if (planEndDate == null) return false;
     final now = DateTime.now();
-    if (now.isBefore(planEndDate!) || now.isAtSameMomentAs(planEndDate!)) {
+    final planEndInclusive = DateTime(
+      planEndDate!.year,
+      planEndDate!.month,
+      planEndDate!.day,
+      23, 59, 59, 999,
+    );
+    if (now.isBefore(planEndInclusive) || now.isAtSameMomentAs(planEndInclusive)) {
       return true;
     }
-    if (membershipStatus == MembershipStatus.grace &&
-        graceEndDate != null &&
-        (now.isBefore(graceEndDate!) || now.isAtSameMomentAs(graceEndDate!))) {
-      return true;
+    if (graceEndDate != null) {
+      final graceEndInclusive = DateTime(
+        graceEndDate!.year,
+        graceEndDate!.month,
+        graceEndDate!.day,
+        23, 59, 59, 999,
+      );
+      if (now.isBefore(graceEndInclusive) || now.isAtSameMomentAs(graceEndInclusive)) {
+        return true;
+      }
     }
     return false;
   }
@@ -489,12 +529,24 @@ class StudentModel {
     if (membershipStatus == MembershipStatus.expired) return true;
     if (planEndDate == null) return false;
     final now = DateTime.now();
-    if (membershipStatus == MembershipStatus.grace &&
-        graceEndDate != null &&
-        (now.isBefore(graceEndDate!) || now.isAtSameMomentAs(graceEndDate!))) {
-      return false;
+    if (graceEndDate != null) {
+      final graceEndInclusive = DateTime(
+        graceEndDate!.year,
+        graceEndDate!.month,
+        graceEndDate!.day,
+        23, 59, 59, 999,
+      );
+      if (now.isBefore(graceEndInclusive) || now.isAtSameMomentAs(graceEndInclusive)) {
+        return false;
+      }
     }
-    return DateTime.now().isAfter(planEndDate!);
+    final planEndInclusive = DateTime(
+      planEndDate!.year,
+      planEndDate!.month,
+      planEndDate!.day,
+      23, 59, 59, 999,
+    );
+    return now.isAfter(planEndInclusive);
   }
 
   /// Days remaining until plan expires (negative if already expired)

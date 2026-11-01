@@ -98,7 +98,12 @@ class _EditPaymentScreenState extends ConsumerState<EditPaymentScreen> {
           if (loaded.isNotEmpty) {
             setState(() {
               for (final m in loaded) {
-                if (!_availableMethods.contains(m)) _availableMethods.add(m);
+                final normalized = m.toLowerCase() == 'cash'
+                    ? 'Cash / Pay at Reception'
+                    : (m.toLowerCase().contains('upi') ? 'UPI / QR Code' : m);
+                if (!_availableMethods.contains(normalized)) {
+                  _availableMethods.add(normalized);
+                }
               }
             });
           }

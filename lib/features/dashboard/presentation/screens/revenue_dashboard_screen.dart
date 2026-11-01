@@ -227,7 +227,14 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
     final canView = ref.watch(canViewRevenueProvider);
     if (!canView) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Revenue Dashboard')),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+          ),
+          title: const Text('Revenue Dashboard'),
+        ),
         body: const Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -246,6 +253,11 @@ class _RevenueDashboardScreenState extends ConsumerState<RevenueDashboardScreen>
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+        ),
         title: const Text('Revenue & Net Profit'),
         actions: [
           IconButton(

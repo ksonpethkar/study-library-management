@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -30,6 +31,11 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
   bool _isProcessing = false;
   Map<String, dynamic>? _requestData;
   String? _newCreatedStudentId;
+  StudentModel? _liveStudent;
+  String? _liveSeatLabel;
+  String? _liveSectionName;
+  String? _currentPlanName;
+  bool _showGovId = false;
 
   @override
   void initState() {
@@ -40,7 +46,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
   Future<void> _loadRequest() async {
     final libraryId = ref.read(currentLibraryIdProvider);
     if (libraryId == null || libraryId.isEmpty) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
 
@@ -53,12 +59,81 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           .get();
 
       if (doc.exists && mounted) {
+        final reqData = doc.data();
+        StudentModel? liveStudent;
+        String? liveSeatLabel;
+        String? liveSectionName;
+        String? currentPlanName;
+
+        final studentId = (reqData?['studentId'] ?? '').toString();
+        if (studentId.isNotEmpty) {
+          try {
+            final sDoc = await FirebaseFirestore.instance
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('students')
+                .doc(studentId)
+                .get();
+
+            if (sDoc.exists) {
+              final student = StudentModel.fromJson({'id': sDoc.id, ...sDoc.data()!});
+              liveStudent = student;
+
+              final seatId = student.seatId;
+              if (seatId != null && seatId.isNotEmpty) {
+                final seatDoc = await FirebaseFirestore.instance
+                    .collection('libraries')
+                    .doc(libraryId)
+                    .collection('seats')
+                    .doc(seatId)
+                    .get();
+
+                if (seatDoc.exists) {
+                  final sMap = seatDoc.data()!;
+                  liveSeatLabel = sMap['label']?.toString() ?? sMap['number']?.toString();
+                  final secId = sMap['sectionId']?.toString();
+                  if (secId != null && secId.isNotEmpty) {
+                    final secDoc = await FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('sections')
+                        .doc(secId)
+                        .get();
+                    if (secDoc.exists) {
+                      liveSectionName = secDoc.data()?['name']?.toString();
+                    }
+                  }
+                }
+              }
+
+              final planId = student.planId;
+              if (planId != null && planId.isNotEmpty) {
+                final pDoc = await FirebaseFirestore.instance
+                    .collection('libraries')
+                    .doc(libraryId)
+                    .collection('plans')
+                    .doc(planId)
+                    .get();
+                if (pDoc.exists) {
+                  currentPlanName = pDoc.data()?['name']?.toString();
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('Error fetching live student context: $e');
+          }
+        }
+
         setState(() {
-          _requestData = doc.data();
+          _requestData = reqData;
+          _liveStudent = liveStudent;
+          _liveSeatLabel = liveSeatLabel;
+          _liveSectionName = liveSectionName;
+          _currentPlanName = currentPlanName;
           _isLoading = false;
         });
       } else {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
@@ -73,7 +148,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
     try {
       final data = _requestData!;
-      final type = data['type'] as String? ?? 'registration';
+      final type = (data['type'] as String? ?? 'registration').toLowerCase();
       DateTime? finalPlanStartDate;
       DateTime? finalPlanEndDate;
       String? renewalPlanId;
@@ -169,7 +244,6 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               newEndDate = newStartDate.add(const Duration(days: 30));
             }
 
-            // Invariant: Do not prematurely activate or extend dates before payment!
             finalPlanStartDate = newStartDate;
             finalPlanEndDate = newEndDate;
             renewalPlanId = requestedPlanId;
@@ -211,10 +285,23 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMsg), backgroundColor: Colors.green),
         );
-        final studentName = _requestData?['studentName'] ?? (_requestData?['studentData'] as Map<String, dynamic>?)?['name'] ?? 'Student';
-        final studentPhone = ((_requestData?['studentData'] as Map<String, dynamic>?)?['phone'] ?? _requestData?['studentPhone'] ?? '').toString();
-        final studentUserId = ((_requestData?['studentData'] as Map<String, dynamic>?)?['userId'] ?? _requestData?['studentId'] ?? '').toString();
-        if (type == 'registration' && _newCreatedStudentId != null) {
+
+        final studentName = _requestData?['studentName'] ??
+            (_requestData?['studentData'] as Map<String, dynamic>?)?['name'] ??
+            _liveStudent?.name ??
+            'Student';
+        final studentPhone = ((_requestData?['studentData'] as Map<String, dynamic>?)?['phone'] ??
+                _requestData?['studentPhone'] ??
+                _liveStudent?.phone ??
+                '')
+            .toString();
+        final studentUserId = ((_requestData?['studentData'] as Map<String, dynamic>?)?['userId'] ??
+                _requestData?['studentId'] ??
+                _liveStudent?.userId ??
+                '')
+            .toString();
+
+        if ((type == 'registration' || type == 'newregistration') && _newCreatedStudentId != null) {
           _promptPaymentAfterApproval(
             libraryId,
             _newCreatedStudentId!,
@@ -225,7 +312,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             planEndDate: finalPlanEndDate,
           );
         } else if (type == 'renewal') {
-          final sId = (_requestData?['studentId'] ?? '').toString();
+          final sId = (_requestData?['studentId'] ?? _liveStudent?.id ?? '').toString();
           final planAmt = (_requestData?['amount'] as num?)?.toDouble() ?? 0.0;
           _promptRenewalPaymentAfterApproval(
             libraryId,
@@ -243,7 +330,10 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error approving: ${e.toString().replaceAll("Exception: ", "")}'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error approving: ${e.toString().replaceAll("Exception: ", "")}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -259,6 +349,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         title: const Text('Reject Request'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Please specify a reason for rejecting this request:'),
             const SizedBox(height: 12),
@@ -266,7 +357,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
               controller: reasonController,
               decoration: const InputDecoration(
                 labelText: 'Reason for rejection',
-                hintText: 'e.g. Seats currently full, blurry ID photo...',
+                hintText: 'e.g. Seats full, incorrect payment UTR, blurry ID proof...',
                 border: OutlineInputBorder(),
               ),
               maxLines: 2,
@@ -317,16 +408,40 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Request rejected.')),
+          const SnackBar(content: Text('Request marked as rejected.')),
         );
       }
     } catch (e) {
       if (mounted) {
-        AppSnackbar.showError(context, e);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${ErrorHandler.handleError(e)}'), backgroundColor: Colors.red),
+        );
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
+  }
+
+  DateTime? _parseDate(dynamic val) {
+    if (val == null) return null;
+    if (val is Timestamp) return val.toDate();
+    if (val is DateTime) return val;
+    if (val is String) {
+      try {
+        return DateTime.parse(val);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  String _formatDate(DateTime? dt, {bool withTime = false}) {
+    if (dt == null) return '—';
+    if (withTime) {
+      return DateFormat('dd MMM yyyy • hh:mm a').format(dt);
+    }
+    return DateFormat('dd MMM yyyy').format(dt);
   }
 
   @override
@@ -377,309 +492,1275 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         status == 'submitted' ||
         status == 'open' ||
         status.contains('pending');
-    final photoUrl = studentData['photoUrl'] as String? ?? '';
-    final studentName = studentData['name'] ?? data['studentName'] ?? 'Student';
-    final studentPhone = studentData['phone'] ?? data['studentPhone'] ?? '';
+
+    final photoUrl = (studentData['photoUrl'] ?? _liveStudent?.photoUrl ?? data['photoUrl'] ?? '').toString();
+    final studentName = (studentData['name'] ?? data['studentName'] ?? _liveStudent?.name ?? 'Student').toString();
+    final studentPhone = (studentData['phone'] ?? data['studentPhone'] ?? _liveStudent?.phone ?? '').toString();
+    final studentEmail = (studentData['email'] ?? _liveStudent?.email ?? data['studentEmail'] ?? '').toString();
+
+    final amountNum = data['amount'] as num?;
+    final amount = amountNum?.toDouble();
+    final origPriceNum = data['originalPrice'] as num?;
+    final origPrice = origPriceNum?.toDouble();
+    final paymentMethod = (data['paymentMethod'] ?? data['paymentModeLabel'] ?? '').toString();
+    final refNumber = (data['referenceNumber'] ?? '').toString().trim();
+    final paymentProofUrl = (data['paymentProofUrl'] ?? '').toString().trim();
+    final notes = (data['notes'] ?? studentData['notes'] ?? '').toString().trim();
+    final createdAt = _parseDate(data['createdAt']);
+    final isDeskCash = status == 'desk_payment_pending' ||
+        paymentMethod.toLowerCase().contains('cash') ||
+        (data['paymentModeLabel'] ?? '').toString().toLowerCase().contains('desk');
+
+    final isRenewal = type == 'renewal';
+    final hasPaymentInfo = amount != null || paymentMethod.isNotEmpty || refNumber.isNotEmpty || paymentProofUrl.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Request Details'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            } else {
-              context.go('/admin/requests');
-            }
-          },
-        ),
+        leading: buildBackButton(),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Reload',
+            onPressed: _loadRequest,
+          ),
+        ],
       ),
       body: _isProcessing
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header
-                  Center(
-                    child: Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            if (photoUrl.isNotEmpty) {
-                              ImageService.showImageViewer(
-                                context,
-                                imageUrl: photoUrl,
-                                title: studentName,
-                              );
-                            }
-                          },
-                          child: CircleAvatar(
-                            radius: 48,
-                            backgroundColor: theme.colorScheme.primaryContainer,
-                            backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-                            child: photoUrl.isEmpty
-                                ? const Icon(Icons.person, size: 48)
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(studentName, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        Text(studentPhone, style: TextStyle(color: Colors.grey.shade600)),
-                        const SizedBox(height: 12),
-                        Chip(
-                          label: Text(status.toUpperCase()),
-                          backgroundColor: status == 'approved'
-                              ? Colors.green.shade100
-                              : status == 'rejected'
-                                  ? Colors.red.shade100
-                                  : Colors.orange.shade100,
-                          labelStyle: TextStyle(
-                            color: status == 'approved'
-                                ? Colors.green.shade900
-                                : status == 'rejected'
-                                    ? Colors.red.shade900
-                                    : Colors.orange.shade900,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // 1. Header Profile Banner
+                      _buildHeaderBanner(
+                        theme: theme,
+                        photoUrl: photoUrl,
+                        studentName: studentName,
+                        studentPhone: studentPhone,
+                        studentEmail: studentEmail,
+                        status: status,
+                        type: type,
+                        isDeskCash: isDeskCash,
+                        studentId: (_liveStudent?.id ?? data['studentId'])?.toString(),
+                      ),
+                      const SizedBox(height: 20),
 
-                  if (data['type'] == 'profile_update') ...[
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Requested Profile Updates', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            Text('Compare existing record with proposed updates:', style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600)),
-                            const Divider(height: 20),
-                            _buildDiffRow('Emergency Contact', (data['currentData'] as Map?)?['emergencyContact'], (data['proposedData'] as Map?)?['emergencyContact']),
-                            _buildDiffRow('College / Institution', (data['currentData'] as Map?)?['college'], (data['proposedData'] as Map?)?['college']),
-                            _buildDiffRow('Course', (data['currentData'] as Map?)?['course'], (data['proposedData'] as Map?)?['course']),
-                            _buildDiffRow('Year / Semester', (data['currentData'] as Map?)?['year'], (data['proposedData'] as Map?)?['year']),
-                            if ((data['proposedData'] as Map?)?['customFields'] is Map) ...[
-                              ...((data['proposedData'] as Map)['customFields'] as Map).entries.map((e) {
-                                final curMap = (data['currentData'] as Map?)?['customFields'] as Map?;
-                                final curVal = curMap?[e.key];
-                                return _buildDiffRow(e.key.toString(), curVal, e.value);
-                              }),
-                            ],
-                            if (data['rejectionReason'] != null)
-                              _buildRow('Rejection Reason', data['rejectionReason'], color: Colors.red),
-                          ],
+                      // Rejection Alert if already rejected
+                      if (status == 'rejected' && data['rejectionReason'] != null) ...[
+                        _buildRejectionNotice(theme, data['rejectionReason'].toString()),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 2. Payment & Verification Ledger Card
+                      if (hasPaymentInfo) ...[
+                        _buildPaymentLedgerCard(
+                          theme: theme,
+                          amount: amount,
+                          originalPrice: origPrice,
+                          paymentMethod: paymentMethod,
+                          refNumber: refNumber,
+                          paymentProofUrl: paymentProofUrl,
+                          isDeskCash: isDeskCash,
+                          createdAt: createdAt,
                         ),
-                      ),
-                    ),
-                  ] else if (data['type'] == 'seat_change' || data['type'] == 'seatchange') ...[
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Requested Seat Change', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            Text('Review member move request:', style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600)),
-                            const Divider(height: 20),
-                            _buildRow('Current Seat', '${SeatHelper.formatSeatLabel(seatId: data['currentSeatId'] as String?, rawLabel: data['currentSeatLabel'] as String?)} (${data['currentSectionName'] ?? "Current Section"})'),
-                            _buildRow('Target Seat', '${SeatHelper.formatSeatLabel(seatId: data['targetSeatId'] as String?, rawLabel: data['targetSeatLabel'] as String?)} (${data['targetSectionName'] ?? "Target Section"})', color: Colors.green),
-                            if (data['reason'] != null && data['reason'].toString().isNotEmpty)
-                              _buildRow('Reason', data['reason'].toString()),
-                            if (data['studentGender'] != null)
-                              _buildRow('Student Gender', data['studentGender'].toString().toUpperCase()),
-                            if (data['rejectionReason'] != null)
-                              _buildRow('Rejection Reason', data['rejectionReason'].toString(), color: Colors.red),
-                          ],
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 3. Requested Plan & Membership Cycle Card (For Renewals)
+                      if (isRenewal) ...[
+                        _buildRenewalPlanCard(theme: theme, data: data),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 4. Student Remarks / Notes
+                      if (notes.isNotEmpty) ...[
+                        _buildRemarksCard(theme: theme, notes: notes),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 5. Seat Change Comparison Card
+                      if (type == 'seat_change' || type == 'seatchange') ...[
+                        _buildSeatChangeCard(theme: theme, data: data),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 6. Profile Update Diff Card
+                      if (type == 'profile_update') ...[
+                        _buildProfileUpdateCard(theme: theme, data: data),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 7. Complete Applicant Biodata (For Registrations)
+                      if (type == 'registration' || type == 'newregistration') ...[
+                        _buildApplicantBiodataCard(theme: theme, studentData: studentData),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // View Created Student Button (if already approved & provisioned)
+                      if (data['createdStudentId'] != null) ...[
+                        FilledButton.icon(
+                          onPressed: () => context.go('/admin/students/${data['createdStudentId']}'),
+                          icon: const Icon(Icons.badge_rounded),
+                          label: const Text('View Student Profile & Pass'),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
-                      ),
-                    ),
-                  ] else ...[
-                    // Submitted Details Card
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 8. Action Buttons (Reject & Approve)
+                      if (isPending) ...[
+                        const SizedBox(height: 12),
+                        Row(
                           children: [
-                            Text('Application Information', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                            const Divider(height: 20),
-                            _buildRow('Request Type', (data['type'] ?? 'Registration').toString().toUpperCase()),
-                            if (studentData['fatherName'] != null)
-                              _buildRow("Father's Name", studentData['fatherName']),
-                            if (studentData['gender'] != null)
-                              _buildRow('Gender', studentData['gender'].toString().toUpperCase()),
-                            if (studentData['email'] != null && studentData['email'].isNotEmpty)
-                              _buildRow('Email', studentData['email']),
-                            if (studentData['govIdNumber'] != null && studentData['govIdNumber'].isNotEmpty)
-                              _buildRow('Govt ID', studentData['govIdNumber']),
-                            if ((studentData['govIdImageUrl'] != null && studentData['govIdImageUrl'].toString().isNotEmpty) ||
-                                (studentData['govIdBackImageUrl'] != null && studentData['govIdBackImageUrl'].toString().isNotEmpty)) ...[
-                              const SizedBox(height: 8),
-                              const Text('Uploaded Identity Documents:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  if (studentData['govIdImageUrl'] != null && studentData['govIdImageUrl'].toString().isNotEmpty)
-                                    Expanded(
-                                      child: InkWell(
-                                        onTap: () => ImageService.showImageViewer(
-                                          context,
-                                          imageUrl: studentData['govIdImageUrl'].toString(),
-                                          title: 'Front ID Document',
-                                        ),
-                                        child: Container(
-                                          height: 90,
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(color: Colors.grey.shade300),
-                                            image: DecorationImage(
-                                              image: ImageService.getImageProvider(studentData['govIdImageUrl'].toString())!,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
-                                          alignment: Alignment.bottomCenter,
-                                          child: Container(
-                                            width: double.infinity,
-                                            color: Colors.black54,
-                                            padding: const EdgeInsets.symmetric(vertical: 2),
-                                            child: const Text('Front Side', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 10)),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  if ((studentData['govIdImageUrl'] != null && studentData['govIdImageUrl'].toString().isNotEmpty) &&
-                                      (studentData['govIdBackImageUrl'] != null && studentData['govIdBackImageUrl'].toString().isNotEmpty))
-                                    const SizedBox(width: 8),
-                                  if (studentData['govIdBackImageUrl'] != null && studentData['govIdBackImageUrl'].toString().isNotEmpty)
-                                    Expanded(
-                                      child: InkWell(
-                                        onTap: () => ImageService.showImageViewer(
-                                          context,
-                                          imageUrl: studentData['govIdBackImageUrl'].toString(),
-                                          title: 'Back ID Document',
-                                        ),
-                                        child: Container(
-                                          height: 90,
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(color: Colors.grey.shade300),
-                                            image: DecorationImage(
-                                              image: ImageService.getImageProvider(studentData['govIdBackImageUrl'].toString())!,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
-                                          alignment: Alignment.bottomCenter,
-                                          child: Container(
-                                            width: double.infinity,
-                                            color: Colors.black54,
-                                            padding: const EdgeInsets.symmetric(vertical: 2),
-                                            child: const Text('Back Side', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 10)),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                ],
+                            Expanded(
+                              flex: 1,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red, width: 1.5),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: _rejectRequest,
+                                icon: const Icon(Icons.close_rounded),
+                                label: const Text('Reject Request', style: TextStyle(fontWeight: FontWeight.bold)),
                               ),
-                            ],
-                            if (studentData['college'] != null && studentData['college'].isNotEmpty)
-                              _buildRow('College', studentData['college']),
-                            if (studentData['course'] != null && studentData['course'].isNotEmpty)
-                              _buildRow('Course', studentData['course']),
-                            if (studentData['address'] != null && studentData['address'].isNotEmpty)
-                              _buildRow('Address', studentData['address']),
-                            if (data['rejectionReason'] != null)
-                              _buildRow('Rejection Reason', data['rejectionReason'], color: Colors.red),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              flex: 2,
+                              child: FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2E7D32),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  elevation: 2,
+                                ),
+                                onPressed: _approveRequest,
+                                icon: const Icon(Icons.check_circle_rounded),
+                                label: Text(
+                                  isRenewal
+                                      ? 'Approve Renewal'
+                                      : (type == 'seat_change' || type == 'seatchange'
+                                          ? 'Approve Seat Change'
+                                          : 'Approve & Activate Pass'),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                    ),
-                  ],
-
-                  if (data['createdStudentId'] != null) ...[
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: () => context.go('/admin/students/${data['createdStudentId']}'),
-                      icon: const Icon(Icons.badge_rounded),
-                      label: const Text('View Created Student Profile'),
-                    ),
-                  ],
-
-                  if (data['type'] == 'profile_update' && data['studentId'] != null) ...[
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: () => context.go('/admin/students/${data['studentId']}'),
-                      icon: const Icon(Icons.person_rounded),
-                      label: const Text('View Student Profile'),
-                    ),
-                  ],
-
-                  if (isPending) ...[
-                    const SizedBox(height: 32),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              side: const BorderSide(color: Colors.red),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            onPressed: _rejectRequest,
-                            icon: const Icon(Icons.close_rounded),
-                            label: const Text('Reject Request'),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            onPressed: _approveRequest,
-                            icon: const Icon(Icons.check_rounded),
-                            label: Text(
-                              type == 'renewal'
-                                  ? 'Approve Renewal'
-                                  : (type == 'seat_change' || type == 'seatchange'
-                                      ? 'Approve Seat'
-                                      : 'Approve & Add'),
-                            ),
-                          ),
-                        ),
+                        const SizedBox(height: 24),
                       ],
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
     );
   }
 
-  Widget _buildRow(String label, String value, {Color? color}) {
+  Widget _buildHeaderBanner({
+    required ThemeData theme,
+    required String photoUrl,
+    required String studentName,
+    required String studentPhone,
+    required String studentEmail,
+    required String status,
+    required String type,
+    required bool isDeskCash,
+    required String? studentId,
+  }) {
+    Color badgeBg;
+    Color badgeFg;
+    String badgeText;
+
+    if (status == 'approved') {
+      badgeBg = Colors.green.shade100;
+      badgeFg = Colors.green.shade900;
+      badgeText = 'APPROVED';
+    } else if (status == 'rejected') {
+      badgeBg = Colors.red.shade100;
+      badgeFg = Colors.red.shade900;
+      badgeText = 'REJECTED';
+    } else if (isDeskCash) {
+      badgeBg = Colors.amber.shade100;
+      badgeFg = Colors.amber.shade900;
+      badgeText = 'DESK CASH PENDING';
+    } else {
+      badgeBg = Colors.orange.shade100;
+      badgeFg = Colors.orange.shade900;
+      badgeText = 'PENDING VERIFICATION';
+    }
+
+    final typeLabel = type == 'renewal'
+        ? 'Membership Renewal'
+        : (type == 'seat_change' || type == 'seatchange'
+            ? 'Seat Relocation'
+            : (type == 'profile_update' ? 'Profile Update' : 'New Registration'));
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: () {
+              if (photoUrl.isNotEmpty) {
+                ImageService.showImageViewer(
+                  context,
+                  imageUrl: photoUrl,
+                  title: '$studentName Photo',
+                );
+              }
+            },
+            child: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 46,
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  backgroundImage: photoUrl.isNotEmpty ? ImageService.getImageProvider(photoUrl) : null,
+                  child: photoUrl.isEmpty
+                      ? Icon(Icons.person, size: 48, color: theme.colorScheme.onPrimaryContainer)
+                      : null,
+                ),
+                if (photoUrl.isNotEmpty)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        shape: BoxShape.circle,
+                        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                      ),
+                      child: Icon(Icons.zoom_in_rounded, size: 16, color: theme.colorScheme.primary),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            studentName,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  typeLabel.toUpperCase(),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: theme.colorScheme.primary),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  badgeText,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: badgeFg),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Quick Action Bar
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (studentPhone.isNotEmpty)
+                ActionChip(
+                  avatar: const Icon(Icons.call_rounded, size: 16, color: Colors.green),
+                  label: Text(studentPhone),
+                  onPressed: () {
+                    final cleanPhone = studentPhone.replaceAll(RegExp(r'[^0-9]'), '');
+                    launchUrl(Uri.parse('tel:$cleanPhone'));
+                  },
+                ),
+              if (studentPhone.isNotEmpty)
+                ActionChip(
+                  avatar: const Icon(Icons.chat_rounded, size: 16, color: Color(0xFF25D366)),
+                  label: const Text('WhatsApp'),
+                  onPressed: () {
+                    final cleanPhone = studentPhone.replaceAll(RegExp(r'[^0-9]'), '');
+                    final fullPhone = cleanPhone.startsWith('91') ? cleanPhone : '91$cleanPhone';
+                    final msg = Uri.encodeComponent(
+                      'Hello $studentName, this is regarding your Cozy Corner Study Library $typeLabel request.',
+                    );
+                    launchUrl(Uri.parse('https://wa.me/$fullPhone?text=$msg'), mode: LaunchMode.externalApplication);
+                  },
+                ),
+              if (studentId != null && studentId.isNotEmpty)
+                ActionChip(
+                  avatar: const Icon(Icons.person_outline_rounded, size: 16),
+                  label: const Text('View Profile'),
+                  onPressed: () => context.go('/admin/students/$studentId'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRejectionNotice(ThemeData theme, String reason) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline_rounded, color: Colors.red, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Application Rejected',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  reason,
+                  style: TextStyle(fontSize: 13, color: Colors.red.shade900),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentLedgerCard({
+    required ThemeData theme,
+    required double? amount,
+    required double? originalPrice,
+    required String paymentMethod,
+    required String refNumber,
+    required String paymentProofUrl,
+    required bool isDeskCash,
+    required DateTime? createdAt,
+  }) {
+    String formattedAmount = amount != null ? NumberFormat('#,##,###').format(amount) : '—';
+    String? formattedOriginal = originalPrice != null ? NumberFormat('#,##,###').format(originalPrice) : null;
+    final hasDiscount = originalPrice != null && amount != null && originalPrice > amount;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.receipt_long_rounded, color: Colors.green, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Payment & Verification Ledger',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Financial transaction records submitted by student',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+
+            // Desk Cash Alert Banner
+            if (isDeskCash) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.payments_rounded, color: Colors.amber.shade900, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Desk Payment — Physical Cash Verification Required',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber.shade900,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'The student opted to deposit cash at the reception desk. Please confirm the physical cash is received in hand before clicking "Approve".',
+                            style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            // Amount Box
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Total Payable Amount',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '₹$formattedAmount',
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF1B5E20),
+                            ),
+                          ),
+                          if (hasDiscount && formattedOriginal != null) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              '₹$formattedOriginal',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Save ₹${(originalPrice - amount).toInt()}',
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  // Payment Mode Pill
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isDeskCash
+                          ? Colors.amber.shade50
+                          : (paymentMethod.toLowerCase().contains('bank') ? Colors.blue.shade50 : Colors.purple.shade50),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDeskCash
+                            ? Colors.amber.shade300
+                            : (paymentMethod.toLowerCase().contains('bank') ? Colors.blue.shade300 : Colors.purple.shade300),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isDeskCash
+                              ? Icons.money_rounded
+                              : (paymentMethod.toLowerCase().contains('bank')
+                                  ? Icons.account_balance_rounded
+                                  : Icons.qr_code_2_rounded),
+                          size: 16,
+                          color: isDeskCash
+                              ? Colors.amber.shade900
+                              : (paymentMethod.toLowerCase().contains('bank') ? Colors.blue.shade900 : Colors.purple.shade900),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          paymentMethod.isNotEmpty ? paymentMethod.toUpperCase() : (isDeskCash ? 'CASH AT DESK' : 'UPI'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isDeskCash
+                                ? Colors.amber.shade900
+                                : (paymentMethod.toLowerCase().contains('bank') ? Colors.blue.shade900 : Colors.purple.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // UTR / Reference Row
+            if (refNumber.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.tag_rounded, size: 18, color: Colors.blueGrey),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'UTR / TRANSACTION REFERENCE',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+                          ),
+                          SelectableText(
+                            refNumber,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'monospace',
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_rounded, size: 18),
+                      tooltip: 'Copy UTR Number',
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: refNumber));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('UTR $refNumber copied to clipboard!'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            // Payment Proof Screenshot Thumbnail
+            if (paymentProofUrl.isNotEmpty) ...[
+              const Text(
+                'Payment Receipt Screenshot:',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              InkWell(
+                onTap: () {
+                  ImageService.showImageViewer(
+                    context,
+                    imageUrl: paymentProofUrl,
+                    title: 'Payment Proof Screenshot',
+                  );
+                },
+                child: Container(
+                  height: 130,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade300),
+                    color: Colors.black12,
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: double.infinity,
+                          child: Image(
+                            image: ImageService.getImageProvider(paymentProofUrl)!,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.zoom_in_rounded, color: Colors.white, size: 16),
+                            SizedBox(width: 4),
+                            Text(
+                              'Tap to View Full Payment Receipt',
+                              style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            // Submission Timestamp
+            if (createdAt != null)
+              Row(
+                children: [
+                  Icon(Icons.access_time_rounded, size: 14, color: Colors.grey.shade600),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Submitted on ${_formatDate(createdAt, withTime: true)}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRenewalPlanCard({required ThemeData theme, required Map<String, dynamic> data}) {
+    final planName = (data['requestedPlanName'] ?? data['planName'] ?? 'Standard Pass').toString();
+    final cycleStart = _parseDate(data['cycleStartDate']);
+    final cycleEnd = _parseDate(data['cycleEndDate']);
+    final isAdvance = data['isAdvanceRenewal'] == true;
+    final keepSeat = data['keepSeat'] == true;
+
+    final durationDays = (cycleStart != null && cycleEnd != null)
+        ? cycleEnd.difference(cycleStart).inDays
+        : null;
+
+    final liveExpiry = _liveStudent?.planEndDate;
+    final isExpired = liveExpiry != null && liveExpiry.isBefore(DateTime.now());
+    final daysRemaining = liveExpiry?.difference(DateTime.now()).inDays;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.autorenew_rounded, color: Colors.blue, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Requested Plan & Membership Cycle',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Extension schedule & seat allocation preference',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+
+            _buildRow('Requested Plan', planName, isBold: true),
+            if (cycleStart != null && cycleEnd != null)
+              _buildRow(
+                'Validity Cycle',
+                '${_formatDate(cycleStart)}  →  ${_formatDate(cycleEnd)}${durationDays != null ? " ($durationDays Days)" : ""}',
+                color: const Color(0xFF1565C0),
+                isBold: true,
+              ),
+            _buildRow(
+              'Renewal Mode',
+              isAdvance
+                  ? '🔄 Advance Renewal (Extends continuously after current expiry)'
+                  : '⚡ Immediate Activation (Starts today)',
+            ),
+            _buildRow(
+              'Desk Assignment',
+              keepSeat
+                  ? '🪑 Retain Current Desk (Seat #${_liveSeatLabel ?? data['currentSeatId'] ?? 'Current'})'
+                  : '🔄 Request New Desk / Open Seating',
+            ),
+
+            // Live Student Membership Comparison Box
+            if (_liveStudent != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.history_rounded, size: 16, color: Colors.blueGrey),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Current Active Membership Details:',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        const Spacer(),
+                        if (liveExpiry != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isExpired ? Colors.red.shade100 : Colors.green.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              isExpired
+                                  ? 'EXPIRED (${liveExpiry.difference(DateTime.now()).inDays.abs()}d ago)'
+                                  : 'ACTIVE (${daysRemaining}d left)',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isExpired ? Colors.red.shade900 : Colors.green.shade900,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildCompactRow('Current Plan', _currentPlanName ?? 'Standard Pass'),
+                    _buildCompactRow('Current Expiry', _formatDate(liveExpiry)),
+                    _buildCompactRow(
+                      'Assigned Desk',
+                      _liveSeatLabel != null
+                          ? 'Seat #$_liveSeatLabel${_liveSectionName != null ? " ($_liveSectionName)" : ""}'
+                          : 'Unassigned',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRemarksCard({required ThemeData theme, required String notes}) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.format_quote_rounded, color: Colors.orange, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Student Remarks & Special Requests',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                notes,
+                style: const TextStyle(fontSize: 13, height: 1.45),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSeatChangeCard({required ThemeData theme, required Map<String, dynamic> data}) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.airline_seat_recline_extra_rounded, color: Colors.teal, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Requested Seat Relocation',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Member desk swap request',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            _buildRow(
+              'Current Seat',
+              '${SeatHelper.formatSeatLabel(seatId: data['currentSeatId'] as String?, rawLabel: data['currentSeatLabel'] as String?)} (${data['currentSectionName'] ?? "Current Section"})',
+            ),
+            _buildRow(
+              'Target Seat',
+              '${SeatHelper.formatSeatLabel(seatId: data['targetSeatId'] as String?, rawLabel: data['targetSeatLabel'] as String?)} (${data['targetSectionName'] ?? "Target Section"})',
+              color: Colors.green,
+              isBold: true,
+            ),
+            if (data['reason'] != null && data['reason'].toString().isNotEmpty)
+              _buildRow('Reason for Shift', data['reason'].toString()),
+            if (data['studentGender'] != null)
+              _buildRow('Student Gender', data['studentGender'].toString().toUpperCase()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileUpdateCard({required ThemeData theme, required Map<String, dynamic> data}) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.manage_accounts_rounded, color: Colors.indigo, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Requested Profile Updates',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Compare existing student record with proposed values',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            _buildDiffRow('Emergency Contact', (data['currentData'] as Map?)?['emergencyContact'], (data['proposedData'] as Map?)?['emergencyContact']),
+            _buildDiffRow('College / Institution', (data['currentData'] as Map?)?['college'], (data['proposedData'] as Map?)?['college']),
+            _buildDiffRow('Course', (data['currentData'] as Map?)?['course'], (data['proposedData'] as Map?)?['course']),
+            _buildDiffRow('Year / Semester', (data['currentData'] as Map?)?['year'], (data['proposedData'] as Map?)?['year']),
+            if ((data['proposedData'] as Map?)?['customFields'] is Map) ...[
+              ...((data['proposedData'] as Map)['customFields'] as Map).entries.map((e) {
+                final curMap = (data['currentData'] as Map?)?['customFields'] as Map?;
+                final curVal = curMap?[e.key];
+                return _buildDiffRow(e.key.toString(), curVal, e.value);
+              }),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApplicantBiodataCard({required ThemeData theme, required Map<String, dynamic> studentData}) {
+    final govIdNum = studentData['govIdNumber']?.toString() ?? '';
+    final govIdType = studentData['govIdType']?.toString() ?? 'Govt ID';
+    final frontUrl = studentData['govIdImageUrl']?.toString() ?? '';
+    final backUrl = studentData['govIdBackImageUrl']?.toString() ?? '';
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.brown.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.badge_rounded, color: Colors.brown, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Applicant Biodata & Documents',
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Full student profile details submitted via registration',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+
+            // Section 1: Personal & Guardian
+            _buildSubheading('Personal & Guardian Details'),
+            if (studentData['fatherName'] != null)
+              _buildRow("Father / Guardian", studentData['fatherName'].toString()),
+            if (studentData['gender'] != null)
+              _buildRow("Gender", studentData['gender'].toString().toUpperCase()),
+            if (studentData['dob'] != null)
+              _buildRow("Date of Birth", studentData['dob'].toString()),
+            if (studentData['bloodGroup'] != null && studentData['bloodGroup'].toString().isNotEmpty)
+              _buildRow("Blood Group", studentData['bloodGroup'].toString()),
+
+            const SizedBox(height: 12),
+            // Section 2: Contact & Residence
+            _buildSubheading('Contact & Residence'),
+            if (studentData['phone'] != null)
+              _buildRow("Mobile Phone", studentData['phone'].toString()),
+            if (studentData['email'] != null && studentData['email'].toString().isNotEmpty)
+              _buildRow("Email Address", studentData['email'].toString()),
+            if (studentData['address'] != null && studentData['address'].toString().isNotEmpty)
+              _buildRow("Residential Address", studentData['address'].toString()),
+            if (studentData['pincode'] != null && studentData['pincode'].toString().isNotEmpty)
+              _buildRow("Pincode", studentData['pincode'].toString()),
+            if (studentData['emergencyContact'] != null && studentData['emergencyContact'].toString().isNotEmpty)
+              _buildRow("Emergency Contact", studentData['emergencyContact'].toString()),
+
+            const SizedBox(height: 12),
+            // Section 3: Education & Goals
+            _buildSubheading('Education & Target Goals'),
+            if (studentData['college'] != null && studentData['college'].toString().isNotEmpty)
+              _buildRow("College / Institute", studentData['college'].toString()),
+            if (studentData['course'] != null && studentData['course'].toString().isNotEmpty)
+              _buildRow("Course / Degree", studentData['course'].toString()),
+            if (studentData['year'] != null && studentData['year'].toString().isNotEmpty)
+              _buildRow("Year / Semester", studentData['year'].toString()),
+            if (studentData['rollNumber'] != null && studentData['rollNumber'].toString().isNotEmpty)
+              _buildRow("Roll / Enroll Number", studentData['rollNumber'].toString()),
+            if (studentData['examTarget'] != null && studentData['examTarget'].toString().isNotEmpty)
+              _buildRow("Target Exam", studentData['examTarget'].toString()),
+
+            // Section 4: Govt ID & Documents
+            if (govIdNum.isNotEmpty || frontUrl.isNotEmpty || backUrl.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildSubheading('Government ID & Documents'),
+              if (govIdNum.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 140,
+                        child: Text(
+                          govIdType,
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        ),
+                      ),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Text(
+                              _showGovId ? govIdNum : (govIdNum.length > 4 ? '••••••${govIdNum.substring(govIdNum.length - 4)}' : '••••'),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'monospace'),
+                            ),
+                            IconButton(
+                              icon: Icon(_showGovId ? Icons.visibility_off : Icons.visibility, size: 16),
+                              onPressed: () => setState(() => _showGovId = !_showGovId),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              if (frontUrl.isNotEmpty || backUrl.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    if (frontUrl.isNotEmpty)
+                      Expanded(
+                        child: _buildDocPreview(title: 'Front ID', imageUrl: frontUrl),
+                      ),
+                    if (frontUrl.isNotEmpty && backUrl.isNotEmpty)
+                      const SizedBox(width: 12),
+                    if (backUrl.isNotEmpty)
+                      Expanded(
+                        child: _buildDocPreview(title: 'Back ID (Optional)', imageUrl: backUrl),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+
+            // Section 5: Custom Fields
+            if (studentData['customFields'] is Map && (studentData['customFields'] as Map).isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildSubheading('Custom Information'),
+              ...((studentData['customFields'] as Map).entries.map((e) {
+                return _buildRow(e.key.toString(), e.value?.toString() ?? '—');
+              })),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocPreview({required String title, required String imageUrl}) {
+    return InkWell(
+      onTap: () {
+        ImageService.showImageViewer(
+          context,
+          imageUrl: imageUrl,
+          title: title,
+        );
+      },
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+          color: Colors.black12,
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: double.infinity,
+                height: double.infinity,
+                child: Image(
+                  image: ImageService.getImageProvider(imageUrl)!,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: Colors.black54,
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubheading(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6, top: 4),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey, letterSpacing: 0.4),
+      ),
+    );
+  }
+
+  Widget _buildRow(String label, String value, {Color? color, bool isBold = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 130,
+            width: 140,
             child: Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: color),
+              style: TextStyle(
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+                fontSize: 13,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
             ),
           ),
         ],
@@ -774,7 +1855,6 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
   }) {
     if (!mounted) return;
 
-    // Lookup plan price from plansStreamProvider or requestData
     final data = _requestData ?? {};
     final studentData = (data['studentData'] as Map<String, dynamic>?) ?? {};
     final effectivePlanId = planId ?? (studentData['planId'] ?? data['planId'])?.toString();
@@ -791,7 +1871,18 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     final amountController = TextEditingController(
       text: defaultAmount > 0 ? defaultAmount.toStringAsFixed(0) : '',
     );
+
+    final reqMethod = (data['paymentMethod'] ?? data['paymentModeLabel'] ?? '').toString().toLowerCase();
     String paymentMethod = 'Cash';
+    if (reqMethod.contains('upi')) {
+      paymentMethod = 'UPI';
+    } else if (reqMethod.contains('bank')) {
+      paymentMethod = 'Bank Transfer';
+    } else if (reqMethod.contains('card')) {
+      paymentMethod = 'Card';
+    }
+
+    final studentRef = (data['referenceNumber'] ?? '').toString().trim();
 
     showDialog(
       context: context,
@@ -805,6 +1896,29 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('$studentName has been approved. Record payment to activate their pass and generate a receipt.'),
+              if (studentRef.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, size: 16, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Student Ref / UTR: $studentRef',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               TextField(
                 controller: amountController,
@@ -821,8 +1935,8 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 decoration: const InputDecoration(labelText: 'Payment Method', border: OutlineInputBorder()),
                 items: const [
                   DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                  DropdownMenuItem(value: 'UPI', child: Text('UPI')),
-                  DropdownMenuItem(value: 'Card', child: Text('Card')),
+                  DropdownMenuItem(value: 'UPI', child: Text('UPI / QR')),
+                  DropdownMenuItem(value: 'Card', child: Text('Debit/Credit Card')),
                   DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer')),
                 ],
                 onChanged: (v) => setDs(() => paymentMethod = v ?? 'Cash'),
@@ -890,7 +2004,18 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
   }) {
     if (!mounted) return;
     final amountController = TextEditingController(text: renewalAmount > 0 ? renewalAmount.toStringAsFixed(0) : '');
+
+    final reqMethod = (_requestData?['paymentMethod'] ?? _requestData?['paymentModeLabel'] ?? '').toString().toLowerCase();
     String paymentMethod = 'UPI';
+    if (reqMethod.contains('cash')) {
+      paymentMethod = 'Cash';
+    } else if (reqMethod.contains('bank')) {
+      paymentMethod = 'Bank Transfer';
+    } else if (reqMethod.contains('card')) {
+      paymentMethod = 'Card';
+    }
+
+    final studentRef = (_requestData?['referenceNumber'] ?? '').toString().trim();
 
     showDialog(
       context: context,
@@ -904,6 +2029,29 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('$studentName\'s renewal request has been approved. Record payment to extend their validity and generate receipt.'),
+              if (studentRef.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.tag_rounded, size: 16, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Student Ref / UTR: $studentRef',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               TextField(
                 controller: amountController,
@@ -920,7 +2068,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
                 decoration: const InputDecoration(labelText: 'Payment Method', border: OutlineInputBorder()),
                 items: const [
                   DropdownMenuItem(value: 'UPI', child: Text('UPI / QR')),
-                  DropdownMenuItem(value: 'Cash', child: Text('Cash')),
+                  DropdownMenuItem(value: 'Cash', child: Text('Cash at Desk')),
                   DropdownMenuItem(value: 'Card', child: Text('Debit/Credit Card')),
                   DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer')),
                 ],
@@ -983,18 +2131,23 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     DateTime? planEndDate,
   }) async {
     try {
-      final receiptNum = 'REC${DateTime.now().year}${(DateTime.now().millisecondsSinceEpoch % 100000).toString().padLeft(5,'0')}';
+      final receiptNum = 'REC${DateTime.now().year}${(DateTime.now().millisecondsSinceEpoch % 100000).toString().padLeft(5, '0')}';
       final receiptRef = FirebaseFirestore.instance.collection('libraries').doc(libraryId).collection('receipts').doc();
 
       final paymentRef = FirebaseFirestore.instance
-          .collection('libraries').doc(libraryId)
-          .collection('payments').doc();
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('payments')
+          .doc();
+
+      final studentRef = (_requestData?['referenceNumber'] ?? '').toString().trim();
 
       final paymentData = {
         'id': paymentRef.id,
         'studentId': studentId,
         'amount': amount,
         'method': paymentMethod,
+        'referenceNumber': studentRef.isNotEmpty ? studentRef : null,
         'status': 'paid',
         'date': FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(),
@@ -1004,14 +2157,16 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
       await paymentRef.set(paymentData);
 
-      // Also copy to subcollection for legacy compatibility
+      // Subcollection copy for backwards compatibility
       await FirebaseFirestore.instance
-          .collection('libraries').doc(libraryId)
-          .collection('students').doc(studentId)
-          .collection('payments').doc(paymentRef.id)
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .doc(studentId)
+          .collection('payments')
+          .doc(paymentRef.id)
           .set(paymentData);
 
-      // Resolve plan and validity dates
       DateTime effectiveStartDate = planStartDate ?? DateTime.now();
       DateTime? effectiveEndDate = planEndDate;
       String effectivePlanId = planId ?? '';
@@ -1054,7 +2209,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
       effectiveEndDate ??= effectiveStartDate.add(const Duration(days: 30));
 
-      // CRITICAL FIX: Activate the student upon recorded payment!
+      // Activate the student upon recorded payment
       await FirebaseFirestore.instance
           .collection('libraries')
           .doc(libraryId)
@@ -1077,6 +2232,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         'studentPhone': studentPhone,
         'amount': amount,
         'paymentMethod': paymentMethod,
+        'referenceNumber': studentRef.isNotEmpty ? studentRef : null,
         'status': 'active',
         'validFrom': Timestamp.fromDate(effectiveStartDate),
         'validTo': Timestamp.fromDate(effectiveEndDate),
@@ -1097,6 +2253,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           'amount': amount,
           'method': paymentMethod,
           'receiptNumber': receiptNum,
+          'referenceNumber': studentRef,
           'planStartDate': effectiveStartDate.toIso8601String(),
           'planEndDate': effectiveEndDate.toIso8601String(),
         },
@@ -1112,23 +2269,33 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         ));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Payment failed: $e'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Payment recording failed: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
-  void _offerWhatsAppWelcome(String studentId, String studentName, String studentPhone, double amount, String paymentMethod, {DateTime? planEndDate}) {
+  void _offerWhatsAppWelcome(
+    String studentId,
+    String studentName,
+    String studentPhone,
+    double amount,
+    String paymentMethod, {
+    DateTime? planEndDate,
+  }) {
     if (!mounted) return;
 
     final library = ref.read(currentLibraryProvider).value;
     final rawTemplate = library?.whatsappWelcomeTemplate ?? '';
     final template = rawTemplate.isNotEmpty ? rawTemplate : MessageTemplateService.defaultWelcomeTemplate;
-    
-    // Attempt to get more student info from requestData or providers
+
     final data = _requestData ?? {};
     final studentData = (data['studentData'] as Map<String, dynamic>?) ?? {};
     final seatId = studentData['seatId'] ?? data['requestedSeatId'];
     final planId = studentData['planId'] ?? data['planId'];
-    
+
     String planName = '';
     if (planId != null) {
       final plans = ref.read(plansStreamProvider).value ?? [];

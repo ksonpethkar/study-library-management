@@ -17,21 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      // Dynamic same-origin authDomain resolution:
-      // Prevents "missing initial state" caused by Chrome third-party storage partitioning (CHIPS)
-      // by keeping the OAuth handler on the exact same origin as the hosting app.
-      final host = Uri.base.host;
-      final effectiveAuthDomain = (host.isNotEmpty && !host.contains('localhost') && !host.contains('127.0.0.1'))
-          ? host
-          : 'study-lib-mgmt-2026.web.app';
-      return FirebaseOptions(
-        apiKey: web.apiKey,
-        appId: web.appId,
-        messagingSenderId: web.messagingSenderId,
-        projectId: web.projectId,
-        authDomain: effectiveAuthDomain,
-        storageBucket: web.storageBucket,
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -65,7 +51,7 @@ class DefaultFirebaseOptions {
     appId: '1:670017745754:web:65b2714afda4abe9d03963',
     messagingSenderId: '670017745754',
     projectId: 'study-lib-mgmt-2026',
-    authDomain: 'study-lib-mgmt-2026.web.app',
+    authDomain: 'study-lib-mgmt-2026.firebaseapp.com',
     storageBucket: 'study-lib-mgmt-2026.firebasestorage.app',
   );
 

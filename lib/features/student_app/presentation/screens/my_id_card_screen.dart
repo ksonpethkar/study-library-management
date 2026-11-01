@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/router/app_router.dart';
@@ -296,86 +297,17 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                     const Divider(),
                     const SizedBox(height: 16),
 
-                    // Verified Digital Pass Confirmation Banner
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-                        ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primaryContainer,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.verified_user_rounded,
-                              color: theme.colorScheme.primary,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Official Digital Student Pass Active',
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'This verified virtual pass with security QR code is your official membership credential for daily desk check-in, attendance, and identity authentication.',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                    height: 1.35,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Share Digital Pass via WhatsApp
-                    FilledButton.icon(
-                      onPressed: () async {
-                        final whatsapp = ref.read(whatsappServiceProvider);
-                        final message = 'Hello, here is my official Digital Student Pass for ${library?.name ?? 'the library'} (Seat: $seatText, ID: $dynamicId).';
-                        final targetContact = (library?.contact.isNotEmpty == true)
-                            ? library!.contact
-                            : (library?.effectiveHelpline ?? '');
-                        if (targetContact.isNotEmpty) {
-                          await whatsapp.sendMessage(
-                            targetContact,
-                            message,
-                            context: context,
-                            recipientName: library?.name,
-                            title: 'Share Digital Pass',
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.share_rounded, color: Colors.white, size: 18),
-                      label: const Text(
-                        'Share Digital Pass via WhatsApp',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF25D366),
-                        minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
+                    // Dynamic Pass Status Confirmation Banner & Action Buttons
+                    _buildPassStatusBannerAndActions(
+                      context: context,
+                      student: student,
+                      library: library,
+                      seatText: '$seatText$secText',
+                      dynamicId: dynamicId,
+                      validTillText: student.planEndDate != null
+                          ? dateFormat.format(student.planEndDate!)
+                          : 'Active',
+                      theme: theme,
                     ),
                   ],
                 ),
@@ -398,6 +330,335 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     );
   }
 
+  /// Dynamic status-driven Pass Confirmation Banner & Contextual Action Buttons
+  Widget _buildPassStatusBannerAndActions({
+    required BuildContext context,
+    required StudentModel student,
+    required LibraryModel? library,
+    required String seatText,
+    required String dynamicId,
+    required String validTillText,
+    required ThemeData theme,
+  }) {
+    final effectiveStatus = student.effectiveMembershipStatus;
+
+    if (effectiveStatus == MembershipStatus.expired) {
+      final isDark = theme.brightness == Brightness.dark;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF2A1215) : const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: const Color(0xFFEF4444).withValues(alpha: isDark ? 0.6 : 0.4),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Color(0x33EF4444),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.cancel_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Membership Expired — Pass Inactive',
+                        style: TextStyle(
+                          color: Color(0xFFDC2626),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Your study plan expired on $validTillText. Library admission, biometric check-in, and seat reservation are currently inactive until renewed.',
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: () => context.push(Routes.studentRenew),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
+            label: const Text(
+              'Renew Membership to Reactivate',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (effectiveStatus == MembershipStatus.grace) {
+      final isDark = theme.brightness == Brightness.dark;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF261D0C) : const Color(0xFFFFFBEB),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.6 : 0.4),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Color(0x33F59E0B),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.hourglass_top_rounded,
+                    color: Color(0xFFD97706),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Membership in Grace Period',
+                        style: TextStyle(
+                          color: Color(0xFFD97706),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Your study plan expired on $validTillText. Your allocated seat is temporarily reserved. Please renew immediately to prevent seat deallocation.',
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E),
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: () => context.push(Routes.studentRenew),
+            icon: const Icon(Icons.autorenew_rounded, color: Colors.white, size: 18),
+            label: const Text(
+              'Renew Plan to Retain Seat',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFD97706),
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (effectiveStatus == MembershipStatus.blocked) {
+      final isDark = theme.brightness == Brightness.dark;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF2A1215) : const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: const Color(0xFFDC2626).withValues(alpha: isDark ? 0.6 : 0.4),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Color(0x33DC2626),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.block_rounded,
+                    color: Color(0xFFDC2626),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Pass Suspended by Administration',
+                        style: TextStyle(
+                          color: Color(0xFFDC2626),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Your library access is restricted by administration. Please reach out to library support.',
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: () async {
+              final helpline = library?.effectiveHelpline ?? library?.contact ?? '';
+              if (helpline.isNotEmpty) {
+                final uri = Uri.parse('tel:$helpline');
+                if (await canLaunchUrl(uri)) await launchUrl(uri);
+              }
+            },
+            icon: const Icon(Icons.support_agent_rounded, color: Colors.white, size: 18),
+            label: const Text(
+              'Contact Library Administration',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFB91C1C),
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Default / Active Pass Banner & WhatsApp Sharing
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.verified_user_rounded,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Official Digital Student Pass Active',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'This verified virtual pass with security QR code is your official membership credential for daily desk check-in, attendance, and identity authentication.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        FilledButton.icon(
+          onPressed: () async {
+            final whatsapp = ref.read(whatsappServiceProvider);
+            final message = 'Hello, here is my official Digital Student Pass for ${library?.name ?? 'the library'} (Seat: $seatText, ID: $dynamicId).';
+            final targetContact = (library?.contact.isNotEmpty == true)
+                ? library!.contact
+                : (library?.effectiveHelpline ?? '');
+            if (targetContact.isNotEmpty) {
+              await whatsapp.sendMessage(
+                targetContact,
+                message,
+                context: context,
+                recipientName: library?.name,
+                title: 'Share Digital Pass',
+              );
+            }
+          },
+          icon: const Icon(Icons.share_rounded, color: Colors.white, size: 18),
+          label: const Text(
+            'Share Digital Pass via WhatsApp',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF25D366),
+            minimumSize: const Size.fromHeight(48),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      ],
+    );
+  }
+
   /// Front face of the ultra-modern ID card with Dotted Mesh, 3D Logo Watermark, & verified checks
   Widget _buildCardFront({
     required StudentModel student,
@@ -411,6 +672,11 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     required DateFormat dateFormat,
     bool isFlipping = false,
   }) {
+    final effectiveStatus = student.effectiveMembershipStatus;
+    final isExpired = effectiveStatus == MembershipStatus.expired;
+    final isGrace = effectiveStatus == MembershipStatus.grace;
+    final isBlocked = effectiveStatus == MembershipStatus.blocked;
+
     final validTillText = student.planEndDate != null
         ? dateFormat.format(student.planEndDate!)
         : 'Active';
@@ -441,12 +707,24 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
         ),
         boxShadow: [
           BoxShadow(
-            color: gradientColors.first.withValues(alpha: isFlipping ? 0.20 : 0.40),
+            color: (isExpired || isBlocked
+                    ? const Color(0xFFEF4444)
+                    : isGrace
+                        ? const Color(0xFFF59E0B)
+                        : gradientColors.first)
+                .withValues(alpha: isFlipping ? 0.20 : 0.40),
             blurRadius: isFlipping ? 6 : 24,
             offset: isFlipping ? const Offset(0, 4) : const Offset(0, 10),
           ),
         ],
-        border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 1.2),
+        border: Border.all(
+          color: isExpired || isBlocked
+              ? const Color(0xFFEF4444).withValues(alpha: 0.75)
+              : isGrace
+                  ? const Color(0xFFF59E0B).withValues(alpha: 0.75)
+                  : Colors.white.withValues(alpha: 0.25),
+          width: (isExpired || isBlocked || isGrace) ? 1.6 : 1.2,
+        ),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -555,14 +833,34 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0x33F59E0B),
+                          color: isExpired || isBlocked
+                              ? const Color(0x33EF4444)
+                              : isGrace
+                                  ? const Color(0x33F59E0B)
+                                  : const Color(0x3310B981),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0x66FDE68A)),
+                          border: Border.all(
+                            color: isExpired || isBlocked
+                                ? const Color(0x80EF4444)
+                                : isGrace
+                                    ? const Color(0x80F59E0B)
+                                    : const Color(0x6634D399),
+                          ),
                         ),
-                        child: const Text(
-                          'STUDENT PASS',
+                        child: Text(
+                          isBlocked
+                              ? 'SUSPENDED'
+                              : isExpired
+                                  ? 'EXPIRED PASS'
+                                  : isGrace
+                                      ? 'GRACE PERIOD'
+                                      : 'ACTIVE PASS',
                           style: TextStyle(
-                            color: Color(0xFFFDE68A),
+                            color: isExpired || isBlocked
+                                ? const Color(0xFFFCA5A5)
+                                : isGrace
+                                    ? const Color(0xFFFDE68A)
+                                    : const Color(0xFF6EE7B7),
                             fontWeight: FontWeight.bold,
                             fontSize: 9,
                             letterSpacing: 1,
@@ -627,11 +925,25 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                               width: 20,
                               height: 20,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF10B981),
+                                color: isExpired || isBlocked
+                                    ? const Color(0xFFEF4444)
+                                    : isGrace
+                                        ? const Color(0xFFF59E0B)
+                                        : const Color(0xFF10B981),
                                 shape: BoxShape.circle,
                                 border: Border.all(color: Colors.white, width: 2),
                               ),
-                              child: const Icon(Icons.check_rounded, color: Colors.white, size: 12),
+                              child: Icon(
+                                isBlocked
+                                    ? Icons.block_rounded
+                                    : isExpired
+                                        ? Icons.close_rounded
+                                        : isGrace
+                                            ? Icons.access_time_rounded
+                                            : Icons.check_rounded,
+                                color: Colors.white,
+                                size: 12,
+                              ),
                             ),
                           ),
                         ],
@@ -663,14 +975,28 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: const Color(0x2610B981),
+                                    color: isExpired || isBlocked
+                                        ? const Color(0x26EF4444)
+                                        : isGrace
+                                            ? const Color(0x26F59E0B)
+                                            : const Color(0x2610B981),
                                     borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0x6610B981)),
+                                    border: Border.all(
+                                      color: isExpired || isBlocked
+                                          ? const Color(0x66EF4444)
+                                          : isGrace
+                                              ? const Color(0x66F59E0B)
+                                              : const Color(0x6610B981),
+                                    ),
                                   ),
                                   child: Text(
                                     'ID: $dynamicId',
-                                    style: const TextStyle(
-                                      color: Color(0xFF6EE7B7),
+                                    style: TextStyle(
+                                      color: isExpired || isBlocked
+                                          ? const Color(0xFFFCA5A5)
+                                          : isGrace
+                                              ? const Color(0xFFFDE68A)
+                                              : const Color(0xFF6EE7B7),
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                       fontFamily: 'monospace',
@@ -707,8 +1033,19 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                       style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10.5),
                                       children: [
                                         TextSpan(
-                                          text: seatText,
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                          text: isExpired
+                                              ? '$seatText (Expired)'
+                                              : isGrace
+                                                  ? '$seatText (Grace)'
+                                                  : seatText,
+                                          style: TextStyle(
+                                            color: isExpired
+                                                ? const Color(0xFFFCA5A5)
+                                                : isGrace
+                                                    ? const Color(0xFFFDE68A)
+                                                    : Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -720,12 +1057,27 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                 Expanded(
                                   child: Text.rich(
                                     TextSpan(
-                                      text: 'Valid: ',
-                                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10.5),
+                                      text: isExpired ? 'Expired: ' : (isGrace ? 'Grace: ' : 'Valid: '),
+                                      style: TextStyle(
+                                        color: isExpired
+                                            ? const Color(0xFFFCA5A5)
+                                            : isGrace
+                                                ? const Color(0xFFFDE68A)
+                                                : Colors.white.withValues(alpha: 0.7),
+                                        fontSize: 10.5,
+                                        fontWeight: isExpired || isGrace ? FontWeight.bold : FontWeight.normal,
+                                      ),
                                       children: [
                                         TextSpan(
                                           text: validTillText,
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                          style: TextStyle(
+                                            color: isExpired
+                                                ? const Color(0xFFFCA5A5)
+                                                : isGrace
+                                                    ? const Color(0xFFFDE68A)
+                                                    : Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -836,6 +1188,11 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
     required DateFormat dateFormat,
     bool isFlipping = false,
   }) {
+    final effectiveStatus = student.effectiveMembershipStatus;
+    final isExpired = effectiveStatus == MembershipStatus.expired;
+    final isGrace = effectiveStatus == MembershipStatus.grace;
+    final isBlocked = effectiveStatus == MembershipStatus.blocked;
+
     final effectiveHelpline = library?.effectiveHelpline.isNotEmpty == true
         ? library!.effectiveHelpline
         : (library?.effectiveContact.isNotEmpty == true ? library!.effectiveContact : "");
@@ -856,12 +1213,24 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isFlipping ? 0.25 : 0.45),
+            color: (isExpired || isBlocked
+                    ? const Color(0xFFEF4444)
+                    : isGrace
+                        ? const Color(0xFFF59E0B)
+                        : Colors.black)
+                .withValues(alpha: isFlipping ? 0.25 : 0.45),
             blurRadius: isFlipping ? 6 : 24,
             offset: isFlipping ? const Offset(0, 4) : const Offset(0, 10),
           ),
         ],
-        border: Border.all(color: const Color(0xFF334155), width: 1.2),
+        border: Border.all(
+          color: isExpired || isBlocked
+              ? const Color(0xFFEF4444).withValues(alpha: 0.75)
+              : isGrace
+                  ? const Color(0xFFF59E0B).withValues(alpha: 0.75)
+                  : const Color(0xFF334155),
+          width: (isExpired || isBlocked || isGrace) ? 1.6 : 1.2,
+        ),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -1013,16 +1382,36 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0x3338BDF8),
+                                  color: isExpired || isBlocked
+                                      ? const Color(0x33EF4444)
+                                      : isGrace
+                                          ? const Color(0x33F59E0B)
+                                          : const Color(0x3338BDF8),
                                   borderRadius: BorderRadius.circular(5),
-                                  border: Border.all(color: const Color(0x6638BDF8)),
+                                  border: Border.all(
+                                    color: isExpired || isBlocked
+                                        ? const Color(0x66EF4444)
+                                        : isGrace
+                                            ? const Color(0x66F59E0B)
+                                            : const Color(0x6638BDF8),
+                                  ),
                                 ),
-                                child: const Text(
-                                  'MEMBER',
+                                child: Text(
+                                  isBlocked
+                                      ? 'SUSPENDED'
+                                      : isExpired
+                                          ? 'EXPIRED'
+                                          : isGrace
+                                              ? 'GRACE'
+                                              : 'MEMBER',
                                   style: TextStyle(
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF38BDF8),
+                                    color: isExpired || isBlocked
+                                        ? const Color(0xFFF87171)
+                                        : isGrace
+                                            ? const Color(0xFFFDE68A)
+                                            : const Color(0xFF38BDF8),
                                     letterSpacing: 0.8,
                                   ),
                                 ),
@@ -1060,6 +1449,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                                             'bloodGroup': student.bloodGroup ?? '',
                                             'emergency': student.emergencyContact,
                                             'seat': _seatLabel ?? student.seatId ?? 'Unassigned',
+                                            'status': effectiveStatus.name.toUpperCase(),
                                             'expiry': student.planEndDate != null ? DateFormat('dd/MM/yyyy').format(student.planEndDate!) : 'Active',
                                           }),
                                           version: QrVersions.auto,
@@ -1098,16 +1488,36 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                 decoration: BoxDecoration(
-                                  color: const Color(0x2610B981),
+                                  color: isExpired || isBlocked
+                                      ? const Color(0x26EF4444)
+                                      : isGrace
+                                          ? const Color(0x26F59E0B)
+                                          : const Color(0x2610B981),
                                   borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: const Color(0x6610B981)),
+                                  border: Border.all(
+                                    color: isExpired || isBlocked
+                                        ? const Color(0x66EF4444)
+                                        : isGrace
+                                            ? const Color(0x66F59E0B)
+                                            : const Color(0x6610B981),
+                                  ),
                                 ),
-                                child: const Text(
-                                  '★ VERIFIED PASS ★',
+                                child: Text(
+                                  isBlocked
+                                      ? '⊘ ACCESS SUSPENDED'
+                                      : isExpired
+                                          ? '✕ EXPIRED PASS'
+                                          : isGrace
+                                              ? '⏳ GRACE PERIOD'
+                                              : '★ VERIFIED PASS ★',
                                   style: TextStyle(
                                     fontSize: 6.5,
                                     fontWeight: FontWeight.w900,
-                                    color: Color(0xFF34D399),
+                                    color: isExpired || isBlocked
+                                        ? const Color(0xFFF87171)
+                                        : isGrace
+                                            ? const Color(0xFFFDE68A)
+                                            : const Color(0xFF34D399),
                                   ),
                                 ),
                               ),
@@ -1189,6 +1599,7 @@ class _MyIdCardScreenState extends ConsumerState<MyIdCardScreen>
       'bloodGroup': student.bloodGroup ?? '',
       'emergency': student.emergencyContact,
       'seat': seatLabel.isNotEmpty ? seatLabel : (student.seatId ?? 'Unassigned'),
+      'status': student.effectiveMembershipStatus.name.toUpperCase(),
       'expiry': student.planEndDate != null
           ? DateFormat('dd/MM/yyyy').format(student.planEndDate!)
           : 'Active',

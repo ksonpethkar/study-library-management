@@ -53,7 +53,14 @@ class SettingsScreen extends ConsumerWidget {
     final build = pkgInfo?.buildNumber ?? '6';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+        ),
+        title: const Text('Settings'),
+      ),
       body: ListView(
         children: [
           // Top Library Profile Card

@@ -6,6 +6,8 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/features/expenses/presentation/providers/expense_providers.dart';
 import 'package:study_library/features/expenses/presentation/screens/add_expense_dialog.dart';
 import 'package:study_library/models/expense_model.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 class ExpenseListScreen extends ConsumerStatefulWidget {
   const ExpenseListScreen({super.key});
@@ -71,6 +73,11 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+        ),
         title: const Text('Operating Expenses & Net Profit'),
         actions: [
           IconButton(

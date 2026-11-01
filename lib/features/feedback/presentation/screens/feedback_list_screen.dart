@@ -6,6 +6,8 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/feedback_model.dart';
 import 'package:study_library/services/app_notification_service.dart';
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 /// Stream provider for library student feedback, sorted in Dart (newest first).
 final feedbackStreamProvider = StreamProvider.autoDispose<List<FeedbackModel>>((ref) {
@@ -47,6 +49,11 @@ class FeedbackListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+        ),
         title: const Text('Student Feedback & Suggestions'),
       ),
       body: feedbackAsync.when(

@@ -24,6 +24,8 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:study_library/services/ocr_service.dart';
 import 'package:study_library/services/upi_ocr_parser.dart';
+import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 
 class RecordPaymentScreen extends ConsumerStatefulWidget {
   final String studentId;
@@ -67,6 +69,10 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   DateTime? _studentPlanStartDate;
   DateTime? _studentPlanEndDate;
   String? _studentMembershipStatus;
+  String? _studentSeatId;
+  String? _studentSectionId;
+  String? _studentPreviousSeatId;
+  String? _studentPreviousSectionId;
   bool _isLoadingStudent = true;
 
   List<String> _paymentMethods = ['Cash', 'UPI / QR', 'Debit / Credit Card', 'Bank Transfer', 'Cheque / DD'];
@@ -132,12 +138,20 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
 
         final due = (data['pendingDueBalance'] as num?)?.toDouble() ?? 0.0;
         final hasActivePlanDue = due > 0 && end != null && end.isAfter(DateTime.now().subtract(const Duration(days: 30)));
+        final seatId = data['seatId'] as String?;
+        final sectionId = data['sectionId'] as String?;
+        final prevSeatId = data['previousSeatId'] as String?;
+        final prevSectionId = data['previousSectionId'] as String?;
 
         setState(() {
           _studentPlanStartDate = start;
           _studentPlanEndDate = end;
           _selectedPlanId = pId;
           _studentMembershipStatus = status;
+          _studentSeatId = seatId;
+          _studentSectionId = sectionId;
+          _studentPreviousSeatId = prevSeatId;
+          _studentPreviousSectionId = prevSectionId;
           if (hasActivePlanDue) {
             _extendValidity = false; // Paying current plan due does not advance expiry
           }
@@ -476,6 +490,49 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
           studentUpdates['advanceRenewalActive'] = true;
           studentUpdates['advanceStartDate'] = Timestamp.fromDate(validFrom);
           studentUpdates['advanceEndDate'] = Timestamp.fromDate(validTo);
+        }
+
+        // Auto-retain / reassign existing or previous desk if free
+        final effectiveSeatId = _studentSeatId ?? _studentPreviousSeatId;
+        var effectiveSecId = _studentSectionId ?? _studentPreviousSectionId;
+        if (effectiveSeatId != null && effectiveSeatId.isNotEmpty) {
+          if (effectiveSecId == null || effectiveSecId.isEmpty) {
+            try {
+              final secSnap = await FirebaseFirestore.instance
+                  .collection('libraries').doc(libraryId)
+                  .collection('sections').get();
+              for (final sec in secSnap.docs) {
+                final seatDoc = await sec.reference.collection('seats').doc(effectiveSeatId).get();
+                if (seatDoc.exists) {
+                  effectiveSecId = sec.id;
+                  break;
+                }
+              }
+            } catch (_) {}
+          }
+
+          if (effectiveSecId != null && effectiveSecId.isNotEmpty) {
+            try {
+              final seatRef = FirebaseFirestore.instance
+                  .collection('libraries').doc(libraryId)
+                  .collection('sections').doc(effectiveSecId)
+                  .collection('seats').doc(effectiveSeatId);
+              final seatSnap = await seatRef.get();
+              if (seatSnap.exists) {
+                final seatData = seatSnap.data() ?? {};
+                final occupant = seatData['studentId'] as String?;
+                final status = seatData['status'] as String? ?? 'available';
+                if (occupant == null || occupant.isEmpty || occupant == widget.studentId || status == 'available') {
+                  final seatRepo = ref.read(seatRepositoryProvider);
+                  await seatRepo.assignStudent(libraryId, effectiveSecId, effectiveSeatId, widget.studentId);
+                  studentUpdates['seatId'] = effectiveSeatId;
+                  studentUpdates['sectionId'] = effectiveSecId;
+                }
+              }
+            } catch (e) {
+              debugPrint('Failed to auto-reassign seat on payment: $e');
+            }
+          }
         }
       }
 
@@ -1151,6 +1208,35 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                               contentPadding: EdgeInsets.zero,
                               onChanged: (val) => setState(() => _extendValidity = val),
                             ),
+                            if (_extendValidity) ...[
+                              Builder(builder: (context) {
+                                final effectiveDesk = _studentSeatId ?? _studentPreviousSeatId;
+                                if (effectiveDesk == null || effectiveDesk.isEmpty) return const SizedBox.shrink();
+                                return Column(
+                                  children: [
+                                    const Divider(height: 16),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.chair_rounded, size: 16, color: theme.colorScheme.primary),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            _studentSeatId != null
+                                                ? 'Seat Continuity: Retains Seat ${SeatHelper.formatSeatLabel(seatId: _studentSeatId)} ✓'
+                                                : 'Seat Recovery: Will auto-reclaim previous Seat ${SeatHelper.formatSeatLabel(seatId: _studentPreviousSeatId)} if free ✓',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                );
+                              }),
+                            ],
                           ],
                         ),
                       );

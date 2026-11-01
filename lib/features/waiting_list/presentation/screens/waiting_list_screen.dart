@@ -403,6 +403,11 @@ class _WaitingListScreenState extends ConsumerState<WaitingListScreen>
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+        ),
         title: const Text('Waiting List & Capacity Hub'),
         bottom: TabBar(
           controller: _tabController,

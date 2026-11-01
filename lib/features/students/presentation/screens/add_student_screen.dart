@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/utils/app_validators.dart';
+import 'package:study_library/core/widgets/id_card_scanner_dialog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -118,6 +120,105 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
     );
     if (picked != null && mounted) {
       setState(() => _dob = picked);
+    }
+  }
+
+  DateTime? _tryParseDob(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final clean = raw.trim();
+    final iso = DateTime.tryParse(clean);
+    if (iso != null) return iso;
+    final parts = clean.split(RegExp(r'[/.-]'));
+    if (parts.length == 3) {
+      final p0 = int.tryParse(parts[0]);
+      final p1 = int.tryParse(parts[1]);
+      final p2 = int.tryParse(parts[2]);
+      if (p0 != null && p1 != null && p2 != null) {
+        if (p0 > 1000 && p1 <= 12 && p2 <= 31) return DateTime(p0, p1, p2);
+        if (p2 > 1000 && p1 <= 12 && p0 <= 31) return DateTime(p2, p1, p0);
+      }
+    }
+    return null;
+  }
+
+  void _openOcrScanner() {
+    IdCardScannerDialog.show(
+      context,
+      initialType: _govIdType,
+      onScanned: (result) {
+        setState(() {
+          if (result.name?.isNotEmpty == true) _nameController.text = result.name!;
+          if (result.fatherName?.isNotEmpty == true) _fatherNameController.text = result.fatherName!;
+          if (result.idNumber?.isNotEmpty == true) _govIdNumberController.text = result.idNumber!;
+          final parsedDob = _tryParseDob(result.dob);
+          if (parsedDob != null) _dob = parsedDob;
+          if (result.gender != null) {
+            final g = result.gender!.toLowerCase();
+            if (g.contains('female')) {
+              _gender = Gender.female;
+            } else if (g.contains('male')) {
+              _gender = Gender.male;
+            } else {
+              _gender = Gender.other;
+            }
+          }
+          if (result.address?.isNotEmpty == true) _addressController.text = result.address!;
+          if (result.pinCode?.isNotEmpty == true) _pincodeController.text = result.pinCode!;
+          if (result.phone?.isNotEmpty == true) _phoneController.text = result.phone!;
+          if (result.bloodGroup?.isNotEmpty == true) _bloodGroup = result.bloodGroup;
+          if (result.college?.isNotEmpty == true) _collegeController.text = result.college!;
+          if (result.course?.isNotEmpty == true) _courseController.text = result.course!;
+          if (result.rollNumber?.isNotEmpty == true) _rollNumberController.text = result.rollNumber!;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ID Scanned & details auto-filled successfully!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmDiscardAndExit() async {
+    final hasContent = _nameController.text.isNotEmpty ||
+        _phoneController.text.isNotEmpty ||
+        _pickedPhoto != null;
+    if (!hasContent) {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go(Routes.adminStudents);
+      }
+      return;
+    }
+
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard Changes?'),
+        content: const Text('Are you sure you want to discard this student registration? Entered details will not be saved.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep Editing'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+
+    if (discard == true && mounted) {
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go(Routes.adminStudents);
+      }
     }
   }
 
@@ -278,6 +379,11 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: _confirmDiscardAndExit,
+        ),
         title: const Text('Add Student'),
         actions: [
           TextButton.icon(
@@ -303,6 +409,9 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  // Section 0: Quick OCR Scan Card
+                  _buildOcrBanner(context),
+
                   // Photo Avatar Section
                   Center(
                     child: Stack(
@@ -393,48 +502,63 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                     textCapitalization: TextCapitalization.words,
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<Gender>(
-                          initialValue: _gender,
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final genderField = DropdownButtonFormField<Gender>(
+                        isExpanded: true,
+                        initialValue: _gender,
+                        decoration: const InputDecoration(
+                          labelText: 'Gender *',
+                          prefixIcon: Icon(Icons.people_outline_rounded),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: Gender.male, child: Text('Male')),
+                          DropdownMenuItem(value: Gender.female, child: Text('Female')),
+                          DropdownMenuItem(value: Gender.other, child: Text('Other')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setState(() => _gender = v);
+                        },
+                      );
+
+                      final dobField = InkWell(
+                        onTap: _pickDob,
+                        child: InputDecorator(
                           decoration: const InputDecoration(
-                            labelText: 'Gender *',
-                            prefixIcon: Icon(Icons.people_outline_rounded),
+                            labelText: 'Date of Birth',
+                            prefixIcon: Icon(Icons.cake_outlined),
                             border: OutlineInputBorder(),
                           ),
-                          items: const [
-                            DropdownMenuItem(value: Gender.male, child: Text('Male')),
-                            DropdownMenuItem(value: Gender.female, child: Text('Female')),
-                            DropdownMenuItem(value: Gender.other, child: Text('Other')),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) setState(() => _gender = v);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: InkWell(
-                          onTap: _pickDob,
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Date of Birth',
-                              prefixIcon: Icon(Icons.cake_outlined),
-                              border: OutlineInputBorder(),
-                            ),
-                            child: Text(
-                              _dob != null ? DateFormat('dd/MM/yyyy').format(_dob!) : 'DD/MM/YYYY',
-                              style: TextStyle(
-                                color: _dob != null
-                                    ? theme.textTheme.bodyMedium?.color
-                                    : theme.hintColor,
-                              ),
+                          child: Text(
+                            _dob != null ? DateFormat('dd/MM/yyyy').format(_dob!) : 'DD/MM/YYYY',
+                            style: TextStyle(
+                              color: _dob != null
+                                  ? theme.textTheme.bodyMedium?.color
+                                  : theme.hintColor,
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      );
+
+                      if (constraints.maxWidth < 460) {
+                        return Column(
+                          children: [
+                            genderField,
+                            const SizedBox(height: 12),
+                            dobField,
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(child: genderField),
+                          const SizedBox(width: 12),
+                          Expanded(child: dobField),
+                        ],
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 24),
@@ -442,26 +566,47 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                   // Section 2: Contact Details
                   _buildSectionHeader(context, 'Contact Information', Icons.phone_outlined),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _phoneController,
-                    decoration: const InputDecoration(
-                      labelText: 'Mobile Number *',
-                      prefixIcon: Icon(Icons.phone_android_rounded),
-                      border: OutlineInputBorder(),
-                      hintText: '10-digit mobile number',
-                    ),
-                    keyboardType: TextInputType.phone,
-                    validator: AppValidators.phone,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email Address (Optional)',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final phoneField = TextFormField(
+                        controller: _phoneController,
+                        decoration: const InputDecoration(
+                          labelText: 'Mobile Number *',
+                          prefixIcon: Icon(Icons.phone_android_rounded),
+                          border: OutlineInputBorder(),
+                          hintText: '10-digit mobile number',
+                        ),
+                        keyboardType: TextInputType.phone,
+                        validator: AppValidators.phone,
+                      );
+
+                      final emailField = TextFormField(
+                        controller: _emailController,
+                        decoration: const InputDecoration(
+                          labelText: 'Email Address (Optional)',
+                          prefixIcon: Icon(Icons.email_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                      );
+
+                      if (constraints.maxWidth < 460) {
+                        return Column(
+                          children: [
+                            phoneField,
+                            const SizedBox(height: 12),
+                            emailField,
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: phoneField),
+                          const SizedBox(width: 12),
+                          Expanded(child: emailField),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -474,32 +619,45 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                     maxLines: 2,
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _pincodeController,
-                          decoration: const InputDecoration(
-                            labelText: 'Pincode',
-                            prefixIcon: Icon(Icons.pin_drop_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final pinField = TextFormField(
+                        controller: _pincodeController,
+                        decoration: const InputDecoration(
+                          labelText: 'Pincode',
+                          prefixIcon: Icon(Icons.pin_drop_outlined),
+                          border: OutlineInputBorder(),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _emergencyController,
-                          decoration: const InputDecoration(
-                            labelText: 'Emergency Contact',
-                            prefixIcon: Icon(Icons.contact_phone_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.phone,
+                        keyboardType: TextInputType.number,
+                      );
+
+                      final emergField = TextFormField(
+                        controller: _emergencyController,
+                        decoration: const InputDecoration(
+                          labelText: 'Emergency Contact',
+                          prefixIcon: Icon(Icons.contact_phone_outlined),
+                          border: OutlineInputBorder(),
                         ),
-                      ),
-                    ],
+                        keyboardType: TextInputType.phone,
+                      );
+
+                      if (constraints.maxWidth < 460) {
+                        return Column(
+                          children: [
+                            pinField,
+                            const SizedBox(height: 12),
+                            emergField,
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: pinField),
+                          const SizedBox(width: 12),
+                          Expanded(child: emergField),
+                        ],
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 24),
@@ -507,39 +665,53 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                   // Section 3: Identity & Verification
                   _buildSectionHeader(context, 'Identity Verification', Icons.credit_card_rounded),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: DropdownButtonFormField<GovIdType>(
-                          initialValue: _govIdType,
-                          decoration: const InputDecoration(
-                            labelText: 'ID Type',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: GovIdType.aadhaar, child: Text('Aadhaar')),
-                            DropdownMenuItem(value: GovIdType.pan, child: Text('PAN Card')),
-                            DropdownMenuItem(value: GovIdType.drivingLicence, child: Text('Driving Lic.')),
-                            DropdownMenuItem(value: GovIdType.collegeId, child: Text('College ID')),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final idTypeField = DropdownButtonFormField<GovIdType>(
+                        isExpanded: true,
+                        initialValue: _govIdType,
+                        decoration: const InputDecoration(
+                          labelText: 'ID Type',
+                          prefixIcon: Icon(Icons.badge_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: GovIdType.aadhaar, child: Text('Aadhaar Card')),
+                          DropdownMenuItem(value: GovIdType.pan, child: Text('PAN Card')),
+                          DropdownMenuItem(value: GovIdType.drivingLicence, child: Text('Driving Licence')),
+                          DropdownMenuItem(value: GovIdType.collegeId, child: Text('College ID')),
+                        ],
+                        onChanged: (v) {
+                          if (v != null) setState(() => _govIdType = v);
+                        },
+                      );
+
+                      final idNumberField = TextFormField(
+                        controller: _govIdNumberController,
+                        decoration: InputDecoration(
+                          labelText: '${_govIdType.name.toUpperCase()} Number',
+                          prefixIcon: const Icon(Icons.numbers_rounded),
+                          border: const OutlineInputBorder(),
+                        ),
+                      );
+
+                      if (constraints.maxWidth < 460) {
+                        return Column(
+                          children: [
+                            idTypeField,
+                            const SizedBox(height: 12),
+                            idNumberField,
                           ],
-                          onChanged: (v) {
-                            if (v != null) setState(() => _govIdType = v);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 3,
-                        child: TextFormField(
-                          controller: _govIdNumberController,
-                          decoration: InputDecoration(
-                            labelText: '${_govIdType.name.toUpperCase()} Number',
-                            border: const OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                    ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(flex: 2, child: idTypeField),
+                          const SizedBox(width: 12),
+                          Expanded(flex: 3, child: idNumberField),
+                        ],
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 24),
@@ -556,71 +728,96 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _courseController,
-                          decoration: const InputDecoration(
-                            labelText: 'Course / Degree',
-                            prefixIcon: Icon(Icons.menu_book_rounded),
-                            border: OutlineInputBorder(),
-                          ),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final courseField = TextFormField(
+                        controller: _courseController,
+                        decoration: const InputDecoration(
+                          labelText: 'Course / Degree',
+                          prefixIcon: Icon(Icons.menu_book_rounded),
+                          border: OutlineInputBorder(),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _yearController,
-                          decoration: const InputDecoration(
-                            labelText: 'Year / Sem',
-                            prefixIcon: Icon(Icons.calendar_today_rounded),
-                            border: OutlineInputBorder(),
-                          ),
+                      );
+
+                      final yearField = TextFormField(
+                        controller: _yearController,
+                        decoration: const InputDecoration(
+                          labelText: 'Year / Sem',
+                          prefixIcon: Icon(Icons.calendar_today_rounded),
+                          border: OutlineInputBorder(),
                         ),
-                      ),
-                    ],
+                      );
+
+                      if (constraints.maxWidth < 460) {
+                        return Column(
+                          children: [
+                            courseField,
+                            const SizedBox(height: 12),
+                            yearField,
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: courseField),
+                          const SizedBox(width: 12),
+                          Expanded(child: yearField),
+                        ],
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: TextFormField(
-                          controller: _rollNumberController,
-                          decoration: const InputDecoration(
-                            labelText: 'Roll / Enroll Number',
-                            prefixIcon: Icon(Icons.numbers_rounded),
-                            border: OutlineInputBorder(),
-                          ),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final rollField = TextFormField(
+                        controller: _rollNumberController,
+                        decoration: const InputDecoration(
+                          labelText: 'Roll / Enroll Number',
+                          prefixIcon: Icon(Icons.numbers_rounded),
+                          border: OutlineInputBorder(),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _bloodGroup,
-                          decoration: const InputDecoration(
-                            labelText: 'Blood Group',
-                            prefixIcon: Icon(Icons.bloodtype_rounded),
-                            border: OutlineInputBorder(),
-                          ),
-                          hint: const Text('Select'),
-                          items: const [
-                            DropdownMenuItem(value: 'A+', child: Text('A+')),
-                            DropdownMenuItem(value: 'A-', child: Text('A-')),
-                            DropdownMenuItem(value: 'B+', child: Text('B+')),
-                            DropdownMenuItem(value: 'B-', child: Text('B-')),
-                            DropdownMenuItem(value: 'AB+', child: Text('AB+')),
-                            DropdownMenuItem(value: 'AB-', child: Text('AB-')),
-                            DropdownMenuItem(value: 'O+', child: Text('O+')),
-                            DropdownMenuItem(value: 'O-', child: Text('O-')),
+                      );
+
+                      final bloodField = DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: _bloodGroup,
+                        decoration: const InputDecoration(
+                          labelText: 'Blood Group',
+                          prefixIcon: Icon(Icons.bloodtype_rounded),
+                          border: OutlineInputBorder(),
+                        ),
+                        hint: const Text('Select'),
+                        items: const [
+                          DropdownMenuItem(value: 'A+', child: Text('A+')),
+                          DropdownMenuItem(value: 'A-', child: Text('A-')),
+                          DropdownMenuItem(value: 'B+', child: Text('B+')),
+                          DropdownMenuItem(value: 'B-', child: Text('B-')),
+                          DropdownMenuItem(value: 'AB+', child: Text('AB+')),
+                          DropdownMenuItem(value: 'AB-', child: Text('AB-')),
+                          DropdownMenuItem(value: 'O+', child: Text('O+')),
+                          DropdownMenuItem(value: 'O-', child: Text('O-')),
+                        ],
+                        onChanged: (v) => setState(() => _bloodGroup = v),
+                      );
+
+                      if (constraints.maxWidth < 460) {
+                        return Column(
+                          children: [
+                            rollField,
+                            const SizedBox(height: 12),
+                            bloodField,
                           ],
-                          onChanged: (v) => setState(() => _bloodGroup = v),
-                        ),
-                      ),
-                    ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(flex: 3, child: rollField),
+                          const SizedBox(width: 12),
+                          Expanded(flex: 2, child: bloodField),
+                        ],
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 24),
@@ -631,22 +828,48 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
                   plansAsync.when(
                     data: (plans) {
                       final active = plans.where((p) => p.isActive).toList();
-                      return DropdownButtonFormField<String?>(
-                        initialValue: _selectedPlanId,
-                        decoration: const InputDecoration(
-                          labelText: 'Assign Membership Plan',
-                          prefixIcon: Icon(Icons.loyalty_rounded),
-                          border: OutlineInputBorder(),
-                          helperText: 'You can also assign or change plan later',
-                        ),
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('Assign Later (No Plan)')),
-                          ...active.map((p) => DropdownMenuItem(
-                                value: p.id,
-                                child: Text('${p.name} — ₹${p.price} (${p.duration} ${p.durationUnit.name})'),
-                              )),
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Option 1: Assign Later (No Plan)
+                          _buildPlanOptionCard(
+                            context: context,
+                            isSelected: _selectedPlanId == null,
+                            title: 'Assign Later (No Plan)',
+                            subtitle: 'Register student now; plan & fee can be added anytime',
+                            icon: Icons.hourglass_empty_rounded,
+                            priceText: 'Free now',
+                            onTap: () => setState(() => _selectedPlanId = null),
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Option 2: Active Library Plans with exact discount and duration visuals
+                          ...active.map((p) {
+                            final isSelected = _selectedPlanId == p.id;
+                            final disc = p.getDiscountPercent();
+                            final discText = disc != null ? '$disc% OFF' : null;
+                            final origPrice = p.getEffectiveOriginalPrice();
+                            final origText = (origPrice != null && origPrice > p.price)
+                                ? '₹${origPrice.toStringAsFixed(0)}'
+                                : null;
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: _buildPlanOptionCard(
+                                context: context,
+                                isSelected: isSelected,
+                                title: p.name,
+                                subtitle: 'Duration: ${p.duration} ${p.durationUnit.name} • Full Access',
+                                icon: Icons.card_membership_rounded,
+                                priceText: '₹${p.price.toStringAsFixed(0)}',
+                                originalPriceText: origText,
+                                badge: discText ?? (p.isFeatured ? 'POPULAR' : null),
+                                onTap: () => setState(() => _selectedPlanId = p.id),
+                              ),
+                            );
+                          }),
                         ],
-                        onChanged: (v) => setState(() => _selectedPlanId = v),
                       );
                     },
                     loading: () => const LinearProgressIndicator(),
@@ -670,20 +893,285 @@ class _AddStudentScreenState extends ConsumerState<AddStudentScreen> {
 
                   const SizedBox(height: 32),
 
-                  // Submit Button
-                  FilledButton.icon(
-                    onPressed: _saveStudent,
-                    icon: const Icon(Icons.person_add_rounded),
-                    label: const Text('Add Student to Library'),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                  // Dual Action Buttons: Balanced Discard & Add Student
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _confirmDiscardAndExit,
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          label: const Text('Discard'),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 3,
+                        child: FilledButton.icon(
+                          onPressed: _isLoading ? null : _saveStudent,
+                          icon: const Icon(Icons.person_add_rounded, size: 20),
+                          label: const Text('Add Student to Library'),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 32),
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildOcrBanner(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.09),
+            theme.colorScheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.3 : 0.45),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.document_scanner_rounded, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Scan Govt ID (OCR Auto-Fill)',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Aadhaar • PAN • DL • College ID',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bolt_rounded, size: 14, color: Colors.green),
+                    SizedBox(width: 2),
+                    Text(
+                      '1-Tap',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Scan physical ID card to auto-extract student name, DOB, ID number, and address automatically without manual typing.',
+            style: TextStyle(
+              fontSize: 12.5,
+              height: 1.35,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: FilledButton.tonalIcon(
+              onPressed: _openOcrScanner,
+              style: FilledButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.camera_alt_outlined, size: 18),
+              label: const Text(
+                'Scan & Auto-Fill Form',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanOptionCard({
+    required BuildContext context,
+    required bool isSelected,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required String priceText,
+    String? originalPriceText,
+    String? badge,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? theme.colorScheme.primary.withValues(alpha: isDark ? 0.22 : 0.08)
+                : (isDark ? const Color(0xFF1E2430) : theme.cardColor),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+              width: isSelected ? 2 : 1,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                color: isSelected ? theme.colorScheme.primary : theme.hintColor,
+                size: 22,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? theme.colorScheme.primary : null,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (badge != null) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? theme.colorScheme.primary.withValues(alpha: 0.18)
+                                  : Colors.amber.shade100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              badge,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected ? theme.colorScheme.primary : Colors.amber.shade900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    priceText,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  if (originalPriceText != null)
+                    Text(
+                      originalPriceText,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.hintColor,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

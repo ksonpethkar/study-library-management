@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:study_library/features/auth/services/admin_whitelist_service.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 class AdminWhitelistScreen extends ConsumerStatefulWidget {
   const AdminWhitelistScreen({super.key});
@@ -132,6 +134,11 @@ class _AdminWhitelistScreenState extends ConsumerState<AdminWhitelistScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+        ),
         title: const Text('Authorized Admin Emails'),
       ),
       floatingActionButton: FloatingActionButton.extended(

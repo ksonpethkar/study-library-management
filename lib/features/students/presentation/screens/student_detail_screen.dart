@@ -23,6 +23,7 @@ import 'package:study_library/core/security/encryption_service.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/utils/secure_screen_mixin.dart';
 import 'package:study_library/services/whatsapp_service.dart';
+import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/services/sms_service.dart';
 import 'package:study_library/services/telegram_service.dart';
 import 'package:study_library/services/messaging_hub_service.dart';
@@ -82,27 +83,46 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
         // Load seat + section names safely
         String loadedSeatLabel = '';
         String loadedSectionName = '';
-        if (s.seatId != null && s.sectionId != null && s.seatId!.isNotEmpty && s.sectionId!.isNotEmpty) {
-          try {
-            final sectionDoc = await FirebaseFirestore.instance
-                .collection('libraries').doc(libraryId)
-                .collection('sections').doc(s.sectionId)
-                .get();
-            if (sectionDoc.exists) {
-              loadedSectionName = sectionDoc.data()?['name'] ?? 'Unknown Section';
-            }
-          } catch (_) {}
-          
-          try {
-            final seatDoc = await FirebaseFirestore.instance
-                .collection('libraries').doc(libraryId)
-                .collection('sections').doc(s.sectionId)
-                .collection('seats').doc(s.seatId)
-                .get();
-            if (seatDoc.exists) {
-              loadedSeatLabel = seatDoc.data()?['label'] ?? 'Unknown Seat';
-            }
-          } catch (_) {}
+        if (s.seatId != null && s.seatId!.isNotEmpty) {
+          String? effectiveSectionId = s.sectionId;
+          if (effectiveSectionId == null || effectiveSectionId.isEmpty) {
+            try {
+              final secSnap = await FirebaseFirestore.instance
+                  .collection('libraries').doc(libraryId)
+                  .collection('sections').get();
+              for (final sec in secSnap.docs) {
+                final seatDoc = await sec.reference.collection('seats').doc(s.seatId).get();
+                if (seatDoc.exists) {
+                  effectiveSectionId = sec.id;
+                  loadedSectionName = sec.data()['name'] ?? 'Section';
+                  loadedSeatLabel = seatDoc.data()?['label'] ?? 'Seat';
+                  doc.reference.update({'sectionId': effectiveSectionId}).ignore();
+                  break;
+                }
+              }
+            } catch (_) {}
+          } else {
+            try {
+              final sectionDoc = await FirebaseFirestore.instance
+                  .collection('libraries').doc(libraryId)
+                  .collection('sections').doc(effectiveSectionId)
+                  .get();
+              if (sectionDoc.exists) {
+                loadedSectionName = sectionDoc.data()?['name'] ?? 'Unknown Section';
+              }
+            } catch (_) {}
+            
+            try {
+              final seatDoc = await FirebaseFirestore.instance
+                  .collection('libraries').doc(libraryId)
+                  .collection('sections').doc(effectiveSectionId)
+                  .collection('seats').doc(s.seatId)
+                  .get();
+              if (seatDoc.exists) {
+                loadedSeatLabel = seatDoc.data()?['label'] ?? 'Unknown Seat';
+              }
+            } catch (_) {}
+          }
         }
 
         // Load plan name safely
@@ -315,6 +335,26 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
         );
       },
     );
+  }
+
+  void _openRenewalFlow(BuildContext context, StudentModel s, double planPrice) {
+    final due = s.pendingDueBalance ?? 0.0;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RecordPaymentScreen(
+          studentId: widget.studentId,
+          studentName: s.name,
+          studentPhone: s.phone,
+          planPrice: planPrice > 0 ? planPrice : (due > 0 ? due : 0.0),
+          pendingDue: due,
+        ),
+      ),
+    ).then((_) {
+      if (mounted) {
+        _loadStudent();
+      }
+    });
   }
 
   void _showAssignPlanSheet() {
@@ -779,10 +819,43 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
             const SizedBox(height: 16),
             Row(
               children: [
+                if (s.membershipStatus != MembershipStatus.blocked) ...[
+                  Expanded(
+                    flex: 3,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF059669),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.autorenew_rounded, size: 18),
+                      label: Text(
+                        s.planId != null ? 'Renew Membership' : 'Assign Plan',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onPressed: () {
+                        if (s.planId != null) {
+                          _openRenewalFlow(context, s, planPrice);
+                        } else {
+                          _showAssignPlanSheet();
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 Expanded(
+                  flex: s.membershipStatus == MembershipStatus.blocked ? 1 : 2,
                   child: s.membershipStatus == MembershipStatus.blocked
                       ? FilledButton.icon(
-                          style: FilledButton.styleFrom(backgroundColor: Colors.green),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
                           icon: const Icon(Icons.lock_open_rounded),
                           label: const Text('Unblock Student'),
                           onPressed: () async {
@@ -797,9 +870,14 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                           },
                         )
                       : OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                          icon: const Icon(Icons.block_rounded),
-                          label: const Text('Block Student'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: BorderSide(color: Colors.red.shade300),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          icon: const Icon(Icons.block_rounded, size: 16),
+                          label: const Text('Block Student', maxLines: 1, overflow: TextOverflow.ellipsis),
                           onPressed: () async {
                             String reason = '';
                             final confirmed = await showDialog<bool>(
@@ -907,7 +985,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                       ],
                     ),
                     const SizedBox(height: 16),
-                    if (s.seatId != null && s.sectionId != null)
+                    if (s.seatId != null && s.seatId!.isNotEmpty)
                       Row(
                         children: [
                           Container(
@@ -924,7 +1002,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  seatLabel.isNotEmpty ? 'Seat $seatLabel' : 'Seat Assigned',
+                                  seatLabel.isNotEmpty ? 'Seat $seatLabel' : 'Seat ${SeatHelper.formatSeatLabel(seatId: s.seatId)}',
                                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 4),
@@ -939,16 +1017,66 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                         ],
                       )
                     else
-                      Row(
+                      Column(
                         children: [
-                          Icon(Icons.chair_outlined, size: 40, color: Colors.grey[600]),
-                          const SizedBox(width: 16),
-                          const Expanded(child: Text('No seat assigned yet')),
-                          FilledButton.icon(
-                            onPressed: _showAssignSeatSheet,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Assign Seat'),
+                          Row(
+                            children: [
+                              Icon(Icons.chair_outlined, size: 40, color: Colors.grey[600]),
+                              const SizedBox(width: 16),
+                              const Expanded(child: Text('No seat assigned yet')),
+                              FilledButton.icon(
+                                onPressed: _showAssignSeatSheet,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Assign Seat'),
+                              ),
+                            ],
                           ),
+                          if (s.previousSeatId != null && s.previousSeatId!.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.history_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Previously Allocated: Seat ${SeatHelper.formatSeatLabel(seatId: s.previousSeatId)}',
+                                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface),
+                                    ),
+                                  ),
+                                  TextButton.icon(
+                                    icon: const Icon(Icons.restore_rounded, size: 16),
+                                    label: const Text('Restore Desk'),
+                                    onPressed: () async {
+                                      final targetSec = s.previousSectionId;
+                                      final targetSeat = s.previousSeatId;
+                                      if (targetSec != null && targetSeat != null) {
+                                        final seatRepo = ref.read(seatRepositoryProvider);
+                                        await seatRepo.assignStudent(libraryId, targetSec, targetSeat, s.id);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Restored Seat ${SeatHelper.formatSeatLabel(seatId: targetSeat)} for ${s.name} ✓'),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                          _loadStudent();
+                                        }
+                                      } else {
+                                        _showAssignSeatSheet();
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                   ],
@@ -976,10 +1104,37 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isNarrow = constraints.maxWidth < 360;
+                              final actions = Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  FilledButton.icon(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: const Color(0xFF059669),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    icon: const Icon(Icons.autorenew_rounded, size: 16),
+                                    label: const Text('Renew Plan', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    onPressed: () => _openRenewalFlow(context, s, planPrice),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton(
+                                    onPressed: _showAssignPlanSheet,
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    child: const Text('Change'),
+                                  ),
+                                ],
+                              );
+
+                              if (isNarrow) {
+                                return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
@@ -987,17 +1142,44 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                       style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                                     ),
                                     if (planPrice > 0)
-                                      Text('₹${planPrice.toStringAsFixed(0)}',
+                                      Text(
+                                        '₹${planPrice.toStringAsFixed(0)}',
                                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                           color: Theme.of(context).colorScheme.primary,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
+                                    const SizedBox(height: 10),
+                                    actions,
                                   ],
-                                ),
-                              ),
-                              OutlinedButton(onPressed: _showAssignPlanSheet, child: const Text('Change')),
-                            ],
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          planName.isNotEmpty ? planName : 'Plan Assigned',
+                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                        ),
+                                        if (planPrice > 0)
+                                          Text(
+                                            '₹${planPrice.toStringAsFixed(0)}',
+                                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                              color: Theme.of(context).colorScheme.primary,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  actions,
+                                ],
+                              );
+                            },
                           ),
                           if (s.planStartDate != null && s.planEndDate != null) ...[
                             const SizedBox(height: 12),
@@ -1134,7 +1316,9 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
                                   pendingDue: due,
                                 ),
                               ),
-                            );
+                            ).then((_) {
+                              if (mounted) _loadStudent();
+                            });
                           },
                           icon: const Icon(Icons.add),
                           label: const Text('Record Payment'),

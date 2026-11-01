@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
+import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/core/widgets/empty_state_widget.dart';
 import 'package:study_library/models/announcement_model.dart';
 import 'package:study_library/core/security/audit_logger.dart';
@@ -92,7 +94,14 @@ class AnnouncementListScreen extends ConsumerWidget {
 
     if (libraryId == null || libraryId.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Announcements')),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+          ),
+          title: const Text('Announcements'),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -101,6 +110,11 @@ class AnnouncementListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+        ),
         title: const Text('Announcements'),
       ),
       body: announcementsAsync.when(

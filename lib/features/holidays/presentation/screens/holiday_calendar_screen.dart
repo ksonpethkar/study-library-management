@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/holiday_model.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 /// Stream of holidays for the current library, sorted by date in Dart.
 final holidaysStreamProvider = StreamProvider.autoDispose<List<HolidayModel>>((ref) {
@@ -152,6 +154,11 @@ class _HolidayCalendarScreenState extends ConsumerState<HolidayCalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+        ),
         title: const Text('Holidays & Closures'),
       ),
       body: libraryId == null || libraryId.isEmpty

@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/widgets/empty_state_widget.dart';
 import 'package:study_library/core/error/error_handler.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 class RecycleBinScreen extends ConsumerStatefulWidget {
   const RecycleBinScreen({super.key});
@@ -266,7 +268,14 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
 
     if (libraryId.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Recycle Bin')),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+          ),
+          title: const Text('Recycle Bin'),
+        ),
         body: const Center(child: Text('Library not loaded')),
       );
     }
@@ -286,6 +295,11 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
       length: _tabs.length,
       child: Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+          ),
           title: const Text('Recycle Bin'),
           actions: [
             TextButton.icon(

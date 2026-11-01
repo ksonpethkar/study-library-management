@@ -10,6 +10,8 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/models/student_model.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 class AdminQrScannerScreen extends ConsumerStatefulWidget {
   const AdminQrScannerScreen({super.key});
@@ -44,8 +46,8 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Flashlight is not supported in web browser mode.'),
-            duration: Duration(seconds: 2),
+            content: Text('💡 Hardware flashlight requires Android native APK. Web browsers do not permit camera torch access.'),
+            duration: Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -58,7 +60,7 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Flashlight unavailable: $e'),
+            content: Text('Flashlight unavailable on this camera: $e'),
             duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
           ),
@@ -69,12 +71,21 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
 
   Future<void> _switchCamera() async {
     try {
+      if (kIsWeb) {
+        await _controller.stop();
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
       await _controller.switchCamera();
+      if (kIsWeb) {
+        await Future.delayed(const Duration(milliseconds: 250));
+        await _controller.start();
+      }
     } catch (e) {
+      await _restartCamera();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Camera switch failed: $e. Try restarting the camera.'),
+            content: Text('Camera reset: ${e.toString().contains('NotReadableError') ? 'Camera stream was locked by browser. Reloaded camera.' : e.toString()}'),
             duration: const Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
           ),
@@ -186,11 +197,13 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
     final theme = Theme.of(context);
     final now = DateTime.now();
 
-    final isActive = student.membershipStatus == MembershipStatus.active;
-    final isGrace = student.membershipStatus == MembershipStatus.grace;
+    final effectiveStatus = student.effectiveMembershipStatus;
+    final isActive = effectiveStatus == MembershipStatus.active;
+    final isGrace = effectiveStatus == MembershipStatus.grace;
+    final isExpired = effectiveStatus == MembershipStatus.expired || effectiveStatus == MembershipStatus.blocked;
 
     final Color statusColor = isActive ? Colors.green : (isGrace ? Colors.orange : Colors.red);
-    final String statusText = isActive ? '✅ ACTIVE MEMBER' : (isGrace ? '⚠️ GRACE PERIOD' : '❌ EXPIRED / INACTIVE');
+    final String statusText = isActive ? '✅ ACTIVE MEMBER' : (isGrace ? '⚠️ GRACE PERIOD' : '❌ EXPIRED PASS');
     final IconData statusIcon = isActive ? Icons.verified_rounded : (isGrace ? Icons.warning_rounded : Icons.cancel_rounded);
 
     final endDate = student.planEndDate;
@@ -269,15 +282,33 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
                 ],
                 _InfoRow(
                   label: 'Status',
-                  value: student.membershipStatus.name.toUpperCase(),
+                  value: effectiveStatus.name.toUpperCase(),
                   icon: Icons.badge_rounded,
                   valueColor: statusColor,
                 ),
 
                 const SizedBox(height: 24),
+                if (isExpired || isGrace) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.payment_rounded),
+                      label: const Text('Record Renewal Payment'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF059669),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        context.push(Routes.adminRecordPayment.replaceFirst(':studentId', student.id));
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton.icon(
+                  child: OutlinedButton.icon(
                     icon: const Icon(Icons.qr_code_scanner_rounded),
                     label: const Text('Scan Another Student'),
                     onPressed: () {

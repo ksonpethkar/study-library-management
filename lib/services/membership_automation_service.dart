@@ -184,6 +184,8 @@ class MembershipAutomationService {
 
             studentUpdate['seatId'] = null;
             studentUpdate['sectionId'] = null;
+            studentUpdate['previousSeatId'] = seatId;
+            studentUpdate['previousSectionId'] = sectionId;
             releasedSeats++;
             newlyReleasedSeats.add({
               'seatId': seatId,

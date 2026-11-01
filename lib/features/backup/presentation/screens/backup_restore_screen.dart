@@ -10,6 +10,8 @@ import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/security/audit_logger.dart';
 import 'package:study_library/core/utils/file_download_helper.dart';
 import 'package:study_library/services/backup_service.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 class BackupRestoreScreen extends ConsumerStatefulWidget {
   const BackupRestoreScreen({super.key});
@@ -318,6 +320,11 @@ class _BackupRestoreScreenState extends ConsumerState<BackupRestoreScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+        ),
         title: const Text('Backup & Restore'),
       ),
       body: SingleChildScrollView(

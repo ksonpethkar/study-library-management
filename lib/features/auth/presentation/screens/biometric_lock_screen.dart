@@ -655,36 +655,22 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
     }
   }
 
-  Future<void> _handleSelfServiceSessionUnlock() async {
+  Future<void> _handleAdminGoogleReAuth() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No active login session found. Please sign in again.')),
-        );
-      }
-      return;
-    }
-
-    final isAdmin = _isAdminLock;
-    final userEmail = user.email ?? user.phoneNumber ?? (isAdmin ? 'Administrator' : _studentName);
+    final adminEmail = user?.email ?? 'Administrator';
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
+        title: const Row(
           children: [
-            Icon(
-              isAdmin ? Icons.admin_panel_settings_rounded : Icons.verified_user_rounded,
-              color: isAdmin ? Colors.amber.shade800 : Colors.green,
-              size: 26,
-            ),
-            const SizedBox(width: 10),
+            Icon(Icons.security_rounded, color: Colors.blueAccent, size: 26),
+            SizedBox(width: 10),
             Expanded(
               child: Text(
-                isAdmin ? 'Unlock Admin Console' : 'Verify Account Unlock',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                'Verify Administrator Identity',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
               ),
             ),
           ],
@@ -693,16 +679,32 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Active Verified Session:\n$userEmail',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, height: 1.4),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.verified_user_rounded, color: Colors.blueAccent, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      adminEmail,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
-            Text(
-              isAdmin
-                  ? 'You are already signed in as the authorized library administrator. Would you like to clear the lock and enter the Admin Console using your verified Google credentials?'
-                  : 'You are already authenticated with this library. Would you like to clear the lockout and unlock your student pass using your verified login session?',
-              style: const TextStyle(fontSize: 12.5, height: 1.4),
+            const Text(
+              'To reset or unlock without the Master PIN, you must prove ownership of this account by re-authenticating with Google.\n\nA Google sign-in prompt will appear requiring your account credentials.',
+              style: TextStyle(fontSize: 12.5, height: 1.4),
             ),
           ],
         ),
@@ -712,30 +714,57 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: isAdmin ? Colors.amber.shade800 : null,
-            ),
-            icon: const Icon(Icons.lock_open_rounded, size: 16),
-            label: Text(isAdmin ? 'Unlock Admin Console' : 'Unlock Pass Now'),
+            icon: const Icon(Icons.login_rounded, size: 16),
+            label: const Text('Verify with Google'),
             onPressed: () => Navigator.pop(ctx, true),
           ),
         ],
       ),
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isVerifying = true);
+    try {
+      final cred = await ref.read(authRepositoryProvider).signInWithGoogle();
+      final verifiedUser = cred.user;
+
+      if (verifiedUser == null) {
+        throw Exception('Google verification was not completed.');
+      }
+
+      // Security Check: Verify that the re-authenticated user matches the active session
+      if (user != null && verifiedUser.uid != user.uid && verifiedUser.email != user.email) {
+        throw Exception('The Google account used does not match the active administrator ($adminEmail).');
+      }
+
+      // Legitimate administrator verified via Google OAuth!
       await _clearLockout();
       _unlockApp();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isAdmin
-                ? 'Admin Console unlocked via verified administrator account.'
-                : 'Pass unlocked successfully with verified login session.'),
+          const SnackBar(
+            content: Text('Identity verified via Google. Admin Console unlocked! 🛡️'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
         );
+      }
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = e.toString().replaceAll('Exception:', '').trim();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg.isNotEmpty ? errorMsg : 'Google verification failed.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isVerifying = false);
       }
     }
   }
@@ -1067,51 +1096,31 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Blocked after 5 failed attempts. Please wait 15 minutes or unlock using your verified session.',
+                                _isAdminLock
+                                    ? 'Security Lockout: 5 failed attempts. Entering PIN is temporarily disabled to protect console records. Please wait for the timer or re-verify with Google.'
+                                    : 'Security Lockout: 5 failed attempts. Entering PIN is temporarily disabled. Please wait $_cooldownString before retrying.',
                                 style: TextStyle(
                                   color: theme.colorScheme.onErrorContainer,
                                   fontSize: 12,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
-                              const SizedBox(height: 14),
-                              Wrap(
-                                alignment: WrapAlignment.center,
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  FilledButton.icon(
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: theme.colorScheme.error,
-                                      foregroundColor: theme.colorScheme.onError,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    ),
-                                    icon: const Icon(Icons.verified_user_rounded, size: 16),
-                                    label: const Text(
-                                      'Unlock with Verified Account',
-                                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
-                                    ),
-                                    onPressed: _handleSelfServiceSessionUnlock,
+                              if (_isAdminLock) ...[
+                                const SizedBox(height: 14),
+                                FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: theme.colorScheme.error,
+                                    foregroundColor: theme.colorScheme.onError,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                   ),
-                                  OutlinedButton.icon(
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: theme.colorScheme.error,
-                                      side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.5)),
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    ),
-                                    icon: const Icon(Icons.refresh_rounded, size: 16),
-                                    label: const Text('Clear Cooldown & Retry', style: TextStyle(fontSize: 12.5)),
-                                    onPressed: () async {
-                                      await _clearLockout();
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Lockout cooldown cleared. You may now enter your PIN.')),
-                                        );
-                                      }
-                                    },
+                                  icon: const Icon(Icons.security_rounded, size: 16),
+                                  label: const Text(
+                                    'Verify Identity with Google',
+                                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
                                   ),
-                                ],
-                              ),
+                                  onPressed: _handleAdminGoogleReAuth,
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -1223,26 +1232,20 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
                         ],
                       ],
 
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
-                      // Verified Account Instant Bypass (Admin & Student)
-                      FilledButton.tonalIcon(
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      // Clean, Secure Sign Out / Switch Account Button
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          side: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.4)),
                         ),
-                        icon: const Icon(Icons.verified_user_rounded, size: 18, color: Colors.green),
-                        label: Text(
-                          _isAdminLock
-                              ? 'Unlock with Admin Account'
-                              : 'Unlock with Verified Student Session',
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        icon: const Icon(Icons.logout_rounded, size: 17),
+                        label: const Text(
+                          'Sign Out / Switch Account',
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                         ),
-                        onPressed: _handleSelfServiceSessionUnlock,
-                      ),
-
-                      const SizedBox(height: 16),
-                      TextButton(
                         onPressed: () async {
                           await ref.read(authRepositoryProvider).signOut();
                           BiometricService.markUnlocked();
@@ -1250,24 +1253,24 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
                             context.go(Routes.login);
                           }
                         },
-                        child: Text(
-                          'Sign In with Different Account',
-                          style: TextStyle(color: theme.colorScheme.outline),
-                        ),
                       ),
+
                       if (!_isAdminLock) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
                         TextButton.icon(
                           icon: const Icon(Icons.help_outline_rounded, size: 16),
                           label: const Text('Forgot PIN? Ask Admin to Reset', style: TextStyle(fontSize: 12)),
                           onPressed: () => _showForgotPinDialog(context),
                         ),
                       ] else ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
                         TextButton.icon(
-                          icon: const Icon(Icons.help_outline_rounded, size: 16),
-                          label: const Text('Forgot Master PIN? Click "Unlock with Admin Account"', style: TextStyle(fontSize: 12)),
-                          onPressed: _handleSelfServiceSessionUnlock,
+                          icon: const Icon(Icons.lock_reset_rounded, size: 16),
+                          label: const Text(
+                            'Forgot Master PIN? Verify via Google Account',
+                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                          ),
+                          onPressed: _handleAdminGoogleReAuth,
                         ),
                       ],
                     ],

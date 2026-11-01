@@ -437,18 +437,22 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                       ),
                     ),
                     Chip(
-                      label: Text(student.membershipStatus.name.toUpperCase()),
-                      backgroundColor: student.membershipStatus == MembershipStatus.active
+                      label: Text(student.effectiveMembershipStatus.name.toUpperCase()),
+                      backgroundColor: student.effectiveMembershipStatus == MembershipStatus.active
                           ? Colors.green.shade100
-                          : Colors.orange.shade100,
+                          : (student.effectiveMembershipStatus == MembershipStatus.grace
+                              ? Colors.orange.shade100
+                              : Colors.red.shade100),
                       labelStyle: TextStyle(
-                        color: student.membershipStatus == MembershipStatus.active
+                        color: student.effectiveMembershipStatus == MembershipStatus.active
                             ? Colors.green.shade900
-                              : Colors.orange.shade900,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
+                            : (student.effectiveMembershipStatus == MembershipStatus.grace
+                                ? Colors.orange.shade900
+                                : Colors.red.shade900),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
                       ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -524,7 +528,14 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 const SizedBox(height: 16),
 
                 // 3. High-Readability Seat Radar Card
-                _buildAssignedSeatCard(context, theme, seatLabel, sectionName, seatId),
+                _buildAssignedSeatCard(
+                  context,
+                  theme,
+                  seatLabel,
+                  sectionName,
+                  seatId,
+                  effectiveStatus: student.effectiveMembershipStatus,
+                ),
                 const SizedBox(height: 20),
 
                 // 4. Ergonomic Quick Services Dock (4-column primary + 2-item secondary)
@@ -727,7 +738,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             ? const Color(0xFFF59E0B)
             : const Color(0xFFEF4444);
 
-    final status = student.membershipStatus;
+    final status = student.effectiveMembershipStatus;
     final (statusColor, statusLabel, statusIcon) = switch (status) {
       MembershipStatus.active => (const Color(0xFF10B981), 'ACTIVE PASS', Icons.verified_rounded),
       MembershipStatus.grace => (const Color(0xFFF59E0B), 'GRACE PERIOD', Icons.hourglass_top_rounded),
@@ -1101,7 +1112,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
         ? student.membershipNumber!
         : 'CC${student.id.length >= 8 ? student.id.substring(0, 8).toUpperCase() : student.id.toUpperCase()}';
 
-    final status = student.membershipStatus;
+    final status = student.effectiveMembershipStatus;
     final statusColor = switch (status) {
       MembershipStatus.active => const Color(0xFF10B981),
       MembershipStatus.grace => const Color(0xFFF59E0B),
@@ -1462,16 +1473,34 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
     );
   }
 
-  Widget _buildAssignedSeatCard(BuildContext context, ThemeData theme, String seatLabel, String sectionName, String? seatId) {
+  Widget _buildAssignedSeatCard(
+    BuildContext context,
+    ThemeData theme,
+    String seatLabel,
+    String sectionName,
+    String? seatId, {
+    MembershipStatus effectiveStatus = MembershipStatus.active,
+  }) {
     final isDark = theme.brightness == Brightness.dark;
+    final isExpired = effectiveStatus == MembershipStatus.expired || effectiveStatus == MembershipStatus.blocked;
+    final isGrace = effectiveStatus == MembershipStatus.grace;
+
+    final Color accentColor = isExpired
+        ? const Color(0xFFEF4444)
+        : (isGrace ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
+
+    final String badgeLabel = isExpired
+        ? 'EXPIRED'
+        : (isGrace ? 'GRACE PERIOD' : 'ALLOCATED');
+
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.35 : 0.25), width: 1.2),
+        border: Border.all(color: accentColor.withValues(alpha: isDark ? 0.35 : 0.25), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.08 : 0.05),
+            color: accentColor.withValues(alpha: isDark ? 0.08 : 0.05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1480,8 +1509,8 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
-          backgroundColor: const Color(0xFF10B981).withValues(alpha: 0.15),
-          child: const Icon(Icons.event_seat_rounded, color: Color(0xFF059669)),
+          backgroundColor: accentColor.withValues(alpha: 0.15),
+          child: Icon(Icons.event_seat_rounded, color: accentColor),
         ),
         title: Row(
           children: [
@@ -1493,16 +1522,16 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                color: accentColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                border: Border.all(color: accentColor.withValues(alpha: 0.3)),
               ),
-              child: const Text(
-                'ALLOCATED',
+              child: Text(
+                badgeLabel,
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF059669),
+                  color: accentColor,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -1517,34 +1546,50 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
-                sectionName.isNotEmpty ? 'Section: $sectionName' : 'Reserved Study Desk',
-                style: TextStyle(color: theme.colorScheme.onSurfaceVariant, fontSize: 12),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
+                isExpired
+                    ? 'Desk access inactive • Renew to reactivate'
+                    : (isGrace
+                        ? 'Desk temporarily reserved • Grace active'
+                        : (sectionName.isNotEmpty ? 'Section: $sectionName' : 'Reserved Study Desk')),
+                style: TextStyle(
+                  color: isExpired
+                      ? const Color(0xFFEF4444)
+                      : (isGrace ? const Color(0xFFD97706) : theme.colorScheme.onSurfaceVariant),
+                  fontSize: 12,
+                  fontWeight: isExpired || isGrace ? FontWeight.w600 : FontWeight.normal,
                 ),
-                child: const Text(
-                  'Pin Drop Silence 🟢',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF059669)),
-                ),
               ),
+              if (!isExpired && !isGrace)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'Pin Drop Silence 🟢',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF059669)),
+                  ),
+                ),
             ],
           ),
         ),
         trailing: OutlinedButton.icon(
-          icon: const Icon(Icons.map_outlined, size: 15),
-          label: const Text('Seat Map', style: TextStyle(fontSize: 12)),
+          icon: Icon(isExpired ? Icons.refresh_rounded : Icons.map_outlined, size: 15),
+          label: Text(isExpired ? 'Renew' : 'Seat Map', style: const TextStyle(fontSize: 12)),
           style: OutlinedButton.styleFrom(
             visualDensity: VisualDensity.compact,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            foregroundColor: isExpired ? const Color(0xFFDC2626) : null,
           ),
           onPressed: () {
             HapticFeedback.lightImpact();
-            context.push(Routes.studentSeatMap);
+            if (isExpired) {
+              context.push(Routes.studentRenew);
+            } else {
+              context.push(Routes.studentSeatMap);
+            }
           },
         ),
       ),

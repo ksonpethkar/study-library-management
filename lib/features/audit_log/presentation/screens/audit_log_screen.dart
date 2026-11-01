@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:study_library/core/providers/library_provider.dart';
 import 'package:study_library/core/widgets/empty_state_widget.dart';
+import 'package:go_router/go_router.dart';
+import 'package:study_library/core/router/app_router.dart';
 
 class AuditLogScreen extends ConsumerStatefulWidget {
   const AuditLogScreen({super.key});
@@ -318,7 +320,14 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
 
     if (libraryId.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Audit Log')),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+          ),
+          title: const Text('Audit Log'),
+        ),
         body: const Center(child: Text('Library not loaded')),
       );
     }
@@ -331,6 +340,11 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.adminHome),
+        ),
         title: const Text('Audit Trail & Activity Log'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),

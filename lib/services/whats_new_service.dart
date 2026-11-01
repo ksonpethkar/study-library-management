@@ -116,7 +116,7 @@ class ReleaseChange {
 }
 
 class WhatsNewService {
-  static const String currentVersionIdentifier = '1.5.45+53';
+  static const String currentVersionIdentifier = '1.5.47+55';
   static const String _keySeenAdmin = 'last_seen_whats_new_admin';
   static const String _keySeenStudent = 'last_seen_whats_new_student';
   static const String _keyCachedAdminFeatures = 'cached_whats_new_admin_features';
@@ -125,15 +125,31 @@ class WhatsNewService {
 
   static bool _isShowingDialog = false;
 
-  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.45)
+  /// Concrete features exclusively relevant for Library Admins & Staff (v1.5.47)
   static final List<ReleaseChange> adminChanges = [
+    const ReleaseChange(
+      icon: Icons.verified_user_rounded,
+      rawIconName: 'approval',
+      badge: 'Real-Time Sync',
+      title: 'Dynamic Student Pass Validity & Expiration Engine',
+      description:
+          'Pass status now evaluates dynamically based on wall-clock time and plan duration. Expired passes are automatically flagged in real time with 1-tap renewal payment recording.',
+    ),
+    const ReleaseChange(
+      icon: Icons.qr_code_scanner_rounded,
+      rawIconName: 'qr_code',
+      badge: 'Admin Scanner',
+      title: 'Instant QR Scan Expiration Verification',
+      description:
+          'Scanning a student QR instantly displays valid, grace, or expired states with instant action to record renewal payments directly from the check-in sheet.',
+    ),
     const ReleaseChange(
       icon: Icons.image_rounded,
       rawIconName: 'image',
       badge: 'Zero Blinking',
       title: 'Stable Student Profile Photos & Image Caching',
       description:
-          'Eliminated profile photo blinking across student passes by caching decoded base64 images in memory and removing redundant 60 FPS animation loops.',
+          'Eliminated profile photo blinking across student passes by caching decoded base64 images in memory and removing redundant animation loops.',
     ),
     const ReleaseChange(
       icon: Icons.account_balance_rounded,
@@ -161,8 +177,16 @@ class WhatsNewService {
     ),
   ];
 
-  /// Student-Friendly Highlights (v1.5.45)
+  /// Student-Friendly Highlights (v1.5.47)
   static final List<ReleaseChange> studentChanges = [
+    const ReleaseChange(
+      icon: Icons.badge_rounded,
+      rawIconName: 'badge',
+      badge: 'Smart Pass',
+      title: 'Dynamic Pass Validity & 1-Tap Renewal',
+      description:
+          'Your Digital ID Card now dynamically reflects real-time status (Active, Grace, or Expired) with instant 1-tap renewal action to ensure your seat is retained.',
+    ),
     const ReleaseChange(
       icon: Icons.image_rounded,
       rawIconName: 'image',

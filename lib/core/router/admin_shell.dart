@@ -51,11 +51,19 @@ class _AdminShellState extends ConsumerState<AdminShell> {
     super.dispose();
   }
 
+  bool _isMainTab(BuildContext context) {
+    final location = GoRouterState.of(context).uri.path;
+    return location == Routes.adminHome ||
+        location == Routes.adminSeats ||
+        location == Routes.adminStudents ||
+        location == Routes.adminMore;
+  }
+
   int _getSelectedIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith(Routes.adminSeats)) return 1;
-    if (location.startsWith(Routes.adminStudents)) return 2;
-    if (location.startsWith(Routes.adminMore)) return 3;
+    final location = GoRouterState.of(context).uri.path;
+    if (location == Routes.adminSeats) return 1;
+    if (location == Routes.adminStudents) return 2;
+    if (location == Routes.adminMore) return 3;
     return 0;
   }
 
@@ -252,6 +260,7 @@ class _AdminShellState extends ConsumerState<AdminShell> {
 
   @override
   Widget build(BuildContext context) {
+    final isMainTab = _isMainTab(context);
     final currentIndex = _getSelectedIndex(context);
     final pendingCount = ref.watch(_pendingCountProvider).value ?? 0;
 
@@ -281,12 +290,12 @@ class _AdminShellState extends ConsumerState<AdminShell> {
         }
       },
       child: Scaffold(
-        extendBody: true,
+        extendBody: isMainTab,
         body: Listener(
           onPointerDown: (_) => InactivityLockService.recordInteraction(),
           child: widget.child,
         ),
-        floatingActionButton: currentIndex == 0
+        floatingActionButton: (isMainTab && currentIndex == 0)
             ? FloatingActionButton(
                 heroTag: 'admin_fab',
                 onPressed: () {
@@ -297,53 +306,55 @@ class _AdminShellState extends ConsumerState<AdminShell> {
               )
             : null,
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        bottomNavigationBar: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
-                border: Border(
-                  top: BorderSide(
-                    color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
-                    width: 0.5,
+        bottomNavigationBar: isMainTab
+            ? ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
+                      border: Border(
+                        top: BorderSide(
+                          color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                          width: 0.5,
+                        ),
+                      ),
+                    ),
+                    child: NavigationBar(
+                      backgroundColor: Colors.transparent,
+                      surfaceTintColor: Colors.transparent,
+                      selectedIndex: currentIndex,
+                      onDestinationSelected: (index) {
+                        AppHaptics.light();
+                        _onItemTapped(context, index);
+                      },
+                      destinations: [
+                        const NavigationDestination(
+                          icon: Icon(Icons.home_outlined),
+                          selectedIcon: Icon(Icons.home_rounded),
+                          label: 'Home',
+                        ),
+                        const NavigationDestination(
+                          icon: Icon(Icons.event_seat_outlined),
+                          selectedIcon: Icon(Icons.event_seat_rounded),
+                          label: 'Seats',
+                        ),
+                        const NavigationDestination(
+                          icon: Icon(Icons.people_outline_rounded),
+                          selectedIcon: Icon(Icons.people_rounded),
+                          label: 'Students',
+                        ),
+                        NavigationDestination(
+                          icon: _badgedIcon(Icons.more_horiz_outlined, pendingCount),
+                          selectedIcon: _badgedIcon(Icons.more_horiz_rounded, pendingCount, selected: true),
+                          label: 'More',
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              child: NavigationBar(
-                backgroundColor: Colors.transparent,
-                surfaceTintColor: Colors.transparent,
-                selectedIndex: currentIndex,
-                onDestinationSelected: (index) {
-                  AppHaptics.light();
-                  _onItemTapped(context, index);
-                },
-                destinations: [
-                  const NavigationDestination(
-                    icon: Icon(Icons.home_outlined),
-                    selectedIcon: Icon(Icons.home_rounded),
-                    label: 'Home',
-                  ),
-                  const NavigationDestination(
-                    icon: Icon(Icons.event_seat_outlined),
-                    selectedIcon: Icon(Icons.event_seat_rounded),
-                    label: 'Seats',
-                  ),
-                  const NavigationDestination(
-                    icon: Icon(Icons.people_outline_rounded),
-                    selectedIcon: Icon(Icons.people_rounded),
-                    label: 'Students',
-                  ),
-                  NavigationDestination(
-                    icon: _badgedIcon(Icons.more_horiz_outlined, pendingCount),
-                    selectedIcon: _badgedIcon(Icons.more_horiz_rounded, pendingCount, selected: true),
-                    label: 'More',
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+              )
+            : null,
       ),
     );
   }

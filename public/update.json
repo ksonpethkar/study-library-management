@@ -1,12 +1,12 @@
 {
-  "versionCode": 54,
-  "latestVersionCode": 54,
-  "latestBuild": 54,
-  "latestVersion": "1.5.46",
-  "versionName": "1.5.46+54",
-  "apkSize": "51.6 MB",
-  "releaseNotes": "v1.5.46: Centered organization logo watermark on digital pass, enlarged QR code with tap-to-zoom modal, pinned responsive Edit Profile sheet, fixed Firestore permissions for photo upload, seat requests, and notifications.",
-  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.46/StudyLibrary.apk",
+  "versionCode": 55,
+  "latestVersionCode": 55,
+  "latestBuild": 55,
+  "latestVersion": "1.5.47",
+  "versionName": "1.5.47+55",
+  "apkSize": "51.8 MB",
+  "releaseNotes": "v1.5.47: Real-time dynamic pass validity & status visibility (Active, Grace, Expired, Suspended) across digital ID card, student dashboard, and admin check-in scanner with 1-tap instant renewal payment action.",
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.47/StudyLibrary.apk",
   "mandatory": false,
   "organization": {
     "name": "The Cozy Corner Centre",
@@ -17,6 +17,18 @@
     "accentColor": "#5D4037"
   },
   "studentFeatures": [
+    {
+      "icon": "badge",
+      "badge": "Smart Pass",
+      "title": "Real-Time Pass Validity & Dynamic Status",
+      "description": "Your digital student pass automatically updates to Active, Grace Period, or Expired based on your plan end date, with instant 1-tap renewal to retain your study seat."
+    },
+    {
+      "icon": "event_seat",
+      "badge": "Seat Radar",
+      "title": "Dynamic Seat Radar Card Status",
+      "description": "Your allocated desk card alerts you with clear guidance when your membership is in grace or expired, with direct action to renew."
+    },
     {
       "icon": "qr_code_2",
       "badge": "Tap to Zoom",
@@ -34,44 +46,26 @@
       "badge": "Direct Alerts",
       "title": "Instant Notifications & Seat Requests",
       "description": "The Notifications Center and Seat Change request features now load seamlessly without any permission or access blocks."
-    },
-    {
-      "icon": "center_focus_strong",
-      "badge": "Pass Design",
-      "title": "Centered Organization Logo Watermark",
-      "description": "The library watermark logo is now centered on the digital pass front and back, giving your smart pass an authentic, balanced look."
-    },
-    {
-      "icon": "touch_app",
-      "badge": "Full Scroll",
-      "title": "Full Bottom Clearance & Easy Scrolling",
-      "description": "The help card and sign-out button now have generous bottom clearance so you can scroll every element completely above the navigation bar."
     }
   ],
   "adminFeatures": [
     {
+      "icon": "verified_user",
+      "badge": "Real-Time Sync",
+      "title": "Dynamic Student Validity & Expiration Engine",
+      "description": "Student membership evaluation runs dynamically in real time. Expired passes are automatically flagged with instant check-in verification."
+    },
+    {
       "icon": "qr_code_scanner",
-      "badge": "Scanner Friendly",
-      "title": "High-Contrast Large QR Pass & Zoom Modal",
-      "description": "Student passes now feature an enlarged, crisp QR code with instant tap-to-zoom modal for rapid desk barcode scanner recognition in low-light environments."
+      "badge": "Scanner CTA",
+      "title": "Instant QR Scan Expiration & 1-Tap Payment",
+      "description": "Scanning a student QR instantly displays valid, grace, or expired states with instant action to record renewal payments directly from the check-in sheet."
     },
     {
       "icon": "security",
       "badge": "Zero Errors",
-      "title": "Hardened Firestore Security & Student Requests",
-      "description": "Refined Firestore security rules and scoped queries so students can update their profile photos, submit seat change requests, and view notifications with zero permission errors."
-    },
-    {
-      "icon": "center_focus_strong",
-      "badge": "Card Aesthetics",
-      "title": "Dead-Center 3D Organization Logo Watermark",
-      "description": "The library logo watermark is now positioned directly in the center of both the front and back of the student pass for a balanced, premium ID card appearance."
-    },
-    {
-      "icon": "image",
-      "badge": "Zero Blinking",
-      "title": "Stable Student Profile Photos & Image Caching",
-      "description": "Eliminated profile photo blinking across student passes by caching decoded base64 images in memory and removing redundant 60 FPS animation loops."
+      "title": "Hardened Firestore Rules & Dynamic Attribution",
+      "description": "Fine-grained Firestore Security Rules allow student photo updates, seat changes, and personal notifications while maintaining strict zero-trust isolation."
     }
   ]
 }

@@ -10,11 +10,19 @@ class StudentShell extends StatelessWidget {
   final Widget child;
   const StudentShell({super.key, required this.child});
 
+  bool _isMainTab(BuildContext context) {
+    final location = GoRouterState.of(context).uri.path;
+    return location == Routes.studentHome ||
+        location == Routes.studentMembership ||
+        location == Routes.studentReceipts ||
+        location == Routes.studentProfile;
+  }
+
   int _getSelectedIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith(Routes.studentMembership)) return 1;
-    if (location.startsWith(Routes.studentReceipts)) return 2;
-    if (location.startsWith(Routes.studentProfile)) return 3;
+    final location = GoRouterState.of(context).uri.path;
+    if (location == Routes.studentMembership) return 1;
+    if (location == Routes.studentReceipts) return 2;
+    if (location == Routes.studentProfile) return 3;
     return 0;
   }
 
@@ -29,6 +37,8 @@ class StudentShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMainTab = _isMainTab(context);
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -55,58 +65,60 @@ class StudentShell extends StatelessWidget {
         }
       },
       child: Scaffold(
-        extendBody: true,
+        extendBody: isMainTab,
         body: child,
-        bottomNavigationBar: SafeArea(
-          top: false,
-          child: ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
-                  border: Border(
-                    top: BorderSide(
-                      color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
-                      width: 0.5,
+        bottomNavigationBar: isMainTab
+            ? SafeArea(
+                top: false,
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
+                        border: Border(
+                          top: BorderSide(
+                            color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                            width: 0.5,
+                          ),
+                        ),
+                      ),
+                      child: NavigationBar(
+                        backgroundColor: Colors.transparent,
+                        surfaceTintColor: Colors.transparent,
+                        selectedIndex: _getSelectedIndex(context),
+                        onDestinationSelected: (index) {
+                          AppHaptics.light();
+                          _onItemTapped(context, index);
+                        },
+                        destinations: const [
+                          NavigationDestination(
+                            icon: Icon(Icons.home_outlined),
+                            selectedIcon: Icon(Icons.home_rounded),
+                            label: 'Home',
+                          ),
+                          NavigationDestination(
+                            icon: Icon(Icons.card_membership_outlined),
+                            selectedIcon: Icon(Icons.card_membership_rounded),
+                            label: 'Membership',
+                          ),
+                          NavigationDestination(
+                            icon: Icon(Icons.receipt_long_outlined),
+                            selectedIcon: Icon(Icons.receipt_long_rounded),
+                            label: 'Receipts',
+                          ),
+                          NavigationDestination(
+                            icon: Icon(Icons.person_outline_rounded),
+                            selectedIcon: Icon(Icons.person_rounded),
+                            label: 'Profile',
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                child: NavigationBar(
-                  backgroundColor: Colors.transparent,
-                  surfaceTintColor: Colors.transparent,
-                  selectedIndex: _getSelectedIndex(context),
-                  onDestinationSelected: (index) {
-                    AppHaptics.light();
-                    _onItemTapped(context, index);
-                  },
-                  destinations: const [
-                    NavigationDestination(
-                      icon: Icon(Icons.home_outlined),
-                      selectedIcon: Icon(Icons.home_rounded),
-                      label: 'Home',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.card_membership_outlined),
-                      selectedIcon: Icon(Icons.card_membership_rounded),
-                      label: 'Membership',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.receipt_long_outlined),
-                      selectedIcon: Icon(Icons.receipt_long_rounded),
-                      label: 'Receipts',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.person_outline_rounded),
-                      selectedIcon: Icon(Icons.person_rounded),
-                      label: 'Profile',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
+              )
+            : null,
       ),
     );
   }

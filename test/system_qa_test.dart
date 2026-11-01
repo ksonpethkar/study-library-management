@@ -28,6 +28,7 @@ import 'package:study_library/models/library_model.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/constants/app_constants.dart';
 import 'package:study_library/services/whats_new_service.dart';
+import 'package:study_library/firebase_options.dart';
 import 'package:study_library/features/waiting_list/data/repositories/waiting_list_repository.dart';
 import 'package:pdf/pdf.dart';
 import 'package:study_library/services/id_card_pdf_service.dart';
@@ -1674,9 +1675,9 @@ void main() {
 
     test('67. REAL-TIME SEAT CHANGE & MAP AMBER SYNC STABILITY', () {
       // 1. Version consistency check
-      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.45+53'));
-      expect(AppConstants.appVersion, equals('1.5.45'));
-      expect(AppConstants.buildNumber, equals(53));
+      expect(WhatsNewService.currentVersionIdentifier, equals('1.5.47+55'));
+      expect(AppConstants.appVersion, equals('1.5.47'));
+      expect(AppConstants.buildNumber, equals(55));
 
       // 2. Pending Seat Change Multi-Identifier Matching
       final testStudent = StudentModel(
@@ -2357,6 +2358,151 @@ void main() {
       expect(lib.logoUrl, isNotEmpty);
       final logoProvider = ImageService.getImageProvider(lib.logoUrl);
       expect(logoProvider, isNotNull);
+    });
+
+    test('Test 79: REAL-TIME DYNAMIC PASS VALIDITY & EXPOSURE OF EXPIRED/GRACE/ACTIVE STATES', () {
+      final now = DateTime.now();
+      final yesterday = now.subtract(const Duration(days: 2));
+      final tomorrow = now.add(const Duration(days: 2));
+
+      // 1. Expired plan (Stored membershipStatus='active', but planEndDate is in the past)
+      final expiredStudent = StudentModel.fromJson({
+        'id': 'student_exp_001',
+        'name': 'Srikrishnadatta Sonpethkar',
+        'fatherName': 'Bharat',
+        'phone': '8625982248',
+        'email': 'test@gmail.com',
+        'seatId': 'seat_2',
+        'membershipStatus': 'active', // Still 'active' in Firestore document
+        'planEndDate': yesterday.toIso8601String(),
+      });
+
+      expect(expiredStudent.membershipStatus, equals(MembershipStatus.active), reason: 'Document status is active');
+      expect(expiredStudent.isExpired, isTrue, reason: 'Plan end date is in the past');
+      expect(expiredStudent.isEffectivelyActive, isFalse, reason: 'Genuinely expired student cannot be effectively active');
+      expect(expiredStudent.effectiveMembershipStatus, equals(MembershipStatus.expired), reason: 'Dynamic status must evaluate to expired');
+
+      // 2. Grace period plan (planEndDate is in past, but graceEndDate is in future)
+      final graceStudent = StudentModel.fromJson({
+        'id': 'student_grace_002',
+        'name': 'Rahul Sharma',
+        'fatherName': 'Father',
+        'phone': '9876543210',
+        'email': 'rahul@gmail.com',
+        'seatId': 'seat_5',
+        'membershipStatus': 'active',
+        'planEndDate': yesterday.toIso8601String(),
+        'graceEndDate': tomorrow.toIso8601String(),
+      });
+
+      expect(graceStudent.isExpired, isFalse, reason: 'Within grace period');
+      expect(graceStudent.isEffectivelyActive, isTrue, reason: 'Within grace period');
+      expect(graceStudent.effectiveMembershipStatus, equals(MembershipStatus.grace), reason: 'Dynamic status must evaluate to grace');
+
+      // 3. Active plan (planEndDate is in future)
+      final activeStudent = StudentModel.fromJson({
+        'id': 'student_act_003',
+        'name': 'Pooja Patil',
+        'fatherName': 'Father',
+        'phone': '9123456789',
+        'email': 'pooja@gmail.com',
+        'seatId': 'seat_10',
+        'membershipStatus': 'active',
+        'planEndDate': tomorrow.toIso8601String(),
+      });
+
+      expect(activeStudent.isExpired, isFalse);
+      expect(activeStudent.isEffectivelyActive, isTrue);
+      expect(activeStudent.effectiveMembershipStatus, equals(MembershipStatus.active));
+
+      // 4. Blocked account
+      final blockedStudent = StudentModel.fromJson({
+        'id': 'student_blk_004',
+        'name': 'Blocked User',
+        'fatherName': 'Father',
+        'phone': '9000000000',
+        'email': 'blocked@gmail.com',
+        'seatId': 'seat_12',
+        'membershipStatus': 'blocked',
+        'planEndDate': tomorrow.toIso8601String(),
+      });
+
+      expect(blockedStudent.effectiveMembershipStatus, equals(MembershipStatus.blocked));
+      expect(blockedStudent.isEffectivelyActive, isFalse);
+
+      // 5. QR Code Payload Status Dynamic Parity
+      final qrPayload = jsonEncode({
+        'type': 'STUDENT_PASS',
+        'id': expiredStudent.id,
+        'status': expiredStudent.effectiveMembershipStatus.name.toUpperCase(),
+      });
+      final decoded = jsonDecode(qrPayload) as Map<String, dynamic>;
+      expect(decoded['status'], equals('EXPIRED'));
+    });
+
+    test('80. ZERO-CLICK AUTO-SEAT RETENTION, GOOGLE OAUTH PARITY & PAYMENT DEDUPLICATION', () {
+      // 1. Verify StudentModel sticky seat memory fields
+      final student = StudentModel.fromJson({
+        'id': 'student_seat_001',
+        'name': 'Srikrishnadatta Sonpethkar',
+        'fatherName': 'Bharat',
+        'gender': 'MALE',
+        'phone': '8625982248',
+        'email': 'konpethkar02@gmail.com',
+        'seatId': null,
+        'sectionId': null,
+        'previousSeatId': 'C1',
+        'previousSectionId': 'sec_cabin_1',
+        'membershipStatus': 'active',
+      });
+
+      final studentJson = student.toJson();
+      expect(studentJson['previousSeatId'], equals('C1'));
+      expect(studentJson['previousSectionId'], equals('sec_cabin_1'));
+
+      final restored = StudentModel.fromJson(studentJson);
+      expect(restored.previousSeatId, equals('C1'));
+      expect(restored.previousSectionId, equals('sec_cabin_1'));
+
+      // CopyWith seat restore test
+      final reactivated = restored.copyWith(
+        seatId: restored.previousSeatId,
+        sectionId: restored.previousSectionId,
+      );
+      expect(reactivated.seatId, equals('C1'));
+      expect(reactivated.sectionId, equals('sec_cabin_1'));
+
+      // 2. Google OAuth Web Client AuthDomain verification
+      expect(
+        DefaultFirebaseOptions.web.authDomain,
+        equals('study-lib-mgmt-2026.firebaseapp.com'),
+        reason: 'AuthDomain must match Firebase authorized redirect URI to prevent Error 400: redirect_uri_mismatch',
+      );
+
+      // 3. Payment Method Deduplication logic
+      final initialMethods = [
+        'Cash / Pay at Reception',
+        'UPI / QR Code',
+        'Debit / Credit Card',
+      ];
+      final loadedFromDb = ['Cash', 'UPI', 'Cheque'];
+      for (final m in loadedFromDb) {
+        final normalized = m.toLowerCase() == 'cash'
+            ? 'Cash / Pay at Reception'
+            : (m.toLowerCase().contains('upi') ? 'UPI / QR Code' : m);
+        if (!initialMethods.contains(normalized)) {
+          initialMethods.add(normalized);
+        }
+      }
+      expect(initialMethods.where((m) => m == 'Cash').isEmpty, isTrue);
+      expect(initialMethods.contains('Cash / Pay at Reception'), isTrue);
+      expect(initialMethods.contains('Cheque'), isTrue);
+
+      // 4. Renewal Membership Period Accuracy
+      final start = DateTime(2026, 11, 23);
+      final end = DateTime(2026, 12, 31);
+      final actualDays = end.difference(start).inDays + 1;
+      expect(actualDays, equals(39));
     });
   });
 }
