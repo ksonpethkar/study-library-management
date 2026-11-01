@@ -441,6 +441,28 @@ class StudentModel {
   /// Public alias for _parseDate — allows external callers to reuse date parsing logic.
   static DateTime? parseDateStatic(dynamic date) => _parseDate(date);
 
+  /// Real-time dynamic evaluation of student membership status.
+  /// Re-evaluates based on current wall-clock time and planEndDate even if
+  /// the stored Firestore string has not been updated yet.
+  MembershipStatus get effectiveMembershipStatus {
+    if (membershipStatus == MembershipStatus.blocked) return MembershipStatus.blocked;
+    if (membershipStatus == MembershipStatus.pending) return MembershipStatus.pending;
+    if (membershipStatus == MembershipStatus.inactive || membershipStatus == MembershipStatus.archived) {
+      return membershipStatus;
+    }
+    if (isExpired) {
+      if (membershipStatus == MembershipStatus.grace ||
+          (graceEndDate != null && DateTime.now().isBefore(graceEndDate!))) {
+        return MembershipStatus.grace;
+      }
+      return MembershipStatus.expired;
+    }
+    if (membershipStatus == MembershipStatus.grace) {
+      return MembershipStatus.grace;
+    }
+    return MembershipStatus.active;
+  }
+
   /// Dynamic evaluation: student is genuinely active ONLY if:
   /// 1. Status is marked active or grace
   /// 2. Plan end date is in the future (or within grace period)

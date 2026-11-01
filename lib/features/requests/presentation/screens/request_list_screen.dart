@@ -172,13 +172,33 @@ class RequestListScreen extends ConsumerWidget {
     final libraryId = ref.watch(currentLibraryIdProvider);
     final requestsAsync = ref.watch(requestsStreamProvider);
 
+    Widget buildBackButton() {
+      return IconButton(
+        icon: const Icon(Icons.arrow_back),
+        tooltip: 'Back',
+        onPressed: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go(Routes.adminHome);
+          }
+        },
+      );
+    }
+
     return requestsAsync.when(
       loading: () => Scaffold(
-        appBar: AppBar(title: const Text('Student Requests')),
+        appBar: AppBar(
+          leading: buildBackButton(),
+          title: const Text('Student Requests'),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       ),
       error: (error, _) => Scaffold(
-        appBar: AppBar(title: const Text('Student Requests')),
+        appBar: AppBar(
+          leading: buildBackButton(),
+          title: const Text('Student Requests'),
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
@@ -221,11 +241,19 @@ class RequestListScreen extends ConsumerWidget {
         final approved = requests.where((r) => r.status == 'approved').toList();
         final rejected = requests.where((r) => r.status == 'rejected' || r.status == 'superseded' || r.status == 'cancelled').toList();
 
-        return DefaultTabController(
-          length: 4,
-          child: Scaffold(
-            appBar: AppBar(
-              title: const Text('Student Requests'),
+        return PopScope(
+          canPop: context.canPop(),
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) {
+              context.go(Routes.adminHome);
+            }
+          },
+          child: DefaultTabController(
+            length: 4,
+            child: Scaffold(
+              appBar: AppBar(
+                leading: buildBackButton(),
+                title: const Text('Student Requests'),
               bottom: TabBar(
                 isScrollable: false,
                 tabs: [

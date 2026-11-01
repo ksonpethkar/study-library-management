@@ -1,12 +1,12 @@
 {
-  "versionCode": 53,
-  "latestVersionCode": 53,
-  "latestBuild": 53,
-  "latestVersion": "1.5.45",
-  "versionName": "1.5.45+53",
-  "apkSize": "51.5 MB",
-  "releaseNotes": "v1.5.45: Stable student profile photo rendering with base64 image caching, dynamic organization logo and 3D watermark seal on digital access pass.",
-  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.45/StudyLibrary.apk",
+  "versionCode": 54,
+  "latestVersionCode": 54,
+  "latestBuild": 54,
+  "latestVersion": "1.5.46",
+  "versionName": "1.5.46+54",
+  "apkSize": "51.6 MB",
+  "releaseNotes": "v1.5.46: Centered organization logo watermark on digital pass, enlarged QR code with tap-to-zoom modal, pinned responsive Edit Profile sheet, fixed Firestore permissions for photo upload, seat requests, and notifications.",
+  "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.46/StudyLibrary.apk",
   "mandatory": false,
   "organization": {
     "name": "The Cozy Corner Centre",
@@ -18,48 +18,60 @@
   },
   "studentFeatures": [
     {
-      "icon": "image",
-      "badge": "Zero Blinking",
-      "title": "Stable Profile Photo & Pass Display",
-      "description": "Student profile photo now renders smoothly with instant memory caching and zero blinking on the digital smart pass."
+      "icon": "qr_code_2",
+      "badge": "Tap to Zoom",
+      "title": "Larger QR Code & Instant Tap-to-Zoom",
+      "description": "Your pass QR code is now bigger, sharper, and can be tapped to open a full-screen high-contrast view for easy desk scanning."
     },
     {
-      "icon": "account_balance",
-      "badge": "Brand Identity",
-      "title": "Dynamic Organization Logo",
-      "description": "Official organization logo and subtle 3D watermark seal dynamically rendered on your digital access pass."
+      "icon": "edit_note",
+      "badge": "Smooth Edit",
+      "title": "Pinned Edit Profile Dialog & Photo Upload",
+      "description": "The Edit Profile dialog now pins the Submit button cleanly above your keyboard and navigation bar. Updating your profile photo is instant and error-free."
     },
     {
-      "icon": "dashboard",
-      "badge": "Clean Home",
-      "title": "Streamlined Student Dashboard",
-      "description": "Removed study streak and check-in widgets for immediate, clean access to your Digital Smart Pass and desk allocation."
+      "icon": "notifications_active",
+      "badge": "Direct Alerts",
+      "title": "Instant Notifications & Seat Requests",
+      "description": "The Notifications Center and Seat Change request features now load seamlessly without any permission or access blocks."
+    },
+    {
+      "icon": "center_focus_strong",
+      "badge": "Pass Design",
+      "title": "Centered Organization Logo Watermark",
+      "description": "The library watermark logo is now centered on the digital pass front and back, giving your smart pass an authentic, balanced look."
+    },
+    {
+      "icon": "touch_app",
+      "badge": "Full Scroll",
+      "title": "Full Bottom Clearance & Easy Scrolling",
+      "description": "The help card and sign-out button now have generous bottom clearance so you can scroll every element completely above the navigation bar."
     }
   ],
   "adminFeatures": [
+    {
+      "icon": "qr_code_scanner",
+      "badge": "Scanner Friendly",
+      "title": "High-Contrast Large QR Pass & Zoom Modal",
+      "description": "Student passes now feature an enlarged, crisp QR code with instant tap-to-zoom modal for rapid desk barcode scanner recognition in low-light environments."
+    },
+    {
+      "icon": "security",
+      "badge": "Zero Errors",
+      "title": "Hardened Firestore Security & Student Requests",
+      "description": "Refined Firestore security rules and scoped queries so students can update their profile photos, submit seat change requests, and view notifications with zero permission errors."
+    },
+    {
+      "icon": "center_focus_strong",
+      "badge": "Card Aesthetics",
+      "title": "Dead-Center 3D Organization Logo Watermark",
+      "description": "The library logo watermark is now positioned directly in the center of both the front and back of the student pass for a balanced, premium ID card appearance."
+    },
     {
       "icon": "image",
       "badge": "Zero Blinking",
       "title": "Stable Student Profile Photos & Image Caching",
       "description": "Eliminated profile photo blinking across student passes by caching decoded base64 images in memory and removing redundant 60 FPS animation loops."
-    },
-    {
-      "icon": "account_balance",
-      "badge": "Brand Identity",
-      "title": "Dynamic Organization Logo on Digital Pass",
-      "description": "The digital smart access card now displays your official library logo dynamically on the front header with a subtle 3D watermark on the card background."
-    },
-    {
-      "icon": "notifications",
-      "badge": "Admin Header",
-      "title": "Admin Notification Center & Theme Toggle",
-      "description": "Quick 1-tap Dark/Light theme toggle and real-time Notification Center added directly to the Admin Dashboard header with live unread alert badges."
-    },
-    {
-      "icon": "badge",
-      "badge": "100% Digital",
-      "title": "Digital-Only Pass Architecture",
-      "description": "Streamlined student credentials into modern, interactive 3D virtual cards with dynamic verification QR codes, removing all redundant print layouts and PDF downloads."
     }
   ]
 }

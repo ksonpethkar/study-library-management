@@ -409,9 +409,8 @@ class StudentProvisioningService {
               }
 
               if (unit == 'months' || unit == 'month') {
-                // Calendar-Month Billing Architecture: strictly snaps to end of calendar month
-                final targetMonth = newStartDate.month + duration;
-                newEndDate = DateTime(newStartDate.year, targetMonth + 1, 0, 23, 59, 59);
+                // Calendar-Month Billing Architecture: strictly snaps to end of calendar month at 23:59:59
+                newEndDate = DateTime(newStartDate.year, newStartDate.month + duration, 0, 23, 59, 59);
               } else {
                 newEndDate = newStartDate.add(Duration(days: duration));
               }

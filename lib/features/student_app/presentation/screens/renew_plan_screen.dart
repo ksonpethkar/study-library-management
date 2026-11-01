@@ -56,6 +56,11 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
   }
 
   DateTime _computeCycleEndDate(DateTime startDate, PlanModel plan) {
+    if (plan.durationUnit == DurationUnit.months ||
+        (plan.durationUnit == DurationUnit.days && plan.duration >= 28 && plan.duration <= 31)) {
+      final calc = PlanCalculatorService.calculateSmartPlan(plan: plan, fromDate: startDate);
+      return calc.endDate;
+    }
     return PlanCalculatorService.calculatePlanEndDate(startDate, plan.duration, plan.durationUnit);
   }
 
