@@ -333,16 +333,36 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    Widget buildBackButton() {
+      return IconButton(
+        icon: const Icon(Icons.arrow_back),
+        tooltip: 'Back',
+        onPressed: () {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          } else {
+            context.go('/admin/requests');
+          }
+        },
+      );
+    }
+
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Request Details')),
+        appBar: AppBar(
+          leading: buildBackButton(),
+          title: const Text('Request Details'),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_requestData == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Request Details')),
+        appBar: AppBar(
+          leading: buildBackButton(),
+          title: const Text('Request Details'),
+        ),
         body: const Center(child: Text('Request not found or has been deleted.')),
       );
     }

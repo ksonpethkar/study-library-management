@@ -331,9 +331,10 @@ class RequestListScreen extends ConsumerWidget {
               ],
             ),
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
 
   Widget _buildRequestList(

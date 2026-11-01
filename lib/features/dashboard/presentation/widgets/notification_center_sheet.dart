@@ -316,7 +316,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                               ref.read(systemAlertsProvider(widget.libraryId).notifier)
                                   .acknowledgePending(widget.pendingRequestsCount);
                               Navigator.pop(context);
-                              context.go(Routes.adminRequests);
+                              context.push(Routes.adminRequests);
                             },
                           ),
                         if (showRenewals)
