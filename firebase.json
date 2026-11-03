@@ -39,13 +39,7 @@
       "**/*.apk",
       "**/*.exe"
     ],
-    "redirects": [
-      {
-        "source": "/app",
-        "destination": "/app/",
-        "type": 301
-      }
-    ],
+    "redirects": [],
     "rewrites": [
       {
         "source": "/flutter_bootstrap.js",
