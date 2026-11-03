@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title>Live Seat Map — The Cozy Corner Study Centre</title>
   <link rel="icon" type="image/png" href="/app/favicon.png">
   <link rel="apple-touch-icon" href="/app/icons/Icon-192.png">
@@ -103,28 +103,28 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 1.5rem 1rem 3rem;
+      padding: 1rem 0.75rem 3rem;
       transition: background 0.2s ease;
     }
 
     .container {
       width: 100%;
-      max-width: 920px;
+      max-width: 960px;
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 1.15rem;
     }
 
     /* Header Card */
     .header-card {
       background: var(--surface);
       border-radius: var(--radius-lg);
-      padding: 1.5rem;
+      padding: 1.25rem 1.25rem;
       border: 1px solid var(--border);
       box-shadow: var(--shadow);
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 1rem;
     }
 
     .lib-title-row {
@@ -138,20 +138,20 @@
     .lib-info {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 0.85rem;
     }
 
     .lib-logo {
-      width: 54px;
-      height: 54px;
+      width: 50px;
+      height: 50px;
       border-radius: 14px;
       background: linear-gradient(135deg, #78350F 0%, #D97706 100%);
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
-      font-size: 1.6rem;
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+      font-size: 1.5rem;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
       overflow: hidden;
       flex-shrink: 0;
       border: 1.5px solid var(--border);
@@ -166,14 +166,14 @@
     }
 
     .lib-name {
-      font-size: 1.35rem;
+      font-size: 1.25rem;
       font-weight: 800;
       line-height: 1.2;
       letter-spacing: -0.02em;
     }
 
     .lib-subtitle {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       color: var(--text-muted);
       margin-top: 2px;
     }
@@ -182,12 +182,12 @@
       display: inline-flex;
       align-items: center;
       gap: 0.45rem;
-      font-size: 0.78rem;
+      font-size: 0.74rem;
       font-weight: 800;
       letter-spacing: 0.04em;
       color: var(--color-available);
       background: var(--color-available-bg);
-      padding: 0.4rem 0.85rem;
+      padding: 0.35rem 0.8rem;
       border-radius: 9999px;
       border: 1.5px solid var(--color-available-border);
       box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
@@ -212,12 +212,12 @@
     .stats-row {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 0.75rem;
+      gap: 0.65rem;
     }
 
     .stat-box {
       background: var(--surface-elevated);
-      padding: 0.9rem 0.75rem;
+      padding: 0.75rem 0.5rem;
       border-radius: var(--radius-md);
       border: 1px solid var(--border);
       text-align: center;
@@ -225,40 +225,36 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.25rem;
+      gap: 0.2rem;
       transition: transform 0.2s ease;
     }
 
-    .stat-box:hover {
-      transform: translateY(-1px);
-    }
-
     .stat-box h4 {
-      font-size: 1.65rem;
+      font-size: 1.5rem;
       font-weight: 900;
       line-height: 1.1;
       letter-spacing: -0.02em;
     }
 
     .stat-box p {
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: 700;
       color: var(--text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.05em;
     }
 
-    /* Legend & Controls */
+    /* Legend Bar */
     .legend-bar {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.6rem 1rem;
+      gap: 0.5rem 0.85rem;
       background: var(--surface);
       border-radius: var(--radius-md);
-      padding: 0.75rem 1rem;
+      padding: 0.65rem 0.9rem;
       border: 1px solid var(--border);
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 600;
       flex-wrap: wrap;
     }
@@ -266,12 +262,12 @@
     .legend-item {
       display: flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.35rem;
     }
 
     .legend-pill {
-      width: 14px;
-      height: 14px;
+      width: 13px;
+      height: 13px;
       border-radius: 4px;
       border: 1px solid rgba(0, 0, 0, 0.15);
     }
@@ -280,7 +276,7 @@
       width: 1px;
       height: 14px;
       background: var(--border);
-      margin: 0 4px;
+      margin: 0 2px;
     }
 
     /* Section Tabs */
@@ -288,7 +284,7 @@
       display: flex;
       gap: 0.5rem;
       overflow-x: auto;
-      padding-bottom: 0.25rem;
+      padding-bottom: 0.2rem;
       scrollbar-width: none;
     }
     .section-tabs::-webkit-scrollbar {
@@ -299,9 +295,9 @@
       background: var(--surface);
       border: 1px solid var(--border);
       color: var(--text-muted);
-      padding: 0.6rem 1.15rem;
+      padding: 0.55rem 1.1rem;
       border-radius: 12px;
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       font-weight: 700;
       white-space: nowrap;
       cursor: pointer;
@@ -317,30 +313,191 @@
       background: var(--primary-accent);
       border-color: var(--primary-accent);
       color: #0F172A;
-      box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35);
+      box-shadow: 0 4px 14px rgba(217, 119, 6, 0.3);
     }
 
-    /* Seat Map Grid Canvas */
+    /* Modern Seat Map Card & 2D Touch-Safe Viewport */
     .seat-map-card {
       background: var(--surface);
       border-radius: var(--radius-lg);
-      padding: 1.75rem 1.25rem;
       border: 1px solid var(--border);
       box-shadow: var(--shadow);
-      min-height: 320px;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .map-controls-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.8rem 1rem;
+      background: var(--surface-elevated);
+      border-bottom: 1px solid var(--border);
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .map-legend-hint {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .hall-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--surface);
+      padding: 0.3rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 0.78rem;
+    }
+
+    .swipe-hint {
+      color: var(--primary-accent);
+      font-size: 0.75rem;
+      font-weight: 700;
+      animation: nudge 2s ease-in-out infinite;
+    }
+
+    @keyframes nudge {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(4px); }
+    }
+
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .zoom-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.35rem 0.65rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .zoom-btn:hover {
+      background: var(--primary-accent);
+      color: #0F172A;
+      border-color: var(--primary-accent);
+    }
+
+    .zoom-fit-btn {
+      background: var(--primary-accent);
+      color: #0F172A;
+      border-color: var(--primary-accent);
+      font-size: 0.78rem;
+      font-weight: 800;
+      padding: 0.35rem 0.75rem;
+    }
+
+    /* Touch-Safe Scroll Viewport */
+    .seat-map-scroll-viewport {
+      width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 1.25rem 0.75rem 1.5rem;
+      position: relative;
+      scrollbar-width: thin;
+      scrollbar-color: var(--primary-accent) transparent;
+      touch-action: pan-x pan-y pinch-zoom;
+    }
+
+    .seat-map-scroll-viewport::-webkit-scrollbar {
+      height: 6px;
+    }
+    .seat-map-scroll-viewport::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    /* Spatial Canvas: Starts at 0 when overflowing so Col 1 is NEVER clipped! */
+    .seat-map-canvas {
+      margin: 0 auto;
+      width: fit-content;
+      min-width: max-content;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      padding: 0 16px;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      transform-origin: top center;
+    }
+
+    /* Spatial Anchors */
+    .spatial-anchor {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 0.6rem 0;
+      user-select: none;
+    }
+
+    .anchor-line {
+      flex: 1;
+      height: 1.5px;
+      border-top: 1.5px dashed var(--border);
+    }
+
+    .anchor-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--surface-elevated);
+      padding: 0.35rem 0.85rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    }
+
+    .column-headers-row {
+      display: grid;
+      gap: 10px;
+      width: fit-content;
+      margin-bottom: 6px;
+      user-select: none;
+    }
+
+    .col-header {
+      width: 52px;
+      text-align: center;
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      opacity: 0.75;
     }
 
     .grid-container {
       display: grid;
       gap: 10px;
-      width: 100%;
-      justify-content: center;
-      padding: 0.5rem;
-      overflow-x: auto;
+      width: fit-content;
+      justify-content: start;
+      user-select: none;
     }
 
     .seat-cell {
@@ -362,8 +519,15 @@
     }
 
     .seat-cell:hover {
-      transform: translateY(-2px) scale(1.04);
+      transform: translateY(-2px) scale(1.05);
       box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+      z-index: 2;
+    }
+
+    .seat-cell.selected {
+      transform: scale(1.08) translateY(-2px);
+      box-shadow: 0 0 0 3px var(--primary-accent), 0 8px 20px rgba(217, 119, 6, 0.45);
+      z-index: 10;
     }
 
     .seat-cell.available {
@@ -419,22 +583,22 @@
     .dock-info {
       display: flex;
       flex-direction: column;
-      gap: 0.2rem;
+      gap: 0.25rem;
     }
 
     .dock-title {
       font-size: 1rem;
       font-weight: 800;
-      color: var(--text);
     }
 
     .dock-desc {
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       color: var(--text-muted);
     }
 
     .dock-buttons {
       display: flex;
+      align-items: center;
       gap: 0.65rem;
       flex-wrap: wrap;
     }
@@ -443,9 +607,9 @@
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.75rem 1.15rem;
+      padding: 0.65rem 1.15rem;
       border-radius: 12px;
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       font-weight: 700;
       text-decoration: none;
       transition: all 0.2s ease;
@@ -475,51 +639,109 @@
       color: var(--primary-accent);
     }
 
-    /* Modal / Bottom Sheet */
-    .modal-overlay {
+    /* WhatsApp 1-Tap Booking Bottom Drawer */
+    .bottom-drawer-overlay {
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(6px);
+      backdrop-filter: blur(5px);
       display: none;
-      align-items: center;
+      align-items: flex-end;
       justify-content: center;
       z-index: 999;
-      padding: 1rem;
+      animation: fadeIn 0.15s ease-out;
     }
 
-    .modal-content {
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .bottom-drawer {
       background: var(--surface);
       width: 100%;
-      max-width: 460px;
-      border-radius: 20px;
-      padding: 1.75rem;
+      max-width: 520px;
+      border-top-left-radius: 24px;
+      border-top-right-radius: 24px;
+      padding: 1.5rem 1.5rem 2rem;
       border: 1px solid var(--border);
-      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+      border-bottom: none;
+      box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35);
       display: flex;
       flex-direction: column;
-      gap: 1.15rem;
-      animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      gap: 1rem;
+      animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    @keyframes modalPop {
-      from { transform: scale(0.94); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
     }
 
-    .modal-header {
+    .drawer-handle-bar {
+      width: 44px;
+      height: 4.5px;
+      background: var(--border);
+      border-radius: 3px;
+      margin: 0 auto 0.25rem;
+    }
+
+    .drawer-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
 
-    .modal-btn {
+    .drawer-title-group h3 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .drawer-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      font-weight: 800;
+      padding: 0.25rem 0.65rem;
+      border-radius: 20px;
+      margin-top: 4px;
+    }
+
+    .amenities-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      background: var(--surface-elevated);
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+
+    .amenity-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .drawer-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin-top: 0.25rem;
+    }
+
+    .drawer-btn {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 0.6rem;
-      background: var(--primary-accent);
-      color: #0F172A;
       text-decoration: none;
       font-weight: 800;
       font-size: 0.95rem;
@@ -530,12 +752,23 @@
       cursor: pointer;
     }
 
-    .modal-btn:hover {
-      opacity: 0.92;
+    .drawer-btn-whatsapp {
+      background: #25D366;
+      color: #FFFFFF;
+      box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+    }
+    .drawer-btn-whatsapp:hover {
+      background: #20BD5A;
       transform: translateY(-1px);
     }
 
-    .modal-btn-secondary {
+    .drawer-btn-primary {
+      background: var(--primary-accent);
+      color: #0F172A;
+      box-shadow: 0 4px 14px rgba(217, 119, 6, 0.3);
+    }
+
+    .drawer-btn-secondary {
       background: var(--surface-elevated);
       color: var(--text);
       border: 1px solid var(--border);
@@ -622,26 +855,68 @@
       <div class="legend-divider"></div>
       <div class="legend-item">
         <span style="color: var(--gender-male); font-weight: 800; font-size: 0.9rem;">♂</span>
-        <span>Boys Reserved</span>
+        <span>Boys</span>
       </div>
       <div class="legend-item">
         <span style="color: var(--gender-female); font-weight: 800; font-size: 0.9rem;">♀</span>
-        <span>Girls Reserved</span>
+        <span>Girls</span>
       </div>
     </div>
 
     <!-- Section Tabs -->
     <div class="section-tabs" id="sectionTabs"></div>
 
-    <!-- Seat Map Grid -->
+    <!-- Modern Seat Map Card with 2D Touch-Safe Viewport -->
     <div class="seat-map-card">
-      <div id="loadingIndicator" style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
-        <div class="loader"></div>
-        <p style="font-size: 0.88rem; color: var(--text-muted); font-weight: 600;">Connecting to live seating network...</p>
+      <div class="map-controls-bar">
+        <div class="map-legend-hint">
+          <span class="hall-badge" id="activeSectionBadge">🏛️ Cozy Hall</span>
+          <span class="swipe-hint" id="swipeHint">👉 Swipe to view all desks</span>
+        </div>
+        <div class="zoom-controls">
+          <button type="button" class="zoom-btn" onclick="zoomIn()" title="Zoom In" aria-label="Zoom In">➕</button>
+          <button type="button" class="zoom-btn" onclick="zoomOut()" title="Zoom Out" aria-label="Zoom Out">➖</button>
+          <button type="button" class="zoom-btn zoom-fit-btn" onclick="fitHallToScreen()" title="Fit Entire Hall" aria-label="Fit Hall">⛶ Fit Hall</button>
+        </div>
       </div>
-      <div class="grid-container" id="gridContainer" style="display: none;"></div>
-      <div id="emptyMessage" style="display: none; text-align: center; color: var(--text-muted); font-size: 0.95rem; padding: 2rem;">
-        No seats found in this hall section.
+
+      <!-- Touch-Safe Horizontal Viewport -->
+      <div class="seat-map-scroll-viewport" id="seatScrollViewport">
+        <!-- Canvas starts at 0 when wider than screen so Col 1 is 100% visible -->
+        <div class="seat-map-canvas" id="seatMapCanvas">
+          <!-- Spatial Anchor: Entrance & Reception -->
+          <div class="spatial-anchor entrance-anchor">
+            <div class="anchor-line"></div>
+            <div class="anchor-badge">
+              <span>🚪 MAIN ENTRANCE & RECEPTION DESK</span>
+            </div>
+            <div class="anchor-line"></div>
+          </div>
+
+          <div id="loadingIndicator" style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 2rem;">
+            <div class="loader"></div>
+            <p style="font-size: 0.88rem; color: var(--text-muted); font-weight: 600;">Connecting to live seating network...</p>
+          </div>
+
+          <!-- Column Header Indicators -->
+          <div class="column-headers-row" id="columnHeadersRow"></div>
+
+          <!-- The Physical Seat Grid -->
+          <div class="grid-container" id="gridContainer" style="display: none;"></div>
+
+          <div id="emptyMessage" style="display: none; text-align: center; color: var(--text-muted); font-size: 0.95rem; padding: 2rem;">
+            No seats found in this hall section.
+          </div>
+
+          <!-- Spatial Anchor: Quiet Window Bay -->
+          <div class="spatial-anchor window-anchor">
+            <div class="anchor-line"></div>
+            <div class="anchor-badge">
+              <span>🪟 ROAD-FACING QUIET STUDY ZONE & WINDOWS</span>
+            </div>
+            <div class="anchor-line"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -658,7 +933,7 @@
         <a href="/download" class="dock-btn dock-btn-secondary">
           <span>📲 Download App</span>
         </a>
-        <a href="tel:+919403243830" class="dock-btn dock-btn-secondary">
+        <a href="tel:+918625982248" id="contactReceptionLink" class="dock-btn dock-btn-secondary">
           <span>📞 Contact Reception</span>
         </a>
       </div>
@@ -669,28 +944,55 @@
     </footer>
   </div>
 
-  <!-- Booking / Seat Detail Modal -->
-  <div class="modal-overlay" id="seatModal" onclick="closeModal(event)">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <div>
-          <h3 id="modalSeatTitle" style="font-size: 1.3rem; font-weight: 800;">Seat #1</h3>
-          <p id="modalSeatSubtitle" style="font-size: 0.88rem; color: var(--color-available); font-weight: 700; margin-top: 3px;">🟢 Currently Available</p>
+  <!-- WhatsApp 1-Tap Booking Bottom Drawer -->
+  <div class="bottom-drawer-overlay" id="seatDrawer" onclick="closeDrawer(event)">
+    <div class="bottom-drawer" onclick="event.stopPropagation()">
+      <div class="drawer-handle-bar"></div>
+      
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <h3 id="drawerSeatTitle">Seat #1</h3>
+          <div class="drawer-status-badge" id="drawerStatusBadge">
+            <span>🟢 Currently Available</span>
+          </div>
         </div>
-        <button onclick="hideModal()" style="background: none; border: none; font-size: 1.6rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+        <button onclick="hideDrawer()" style="background: none; border: none; font-size: 1.6rem; cursor: pointer; color: var(--text-muted);">&times;</button>
       </div>
 
-      <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.55;">
-        Enjoy high-speed optical Wi-Fi, ergonomic seating, dedicated power socket, pin-drop silence, and chilled RO water.
-      </p>
+      <!-- Desk Amenities Matrix -->
+      <div class="amenities-grid">
+        <div class="amenity-chip">
+          <span>🔌</span>
+          <span>Dedicated Power Socket</span>
+        </div>
+        <div class="amenity-chip">
+          <span>💡</span>
+          <span>Individual Desk Lamp</span>
+        </div>
+        <div class="amenity-chip">
+          <span>📶</span>
+          <span>High-Speed 5G Wi-Fi</span>
+        </div>
+        <div class="amenity-chip">
+          <span>❄️</span>
+          <span>Air Conditioned Hall</span>
+        </div>
+      </div>
 
-      <a href="/app/" class="modal-btn">
-        <span>🚀 Register / Login to Reserve Desk</span>
-      </a>
+      <!-- Action Buttons -->
+      <div class="drawer-actions">
+        <a id="drawerWhatsAppBtn" href="#" target="_blank" class="drawer-btn drawer-btn-whatsapp">
+          <span>💬 Book This Desk on WhatsApp</span>
+        </a>
 
-      <button class="modal-btn modal-btn-secondary" onclick="hideModal()">
-        Close
-      </button>
+        <a href="/app/" class="drawer-btn drawer-btn-primary">
+          <span>📝 Register for Admission Online</span>
+        </a>
+
+        <button class="drawer-btn drawer-btn-secondary" onclick="hideDrawer()">
+          Close
+        </button>
+      </div>
     </div>
   </div>
 
@@ -714,6 +1016,7 @@
     const DEFAULT_SECTION_NAME = 'Cozy Hall';
     const DEFAULT_COLS = 10;
     const DEFAULT_TOTAL_SEATS = 60;
+    let libraryPhone = '8625982248';
 
     // State variables
     let sectionsList = [{ id: DEFAULT_SECTION_ID, name: DEFAULT_SECTION_NAME, cols: DEFAULT_COLS, rows: 6 }];
@@ -722,6 +1025,8 @@
     let libraryUnsubscribe = null;
     let sectionsUnsubscribe = null;
     let hasLoadedData = false;
+    let currentZoom = 1.0;
+    let selectedSeatId = null;
 
     // Extract libraryId from query string (?lib=...) or path (/library/:id/seats)
     const urlParams = new URLSearchParams(window.location.search);
@@ -730,12 +1035,10 @@
       const match = window.location.pathname.match(/\/library\/([^\/]+)\/seats/);
       if (match) rawLib = match[1];
     }
-    // Clean up leading/trailing symbols, dashes, hyphens, spaces, or quotes
     let libraryId = rawLib ? rawLib.replace(/^[\s\-_—–'"`]+|[\s\-_—–'"`]+$/g, '').trim() : '';
     if (!libraryId || libraryId.length < 15 || libraryId.length > 25) {
       libraryId = DEFAULT_LIBRARY_ID;
     }
-    // Clean URL in address bar if it was malformed
     if (rawLib && rawLib !== libraryId && window.history && window.history.replaceState) {
       try {
         const cleanUrl = window.location.pathname + '?lib=' + libraryId;
@@ -743,7 +1046,24 @@
       } catch (_) {}
     }
 
-    // --- Generate Default 60-Seat Layout (Zero Blank Screen Guarantee) ---
+    // Zero-loss format helper (converts 0-indexed column IDs like c0, c1 to Seat 1, 2)
+    function formatSeatLabel(rawLabel, fallbackIndex) {
+      if (!rawLabel || String(rawLabel).trim().length === 0) {
+        return String(fallbackIndex || '•');
+      }
+      const clean = String(rawLabel).trim();
+      const colMatch = clean.match(/^(?:desk[_\-]?c|seat[_\-]?c|c)(\d+)$/i);
+      if (colMatch) {
+        return String(parseInt(colMatch[1], 10) + 1);
+      }
+      const rcMatch = clean.match(/^(?:r\d+_c|r\d+c)(\d+)$/i);
+      if (rcMatch) {
+        return String(parseInt(rcMatch[1], 10) + 1);
+      }
+      return clean;
+    }
+
+    // Generate Default 60-Seat Layout
     function generateDefaultSeats() {
       const seats = [];
       for (let i = 1; i <= DEFAULT_TOTAL_SEATS; i++) {
@@ -763,7 +1083,33 @@
       return seats;
     }
 
-    // --- 0ms Instant Local Cache Restoration ---
+    // Zoom Controls
+    function setZoom(scale) {
+      currentZoom = Math.max(0.65, Math.min(1.6, scale));
+      const canvas = document.getElementById('seatMapCanvas');
+      if (canvas) {
+        canvas.style.transform = `scale(${currentZoom})`;
+        canvas.style.transformOrigin = 'top center';
+      }
+    }
+
+    function zoomIn() { setZoom(currentZoom + 0.15); }
+    function zoomOut() { setZoom(currentZoom - 0.15); }
+
+    function fitHallToScreen() {
+      const viewport = document.getElementById('seatScrollViewport');
+      const grid = document.getElementById('gridContainer');
+      if (!viewport || !grid) return;
+      const availableWidth = viewport.clientWidth - 24;
+      const gridWidth = grid.offsetWidth || (DEFAULT_COLS * 64);
+      if (gridWidth > 0 && availableWidth > 0) {
+        const fitScale = Math.min(1.0, (availableWidth / gridWidth));
+        setZoom(fitScale);
+        viewport.scrollLeft = 0;
+      }
+    }
+
+    // Local Storage Caching
     function restoreLocalCache(libId) {
       try {
         const cacheStr = localStorage.getItem('cozy_seat_cache_' + libId) || localStorage.getItem('cozy_seat_cache_' + DEFAULT_LIBRARY_ID);
@@ -779,6 +1125,10 @@
           if (cached.logoUrl) {
             document.getElementById('libLogo').innerHTML = `<img src="${cached.logoUrl}" alt="${cached.name || 'Library'} Logo">`;
           }
+          if (cached.phone) {
+            libraryPhone = cached.phone;
+            document.getElementById('contactReceptionLink').href = 'tel:+91' + cached.phone;
+          }
           if (cached.seats && cached.seats.length > 0) {
             renderSeats(cached.seats, cached.cols || DEFAULT_COLS);
             updateStats(cached.seats, false);
@@ -791,7 +1141,6 @@
       return false;
     }
 
-    // --- Save Live Snapshot to Cache ---
     function saveToCache(libId, updateObj) {
       try {
         const key = 'cozy_seat_cache_' + libId;
@@ -801,7 +1150,7 @@
       } catch (_) {}
     }
 
-    // Fast-path REST API fetch (Immediate high-speed HTTPS GET, ~150ms)
+    // Fast-path REST API fetch (~150ms)
     async function fetchViaRestApi(libId, secId) {
       try {
         const targetSecId = secId || activeSectionId || DEFAULT_SECTION_ID;
@@ -840,11 +1189,9 @@
     }
 
     function attachLiveListeners() {
-      // 1. Library metadata listener
       if (libraryUnsubscribe) libraryUnsubscribe();
       libraryUnsubscribe = db.collection('libraries').doc(libraryId).onSnapshot(doc => {
         if (!doc.exists) {
-          console.warn('Library doc does not exist for ID:', libraryId, 'Auto-healing to DEFAULT_LIBRARY_ID');
           if (libraryId !== DEFAULT_LIBRARY_ID) {
             libraryId = DEFAULT_LIBRARY_ID;
             cleanupSubscriptions();
@@ -864,13 +1211,16 @@
           if (data.logoUrl && data.logoUrl.trim().length > 0) {
             document.getElementById('libLogo').innerHTML = `<img src="${data.logoUrl}" alt="${data.name || 'Library'} Logo">`;
           }
-          saveToCache(libraryId, { name: data.name, address: data.address, logoUrl: data.logoUrl });
+          if (data.phone) {
+            libraryPhone = data.phone;
+            document.getElementById('contactReceptionLink').href = 'tel:+91' + data.phone;
+          }
+          saveToCache(libraryId, { name: data.name, address: data.address, logoUrl: data.logoUrl, phone: data.phone });
         }
       }, err => {
         console.warn('Library metadata listener error:', err);
       });
 
-      // 2. Sections listener
       if (sectionsUnsubscribe) sectionsUnsubscribe();
       sectionsUnsubscribe = db.collection('libraries').doc(libraryId).collection('sections').onSnapshot(snap => {
         const fetchedSections = [];
@@ -887,11 +1237,10 @@
             : sectionsList[0].id;
           selectSection(targetSecId);
         } else {
-          // Fall back to default section Cozy Hall
           selectSection(DEFAULT_SECTION_ID);
         }
       }, err => {
-        console.warn('Sections listener error, keeping default Cozy Hall:', err);
+        console.warn('Sections listener error:', err);
         selectSection(DEFAULT_SECTION_ID);
       });
     }
@@ -917,23 +1266,24 @@
       activeSectionId = sectionId;
       renderSectionTabs();
 
+      const sec = sectionsList.find(s => s.id === sectionId) || sectionsList[0];
+      const secName = sec?.name || 'Cozy Hall';
+      document.getElementById('activeSectionBadge').innerText = '🏛️ ' + secName;
+
       if (seatsUnsubscribe) {
         seatsUnsubscribe();
         seatsUnsubscribe = null;
       }
 
       const grid = document.getElementById('gridContainer');
-      // Only show loader if we have zero seats rendered yet
       if (!hasLoadedData && grid.children.length === 0) {
         document.getElementById('loadingIndicator').style.display = 'flex';
         document.getElementById('emptyMessage').style.display = 'none';
         grid.style.display = 'none';
       }
 
-      const sec = sectionsList.find(s => s.id === sectionId) || sectionsList[0];
       const cols = (sec && sec.cols && sec.cols > 0) ? sec.cols : DEFAULT_COLS;
 
-      // Real-time listener for seats in active section
       seatsUnsubscribe = db.collection('libraries').doc(libraryId)
         .collection('sections').doc(sectionId)
         .collection('seats').onSnapshot(snap => {
@@ -957,8 +1307,20 @@
       hasLoadedData = true;
 
       const grid = document.getElementById('gridContainer');
+      const colHeaders = document.getElementById('columnHeadersRow');
       const safeCols = Math.max(1, cols || DEFAULT_COLS);
-      grid.style.gridTemplateColumns = `repeat(${safeCols}, minmax(46px, 54px))`;
+
+      grid.style.gridTemplateColumns = `repeat(${safeCols}, 52px)`;
+      colHeaders.style.gridTemplateColumns = `repeat(${safeCols}, 52px)`;
+
+      // Build column numbers: 1, 2, 3...
+      colHeaders.innerHTML = '';
+      for (let c = 1; c <= safeCols; c++) {
+        const colDiv = document.createElement('div');
+        colDiv.className = 'col-header';
+        colDiv.innerText = 'C' + c;
+        colHeaders.appendChild(colDiv);
+      }
 
       // Sort by row, then col, then label
       seats.sort((a, b) => {
@@ -970,38 +1332,17 @@
         return (a.label || '').localeCompare(b.label || '');
       });
 
-      // Hide loading and empty states
       document.getElementById('loadingIndicator').style.display = 'none';
       document.getElementById('emptyMessage').style.display = 'none';
       grid.style.display = 'grid';
 
-      // Check if we can update DOM in-place without flicker
-      const existingCells = grid.querySelectorAll('.seat-cell');
-      if (existingCells.length === seats.length) {
-        seats.forEach((seat, idx) => {
-          const div = existingCells[idx];
-          const status = (seat.status || 'available').toLowerCase();
-          div.className = `seat-cell ${status}`;
-          
-          let genderBadge = '';
-          if (seat.genderRestriction === 'male') {
-            genderBadge = '<span class="gender-badge" style="color:var(--gender-male);" title="Boys Reserved">♂</span>';
-          } else if (seat.genderRestriction === 'female') {
-            genderBadge = '<span class="gender-badge" style="color:var(--gender-female);" title="Girls Reserved">♀</span>';
-          }
-          const seatDisplayLabel = seat.label || seat.seatNumber || '•';
-          div.innerHTML = `${genderBadge}<span>${seatDisplayLabel}</span>`;
-          div.onclick = () => onSeatClick(seatDisplayLabel, status, seat.genderRestriction);
-        });
-        return;
-      }
-
-      // Initial clean build of seat grid
+      // Build grid cells with zero-indexed normalization
       grid.innerHTML = '';
-      seats.forEach(seat => {
+      seats.forEach((seat, idx) => {
         const div = document.createElement('div');
         const status = (seat.status || 'available').toLowerCase();
-        div.className = `seat-cell ${status}`;
+        div.className = `seat-cell ${status}` + (seat.id === selectedSeatId ? ' selected' : '');
+        div.id = 'cell_' + seat.id;
         
         let genderBadge = '';
         if (seat.genderRestriction === 'male') {
@@ -1010,24 +1351,86 @@
           genderBadge = '<span class="gender-badge" style="color:var(--gender-female);" title="Girls Reserved">♀</span>';
         }
 
-        const seatDisplayLabel = seat.label || seat.seatNumber || '•';
+        const seatDisplayLabel = formatSeatLabel(seat.label || seat.seatNumber, idx + 1);
         div.innerHTML = `${genderBadge}<span>${seatDisplayLabel}</span>`;
-        div.onclick = () => onSeatClick(seatDisplayLabel, status, seat.genderRestriction);
+        div.onclick = () => onSeatClick(seat.id, seatDisplayLabel, status, seat.genderRestriction);
 
         grid.appendChild(div);
       });
     }
 
-    function onSeatClick(label, status, gender) {
-      if (status === 'available') {
-        showModal(label, '🟢 Currently Available', gender);
+    function onSeatClick(seatId, label, status, gender) {
+      selectedSeatId = seatId;
+      document.querySelectorAll('.seat-cell').forEach(c => c.classList.remove('selected'));
+      const activeCell = document.getElementById('cell_' + seatId);
+      if (activeCell) activeCell.classList.add('selected');
+
+      const sec = sectionsList.find(s => s.id === activeSectionId) || sectionsList[0];
+      const secName = sec?.name || 'Cozy Hall';
+
+      showDrawer(label, status, gender, secName);
+    }
+
+    function showDrawer(label, status, gender, secName) {
+      document.getElementById('drawerSeatTitle').innerText = 'Seat #' + label;
+      
+      const badge = document.getElementById('drawerStatusBadge');
+      let statusColor = 'var(--color-available)';
+      let statusBg = 'var(--color-available-bg)';
+      let statusText = '🟢 Currently Available for Joining';
+
+      if (status === 'occupied') {
+        statusColor = 'var(--color-occupied)';
+        statusBg = 'var(--color-occupied-bg)';
+        statusText = '🔴 Currently Occupied by Student';
       } else if (status === 'reserved') {
-        showModal(label, '🟡 Temporarily Reserved', gender);
-      } else if (status === 'occupied') {
-        showModal(label, '🔴 Currently Occupied', gender);
-      } else {
-        showModal(label, '⚪ Under Maintenance', gender);
+        statusColor = 'var(--color-reserved)';
+        statusBg = 'var(--color-reserved-bg)';
+        statusText = '🟡 Temporarily Reserved';
+      } else if (status === 'disabled') {
+        statusColor = 'var(--color-disabled)';
+        statusBg = 'var(--color-disabled-bg)';
+        statusText = '⚪ Under Maintenance';
       }
+
+      if (gender === 'male') statusText += ' • Boys Only';
+      if (gender === 'female') statusText += ' • Girls Only';
+
+      badge.style.color = statusColor;
+      badge.style.background = statusBg;
+      badge.innerText = statusText;
+
+      // Build WhatsApp URL with pre-filled message
+      const cleanPhone = (libraryPhone || '8625982248').replace(/\D/g, '');
+      const encodedMsg = encodeURIComponent(
+        `Hello Cozy Corner Study Centre! 👋\nI am checking your Live Seat Map.\nI want to book *Seat #${label}* (${secName}).\nIs this desk available for me to join today?`
+      );
+      const waUrl = `https://wa.me/91${cleanPhone}?text=${encodedMsg}`;
+      const waBtn = document.getElementById('drawerWhatsAppBtn');
+      waBtn.href = waUrl;
+
+      if (status === 'occupied') {
+        waBtn.innerHTML = '<span>💬 Inquire on WhatsApp for Next Renewal</span>';
+        waBtn.style.background = '#475569';
+      } else {
+        waBtn.innerHTML = '<span>💬 Book Seat #' + label + ' on WhatsApp</span>';
+        waBtn.style.background = '#25D366';
+      }
+
+      document.getElementById('seatDrawer').style.display = 'flex';
+    }
+
+    function hideDrawer() {
+      document.getElementById('seatDrawer').style.display = 'none';
+      if (selectedSeatId) {
+        const activeCell = document.getElementById('cell_' + selectedSeatId);
+        if (activeCell) activeCell.classList.remove('selected');
+        selectedSeatId = null;
+      }
+    }
+
+    function closeDrawer(e) {
+      if (e.target.id === 'seatDrawer') hideDrawer();
     }
 
     function updateStats(seats, shouldSave = true) {
@@ -1050,47 +1453,37 @@
       }
     }
 
-    function showModal(label, statusText, gender) {
-      document.getElementById('modalSeatTitle').innerText = 'Seat #' + label;
-      let genderText = '';
-      if (gender === 'male') genderText = ' (Boys Reserved)';
-      if (gender === 'female') genderText = ' (Girls Reserved)';
-      document.getElementById('modalSeatSubtitle').innerText = statusText + genderText;
-      document.getElementById('seatModal').style.display = 'flex';
+    // Hide scroll hint once user scrolls
+    const scrollViewport = document.getElementById('seatScrollViewport');
+    if (scrollViewport) {
+      scrollViewport.addEventListener('scroll', () => {
+        const hint = document.getElementById('swipeHint');
+        if (hint) hint.style.opacity = '0.3';
+      }, { passive: true });
     }
 
-    function hideModal() {
-      document.getElementById('seatModal').style.display = 'none';
-    }
-
-    function closeModal(e) {
-      if (e.target.id === 'seatModal') hideModal();
-    }
-
-    // --- Master Initialization: Instant Pre-Render + Rapid REST API + Live Listeners ---
+    // Master Initialization
     function init() {
-      // 1. Step 0: Restore from localStorage cache instantly (0ms!)
       const restored = restoreLocalCache(libraryId);
 
-      // 2. If no cache present, render the standard Cozy Corner 60 seats immediately
-      // so the page is NEVER blank or empty
       if (!restored) {
         const defaultSeats = generateDefaultSeats();
         renderSeats(defaultSeats, DEFAULT_COLS);
         updateStats(defaultSeats, false);
       }
 
-      // 3. Immediately select active section to attach real-time Firestore listener
       selectSection(activeSectionId);
-
-      // 4. IMMEDIATELY fetch live seats via high-speed HTTPS REST API (~150ms)
       fetchViaRestApi(libraryId, activeSectionId);
-
-      // 5. Attach real-time Firestore listeners for library metadata and seat updates
       attachLiveListeners();
+
+      // On mobile screens, fit automatically after layout
+      setTimeout(() => {
+        if (window.innerWidth < 640) {
+          fitHallToScreen();
+        }
+      }, 350);
     }
 
-    // Initialize on page load (handles already loaded DOM or DOMContentLoaded)
     if (document.readyState === 'loading') {
       window.addEventListener('DOMContentLoaded', init);
     } else {

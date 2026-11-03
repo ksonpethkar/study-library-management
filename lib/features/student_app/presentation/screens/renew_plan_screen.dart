@@ -31,6 +31,7 @@ class RenewPlanScreen extends ConsumerStatefulWidget {
 class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
   String? _selectedPlanId;
   bool _keepSeat = true;
+  bool _isBridgeSelected = false;
   RenewalTiming _timingMode = RenewalTiming.advance;
   RenewalPaymentMode _paymentMode = RenewalPaymentMode.upi;
 
@@ -46,38 +47,11 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
     super.dispose();
   }
 
-  DateTime _computeCycleStartDate(StudentModel student) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    if (student.planEndDate == null) return today;
-
-    // Model A: Strict Continuous Coverage (Zero study gap • Fixed calendar cycle)
-    final daysSinceExpiry = today.difference(DateTime(student.planEndDate!.year, student.planEndDate!.month, student.planEndDate!.day)).inDays;
-    final isContinuityEligible = student.planEndDate!.isAfter(now) ||
-        student.effectiveMembershipStatus == MembershipStatus.grace ||
-        daysSinceExpiry <= 30;
-
-    if (isContinuityEligible) {
-      final currentEnd = student.planEndDate!;
-      return DateTime(currentEnd.year, currentEnd.month, currentEnd.day + 1);
-    }
-
-    return today;
-  }
-
-  DateTime _computeCycleEndDate(DateTime startDate, PlanModel plan) {
-    if (plan.durationUnit == DurationUnit.months ||
-        (plan.durationUnit == DurationUnit.days && plan.duration >= 28 && plan.duration <= 31)) {
-      final calc = PlanCalculatorService.calculateSmartPlan(plan: plan, fromDate: startDate);
-      return calc.endDate;
-    }
-    return PlanCalculatorService.calculatePlanEndDate(startDate, plan.duration, plan.durationUnit);
-  }
-
   Future<void> _submitRenewal({
     required String libraryId,
     required StudentModel student,
     required PlanModel selectedPlan,
+    required RenewalCalculation renewalCalc,
     required double? origPrice,
     required bool hasDiscount,
   }) async {
@@ -98,14 +72,12 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final startDate = _computeCycleStartDate(student);
-      final endDate = _computeCycleEndDate(startDate, selectedPlan);
-      final isAdvance = student.planEndDate != null &&
-          student.planEndDate!.isAfter(DateTime.now()) &&
-          _timingMode == RenewalTiming.advance;
-      final isContinuousGrace = student.planEndDate != null &&
-          DateTime.now().isAfter(student.planEndDate!) &&
-          _timingMode == RenewalTiming.continuousGrace;
+      final startDate = renewalCalc.startDate;
+      final endDate = renewalCalc.endDate;
+      final amount = renewalCalc.price;
+      final isAdvance = renewalCalc.type == RenewalType.advance;
+      final isContinuousGrace = renewalCalc.type == RenewalType.backdatedGrace;
+      final isGapRenewal = renewalCalc.type == RenewalType.gapRenewal;
 
       final paymentMethodStr = _paymentMode == RenewalPaymentMode.upi
           ? 'upi'
@@ -135,7 +107,8 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
         'userId': FirebaseAuth.instance.currentUser?.uid ?? student.userId ?? '',
         'requestedPlanId': selectedPlan.id,
         'requestedPlanName': selectedPlan.name,
-        'amount': selectedPlan.price,
+        'amount': amount,
+        'planOriginalPrice': selectedPlan.price,
         'originalPrice': origPrice,
         'discountAmount': hasDiscount && origPrice != null ? (origPrice - selectedPlan.price) : 0.0,
         'currentSeatId': student.seatId ?? student.previousSeatId,
@@ -144,6 +117,10 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
         'retainSeat': _keepSeat,
         'isAdvanceRenewal': isAdvance,
         'isContinuousGraceRenewal': isContinuousGrace,
+        'isGapRenewal': isGapRenewal,
+        'isBridgeBundle': _isBridgeSelected,
+        'renewalType': renewalCalc.type.name,
+        'renewalExplanation': renewalCalc.explanation,
         'cycleStartDate': Timestamp.fromDate(startDate),
         'cycleEndDate': Timestamp.fromDate(endDate),
         'paymentMethod': paymentMethodStr,
@@ -254,8 +231,17 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
               } else if (isCurrentPlanActive && _timingMode == RenewalTiming.continuousGrace) {
                 _timingMode = RenewalTiming.advance;
               }
-              final startDate = selectedPlan != null ? _computeCycleStartDate(student) : DateTime.now();
-              final endDate = selectedPlan != null ? _computeCycleEndDate(startDate, selectedPlan) : DateTime.now();
+
+              final renewalCalc = selectedPlan != null
+                  ? PlanCalculatorService.calculateRenewal(
+                      student: student,
+                      plan: selectedPlan,
+                      chooseBridgeBundle: _isBridgeSelected,
+                    )
+                  : null;
+              final startDate = renewalCalc?.startDate ?? DateTime.now();
+              final endDate = renewalCalc?.endDate ?? DateTime.now();
+              final effectivePrice = renewalCalc?.price ?? (selectedPlan?.price ?? 0.0);
               final effectiveDeskId = student.seatId ?? student.previousSeatId;
               final isReclaiming = student.seatId == null && student.previousSeatId != null;
 
@@ -558,8 +544,8 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                     }),
                   const SizedBox(height: 16),
 
-                  // Continuous Renewal Guarantee (Zero Study Gap • Model A)
-                  if (student.planEndDate != null) ...[
+                  // Smart Calendar Schedule & Continuity Guarantee
+                  if (renewalCalc != null) ...[
                     Row(
                       children: [
                         Icon(Icons.bolt_rounded, color: theme.colorScheme.primary, size: 20),
@@ -575,18 +561,40 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
+                        side: BorderSide(
+                          color: renewalCalc.type == RenewalType.advance
+                              ? Colors.teal.withValues(alpha: 0.4)
+                              : (renewalCalc.type == RenewalType.backdatedGrace
+                                  ? Colors.purple.withValues(alpha: 0.4)
+                                  : Colors.orange.withValues(alpha: 0.4)),
+                        ),
                       ),
-                      color: theme.colorScheme.primary.withValues(alpha: 0.05),
+                      color: renewalCalc.type == RenewalType.advance
+                          ? Colors.teal.withValues(alpha: 0.05)
+                          : (renewalCalc.type == RenewalType.backdatedGrace
+                              ? Colors.purple.withValues(alpha: 0.05)
+                              : Colors.orange.withValues(alpha: 0.05)),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             CircleAvatar(
-                              backgroundColor: theme.colorScheme.primary,
+                              backgroundColor: renewalCalc.type == RenewalType.advance
+                                  ? Colors.teal
+                                  : (renewalCalc.type == RenewalType.backdatedGrace
+                                      ? Colors.purple
+                                      : Colors.orange),
                               radius: 18,
-                              child: const Icon(Icons.verified_rounded, color: Colors.white, size: 18),
+                              child: Icon(
+                                renewalCalc.type == RenewalType.advance
+                                    ? Icons.verified_rounded
+                                    : (renewalCalc.type == RenewalType.backdatedGrace
+                                        ? Icons.hourglass_top_rounded
+                                        : Icons.replay_rounded),
+                                color: Colors.white,
+                                size: 18,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -594,16 +602,26 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    isCurrentPlanActive
+                                    renewalCalc.type == RenewalType.advance
                                         ? 'Continuous Advance Renewal'
-                                        : 'Continuous Renewal (From Expiry)',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                        : (renewalCalc.type == RenewalType.backdatedGrace
+                                            ? 'Backdated Grace Renewal'
+                                            : (renewalCalc.type == RenewalType.gapRenewal
+                                                ? 'Gap Renewal (Break of 10+ Days)'
+                                                : 'New Membership Period')),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: renewalCalc.type == RenewalType.advance
+                                          ? Colors.teal.shade900
+                                          : (renewalCalc.type == RenewalType.backdatedGrace
+                                              ? Colors.purple.shade900
+                                              : Colors.orange.shade900),
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    isCurrentPlanActive
-                                        ? 'Starts seamlessly on ${dateFormat.format(DateTime(student.planEndDate!.year, student.planEndDate!.month, student.planEndDate!.day + 1))} when current plan concludes. Zero study days lost.'
-                                        : 'Starts on ${dateFormat.format(DateTime(student.planEndDate!.year, student.planEndDate!.month, student.planEndDate!.day + 1))}. Preserves your monthly billing cycle and covers your seat during grace.',
+                                    renewalCalc.explanation,
                                     style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
                                   ),
                                 ],
@@ -613,7 +631,47 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
+
+                    // Bridge Bundle Toggle (Triggered when joining on/after Day 20 for gap or fresh renewals)
+                    if (renewalCalc.smartCalc.hasBridgeOption) ...[
+                      Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(
+                            color: _isBridgeSelected ? Colors.deepOrange : theme.colorScheme.outlineVariant,
+                            width: _isBridgeSelected ? 2 : 1,
+                          ),
+                        ),
+                        color: _isBridgeSelected ? Colors.deepOrange.withValues(alpha: 0.08) : theme.cardColor,
+                        child: SwitchListTile(
+                          secondary: CircleAvatar(
+                            backgroundColor: _isBridgeSelected ? Colors.deepOrange : Colors.grey.shade200,
+                            radius: 18,
+                            child: Icon(
+                              Icons.auto_awesome_rounded,
+                              color: _isBridgeSelected ? Colors.white : Colors.grey.shade600,
+                              size: 18,
+                            ),
+                          ),
+                          title: const Text(
+                            'Bridge Pass Bundle (Available from Day 20)',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                          ),
+                          subtitle: Text(
+                            'Cover rest of current month (${renewalCalc.smartCalc.daysRemaining}d) + full next month in one single payment of ${renewalCalc.smartCalc.formattedBridgePrice}. Saves renewal hassle on the 1st!',
+                            style: const TextStyle(fontSize: 11.5),
+                          ),
+                          value: _isBridgeSelected,
+                          onChanged: (val) {
+                            HapticFeedback.selectionClick();
+                            setState(() => _isBridgeSelected = val);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                   ],
 
                   // Calculated New Membership Cycle Banner
@@ -747,7 +805,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                       final library = ref.watch(currentLibraryProvider).value;
                       final payData = paySnap.data?.data() ?? {};
 
-                      final planPriceStr = selectedPlan != null ? selectedPlan.price.toStringAsFixed(0) : '0';
+                      final planPriceStr = effectivePrice.toStringAsFixed(0);
 
                       // Merchant Contact Info
                       final rawContactPhone = (library?.contact.isNotEmpty == true
@@ -1106,7 +1164,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
                                         ),
                                         AnimatedRollingPrice(
-                                          targetPrice: selectedPlan?.price ?? 0,
+                                          targetPrice: effectivePrice,
                                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.black87),
                                         ),
                                         Text(
@@ -1151,7 +1209,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                   children: [
                                     const Text('Pay '),
                                     AnimatedRollingPrice(
-                                      targetPrice: selectedPlan?.price ?? 0,
+                                      targetPrice: effectivePrice,
                                       style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                                     ),
                                     const Text(' via UPI App'),
@@ -1266,7 +1324,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                   ),
                                   AnimatedRollingPrice(
-                                    targetPrice: selectedPlan?.price ?? 0,
+                                    targetPrice: effectivePrice,
                                     style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.white),
                                   ),
                                   const Text(')', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -1276,7 +1334,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        onPressed: _isSubmitting || selectedPlan == null
+                        onPressed: _isSubmitting || selectedPlan == null || renewalCalc == null
                             ? null
                             : () {
                                 final origPrice = selectedPlan.getEffectiveOriginalPrice(baseMonthlyPrice: baseMonthly);
@@ -1285,6 +1343,7 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                                   libraryId: libraryId,
                                   student: student,
                                   selectedPlan: selectedPlan,
+                                  renewalCalc: renewalCalc,
                                   origPrice: origPrice,
                                   hasDiscount: hasDiscount,
                                 );

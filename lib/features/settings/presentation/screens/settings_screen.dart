@@ -321,6 +321,14 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const Divider(height: 1, indent: 56),
               _buildSettingsTile(
+                icon: Icons.assignment_return_rounded,
+                iconColor: const Color(0xFFEF4444),
+                title: 'Cancellation & Study Freeze Policy',
+                subtitle: 'Early exit processing fee, refund policy & 10+ days freeze',
+                onTap: () => _showCancellationPolicyDialog(context, ref),
+              ),
+              const Divider(height: 1, indent: 56),
+              _buildSettingsTile(
                 icon: Icons.people_outline_rounded,
                 iconColor: const Color(0xFF7C3AED),
                 title: 'Waiting List & Capacity',
@@ -1640,6 +1648,171 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  void _showCancellationPolicyDialog(BuildContext context, WidgetRef ref) async {
+    final theme = Theme.of(context);
+    final user = FirebaseAuth.instance.currentUser;
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null || libraryId.isEmpty) return;
+
+    double fee = 100.0;
+    bool autoRelease = true;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('settings')
+          .doc('cancellation_policy')
+          .get();
+      if (doc.exists && doc.data() != null) {
+        final d = doc.data()!;
+        fee = (d['cancellationFee'] as num?)?.toDouble() ?? 100.0;
+        autoRelease = d['autoReleaseSeat'] as bool? ?? true;
+      }
+    } catch (_) {}
+
+    if (!context.mounted) return;
+
+    final feeCtrl = TextEditingController(text: fee.toStringAsFixed(0));
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.red.shade50,
+                  child: const Icon(Icons.assignment_return_rounded, color: Colors.red),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Cancellation & Exit Policy',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: 440,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Configure how refunds, early seat exits, and study vacation freezes are processed for your library.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: feeCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                      decoration: InputDecoration(
+                        labelText: 'Processing / Seat Cancellation Fee (₹)',
+                        hintText: 'e.g. 100',
+                        prefixIcon: const Icon(Icons.currency_rupee_rounded),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        helperText: 'Deducted from gross refund during mid-cycle exits',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: theme.colorScheme.outlineVariant),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.ac_unit_rounded, size: 16, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Study Vacation / Freeze Threshold',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.onSurface),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Enforced rule: Memberships can only be frozen for 10 or more consecutive days. Breaks of less than 10 days do not extend validity or cycle ends.',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Auto-release seat on exit', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Instantly marks the desk as vacant when student early exit is confirmed', style: TextStyle(fontSize: 11.5, color: Colors.grey)),
+                      value: autoRelease,
+                      onChanged: (val) => setDlgState(() => autoRelease = val),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF4444),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.check_rounded, size: 18),
+                label: const Text('Save Policy'),
+                onPressed: () async {
+                  final newFee = double.tryParse(feeCtrl.text.trim()) ?? fee;
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('settings')
+                        .doc('cancellation_policy')
+                        .set({
+                      'cancellationFee': newFee,
+                      'minFreezeDays': 10,
+                      'autoReleaseSeat': autoRelease,
+                      'updatedAt': FieldValue.serverTimestamp(),
+                      'updatedBy': user?.email ?? 'admin',
+                    }, SetOptions(merge: true));
+
+                    if (context.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Cancellation & study freeze policy updated ✓'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to save policy: $e'), backgroundColor: Colors.red),
+                      );
+                    }
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

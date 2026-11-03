@@ -363,6 +363,501 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
     });
   }
 
+  Future<void> _showFreezeMembershipDialog(BuildContext context, StudentModel s) async {
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null || libraryId.isEmpty) return;
+
+    if (s.planEndDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Student has no active plan to freeze.')),
+      );
+      return;
+    }
+
+    final origEnd = s.planEndDate!;
+    final now = DateTime.now();
+    DateTime freezeStart = DateTime(now.year, now.month, now.day);
+    // Minimum 10 consecutive days
+    DateTime freezeEnd = freezeStart.add(const Duration(days: 9));
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) {
+          final theme = Theme.of(context);
+          final freezeCalc = PlanCalculatorService.calculateMembershipFreeze(
+            student: s,
+            freezeStartDate: freezeStart,
+            freezeEndDate: freezeEnd,
+          );
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.blue.shade50,
+                  child: const Icon(Icons.ac_unit_rounded, color: Colors.blue),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text('Freeze Membership (10+ Days)', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: 440,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Approve a study vacation / exam break. Per library policy, freeze is permitted for 10 or more consecutive days only.',
+                      style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: theme.colorScheme.outlineVariant),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Original Plan Expiry:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text(DateFormat('dd MMM yyyy').format(origEnd), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            ],
+                          ),
+                          const Divider(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () async {
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: freezeStart,
+                                      firstDate: DateTime(now.year, now.month - 1),
+                                      lastDate: origEnd.add(const Duration(days: 365)),
+                                    );
+                                    if (picked != null) {
+                                      setDlgState(() {
+                                        freezeStart = picked;
+                                        if (freezeEnd.isBefore(freezeStart)) {
+                                          freezeEnd = freezeStart.add(const Duration(days: 9));
+                                        }
+                                      });
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey.shade400),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Freeze Start', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
+                                        Text(DateFormat('dd MMM yyyy').format(freezeStart), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.grey),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () async {
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: freezeEnd,
+                                      firstDate: freezeStart,
+                                      lastDate: origEnd.add(const Duration(days: 365)),
+                                    );
+                                    if (picked != null) {
+                                      setDlgState(() => freezeEnd = picked);
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey.shade400),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Freeze End', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
+                                        Text(DateFormat('dd MMM yyyy').format(freezeEnd), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Center(
+                            child: Chip(
+                              label: Text('${freezeCalc.freezeDays} Days Selected'),
+                              backgroundColor: freezeCalc.isValid ? Colors.blue.shade50 : Colors.red.shade50,
+                              labelStyle: TextStyle(
+                                color: freezeCalc.isValid ? Colors.blue.shade900 : Colors.red.shade900,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: freezeCalc.isValid ? Colors.green.shade50 : Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: freezeCalc.isValid ? Colors.green.shade300 : Colors.red.shade300),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            freezeCalc.isValid ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                            color: freezeCalc.isValid ? Colors.green.shade700 : Colors.red.shade700,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              freezeCalc.message,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: freezeCalc.isValid ? Colors.green.shade900 : Colors.red.shade900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
+                icon: const Icon(Icons.ac_unit_rounded, size: 16),
+                label: const Text('Confirm Freeze & Extend'),
+                onPressed: !freezeCalc.isValid
+                    ? null
+                    : () async {
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('libraries')
+                              .doc(libraryId)
+                              .collection('students')
+                              .doc(s.id)
+                              .update({
+                            'planEndDate': Timestamp.fromDate(freezeCalc.newEndDate),
+                            'notes': '${s.notes.isNotEmpty ? "${s.notes}\n" : ""}[Freeze] Study Vacation: ${freezeCalc.freezeDays}d (${DateFormat('dd MMM').format(freezeStart)} - ${DateFormat('dd MMM').format(freezeEnd)}). Expiry extended to ${DateFormat('dd MMM yyyy').format(freezeCalc.newEndDate)}.',
+                            'updatedAt': FieldValue.serverTimestamp(),
+                          });
+
+                          if (context.mounted) {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Membership freeze applied ✓ Plan extended to ${DateFormat('dd MMM yyyy').format(freezeCalc.newEndDate)}'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                            _loadStudent();
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to freeze membership: $e'), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+                      },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showEarlyExitDialog(BuildContext context, StudentModel s) async {
+    final libraryId = ref.read(currentLibraryIdProvider);
+    if (libraryId == null || libraryId.isEmpty) return;
+
+    if (s.planStartDate == null || s.planEndDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No active membership cycle found for early exit.')),
+      );
+      return;
+    }
+
+    // Fetch library-configured cancellation fee
+    double defaultCancellationFee = 100.0;
+    bool autoReleaseSeat = true;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('settings')
+          .doc('cancellation_policy')
+          .get();
+      if (doc.exists && doc.data() != null) {
+        defaultCancellationFee = (doc.data()!['cancellationFee'] as num?)?.toDouble() ?? 100.0;
+        autoReleaseSeat = doc.data()!['autoReleaseSeat'] as bool? ?? true;
+      }
+    } catch (_) {}
+
+    final effectivePlan = PlanModel(
+      id: s.planId ?? 'plan',
+      libraryId: libraryId,
+      name: planName.isNotEmpty ? planName : 'Standard Plan',
+      price: planPrice > 0 ? planPrice : (s.customPlanFee ?? 700.0),
+      duration: 1,
+      durationUnit: DurationUnit.months,
+      description: '',
+      gracePeriodDays: 0,
+      isActive: true,
+      displayOrder: 0,
+    );
+
+    final feeCtrl = TextEditingController(text: defaultCancellationFee.toStringAsFixed(0));
+    final exitDate = DateTime.now();
+    final double totalPaid = s.customPlanFee ?? effectivePlan.price;
+    final paidCtrl = TextEditingController(text: totalPaid.toStringAsFixed(0));
+
+    if (!context.mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) {
+          final processingFee = double.tryParse(feeCtrl.text.trim()) ?? defaultCancellationFee;
+          final curPaid = double.tryParse(paidCtrl.text.trim()) ?? totalPaid;
+
+          final exitCalc = PlanCalculatorService.calculateExitSettlement(
+            startDate: s.planStartDate!,
+            originalEndDate: s.planEndDate!,
+            exitDate: exitDate,
+            totalPaid: curPaid,
+            plan: effectivePlan,
+            processingFee: processingFee,
+          );
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.deepOrange.shade50,
+                  child: const Icon(Icons.exit_to_app_rounded, color: Colors.deepOrange),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text('Early Exit & Settlement', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: 460,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Fair pro-rata calculation based on exact calendar days used. The seat will be released upon exit.',
+                      style: TextStyle(fontSize: 12.5, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: paidCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Total Paid (₹)',
+                              prefixIcon: Icon(Icons.currency_rupee_rounded, size: 18),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            onChanged: (_) => setDlgState(() {}),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: feeCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Processing Fee (₹)',
+                              prefixIcon: Icon(Icons.handyman_rounded, size: 18),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            onChanged: (_) => setDlgState(() {}),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Membership Cycle (${exitCalc.totalCycleDays} days):', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text(
+                                '${DateFormat('dd MMM').format(s.planStartDate!)} → ${DateFormat('dd MMM').format(s.planEndDate!)}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Exit Date (Used ${exitCalc.usedDays}d • Unused ${exitCalc.unusedDays}d):', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text(DateFormat('dd MMM yyyy').format(exitDate), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            ],
+                          ),
+                          const Divider(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Fair Usage Fee:', style: TextStyle(fontSize: 13)),
+                              Text('₹${exitCalc.fairUsageFee.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Gross Refund:', style: TextStyle(fontSize: 13)),
+                              Text(exitCalc.formattedGrossRefund, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Less Processing/Seat Fee:', style: TextStyle(fontSize: 13, color: Colors.red)),
+                              Text('-₹${processingFee.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.red)),
+                            ],
+                          ),
+                          const Divider(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Net Refund Due to Student:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              Text(
+                                exitCalc.formattedNetRefund,
+                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.green),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
+                icon: const Icon(Icons.exit_to_app_rounded, size: 16),
+                label: const Text('Confirm Early Exit'),
+                onPressed: () async {
+                  try {
+                    // 1. Release allocated seat if autoReleaseSeat is true
+                    if (autoReleaseSeat && s.seatId != null && s.sectionId != null) {
+                      try {
+                        final seatRepo = ref.read(seatRepositoryProvider);
+                        await seatRepo.unassignStudent(libraryId, s.sectionId!, s.seatId!);
+                      } catch (e) {
+                        debugPrint('Could not unassign seat: $e');
+                      }
+                    }
+
+                    // 2. Mark student as inactive / exit
+                    await FirebaseFirestore.instance
+                        .collection('libraries')
+                        .doc(libraryId)
+                        .collection('students')
+                        .doc(s.id)
+                        .update({
+                      'membershipStatus': 'inactive',
+                      'previousSeatId': s.seatId,
+                      'previousSectionId': s.sectionId,
+                      'seatId': null,
+                      'sectionId': null,
+                      'notes': '${s.notes.isNotEmpty ? "${s.notes}\n" : ""}[Exit] Early exit on ${DateFormat('dd MMM yyyy').format(exitDate)}. Used: ${exitCalc.usedDays}/${exitCalc.totalCycleDays}d. Fair usage: ${exitCalc.formattedFairUsage}. Deducted Fee: ₹${processingFee.toStringAsFixed(0)}. Net Refund: ${exitCalc.formattedNetRefund}.',
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    });
+
+                    // 3. Record audit entry
+                    AuditLogger.log(
+                      action: 'student_early_exit',
+                      libraryId: libraryId,
+                      details: 'Early exit student ${s.name} (${s.id}). Net refund: ${exitCalc.formattedNetRefund}',
+                    );
+
+                    if (context.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Student exit processed ✓ Net refund: ${exitCalc.formattedNetRefund} • Seat released'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      _loadStudent();
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to process exit: $e'), backgroundColor: Colors.red),
+                      );
+                    }
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _showCustomPlanDialog(BuildContext context, String libraryId, StudentModel? s) async {
     final now = DateTime.now();
     final nextMonthFirst = DateTime(now.year, now.month + 1, 1);

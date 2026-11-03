@@ -175,10 +175,15 @@ final currentLibraryProvider = StreamProvider<LibraryModel?>((ref) {
     if (lib != null) {
       try {
         final prefs = ref.read(sharedPreferencesProvider);
-        if (lib.name.isNotEmpty) prefs.setString('cached_library_name', lib.name);
+        if (lib.name.isNotEmpty) {
+          prefs.setString('cached_library_name', lib.name);
+          setWebTabBranding(
+            logoUrl: lib.logoUrl.isNotEmpty ? lib.logoUrl : null,
+            title: lib.name,
+          );
+        }
         if (lib.logoUrl.isNotEmpty) {
           prefs.setString('cached_library_logo_url', lib.logoUrl);
-          setWebTabBranding(logoUrl: lib.logoUrl, title: lib.name);
         }
         if (lib.accentColor != 0) prefs.setInt('cached_library_accent_color', lib.accentColor);
         if (lib.welcomeMessage.isNotEmpty) prefs.setString('cached_library_tagline', lib.welcomeMessage);

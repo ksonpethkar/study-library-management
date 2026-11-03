@@ -155,8 +155,15 @@ class _StudyLibraryAppState extends ConsumerState<StudyLibraryApp> with WidgetsB
           : const Color(0xFF5D4037); // deep brown default
     }
 
+    final cachedName = prefs.getString('cached_library_name');
+    final effectiveAppTitle = liveLibrary?.name.isNotEmpty == true
+        ? liveLibrary!.name
+        : (cachedName != null && cachedName.trim().isNotEmpty
+            ? cachedName.trim()
+            : 'The Cozy Corner Study Centre');
+
     return MaterialApp.router(
-      title: liveLibrary?.name.isNotEmpty == true ? liveLibrary!.name : 'Study Library',
+      title: effectiveAppTitle,
       debugShowCheckedModeBanner: false,
       theme: custom_theme.AppTheme.fromSeed(seedColor),
       darkTheme: custom_theme.AppTheme.fromSeed(seedColor, brightness: Brightness.dark),

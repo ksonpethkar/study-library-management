@@ -234,9 +234,15 @@ service cloud.firestore {
       match /feedback/{id} {
         allow read: if isOwner(libraryId) ||
                        staffCan(libraryId, 'canManageStudents') ||
-                       (isAuth() && resource.data.get('studentUserId', '') == uid());
-        allow create: if isAuth() &&
-                         request.resource.data.get('libraryId', '') == libraryId;
+                       (isAuth() && (
+                         resource.data.studentId == uid() ||
+                         resource.data.studentUserId == uid() ||
+                         resource.data.userId == uid() ||
+                         resource.data.get('studentId', '') == uid() ||
+                         resource.data.get('studentUserId', '') == uid() ||
+                         resource.data.get('userId', '') == uid()
+                       ));
+        allow create: if isAuth();
         allow update, delete: if isOwner(libraryId) ||
                                  staffCan(libraryId, 'canManageStudents');
       }

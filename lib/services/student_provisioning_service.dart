@@ -384,17 +384,8 @@ class StudentProvisioningService {
           if (studentSnap.exists) {
             final sData = studentSnap.data()!;
 
-            // Calculate start and end date if not pre-populated
+            // Calculate start and end date using centralized calendar-month engine
             if (newStartDate == null || newEndDate == null) {
-              final currentPlanEndDate = StudentModel.parseDateStatic(sData['planEndDate']);
-              if (currentPlanEndDate != null && currentPlanEndDate.isAfter(DateTime.now())) {
-                newStartDate = currentPlanEndDate;
-              } else {
-                newStartDate = DateTime.now();
-              }
-
-              int duration = 1;
-              String unit = 'months';
               if (requestedPlanId.isNotEmpty) {
                 final planDoc = await _firestore
                     .collection('libraries')
@@ -402,17 +393,28 @@ class StudentProvisioningService {
                     .collection('plans')
                     .doc(requestedPlanId)
                     .get();
-                if (planDoc.exists) {
-                  duration = (planDoc.data()?['duration'] as num?)?.toInt() ?? 1;
-                  unit = (planDoc.data()?['durationUnit'] as String?)?.toLowerCase() ?? 'months';
+                if (planDoc.exists && planDoc.data() != null) {
+                  final plan = PlanModel.fromJson({...planDoc.data()!, 'id': planDoc.id});
+                  final student = StudentModel.fromJson({...sData, 'id': targetStudentId});
+                  final renewalCalc = PlanCalculatorService.calculateRenewal(
+                    student: student,
+                    plan: plan,
+                    chooseBridgeBundle: data['isBridgeBundle'] == true,
+                  );
+                  newStartDate = renewalCalc.startDate;
+                  newEndDate = renewalCalc.endDate;
                 }
               }
 
-              if (unit == 'months' || unit == 'month') {
-                // Calendar-Month Billing Architecture: strictly snaps to end of calendar month at 23:59:59
-                newEndDate = DateTime(newStartDate.year, newStartDate.month + duration, 0, 23, 59, 59);
-              } else {
-                newEndDate = newStartDate.add(Duration(days: duration));
+              // Fallback to calendar month-end alignment if plan document not found
+              if (newStartDate == null || newEndDate == null) {
+                final currentPlanEndDate = StudentModel.parseDateStatic(sData['planEndDate']);
+                if (currentPlanEndDate != null && currentPlanEndDate.isAfter(DateTime.now())) {
+                  newStartDate = currentPlanEndDate;
+                } else {
+                  newStartDate = DateTime.now();
+                }
+                newEndDate = DateTime(newStartDate.year, newStartDate.month + 1, 0, 23, 59, 59);
               }
             }
 

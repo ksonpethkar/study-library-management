@@ -15,6 +15,7 @@ import 'package:study_library/features/auth/presentation/providers/auth_provider
 import 'package:study_library/services/plan_calculator_service.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:study_library/services/app_notification_service.dart';
 
 class ReviewSubmitScreen extends ConsumerStatefulWidget {
   const ReviewSubmitScreen({super.key});
@@ -386,9 +387,24 @@ class _ReviewSubmitScreenState extends ConsumerState<ReviewSubmitScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Notify admin via Firestore notification queue
+      // Notify admin via unified notification service & queue
       try {
         final sName = (regData['name'] as String?)?.trim() ?? 'A student';
+        await AppNotificationService.sendNotification(
+          libraryId: libraryId,
+          title: '📋 New Registration Request',
+          body: '$sName submitted an admission application. Please review and approve.',
+          type: 'admission',
+          targetRole: 'admin',
+          actionRoute: Routes.adminRequests,
+          metadata: {
+            'requestId': requestRef.id,
+            'studentName': sName,
+            'studentPhone': regData['phone'] ?? '',
+            'planId': selectedPlanId,
+          },
+        );
+        // Also persist to admin_notifications queue for backward compatibility
         await FirebaseFirestore.instance
             .collection('libraries')
             .doc(libraryId)

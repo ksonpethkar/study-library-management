@@ -28,7 +28,6 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
 
   StreamSubscription<DocumentSnapshot>? _securitySubscription;
   bool _isHandlingReset = false;
-  bool _usePin = false;
   bool _hasBiometric = false;
   bool _hasPin = false;
   bool _isVerifying = false;
@@ -399,14 +398,10 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
       setState(() {
         _hasBiometric = bioAvailable && bioEnabled;
         _hasPin = hasPin;
-        // If biometric not available or not enabled, default to PIN
-        if (!_hasBiometric && hasPin) {
-          _usePin = true;
-        }
       });
     }
 
-    // Only prompt biometric if not in active 15-min lockout
+    // Immediately prompt biometric on launch if enabled and not locked out (GPay / PhonePe standard)
     if (_hasBiometric && (_lockoutUntil == null || _remainingSeconds <= 0)) {
       _handleBiometric();
     }
@@ -424,43 +419,29 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
     final reason = isAdmin
         ? 'Scan fingerprint or Face ID to unlock Admin Console'
         : 'Scan fingerprint or Face ID to unlock your Student Pass';
-    final authenticated = await BiometricService.authenticate(reason: reason);
-    if (authenticated) {
-      await BiometricService.resetFailedAttempts(
-        userId: isAdmin ? null : studentId,
-        authUid: isAdmin ? null : authUid,
-        candidateIds: isAdmin ? null : candidates,
-        isAdmin: isAdmin,
-      );
-      _unlockApp();
-    } else {
-      final lockout = await BiometricService.recordFailedAttempt(
-        userId: isAdmin ? null : studentId,
-        authUid: isAdmin ? null : authUid,
-        candidateIds: isAdmin ? null : candidates,
-        isAdmin: isAdmin,
-      );
-      final attempts = await BiometricService.getFailedAttempts(
-        userId: isAdmin ? null : studentId,
-        authUid: isAdmin ? null : authUid,
-        candidateIds: isAdmin ? null : candidates,
-        isAdmin: isAdmin,
-      );
 
-      if (mounted) {
-        if (lockout != null) {
+    try {
+      final authenticated = await BiometricService.authenticate(reason: reason);
+      if (authenticated) {
+        await BiometricService.resetFailedAttempts(
+          userId: isAdmin ? null : studentId,
+          authUid: isAdmin ? null : authUid,
+          candidateIds: isAdmin ? null : candidates,
+          isAdmin: isAdmin,
+        );
+        _unlockApp();
+      } else {
+        // Biometric was dismissed, cancelled, or unverified.
+        // In leading apps (GPay, PhonePe, Apple iOS), dismissing biometric gracefully falls back to PIN
+        // without penalizing the user or burning failed PIN attempts.
+        if (mounted) {
           setState(() {
-            _lockoutUntil = lockout;
-            _failedAttempts = attempts;
-          });
-          _startCountdown(lockout);
-        } else {
-          setState(() {
-            _failedAttempts = attempts;
-            _errorMessage = 'Biometric check failed (Attempt $_failedAttempts/5)';
+            _errorMessage = null;
           });
         }
       }
+    } catch (_) {
+      // Graceful fallback to PIN
     }
   }
 
@@ -982,7 +963,8 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
 
   Widget _buildKeypadButton({
     required Widget child,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
+    VoidCallback? onLongPress,
     Color? backgroundColor,
     Color? splashColor,
   }) {
@@ -990,6 +972,7 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: (_lockoutUntil != null && _remainingSeconds > 0) ? null : onTap,
+        onLongPress: (_lockoutUntil != null && _remainingSeconds > 0) ? null : onLongPress,
         borderRadius: BorderRadius.circular(36),
         splashColor: splashColor ?? (_isAdminLock ? Colors.amber.withValues(alpha: 0.2) : null),
         child: Ink(
@@ -1062,25 +1045,39 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Clear Key
-            _buildKeypadButton(
-              onTap: _onClearPressed,
-              backgroundColor: Colors.transparent,
-              child: Text(
-                'C',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.outline,
+            // Left Action Key: Fingerprint trigger when available, or Clear ('C')
+            if (_hasBiometric)
+              _buildKeypadButton(
+                onTap: (_lockoutUntil != null && _remainingSeconds > 0) ? null : _handleBiometric,
+                backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+                child: Icon(
+                  Icons.fingerprint_rounded,
+                  size: 28,
+                  color: (_lockoutUntil != null && _remainingSeconds > 0)
+                      ? Colors.grey
+                      : theme.colorScheme.primary,
+                ),
+              )
+            else
+              _buildKeypadButton(
+                onTap: _onClearPressed,
+                backgroundColor: Colors.transparent,
+                child: Text(
+                  'C',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.outline,
+                  ),
                 ),
               ),
-            ),
             const SizedBox(width: 24),
             _buildDigitButton('0', theme),
             const SizedBox(width: 24),
-            // Backspace Key
+            // Right Action Key: Backspace with long-press to clear full PIN
             _buildKeypadButton(
               onTap: _onBackspacePressed,
+              onLongPress: _onClearPressed,
               backgroundColor: Colors.transparent,
               child: Icon(
                 Icons.backspace_outlined,
@@ -1252,95 +1249,30 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
                         const SizedBox(height: 20),
                       ],
 
-                      if (_usePin || !_hasBiometric) ...[
-                        // PIN Indicator Circles
-                        _buildPinIndicators(theme),
-                        const SizedBox(height: 24),
+                      // Permanent Clean Keypad Substrate (Google Pay / PhonePe standard)
+                      // PIN Indicator Circles
+                      _buildPinIndicators(theme),
+                      const SizedBox(height: 24),
 
-                        // On-Screen Numeric Dial Pad
-                        _buildNumericDialPad(theme),
-                        const SizedBox(height: 20),
+                      // On-Screen Numeric Dial Pad (with integrated fingerprint key when available)
+                      _buildNumericDialPad(theme),
+                      const SizedBox(height: 20),
 
-                        // Manual Submit Button (active when 4 digits typed)
-                        if (_enteredPin.length == 4) ...[
-                          FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: _isAdminLock ? Colors.amber.shade800 : null,
-                              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
-                            icon: _isVerifying
-                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                : const Icon(Icons.lock_open_rounded, size: 18),
-                            label: Text(_isVerifying ? 'Verifying...' : 'Unlock with PIN'),
-                            onPressed: (_lockoutUntil != null && _remainingSeconds > 0) || _isVerifying ? null : _verifyPin,
+                      // Manual Submit Button (active when 4 digits typed)
+                      if (_enteredPin.length == 4) ...[
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _isAdminLock ? Colors.amber.shade800 : null,
+                            padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
-                          const SizedBox(height: 12),
-                        ],
-
-                        if (_hasBiometric) ...[
-                          TextButton.icon(
-                            icon: const Icon(Icons.fingerprint_rounded, size: 20),
-                            label: const Text('Use Fingerprint / Face ID'),
-                            onPressed: (_lockoutUntil != null && _remainingSeconds > 0)
-                                ? null
-                                : () {
-                                    setState(() => _usePin = false);
-                                    _handleBiometric();
-                                  },
-                          ),
-                        ],
-                      ] else ...[
-                        // Biometric Trigger View
-                        InkWell(
-                          onTap: (_lockoutUntil != null && _remainingSeconds > 0) ? null : _handleBiometric,
-                          borderRadius: BorderRadius.circular(50),
-                          child: Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: (_lockoutUntil != null && _remainingSeconds > 0)
-                                  ? Colors.grey.shade300
-                                  : theme.colorScheme.primaryContainer,
-                              boxShadow: (_lockoutUntil != null && _remainingSeconds > 0)
-                                  ? []
-                                  : [
-                                      BoxShadow(
-                                        color: theme.colorScheme.primary.withValues(alpha: 0.2),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
-                            ),
-                            child: Icon(
-                              Icons.fingerprint_rounded,
-                              size: 64,
-                              color: (_lockoutUntil != null && _remainingSeconds > 0)
-                                  ? Colors.grey
-                                  : theme.colorScheme.primary,
-                            ),
-                          ),
+                          icon: _isVerifying
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.lock_open_rounded, size: 18),
+                          label: Text(_isVerifying ? 'Verifying...' : 'Unlock with PIN'),
+                          onPressed: (_lockoutUntil != null && _remainingSeconds > 0) || _isVerifying ? null : _verifyPin,
                         ),
-                        const SizedBox(height: 20),
-                        Text(
-                          (_lockoutUntil != null && _remainingSeconds > 0)
-                              ? 'Biometric Disabled During Lockout'
-                              : 'Tap to Scan Biometric',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: (_lockoutUntil != null && _remainingSeconds > 0) ? Colors.grey : null,
-                          ),
-                        ),
-                        if (_hasPin) ...[
-                          const SizedBox(height: 16),
-                          OutlinedButton.icon(
-                            icon: const Icon(Icons.pin_rounded, size: 18),
-                            label: const Text('Use Security PIN'),
-                            onPressed: () {
-                              setState(() => _usePin = true);
-                            },
-                          ),
-                        ],
+                        const SizedBox(height: 12),
                       ],
 
                       const SizedBox(height: 20),
