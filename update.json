@@ -9,12 +9,13 @@
   "downloadUrl": "https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.47/StudyLibrary.apk",
   "mandatory": false,
   "organization": {
-    "name": "The Cozy Corner Centre",
+    "name": "The Cozy Corner Study Centre",
     "address": "Front Of Reliance Fashion Factory, Nath Road, Parli-431515",
     "contact": "+91 94032 43830",
     "email": "thecozycornersc@gmail.com",
     "operatingHours": "6:00 AM - 11:00 PM",
-    "accentColor": "#5D4037"
+    "accentColor": "#5D4037",
+    "logoUrl": "/app/favicon.png"
   },
   "studentFeatures": [
     {

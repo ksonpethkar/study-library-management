@@ -87,7 +87,8 @@ class _EditStudentScreenState extends ConsumerState<EditStudentScreen> {
           .doc(libraryId)
           .collection('students')
           .doc(widget.studentId)
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 8));
 
       if (doc.exists && mounted) {
         final data = doc.data()!;

@@ -659,73 +659,9 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
     final user = FirebaseAuth.instance.currentUser;
     final adminEmail = user?.email ?? 'Administrator';
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.security_rounded, color: Colors.blueAccent, size: 26),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Verify Administrator Identity',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.blue.withValues(alpha: 0.25)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.verified_user_rounded, color: Colors.blueAccent, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      adminEmail,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'To reset or unlock without the Master PIN, you must prove ownership of this account by re-authenticating with Google.\n\nA Google sign-in prompt will appear requiring your account credentials.',
-              style: TextStyle(fontSize: 12.5, height: 1.4),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton.icon(
-            icon: const Icon(Icons.login_rounded, size: 16),
-            label: const Text('Verify with Google'),
-            onPressed: () => Navigator.pop(ctx, true),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
     setState(() => _isVerifying = true);
     try {
+      // Direct call on user gesture preserves browser transient user activation (prevents popup blocking)
       final cred = await ref.read(authRepositoryProvider).signInWithGoogle();
       final verifiedUser = cred.user;
 
@@ -740,24 +676,113 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
 
       // Legitimate administrator verified via Google OAuth!
       await _clearLockout();
-      _unlockApp();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Identity verified via Google. Admin Console unlocked! 🛡️'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.verified_user_rounded, color: Colors.green, size: 28),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Identity Verified!',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          verifiedUser.email ?? adminEmail,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Your Google identity has been successfully verified. Would you like to set a fresh Master PIN now, or proceed directly to the Admin Console?',
+                  style: TextStyle(fontSize: 13, height: 1.4),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _unlockApp();
+                },
+                child: const Text('Proceed to Console'),
+              ),
+              FilledButton.icon(
+                icon: const Icon(Icons.pin_rounded, size: 16),
+                label: const Text('Set New Master PIN'),
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD97706)),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _unlockApp();
+                  if (mounted) {
+                    SecuritySettingsDialog.show(
+                      context,
+                      isStudent: false,
+                      authUid: verifiedUser.uid,
+                    );
+                  }
+                },
+              ),
+            ],
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         final errorMsg = e.toString().replaceAll('Exception:', '').trim();
+        final isCancelled = errorMsg.toLowerCase().contains('cancelled') ||
+            errorMsg.toLowerCase().contains('popup-closed') ||
+            errorMsg.toLowerCase().contains('whenever you\'re ready');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMsg.isNotEmpty ? errorMsg : 'Google verification failed.'),
-            backgroundColor: Colors.red,
+            content: Row(
+              children: [
+                Icon(
+                  isCancelled ? Icons.info_outline_rounded : Icons.error_outline_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isCancelled
+                        ? 'Google verification cancelled. Tap "Forgot Master PIN" whenever you are ready.'
+                        : errorMsg,
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: isCancelled ? Colors.grey.shade800 : Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -1265,12 +1290,14 @@ class _BiometricLockScreenState extends ConsumerState<BiometricLockScreen> {
                       ] else ...[
                         const SizedBox(height: 8),
                         TextButton.icon(
-                          icon: const Icon(Icons.lock_reset_rounded, size: 16),
-                          label: const Text(
-                            'Forgot Master PIN? Verify via Google Account',
-                            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                          icon: _isVerifying
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.lock_reset_rounded, size: 16),
+                          label: Text(
+                            _isVerifying ? 'Verifying with Google...' : 'Forgot Master PIN? Verify via Google Account',
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
                           ),
-                          onPressed: _handleAdminGoogleReAuth,
+                          onPressed: _isVerifying ? null : _handleAdminGoogleReAuth,
                         ),
                       ],
                     ],

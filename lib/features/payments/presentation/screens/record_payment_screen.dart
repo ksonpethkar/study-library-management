@@ -54,6 +54,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   final _referenceController = TextEditingController();
   final _bankNameController = TextEditingController();
   final _notesController = TextEditingController();
+  final _customPlanNameController = TextEditingController(text: 'Custom Plan');
 
   String _paymentMethod = 'Cash';
   bool _isLoading = false;
@@ -65,6 +66,10 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
 
   String? _selectedPlanId;
   String? _selectedPlanName;
+
+  // Custom Plan configuration
+  int _customDurationDays = 30; // default 30 days
+  DateTime? _customCustomExpiryDate; // if admin picked a specific date via calendar
 
   DateTime? _studentPlanStartDate;
   DateTime? _studentPlanEndDate;
@@ -80,6 +85,10 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   double get _effectiveTotalFee {
     final parsed = double.tryParse(_totalFeeController.text);
     if (parsed != null && parsed > 0) return parsed;
+    if (_selectedPlanId == 'custom') {
+      final amountParsed = double.tryParse(_amountController.text);
+      if (amountParsed != null && amountParsed > 0) return amountParsed;
+    }
     if (widget.pendingDue != null && widget.pendingDue! > 0) return widget.pendingDue!;
     return widget.planPrice;
   }
@@ -296,6 +305,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
     _referenceController.dispose();
     _bankNameController.dispose();
     _notesController.dispose();
+    _customPlanNameController.dispose();
     super.dispose();
   }
 
@@ -322,7 +332,22 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       }
     }
 
-    // Default: strictly snaps to current calendar month end
+    // Custom Plan Date Calculation
+    if (_customCustomExpiryDate != null) {
+      return DateTime(
+        _customCustomExpiryDate!.year,
+        _customCustomExpiryDate!.month,
+        _customCustomExpiryDate!.day,
+        23, 59, 59, 999,
+      );
+    }
+
+    if (_customDurationDays > 0) {
+      final target = effectiveStart.add(Duration(days: _customDurationDays));
+      return DateTime(target.year, target.month, target.day, 23, 59, 59, 999);
+    }
+
+    // Snap to current calendar month end if duration is 0
     return DateTime(effectiveStart.year, effectiveStart.month + 1, 0, 23, 59, 59);
   }
 
@@ -719,8 +744,35 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final plansAsync = ref.watch(activePlansStreamProvider);
-    final plans = plansAsync.value ?? [];
+    final plansAsync = ref.watch(plansStreamProvider);
+    final allPlans = plansAsync.value ?? [];
+    final activePlans = allPlans.where((p) => p.deletedAt == null && p.isActive).toList();
+    final plans = activePlans.isNotEmpty ? activePlans : allPlans.where((p) => p.deletedAt == null).toList();
+
+    // Auto-sync plan selection
+    if (_selectedPlanId == null && !_isLoadingStudent) {
+      if (plans.isNotEmpty) {
+        final match = plans.where((p) => p.id == _studentSeatId); // or first
+        final initialPlan = match.isNotEmpty ? match.first : plans.first;
+        _selectedPlanId = initialPlan.id;
+        _selectedPlanName = initialPlan.name;
+        if (_totalFeeController.text.isEmpty || _totalFeeController.text == '0') {
+          _totalFeeController.text = initialPlan.price.toStringAsFixed(0);
+          _amountController.text = initialPlan.price.toStringAsFixed(0);
+        }
+      } else {
+        _selectedPlanId = 'custom';
+      }
+    } else if (_selectedPlanId != null && _selectedPlanId != 'custom') {
+      final matching = plans.where((p) => p.id == _selectedPlanId);
+      if (matching.isNotEmpty && (_selectedPlanName == null || _totalFeeController.text.isEmpty || _totalFeeController.text == '0')) {
+        _selectedPlanName = matching.first.name;
+        if (_totalFeeController.text.isEmpty || _totalFeeController.text == '0') {
+          _totalFeeController.text = matching.first.price.toStringAsFixed(0);
+          _amountController.text = matching.first.price.toStringAsFixed(0);
+        }
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -917,41 +969,328 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                     const SizedBox(height: 16),
 
                     // Plan Selector Dropdown
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedPlanId,
-                      decoration: const InputDecoration(
-                        labelText: 'Membership Plan *',
-                        prefixIcon: Icon(Icons.card_membership_rounded),
-                        border: OutlineInputBorder(),
-                        helperText: 'Select plan from library catalog or enter custom fee',
-                      ),
-                      items: [
-                        ...plans.map((p) {
-                          return DropdownMenuItem(
-                            value: p.id,
-                            child: Text('${p.name} — ₹${p.price.toStringAsFixed(0)} (${p.duration} ${p.durationUnit.name})'),
-                          );
-                        }),
-                        const DropdownMenuItem(
-                          value: 'custom',
-                          child: Text('Custom Plan / Ad-hoc Fee'),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        setState(() {
-                          _selectedPlanId = val;
-                          if (val != null && val != 'custom') {
-                            final matching = plans.where((p) => p.id == val);
-                            if (matching.isNotEmpty) {
-                              final p = matching.first;
-                              _selectedPlanName = p.name;
-                              _totalFeeController.text = p.price.toStringAsFixed(0);
-                              _amountController.text = p.price.toStringAsFixed(0);
-                            }
-                          }
-                        });
+                    Builder(
+                      builder: (ctx) {
+                        final bool isKnownPlan = plans.any((p) => p.id == _selectedPlanId);
+                        final String? dropdownValue = isKnownPlan
+                            ? _selectedPlanId
+                            : (_selectedPlanId == 'custom' ? 'custom' : (plans.isNotEmpty ? plans.first.id : 'custom'));
+
+                        return DropdownButtonFormField<String>(
+                          value: dropdownValue,
+                          decoration: const InputDecoration(
+                            labelText: 'Membership Plan *',
+                            prefixIcon: Icon(Icons.card_membership_rounded),
+                            border: OutlineInputBorder(),
+                            helperText: 'Select plan from catalog or configure custom plan',
+                          ),
+                          items: [
+                            ...plans.map((p) {
+                              return DropdownMenuItem(
+                                value: p.id,
+                                child: Text('${p.name} — ₹${p.price.toStringAsFixed(0)} (${p.duration} ${p.durationUnit.name})'),
+                              );
+                            }),
+                            const DropdownMenuItem(
+                              value: 'custom',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.tune_rounded, size: 18, color: Colors.indigo),
+                                  SizedBox(width: 8),
+                                  Text('Custom Plan (Custom Pricing & Duration)', style: TextStyle(fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val == null) return;
+                            setState(() {
+                              _selectedPlanId = val;
+                              if (val != 'custom') {
+                                final matching = plans.where((p) => p.id == val);
+                                if (matching.isNotEmpty) {
+                                  final p = matching.first;
+                                  _selectedPlanName = p.name;
+                                  _totalFeeController.text = p.price.toStringAsFixed(0);
+                                  if (!_isPartialPayment) {
+                                    _amountController.text = p.price.toStringAsFixed(0);
+                                  }
+                                }
+                              } else {
+                                _selectedPlanName = _customPlanNameController.text.trim().isNotEmpty
+                                    ? _customPlanNameController.text.trim()
+                                    : 'Custom Plan';
+                                if (_totalFeeController.text.isEmpty || _totalFeeController.text == '0') {
+                                  _totalFeeController.text = '500';
+                                  if (!_isPartialPayment) {
+                                    _amountController.text = '500';
+                                  }
+                                }
+                              }
+                            });
+                          },
+                        );
                       },
                     ),
+
+                    // Custom Plan Configuration Studio (Inspired by leading SaaS membership apps)
+                    if (_selectedPlanId == 'custom') ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.35),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.tune_rounded, color: Colors.white, size: 16),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Custom Plan Configuration',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Text(
+                                    'Custom Plan',
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+
+                            // 1. Custom Plan Name
+                            ValidatedTextField(
+                              label: 'Custom Plan Name *',
+                              controller: _customPlanNameController,
+                              hint: 'e.g. 15-Day Exam Pass, Weekend Study Pass, Custom Monthly',
+                              prefixIcon: const Icon(Icons.label_outline_rounded),
+                              onChanged: (val) {
+                                setState(() {
+                                  _selectedPlanName = val.trim().isNotEmpty ? val.trim() : 'Custom Plan';
+                                });
+                              },
+                              validator: (val) => (val == null || val.trim().isEmpty)
+                                  ? 'Please enter a name for this custom plan'
+                                  : null,
+                            ),
+                            const SizedBox(height: 12),
+
+                            // 2. Custom Plan Fee
+                            ValidatedTextField(
+                              label: 'Custom Plan Fee (₹) *',
+                              controller: _totalFeeController,
+                              hint: 'Enter custom total fee',
+                              keyboardType: TextInputType.number,
+                              inputFormatters: AppValidators.amountFormatters,
+                              prefixIcon: const Icon(Icons.currency_rupee_rounded),
+                              onChanged: (val) {
+                                setState(() {
+                                  if (!_isPartialPayment) {
+                                    _amountController.text = val;
+                                  }
+                                });
+                              },
+                              validator: (val) => AppValidators.amount(
+                                val,
+                                required: true,
+                                min: 1.0,
+                                max: 99999.0,
+                                label: 'Custom plan fee',
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // 3. Custom Duration & Validity Selection
+                            Text(
+                              'Validity & Duration',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                ChoiceChip(
+                                  label: const Text('15 Days'),
+                                  selected: _customDurationDays == 15 && _customCustomExpiryDate == null,
+                                  onSelected: (selected) {
+                                    if (selected) {
+                                      setState(() {
+                                        _customDurationDays = 15;
+                                        _customCustomExpiryDate = null;
+                                      });
+                                    }
+                                  },
+                                ),
+                                ChoiceChip(
+                                  label: const Text('30 Days (1 Month)'),
+                                  selected: _customDurationDays == 30 && _customCustomExpiryDate == null,
+                                  onSelected: (selected) {
+                                    if (selected) {
+                                      setState(() {
+                                        _customDurationDays = 30;
+                                        _customCustomExpiryDate = null;
+                                      });
+                                    }
+                                  },
+                                ),
+                                ChoiceChip(
+                                  label: const Text('60 Days (2 Months)'),
+                                  selected: _customDurationDays == 60 && _customCustomExpiryDate == null,
+                                  onSelected: (selected) {
+                                    if (selected) {
+                                      setState(() {
+                                        _customDurationDays = 60;
+                                        _customCustomExpiryDate = null;
+                                      });
+                                    }
+                                  },
+                                ),
+                                ChoiceChip(
+                                  label: const Text('90 Days (Quarter)'),
+                                  selected: _customDurationDays == 90 && _customCustomExpiryDate == null,
+                                  onSelected: (selected) {
+                                    if (selected) {
+                                      setState(() {
+                                        _customDurationDays = 90;
+                                        _customCustomExpiryDate = null;
+                                      });
+                                    }
+                                  },
+                                ),
+                                ChoiceChip(
+                                  label: const Text('Till Month End'),
+                                  selected: _customDurationDays == 0 && _customCustomExpiryDate == null,
+                                  onSelected: (selected) {
+                                    if (selected) {
+                                      setState(() {
+                                        _customDurationDays = 0;
+                                        _customCustomExpiryDate = null;
+                                      });
+                                    }
+                                  },
+                                ),
+                                ChoiceChip(
+                                  avatar: const Icon(Icons.event_rounded, size: 16),
+                                  label: Text(
+                                    _customCustomExpiryDate != null
+                                        ? DateFormat('dd MMM yyyy').format(_customCustomExpiryDate!)
+                                        : 'Pick Specific Date...',
+                                  ),
+                                  selected: _customCustomExpiryDate != null,
+                                  onSelected: (_) async {
+                                    final start = _getEffectiveStartDate();
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: _customCustomExpiryDate ?? start.add(const Duration(days: 30)),
+                                      firstDate: start,
+                                      lastDate: start.add(const Duration(days: 365 * 2)),
+                                    );
+                                    if (picked != null) {
+                                      setState(() {
+                                        _customCustomExpiryDate = picked;
+                                        _customDurationDays = picked.difference(start).inDays;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Dynamic Validity Preview Badge
+                            Builder(
+                              builder: (ctx) {
+                                final start = _getEffectiveStartDate();
+                                final exp = _calculateNewExpiryDate(plans);
+                                final diffDays = exp.difference(start).inDays + 1;
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.surface,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: theme.colorScheme.outlineVariant),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.bolt_rounded, size: 16, color: Colors.orange),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Calculated Validity: ${DateFormat('dd MMM yyyy').format(start)} → ${DateFormat('dd MMM yyyy').format(exp)} ($diffDays days)',
+                                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      // Catalog Plan Summary Banner
+                      Builder(
+                        builder: (ctx) {
+                          final matching = plans.where((p) => p.id == _selectedPlanId);
+                          if (matching.isEmpty) return const SizedBox.shrink();
+                          final p = matching.first;
+                          final exp = _calculateNewExpiryDate(plans);
+                          return Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: theme.dividerColor.withValues(alpha: 0.15)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.verified_rounded, size: 18, color: Color(0xFF059669)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${p.name} • Standard Fee: ₹${p.price.toStringAsFixed(0)} • Expiry: ${DateFormat('dd MMM yyyy').format(exp)}',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 16),
 
                     // Partial Payment Toggle
@@ -971,7 +1310,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    if (_isPartialPayment) ...[
+                    if (_isPartialPayment && _selectedPlanId != 'custom') ...[
                       ValidatedTextField(
                         label: 'Total Plan Fee (₹) *',
                         controller: _totalFeeController,

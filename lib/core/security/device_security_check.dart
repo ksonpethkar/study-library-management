@@ -8,7 +8,7 @@ class DeviceSecurityCheck {
   /// Returns true if the device appears to be rooted (Android) or jailbroken (iOS).
   /// This is a best-effort check — determined attackers can bypass it.
   static Future<bool> isDeviceCompromised() async {
-    if (kDebugMode) return false; // Allow in debug/dev
+    if (kIsWeb || kDebugMode) return false; // Allow in web and debug/dev
     try {
       if (Platform.isAndroid) {
         return _checkAndroid();

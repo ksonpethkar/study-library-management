@@ -69,7 +69,8 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen> with 
           .doc(libraryId)
           .collection('students')
           .doc(widget.studentId)
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 8));
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         final rawGovId = data['govIdNumber']?.toString() ?? '';

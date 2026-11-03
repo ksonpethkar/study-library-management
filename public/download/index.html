@@ -493,7 +493,9 @@
     <!-- Left Column (Desktop Hero & CTAs) -->
     <div class="col-left">
       <div class="hero-card">
-        <div class="app-icon" id="appLogo">📚</div>
+        <div class="app-icon" id="appLogo">
+          <img src="/app/favicon.png" alt="The Cozy Corner Logo" onerror="this.onerror=null;this.parentElement.innerHTML='📚'">
+        </div>
         <h1 id="appName">The Cozy Corner Study Centre</h1>
         <p class="subtitle" id="appSubtitle">Smart Study Centre &amp; Silent Reading Hall</p>
         
@@ -505,19 +507,24 @@
 
         <div class="badge-container">
           <span class="badge badge-success">● Production Ready</span>
-          <span class="badge" id="appVersionBadge">v1.5.44+52</span>
-          <span class="badge badge-size" id="apkSizeBadge">51.5 MB</span>
+          <span class="badge" id="appVersionBadge">v1.5.47+55</span>
+          <span class="badge badge-size" id="apkSizeBadge">51.8 MB</span>
         </div>
 
         <div class="btn-group">
           <!-- Direct High-Speed Download URL -->
-          <a href="https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.44/StudyLibrary.apk" class="download-btn" id="downloadBtn">
+          <a href="https://github.com/ksonpethkar/study-library-management/releases/download/v1.5.47/StudyLibrary.apk" class="download-btn" id="downloadBtn">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-            <span id="downloadBtnText">Download Android APK (51.5 MB)</span>
+            <span id="downloadBtnText">Download Android APK (v1.5.47)</span>
+          </a>
+
+          <!-- GitHub Mirror Link -->
+          <a href="https://github.com/ksonpethkar/study-library-management/releases/tag/v1.5.47" class="seat-btn" style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08); color: #059669; font-weight: 700;">
+            <span>⚡ View Release Assets on GitHub</span>
           </a>
 
           <!-- Live Seat Map Direct Link -->
@@ -765,12 +772,39 @@
         if (data.adminFeatures) renderFeatures('adminList', data.adminFeatures, false);
 
         if (data.organization) {
-          if (data.organization.name) {
-            document.getElementById('appName').textContent = data.organization.name;
-            document.title = data.organization.name + ' — Smart Study Library';
+          var org = data.organization;
+          if (org.name) {
+            document.getElementById('appName').textContent = org.name;
+            document.title = org.name + ' — Smart Study Library';
           }
-          if (data.organization.accentColor) {
-            applyAccentColor(data.organization.accentColor);
+          if (org.logoUrl) {
+            var logoDiv = document.getElementById('appLogo');
+            if (logoDiv) {
+              logoDiv.innerHTML = '<img src="' + org.logoUrl + '" alt="' + (org.name || 'Library') + ' Logo">';
+            }
+          }
+          if (org.accentColor) {
+            applyAccentColor(org.accentColor);
+          }
+          if (org.address || org.contact || org.email || org.operatingHours) {
+            var orgMeta = document.getElementById('orgMeta');
+            var orgAddress = document.getElementById('orgAddress');
+            var orgLinks = document.getElementById('orgLinks');
+            if (orgMeta) orgMeta.style.display = 'flex';
+            if (orgAddress && org.address) orgAddress.textContent = '📍 ' + org.address;
+            if (orgLinks) {
+              var pills = '';
+              if (org.contact) {
+                pills += '<a class="org-pill" href="tel:' + org.contact + '">📞 ' + formatPhone(org.contact) + '</a>';
+              }
+              if (org.email) {
+                pills += '<a class="org-pill" href="mailto:' + org.email + '">✉️ ' + org.email + '</a>';
+              }
+              if (org.operatingHours) {
+                pills += '<span class="org-pill">⏰ ' + org.operatingHours + '</span>';
+              }
+              orgLinks.innerHTML = pills;
+            }
           }
         }
       })

@@ -109,7 +109,7 @@ class PlanRepository {
         .snapshots()
         .map((snapshot) {
           final plans = snapshot.docs
-              .map((doc) => PlanModel.fromJson(doc.data()))
+              .map((doc) => PlanModel.fromJson({...doc.data(), 'id': doc.id}))
               .where((p) => p.deletedAt == null)
               .toList();
           plans.sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
@@ -119,12 +119,11 @@ class PlanRepository {
 
   Stream<List<PlanModel>> getActivePlans(String libraryId) {
     return _plansRef(libraryId)
-        .where('isActive', isEqualTo: true)
         .snapshots()
         .map((snapshot) {
           final plans = snapshot.docs
-              .map((doc) => PlanModel.fromJson(doc.data()))
-              .where((p) => p.deletedAt == null)
+              .map((doc) => PlanModel.fromJson({...doc.data(), 'id': doc.id}))
+              .where((p) => p.deletedAt == null && p.isActive)
               .toList();
           plans.sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
           return plans;

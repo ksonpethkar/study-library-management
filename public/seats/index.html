@@ -570,7 +570,9 @@
     <div class="header-card">
       <div class="lib-title-row">
         <div class="lib-info">
-          <div class="lib-logo" id="libLogo">📚</div>
+          <div class="lib-logo" id="libLogo">
+            <img src="/app/favicon.png" alt="The Cozy Corner Logo" onerror="this.onerror=null;this.parentElement.innerHTML='📚'">
+          </div>
           <div>
             <h1 class="lib-name" id="libName">The Cozy Corner Study Centre</h1>
             <p class="lib-subtitle" id="libAddress">Front Of Reliance Fashion Factory, Nath Road, Parli-431515</p>
@@ -718,18 +720,103 @@
 
     // Extract libraryId from query string (?lib=...) or path (/library/:id/seats)
     const urlParams = new URLSearchParams(window.location.search);
-    let libraryId = urlParams.get('lib');
-    if (!libraryId) {
+    let rawLib = urlParams.get('lib');
+    if (!rawLib) {
       const match = window.location.pathname.match(/\/library\/([^\/]+)\/seats/);
-      if (match) libraryId = match[1];
+      if (match) rawLib = match[1];
     }
-    if (!libraryId || libraryId.trim().length === 0) {
+    // Clean up leading/trailing symbols, dashes, hyphens, spaces, or quotes
+    let libraryId = rawLib ? rawLib.replace(/^[\s\-_—–'"`]+|[\s\-_—–'"`]+$/g, '').trim() : '';
+    // Self-healing: if ID is malformed or invalid length, fallback to DEFAULT_LIBRARY_ID
+    if (!libraryId || libraryId.length < 15 || libraryId.length > 25) {
       libraryId = DEFAULT_LIBRARY_ID;
     }
 
-    async function init() {
+    // --- 0ms Instant Local Cache Restoration ---
+    function restoreLocalCache(libId) {
       try {
-        // Quick check for updated default library if no param provided
+        const cacheStr = localStorage.getItem('cozy_seat_cache_' + libId) || localStorage.getItem('cozy_seat_cache_' + DEFAULT_LIBRARY_ID);
+        if (cacheStr) {
+          const cached = JSON.parse(cacheStr);
+          if (cached.name) {
+            document.getElementById('libName').innerText = cached.name;
+            document.title = cached.name + ' — Live Seat Map';
+          }
+          if (cached.address) {
+            document.getElementById('libAddress').innerText = cached.address;
+          }
+          if (cached.logoUrl) {
+            document.getElementById('libLogo').innerHTML = `<img src="${cached.logoUrl}" alt="${cached.name || 'Library'} Logo">`;
+          }
+          if (cached.seats && cached.seats.length > 0) {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('emptyMessage').style.display = 'none';
+            document.getElementById('gridContainer').style.display = 'grid';
+            renderSeats(cached.seats, cached.cols || 10);
+            updateStats(cached.seats, false); // Don't re-save cached data
+          }
+        }
+      } catch (err) {
+        console.warn('Cache restoration warning:', err);
+      }
+    }
+
+    // --- Save Live Snapshot to Cache ---
+    function saveToCache(libId, updateObj) {
+      try {
+        const key = 'cozy_seat_cache_' + libId;
+        const existing = JSON.parse(localStorage.getItem(key) || '{}');
+        const merged = { ...existing, ...updateObj, timestamp: Date.now() };
+        localStorage.setItem(key, JSON.stringify(merged));
+      } catch (_) {}
+    }
+
+    // Fast-path REST API fetch if Firestore SDK connection is delayed
+    async function fetchViaRestApi(libId) {
+      try {
+        const urlSec = `https://firestore.googleapis.com/v1/projects/study-lib-mgmt-2026/databases/(default)/documents/libraries/${libId}/sections`;
+        const rSec = await fetch(urlSec);
+        if (!rSec.ok) return;
+        const dSec = await rSec.json();
+        if (dSec.documents && dSec.documents.length > 0) {
+          const sec = dSec.documents[0];
+          const secId = sec.name.split('/').pop();
+          const secCols = parseInt(sec.fields?.cols?.integerValue || '10', 10);
+          const rSeats = await fetch(`https://firestore.googleapis.com/v1/projects/study-lib-mgmt-2026/databases/(default)/documents/libraries/${libId}/sections/${secId}/seats`);
+          if (rSeats.ok) {
+            const dSeats = await rSeats.json();
+            const seats = (dSeats.documents || []).map(doc => {
+              const f = doc.fields || {};
+              return {
+                id: doc.name.split('/').pop(),
+                label: f.label?.stringValue || '',
+                seatNumber: f.seatNumber?.stringValue || '',
+                status: f.status?.stringValue || 'available',
+                genderRestriction: f.genderRestriction?.stringValue || 'any',
+                row: parseInt(f.row?.integerValue || '0', 10),
+                col: parseInt(f.col?.integerValue || '0', 10),
+              };
+            });
+            if (seats.length > 0) {
+              document.getElementById('loadingIndicator').style.display = 'none';
+              document.getElementById('emptyMessage').style.display = 'none';
+              document.getElementById('gridContainer').style.display = 'grid';
+              renderSeats(seats, secCols);
+              updateStats(seats);
+              saveToCache(libId, { seats: seats, cols: secCols });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('REST API fallback error:', err);
+      }
+    }
+
+    async function init() {
+      // Step 0: Instantly restore from local cache (<1ms perceived load)
+      restoreLocalCache(libraryId);
+
+      try {
         if (!urlParams.get('lib')) {
           const cfgDoc = await db.collection('app_config').doc('default').get().catch(() => null);
           if (cfgDoc && cfgDoc.exists && cfgDoc.data() && cfgDoc.data().defaultLibraryId) {
@@ -740,11 +827,24 @@
         console.warn('App config check:', e);
       }
 
-      console.log('Loading live seats for libraryId:', libraryId);
+      console.log('Connecting live seats for libraryId:', libraryId);
+
+      // Start a fallback timer to call REST API if Firestore SDK takes >1800ms
+      const restFallbackTimer = setTimeout(() => {
+        fetchViaRestApi(libraryId);
+      }, 1800);
 
       // 1. Listen to Library Info
       if (libraryUnsubscribe) libraryUnsubscribe();
       libraryUnsubscribe = db.collection('libraries').doc(libraryId).onSnapshot(doc => {
+        if (!doc.exists) {
+          console.warn('Library doc does not exist for ID:', libraryId, 'Auto-healing to DEFAULT_LIBRARY_ID');
+          if (libraryId !== DEFAULT_LIBRARY_ID) {
+            libraryId = DEFAULT_LIBRARY_ID;
+            init();
+            return;
+          }
+        }
         if (doc.exists) {
           const data = doc.data() || {};
           if (data.name) {
@@ -757,6 +857,7 @@
           if (data.logoUrl && data.logoUrl.trim().length > 0) {
             document.getElementById('libLogo').innerHTML = `<img src="${data.logoUrl}" alt="${data.name || 'Library'} Logo">`;
           }
+          saveToCache(libraryId, { name: data.name, address: data.address, logoUrl: data.logoUrl });
         }
       }, err => {
         console.warn('Library metadata listener error:', err);
@@ -774,16 +875,24 @@
         renderSectionTabs();
 
         if (sectionsList.length > 0) {
+          clearTimeout(restFallbackTimer);
           document.getElementById('emptyMessage').style.display = 'none';
           if (!activeSectionId || !sectionsList.some(s => s.id === activeSectionId)) {
             selectSection(sectionsList[0].id);
           }
         } else {
-          // If no subcollection sections exist, fallback to root seats
+          // If subcollection sections returned 0 and libId was custom, try DEFAULT_LIBRARY_ID
+          if (libraryId !== DEFAULT_LIBRARY_ID) {
+            console.warn('0 sections found in custom libraryId, falling back to default Cozy Corner library');
+            libraryId = DEFAULT_LIBRARY_ID;
+            init();
+            return;
+          }
           loadDirectSeatsFallback();
         }
       }, err => {
         console.error('Error fetching sections:', err);
+        fetchViaRestApi(libraryId);
         loadDirectSeatsFallback();
       });
     }

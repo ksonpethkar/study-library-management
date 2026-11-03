@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -55,7 +56,7 @@ mixin SecureScreenMixin<T extends StatefulWidget> on State<T> {
   }
 
   Future<void> _setSecure(bool secure) async {
-    if (!Platform.isAndroid) return;
+    if (kIsWeb || !Platform.isAndroid) return;
     try {
       await _channel.invokeMethod('setSecureFlag', {'secure': secure});
     } catch (_) {
