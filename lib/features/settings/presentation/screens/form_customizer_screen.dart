@@ -210,6 +210,19 @@ class _FormCustomizerScreenState extends ConsumerState<FormCustomizerScreen> {
                   ],
                   onChanged: isBuiltin ? null : (val) => setDialogState(() => fieldType = val!),
                 ),
+                if (fieldType == 'Dropdown') ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: optionsController,
+                    decoration: const InputDecoration(
+                      labelText: 'Dropdown Options (comma-separated)',
+                      hintText: 'e.g. Morning, Evening, Full Day',
+                      helperText: 'Separate multiple options with commas',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.list_alt_rounded),
+                    ),
+                  ),
+                ],
                 if (!isBuiltin) ...[
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
