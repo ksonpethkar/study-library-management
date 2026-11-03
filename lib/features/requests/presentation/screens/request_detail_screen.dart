@@ -17,6 +17,7 @@ import 'package:intl/intl.dart';
 import 'package:study_library/services/student_provisioning_service.dart';
 import 'package:study_library/core/utils/seat_helper.dart';
 import 'package:study_library/core/error/error_handler.dart';
+import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 
 class RequestDetailScreen extends ConsumerStatefulWidget {
   final String requestId;
@@ -2209,19 +2210,94 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
       effectiveEndDate ??= effectiveStartDate.add(const Duration(days: 30));
 
-      // Activate the student upon recorded payment
-      await FirebaseFirestore.instance
-          .collection('libraries')
-          .doc(libraryId)
-          .collection('students')
-          .doc(studentId)
-          .update({
+      // Auto-seat allocation & retention engine upon renewal payment
+      String? assignedSeatId;
+      String? assignedSectionId;
+
+      final bool retainSeatRequested = _requestData?['retainSeat'] ?? true;
+      final requestedDesk = (_requestData?['currentSeatId'] ??
+              _requestData?['requestedSeatId'] ??
+              _requestData?['seatId'] ??
+              (studentDoc.exists ? (studentDoc.data()?['seatId'] ?? studentDoc.data()?['previousSeatId']) : null))
+          ?.toString();
+
+      if (retainSeatRequested && requestedDesk != null && requestedDesk.trim().isNotEmpty) {
+        String? targetSecId = (_requestData?['sectionId'] ??
+                _requestData?['requestedSectionId'] ??
+                (studentDoc.exists ? (studentDoc.data()?['sectionId'] ?? studentDoc.data()?['previousSectionId']) : null))
+            ?.toString();
+
+        try {
+          if (targetSecId == null || targetSecId.trim().isEmpty) {
+            final sectionsSnap = await FirebaseFirestore.instance
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('sections')
+                .get();
+
+            for (final sec in sectionsSnap.docs) {
+              final seatSnap = await sec.reference.collection('seats').doc(requestedDesk).get();
+              if (seatSnap.exists) {
+                targetSecId = sec.id;
+                break;
+              }
+            }
+          }
+
+          if (targetSecId != null && targetSecId.isNotEmpty) {
+            final seatRef = FirebaseFirestore.instance
+                .collection('libraries')
+                .doc(libraryId)
+                .collection('sections')
+                .doc(targetSecId)
+                .collection('seats')
+                .doc(requestedDesk);
+
+            final seatDoc = await seatRef.get();
+            if (seatDoc.exists) {
+              final seatData = seatDoc.data() ?? {};
+              final occupant = (seatData['studentId'] ?? '').toString();
+              final seatStatus = (seatData['status'] ?? 'available').toString();
+
+              if (occupant.isEmpty || occupant == studentId || seatStatus == 'available') {
+                final seatRepo = ref.read(seatRepositoryProvider);
+                await seatRepo.assignStudent(libraryId, targetSecId, requestedDesk, studentId);
+                assignedSeatId = requestedDesk;
+                assignedSectionId = targetSecId;
+              }
+            }
+          }
+        } catch (seatErr) {
+          debugPrint('Error auto-retaining seat during renewal payment: $seatErr');
+        }
+      }
+
+      // Activate the student upon recorded payment with seat restoration
+      final Map<String, dynamic> studentUpdates = {
         'membershipStatus': MembershipStatus.active.name,
         'planStartDate': Timestamp.fromDate(effectiveStartDate),
         'planEndDate': Timestamp.fromDate(effectiveEndDate),
         if (effectivePlanId.isNotEmpty) 'planId': effectivePlanId,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      };
+      if (assignedSeatId != null) {
+        studentUpdates['seatId'] = assignedSeatId;
+        studentUpdates['sectionId'] = assignedSectionId;
+        studentUpdates['previousSeatId'] = assignedSeatId;
+        studentUpdates['previousSectionId'] = assignedSectionId;
+      } else if (requestedDesk != null && requestedDesk.trim().isNotEmpty) {
+        studentUpdates['previousSeatId'] = requestedDesk;
+        if (studentDoc.exists && studentDoc.data()?['previousSectionId'] != null) {
+          studentUpdates['previousSectionId'] = studentDoc.data()?['previousSectionId'];
+        }
+      }
+
+      await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(libraryId)
+          .collection('students')
+          .doc(studentId)
+          .update(studentUpdates);
 
       await receiptRef.set({
         'id': receiptRef.id,

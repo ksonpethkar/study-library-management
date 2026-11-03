@@ -38,6 +38,14 @@ class SeatHelper {
       return includePrefix ? 'Seat #$seatIndex' : '#$seatIndex';
     }
 
+    // 1b. Check if it's a 0-indexed column identifier e.g. "c0", "c1", "desk_c0"
+    final colMatch = RegExp(r'^(?:desk[_\-]?c|seat[_\-]?c|c)(\d+)$', caseSensitive: false).firstMatch(clean);
+    if (colMatch != null) {
+      final c = int.tryParse(colMatch.group(1)!) ?? 0;
+      final seatIndex = c + 1;
+      return includePrefix ? 'Seat #$seatIndex' : '#$seatIndex';
+    }
+
     // 2. Pure digits e.g. "5"
     if (RegExp(r'^\d+$').hasMatch(clean)) {
       return includePrefix ? 'Seat #$clean' : '#$clean';
