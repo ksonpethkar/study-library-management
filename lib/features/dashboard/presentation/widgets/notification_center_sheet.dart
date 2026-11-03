@@ -158,10 +158,21 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                           }
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('All notifications marked as read'),
-                                duration: Duration(seconds: 1),
+                              SnackBar(
+                                content: const Text('All notifications marked as read'),
+                                duration: const Duration(seconds: 4),
                                 behavior: SnackBarBehavior.floating,
+                                action: SnackBarAction(
+                                  label: 'Clear All Read',
+                                  textColor: Colors.amberAccent,
+                                  onPressed: () async {
+                                    await AppNotificationService.clearAllRead(
+                                      libraryId: widget.libraryId,
+                                      targetRole: widget.role,
+                                      targetUserId: widget.studentId,
+                                    );
+                                  },
+                                ),
                               ),
                             );
                           }
@@ -350,6 +361,34 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
 
                       // Firestore Stream Items with Individual Unread Dots
                       ...items.map((notif) => _buildNotificationItem(context, theme, notif)),
+
+                      if (items.any((n) => n.read)) ...[
+                        const SizedBox(height: 12),
+                        Center(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              HapticFeedback.lightImpact();
+                              await AppNotificationService.clearAllRead(
+                                libraryId: widget.libraryId,
+                                targetRole: widget.role,
+                                targetUserId: widget.studentId,
+                              );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('All read notifications cleared! ✅'),
+                                    duration: Duration(milliseconds: 1400),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.delete_sweep_rounded, size: 16),
+                            label: const Text('Clear All Read Notifications', style: TextStyle(fontSize: 12)),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                     ],
                   );
                 },
@@ -394,7 +433,9 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
           notificationId: notif.id,
         );
       },
-      child: Container(
+      child: Opacity(
+        opacity: notif.read ? 0.72 : 1.0,
+        child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
           color: !notif.read
@@ -477,6 +518,24 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
                             ),
                           ),
                         ),
+                        if (notif.read) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'READ',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                         Text(
                           dateFormat.format(notif.createdAt),
                           style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant),
@@ -516,6 +575,7 @@ class _NotificationCenterSheetState extends ConsumerState<NotificationCenterShee
           ),
         ),
       ),
+    ),
     ),
   );
   }

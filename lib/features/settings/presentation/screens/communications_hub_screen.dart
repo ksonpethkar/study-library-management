@@ -250,7 +250,6 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
       }
     }
   }
-  }
 
   Future<void> _saveSettings() async {
     var libraryId = ref.read(currentLibraryIdProvider);
@@ -1216,6 +1215,8 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
     ),
   ),
 );
+  }
+
   Widget _buildStageChip(String label, String desc, Color color) {
     return Row(
       children: [

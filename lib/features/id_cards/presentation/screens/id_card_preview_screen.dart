@@ -719,15 +719,18 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    library.name.toUpperCase(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 13.5,
-                                      letterSpacing: 0.5,
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      library.name.toUpperCase(),
+                                      maxLines: 1,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 13.5,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
                                   ),
                                   Text(
@@ -839,15 +842,18 @@ class _IdCardPreviewScreenState extends ConsumerState<IdCardPreviewScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Student Name (Bold & Crisp)
-                            Text(
-                              student.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15.5,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.2,
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                student.name,
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.2,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 2),

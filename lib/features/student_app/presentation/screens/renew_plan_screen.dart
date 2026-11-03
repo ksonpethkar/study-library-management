@@ -48,20 +48,21 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
 
   DateTime _computeCycleStartDate(StudentModel student) {
     final now = DateTime.now();
-    final isCurrentActive = student.planEndDate != null && student.planEndDate!.isAfter(now);
+    final today = DateTime(now.year, now.month, now.day);
+    if (student.planEndDate == null) return today;
 
-    if (isCurrentActive && _timingMode == RenewalTiming.advance) {
+    // Model A: Strict Continuous Coverage (Zero study gap • Fixed calendar cycle)
+    final daysSinceExpiry = today.difference(DateTime(student.planEndDate!.year, student.planEndDate!.month, student.planEndDate!.day)).inDays;
+    final isContinuityEligible = student.planEndDate!.isAfter(now) ||
+        student.effectiveMembershipStatus == MembershipStatus.grace ||
+        daysSinceExpiry <= 30;
+
+    if (isContinuityEligible) {
       final currentEnd = student.planEndDate!;
       return DateTime(currentEnd.year, currentEnd.month, currentEnd.day + 1);
     }
 
-    final isExpiredOrGrace = student.planEndDate != null && now.isAfter(student.planEndDate!);
-    if (isExpiredOrGrace && _timingMode == RenewalTiming.continuousGrace) {
-      final currentEnd = student.planEndDate!;
-      return DateTime(currentEnd.year, currentEnd.month, currentEnd.day + 1);
-    }
-
-    return DateTime(now.year, now.month, now.day);
+    return today;
   }
 
   DateTime _computeCycleEndDate(DateTime startDate, PlanModel plan) {
@@ -531,14 +532,14 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                     }),
                   const SizedBox(height: 16),
 
-                  // Advance or Continuous Renewal Timing Selection
+                  // Continuous Renewal Guarantee (Zero Study Gap • Model A)
                   if (student.planEndDate != null) ...[
                     Row(
                       children: [
-                        Icon(Icons.calendar_month_rounded, color: theme.colorScheme.primary, size: 20),
+                        Icon(Icons.bolt_rounded, color: theme.colorScheme.primary, size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          'Renewal Timing',
+                          'Renewal Schedule',
                           style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
@@ -548,64 +549,42 @@ class _RenewPlanScreenState extends ConsumerState<RenewPlanScreen> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(color: theme.colorScheme.outlineVariant),
+                        side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
                       ),
-                      child: Column(
-                        children: [
-                          if (isCurrentPlanActive) ...[
-                            // ignore: deprecated_member_use
-                            RadioListTile<RenewalTiming>(
-                              value: RenewalTiming.advance,
-                              // ignore: deprecated_member_use
-                              groupValue: _timingMode,
-                              // ignore: deprecated_member_use
-                              onChanged: (val) {
-                                if (val != null) {
-                                  HapticFeedback.selectionClick();
-                                  setState(() => _timingMode = val);
-                                }
-                              },
-                              title: const Text('Advance Renewal (Continuous Study)', style: TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text(
-                                'Starts on ${dateFormat.format(DateTime(student.planEndDate!.year, student.planEndDate!.month, student.planEndDate!.day + 1))} (Current plan active till ${dateFormat.format(student.planEndDate!)}). Zero study days lost.',
-                              ),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.05),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: theme.colorScheme.primary,
+                              radius: 18,
+                              child: const Icon(Icons.verified_rounded, color: Colors.white, size: 18),
                             ),
-                          ] else ...[
-                            // ignore: deprecated_member_use
-                            RadioListTile<RenewalTiming>(
-                              value: RenewalTiming.continuousGrace,
-                              // ignore: deprecated_member_use
-                              groupValue: _timingMode,
-                              // ignore: deprecated_member_use
-                              onChanged: (val) {
-                                if (val != null) {
-                                  HapticFeedback.selectionClick();
-                                  setState(() => _timingMode = val);
-                                }
-                              },
-                              title: const Text('Continuous Renewal (From Expiry)', style: TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text(
-                                'Starts on ${dateFormat.format(DateTime(student.planEndDate!.year, student.planEndDate!.month, student.planEndDate!.day + 1))}. Covers your desk held during grace and keeps study continuity.',
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isCurrentPlanActive
+                                        ? 'Continuous Advance Renewal'
+                                        : 'Continuous Renewal (From Expiry)',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    isCurrentPlanActive
+                                        ? 'Starts seamlessly on ${dateFormat.format(DateTime(student.planEndDate!.year, student.planEndDate!.month, student.planEndDate!.day + 1))} when current plan concludes. Zero study days lost.'
+                                        : 'Starts on ${dateFormat.format(DateTime(student.planEndDate!.year, student.planEndDate!.month, student.planEndDate!.day + 1))}. Preserves your monthly billing cycle and covers your seat during grace.',
+                                    style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
-                          const Divider(height: 1),
-                          // ignore: deprecated_member_use
-                          RadioListTile<RenewalTiming>(
-                            value: RenewalTiming.immediate,
-                            // ignore: deprecated_member_use
-                            groupValue: _timingMode,
-                            // ignore: deprecated_member_use
-                            onChanged: (val) {
-                              if (val != null) {
-                                HapticFeedback.selectionClick();
-                                setState(() => _timingMode = val);
-                              }
-                            },
-                            title: const Text('Start Immediately (From Today)', style: TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text('Starts today (${dateFormat.format(DateTime.now())}). Resets your membership billing cycle.'),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),

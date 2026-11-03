@@ -317,10 +317,28 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       return _customStartDate!;
     }
     final now = DateTime.now();
-    final isAdvance = _studentPlanEndDate != null && _studentPlanEndDate!.isAfter(now);
-    return isAdvance
-        ? _studentPlanEndDate!.add(const Duration(days: 1))
-        : now;
+    final today = DateTime(now.year, now.month, now.day);
+    if (_studentPlanEndDate == null) return today;
+
+    // Model A: Strict Continuous Coverage / Fixed Calendar Cycle
+    // When renewing an active plan, renewing during grace, or renewing within 30 days of expiry,
+    // the new cycle strictly starts the day after previous plan expiry (_studentPlanEndDate + 1 day).
+    // This ensures the desk occupied during grace is accounted for and the monthly cycle does not drift.
+    final daysSinceExpiry = today.difference(DateTime(_studentPlanEndDate!.year, _studentPlanEndDate!.month, _studentPlanEndDate!.day)).inDays;
+    final isContinuityEligible = _studentPlanEndDate!.isAfter(now) ||
+        _studentMembershipStatus == 'grace' ||
+        daysSinceExpiry <= 30;
+
+    if (isContinuityEligible) {
+      return DateTime(
+        _studentPlanEndDate!.year,
+        _studentPlanEndDate!.month,
+        _studentPlanEndDate!.day + 1,
+      );
+    }
+
+    // Long-lapsed (> 30 days) rejoin starts from today
+    return today;
   }
 
   DateTime _calculateNewExpiryDate(List<PlanModel> plans) {
@@ -440,11 +458,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
 
       SmartPlanCalculation? activeSmartCalc;
       if (_extendValidity) {
-        if (isAdvance) {
-          validFrom = _studentPlanEndDate!.add(const Duration(days: 1));
-        } else {
-          validFrom = now;
-        }
+        validFrom = _getEffectiveStartDate();
         validTo = _calculateNewExpiryDate(plans);
 
         if (_selectedPlanId != null && _selectedPlanId != 'custom' && _validityCycle == 'calendar_month') {
@@ -492,7 +506,12 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
             if (_notesController.text.trim().isNotEmpty) 'notes': _notesController.text.trim(),
             if (_isPartialPayment) 'isInstalment': true,
             'planName': effectivePlanName,
-            if (_selectedPlanId == 'custom') 'isCustomPlan': true,
+            if (_selectedPlanId == 'custom') ...{
+              'isCustomPlan': true,
+              'customDailyRate': double.tryParse(_dailyRateController.text) ?? 25.0,
+              'customDurationDays': _calculateCustomDays(plans),
+              'pricingFormula': '${_calculateCustomDays(plans)} days × ₹${_dailyRateController.text}/day',
+            },
             if (isAdvance) 'isAdvanceRenewal': true,
             if (isAdvance) 'advanceCycle': '${DateFormat('dd MMM yyyy').format(validFrom)} to ${DateFormat('dd MMM yyyy').format(validTo)}',
             if (activeSmartCalc != null && activeSmartCalc.isProrated) ...{
@@ -519,7 +538,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       } else if (activeSmartCalc != null && activeSmartCalc.isProrated) {
         paymentNotes = '${_notesController.text.trim().isNotEmpty ? "${_notesController.text.trim()} • " : ""}⚡ Fair Mid-Cycle Prorated (${activeSmartCalc.daysRemaining}d rate to ${DateFormat('dd MMM yyyy').format(validTo)})';
       } else if (_selectedPlanId == 'custom') {
-        paymentNotes = '${_notesController.text.trim().isNotEmpty ? "${_notesController.text.trim()} • " : ""}✨ $effectivePlanName';
+        paymentNotes = '${_notesController.text.trim().isNotEmpty ? "${_notesController.text.trim()} • " : ""}✨ $effectivePlanName (${_calculateCustomDays(plans)}d @ ₹${_dailyRateController.text}/day)';
       } else {
         paymentNotes = _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null;
       }
@@ -556,6 +575,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
       } else {
         studentUpdates['planId'] = 'custom';
         studentUpdates['customPlanName'] = effectivePlanName;
+        studentUpdates['customDailyRate'] = double.tryParse(_dailyRateController.text) ?? 25.0;
       }
       if (_extendValidity) {
         if (!isAdvance) {
@@ -906,18 +926,27 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                               Builder(builder: (context) {
                                 final now = DateTime.now();
                                 final days = _studentPlanEndDate!.difference(now).inDays;
-                                final isExpired = days < 0 || _studentMembershipStatus == 'expired';
-                                final isExpiringSoon = !isExpired && days <= 7;
-                                final bannerBg = isExpired
-                                    ? Colors.red.shade900.withValues(alpha: 0.15)
-                                    : (isExpiringSoon ? Colors.orange.shade900.withValues(alpha: 0.15) : Colors.green.shade900.withValues(alpha: 0.15));
-                                final bannerBorder = isExpired
-                                    ? Colors.red.shade400
-                                    : (isExpiringSoon ? Colors.orange.shade400 : Colors.green.shade400);
-                                final bannerTextColor = isExpired
-                                    ? Colors.red.shade400
-                                    : (isExpiringSoon ? Colors.orange.shade400 : Colors.green.shade500);
-                                final icon = isExpired ? Icons.warning_rounded : (isExpiringSoon ? Icons.alarm_rounded : Icons.verified_user_rounded);
+                                final isInGrace = _studentMembershipStatus == 'grace';
+                                final isExpired = !isInGrace && (days < 0 || _studentMembershipStatus == 'expired');
+                                final isExpiringSoon = !isExpired && !isInGrace && days <= 7;
+                                final bannerBg = isInGrace
+                                    ? Colors.purple.shade900.withValues(alpha: 0.15)
+                                    : (isExpired
+                                        ? Colors.red.shade900.withValues(alpha: 0.15)
+                                        : (isExpiringSoon ? Colors.orange.shade900.withValues(alpha: 0.15) : Colors.green.shade900.withValues(alpha: 0.15)));
+                                final bannerBorder = isInGrace
+                                    ? Colors.purple.shade400
+                                    : (isExpired
+                                        ? Colors.red.shade400
+                                        : (isExpiringSoon ? Colors.orange.shade400 : Colors.green.shade400));
+                                final bannerTextColor = isInGrace
+                                    ? Colors.purple.shade300
+                                    : (isExpired
+                                        ? Colors.red.shade400
+                                        : (isExpiringSoon ? Colors.orange.shade400 : Colors.green.shade500));
+                                final icon = isInGrace
+                                    ? Icons.hourglass_top_rounded
+                                    : (isExpired ? Icons.warning_rounded : (isExpiringSoon ? Icons.alarm_rounded : Icons.verified_user_rounded));
 
                                 return Container(
                                   margin: const EdgeInsets.only(top: 12),
@@ -936,7 +965,9 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                              isExpired ? 'MEMBERSHIP EXPIRED' : (isExpiringSoon ? 'EXPIRING SOON' : 'ACTIVE MEMBERSHIP'),
+                                              isInGrace
+                                                  ? 'IN GRACE PERIOD • SEAT HELD'
+                                                  : (isExpired ? 'MEMBERSHIP EXPIRED' : (isExpiringSoon ? 'EXPIRING SOON' : 'ACTIVE MEMBERSHIP')),
                                               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: bannerTextColor, letterSpacing: 0.8),
                                               overflow: TextOverflow.ellipsis,
                                             ),
@@ -949,7 +980,9 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                               borderRadius: BorderRadius.circular(6),
                                             ),
                                             child: Text(
-                                              isExpired ? "Expired ${-days}d ago" : (days == 1 ? "1 day remaining" : "$days days remaining"),
+                                              isInGrace
+                                                  ? 'Grace Active'
+                                                  : (isExpired ? "Expired ${-days}d ago" : (days == 1 ? "1 day remaining" : "$days days remaining")),
                                               style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: bannerTextColor),
                                             ),
                                           ),
@@ -957,16 +990,16 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                       ),
                                       const SizedBox(height: 6),
                                       Text(
-                                        'Valid Until: ${DateFormat('dd MMMM yyyy').format(_studentPlanEndDate!)}',
+                                        'Plan End Date: ${DateFormat('dd MMMM yyyy').format(_studentPlanEndDate!)}',
                                         style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                                       ),
-                                      if (_extendValidity && !isExpired && _studentPlanEndDate != null && _studentPlanEndDate!.isAfter(DateTime.now())) ...[
+                                      if (_extendValidity && _studentPlanEndDate != null) ...[
                                         const SizedBox(height: 8),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                                           decoration: BoxDecoration(
                                             color: Colors.blue.withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(6),
+                                            borderRadius: BorderRadius.circular(8),
                                             border: Border.all(color: Colors.blue.shade400, width: 0.8),
                                           ),
                                           child: Row(
@@ -975,7 +1008,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                               const SizedBox(width: 6),
                                               Expanded(
                                                 child: Text(
-                                                  'Continuous Queue: Queued from ${DateFormat('dd MMM yyyy').format(_studentPlanEndDate!.add(const Duration(days: 1)))} → ${DateFormat('dd MMM yyyy').format(_calculateNewExpiryDate(plans))}',
+                                                  'Continuous Coverage: Queued from ${DateFormat('dd MMM yyyy').format(_getEffectiveStartDate())} → ${DateFormat('dd MMM yyyy').format(_calculateNewExpiryDate(plans))} (Covers grace days • Fixed billing cycle)',
                                                   style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.blue),
                                                 ),
                                               ),
@@ -1071,12 +1104,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                 _selectedPlanName = _customPlanNameController.text.trim().isNotEmpty
                                     ? _customPlanNameController.text.trim()
                                     : 'Custom Plan';
-                                if (_totalFeeController.text.isEmpty || _totalFeeController.text == '0') {
-                                  _totalFeeController.text = '500';
-                                  if (!_isPartialPayment) {
-                                    _amountController.text = '500';
-                                  }
-                                }
+                                _recalculateCustomFeeFromDailyRate(plans);
                               }
                             });
                           },
@@ -1166,7 +1194,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.18),
+                          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: theme.colorScheme.primary.withValues(alpha: 0.35),
@@ -1176,6 +1204,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // 1. Studio Header Banner
                             Row(
                               children: [
                                 Container(
@@ -1187,15 +1216,28 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                   child: const Icon(Icons.tune_rounded, color: Colors.white, size: 16),
                                 ),
                                 const SizedBox(width: 10),
-                                Text(
-                                  'Custom Plan Configuration',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: theme.colorScheme.primary,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Custom Plan Studio',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Flexible validity, per-day rate & dynamic fee calculation',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const Spacer(),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
@@ -1203,7 +1245,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Text(
-                                    'Custom Plan',
+                                    'Dynamic Pricing',
                                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                                   ),
                                 ),
@@ -1211,7 +1253,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                             ),
                             const SizedBox(height: 14),
 
-                            // 1. Custom Plan Name
+                            // 2. Custom Plan Name with Quick Presets
                             ValidatedTextField(
                               label: 'Custom Plan Name *',
                               controller: _customPlanNameController,
@@ -1226,36 +1268,138 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                   ? 'Please enter a name for this custom plan'
                                   : null,
                             ),
-                            const SizedBox(height: 12),
-
-                            // 2. Custom Plan Fee
-                            ValidatedTextField(
-                              label: 'Custom Plan Fee (₹) *',
-                              controller: _totalFeeController,
-                              hint: 'Enter custom total fee',
-                              keyboardType: TextInputType.number,
-                              inputFormatters: AppValidators.amountFormatters,
-                              prefixIcon: const Icon(Icons.currency_rupee_rounded),
-                              onChanged: (val) {
-                                setState(() {
-                                  if (!_isPartialPayment) {
-                                    _amountController.text = val;
-                                  }
-                                });
-                              },
-                              validator: (val) => AppValidators.amount(
-                                val,
-                                required: true,
-                                min: 1.0,
-                                max: 99999.0,
-                                label: 'Custom plan fee',
-                              ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                '15-Day Revision Pass',
+                                '30-Day Flex Pass',
+                                'Exam Sprint',
+                                'Weekend Pass',
+                              ].map((preset) {
+                                final isSelected = _customPlanNameController.text == preset;
+                                return ActionChip(
+                                  visualDensity: VisualDensity.compact,
+                                  label: Text(
+                                    preset,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isSelected ? theme.colorScheme.primary : null,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    ),
+                                  ),
+                                  backgroundColor: isSelected ? theme.colorScheme.primary.withValues(alpha: 0.15) : null,
+                                  onPressed: () {
+                                    setState(() {
+                                      _customPlanNameController.text = preset;
+                                      _selectedPlanName = preset;
+                                    });
+                                  },
+                                );
+                              }).toList(),
                             ),
                             const SizedBox(height: 14),
 
-                            // 3. Custom Duration & Validity Selection
+                            // 3. Start Date Selection & Queue Row
+                            Builder(
+                              builder: (ctx) {
+                                final effectiveStart = _getEffectiveStartDate();
+                                final now = DateTime.now();
+                                final isAdvance = _studentPlanEndDate != null && _studentPlanEndDate!.isAfter(now);
+                                final isOverridden = _customStartDate != null;
+
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.surface,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.calendar_month_rounded, size: 18, color: theme.colorScheme.primary),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                const Text(
+                                                  'Start Date (Active From)',
+                                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+                                                ),
+                                                Text(
+                                                  DateFormat('dd MMMM yyyy (EEEE)').format(effectiveStart),
+                                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          OutlinedButton.icon(
+                                            style: OutlinedButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              visualDensity: VisualDensity.compact,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                            ),
+                                            icon: const Icon(Icons.edit_calendar_rounded, size: 14),
+                                            label: const Text('Change', style: TextStyle(fontSize: 11)),
+                                            onPressed: () async {
+                                              final picked = await showDatePicker(
+                                                context: context,
+                                                initialDate: effectiveStart,
+                                                firstDate: DateTime(2024, 1, 1),
+                                                lastDate: DateTime(2030, 12, 31),
+                                              );
+                                              if (picked != null) {
+                                                setState(() {
+                                                  _customStartDate = picked;
+                                                  _recalculateCustomFeeFromDailyRate(plans);
+                                                });
+                                              }
+                                            },
+                                          ),
+                                          if (isOverridden) ...[
+                                            const SizedBox(width: 4),
+                                            IconButton(
+                                              tooltip: 'Reset to automatic start date',
+                                              icon: const Icon(Icons.restart_alt_rounded, size: 18, color: Colors.redAccent),
+                                              visualDensity: VisualDensity.compact,
+                                              onPressed: () {
+                                                setState(() {
+                                                  _customStartDate = null;
+                                                  _recalculateCustomFeeFromDailyRate(plans);
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        isOverridden
+                                            ? '⚡ Manual start date override active'
+                                            : (isAdvance
+                                                ? '🔄 Continuous Queue: Auto-starts after active plan ends (${DateFormat('dd MMM yyyy').format(_studentPlanEndDate!)})'
+                                                : '🟢 Immediate Activation: Starts today (${DateFormat('dd MMM yyyy').format(now)})'),
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          color: isOverridden ? Colors.deepOrange : (isAdvance ? Colors.blue.shade700 : Colors.green.shade700),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 14),
+
+                            // 4. Validity Duration Presets (User Requested Chips)
                             Text(
-                              'Validity & Duration',
+                              'Validity Duration',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 12,
@@ -1275,6 +1419,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                       setState(() {
                                         _customDurationDays = 15;
                                         _customCustomExpiryDate = null;
+                                        _recalculateCustomFeeFromDailyRate(plans);
                                       });
                                     }
                                   },
@@ -1287,6 +1432,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                       setState(() {
                                         _customDurationDays = 30;
                                         _customCustomExpiryDate = null;
+                                        _recalculateCustomFeeFromDailyRate(plans);
                                       });
                                     }
                                   },
@@ -1299,6 +1445,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                       setState(() {
                                         _customDurationDays = 60;
                                         _customCustomExpiryDate = null;
+                                        _recalculateCustomFeeFromDailyRate(plans);
                                       });
                                     }
                                   },
@@ -1311,6 +1458,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                       setState(() {
                                         _customDurationDays = 90;
                                         _customCustomExpiryDate = null;
+                                        _recalculateCustomFeeFromDailyRate(plans);
                                       });
                                     }
                                   },
@@ -1323,6 +1471,7 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                       setState(() {
                                         _customDurationDays = 0;
                                         _customCustomExpiryDate = null;
+                                        _recalculateCustomFeeFromDailyRate(plans);
                                       });
                                     }
                                   },
@@ -1346,38 +1495,199 @@ class _RecordPaymentScreenState extends ConsumerState<RecordPaymentScreen> {
                                     if (picked != null) {
                                       setState(() {
                                         _customCustomExpiryDate = picked;
-                                        _customDurationDays = picked.difference(start).inDays;
+                                        _customDurationDays = picked.difference(start).inDays + 1;
+                                        _recalculateCustomFeeFromDailyRate(plans);
                                       });
                                     }
                                   },
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 14),
 
-                            // Dynamic Validity Preview Badge
+                            // 5. Intelligent Per-Day Rate & Total Fee Studio
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Per Day Rate Field
+                                Expanded(
+                                  flex: 5,
+                                  child: ValidatedTextField(
+                                    label: 'Per-Day Rate (₹/day) *',
+                                    controller: _dailyRateController,
+                                    hint: '25',
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    prefixIcon: const Icon(Icons.speed_rounded),
+                                    suffixText: '/ day',
+                                    onChanged: (_) {
+                                      setState(() {
+                                        _recalculateCustomFeeFromDailyRate(plans);
+                                      });
+                                    },
+                                    validator: (val) {
+                                      final parsed = double.tryParse(val ?? '');
+                                      if (parsed == null || parsed <= 0) return 'Invalid rate';
+                                      if (parsed > 5000) return 'Max ₹5000/d';
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // Total Plan Fee Field (Bidirectional sync)
+                                Expanded(
+                                  flex: 6,
+                                  child: ValidatedTextField(
+                                    label: 'Total Plan Fee (₹) *',
+                                    controller: _totalFeeController,
+                                    hint: 'Auto-calculated fee',
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: AppValidators.amountFormatters,
+                                    prefixIcon: const Icon(Icons.currency_rupee_rounded),
+                                    onChanged: (val) {
+                                      setState(() {
+                                        _recalculateDailyRateFromTotalFee(plans);
+                                        if (!_isPartialPayment) {
+                                          _amountController.text = val;
+                                        }
+                                      });
+                                    },
+                                    validator: (val) => AppValidators.amount(
+                                      val,
+                                      required: true,
+                                      min: 1.0,
+                                      max: 99999.0,
+                                      label: 'Total fee',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Preset Rate Chips
+                            Builder(
+                              builder: (ctx) {
+                                double? catalogMonthlyDailyRate;
+                                for (final p in plans) {
+                                  if (p.durationUnit == DurationUnit.months && p.duration == 1 ||
+                                      p.name.toLowerCase().contains('month')) {
+                                    if (p.price > 0) {
+                                      catalogMonthlyDailyRate = p.price / 30.0;
+                                      break;
+                                    }
+                                  }
+                                }
+
+                                final currentRate = double.tryParse(_dailyRateController.text) ?? 0.0;
+
+                                return Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: [
+                                    if (catalogMonthlyDailyRate != null)
+                                      ActionChip(
+                                        visualDensity: VisualDensity.compact,
+                                        avatar: const Icon(Icons.storefront_rounded, size: 14),
+                                        label: Text(
+                                          'Base (₹${catalogMonthlyDailyRate.toStringAsFixed(1)}/d)',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: (currentRate - catalogMonthlyDailyRate).abs() < 0.2 ? theme.colorScheme.primary : null,
+                                          ),
+                                        ),
+                                        backgroundColor: (currentRate - catalogMonthlyDailyRate).abs() < 0.2
+                                            ? theme.colorScheme.primary.withValues(alpha: 0.15)
+                                            : null,
+                                        onPressed: () {
+                                          setState(() {
+                                            _dailyRateController.text = catalogMonthlyDailyRate!.toStringAsFixed(1);
+                                            _recalculateCustomFeeFromDailyRate(plans);
+                                          });
+                                        },
+                                      ),
+                                    ...[20.0, 25.0, 30.0, 50.0].map((rate) {
+                                      final isSelected = (currentRate - rate).abs() < 0.1;
+                                      return ActionChip(
+                                        visualDensity: VisualDensity.compact,
+                                        label: Text(
+                                          '₹${rate.toStringAsFixed(0)}/d${rate == 25.0 ? " (Standard)" : ""}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                            color: isSelected ? theme.colorScheme.primary : null,
+                                          ),
+                                        ),
+                                        backgroundColor: isSelected ? theme.colorScheme.primary.withValues(alpha: 0.15) : null,
+                                        onPressed: () {
+                                          setState(() {
+                                            _dailyRateController.text = rate.toStringAsFixed(0);
+                                            _recalculateCustomFeeFromDailyRate(plans);
+                                          });
+                                        },
+                                      );
+                                    }),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 12),
+
+                            // 6. Live Validity & Pricing Formula Breakdown Banner
                             Builder(
                               builder: (ctx) {
                                 final start = _getEffectiveStartDate();
                                 final exp = _calculateNewExpiryDate(plans);
-                                final diffDays = exp.difference(start).inDays + 1;
+                                final diffDays = _calculateCustomDays(plans);
+                                final dailyRate = double.tryParse(_dailyRateController.text) ?? 0.0;
+                                final totalFee = _effectiveTotalFee;
+
                                 return Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                                  padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: theme.colorScheme.surface,
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(10),
                                     border: Border.all(color: theme.colorScheme.outlineVariant),
                                   ),
-                                  child: Row(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Icon(Icons.bolt_rounded, size: 16, color: Colors.orange),
-                                      const SizedBox(width: 6),
-                                      Expanded(
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.auto_awesome_rounded, size: 16, color: Colors.orange),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'Calculated Validity: ${DateFormat('dd MMM yyyy').format(start)} → ${DateFormat('dd MMM yyyy').format(exp)} ($diffDays days)',
+                                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withValues(alpha: 0.08),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
+                                        ),
                                         child: Text(
-                                          'Calculated Validity: ${DateFormat('dd MMM yyyy').format(start)} → ${DateFormat('dd MMM yyyy').format(exp)} ($diffDays days)',
-                                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                                          'Formula: $diffDays days × ₹${dailyRate.toStringAsFixed(1)}/day = ₹${totalFee.toStringAsFixed(0)} total fee',
+                                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Colors.green),
                                         ),
                                       ),
+                                      if (_isPartialPayment) ...[
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Partial Deposit: Paying ₹${_payingAmount.toStringAsFixed(0)} • Remaining Due: ₹${_calculatedRemainingDue.toStringAsFixed(0)}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: _calculatedRemainingDue > 0 ? Colors.deepOrange : Colors.green,
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 );

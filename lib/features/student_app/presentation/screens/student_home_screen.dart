@@ -191,11 +191,14 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              libraryName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                libraryName,
+                maxLines: 1,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
             ),
             if (library?.tagline.isNotEmpty == true)
               Text(
@@ -432,11 +435,23 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Welcome back,', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                          Text(studentName, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                          Text(
+                            studentName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: studentName.length > 25 ? 16.5 : 18.5,
+                              height: 1.25,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     Chip(
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       label: Text(student.effectiveMembershipStatus.name.toUpperCase()),
                       backgroundColor: student.effectiveMembershipStatus == MembershipStatus.active
                           ? Colors.green.shade100
@@ -925,15 +940,18 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      studentName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        studentName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 3),
                     Container(

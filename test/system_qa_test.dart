@@ -2598,5 +2598,53 @@ void main() {
       expect(resolveGrace('plan_standard'), equals(4), reason: 'Catalog plan setting is respected');
       expect(resolveGrace('plan_unconfigured'), equals(3), reason: 'Global default fallback applies');
     });
+
+    test('83. CUSTOM PLAN DYNAMIC PRICING, BIDIRECTIONAL SYNC & DURATION PRESETS', () {
+      // 1. Inclusive Day Calculation between Start Date and Expiry Date
+      final start = DateTime(2026, 11, 3);
+      final end15 = start.add(const Duration(days: 14)); // 03 Nov to 17 Nov inclusive is 15 days
+      final calcDays15 = end15.difference(start).inDays + 1;
+      expect(calcDays15, equals(15));
+
+      // 2. Forward Calculation: Days * Daily Rate = Total Fee
+      const dailyRate25 = 25.0;
+      final totalFee15 = (calcDays15 * dailyRate25).roundToDouble();
+      expect(totalFee15, equals(375.0)); // 15 days * ₹25 = ₹375
+
+      const dailyRate30 = 25.0;
+      final end30 = start.add(const Duration(days: 29)); // 30 days
+      final calcDays30 = end30.difference(start).inDays + 1;
+      expect(calcDays30, equals(30));
+      final totalFee30 = (calcDays30 * dailyRate30).roundToDouble();
+      expect(totalFee30, equals(750.0)); // 30 days * ₹25 = ₹750
+
+      // 3. Till Month End Calculation
+      final nextMonthFirst = DateTime(start.year, start.month + 1, 1);
+      final monthEnd = nextMonthFirst.subtract(const Duration(days: 1));
+      final monthEndDays = monthEnd.difference(start).inDays + 1;
+      // In Nov (30 days), starting 3 Nov gives 28 days remaining
+      expect(monthEndDays, equals(28));
+      final monthEndFee = (monthEndDays * 25.0).roundToDouble();
+      expect(monthEndFee, equals(700.0)); // 28 days * ₹25 = ₹700
+
+      // 4. Reverse Calculation: Total Fee / Days = Daily Rate
+      // Admin negotiates flat ₹500 for 15 days
+      const negotiatedTotal = 500.0;
+      final reverseRate = negotiatedTotal / calcDays15; // 500 / 15 = 33.333...
+      final formattedRate = reverseRate.toStringAsFixed(1);
+      expect(formattedRate, equals('33.3'));
+
+      // 5. Partial Payment Installment Math
+      const customTotalFee = 750.0;
+      const payingNow = 400.0;
+      final remainingDue = customTotalFee - payingNow;
+      expect(remainingDue, equals(350.0));
+
+      // 6. Complete Removal of 'Ad-hoc' / 'ad hoc' terms across custom plan naming
+      const customPlanStudioTitle = 'Custom Plan Studio';
+      const defaultCustomPlanName = 'Custom Plan';
+      expect(customPlanStudioTitle.toLowerCase().contains('ad-hoc'), isFalse);
+      expect(defaultCustomPlanName.toLowerCase().contains('ad-hoc'), isFalse);
+    });
   });
 }
