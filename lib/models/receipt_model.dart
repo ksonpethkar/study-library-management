@@ -19,6 +19,9 @@ class ReceiptModel {
   final double? paidAmount;
   final double? remainingDue;
   final int? installmentNumber;
+  final double? securityDeposit; // Refundable security deposit collected
+  final bool isDepositRefunded;
+  final DateTime? depositRefundedAt;
   final ReceiptStatus status;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -41,6 +44,9 @@ class ReceiptModel {
     this.paidAmount,
     this.remainingDue,
     this.installmentNumber,
+    this.securityDeposit,
+    this.isDepositRefunded = false,
+    this.depositRefundedAt,
     required this.status,
     this.createdAt,
     this.updatedAt,
@@ -60,6 +66,9 @@ class ReceiptModel {
       paidAmount: (json['paidAmount'] as num?)?.toDouble(),
       remainingDue: (json['remainingDue'] as num?)?.toDouble(),
       installmentNumber: json['installmentNumber'] as int?,
+      securityDeposit: (json['securityDeposit'] as num?)?.toDouble() ?? (json['securityDepositAmount'] as num?)?.toDouble(),
+      isDepositRefunded: json['isDepositRefunded'] as bool? ?? false,
+      depositRefundedAt: _parseDate(json['depositRefundedAt']),
       paymentMethod: json['paymentMethod'] as String? ?? '',
       validFrom: _parseDate(json['validFrom']) ?? DateTime.now(),
       validTo: _parseDate(json['validTo']) ?? DateTime.now(),
@@ -85,6 +94,9 @@ class ReceiptModel {
       if (paidAmount != null) 'paidAmount': paidAmount,
       if (remainingDue != null) 'remainingDue': remainingDue,
       if (installmentNumber != null) 'installmentNumber': installmentNumber,
+      if (securityDeposit != null) 'securityDeposit': securityDeposit,
+      'isDepositRefunded': isDepositRefunded,
+      if (depositRefundedAt != null) 'depositRefundedAt': depositRefundedAt!.toIso8601String(),
       'paymentMethod': paymentMethod,
       'validFrom': validFrom.toIso8601String(),
       'validTo': validTo.toIso8601String(),
@@ -109,6 +121,9 @@ class ReceiptModel {
     double? paidAmount,
     double? remainingDue,
     int? installmentNumber,
+    double? securityDeposit,
+    bool? isDepositRefunded,
+    DateTime? depositRefundedAt,
     String? paymentMethod,
     DateTime? validFrom,
     DateTime? validTo,
@@ -131,6 +146,9 @@ class ReceiptModel {
       paidAmount: paidAmount ?? this.paidAmount,
       remainingDue: remainingDue ?? this.remainingDue,
       installmentNumber: installmentNumber ?? this.installmentNumber,
+      securityDeposit: securityDeposit ?? this.securityDeposit,
+      isDepositRefunded: isDepositRefunded ?? this.isDepositRefunded,
+      depositRefundedAt: depositRefundedAt ?? this.depositRefundedAt,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       validFrom: validFrom ?? this.validFrom,
       validTo: validTo ?? this.validTo,

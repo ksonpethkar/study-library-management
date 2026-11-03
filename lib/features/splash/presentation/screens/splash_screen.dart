@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
 import 'package:study_library/features/auth/services/admin_whitelist_service.dart';
+import 'package:study_library/features/auth/services/auth_role_service.dart';
 import 'package:study_library/services/biometric_service.dart';
 import 'package:study_library/services/image_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -237,6 +238,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return;
       }
 
+      // ── Step 0b: Enrolled Student Precedence & Auto-Healing ─────────────
+      // In professional SaaS apps (e.g. Mindbody, ClassPass), enrolled student
+      // identity always takes strict precedence over orphan test workspaces.
+      final wasStudentHealed = await AuthRoleService.healEnrolledStudentRole(
+        ref,
+        navigate: false,
+      );
+      if (wasStudentHealed) {
+        await _ensureMinAnimationDuration(startTime);
+        if (!mounted) return;
+        context.go(Routes.studentHome);
+        return;
+      }
+
       // ── Step 1: Try persisted role from local storage / Firestore ─────────
       final persisted = await readPersistedUserRole(user.uid);
       if (!mounted) return;
@@ -246,14 +261,29 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         final libId = (persisted['libraryId'] ?? CurrentLibraryNotifier.defaultLibraryId) as String;
 
         if (roleStr == 'admin') {
-          ref.read(currentLibraryIdProvider.notifier).set(libId);
-          ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
-          await BiometricService.restoreSecuritySettingsFromFirestore(libId);
-          final isLocked = await BiometricService.isLockEnabled();
-          await _ensureMinAnimationDuration(startTime);
-          if (!mounted) return;
-          context.go(isLocked ? Routes.biometricLock : Routes.adminHome);
-          return;
+          // Strictly verify staff membership before granting admin access
+          final isStaff = await FirebaseFirestore.instance
+              .collection('libraries').doc(libId)
+              .collection('staff').doc(user.uid).get()
+              .then((d) => d.exists && (d.data()?['isActive'] ?? true) == true, onError: (_) => false);
+
+          if (isStaff || isWhitelisted) {
+            ref.read(currentLibraryIdProvider.notifier).set(libId);
+            ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
+            await BiometricService.restoreSecuritySettingsFromFirestore(libId);
+            final isLocked = await BiometricService.isLockEnabled();
+            await _ensureMinAnimationDuration(startTime);
+            if (!mounted) return;
+            context.go(isLocked ? Routes.biometricLock : Routes.adminHome);
+            return;
+          } else {
+            // Not staff or whitelisted — purge illegitimate admin role
+            ref.read(userRoleProvider.notifier).clear();
+            final p = await SharedPreferences.getInstance();
+            await p.remove('cached_current_user_role');
+            await p.remove('persisted_role');
+            await p.remove('persisted_uid');
+          }
         }
 
         if (roleStr == 'student') {
@@ -299,12 +329,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
       // ── Step 2: Full Firestore Check (First launch after install) ─────────
 
-      // 2a. Owner lookup
+      // 2a. Owner lookup (Strictly restricted to official default library)
       final library =
           await ref.read(libraryRepositoryProvider).getLibraryByOwnerId(user.uid);
       if (!mounted) return;
 
-      if (library != null) {
+      if (library != null && library.id == CurrentLibraryNotifier.defaultLibraryId) {
         ref.read(currentLibraryIdProvider.notifier).set(library.id);
         ref.read(userRoleProvider.notifier).setRole(AppUserRole.admin);
         await persistUserRole(

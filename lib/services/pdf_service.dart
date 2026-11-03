@@ -225,6 +225,14 @@ class PdfService {
         : PdfColor.fromHex('#881337');
     final currencyFmt = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
+    final depositAmount = (receipt.securityDeposit != null && receipt.securityDeposit! > 0)
+        ? receipt.securityDeposit!
+        : 0.0;
+    final hasDeposit = depositAmount > 0;
+    final planFeeAmount = (hasDeposit && receipt.amount >= depositAmount)
+        ? (receipt.amount - depositAmount)
+        : receipt.amount;
+
     final dueBalance = (receipt.remainingDue ?? student.pendingDueBalance ?? 0.0);
     final isDue = dueBalance > 0.01;
     final balanceText = isDue ? '${currencyFmt.format(dueBalance)} (Due)' : '₹0.00 (Nil)';
@@ -809,13 +817,59 @@ class PdfService {
                                   child: pw.Align(
                                     alignment: pw.Alignment.centerRight,
                                     child: pw.Text(
-                                      receipt.amount > 0 ? currencyFmt.format(receipt.amount) : '—',
+                                      (hasDeposit ? planFeeAmount : receipt.amount) > 0
+                                          ? currencyFmt.format(hasDeposit ? planFeeAmount : receipt.amount)
+                                          : '—',
                                       style: pw.TextStyle(fontSize: 11.5, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
                                     ),
                                   ),
                                 ),
                               ],
                             ),
+                            if (hasDeposit)
+                              pw.TableRow(
+                                decoration: pw.BoxDecoration(
+                                  border: pw.Border(top: pw.BorderSide(color: PdfColor.fromHex('#E2E8F0'), width: 0.8)),
+                                ),
+                                children: [
+                                  pw.Padding(
+                                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    child: pw.Column(
+                                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                      children: [
+                                        pw.Text(
+                                          'Refundable Security Deposit',
+                                          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
+                                        ),
+                                        pw.SizedBox(height: 2),
+                                        pw.Text(
+                                          'Held in trust during active membership • Refundable upon seat vacation',
+                                          style: pw.TextStyle(fontSize: 7, color: PdfColor.fromHex('#64748B'), fontStyle: pw.FontStyle.italic),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  pw.Padding(
+                                    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                                    child: pw.Center(
+                                      child: pw.Text(
+                                        'Active Tenure',
+                                        style: pw.TextStyle(fontSize: 7.5, color: PdfColor.fromHex('#64748B')),
+                                      ),
+                                    ),
+                                  ),
+                                  pw.Padding(
+                                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    child: pw.Align(
+                                      alignment: pw.Alignment.centerRight,
+                                      child: pw.Text(
+                                        currencyFmt.format(depositAmount),
+                                        style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#0F172A')),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                       ),

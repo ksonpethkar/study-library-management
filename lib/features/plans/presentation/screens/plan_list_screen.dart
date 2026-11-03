@@ -148,6 +148,22 @@ class PlanListScreen extends ConsumerWidget {
                                           ),
                                         ),
                                       ),
+                                      // Full-Day Seating Badge
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                        decoration: BoxDecoration(
+                                          color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.6),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          'Full-Day',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: theme.colorScheme.onSecondaryContainer,
+                                          ),
+                                        ),
+                                      ),
                                       if (plan.isFeatured)
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
@@ -363,6 +379,34 @@ class PlanListScreen extends ConsumerWidget {
                                 ),
                               ],
                             ),
+
+                            // Security Deposit Indicator
+                            if (plan.hasSecurityDeposit && (plan.securityDepositAmount ?? 0) > 0) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: Colors.amber.shade400.withValues(alpha: 0.5), width: 0.8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.shield_outlined, size: 13, color: Colors.amber.shade900),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Security Deposit: ₹${plan.securityDepositAmount!.toStringAsFixed(0)} (Refundable) • Total Upfront: ₹${plan.totalInitialAdmissionFee.toStringAsFixed(0)}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.amber.shade900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
 
                             const SizedBox(height: 10),
 

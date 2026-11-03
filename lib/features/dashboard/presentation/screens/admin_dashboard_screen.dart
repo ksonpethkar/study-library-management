@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
+import 'package:study_library/features/auth/services/auth_role_service.dart';
 import 'package:study_library/services/badge_service.dart';
 import 'package:study_library/features/seats/presentation/providers/seat_providers.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
@@ -160,8 +161,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> wit
     _watchPendingRequests();
     _initQuickActions();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
+        // Enrolled Student Precedence Check: If active session is an enrolled student, auto-heal & route to Student Portal
+        final wasHealed = await AuthRoleService.healEnrolledStudentRole(ref, context: context, navigate: true);
+        if (wasHealed || !mounted) return;
+
         if (_pendingRequestsSub == null) _watchPendingRequests();
         WhatsNewService.checkAndShow(context, isStudent: false);
         UpdateReminderDialog.checkAndShow(context, ref);

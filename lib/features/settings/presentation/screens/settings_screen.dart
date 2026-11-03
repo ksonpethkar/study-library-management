@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/providers/theme_provider.dart';
 import 'package:study_library/features/auth/presentation/providers/auth_provider.dart';
+import 'package:study_library/features/auth/services/auth_role_service.dart';
 import 'package:study_library/features/settings/presentation/screens/security_settings_dialog.dart';
 import 'package:study_library/services/whats_new_service.dart';
 import 'package:study_library/services/force_update_service.dart';
@@ -65,6 +66,66 @@ class SettingsScreen extends ConsumerWidget {
       ),
       body: ListView(
         children: [
+          // Enrolled Student Recovery Banner
+          FutureBuilder<bool>(
+            future: AuthRoleService.isEnrolledStudent(ref),
+            builder: (ctx, snap) {
+              if (snap.data == true) {
+                return Container(
+                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFF59E0B)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.school_rounded, color: Color(0xFFB45309), size: 22),
+                          SizedBox(width: 8),
+                          Text(
+                            'Enrolled Student Account Detected',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF92400E), fontSize: 14),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'This account belongs to an active student roster. Tap below to switch directly to your Student Portal.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF78350F)),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F766E),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () async {
+                            await AuthRoleService.healEnrolledStudentRole(
+                              ref,
+                              context: context,
+                              navigate: true,
+                              showFeedback: true,
+                            );
+                          },
+                          icon: const Icon(Icons.school_rounded, size: 18),
+                          label: const Text('Switch to Student Portal', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           // Top Library Profile Card
           Builder(
             builder: (ctx) {
@@ -552,6 +613,33 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: FilledButton.tonalIcon(
+              onPressed: () async {
+                final healed = await AuthRoleService.healEnrolledStudentRole(
+                  ref,
+                  context: context,
+                  navigate: true,
+                  showFeedback: true,
+                );
+                if (!healed && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('No student enrollment record found for this account.')),
+                  );
+                }
+              },
+              icon: const Icon(Icons.school_rounded),
+              label: const Text('Switch to Student Portal', style: TextStyle(fontWeight: FontWeight.bold)),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF0F766E).withValues(alpha: 0.12),
+                foregroundColor: const Color(0xFF0F766E),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: OutlinedButton.icon(

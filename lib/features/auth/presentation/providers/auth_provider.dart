@@ -90,35 +90,7 @@ class CurrentLibraryNotifier extends Notifier<String?> {
 
   Future<void> _autoResolve(String uid) async {
     try {
-      // 1. Check if user is a library owner
-      final snapshot = await FirebaseFirestore.instance
-          .collection('libraries')
-          .where('ownerId', isEqualTo: uid)
-          .get();
-      if (snapshot.docs.isNotEmpty) {
-        final docs = snapshot.docs.toList()
-          ..sort((a, b) {
-            DateTime? parse(dynamic v) {
-              if (v == null) return null;
-              if (v is Timestamp) return v.toDate();
-              if (v is DateTime) return v;
-              if (v is String) return DateTime.tryParse(v);
-              if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
-              try { return (v as dynamic).toDate(); } catch (_) { /* intentionally silent */ }
-              return null;
-            }
-            final aTime = parse(a.data()['updatedAt'] ?? a.data()['createdAt']);
-            final bTime = parse(b.data()['updatedAt'] ?? b.data()['createdAt']);
-            if (aTime == null && bTime == null) return 0;
-            if (aTime == null) return 1;
-            if (bTime == null) return -1;
-            return bTime.compareTo(aTime);
-          });
-        set(docs.first.id);
-        return;
-      }
-
-      // 2. Check if user is an enrolled student
+      // 1. Check if user is an enrolled student first (Student Precedence)
       final studentDocs = await FirebaseFirestore.instance
           .collectionGroup('students')
           .where('userId', isEqualTo: uid)
@@ -131,6 +103,18 @@ class CurrentLibraryNotifier extends Notifier<String?> {
           set(libId);
           return;
         }
+        set(defaultLibraryId);
+        return;
+      }
+
+      // 2. Check if user is the official owner of the default library
+      final officialLib = await FirebaseFirestore.instance
+          .collection('libraries')
+          .doc(defaultLibraryId)
+          .get();
+      if (officialLib.exists && officialLib.data()?['ownerId'] == uid) {
+        set(defaultLibraryId);
+        return;
       }
 
       // 3. Fallback: try public config, then Remote Config default
@@ -197,7 +181,11 @@ final currentLibraryProvider = StreamProvider<LibraryModel?>((ref) {
 final userLibraryCheckProvider = FutureProvider<LibraryModel?>((ref) async {
   final user = ref.watch(currentUserProvider);
   if (user == null) return null;
-  return ref.read(libraryRepositoryProvider).getLibraryByOwnerId(user.uid);
+  final lib = await ref.read(libraryRepositoryProvider).getLibraryByOwnerId(user.uid);
+  if (lib != null && lib.id == CurrentLibraryNotifier.defaultLibraryId) {
+    return lib;
+  }
+  return null;
 });
 
 // ── Role-based access control ─────────────────────────────────────────────────

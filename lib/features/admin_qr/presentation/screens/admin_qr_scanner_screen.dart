@@ -12,6 +12,7 @@ import 'package:study_library/services/image_service.dart';
 import 'package:study_library/features/students/presentation/providers/student_providers.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_library/core/router/app_router.dart';
+import 'package:study_library/core/utils/error_formatter.dart';
 
 class AdminQrScannerScreen extends ConsumerStatefulWidget {
   const AdminQrScannerScreen({super.key});
@@ -60,7 +61,7 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Flashlight unavailable on this camera: $e'),
+            content: Text(AppErrorFormatter.toUserFriendly(e, actionContext: 'camera')),
             duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
           ),
@@ -85,7 +86,7 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Camera reset: ${e.toString().contains('NotReadableError') ? 'Camera stream was locked by browser. Reloaded camera.' : e.toString()}'),
+            content: Text(AppErrorFormatter.toUserFriendly(e, actionContext: 'camera')),
             duration: const Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
           ),
@@ -477,14 +478,17 @@ class _AdminQrScannerScreenState extends ConsumerState<AdminQrScannerScreen> {
                         const Icon(Icons.videocam_off_rounded, color: Colors.redAccent, size: 48),
                         const SizedBox(height: 14),
                         const Text(
-                          'Camera Access Issue',
+                          'Camera Access Notice',
                           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          error.errorDetails?.message ?? error.errorCode.name,
+                          AppErrorFormatter.toUserFriendly(
+                            error.errorDetails?.message ?? error.errorCode.name,
+                            actionContext: 'camera',
+                          ),
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.3),
                         ),
                         const SizedBox(height: 20),
                         Wrap(

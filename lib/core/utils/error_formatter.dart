@@ -33,6 +33,16 @@ class AppErrorFormatter {
       return 'Payment could not be recorded. Please verify the amount and payment details and try again.';
     }
 
+    if (actionContext == 'camera' || str.contains('notreadableerror') || str.contains('video source') || str.contains('camera')) {
+      if (str.contains('notreadableerror') || str.contains('video source')) {
+        return 'Camera is being used by another tab or app. Please close other camera tabs and tap Retry.';
+      }
+      if (str.contains('permission') || str.contains('denied')) {
+        return 'Camera permission was not granted. Please allow camera access in your browser or device settings.';
+      }
+      return 'Camera is temporarily unavailable on this device. You can look up the student manually.';
+    }
+
     // Permissions & Authentication
     if (str.contains('permission-denied') || str.contains('unauthorized') || str.contains('insufficient permissions')) {
       return 'Action not permitted with your current account. Please sign in or contact the desk manager.';

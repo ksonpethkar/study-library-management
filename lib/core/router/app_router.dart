@@ -189,11 +189,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         Routes.privacyPolicy,
         Routes.biometricLock,
         Routes.accessRestricted,
-        Routes.setupWizard,
         Routes.studentRegister,
       ];
       if (publicRoutes.any((r) => path == r || path.startsWith(r))) {
         return null; // allow
+      }
+
+      // Setup wizard route — strictly restricted from student access
+      if (path == Routes.setupWizard || path.startsWith(Routes.setupWizard)) {
+        if (role == AppUserRole.student) {
+          return Routes.studentHome;
+        }
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) return Routes.login;
+        return null;
       }
 
       // Admin-only routes

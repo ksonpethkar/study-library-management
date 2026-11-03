@@ -23,10 +23,12 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
   late TextEditingController _durationController;
   late TextEditingController _descriptionController;
   late TextEditingController _graceController;
+  late TextEditingController _securityDepositController;
   
   DurationUnit _durationUnit = DurationUnit.months;
   bool _isActive = true;
   bool _isFeatured = false;
+  bool _hasSecurityDeposit = false;
 
   @override
   void initState() {
@@ -39,6 +41,13 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
     _durationController = TextEditingController(text: widget.plan?.duration.toString());
     _descriptionController = TextEditingController(text: widget.plan?.description);
     _graceController = TextEditingController(text: widget.plan?.gracePeriodDays.toString());
+    _hasSecurityDeposit = widget.plan?.hasSecurityDeposit ??
+        (widget.plan?.securityDepositAmount != null && widget.plan!.securityDepositAmount! > 0);
+    _securityDepositController = TextEditingController(
+      text: widget.plan?.securityDepositAmount != null
+          ? widget.plan!.securityDepositAmount!.toStringAsFixed(0)
+          : '500',
+    );
     if (widget.plan != null) {
       _durationUnit = widget.plan!.durationUnit;
       _isActive = widget.plan!.isActive;
@@ -54,6 +63,7 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
     _durationController.dispose();
     _descriptionController.dispose();
     _graceController.dispose();
+    _securityDepositController.dispose();
     super.dispose();
   }
 
@@ -75,6 +85,17 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
         return;
       }
 
+      double? depositAmt;
+      if (_hasSecurityDeposit) {
+        depositAmt = double.tryParse(_securityDepositController.text.trim());
+        if (depositAmt == null || depositAmt <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please enter a valid refundable security deposit amount (> ₹0).')),
+          );
+          return;
+        }
+      }
+
       String planName = _nameController.text.trim();
       if (planName.toLowerCase() == 'quaterly') {
         planName = 'Quarterly';
@@ -88,6 +109,8 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
         durationUnit: _durationUnit,
         price: double.parse(_priceController.text),
         originalPrice: double.tryParse(_originalPriceController.text.trim()),
+        hasSecurityDeposit: _hasSecurityDeposit,
+        securityDepositAmount: depositAmt,
         description: _descriptionController.text.trim(),
         gracePeriodDays: int.tryParse(_graceController.text) ?? 0,
         isActive: _isActive,
@@ -313,6 +336,99 @@ class _AddPlanScreenState extends ConsumerState<AddPlanScreen> {
                       }
                       return const SizedBox.shrink();
                     },
+                    ),
+                    const SizedBox(height: 14),
+
+                    // ── Optional Refundable Security Deposit Block ──
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _hasSecurityDeposit
+                            ? Colors.amber.withValues(alpha: 0.08)
+                            : Colors.grey.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _hasSecurityDeposit
+                              ? Colors.amber.shade600.withValues(alpha: 0.5)
+                              : Colors.grey.withValues(alpha: 0.2),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Row(
+                              children: [
+                                Icon(
+                                  Icons.shield_outlined,
+                                  color: _hasSecurityDeposit ? Colors.amber.shade800 : Colors.grey,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Require Security Deposit',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                              ],
+                            ),
+                            subtitle: const Text(
+                              'Optional refundable deposit held during active membership. Refunded on exit.',
+                              style: TextStyle(fontSize: 11.5),
+                            ),
+                            value: _hasSecurityDeposit,
+                            onChanged: (val) => setState(() => _hasSecurityDeposit = val),
+                          ),
+                          if (_hasSecurityDeposit) ...[
+                            const SizedBox(height: 10),
+                            ValidatedTextField(
+                              label: 'Refundable Security Deposit Amount (₹)',
+                              controller: _securityDepositController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: AppValidators.amountFormatters,
+                              validator: (v) {
+                                if (!_hasSecurityDeposit) return null;
+                                if (v == null || v.trim().isEmpty) return 'Enter deposit amount';
+                                final amt = double.tryParse(v.trim());
+                                if (amt == null || amt <= 0) return 'Deposit must be > ₹0';
+                                return null;
+                              },
+                              onChanged: (_) => setState(() {}),
+                            ),
+                            const SizedBox(height: 8),
+                            Builder(builder: (context) {
+                              final fee = double.tryParse(_priceController.text) ?? 0;
+                              final dep = double.tryParse(_securityDepositController.text) ?? 0;
+                              final total = fee + dep;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.amber.shade200),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.info_outline_rounded, size: 14, color: Colors.amber.shade900),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Initial Upfront Collection: ₹${total.toStringAsFixed(0)} (Fee: ₹${fee.toStringAsFixed(0)} + Deposit: ₹${dep.toStringAsFixed(0)})',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.amber.shade900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 16),
                     ValidatedTextField(

@@ -10,6 +10,8 @@ class PlanModel {
   final DurationUnit durationUnit;
   final double price;
   final double? originalPrice; // MRP / Cut price for discount display (e.g. ~~₹2400~~ ₹2000)
+  final bool hasSecurityDeposit; // Optional refundable security deposit configured by admin
+  final double? securityDepositAmount; // Amount in ₹ (e.g. ₹500 or ₹1000)
   final String description;
   final int gracePeriodDays;
   final bool isActive;
@@ -29,6 +31,8 @@ class PlanModel {
     required this.durationUnit,
     required this.price,
     this.originalPrice,
+    this.hasSecurityDeposit = false,
+    this.securityDepositAmount,
     required this.description,
     required this.gracePeriodDays,
     required this.isActive,
@@ -50,6 +54,8 @@ class PlanModel {
       durationUnit: _parseDurationUnit(json['durationUnit'] as String?),
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
       originalPrice: (json['originalPrice'] as num?)?.toDouble() ?? (json['cutPrice'] as num?)?.toDouble() ?? (json['mrp'] as num?)?.toDouble(),
+      hasSecurityDeposit: json['hasSecurityDeposit'] as bool? ?? (((json['securityDepositAmount'] as num?)?.toDouble() ?? 0.0) > 0),
+      securityDepositAmount: (json['securityDepositAmount'] as num?)?.toDouble() ?? (json['securityDeposit'] as num?)?.toDouble(),
       description: json['description'] as String? ?? '',
       gracePeriodDays: json['gracePeriodDays'] as int? ?? 0,
       isActive: json['isActive'] as bool? ?? true,
@@ -72,6 +78,8 @@ class PlanModel {
       'durationUnit': durationUnit.name,
       'price': price,
       if (originalPrice != null) 'originalPrice': originalPrice,
+      'hasSecurityDeposit': hasSecurityDeposit,
+      if (securityDepositAmount != null) 'securityDepositAmount': securityDepositAmount,
       'description': description,
       'gracePeriodDays': gracePeriodDays,
       'isActive': isActive,
@@ -93,6 +101,9 @@ class PlanModel {
     DurationUnit? durationUnit,
     double? price,
     double? originalPrice,
+    bool? hasSecurityDeposit,
+    double? securityDepositAmount,
+    bool clearSecurityDeposit = false,
     String? description,
     int? gracePeriodDays,
     bool? isActive,
@@ -112,6 +123,10 @@ class PlanModel {
       durationUnit: durationUnit ?? this.durationUnit,
       price: price ?? this.price,
       originalPrice: originalPrice ?? this.originalPrice,
+      hasSecurityDeposit: hasSecurityDeposit ?? this.hasSecurityDeposit,
+      securityDepositAmount: clearSecurityDeposit
+          ? null
+          : (securityDepositAmount ?? this.securityDepositAmount),
       description: description ?? this.description,
       gracePeriodDays: gracePeriodDays ?? this.gracePeriodDays,
       isActive: isActive ?? this.isActive,
@@ -123,6 +138,12 @@ class PlanModel {
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
     );
+  }
+
+  /// Total upfront collection required for fresh admission (Plan Price + Refundable Security Deposit)
+  double get totalInitialAdmissionFee {
+    final deposit = (hasSecurityDeposit && securityDepositAmount != null) ? securityDepositAmount! : 0.0;
+    return price + deposit;
   }
 
   /// Returns a clean display name, automatically normalizing common typos like "Quaterly" -> "Quarterly"

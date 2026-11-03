@@ -310,6 +310,24 @@ class _ReceiptListScreenState extends ConsumerState<ReceiptListScreen> {
                             'Valid: ${_dateFormat.format(receipt.validFrom)} – ${_dateFormat.format(receipt.validTo)}',
                             style: const TextStyle(fontSize: 11),
                           ),
+                          if (receipt.securityDeposit != null && receipt.securityDeposit! > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 3),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.shield_outlined, size: 12, color: Colors.amber.shade800),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Incl. ₹${receipt.securityDeposit!.toStringAsFixed(0)} Deposit (Refundable)',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.amber.shade900,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           if (isVoided)
                             Container(
                               margin: const EdgeInsets.only(top: 3),

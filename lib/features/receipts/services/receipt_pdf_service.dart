@@ -21,6 +21,7 @@ class ReceiptPdfService {
     required DateTime paymentDate,
     required DateTime? validFrom,
     required DateTime? validTo,
+    double? securityDeposit,
     String? notes,
   }) async {
     final effectiveValidFrom = validFrom ?? paymentDate;
@@ -33,6 +34,7 @@ class ReceiptPdfService {
       studentId: 'std_default',
       planId: 'plan_default',
       amount: amount,
+      securityDeposit: securityDeposit,
       paymentMethod: paymentMethod,
       validFrom: effectiveValidFrom,
       validTo: effectiveValidTo,
