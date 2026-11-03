@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 
 /// TelegramService enables 100% free messaging and alerts via the official Telegram Bot API.
-/// Requires zero servers, zero credit card, and offers unlimited free messages.
+/// Requires zero servers, zero credit card, and offers unlimited free messages across Web, Android, iOS, and Desktop.
 class TelegramService {
   /// Sends a message via the Telegram Bot API.
   Future<bool> sendMessage({
@@ -12,40 +12,36 @@ class TelegramService {
     required String chatId,
     required String message,
   }) async {
-    if (botToken.trim().isEmpty || chatId.trim().isEmpty) {
+    final cleanToken = botToken.trim();
+    final cleanChatId = chatId.trim();
+
+    if (cleanToken.isEmpty || cleanChatId.isEmpty) {
       if (kDebugMode) debugPrint('TelegramService: Bot token or chat ID is empty');
       return false;
     }
 
-    HttpClient? client;
     try {
-      client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
-      final url = Uri.parse('https://api.telegram.org/bot${botToken.trim()}/sendMessage');
-      final request = await client.postUrl(url);
-      request.headers.contentType = ContentType.json;
-
-      final body = jsonEncode({
-        'chat_id': chatId.trim(),
-        'text': message,
-        'parse_mode': 'HTML',
-      });
-
-      request.write(body);
-      final response = await request.close();
-      final responseBody = await response.transform(utf8.decoder).join();
+      final url = Uri.parse('https://api.telegram.org/bot$cleanToken/sendMessage');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'chat_id': cleanChatId,
+          'text': message,
+          'parse_mode': 'HTML',
+        }),
+      ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         if (kDebugMode) debugPrint('TelegramService: Message sent successfully');
         return true;
       } else {
-        if (kDebugMode) debugPrint('TelegramService error (${response.statusCode}): $responseBody');
+        if (kDebugMode) debugPrint('TelegramService error (${response.statusCode}): ${response.body}');
         return false;
       }
     } catch (e) {
       if (kDebugMode) debugPrint('TelegramService network error: $e');
       return false;
-    } finally {
-      client?.close();
     }
   }
 
@@ -105,7 +101,7 @@ class TelegramService {
     required String chatId,
     String? libraryName,
   }) async {
-    final header = libraryName?.isNotEmpty == true ? libraryName! : 'Library System';
+    final header = libraryName?.isNotEmpty == true ? libraryName! : 'The Cozy Corner Study Centre';
     final message = '🚀 <b>$header</b>\n\n'
         'Telegram Bot notification integration is <b>active & verified</b>! ✅\n'
         '<i>Timestamp: ${DateTime.now().toIso8601String()}</i>';

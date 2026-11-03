@@ -466,59 +466,40 @@ class _CommunicationsHubScreenState extends ConsumerState<CommunicationsHubScree
               if (Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
               } else {
-                context.go('/admin/more');
+                context.go(Routes.adminMore);
               }
             },
           ),
           title: const Text('Communications & Automation'),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: _isSaving ? null : _saveSettings,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.save_rounded, size: 16),
+                label: Text(
+                  _isSaving ? 'Saving...' : 'Save Changes',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+            ),
+          ],
           bottom: const TabBar(
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
             tabs: [
               Tab(icon: Icon(Icons.bolt_rounded), text: 'Action Queue'),
               Tab(icon: Icon(Icons.hub_rounded), text: 'Delivery Channels'),
               Tab(icon: Icon(Icons.auto_awesome_rounded), text: 'Automation Rules'),
             ],
-          ),
-        ),
-        bottomNavigationBar: SafeArea(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            decoration: BoxDecoration(
-              color: theme.scaffoldBackgroundColor,
-              border: Border(
-                top: BorderSide(
-                  color: theme.dividerColor.withValues(alpha: 0.15),
-                  width: 1,
-                ),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 6,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 820),
-                child: SizedBox(
-                  height: 48,
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: _isSaving ? null : _saveSettings,
-                    icon: _isSaving
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.save_rounded),
-                    label: Text(_isSaving ? 'Saving Configuration...' : 'Save Communications Configuration', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ),
-            ),
           ),
         ),
         body: _isLoading

@@ -137,7 +137,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // identity always takes strict precedence over orphan test workspaces.
       final wasStudentHealed = await AuthRoleService.healEnrolledStudentRole(
         ref,
-        context,
         navigate: false,
       );
       if (wasStudentHealed) {

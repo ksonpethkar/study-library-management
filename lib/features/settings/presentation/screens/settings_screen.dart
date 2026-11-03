@@ -350,7 +350,7 @@ class SettingsScreen extends ConsumerWidget {
                 iconColor: const Color(0xFF2563EB),
                 title: 'Communications & Automation',
                 subtitle: 'WhatsApp, SMS, Telegram channels & automated alerts',
-                onTap: () => context.push(Routes.adminCommunications),
+                onTap: () => context.go(Routes.adminCommunications),
               ),
               const Divider(height: 1, indent: 56),
               _buildSettingsTile(

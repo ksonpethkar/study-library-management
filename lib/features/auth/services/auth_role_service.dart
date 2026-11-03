@@ -24,8 +24,8 @@ class AuthRoleService {
   /// 
   /// Returns `true` if the user was healed/switched to student, `false` otherwise.
   static Future<bool> healEnrolledStudentRole(
-    WidgetRef ref,
-    BuildContext context, {
+    WidgetRef ref, {
+    BuildContext? context,
     bool navigate = true,
     bool showFeedback = false,
   }) async {
@@ -149,7 +149,7 @@ class AuthRoleService {
         ref.read(currentLibraryIdProvider.notifier).set(effectiveLibId);
         ref.read(userRoleProvider.notifier).setRole(AppUserRole.student);
 
-        if (showFeedback && context.mounted) {
+        if (showFeedback && context != null && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Switched to Student Portal successfully! 🎓'),
@@ -159,7 +159,7 @@ class AuthRoleService {
           );
         }
 
-        if (navigate && context.mounted) {
+        if (navigate && context != null && context.mounted) {
           context.go(Routes.studentHome);
         }
 

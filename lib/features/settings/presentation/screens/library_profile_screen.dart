@@ -1234,7 +1234,7 @@ class _LibraryProfileScreenState extends ConsumerState<LibraryProfileScreen> {
                             title: const Text('Communications & Automation Hub', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                             subtitle: const Text('Broadcasts, automated renewal alerts, and notification channels', style: TextStyle(fontSize: 11)),
                             trailing: const Icon(Icons.chevron_right_rounded, size: 20),
-                            onTap: () => context.push(Routes.adminCommunications),
+                            onTap: () => context.go(Routes.adminCommunications),
                           ),
                           const SizedBox(height: 10),
                           // Optional In-Place Template Overrides (Clean Accordion)

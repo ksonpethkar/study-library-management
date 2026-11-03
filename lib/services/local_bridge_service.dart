@@ -1,11 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 
 /// LocalBridgeService connects to a local WhatsApp Web bridge (e.g. Baileys / whatsapp-web.js)
 /// running on the library reception desk computer.
-/// Dispatches automated WhatsApp messages without Meta API fees.
+/// Dispatches automated WhatsApp messages without Meta API fees across all platforms.
 class LocalBridgeService {
   /// Sends a message via the local WhatsApp Web bridge.
   Future<bool> sendMessage({
@@ -16,26 +16,21 @@ class LocalBridgeService {
     final cleanUrl = bridgeUrl.trim();
     if (cleanUrl.isEmpty) return false;
 
-    HttpClient? client;
     try {
-      client = HttpClient()..connectionTimeout = const Duration(seconds: 6);
-      final request = await client.postUrl(Uri.parse(cleanUrl));
-      request.headers.contentType = ContentType.json;
+      final response = await http.post(
+        Uri.parse(cleanUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'phone': phone.replaceAll(RegExp(r'\D'), ''),
+          'message': message,
+          'timestamp': DateTime.now().toIso8601String(),
+        }),
+      ).timeout(const Duration(seconds: 6));
 
-      final payload = jsonEncode({
-        'phone': phone.replaceAll(RegExp(r'\D'), ''),
-        'message': message,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-
-      request.write(payload);
-      final response = await request.close();
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
       if (kDebugMode) debugPrint('LocalBridgeService error: $e');
       return false;
-    } finally {
-      client?.close();
     }
   }
 
@@ -44,18 +39,13 @@ class LocalBridgeService {
     final cleanUrl = bridgeUrl.trim();
     if (cleanUrl.isEmpty) return false;
 
-    HttpClient? client;
     try {
-      client = HttpClient()..connectionTimeout = const Duration(seconds: 4);
       final uri = Uri.parse(cleanUrl.replaceAll(RegExp(r'/send/?$'), '/ping'));
-      final request = await client.getUrl(uri);
-      final response = await request.close();
+      final response = await http.get(uri).timeout(const Duration(seconds: 4));
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
       if (kDebugMode) debugPrint('LocalBridgeService ping failed: $e');
       return false;
-    } finally {
-      client?.close();
     }
   }
 }
